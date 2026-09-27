@@ -1,0 +1,19 @@
+{
+  "id": 10040322,
+  "name": "墨子-墨守成规-进入屏障清除飞行物",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 60,
+  "conditions": [
+    {
+      "type": "target_is_flying_projectile"
+    }
+  ],
+  "actions": [
+    {
+      "type": "remove_projectile"
+    }
+  ]
+}

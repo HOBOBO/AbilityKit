@@ -289,7 +289,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 Assert.IsTrue(harness.TryGetRunningSkillSnapshot(actorId, slot, out var snapshot), harness.DescribeSkillRuntimeState(actorId, slot));
                 Assert.AreEqual(expectedSkillId, snapshot.SkillId, "The running skill should match the configured Lian Po slot.");
-                Assert.IsTrue(HasEffectiveTag(harness, actorId, superArmorTag), "Lian Po should carry super armor while the cast pipeline is active.");
+                Assert.IsTrue(harness.Config.TryGetSkillFlow(expectedSkillId, out var flow));
+                Assert.AreEqual(10010001, flow.PipelineContinuousTagTemplateId, "Lian Po cast flow should request the super-armor tag template.");
+                Assert.IsTrue(HasEffectiveTag(harness, actorId, superArmorTag),
+                    "Lian Po should carry super armor while the cast pipeline is active.");
 
                 harness.TickUntilSkillStops(actorId, slot, maxTicks: 180);
 

@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Diagnostics;
-using AbilityKit.Trace;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Pooling;
 
@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Moba.Services
             maxSize: 64);
 
         private readonly Dictionary<long, MobaSkillCastRuntime> _runtimes = new Dictionary<long, MobaSkillCastRuntime>();
-        private readonly Dictionary<long, long> _runtimeByTraceContextId = new Dictionary<long, long>();
+        private readonly Dictionary<long, long> _runtimeByContextId = new Dictionary<long, long>();
         private readonly Dictionary<long, MobaSkillRuntimeRetainHandle> _retains = new Dictionary<long, MobaSkillRuntimeRetainHandle>();
         private readonly List<long> _endingBuffer = new List<long>(8);
         private readonly List<MobaSkillRuntimeChildRef> _diagnosticChildrenBuffer = new List<MobaSkillRuntimeChildRef>(8);
@@ -29,7 +29,10 @@ namespace AbilityKit.Demo.Moba.Services
         private int _nextGeneration = 1;
 
         [WorldInject(required: false)]
-        private MobaTraceRegistry _trace = null;
+        private MobaExecutionContextRegistry _executionContexts = null;
+
+        [WorldInject(required: false)]
+        private IFrameTime _frameTime = null;
 
         [WorldInject(required: false)]
         private IMobaBattleDiagnosticEventSink _diagnosticEvents = null;
@@ -38,7 +41,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int Count => _runtimes.Count;
 
-        internal MobaTraceRegistry TraceRegistry => _trace;
+        internal MobaExecutionContextRegistry ExecutionContextRegistry => _executionContexts;
 
         public MobaSkillCastRuntime Create(in MobaSkillCastRuntimeCreateRequest request)
         {
@@ -48,9 +51,9 @@ namespace AbilityKit.Demo.Moba.Services
             var runtime = new MobaSkillCastRuntime(runtimeId, generation, in request);
             _runtimes.Add(runtimeId, runtime);
 
-            if (runtime.RootTraceContextId != 0L)
+            if (runtime.RootContextId != 0L)
             {
-                _runtimeByTraceContextId[runtime.RootTraceContextId] = runtimeId;
+                _runtimeByContextId[runtime.RootContextId] = runtimeId;
             }
 
             NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.Created, runtime, default, default, MobaSkillRuntimeEndReason.None, forced: false);
@@ -85,11 +88,11 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
-        public bool TryGetByTraceContext(long traceContextId, out MobaSkillCastRuntime runtime)
+        public bool TryGetByContext(long contextId, out MobaSkillCastRuntime runtime)
         {
             runtime = null;
-            if (traceContextId == 0L) return false;
-            return _runtimeByTraceContextId.TryGetValue(traceContextId, out var runtimeId) && TryGet(runtimeId, out runtime);
+            if (contextId == 0L) return false;
+            return _runtimeByContextId.TryGetValue(contextId, out var runtimeId) && TryGet(runtimeId, out runtime);
         }
 
         public bool UpdateStage(long runtimeId, SkillCastStage stage)
@@ -103,6 +106,14 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (!TryGet(runtimeId, out var runtime)) return false;
             runtime.UpdateInput(in aimPos, in aimDir, targetActorId);
+            return true;
+        }
+
+        public bool UpdateInput(long runtimeId, in AbilityKit.Core.Mathematics.Vec3 aimPos, in AbilityKit.Core.Mathematics.Vec3 aimDir,
+            int targetActorId, bool hasAimPos, bool hasAimDir, bool hasTarget)
+        {
+            if (!TryGet(runtimeId, out var runtime)) return false;
+            runtime.UpdateInput(in aimPos, in aimDir, targetActorId, hasAimPos, hasAimDir, hasTarget);
             return true;
         }
 
@@ -325,6 +336,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void Clear()
         {
+            Exception firstFailure = null;
             while (_runtimes.Count > 0)
             {
                 MobaSkillCastRuntime runtime = null;
@@ -340,19 +352,28 @@ namespace AbilityKit.Demo.Moba.Services
                     break;
                 }
 
-                ForceTerminateRuntime(runtime, MobaSkillRuntimeEndReason.RollbackCleanup, MobaSkillRuntimeLifecycleEventKind.Cleared);
+                try
+                {
+                    ForceTerminateRuntime(runtime, MobaSkillRuntimeEndReason.RollbackCleanup, MobaSkillRuntimeLifecycleEventKind.Cleared);
+                }
+                catch (Exception ex)
+                {
+                    if (firstFailure == null) firstFailure = ex;
+                    else Log.Exception(ex, "Additional skill runtime clear failed.");
+                }
             }
 
-            _runtimeByTraceContextId.Clear();
+            _runtimeByContextId.Clear();
             _retains.Clear();
             _endingBuffer.Clear();
             _diagnosticChildrenBuffer.Clear();
+            if (firstFailure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstFailure).Throw();
         }
 
         public void Dispose()
         {
-            Clear();
-            LifecycleHooks.Clear();
+            try { Clear(); }
+            finally { LifecycleHooks.Clear(); }
         }
 
         internal MobaSkillCastRuntimeServiceSnapshot CaptureRollbackSnapshot()
@@ -377,7 +398,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var previous = new Dictionary<long, MobaSkillCastRuntime>(_runtimes);
             _runtimes.Clear();
-            _runtimeByTraceContextId.Clear();
+            _runtimeByContextId.Clear();
             _retains.Clear();
             _endingBuffer.Clear();
             _diagnosticChildrenBuffer.Clear();
@@ -393,12 +414,12 @@ namespace AbilityKit.Demo.Moba.Services
                     var aimDir = state.AimDir;
                     var request = new MobaSkillCastRuntimeCreateRequest(
                         state.SkillId, state.SkillSlot, state.SkillLevel, state.Sequence, state.CasterActorId,
-                        state.TargetActorId, in aimPos, in aimDir, state.RootTraceContextId);
+                        state.TargetActorId, in aimPos, in aimDir, state.RootContextId);
                     runtime = new MobaSkillCastRuntime(state.RuntimeId, state.Generation, in request);
                 }
                 runtime.RestoreRollbackSnapshot(in state);
                 _runtimes.Add(runtime.RuntimeId, runtime);
-                if (runtime.RootTraceContextId != 0L) _runtimeByTraceContextId[runtime.RootTraceContextId] = runtime.RuntimeId;
+                if (runtime.RootContextId != 0L) _runtimeByContextId[runtime.RootContextId] = runtime.RuntimeId;
             }
 
             var retains = snapshot.Retains ?? Array.Empty<MobaSkillRuntimeRetainHandle>();
@@ -417,8 +438,14 @@ namespace AbilityKit.Demo.Moba.Services
             runtime.PipelineEnded = true;
             runtime.Stage = stage;
             runtime.EndReason = reason == MobaSkillRuntimeEndReason.None ? MobaSkillRuntimeEndReason.PipelineCompleted : reason;
-            NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.PipelineEnded, runtime, default, default, runtime.EndReason, forced: false);
-            TryFinalize(runtime);
+            try
+            {
+                NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.PipelineEnded, runtime, default, default, runtime.EndReason, forced: false);
+            }
+            finally
+            {
+                TryFinalize(runtime);
+            }
             return true;
         }
 
@@ -431,10 +458,22 @@ namespace AbilityKit.Demo.Moba.Services
             runtime.PipelineEnded = true;
             runtime.Stage = SkillCastStage.Cancelled;
             runtime.EndReason = reason == MobaSkillRuntimeEndReason.None ? MobaSkillRuntimeEndReason.RollbackCleanup : reason;
-            NotifyLifecycle(lifecycleKind, runtime, default, default, runtime.EndReason, forced: true);
-            RevokeChildCapabilities(runtime, runtime.EndReason);
-            TryFinalize(runtime, force: true);
+            Exception firstFailure = null;
+            Record(() => NotifyLifecycle(lifecycleKind, runtime, default, default, runtime.EndReason, forced: true));
+            Record(() => RevokeChildCapabilities(runtime, runtime.EndReason));
+            Record(() => TryFinalize(runtime, force: true));
+            if (firstFailure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstFailure).Throw();
             return true;
+
+            void Record(Action step)
+            {
+                try { step(); }
+                catch (Exception ex)
+                {
+                    if (firstFailure == null) firstFailure = ex;
+                    else Log.Exception(ex, "Additional skill runtime termination step failed.");
+                }
+            }
         }
 
         private void RevokeChildCapabilities(MobaSkillCastRuntime runtime, MobaSkillRuntimeEndReason reason)
@@ -447,15 +486,25 @@ namespace AbilityKit.Demo.Moba.Services
 
             var children = new List<MobaSkillRuntimeChildRef>(runtime.PendingChildren);
             runtime.CopyChildrenTo(children);
+            Exception firstFailure = null;
             for (var i = 0; i < children.Count; i++)
             {
                 var child = children[i];
                 var retainHandle = TakeRetain(runtime.Handle, in child);
                 if (!runtime.ReleaseChild(in child)) continue;
-                NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.ChildReleased, runtime, in child, in retainHandle, reason, forced: true);
+                try
+                {
+                    NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.ChildReleased, runtime, in child, in retainHandle, reason, forced: true);
+                }
+                catch (Exception ex)
+                {
+                    if (firstFailure == null) firstFailure = ex;
+                    else AbilityKit.Core.Logging.Log.Exception(ex, "Additional child release hook failed.");
+                }
             }
 
             RemoveRetains(runtime.Handle);
+            if (firstFailure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstFailure).Throw();
         }
 
         private MobaSkillRuntimeRetainHandle TakeRetain(in MobaSkillCastRuntimeHandle runtimeHandle, in MobaSkillRuntimeChildRef child)
@@ -492,29 +541,35 @@ namespace AbilityKit.Demo.Moba.Services
 
             runtime.IsEnding = true;
             var reason = runtime.EndReason == MobaSkillRuntimeEndReason.None ? MobaSkillRuntimeEndReason.PipelineCompleted : runtime.EndReason;
-            NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.Finalizing, runtime, default, default, reason, force);
-            runtime.NotifyEnding(reason);
-
-            if (runtime.RootTraceContextId != 0L)
+            Exception firstFailure = null;
+            Record(() => NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.Finalizing, runtime, default, default, reason, force));
+            Record(() => runtime.NotifyEnding(reason));
+            if (runtime.RootContextId != 0L)
             {
-                try
-                {
-                    _trace?.EndContext(runtime.RootTraceContextId, ToTraceReason(reason));
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, $"[MobaSkillCastRuntimeService] Trace.EndContext failed (runtimeId={runtime.RuntimeId}, rootTraceContextId={runtime.RootTraceContextId}, reason={reason})");
-                }
-
-                _runtimeByTraceContextId.Remove(runtime.RootTraceContextId);
+                Record(() => _executionContexts?.End(
+                    runtime.RootContextId,
+                    (int)ToExecutionEndReason(reason),
+                    _frameTime != null ? _frameTime.Frame.Value : 0));
+                _runtimeByContextId.Remove(runtime.RootContextId);
             }
 
-            RemoveRetains(runtime.Handle);
+            Record(() => RemoveRetains(runtime.Handle));
             _endingBuffer.Add(runtime.RuntimeId);
             runtime.IsEnded = true;
             runtime.IsEnding = false;
-            NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.Finalized, runtime, default, default, reason, force);
-            FlushEnded();
+            Record(() => NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.Finalized, runtime, default, default, reason, force));
+            Record(FlushEnded);
+            if (firstFailure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstFailure).Throw();
+
+            void Record(Action step)
+            {
+                try { step(); }
+                catch (Exception ex)
+                {
+                    if (firstFailure == null) firstFailure = ex;
+                    else Log.Exception(ex, "Additional skill runtime finalization step failed.");
+                }
+            }
         }
 
         private void NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind kind, MobaSkillCastRuntime runtime, in MobaSkillRuntimeChildRef child, in MobaSkillRuntimeRetainHandle retainHandle, MobaSkillRuntimeEndReason reason, bool forced)
@@ -578,8 +633,8 @@ namespace AbilityKit.Demo.Moba.Services
                 sourceActorId: runtime.CasterActorId,
                 targetActorId: runtime.TargetActorId,
                 configId: runtime.SkillId,
-                rootContextId: runtime.RootTraceContextId,
-                contextId: runtime.RootTraceContextId,
+                rootContextId: runtime.RootContextId,
+                contextId: runtime.RootContextId,
                 skillRuntime: handle,
                 payloadVersion: BattleDiagnosticSkillExecutionPayload.CurrentSchemaVersion,
                 summary: $"{stage} reason={reason} pending={runtime.PendingChildren} forced={forced}",
@@ -696,20 +751,20 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private static TraceLifecycleReason ToTraceReason(MobaSkillRuntimeEndReason reason)
+        private static MobaExecutionEndReason ToExecutionEndReason(MobaSkillRuntimeEndReason reason)
         {
             switch (reason)
             {
                 case MobaSkillRuntimeEndReason.Cancelled:
-                    return TraceLifecycleReason.Cancelled;
+                    return MobaExecutionEndReason.Cancelled;
                 case MobaSkillRuntimeEndReason.Failed:
-                    return TraceLifecycleReason.Failed;
+                    return MobaExecutionEndReason.Failed;
                 case MobaSkillRuntimeEndReason.OwnerRemoved:
-                    return TraceLifecycleReason.Dead;
+                    return MobaExecutionEndReason.Dead;
                 case MobaSkillRuntimeEndReason.RollbackCleanup:
-                    return TraceLifecycleReason.Cancelled;
+                    return MobaExecutionEndReason.Cancelled;
                 default:
-                    return TraceLifecycleReason.Completed;
+                    return MobaExecutionEndReason.Completed;
             }
         }
     }

@@ -99,7 +99,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 BuffId = 201,
                 SourceActorId = 7,
                 SourceContextId = 500,
-                Reason = TraceLifecycleReason.Expired,
+                Reason = MobaExecutionEndReason.Expired,
             };
 
             var draft = MobaBuffService.CreateBuffRemovedDraft(in request);
@@ -147,7 +147,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 BuffId = 201,
                 SourceActorId = 7,
                 SourceContextId = 0L,
-                Reason = TraceLifecycleReason.Dispelled,
+                Reason = MobaExecutionEndReason.Dispelled,
             };
 
             var draft = MobaBuffService.CreateBuffRemovedDraft(in request);

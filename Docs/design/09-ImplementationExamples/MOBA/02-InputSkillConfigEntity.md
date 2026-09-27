@@ -99,10 +99,10 @@ flowchart LR
 3. 必要时通过 `SearchTargetService` 解析普通攻击或配置目标查询。
 4. 从 `IMobaSkillPipelineLibrary` 获取 PreCast/Cast 配置与阶段。
 5. 根据 Actor 技能槽读取等级，并生成 `ResolvedSkillCastConfiguration`。
-6. 创建 `SkillCastContext`、根 Trace Context 和 `MobaSkillCastRuntime`。
+6. 创建 `SkillCastContext`、正式根 Execution Context 和 `MobaSkillCastRuntime`；Trace Adapter 若安装则观察该根。
 7. 返回可交给 `SkillRunner` 启动的准备结果。
 
-配置门面并不是由输入协调器直接查询；它位于技能准备及其他玩法服务内部。准备后若战斗规则再次拒绝、Runner 启动失败或准备过程抛出异常，当前实现会通过 `ForceTerminate(...RollbackCleanup)` 或结束 Trace 清理已经创建的运行时租约。这是技能释放的局部失败收敛，不代表整个输入批次具备事务回滚。
+配置门面并不是由输入协调器直接查询；它位于技能准备及其他玩法服务内部。准备后若战斗规则再次拒绝、Runner 启动失败或准备过程抛出异常，当前实现会通过 `ForceTerminate(...RollbackCleanup)` 或结束正式 Execution Context 清理已经创建的运行时租约；Trace Adapter 只跟随已提交终态。这是技能释放的局部失败收敛，不代表整个输入批次具备事务回滚。
 
 ## 5. 配置门面负责来源适配和类型化查询
 
@@ -169,7 +169,7 @@ sequenceDiagram
     participant Cast as SkillCastCoordinator
     participant Prep as SkillCastPreparationService
     participant Config as MobaConfigDatabase
-    participant Runtime as Trace/SkillRuntime/SkillRunner
+    participant Runtime as Context/SkillRuntime/SkillRunner
 
     Port->>Base: TrySubmit(frame, commands)
     Base->>Base: 校验批次帧与 command.Frame
@@ -179,7 +179,7 @@ sequenceDiagram
     Cast->>Cast: slot -> skillId / 输入阶段 / 策略
     Cast->>Prep: Prepare(actorId, skillId, aim, target)
     Prep->>Config: TryGetSkill / 解析等级配置
-    Prep->>Runtime: 创建 Trace 根与 SkillRuntime
+    Prep->>Runtime: 创建 Execution Context 根与 SkillRuntime
     Prep-->>Cast: PreparationResult
     Cast->>Runtime: SkillRunner.Start()
     Cast-->>Handler: MobaSkillInputHandleResult
@@ -196,7 +196,7 @@ sequenceDiagram
 | `MobaRuntimeFirstFrameSnapshotAcceptanceTests` | 输入端口拒绝空批次、非法帧，并区分零处理、部分处理和完整处理 | 使用测试协调器的部分用例不等于所有真实 OpCode Handler 均已覆盖 |
 | `MobaSkillCastLifecycleSmokeTests` | 测试资产覆盖技能创建、死亡/销毁清理等路径 | 本轮相关用例被启动配置错误提前阻断，未产生新的业务通过证据 |
 | `MobaSkillConfigurationContractTests` | Resources/DTO 配置的关键技能契约可校验 | 不证明生产热更发布、回滚和运行对象迁移已闭合 |
-| Unity `MobaRuntimeOwnershipLifecycleTests` 9/9 artifact | Summon retain 失败回滚 Actor/trace；Clear/Dispose 释放 retain 并 exactly-once 结束 trace | 不是本轮完整 Unity 回归或真实多人运行 |
+| Unity `MobaRuntimeOwnershipLifecycleTests` 9/9 artifact | Summon retain 失败回滚 Actor/Context；Clear/Dispose 释放 retain 并 exactly-once 结束正式 Context | 不是本轮完整 Unity 回归或真实多人运行 |
 
 独立的 MOBA View Runtime `174/174` 在 2026-08-17 通过；Host 6/6、Acceptance 8/8 是既有 2026-08-16 证据。测试仍有依赖漏洞、Entitas 兼容性、可空性等警告；这些工程不包含完整 MOBA World 业务链，不能合并成“全部通过”。
 

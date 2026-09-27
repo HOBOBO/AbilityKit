@@ -45,8 +45,12 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void Execute(int effectId, IAbilityPipelineContext context)
         {
-            if (effectId <= 0) return;
-            if (context == null) return;
+            ExecuteWithResult(effectId, context);
+        }
+
+        public MobaEffectExecutionOutcome ExecuteWithResult(int effectId, IAbilityPipelineContext context)
+        {
+            if (effectId <= 0 || context == null) return MobaEffectExecutionOutcome.Failed;
             if (_effects == null)
             {
                 MobaRuntimeGuard.ThrowRequired(
@@ -57,7 +61,7 @@ namespace AbilityKit.Demo.Moba.Services
                     MobaBattleExceptionDomain.Service,
                     detail: $"effectId={effectId}, context={context.GetType().Name}");
             }
-            _effects.Execute(effectId, context, EffectExecuteMode.InternalOnly);
+            return _effects.ExecuteWithResult(effectId, context, EffectExecuteMode.InternalOnly);
         }
 
         public void Dispose()

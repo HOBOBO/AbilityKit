@@ -336,6 +336,11 @@ namespace AbilityKit.Game.Flow
 
             lock (_gate)
             {
+                if (_cancellation == null && _task == null)
+                {
+                    return _pendingStop ?? System.Threading.Tasks.Task.CompletedTask;
+                }
+
                 _generation++;
                 cancellation = _cancellation;
                 task = _task;

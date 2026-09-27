@@ -7,6 +7,42 @@ namespace AbilityKit.Demo.Moba.Tests.Trace;
 
 public sealed class TraceScopeLifecycleTests
 {
+    [Fact]
+    public void Effect_service_keeps_context_lineage_when_trace_is_absent()
+    {
+        using var contexts = new MobaExecutionContextRegistry();
+        var service = new MobaEffectExecutionService();
+        typeof(MobaEffectExecutionService).GetProperty("ExecutionContexts", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(service, contexts);
+        var lineage = new MobaEffectLineageInput(
+            EffectContextKind.Skill,
+            MobaExecutionKind.SkillEffect,
+            7,
+            9,
+            0L,
+            0L,
+            0L,
+            801);
+
+        Invoke(service, "BeginEffectExecutionScope", 801, 802, lineage);
+        var effectContextId = service.CurrentEffectContextId;
+        service.EnterActionExecution(0, 901);
+        var actionContextId = service.CurrentActionChain.Single();
+        service.ExitActionExecution(0, 901, true);
+        Invoke(service, "EndCurrentExecutionScope", (int)MobaExecutionEndReason.Completed);
+
+        Assert.True(contexts.TryGet(effectContextId, out var effect));
+        Assert.True(contexts.TryGet(actionContextId, out var action));
+        Assert.Equal(MobaExecutionKind.EffectExecution, effect.Kind);
+        Assert.Equal(MobaExecutionKind.EffectAction, action.Kind);
+        Assert.Equal(effectContextId, action.ParentContextId);
+        Assert.Equal(effectContextId, action.RootContextId);
+        Assert.True(effect.IsEnded);
+        Assert.True(action.IsEnded);
+        Assert.Equal((int)MobaExecutionEndReason.Completed, effect.EndReason);
+        Assert.Equal((int)MobaExecutionEndReason.Completed, action.EndReason);
+    }
+
     [Theory]
     [InlineData(true, false)]
     [InlineData(false, false)]
@@ -14,30 +50,60 @@ public sealed class TraceScopeLifecycleTests
     public void Effect_service_releases_action_and_root_scopes(bool succeeded, bool aborted)
     {
         using var registry = new MobaTraceRegistry();
+        using var contexts = new MobaExecutionContextRegistry();
         var service = new MobaEffectExecutionService();
-        typeof(MobaEffectExecutionService).GetProperty("Trace")!.SetValue(service, registry);
-        var lineage = new MobaEffectLineageInput(EffectContextKind.Skill, MobaTraceKind.SkillEffect,
+        typeof(MobaEffectExecutionService).GetProperty("ExecutionContexts", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(service, contexts);
+        registry.OnInit(new ContextResolver(contexts));
+        var lineage = new MobaEffectLineageInput(EffectContextKind.Skill, MobaExecutionKind.SkillEffect,
             7, 9, 0L, 0L, 0L, 801);
-        Invoke(service, "BeginEffectTraceScope", 801, 802, lineage);
+        Invoke(service, "BeginEffectExecutionScope", 801, 802, lineage);
         var root = registry.RootIds.Single();
         service.EnterActionExecution(0, 901);
         Assert.True(registry.TryGetRootState(root, out var state));
-        Assert.Equal(2, state.ExternalRefCount);
+        Assert.Equal(0, state.ExternalRefCount);
         var child = registry.GetNodeSnapshotsByRoot(root).Single(node => !node.IsRoot).ContextId;
         if (!aborted)
         {
             service.ExitActionExecution(0, 901, succeeded);
             service.ExitActionExecution(0, 901, succeeded);
             Assert.True(registry.TryGetRootState(root, out state));
-            Assert.Equal(1, state.ExternalRefCount);
+            Assert.Equal(0, state.ExternalRefCount);
         }
-        Invoke(service, "EndCurrentTrace", (int)(succeeded ? TraceLifecycleReason.Completed : TraceLifecycleReason.Failed));
+        Invoke(service, "EndCurrentExecutionScope", (int)(succeeded ? MobaExecutionEndReason.Completed : MobaExecutionEndReason.Failed));
         Assert.True(registry.TryGetRootState(root, out state));
         Assert.Equal(0, state.ExternalRefCount);
         Assert.Equal(0, state.ActiveCount);
-        Assert.Equal((int)(succeeded ? TraceLifecycleReason.Completed : TraceLifecycleReason.Failed),
+        Assert.Equal((int)(succeeded ? MobaExecutionEndReason.Completed : MobaExecutionEndReason.Failed),
             registry.TryGetSnapshot(child).EndReason);
         Assert.Equal(1, registry.Purge(100));
+        registry.OnDeinit(null!);
+    }
+
+    private sealed class ContextResolver : AbilityKit.Ability.World.DI.IWorldResolver
+    {
+        private readonly MobaExecutionContextRegistry _contexts;
+
+        public ContextResolver(MobaExecutionContextRegistry contexts) => _contexts = contexts;
+        public object? Resolve(Type serviceType) =>
+            serviceType == typeof(MobaExecutionContextRegistry) ? _contexts : null;
+        public T? Resolve<T>() => TryResolve<T>(out var instance) ? instance : default;
+        public bool TryResolve(Type serviceType, out object? instance)
+        {
+            instance = Resolve(serviceType);
+            return instance != null;
+        }
+        public bool TryResolve<T>(out T? instance)
+        {
+            if (_contexts is T resolved)
+            {
+                instance = resolved;
+                return true;
+            }
+
+            instance = default;
+            return false;
+        }
     }
 
     private static object? Invoke(object target, string method, params object[] args) =>
@@ -208,18 +274,25 @@ public sealed class TraceScopeLifecycleTests
     }
 
     [Fact]
-    public void Child_cleanup_releases_retain_even_when_end_observer_throws()
+    public void Child_cleanup_isolates_end_observer_failure_and_releases_retain()
     {
         using var registry = new TestRegistry();
         var root = registry.CreateRootScope(1);
         var child = registry.CreateChildScope(root.RootId, 2);
+        var observerFailures = 0;
+        registry.ObserverException = (_, exception) =>
+        {
+            Assert.IsType<InvalidOperationException>(exception);
+            observerFailures++;
+        };
         registry.RegistryEvent += evt =>
         {
             if (evt.Kind == TraceRegistryEventKind.NodeEnded)
                 throw new InvalidOperationException("observer");
         };
-        Assert.Throws<InvalidOperationException>(() => child.Dispose());
         child.Dispose();
+        child.Dispose();
+        Assert.Equal(1, observerFailures);
         Assert.Equal(1, State(registry, root.RootId).ExternalRefCount);
         Assert.True(registry.TryGetSnapshot(child.ContextId).IsEnded);
     }

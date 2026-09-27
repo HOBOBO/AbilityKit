@@ -1,0 +1,72 @@
+[
+  {
+    "Id": 1,
+    "ActiveSkills": [
+      1,
+      2,
+      3
+    ],
+    "AttackRange": 2,
+    "AttackSpeedR": 0,
+    "CooldownReduceR": 0,
+    "CriticalR": 0,
+    "ExtraHp": 0,
+    "ExtraMagicAttack": 0,
+    "ExtraPhysicsAttack": 0,
+    "Hp": 50000,
+    "MagicAttack": 50,
+    "MagicBloodsuckingR": 0,
+    "MagicDefense": 50,
+    "MagicPenetrationR": 0,
+    "Mana": 500,
+    "MaxHp": 50000,
+    "MaxMana": 500,
+    "MoveSpeed": 5,
+    "Name": "战士属性",
+    "PassiveSkills": [
+      2001
+    ],
+    "PerSecondBloodR": 0,
+    "PerSecondManaR": 0,
+    "PhysicsAttack": 200,
+    "PhysicsBloodsuckingR": 0,
+    "PhysicsDefense": 100,
+    "PhysicsPenetrationR": 0,
+    "ResilienceR": 0
+  },
+  {
+    "Id": 2,
+    "ActiveSkills": [
+      1,
+      2,
+      3
+    ],
+    "AttackRange": 8,
+    "AttackSpeedR": 0,
+    "CooldownReduceR": 0,
+    "CriticalR": 0,
+    "ExtraHp": 0,
+    "ExtraMagicAttack": 0,
+    "ExtraPhysicsAttack": 0,
+    "Hp": 50000,
+    "MagicAttack": 300,
+    "MagicBloodsuckingR": 0,
+    "MagicDefense": 100,
+    "MagicPenetrationR": 0,
+    "Mana": 1000,
+    "MaxHp": 50000,
+    "MaxMana": 1000,
+    "MoveSpeed": 5,
+    "Name": "法师属性",
+    "PassiveSkills": [
+      2002
+    ],
+    "PerSecondBloodR": 0,
+    "PerSecondManaR": 0,
+    "PhysicsAttack": 50,
+    "PhysicsBloodsuckingR": 0,
+    "PhysicsDefense": 50,
+    "PhysicsPenetrationR": 0,
+    "ResilienceR": 0
+  }
+]

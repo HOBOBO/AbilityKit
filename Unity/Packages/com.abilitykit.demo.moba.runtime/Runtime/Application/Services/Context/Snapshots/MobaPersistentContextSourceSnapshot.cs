@@ -16,7 +16,7 @@ namespace AbilityKit.Demo.Moba.Services
                     source.ResolveKind,
                     MobaContextSourceBoundary.Snapshot,
                     source.ContextKind,
-                    source.TraceKind,
+                    source.ExecutionKind,
                     source.SourceActorId,
                     source.TargetActorId,
                     source.SourceContextId,
@@ -63,7 +63,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             lineageContext = new MobaTriggerLineageContext(
                 _source.ContextKind,
-                _source.TraceKind,
+                _source.ExecutionKind,
                 _source.SourceActorId,
                 _source.TargetActorId,
                 _source.SourceContextId,
@@ -93,7 +93,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             source = new MobaCombatContextSource(
                 _source.ContextKind,
-                _source.TraceKind,
+                _source.ExecutionKind,
                 _source.SourceActorId,
                 _source.TargetActorId,
                 _source.SourceContextId,

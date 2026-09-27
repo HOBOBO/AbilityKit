@@ -30,7 +30,9 @@ namespace AbilityKit.Game.View.Presentation
             return backend switch
             {
                 ViewRenderBackend.GameObject => new GameObjectViewRenderBackend<TViewBatch>(gameObjectFactory).CreateBinder(shellLoader),
-                ViewRenderBackend.Dots => new DotsViewRenderBackend<TViewBatch>(dotsFactory).CreateBinder(shellLoader),
+                ViewRenderBackend.Dots when dotsFactory != null => new DotsViewRenderBackend<TViewBatch>(dotsFactory).CreateBinder(shellLoader),
+                ViewRenderBackend.Dots => throw new InvalidOperationException(
+                    "A DOTS view binder factory must be configured before selecting the DOTS backend."),
                 _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, "Unsupported view render backend."),
             };
         }
@@ -50,18 +52,20 @@ namespace AbilityKit.Game.View.Presentation
 
         public IViewBinder<TViewBatch> CreateBinder(IViewShellLoader shellLoader)
         {
-            return _binderFactory(shellLoader);
+            if (shellLoader == null) throw new ArgumentNullException(nameof(shellLoader));
+            return _binderFactory(shellLoader)
+                ?? throw new InvalidOperationException("The GameObject view binder factory returned null.");
         }
     }
 
     public sealed class DotsViewRenderBackend<TViewBatch> : IViewRenderBackend<TViewBatch>
         where TViewBatch : struct, IViewBatch
     {
-        private readonly Func<IViewShellLoader, IViewBinder<TViewBatch>>? _binderFactory;
+        private readonly Func<IViewShellLoader, IViewBinder<TViewBatch>> _binderFactory;
 
-        public DotsViewRenderBackend(Func<IViewShellLoader, IViewBinder<TViewBatch>>? binderFactory = null)
+        public DotsViewRenderBackend(Func<IViewShellLoader, IViewBinder<TViewBatch>> binderFactory)
         {
-            _binderFactory = binderFactory;
+            _binderFactory = binderFactory ?? throw new ArgumentNullException(nameof(binderFactory));
         }
 
         public ViewRenderBackend Backend => ViewRenderBackend.Dots;
@@ -69,31 +73,8 @@ namespace AbilityKit.Game.View.Presentation
         public IViewBinder<TViewBatch> CreateBinder(IViewShellLoader shellLoader)
         {
             if (shellLoader == null) throw new ArgumentNullException(nameof(shellLoader));
-            return _binderFactory != null
-                ? _binderFactory(shellLoader)
-                : new DotsViewBinder<TViewBatch>();
-        }
-    }
-
-    public sealed class DotsViewBinder<TViewBatch> : IViewBinder<TViewBatch>
-        where TViewBatch : struct, IViewBatch
-    {
-        public bool InterpolationEnabled { get; set; }
-
-        public void ApplyBatch(in TViewBatch batch)
-        {
-        }
-
-        public void TickInterpolation(float deltaTime)
-        {
-        }
-
-        public void RebindAll()
-        {
-        }
-
-        public void Clear()
-        {
+            return _binderFactory(shellLoader)
+                ?? throw new InvalidOperationException("The DOTS view binder factory returned null.");
         }
     }
 }

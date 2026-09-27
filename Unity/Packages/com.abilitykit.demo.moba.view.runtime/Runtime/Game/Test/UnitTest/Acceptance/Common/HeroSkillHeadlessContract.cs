@@ -74,7 +74,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             harness.AssertSkillCastTrace(skill.SkillId);
             return harness.TickUntilTraceNode(
-                MobaTraceKind.EffectExecution,
+                MobaExecutionKind.EffectExecution,
                 skill.EffectId,
                 maxTicks: harness.CalculateWaitTicksForSkillEffect(skill.SkillId, skill.EffectId, safetyFrames: 5) + 30,
                 message: $"EffectExecution trace missing for effect {skill.EffectId} after direct casting skill {skill.SkillId} slot {skill.Slot}.");

@@ -8,7 +8,6 @@ using AbilityKit.Demo.Moba.Services.Buffs.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Presentation;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.Demo.Moba.Services.Buffs.Triggering;
-using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
 {
@@ -34,7 +33,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             _bindings = bindings;
         }
 
-        public bool EndRuntime(global::ActorEntity target, List<BuffRuntime> list, int index, BuffRuntime runtime, int sourceActorId, TraceLifecycleReason reason)
+        public bool EndRuntime(global::ActorEntity target, List<BuffRuntime> list, int index, BuffRuntime runtime, int sourceActorId, MobaExecutionEndReason reason)
         {
             if (target == null || !target.hasActorId || runtime == null) return false;
             if (!BuffRepository.RemoveAt(list, index, runtime)) return false;
@@ -46,12 +45,12 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
         /// <summary>
         /// 清理已从仓库移除或已被替换的运行时。调用前必须完成容器提交。
         /// </summary>
-        public void EndCommittedRuntime(global::ActorEntity target, BuffRuntime runtime, int sourceActorId, TraceLifecycleReason reason)
+        public void EndCommittedRuntime(global::ActorEntity target, BuffRuntime runtime, int sourceActorId, MobaExecutionEndReason reason)
         {
             if (target == null || !target.hasActorId || runtime == null) return;
 
             var targetActorId = target.actorId.Value;
-            var normalizedReason = reason == TraceLifecycleReason.None ? TraceLifecycleReason.Expired : reason;
+            var normalizedReason = reason == MobaExecutionEndReason.None ? MobaExecutionEndReason.Expired : reason;
             var buffId = runtime.BuffId;
             var sourceContextId = runtime.SourceContextId;
             var hadContinuous = runtime.Continuous != null;
@@ -94,7 +93,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             _bindings?.NotifyLifecycle(runtime, kind, reason);
         }
 
-        private void NotifyRemoved(int targetActorId, int sourceActorId, BuffRuntime runtime, TraceLifecycleReason reason)
+        private void NotifyRemoved(int targetActorId, int sourceActorId, BuffRuntime runtime, MobaExecutionEndReason reason)
         {
             if (_configs == null) return;
             if (runtime == null) return;
@@ -115,16 +114,16 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             }
         }
 
-        private static void LogBuffCleanup(int buffId, int targetActorId, int sourceActorId, long sourceContextId, TraceLifecycleReason reason, bool hadContinuous, bool continuousCleared, bool hadSkillRuntimeRetain, bool skillRuntimeCleared, bool hadModifierBindings, bool modifierBindingsCleared, bool removedFromList)
+        private static void LogBuffCleanup(int buffId, int targetActorId, int sourceActorId, long sourceContextId, MobaExecutionEndReason reason, bool hadContinuous, bool continuousCleared, bool hadSkillRuntimeRetain, bool skillRuntimeCleared, bool hadModifierBindings, bool modifierBindingsCleared, bool removedFromList)
         {
             if (IsExpectedLifecycleEnd(reason)) return;
 
             Log.Warning($"[MobaBuffCleanup] buff ended unexpectedly. buffId={buffId}, target={targetActorId}, source={sourceActorId}, sourceContextId={sourceContextId}, reason={reason}, hadContinuous={hadContinuous}, continuousCleared={continuousCleared}, hadSkillRuntimeRetain={hadSkillRuntimeRetain}, skillRuntimeCleared={skillRuntimeCleared}, hadModifierBindings={hadModifierBindings}, modifierBindingsCleared={modifierBindingsCleared}, removedFromList={removedFromList}");
         }
 
-        private static bool IsExpectedLifecycleEnd(TraceLifecycleReason reason)
+        private static bool IsExpectedLifecycleEnd(MobaExecutionEndReason reason)
         {
-            return reason == TraceLifecycleReason.Expired || reason == TraceLifecycleReason.Completed;
+            return reason == MobaExecutionEndReason.Expired || reason == MobaExecutionEndReason.Completed;
         }
 
         private static void RemoveEffectListeners(global::ActorEntity e, long ownerKey)

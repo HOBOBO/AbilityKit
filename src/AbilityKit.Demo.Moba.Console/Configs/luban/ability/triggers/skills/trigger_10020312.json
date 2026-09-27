@@ -1,0 +1,28 @@
+{
+  "triggers": [
+    {
+      "id": 10020312,
+      "name": "小乔-星华缭乱-重复命中伤害衰减",
+      "event": "damage.attack.before_calc",
+      "scope": "owner",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 60,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "adjust_damage_number",
+          "number_slot": 0,
+          "op": 1,
+          "reason_kind": 1,
+          "reason_param": 10020301,
+          "require_skill_runtime": true,
+          "skip_first_hit": true,
+          "repeat_target_decay_factor": 0.5,
+          "target_hit_count_key_base": 1200000
+        }
+      ]
+    }
+  ]
+}

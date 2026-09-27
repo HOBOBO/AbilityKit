@@ -5,13 +5,18 @@ using AbilityKit.Network.Room;
 
 if (args.Length is < 2 or > 5 || !int.TryParse(args[1], out var port))
 {
-    Console.Error.WriteLine("Usage: dotnet run --project src/AbilityKit.Demo.Tiny.Client -- <host> <gateway-port> [account-prefix] [state|frame|hybrid|session-state|session-frame|session-hybrid|session-hybrid-mismatch] [evidence.json]");
+    Console.Error.WriteLine("Usage: dotnet run --project src/AbilityKit.Demo.Tiny.Client -- <host> <gateway-port> [account-prefix] [state|frame|hybrid|session-state|session-frame|session-hybrid|session-hybrid-mismatch|process-owner-{state|frame|hybrid}|process-guest-{state|frame|hybrid}] [evidence.json|process-directory]");
     return 2;
 }
 
 var host = args[0];
 var prefix = args.Length >= 3 ? args[2] : $"tiny-{Guid.NewGuid():N}";
 var mode = args.Length >= 4 ? args[3] : "state";
+if (mode.StartsWith("process-", StringComparison.Ordinal))
+{
+    if (args.Length != 5) return 2;
+    return await TinyProcessSmoke.RunAsync(host, port, prefix, mode, args[4]);
+}
 if (mode == "session-hybrid-mismatch")
 {
     if (args.Length != 5) return 2;

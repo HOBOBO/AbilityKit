@@ -151,6 +151,30 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(advanced.ConfigId, Is.EqualTo(702));
         }
 
+        [Test]
+        public void DamagePayloads_ExposeOneCanonicalActorIdentityThroughTriggerContract()
+        {
+            var attack = new AttackInfo
+            {
+                AttackerActorId = 11,
+                TargetActorId = 12,
+            };
+            AssertTriggerActors(attack, 11, 12);
+
+            attack.TargetActorId = 13;
+            AssertTriggerActors(attack, 11, 13);
+
+            var calculation = new AttackCalcInfo(attack);
+            AssertTriggerActors(calculation, 11, 13);
+
+            var result = new DamageResult
+            {
+                AttackerActorId = 11,
+                TargetActorId = 13,
+            };
+            AssertTriggerActors(result, 11, 13);
+        }
+
         private static MobaCombatExecutionContext CreateExecutionContext(
             long parentContextId,
             long rootContextId,
@@ -159,7 +183,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             var lineage = new MobaEffectLineageInput(
                 EffectContextKind.Skill,
-                MobaTraceKind.SkillEffect,
+                MobaExecutionKind.SkillEffect,
                 11,
                 12,
                 parentContextId,
@@ -186,6 +210,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 10);
         }
 
+        private static void AssertTriggerActors(
+            IMobaTriggerInvocationContext payload,
+            int expectedSourceActorId,
+            int expectedTargetActorId)
+        {
+            Assert.That(payload.SourceActorId, Is.EqualTo(expectedSourceActorId));
+            Assert.That(payload.TargetActorId, Is.EqualTo(expectedTargetActorId));
+        }
+
         private static MobaContextSourceView CreateSource(
             EffectContextKind contextKind = EffectContextKind.Skill,
             int sourceActorId = 0,
@@ -203,7 +236,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 MobaContextSourceResolveKind.DirectProvider,
                 MobaContextSourceBoundary.Snapshot,
                 contextKind,
-                MobaTraceKind.SkillEffect,
+                MobaExecutionKind.SkillEffect,
                 sourceActorId,
                 targetActorId,
                 sourceContextId,

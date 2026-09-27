@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../AbilityKit.Demo.Tiny.Client/TinyNetworkClient.cs" Link="TinyNetworkClient.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.tiny/Samples~/02-Room/TinyRoomExample.cs" Link="TinyRoomExample.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.tiny/Samples~/03-State/TinyStateExample.cs" Link="TinyStateExample.cs" />
+    <ProjectReference Include="../AbilityKit.Demo.Tiny.Core/AbilityKit.Demo.Tiny.Core.csproj" />
+    <ProjectReference Include="../AbilityKit.Record/AbilityKit.Record.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Room/AbilityKit.Network.Room.csproj" />
+    <ProjectReference Include="../AbilityKit.Protocol.Room/AbilityKit.Protocol.Room.csproj" />
+  </ItemGroup>
+</Project>

@@ -155,5 +155,15 @@ namespace AbilityKit.Demo.Moba.Share
         /// 分发状态哈希
         /// </summary>
         void DispatchStateHash(int frameIndex, in StateHashData data);
+
+        /// <summary>
+        /// Dispatches platform-neutral actor removal data.
+        /// </summary>
+        void DispatchActorDespawn(int frameIndex, in ActorDespawnData[] data);
+
+        /// <summary>
+        /// Dispatches platform-neutral skill presentation states.
+        /// </summary>
+        void DispatchSkillState(int frameIndex, in SkillStateData[] data);
     }
 }

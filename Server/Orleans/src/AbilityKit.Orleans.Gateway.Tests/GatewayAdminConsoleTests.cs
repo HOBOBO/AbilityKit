@@ -289,7 +289,7 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("AdminSkillAnalysisArtifactHttpResponse", models);
         Assert.Contains("internal static class GatewaySkillDiagnostics", diagnostics);
         Assert.Contains("RuntimeContextOnly", diagnostics);
-        Assert.Contains("abilitykit-battle-diagnostics.v1", diagnostics);
+        Assert.Contains("abilitykit-battle-diagnostics.v2", diagnostics);
         Assert.Contains("RuntimeEventsUnavailable", diagnostics);
         Assert.Contains("IsDataAvailable", models);
         Assert.Contains("UnavailableReason", models);
@@ -320,7 +320,8 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("analysis-entity-relation-v1", modelProvider);
         Assert.Contains("analysis-timeline-event-v1", modelProvider);
         Assert.Contains("SkillPipelineContext / SkillPipelineRunner", modelProvider);
-        Assert.Contains("完整技能链路以 Scenario artifact trace 为主数据源", modelProvider);
+        Assert.Contains("Execution Context 为正式身份来源", modelProvider);
+        Assert.Contains("Scenario artifact trace 是可选的分析投影", modelProvider);
         Assert.DoesNotContain("Future live traces", modelProvider);
         Assert.Contains("internal static class GatewaySkillAnalysisArtifacts", analysisArtifacts);
         Assert.Contains("DefaultArtifactDirectory = \"sample-web-output-analysis\"", analysisArtifacts);
@@ -381,7 +382,7 @@ public sealed class GatewayAdminConsoleTests
             limit: 100);
 
         Assert.Equal("Unavailable", response.DiagnosticsStatus);
-        Assert.Equal("abilitykit-battle-diagnostics.v1", response.SchemaVersion);
+        Assert.Equal("abilitykit-battle-diagnostics.v2", response.SchemaVersion);
         Assert.False(response.IsDataAvailable);
         Assert.NotEmpty(response.UnavailableReason);
         Assert.Empty(response.Events);

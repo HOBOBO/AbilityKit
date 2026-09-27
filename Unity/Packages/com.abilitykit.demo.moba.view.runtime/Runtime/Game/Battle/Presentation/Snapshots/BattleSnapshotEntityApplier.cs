@@ -1,17 +1,18 @@
 using System.Collections.Generic;
 using AbilityKit.Core.Logging;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.World.ECS;
 using UnityEngine;
+using BattleNetId = AbilityKit.Game.Battle.Entity.BattleNetId;
 
 namespace AbilityKit.Game.Flow
 {
     internal static class BattleSnapshotEntityApplier
     {
-        public static void ApplyStateHash(BattleContext ctx, MobaStateHashSnapshotPayload payload)
+        public static void ApplyStateHash(BattleContext ctx, StateHashData payload)
         {
             if (ctx == null) return;
 
@@ -26,13 +27,13 @@ namespace AbilityKit.Game.Flow
             }
 
             comp.Version = payload.Version;
-            comp.Frame = payload.Frame;
-            comp.Hash = payload.Hash;
+            comp.Frame = payload.FrameIndex;
+            comp.Hash = payload.StateHash;
         }
 
         public static void ApplyTransform(
             BattleContext ctx,
-            MobaActorTransformSnapshotEntry[] entries,
+            ActorTransformData[] entries,
             string logContext = null)
         {
             if (ctx == null) return;
@@ -65,9 +66,9 @@ namespace AbilityKit.Game.Flow
                     entity.WithRef(transform);
                 }
 
-                transform.Position.x = entry.X;
-                transform.Position.y = entry.Y;
-                transform.Position.z = entry.Z;
+                transform.Position.x = entry.PositionX;
+                transform.Position.y = entry.PositionY;
+                transform.Position.z = entry.PositionZ;
                 transform.Forward = ResolveForward(entry.ForwardX, entry.ForwardY, entry.ForwardZ, transform.Forward);
 
                 dirty.Add(entity.Id);
@@ -76,7 +77,7 @@ namespace AbilityKit.Game.Flow
 
         public static void ApplySpawn(
             BattleContext ctx,
-            MobaActorSpawnSnapshotEntry[] entries,
+            ActorSpawnData[] entries,
             bool updateExisting = true,
             string logContext = null)
         {
@@ -98,14 +99,15 @@ namespace AbilityKit.Game.Flow
             for (int i = 0; i < entries.Length; i++)
             {
                 var entry = entries[i];
-                if (entry.NetId <= 0) continue;
+                if (entry.ActorId <= 0) continue;
+                ctx.ObserveActorSpawnIdentity(entry.ActorId, entry.EntityVersion);
 
-                var netId = new BattleNetId(entry.NetId);
+                var netId = new BattleNetId(entry.ActorId);
                 if (!lookup.TryResolve(world, netId, out var entity))
                 {
-                    entity = entry.Kind == (int)SpawnEntityKind.Projectile
-                        ? factory.CreateProjectile(netId, ownerNetId: new BattleNetId(entry.OwnerNetId), entityCode: entry.Code)
-                        : factory.CreateCharacter(netId, entityCode: entry.Code);
+                    entity = entry.IsProjectile
+                        ? factory.CreateProjectile(netId, ownerNetId: new BattleNetId(entry.OwnerActorId), entityCode: entry.EntityCode)
+                        : factory.CreateCharacter(netId, entityCode: entry.EntityCode);
                 }
                 else if (!updateExisting)
                 {
@@ -122,28 +124,56 @@ namespace AbilityKit.Game.Flow
                     entity.WithRef(transform);
                 }
 
-                transform.Position = new Vector3(entry.X, entry.Y, entry.Z);
+                transform.Position = new Vector3(entry.PositionX, entry.PositionY, entry.PositionZ);
                 if (transform.Forward == default) transform.Forward = Vector3.forward;
 
                 dirty.Add(entity.Id);
             }
         }
 
-        private static void UpdateExistingSpawnEntity(IEntity entity, MobaActorSpawnSnapshotEntry entry)
+        public static void ApplyDespawn(BattleContext ctx, ActorDespawnData[] entries)
+        {
+            if (ctx == null || entries == null || entries.Length == 0) return;
+
+            var world = ctx.EntityWorld;
+            var lookup = ctx.EntityLookup;
+            if (world == null || lookup == null) return;
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                if (entry.ActorId <= 0) continue;
+                ctx.ForgetActorIdentity(entry.ActorId);
+
+                ctx.ViewVfxManager?.DestroyVfxByFollowTargetActorId(
+                    ctx.ViewVfxNode,
+                    entry.ActorId);
+
+                var netId = new BattleNetId(entry.ActorId);
+                if (lookup.TryResolve(world, netId, out var entity) && entity.IsValid)
+                {
+                    entity.Destroy();
+                }
+
+                lookup.Unbind(netId);
+            }
+        }
+
+        private static void UpdateExistingSpawnEntity(IEntity entity, ActorSpawnData entry)
         {
             if (entity.TryGetRef(out BattleEntityMetaComponent meta) && meta != null)
             {
-                meta.Kind = entry.Kind == (int)SpawnEntityKind.Projectile
+                meta.Kind = entry.IsProjectile
                     ? BattleEntityKind.Projectile
                     : BattleEntityKind.Character;
-                meta.EntityCode = entry.Code;
+                meta.EntityCode = entry.EntityCode;
             }
 
-            if (entry.Kind == (int)SpawnEntityKind.Projectile
+            if (entry.IsProjectile
                 && entity.TryGetRef(out BattleProjectileComponent projectile)
                 && projectile != null)
             {
-                projectile.OwnerNetId = new BattleNetId(entry.OwnerNetId);
+                projectile.OwnerNetId = new BattleNetId(entry.OwnerActorId);
             }
         }
 

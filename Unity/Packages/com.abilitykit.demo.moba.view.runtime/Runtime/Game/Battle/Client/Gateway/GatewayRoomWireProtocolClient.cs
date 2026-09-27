@@ -2,16 +2,19 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Common.Rooms;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Flow;
 using AbilityKit.Network.Room;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Moba.GatewayTimeSync;
 using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Battle.Agent
 {
-    internal sealed class GatewayRoomWireProtocolClient
+    internal sealed class GatewayRoomWireProtocolClient : IDisposable
     {
         private readonly IRoomGatewayRequestTransport _transport;
+        private readonly NetworkProtocolAgent _agent;
         private readonly GatewayRoomOpCodes _opCodes;
         private readonly BattleInputCommandSequence _battleInputSequence;
 
@@ -22,6 +25,10 @@ namespace AbilityKit.Game.Battle.Agent
         {
             _transport = transport
                 ?? throw new ArgumentNullException(nameof(transport));
+            _agent = new NetworkProtocolAgent(
+                transport as INetworkProtocolTransport
+                    ?? throw new ArgumentException("Transport must support protocol pushes.", nameof(transport)),
+                RoomGatewayWireCodec.Instance);
             _opCodes = opCodes;
             _battleInputSequence = battleInputSequence
                 ?? throw new ArgumentNullException(nameof(battleInputSequence));
@@ -56,14 +63,8 @@ namespace AbilityKit.Game.Battle.Agent
             {
                 GuestId = Guid.NewGuid().ToString("N")
             };
-            var payload = WireRoomGatewayBinary.Serialize(in request);
-            var response = await _transport.SendRequestAsync(
-                guestLoginOpCode,
-                payload,
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireRoomGuestLoginRes>(
-                response);
+            var wire = await _agent.RequestAsync<WireRoomGuestLoginReq, WireRoomGuestLoginRes>(
+                guestLoginOpCode, request, timeout, cancellationToken).ConfigureAwait(false);
             return wire.Success
                 ? wire.SessionToken ?? string.Empty
                 : string.Empty;
@@ -94,9 +95,7 @@ namespace AbilityKit.Game.Battle.Agent
         public GatewayStateSyncSnapshot DeserializeStateSyncSnapshotPush(
             ArraySegment<byte> payload)
         {
-            var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(
-                payload);
-            return GatewayRoomResponseMapper.ToGatewaySnapshot(in wire);
+            return GatewayStateSyncSnapshotDecoder.Decode(payload);
         }
 
         public async Task<GatewayBattleInputResult> SubmitBattleInputAsync(
@@ -122,17 +121,14 @@ namespace AbilityKit.Game.Battle.Agent
                 Payload = inputPayload ?? Array.Empty<byte>(),
                 CommandSequence = commandSequence
             };
-            var payload = WireRoomGatewayBinary.Serialize(in request);
-            var response = await _transport.SendRequestAsync(
-                _opCodes.SubmitBattleInput,
-                payload,
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            var wire = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputRes>(
-                response);
+            var wire = await _agent.RequestAsync<WireSubmitBattleInputReq, WireSubmitBattleInputRes>(
+                _opCodes.SubmitBattleInput, request, timeout, cancellationToken).ConfigureAwait(false);
             return GatewayRoomResponseMapper.ToBattleInputResult(
                 in wire,
                 commandSequence);
         }
+
+        public void Dispose() => _agent.Dispose();
+
     }
 }

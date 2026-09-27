@@ -198,7 +198,8 @@ sequenceDiagram
     participant Summon as MobaSummonService
     participant Config as MobaConfigDatabase
     participant Spawn as MobaActorSpawnService
-    participant Trace as MobaTraceRegistry
+    participant Context as MobaExecutionContextRegistry
+    participant Trace as Optional Trace Adapter
     participant Lifecycle as Temporary lifecycle service
     participant EventBus as IEventBus
 
@@ -210,7 +211,8 @@ sequenceDiagram
     Spawn-->>Summon: summon actor entity
     Summon->>Summon: apply default component templates
     Summon->>Summon: init skill loadout
-    Summon->>Trace: create summon spawn trace context
+    Summon->>Context: create summon spawn execution context
+    Context-->>Trace: optional lifecycle projection
     Summon->>Summon: track owner list and source context
     Summon->>Summon: retain parent skill runtime if needed
     Summon->>Lifecycle: RecordSpawn
@@ -219,7 +221,7 @@ sequenceDiagram
 
 spawn post setup 至少写入 owner link、root owner、summon meta、是否 owner 死亡时销毁、生命周期结束时间和 model id。也就是说，召唤物从生成帧开始就具备清理所需的全部组件信息。
 
-生成成功只代表 actor transaction 已提交，不代表 Summon 领域初始化已经完成。`TrySummonInternal` 会把 trace 创建、属性继承、组件模板、技能装载、owner/source tracking 和 skill-runtime retain 放入后置阶段；任一步抛错都会调用 `CompensateFailedSpawn`，按事务条目补偿：
+生成成功只代表 actor transaction 已提交，不代表 Summon 领域初始化已经完成。`TrySummonInternal` 会把正式 Execution Context 创建、属性继承、组件模板、技能装载、owner/source tracking 和 skill-runtime retain 放入后置阶段；任一步抛错都会调用 `CompensateFailedSpawn`，按事务条目补偿：
 
 1. 通过 `IMobaActorSpawnTransactionService.Rollback`（或 registrar fallback）撤销 actor 注册并销毁实体；
 2. 结束刚创建或已经跟踪的 spawn trace；
@@ -255,7 +257,7 @@ builder 的关键行为是：
 | `WithOrigin` | 继承已有 origin，并补齐 skill runtime handle |
 | `Build` | 如果没有 origin，则用 summon spawn 信息构造 `MobaGameplayOrigin` |
 
-`MobaSummonService` 要求 spawn context id 不能为 0；如果没有 trace context，会抛出异常。这是一个明确的工程约束：召唤物会跨帧存在，必须留下可追溯来源，否则后续 damage、trigger、死亡事件和回放诊断无法可靠解释。
+`MobaSummonService` 要求 spawn context id 不能为 0；如果没有 `MobaExecutionContextRegistry` 或无法创建正式 Execution Context，会抛出异常。这是一个明确的工程约束：召唤物会跨帧存在，必须留下业务可用的来源身份，否则后续 damage、trigger 和死亡事件无法可靠执行；回放诊断则可由 Trace Adapter 观察该身份。
 
 ## 7. Summon despawn 与清理闭环
 
@@ -272,7 +274,7 @@ builder 的关键行为是：
 
 这个顺序的重点是先断开查询入口，再清理领域追踪和 trace，最后销毁实体。这样事件消费者拿到 despawn 事件时，能读到稳定的 reason、owner、summon id 与 source context，而不会留下活跃索引残留。
 
-`Clear`/`Dispose` 还承担世界级兜底：遍历剩余 source context，逐个释放 retain 并以 `SceneCleanup` 结束 trace，然后清空 owner/source 索引，最后执行 `ReleaseAllSkillRuntimes` 防止字典状态不一致时漏释放。它不会把普通 `Clear` 伪装成逐个 gameplay despawn 事件；场景关闭与正常离场是两种不同语义。
+`Clear`/`Dispose` 还承担世界级兜底：遍历剩余 source context，逐个释放 retain 并以 `SceneCleanup` 结束正式 Execution Context，然后清空 owner/source 索引，最后执行 `ReleaseAllSkillRuntimes` 防止字典状态不一致时漏释放。Trace Adapter 只观察这些 Context 终态。它不会把普通 `Clear` 伪装成逐个 gameplay despawn 事件；场景关闭与正常离场是两种不同语义。
 
 ### 7.1 生命周期 System 负责时间与 owner 死亡
 
@@ -351,7 +353,7 @@ Gameplay 生命周期事件和召唤/位移事件不同，它是全局战斗级�
 | Motion 命中应该直接造成伤害 | Motion 命中只发布 `motion.hit` trigger，伤害由 TriggerPlan 或 effect 执行 |
 | Summon 等于 actor spawn | Summon 是带 owner、capacity、trace、runtime retain、lifecycle event 的临时实体生命周期 |
 | Damage service 应该销毁召唤物 | Damage 只产出 after-apply 结果，Summon death subscriber 转换成 despawn |
-| 没有 trace context 也能召唤 | 当前实现要求 summon spawn 必须有 trace context，避免跨帧来源丢失 |
+| 没有正式 Execution Context 也能召唤 | 当前实现要求 summon spawn 必须创建正式 Context，避免跨帧业务来源丢失；Trace 可选 |
 | Gameplay trigger 可以绑定任意 scope | Gameplay binding 要求 TriggerPlanScope.Global |
 
 这篇专题的核心结论是：MOBA 示例已经把持续行为拆成通用生命周期与领域运行时两层。Motion 证明了“持续运行时可以只管理 source 生灭，而不接管物理/位移合成”；Summon 证明了“临时实体生命周期必须比普通 spawn 更严格地治理 owner、容量、trace、事件和清理”。

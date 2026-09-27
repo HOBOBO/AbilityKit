@@ -1,0 +1,17 @@
+{
+  "name": "TinyConsumer.Turn.Runtime",
+  "rootNamespace": "TinyConsumer.Turn",
+  "references": [
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Demo.Tiny.Turn.View"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

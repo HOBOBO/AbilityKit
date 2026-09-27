@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Hierarchy;
+using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.Flow;
 using AbilityKit.World.ECS;
 using UnityEngine;
@@ -14,6 +15,7 @@ namespace AbilityKit.Game.Battle.Vfx
         private readonly BattleVfxEntityFactory _factory;
         private readonly BattleVfxFollowController _followController;
         private readonly BattleVfxGameObjectPool _pool;
+        private readonly BattleVfxPrefabCache _prefabs;
         private readonly BattleVfxEntityCollector _collector = new BattleVfxEntityCollector();
         private readonly List<EC.IEntityId> _clearIds = new List<EC.IEntityId>(32);
 
@@ -27,16 +29,8 @@ namespace AbilityKit.Game.Battle.Vfx
         /// New code should pass a manager via the internal constructor.
         /// </summary>
         internal BattleVfxManager(VfxDatabase db, BattleVfxManagerComponentFactory components)
+            : this(db, components, null, null)
         {
-            if (db == null) throw new ArgumentNullException(nameof(db));
-            components ??= new BattleVfxManagerComponentFactory();
-
-            var prefabs = components.CreatePrefabs();
-            var pool = components.CreatePool(db, prefabs);
-            var lifetime = components.CreateLifetimePolicy();
-            _pool = pool;
-            _factory = components.CreateEntityFactory(db, prefabs, lifetime, pool);
-            _followController = components.CreateFollowController(lifetime);
         }
 
         /// <summary>
@@ -44,13 +38,19 @@ namespace AbilityKit.Game.Battle.Vfx
         /// are parented under the categorized active root.
         /// </summary>
         internal BattleVfxManager(VfxDatabase db, BattleVfxManagerComponentFactory components, BattleViewHierarchyManager hierarchy)
+            : this(db, components, hierarchy, null)
+        {
+        }
+
+        internal BattleVfxManager(VfxDatabase db, BattleVfxManagerComponentFactory components, BattleViewHierarchyManager hierarchy, IBattleAssetLookup assets)
         {
             if (db == null) throw new ArgumentNullException(nameof(db));
             components ??= new BattleVfxManagerComponentFactory();
 
-            var prefabs = components.CreatePrefabs();
+            var prefabs = components.CreatePrefabs(assets);
             var pool = components.CreatePool(db, prefabs, hierarchy);
             var lifetime = components.CreateLifetimePolicy();
+            _prefabs = prefabs;
             _pool = pool;
             _factory = components.CreateEntityFactory(db, prefabs, lifetime, pool, hierarchy);
             _followController = components.CreateFollowController(lifetime);
@@ -170,6 +170,7 @@ namespace AbilityKit.Game.Battle.Vfx
             }
 
             _pool?.Clear();
+            _prefabs.Clear();
         }
 
         private void DestroyVfxGameObject(EC.IEntity entity)
@@ -214,9 +215,9 @@ namespace AbilityKit.Game.Battle.Vfx
 
     internal sealed class BattleVfxManagerComponentFactory
     {
-        public BattleVfxPrefabCache CreatePrefabs()
+        public BattleVfxPrefabCache CreatePrefabs(IBattleAssetLookup assets = null)
         {
-            return new BattleVfxPrefabCache();
+            return new BattleVfxPrefabCache(assets: assets);
         }
 
         public BattleVfxGameObjectPool CreatePool(VfxDatabase db, BattleVfxPrefabCache prefabs)

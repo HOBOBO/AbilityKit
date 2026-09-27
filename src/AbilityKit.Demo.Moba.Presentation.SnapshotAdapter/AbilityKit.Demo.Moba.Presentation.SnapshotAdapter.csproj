@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.share/Runtime/Game/Flow/Battle/Presentation/SnapshotAdapter/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AbilityKit.Demo.Moba.Presentation.Contracts/AbilityKit.Demo.Moba.Presentation.Contracts.csproj" />
+    <ProjectReference Include="../AbilityKit.Demo.Moba.Presentation.ProtocolAdapter/AbilityKit.Demo.Moba.Presentation.ProtocolAdapter.csproj" />
+    <ProjectReference Include="../AbilityKit.Host/AbilityKit.Host.csproj" />
+    <ProjectReference Include="../AbilityKit.Protocol.Moba/AbilityKit.Protocol.Moba.csproj" />
+    <ProjectReference Include="../AbilityKit.World.Snapshot/AbilityKit.World.Snapshot.csproj" />
+  </ItemGroup>
+</Project>
+

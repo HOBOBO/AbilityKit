@@ -1507,7 +1507,7 @@ UI 原型退出门禁：五种窗口尺寸无重叠；键鼠导航可用；所�
 
 - 扩展 `BattleDiagnosticEventKind` 枚举：新增 `EffectStarted = 18` 和 `EffectEnded = 19`，归属 `BattleDiagnosticEventChannel.Effect` 通道。
 - 接入 Effect 执行生命周期 Producer：`MobaEffectExecutionService` 通过 `[WorldInject(required: false)]` 注入 `IMobaBattleDiagnosticEventCollector`，在 `BeginExecutionSession`（Trace 作用域创建后、Action 子节点创建后）提交 `EffectStarted` 草稿、在 `MobaEffectExecutionSession.Complete(bool executed)`（Trace 结束后）提交 `EffectEnded` 草稿（executed=true → Succeeded，executed=false → Failed）、在 `Dispose`（未 Complete 的异常路径）提交 `EffectEnded` 草稿（executed=false → Failed）；诊断提交独立于效果执行流程，Collector 不可用时静默跳过，异常以 try/catch 隔离不传播。
-- Effect 草稿映射逻辑抽离为独立静态类 `MobaEffectDiagnosticProducer`（`AbilityKit.Demo.Moba.Services` 命名空间），与 Area Producer 保持一致的抽离模式；通过 `EffectExecutionTraceScope` 解析 EffectConfigId、TriggerId、SourceActorId、TargetActorId、EffectContextId，通过 `MobaEffectLineageInput.EffectiveRootContextId` 解析 RootContextId；RootContextId 缺失时回退到 EffectContextId；EffectStarted 使用 `Outcome.None`（尚未知结果），EffectEnded 根据 executed 参数映射 Succeeded/Failed。
+- Effect 草稿映射逻辑抽离为独立静态类 `MobaEffectDiagnosticProducer`（`AbilityKit.Demo.Moba.Services` 命名空间），与 Area Producer 保持一致的抽离模式；通过 `EffectExecutionScope` 解析 EffectConfigId、TriggerId、SourceActorId、TargetActorId、EffectContextId，通过 `MobaEffectLineageInput.EffectiveRootContextId` 解析 RootContextId；RootContextId 缺失时回退到 EffectContextId；EffectStarted 使用 `Outcome.None`（尚未知结果），EffectEnded 根据 executed 参数映射 Succeeded/Failed。
 - `MobaEffectExecutionSession` 内部类扩展构造函数接收 `in MobaEffectLineageInput`，使 Complete/Dispose 路径可携带完整溯源上下文提交 EffectEnded 草稿。
 - EditMode 测试程序集扩展到 130 个测试全部通过：原有 121 个测试不变，新增 9 个 Effect Producer 测试（Started 字段映射、Started 无 RootContext 回退、Ended executed=true Succeeded、Ended executed=false Failed、Ended 无 RootContext 回退、Started Collector 流转、Ended Collector 流转、关闭 Effect 通道不分配 Sequence、Start+End 严格序列）。
 
@@ -1516,7 +1516,7 @@ UI 原型退出门禁：五种窗口尺寸无重叠；键鼠导航可用；所�
 - 采用渐进式新增面板策略而非主窗口重构，尊重第 38 节 UI 原型门禁：在现有 `IBattleDebugPanel` 反射注册机制和 `BattleDebugContext` 基础上新增诊断面板，不改变既有面板（总览/帧同步/标签/属性/效果）的活动对象读取路径，避免数据架构迁移与 UI 重构同时发生。
 - 实现共享诊断会话解析器 `BattleDebugDiagnosticSessionResolver`（internal static），统一从 `BattleDebugContext.Facade` → `TryGetSession` → `TryGetWorld` → `world.Services.TryResolve<IBattleDiagnosticReadOnlySession>()` 解析只读诊断会话；所有新面板通过该解析器获取查询表面，不绕过 Local Session Adapter 直接访问 Store 或 Runtime 服务。
 - 实现 `BattleDebugDiagnosticEventsPanel`（Order=400，"诊断事件"面板）：通过 `QueryEvents` 读取事件 Ring Store，支持按选中 Actor 过滤（ActorRelation.Either）、仅失败事件、文本搜索；按 StoreRevision 缓存查询结果避免重复查询；DisplayLimit=200；事件行显示 Sequence/Frame/Kind/Outcome/SourceActorId/TargetActorId/Summary，按 Outcome 着色（Failed 红色、Interrupted 黄色、Succeeded 绿色）。
-- 实现 `BattleDebugDiagnosticStatePanel`（Order=410，"诊断状态"面板）：通过 `QueryWorld`/`QueryActors` 读取状态 Store，显示 World 摘要（Frame/ActorCount/ActiveSkillRuntimeCount/ActiveTraceRootCount/StateHash）和 Actor 列表（ActorId/Kind/DisplayName/HP/TeamId），按存活状态着色。
+- 实现 `BattleDebugDiagnosticStatePanel`（Order=410，"诊断状态"面板）：通过 `QueryWorld`/`QueryActors` 读取状态 Store，显示 World 摘要（Frame/ActorCount/ActiveSkillRuntimeCount/ActiveExecutionRootCount/StateHash）和 Actor 列表（ActorId/Kind/DisplayName/HP/TeamId），按存活状态着色。
 - 两面板均遵循 ADR-002（Editor 仅消费不可变 DTO 和只读 Session）：查询结果不可用时显示明确的 Phase 原因（Idle/Loading/Empty/Unavailable/Error），不回退到活动对象读取；查询失败时显示错误信息，不通过捕获异常判断能力是否存在。
 - 修复迁移过程中暴露的预先存在 RoomGateway 重构编译错误（struct null 比较 CS0019、缺失接口方法 CS0535、struct 属性引用传递 CS8156/CS1615），确保 EditMode 测试可运行。
 - EditMode 测试全部通过（退出码 0），编译无错误；新面板通过反射注册自动发现，无需手动注册。
@@ -1542,7 +1542,7 @@ UI 原型退出门禁：五种窗口尺寸无重叠；键鼠导航可用；所�
 
 第十五批完成 Warning/Exception Producer：
 
-- 新增独立静态映射器 `MobaExceptionDiagnosticProducer`，以 `MobaBattleDiagnosticContext` 为统一输入，分别构造 `Warning`/`Outcome.None` 与 `Exception`/`Outcome.Failed` 草稿，归属 `BattleDiagnosticEventChannel.WarningAndException`；映射 ActorId、SkillId、RootContextId、SourceContextId 和 SkillRuntimeHandle，显式 RootContextId 缺失时回退到有效运行时句柄的 RootTraceContextId，异常摘要附带异常类型。
+- 新增独立静态映射器 `MobaExceptionDiagnosticProducer`，以 `MobaBattleDiagnosticContext` 为统一输入，分别构造 `Warning`/`Outcome.None` 与 `Exception`/`Outcome.Failed` 草稿，归属 `BattleDiagnosticEventChannel.WarningAndException`；映射 ActorId、SkillId、RootContextId、SourceContextId 和 SkillRuntimeHandle，显式 RootContextId 缺失时回退到有效运行时句柄的 RootContextId，异常摘要附带异常类型。
 - `MobaBattleDiagnosticsService` 通过 `[WorldInject(required: false)]` 可选注入 `IMobaBattleDiagnosticEventCollector`，在两个 Warning 重载及 Exception 的既有 `ShouldLog` 限流通过后统一提交结构化事件；因此既覆盖 ExceptionPolicy 路径，也覆盖 Runtime 中直接调用诊断服务的警告路径，并保留原有计数、抑制和日志语义。`MobaBattleExceptionPolicyService` 不直接提交事件，避免同一异常重复采集。
 - 诊断提交统一以 try/catch 隔离，Collector 缺失或提交失败不影响原有警告/异常处理；被关闭的 WarningAndException 通道不写入 Store，也不消耗 Sequence。
 - 新增 7 个 EditMode 测试，覆盖 Warning 字段映射、Exception 失败结果与异常类型、RootContext 回退、无运行时默认句柄、Warning/Exception 严格序列、关闭通道不消耗 Sequence，以及 `MobaBattleDiagnosticsService` 到 Collector 的集成流转。

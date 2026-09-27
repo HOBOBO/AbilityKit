@@ -4,6 +4,78 @@ namespace AbilityKit.Demo.Moba.CodeGen
 {
     public static class MobaDiagnosticRules
     {
+        public static readonly DiagnosticDescriptor InvalidRegistrationManifestRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.InvalidRegistrationManifestRuleId,
+            title: "Invalid generated registration",
+            messageFormat: "Generated registration '{0}' is invalid: {1}",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor DuplicateRegistrationManifestKeyRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.DuplicateRegistrationManifestKeyRuleId,
+            title: "Duplicate generated registration key",
+            messageFormat: "Generated registration key '{0}' is declared by both '{1}' and '{2}'",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor InvalidPlanActionSchemaRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.InvalidPlanActionSchemaRuleId,
+            title: "Invalid generated plan action schema",
+            messageFormat: "Plan action args '{0}' cannot generate a schema: {1}",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor InvalidPlanActionArgRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.InvalidPlanActionArgRuleId,
+            title: "Invalid generated plan action argument",
+            messageFormat: "Plan action argument '{0}.{1}' is invalid: {2}",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor InvalidWorldServiceRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.InvalidWorldServiceRuleId,
+            title: "Invalid World service declaration",
+            messageFormat: "World service '{0}' is invalid: {1}",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor ConflictingWorldServiceLifetimeRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.ConflictingWorldServiceLifetimeRuleId,
+            title: "Conflicting World service lifetime",
+            messageFormat: "World service implementation '{0}' declares more than one lifetime for overlapping profiles",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor DuplicateWorldServiceBindingRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.DuplicateWorldServiceBindingRuleId,
+            title: "Duplicate default World service binding",
+            messageFormat: "World service contract '{0}' has multiple default implementations for overlapping profiles: {1}",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Warning,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor InvalidWorldSystemRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.InvalidWorldSystemRuleId,
+            title: "Invalid World system declaration",
+            messageFormat: "World system '{0}' is invalid: {1}",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor DuplicateWorldSystemOrderRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.DuplicateWorldSystemOrderRuleId,
+            title: "Duplicate World system order",
+            messageFormat: "World systems share phase/order '{0}/{1}': {2}",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Warning,
+            isEnabledByDefault: true);
+
         public static readonly DiagnosticDescriptor InvalidConfigTableRule = new DiagnosticDescriptor(
             id: MobaDiagnosticIds.InvalidConfigTableRuleId,
             title: "Invalid MOBA config table declaration",

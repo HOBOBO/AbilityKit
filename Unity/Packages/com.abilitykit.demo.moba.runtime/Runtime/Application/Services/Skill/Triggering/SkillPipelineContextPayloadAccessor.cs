@@ -296,58 +296,13 @@ namespace AbilityKit.Demo.Moba.Services
         nameof(SkillRulePayloadFields.SkillLevel),
         nameof(SkillRulePayloadFields.CasterActorId),
         nameof(SkillRulePayloadFields.TargetActorId))]
+    [GeneratePayloadAccessor(typeof(SkillCastContext), typeof(SkillRulePayloadFields), nameof(SkillRulePayloadFields.SkillId), nameof(SkillCastContext.SkillId), PayloadAccessorValueKind.Int, true)]
+    [GeneratePayloadAccessor(typeof(SkillCastContext), typeof(SkillRulePayloadFields), nameof(SkillRulePayloadFields.SkillSlot), nameof(SkillCastContext.SkillSlot), PayloadAccessorValueKind.Int, true)]
+    [GeneratePayloadAccessor(typeof(SkillCastContext), typeof(SkillRulePayloadFields), nameof(SkillRulePayloadFields.SkillLevel), nameof(SkillCastContext.SkillLevel), PayloadAccessorValueKind.ClampMinOneInt, true)]
+    [GeneratePayloadAccessor(typeof(SkillCastContext), typeof(SkillRulePayloadFields), nameof(SkillRulePayloadFields.CasterActorId), nameof(SkillCastContext.CasterActorId), PayloadAccessorValueKind.Int, true)]
+    [GeneratePayloadAccessor(typeof(SkillCastContext), typeof(SkillRulePayloadFields), nameof(SkillRulePayloadFields.TargetActorId), nameof(SkillCastContext.TargetActorId), PayloadAccessorValueKind.Int, true)]
     public sealed partial class SkillCastContextPayloadAccessor : IPayloadIntAccessor<SkillCastContext>, IPayloadDoubleAccessor<SkillCastContext>
     {
-        public bool TryGet(in SkillCastContext args, int fieldId, out int value)
-        {
-            value = 0;
-            if (args == null) return false;
-
-            if (fieldId == SkillIdId || fieldId == SkillIdLegacyId)
-            {
-                value = args.SkillId;
-                return true;
-            }
-
-            if (fieldId == SkillSlotId || fieldId == SkillSlotLegacyId)
-            {
-                value = args.SkillSlot;
-                return true;
-            }
-
-            if (fieldId == SkillLevelId || fieldId == SkillLevelLegacyId)
-            {
-                value = Math.Max(1, args.SkillLevel);
-                return true;
-            }
-
-            if (fieldId == CasterActorIdId || fieldId == CasterActorIdLegacyId)
-            {
-                value = args.CasterActorId;
-                return true;
-            }
-
-            if (fieldId == TargetActorIdId || fieldId == TargetActorIdLegacyId)
-            {
-                value = args.TargetActorId;
-                return true;
-            }
-
-            return false;
-        }
-
-        public bool TryGet(in SkillCastContext args, int fieldId, out double value)
-        {
-            int intValue;
-            if (TryGet(in args, fieldId, out intValue))
-            {
-                value = intValue;
-                return true;
-            }
-
-            value = 0d;
-            return false;
-        }
     }
 
     public sealed class SkillPipelineContextObjectPayloadAccessor : IPayloadIntAccessor<object>, IPayloadDoubleAccessor<object>

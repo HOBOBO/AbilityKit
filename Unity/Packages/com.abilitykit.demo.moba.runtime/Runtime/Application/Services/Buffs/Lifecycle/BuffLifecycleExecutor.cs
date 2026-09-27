@@ -7,7 +7,6 @@ using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.GameplayTags;
-using AbilityKit.Trace;
 
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
@@ -136,7 +135,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
         /// <summary>
         /// 结束单个 Buff 运行时。先从仓库提交移除，再清理绑定、发布提交后事件并回收到对象池。
         /// </summary>
-        public bool EndRuntime(global::ActorEntity target, List<BuffRuntime> list, int index, BuffRuntime runtime, int sourceActorId, TraceLifecycleReason reason)
+        public bool EndRuntime(global::ActorEntity target, List<BuffRuntime> list, int index, BuffRuntime runtime, int sourceActorId, MobaExecutionEndReason reason)
         {
             return _endFlow.EndRuntime(target, list, index, runtime, sourceActorId, reason);
         }
@@ -149,9 +148,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             return _actors.TryGetActorEntity(actorId, out target) && target != null && target.hasActorId;
         }
 
-        private static TraceLifecycleReason NormalizeRemoveReason(TraceLifecycleReason reason)
+        private static MobaExecutionEndReason NormalizeRemoveReason(MobaExecutionEndReason reason)
         {
-            return reason == TraceLifecycleReason.None ? TraceLifecycleReason.Dispelled : reason;
+            return reason == MobaExecutionEndReason.None ? MobaExecutionEndReason.Dispelled : reason;
         }
 
     }
@@ -167,7 +166,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
 
             services.TryResolve(out MobaConfigDatabase configs);
             services.TryResolve(out AbilityKit.Triggering.Eventing.IEventBus eventBus);
-            services.TryResolve(out MobaTraceRegistry trace);
+            services.TryResolve(out IMobaRuntimeLifecycleHook optionalLifecycleHook);
+            services.TryResolve(out MobaExecutionContextRegistry executionContexts);
             services.TryResolve(out MobaEffectExecutionService effects);
             services.TryResolve(out IMobaEffectiveTagQueryService tags);
             services.TryResolve(out IMobaContinuousTagTemplateRegistry tagTemplates);
@@ -184,15 +184,15 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             if (triggerGateway == null) triggerGateway = new AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering.MobaTriggerExecutionGateway(effects, triggerSubscriptions);
  
             var repo = new BuffRepository();
-            var ctx = new BuffContextRegistry(trace, runtimeContexts, frameTime);
+            var ctx = new BuffContextRegistry(executionContexts, runtimeContexts, frameTime);
             var events = new BuffEventPublisher(eventBus);
-            var stageEffects = new BuffStageEffectExecutor(triggerGateway);
+            var stageEffects = new BuffStageEffectExecutor(triggerGateway, executionContexts, frameTime);
             var stacking = new BuffStackingPolicyApplier();
             var presentationCues = new MobaBuffPresentationCueReporter(configs, cueSnapshots);
             var continuousBindings = new BuffContinuousBindingService(continuous, tags);
             var notifier = new BuffLifecycleNotifier(events, stageEffects, presentationCues, observationHook);
 
-            var lifecycleHooks = MobaRuntimeLifecycleHookFactory.CreateDefault(trace);
+            var lifecycleHooks = MobaRuntimeLifecycleHookFactory.CreateDefault(optionalLifecycleHook);
             var bindings = new BuffRuntimeBindingCoordinator(lifecycleHooks, continuousBindings, skillRuntimes);
             var endFlow = new BuffEndFlow(configs, ctx, notifier, bindings);
  

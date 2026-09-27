@@ -3,5 +3,8 @@
   "version": "0.0.1",
   "displayName": "ThirdParty Svelto",
   "unity": "2022.3",
-  "description": "Svelto ECS source package staged for AbilityKit logical World integration. Place upstream Svelto source under Runtime after downloading it."
+  "description": "Svelto ECS source package staged for AbilityKit logical World integration. Place upstream Svelto source under Runtime after downloading it.",
+  "dependencies": {
+    "com.abilitykit.thirdparty.unsafe": "5.0.0"
+  }
 }

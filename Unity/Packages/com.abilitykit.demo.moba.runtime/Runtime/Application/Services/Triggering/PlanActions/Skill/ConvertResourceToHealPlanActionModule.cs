@@ -15,9 +15,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         protected override void Execute(object triggerArgs, ConvertResourceToHealArgs args, ExecCtx<IWorldResolver> ctx)
         {
-            if (args.Amount <= 0f) return;
-            if (args.HealRatio <= 0f) return;
-            if (args.ResourceType == ResourceType.None)
+            if (args.Amount <= 0f || float.IsNaN(args.Amount) || float.IsInfinity(args.Amount)) return;
+            if (args.HealRatio <= 0f || float.IsNaN(args.HealRatio) || float.IsInfinity(args.HealRatio)) return;
+            if (args.ResourceType == ResourceType.None || args.ResourceType == ResourceType.Hp)
             {
                 LogRejected(ctx, "invalid resource type.");
                 return;
@@ -84,8 +84,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (targetActorId <= 0) return;
             if (combatActivity != null && !combatActivity.IsOutOfCombat(targetActorId, args.OutOfCombatSeconds)) return;
             if (!actors.TryGetActorEntity(targetActorId, out var entity) || entity == null) return;
-            if (!entity.hasResourceContainer || entity.resourceContainer.Value == null || entity.resourceContainer.Value.Map == null) return;
-            if (!entity.resourceContainer.Value.Map.TryGetValue(args.ResourceType, out var state) || state == null) return;
+            if (!MobaResourceMutation.TryGetState(entity, args.ResourceType, out var state)) return;
 
             var amountFixed = MobaResourceFixedConvert.ToFixed(args.Amount);
             var consumed = AbilityKit.Deterministic.DeterministicMath.Min(state.Current, amountFixed);
@@ -98,22 +97,29 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var origin = effectInput.BuildOrigin(
                 healerActorId,
                 targetActorId,
-                MobaTraceKind.EffectExecution,
+                MobaExecutionKind.EffectExecution,
                 args.ReasonParam);
-            var result = damage.CommitHeal(
-                healerActorId,
-                targetActorId,
-                (int)args.HealType,
-                MobaResourceFixedConvert.ToSingle(requestedHeal),
-                args.ReasonKind,
-                args.ReasonParam,
-                origin);
-            if (!result.Succeeded) return;
+            if (!MobaResourceMutation.TryConsume(entity, args.ResourceType, consumed, out _, out _)) return;
+            var hpCommitted = false;
+            try
+            {
+                var result = damage.CommitHeal(
+                    healerActorId,
+                    targetActorId,
+                    (int)args.HealType,
+                    MobaResourceFixedConvert.ToSingle(requestedHeal),
+                    args.ReasonKind,
+                    args.ReasonParam,
+                    origin,
+                    onCommitted: () => hpCommitted = true);
+                if (!result.Succeeded) return;
 
-            state.Current -= consumed;
-            if (state.Current < AbilityKit.Deterministic.Fixed64.Zero) state.Current = AbilityKit.Deterministic.Fixed64.Zero;
-            MobaResourceAttributeContextProjector.Refresh(entity);
-            MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.ConvertResourceToHeal, $"healer={healerActorId}, target={targetActorId}, type={args.ResourceType}, consumed={MobaResourceFixedConvert.ToSingle(consumed):0.###}, healed={result.AppliedValue:0.###}, current={MobaResourceFixedConvert.ToSingle(state.Current):0.###}");
+                MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.ConvertResourceToHeal, $"healer={healerActorId}, target={targetActorId}, type={args.ResourceType}, consumed={MobaResourceFixedConvert.ToSingle(consumed):0.###}, healed={result.AppliedValue:0.###}, current={MobaResourceFixedConvert.ToSingle(state.Current):0.###}");
+            }
+            finally
+            {
+                if (!hpCommitted) MobaResourceMutation.Refund(entity, args.ResourceType, state, consumed);
+            }
         }
     }
 }

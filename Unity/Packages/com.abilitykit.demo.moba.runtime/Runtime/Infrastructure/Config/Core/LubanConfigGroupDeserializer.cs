@@ -159,6 +159,11 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 IconId = obj["IconId"]?.Value<int>() ?? 0,
                 Category = obj["Category"]?.Value<int>() ?? 0,
                 SkillType = obj["SkillType"]?.Value<int>() ?? 0,
+                CastConflictGroup = obj["CastConflictGroup"]?.Value<int>() ?? 0,
+                InterruptPriority = obj["InterruptPriority"]?.Value<int>() ?? 0,
+                InterruptRunning = obj["InterruptRunning"]?.Value<bool>() ?? false,
+                Uninterruptible = obj["Uninterruptible"]?.Value<bool>() ?? false,
+                TargetLostPolicy = obj["TargetLostPolicy"]?.Value<int>() ?? 0,
                 Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 SkillButtonTemplateId = obj["SkillButtonTemplateId"]?.Value<int>() ?? 0,
                 RequiredTargetQueryId = obj["RequiredTargetQueryId"]?.Value<int>() ?? 0,
@@ -210,10 +215,10 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Name = obj["Name"]?.Value<string>() ?? string.Empty,
             };
 
-            dto.RequiredTagNames = ReadTagNames(obj["RequiredTags"]);
-            dto.BlockedTagNames = ReadTagNames(obj["BlockedTags"]);
-            dto.GrantTagNames = ReadTagNames(obj["GrantTags"]);
-            dto.RemoveTagNames = ReadTagNames(obj["RemoveTags"]);
+            dto.RequiredTagNames = ReadTagNames(obj["RequiredTags"] ?? obj["RequiredTagNames"]);
+            dto.BlockedTagNames = ReadTagNames(obj["BlockedTags"] ?? obj["BlockedTagNames"]);
+            dto.GrantTagNames = ReadTagNames(obj["GrantTags"] ?? obj["GrantTagNames"]);
+            dto.RemoveTagNames = ReadTagNames(obj["RemoveTags"] ?? obj["RemoveTagNames"]);
             return dto;
         }
 
@@ -225,14 +230,14 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Name = obj["Name"]?.Value<string>() ?? string.Empty,
             };
 
-            dto.ActivationRequiredTagNames = ReadTagNames(obj["ActivationRequiredTags"]);
-            dto.ActivationBlockedTagNames = ReadTagNames(obj["ActivationBlockedTags"]);
-            dto.ApplicationTagNames = ReadTagNames(obj["ApplicationTags"]);
-            dto.RemovalRequiredTagNames = ReadTagNames(obj["RemovalRequiredTags"]);
-            dto.RemovalBlockedTagNames = ReadTagNames(obj["RemovalBlockedTags"]);
-            dto.OngoingRequiredTagNames = ReadTagNames(obj["OngoingRequiredTags"]);
-            dto.OngoingBlockedTagNames = ReadTagNames(obj["OngoingBlockedTags"]);
-            dto.RemovalTagNames = ReadTagNames(obj["RemovalTags"]);
+            dto.ActivationRequiredTagNames = ReadTagNames(obj["ActivationRequiredTags"] ?? obj["ActivationRequiredTagNames"]);
+            dto.ActivationBlockedTagNames = ReadTagNames(obj["ActivationBlockedTags"] ?? obj["ActivationBlockedTagNames"]);
+            dto.ApplicationTagNames = ReadTagNames(obj["ApplicationTags"] ?? obj["ApplicationTagNames"]);
+            dto.RemovalRequiredTagNames = ReadTagNames(obj["RemovalRequiredTags"] ?? obj["RemovalRequiredTagNames"]);
+            dto.RemovalBlockedTagNames = ReadTagNames(obj["RemovalBlockedTags"] ?? obj["RemovalBlockedTagNames"]);
+            dto.OngoingRequiredTagNames = ReadTagNames(obj["OngoingRequiredTags"] ?? obj["OngoingRequiredTagNames"]);
+            dto.OngoingBlockedTagNames = ReadTagNames(obj["OngoingBlockedTags"] ?? obj["OngoingBlockedTagNames"]);
+            dto.RemovalTagNames = ReadTagNames(obj["RemovalTags"] ?? obj["RemovalTagNames"]);
             return dto;
         }
 
@@ -796,6 +801,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             return new SkillCommitPointPhaseDTO
             {
                 CommitId = obj["CommitId"]?.Value<string>() ?? string.Empty,
+                RequireEconomyReservation = obj["RequireEconomyReservation"]?.Value<bool>() ?? false,
             };
         }
 
@@ -819,6 +825,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 GlobalCooldownMs = obj["GlobalCooldownMs"]?.Value<int>() ?? 0,
                 IgnoreGlobalCooldown = obj["IgnoreGlobalCooldown"]?.Value<bool>() ?? false,
                 RefundBeforeCommit = obj["RefundBeforeCommit"]?.Value<bool>() ?? true,
+                RequireExplicitCommit = obj["RequireExplicitCommit"]?.Value<bool>() ?? false,
                 FailReason = obj["FailReason"]?.Value<string>(),
             };
         }
@@ -1052,6 +1059,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                         AtMs = obj["AtMs"]?.Value<int>() ?? 0,
                         EffectId = obj["EffectId"]?.Value<int>() ?? 0,
                         ExecuteMode = obj["ExecuteMode"]?.Value<int>() ?? 0,
+                        AbortOnFailure = obj["AbortOnFailure"]?.Value<bool>() ?? false,
                         EventTag = obj["EventTag"]?.Value<string>() ?? string.Empty
                     });
                 }

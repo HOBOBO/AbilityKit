@@ -82,8 +82,7 @@ namespace ET.Logic
 
             var registry = MobaConfigRegistry.Instance;
             var configDatabase = new MobaConfigDatabase(registry, JsonNetMobaConfigDtoDeserializer.Instance, new LubanMobaConfigDtoBytesDeserializer(), loader);
-            var loadPipeline = new MobaConfigLoadPipeline(registry, loader);
-            ResourcesJsonMobaConfigLoadProfile.Default.Load(configDatabase, loadPipeline);
+            new LubanGroupsMobaConfigLoadProfile(loader).Load(configDatabase);
 
             return BuildSpawnListFromConfig(configDatabase, localPlayerId, spawnLayout, localTeamId);
         }

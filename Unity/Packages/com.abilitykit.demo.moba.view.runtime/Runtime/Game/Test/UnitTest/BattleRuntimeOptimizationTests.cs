@@ -10,12 +10,16 @@ using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Ability.Host.Extensions.Time;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.View.Settings;
 using AbilityKit.Core.Logging;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Snapshot;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Demo.Moba.Share.Prediction;
 using MobaProjectileEventSnapshotEntry = AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry;
+using MobaActionAckCodec = AbilityKit.Protocol.Moba.StateSync.MobaActionAckCodec;
 using ProtocolProjectileEventKind = AbilityKit.Protocol.Moba.StateSync.ProjectileEventKind;
 using BattleLogicSessionOptions = AbilityKit.Game.Battle.BattleLogicSessionOptions;
 using BattleStartPlan = AbilityKit.Game.Flow.BattleStartPlan;
@@ -24,6 +28,8 @@ using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Game.Battle.Shared.Assets;
+using AbilityKit.Game.Battle.Shared.Time;
 using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Flow;
 using AbilityKit.Game.Flow.Battle.View;
@@ -81,6 +87,299 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void BattleVfxGameObjectPool_RejectsReturnToDifferentVfxBucket()
+        {
+            var pool = new BattleVfxGameObjectPool(id => new GameObject($"vfx-{id}"));
+            try
+            {
+                Assert.IsTrue(pool.TryRent(1, out var first));
+                Assert.IsTrue(pool.TryRent(2, out var second));
+
+                Assert.IsFalse(pool.Return(2, first));
+                Assert.AreEqual(0, pool.CountInPool);
+
+                Assert.IsTrue(pool.Return(1, first));
+                Assert.IsTrue(pool.Return(2, second));
+                Assert.IsTrue(pool.TryRent(1, out var reused));
+                Assert.AreSame(first, reused);
+                Assert.IsTrue(pool.Return(1, reused));
+            }
+            finally
+            {
+                pool.Clear();
+            }
+        }
+
+        [Test]
+        public void BattleViewPools_RejectCrossBucketReturns()
+        {
+            var shells = new BattleViewShellPool(id => new GameObject($"shell-{id}"), defaultCapacity: 0);
+            var projectiles = new BattleProjectileShellPool(id => new GameObject($"projectile-{id}"));
+            var areas = BattleAreaVfxPool.UsingFactory(
+                (id, kind) => new GameObject($"area-{id}-{kind}"), capacityPerKindPerTemplate: 0);
+            try
+            {
+                Assert.IsTrue(shells.TryRent(1, out var shell));
+                Assert.IsTrue(shells.TryRent(2, out var otherShell));
+                Assert.IsFalse(shells.TryReturn(2, shell));
+                Assert.IsTrue(shells.TryReturn(1, shell));
+                Assert.IsTrue(shells.TryReturn(2, otherShell));
+
+                Assert.IsTrue(projectiles.TryRent(1, out var projectile));
+                Assert.IsTrue(projectiles.TryRent(2, out var otherProjectile));
+                Assert.IsFalse(projectiles.TryReturn(2, projectile));
+                Assert.IsTrue(projectiles.TryReturn(1, projectile));
+                Assert.IsTrue(projectiles.TryReturn(2, otherProjectile));
+
+                Assert.IsTrue(areas.TryRent(1, BattleAreaVfxPool.PoolKind.Model, out var area));
+                Assert.IsTrue(areas.TryRent(1, BattleAreaVfxPool.PoolKind.Vfx, out var otherArea));
+                Assert.IsFalse(areas.TryReturn(1, BattleAreaVfxPool.PoolKind.Vfx, area));
+                Assert.IsTrue(areas.TryReturn(1, BattleAreaVfxPool.PoolKind.Model, area));
+                Assert.IsTrue(areas.TryReturn(1, BattleAreaVfxPool.PoolKind.Vfx, otherArea));
+            }
+            finally
+            {
+                shells.Clear();
+                projectiles.Clear();
+                areas.Clear();
+            }
+        }
+
+        [Test]
+        public void BattleViewPools_TrackLeasesAndKeepMetricsAfterClear()
+        {
+            var vfx = new BattleVfxGameObjectPool(id => new GameObject($"vfx-{id}"), capacityPerVfxId: 0);
+            var shells = new BattleViewShellPool(id => new GameObject($"shell-{id}"), defaultCapacity: 0);
+            var projectiles = new BattleProjectileShellPool(id => new GameObject($"projectile-{id}"), capacityPerTemplate: 0);
+            var areas = BattleAreaVfxPool.UsingFactory(
+                (id, kind) => new GameObject($"area-{id}-{kind}"), capacityPerKindPerTemplate: 0);
+            try
+            {
+                Assert.IsTrue(vfx.TryRent(1, out var vfxReturned));
+                Assert.IsTrue(vfx.TryRent(1, out _));
+                Assert.IsTrue(shells.TryRent(1, out var shellReturned));
+                Assert.IsTrue(shells.TryRent(1, out _));
+                Assert.IsTrue(projectiles.TryRent(1, out var projectileReturned));
+                Assert.IsTrue(projectiles.TryRent(1, out _));
+                Assert.IsTrue(areas.TryRent(1, BattleAreaVfxPool.PoolKind.Model, out var areaReturned));
+                Assert.IsTrue(areas.TryRent(1, BattleAreaVfxPool.PoolKind.Model, out _));
+
+                Assert.IsTrue(vfx.Return(1, vfxReturned));
+                Assert.IsTrue(shells.TryReturn(1, shellReturned));
+                Assert.IsTrue(projectiles.TryReturn(1, projectileReturned));
+                Assert.IsTrue(areas.TryReturn(1, BattleAreaVfxPool.PoolKind.Model, areaReturned));
+                Assert.IsFalse(vfx.Return(1, vfxReturned));
+                Assert.IsFalse(shells.TryReturn(1, shellReturned));
+                Assert.IsFalse(projectiles.TryReturn(1, projectileReturned));
+                Assert.IsFalse(areas.TryReturn(1, BattleAreaVfxPool.PoolKind.Model, areaReturned));
+
+                AssertPoolMetrics(vfx.Metrics, 1, 1, 2, 2, 0, 1);
+                AssertPoolMetrics(shells.Metrics, 1, 1, 2, 2, 0, 1);
+                AssertPoolMetrics(projectiles.Metrics, 1, 1, 2, 2, 0, 1);
+                AssertPoolMetrics(areas.Metrics, 1, 1, 2, 2, 0, 1);
+
+                vfx.Clear();
+                shells.Clear();
+                projectiles.Clear();
+                areas.Clear();
+                AssertPoolMetrics(vfx.Metrics, 0, 0, 2, 2, 2, 1);
+                AssertPoolMetrics(shells.Metrics, 0, 0, 2, 2, 2, 1);
+                AssertPoolMetrics(projectiles.Metrics, 0, 0, 2, 2, 2, 1);
+                AssertPoolMetrics(areas.Metrics, 0, 0, 2, 2, 2, 1);
+            }
+            finally
+            {
+                vfx.Clear();
+                shells.Clear();
+                projectiles.Clear();
+                areas.Clear();
+            }
+        }
+
+        private static void AssertPoolMetrics(
+            AbilityKit.Game.Battle.Hierarchy.BattleViewPoolMetrics metrics,
+            int active, int cached, int peak, int created, int destroyed, int failed)
+        {
+            Assert.AreEqual(active, metrics.Active);
+            Assert.AreEqual(cached, metrics.Cached);
+            Assert.AreEqual(peak, metrics.PeakActive);
+            Assert.AreEqual(created, metrics.Created);
+            Assert.AreEqual(destroyed, metrics.Destroyed);
+            Assert.AreEqual(failed, metrics.Failed);
+        }
+
+        [Test]
+        public void BattleViewPools_BurstReturnsRespectPerBucketRetentionLimit()
+        {
+            var vfx = new BattleVfxGameObjectPool(id => new GameObject($"vfx-{id}"), capacityPerVfxId: 1);
+            var shells = new BattleViewShellPool(id => new GameObject($"shell-{id}"), defaultCapacity: 1, maxSize: 2);
+            var projectiles = new BattleProjectileShellPool(id => new GameObject($"projectile-{id}"), capacityPerTemplate: 1);
+            var areas = BattleAreaVfxPool.UsingFactory(
+                (id, kind) => new GameObject($"area-{id}-{kind}"), capacityPerKindPerTemplate: 1);
+            try
+            {
+                var vfxItems = new GameObject[6];
+                var shellItems = new GameObject[6];
+                var projectileItems = new GameObject[6];
+                var areaItems = new GameObject[6];
+                for (var i = 0; i < 6; i++)
+                {
+                    Assert.IsTrue(vfx.TryRent(1, out vfxItems[i]));
+                    Assert.IsTrue(shells.TryRent(1, out shellItems[i]));
+                    Assert.IsTrue(projectiles.TryRent(1, out projectileItems[i]));
+                    Assert.IsTrue(areas.TryRent(1, BattleAreaVfxPool.PoolKind.Model, out areaItems[i]));
+                }
+                for (var i = 0; i < 6; i++)
+                {
+                    Assert.IsTrue(vfx.Return(1, vfxItems[i]));
+                    Assert.IsTrue(shells.TryReturn(1, shellItems[i]));
+                    Assert.IsTrue(projectiles.TryReturn(1, projectileItems[i]));
+                    Assert.IsTrue(areas.TryReturn(1, BattleAreaVfxPool.PoolKind.Model, areaItems[i]));
+                }
+
+                AssertPoolMetrics(vfx.Metrics, 0, 2, 6, 6, 4, 0);
+                AssertPoolMetrics(shells.Metrics, 0, 2, 6, 6, 4, 0);
+                AssertPoolMetrics(projectiles.Metrics, 0, 2, 6, 6, 4, 0);
+                AssertPoolMetrics(areas.Metrics, 0, 2, 6, 6, 4, 0);
+            }
+            finally
+            {
+                vfx.Clear();
+                shells.Clear();
+                projectiles.Clear();
+                areas.Clear();
+            }
+        }
+
+        [Test]
+        public void BattleVfxEntityFactory_FailedEntityBuildReturnsVisualAndDestroysChild()
+        {
+            var vfxId = 9001;
+            var db = new VfxDatabase(new Dictionary<int, VfxDTO>
+            {
+                [vfxId] = new VfxDTO { Id = vfxId, Resource = "unused", DurationMs = 1000 }
+            });
+            var pool = new BattleVfxGameObjectPool(_ => new GameObject("pooled-vfx"));
+            var prefabs = new BattleVfxPrefabCache();
+            var factory = new BattleVfxEntityFactory(
+                db, prefabs, new BattleVfxLifetimePolicy(new ThrowingBattleViewTimeSource()),
+                new BattleVfxGameObjectFactory(prefabs, pool: pool));
+            var world = new EntityWorld();
+            var root = world.Create("root");
+            var position = Vector3.zero;
+            try
+            {
+                Assert.Throws<InvalidOperationException>(() =>
+                    factory.TryCreateEntity(world, root, vfxId, default, in position, out _));
+                Assert.AreEqual(1, world.AliveCount);
+                Assert.AreEqual(0, world.GetChildCount(root.Id));
+                Assert.AreEqual(1, pool.CountInPool);
+                Assert.AreEqual(0, pool.DebugStats.Active);
+            }
+            finally
+            {
+                pool.Clear();
+                if (root.IsValid) root.Destroy();
+            }
+        }
+
+        [Test]
+        public void BattleVfxManager_ClearReleasesActiveVfxAndCanRepeat()
+        {
+            var db = new VfxDatabase(new Dictionary<int, VfxDTO>
+            {
+                [9001] = new VfxDTO { Id = 9001, Resource = "missing/test-vfx", DurationMs = 1000 }
+            });
+            var manager = new BattleVfxManager(db);
+            var world = new EntityWorld();
+            var root = world.Create("vfx-root");
+            var position = Vector3.zero;
+            try
+            {
+                Assert.IsTrue(manager.TryCreateVfxEntity(world, root, 9001, default, in position, out _));
+                Assert.AreEqual(1, world.GetChildCount(root.Id));
+
+                manager.Clear(root);
+                manager.Clear(root);
+
+                Assert.AreEqual(0, world.GetChildCount(root.Id));
+                Assert.AreEqual(0, manager.PoolForStats.DebugStats.Active);
+                Assert.AreEqual(0, manager.PoolForStats.CountInPool);
+            }
+            finally
+            {
+                manager.Clear(root);
+                if (root.IsValid) root.Destroy();
+            }
+        }
+
+        [Test]
+        public void ViewVfxRuntimeFactory_LoadsPrefabFromBattleAssetLease()
+        {
+            var prefab = new GameObject("leased-vfx-prefab");
+            var assets = new TestBattleAssetLookup("leased/vfx", prefab);
+            var db = new VfxDatabase(new Dictionary<int, VfxDTO>
+            {
+                [9002] = new VfxDTO { Id = 9002, Resource = "leased/vfx", DurationMs = 1000 }
+            });
+            var resources = new BattleViewResourceProvider(null, db, assets);
+            var manager = new ViewVfxRuntimeFactory().CreateManager(resources);
+            var world = new EntityWorld();
+            var root = world.Create("root");
+            var position = Vector3.zero;
+            try
+            {
+                Assert.IsTrue(manager.TryCreateVfxEntity(world, root, 9002, default, in position, out _));
+                Assert.AreEqual(1, assets.LookupCount);
+                manager.Clear(root);
+                Assert.IsNotNull(prefab);
+            }
+            finally
+            {
+                manager.Clear(root);
+                if (root.IsValid) root.Destroy();
+                UnityEngine.Object.DestroyImmediate(prefab);
+            }
+        }
+
+        private sealed class TestBattleAssetLookup : IBattleAssetLookup
+        {
+            private readonly string _path;
+            private readonly object _asset;
+
+            public TestBattleAssetLookup(string path, object asset)
+            {
+                _path = path;
+                _asset = asset;
+            }
+
+            public int LookupCount { get; private set; }
+
+            public bool TryGetAsset(string assetPath, out object asset)
+            {
+                LookupCount++;
+                asset = assetPath == _path ? _asset : null;
+                return asset != null;
+            }
+        }
+
+        private sealed class ThrowingBattleViewTimeSource : IBattleViewTimeSource
+        {
+            public float TimeSeconds => throw new InvalidOperationException("time unavailable");
+            public int FrameCount => 0;
+        }
+
+        [Test]
+        public void ViewVfxRuntimeFactory_MissingResourcesUsesPlaceholderDatabase()
+        {
+            var manager = new ViewVfxRuntimeFactory().CreateManager(null);
+
+            Assert.IsNotNull(manager);
+            Assert.IsTrue(manager.CanSpawn);
+            Assert.IsNotNull(manager.PoolForStats);
+        }
+
+        [Test]
         public void BattleProjectileViewEventHandler_ConfiguredVfxSuppressesFallbackShell()
         {
             var db = new VfxDatabase(new Dictionary<int, VfxDTO>
@@ -113,7 +412,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     ForwardX = 1f,
                 };
 
-                handler.HandleSnapshot(new[] { spawn });
+                var spawnData = ProjectileEventSnapshotMapper.Map(in spawn);
+                handler.HandleSnapshot(new[] { spawnData });
 
                 Assert.AreEqual(0, shellCreates, "A successfully spawned configured VFX must be the only projectile visual.");
             }
@@ -436,7 +736,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     TemplateId = 30040201,
                 };
 
-                handler.HandleSnapshot(new[] { exit });
+                var exitData = ProjectileEventSnapshotMapper.Map(in exit);
+                handler.HandleSnapshot(new[] { exitData });
 
                 Assert.IsFalse(
                     world.IsAlive(projectileVfx.Id),
@@ -573,8 +874,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 Z = 3f,
             };
 
-            Assert.IsTrue(deduplicator.ShouldHandle(in entry));
-            Assert.IsFalse(deduplicator.ShouldHandle(in entry));
+            var data = ProjectileEventSnapshotMapper.Map(in entry);
+            Assert.IsTrue(deduplicator.ShouldHandle(in data));
+            Assert.IsFalse(deduplicator.ShouldHandle(in data));
         }
 
         [Test]
@@ -591,8 +893,10 @@ namespace AbilityKit.Game.Test.UnitTest
             var second = first;
             second.ProjectileId = 43;
 
-            Assert.IsTrue(deduplicator.ShouldHandle(in first));
-            Assert.IsTrue(deduplicator.ShouldHandle(in second));
+            var firstData = ProjectileEventSnapshotMapper.Map(in first);
+            var secondData = ProjectileEventSnapshotMapper.Map(in second);
+            Assert.IsTrue(deduplicator.ShouldHandle(in firstData));
+            Assert.IsTrue(deduplicator.ShouldHandle(in secondData));
         }
 
         [Test]
@@ -615,15 +919,19 @@ namespace AbilityKit.Game.Test.UnitTest
                 var exit = spawn;
                 exit.Kind = (int)ProtocolProjectileEventKind.Exit;
 
-                Assert.IsTrue(deduplicator.ShouldHandle(in spawn));
-                Assert.IsTrue(deduplicator.ShouldHandle(in hit));
+                var spawnData = ProjectileEventSnapshotMapper.Map(in spawn);
+                var hitData = ProjectileEventSnapshotMapper.Map(in hit);
+                var exitData = ProjectileEventSnapshotMapper.Map(in exit);
+
+                Assert.IsTrue(deduplicator.ShouldHandle(in spawnData));
+                Assert.IsTrue(deduplicator.ShouldHandle(in hitData));
                 Assert.AreEqual(2, deduplicator.Count);
 
-                deduplicator.ForgetLifecycle(in exit);
+                deduplicator.ForgetLifecycle(in exitData);
                 Assert.AreEqual(0, deduplicator.Count);
 
                 // Exit cleanup is intentionally idempotent because replay/reconnect can resend it.
-                deduplicator.ForgetLifecycle(in exit);
+                deduplicator.ForgetLifecycle(in exitData);
                 Assert.AreEqual(0, deduplicator.Count);
             }
         }
@@ -633,8 +941,8 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var resolver = new BattleProjectileVfxResolver();
 
-            Assert.AreEqual(0, resolver.ResolveSnapshotVfxId(30020101, (int)ProtocolProjectileEventKind.Hit));
-            Assert.AreEqual(0, resolver.ResolveSnapshotVfxId(30020101, (int)ProtocolProjectileEventKind.Exit));
+            Assert.AreEqual(0, resolver.ResolveSnapshotVfxId(30020101, ProjectilePresentationEventKind.Hit));
+            Assert.AreEqual(0, resolver.ResolveSnapshotVfxId(30020101, ProjectilePresentationEventKind.Exit));
         }
 
         [Test]
@@ -650,7 +958,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 ForwardZ = 0f,
             };
 
-            Assert.IsTrue(resolver.TryResolve(in entry, out var spec));
+            var data = ProjectileEventSnapshotMapper.Map(in entry);
+            Assert.IsTrue(resolver.TryResolve(in data, out var spec));
             var rotatedForward = spec.Rotation * Vector3.forward;
 
             Assert.AreEqual(1f, rotatedForward.x, 0.0001f);
@@ -669,7 +978,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 ProjectileActorId = 10042,
             };
 
-            Assert.IsTrue(resolver.TryResolve(in entry, out var spec));
+            var data = ProjectileEventSnapshotMapper.Map(in entry);
+            Assert.IsTrue(resolver.TryResolve(in data, out var spec));
 
             Assert.AreEqual(10042, spec.FollowTargetActorId);
         }
@@ -765,9 +1075,15 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var installer = new TestBattleSessionWorldInstaller();
             var feature = new BattleSessionFeature(null, null, null, installer);
+            var resourcesField = typeof(BattleSessionFeature).GetField(
+                "_runtimeResourcesPort",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(resourcesField);
+            var resources = (ISessionRuntimeResourcesPort)resourcesField.GetValue(feature);
 
-            InvokePrivate(feature, "StartRemoteDrivenLocalWorld");
-            InvokePrivate(feature, "StartConfirmedAuthorityWorld");
+            resources.StartRemoteDrivenLocalWorld();
+            resources.StartConfirmedAuthorityWorld();
 
             Assert.AreEqual(1, installer.RemoteDrivenStartCount);
             Assert.AreEqual(1, installer.ConfirmedAuthorityStartCount);
@@ -830,8 +1146,13 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
-        [Test]
-        public void BattleSessionFeature_UsesInjectedGatewayConnectionFactoryForRoomConnection()
+        [UnityTest]
+        public IEnumerator BattleSessionFeature_UsesInjectedGatewayConnectionFactoryForRoomConnection()
+        {
+            yield return AwaitTask(BattleSessionFeature_UsesInjectedGatewayConnectionFactoryForRoomConnectionCore());
+        }
+
+        private static async Task BattleSessionFeature_UsesInjectedGatewayConnectionFactoryForRoomConnectionCore()
         {
             var installer = new TestBattleSessionWorldInstaller();
             var gatewayConnectionFactory = new TestBattleSessionGatewayConnectionFactory();
@@ -855,7 +1176,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 .Build();
 
             SetPrivatePlan(feature, plan);
-            InvokePrivate(feature, "StartGatewayRoomPreparation");
+            InitializeDispatchers(feature);
+            await (Task)InvokePrivate(feature, "StartGatewayRoomPreparation");
 
             try
             {
@@ -866,12 +1188,21 @@ namespace AbilityKit.Game.Test.UnitTest
             }
             finally
             {
-                InvokePrivate(feature, "StopGatewayRoomPreparation");
+                var firstStop = (Task)InvokePrivate(feature, "StopGatewayRoomPreparation");
+                var secondStop = (Task)InvokePrivate(feature, "StopGatewayRoomPreparation");
+                Assert.That(secondStop, Is.SameAs(firstStop));
+                await firstStop;
+                InvokePrivate(feature, "DisposeNetworkIoDispatcher");
             }
         }
 
-        [Test]
-        public void BattleSessionFeature_UsesInjectedGatewayRoomClientFactoryForRoomClient()
+        [UnityTest]
+        public IEnumerator BattleSessionFeature_UsesInjectedGatewayRoomClientFactoryForRoomClient()
+        {
+            yield return AwaitTask(BattleSessionFeature_UsesInjectedGatewayRoomClientFactoryForRoomClientCore());
+        }
+
+        private static async Task BattleSessionFeature_UsesInjectedGatewayRoomClientFactoryForRoomClientCore()
         {
             var installer = new TestBattleSessionWorldInstaller();
             var gatewayConnectionFactory = new TestBattleSessionGatewayConnectionFactory();
@@ -896,7 +1227,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 .Build();
 
             SetPrivatePlan(feature, plan);
-            InvokePrivate(feature, "StartGatewayRoomPreparation");
+            InitializeDispatchers(feature);
+            await (Task)InvokePrivate(feature, "StartGatewayRoomPreparation");
 
             try
             {
@@ -907,7 +1239,8 @@ namespace AbilityKit.Game.Test.UnitTest
             }
             finally
             {
-                InvokePrivate(feature, "StopGatewayRoomPreparation");
+                await (Task)InvokePrivate(feature, "StopGatewayRoomPreparation");
+                InvokePrivate(feature, "DisposeNetworkIoDispatcher");
             }
         }
  
@@ -1027,6 +1360,38 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void ActionAckSnapshot_InterruptEpochAdvance_ReachesClientWithoutActionDecision()
+        {
+            var service = new MobaActionAckSnapshotService();
+
+            Assert.AreEqual(1, service.AdvanceInterruptEpoch(7, 3, authoritativeFrame: 42));
+            Assert.IsTrue(service.TryGetSnapshot(new FrameIndex(42), out var snapshot));
+
+            var entries = MobaActionAckCodec.Deserialize(snapshot.Payload);
+            Assert.AreEqual(1, entries.Length);
+            Assert.AreEqual(0, entries[0].PredictionKey, "Prediction key zero is reserved for epoch control notifications.");
+            Assert.AreEqual(1, entries[0].InterruptEpoch);
+            Assert.AreEqual(42, entries[0].AuthoritativeFrame);
+
+            var tracker = new MobaActionAckTracker(actorId: 7, entityVersion: 3);
+            var result = tracker.Apply(in entries[0]);
+
+            Assert.AreEqual(MobaActionAckDisposition.InterruptEpochAdvanced, result.Disposition);
+            Assert.AreEqual(1, tracker.LatestInterruptEpoch);
+            Assert.AreEqual(0L, tracker.AcceptedCount);
+            Assert.AreEqual(0L, tracker.RejectedCount);
+        }
+
+        [Test]
+        public void SkillRunnerRegistry_CancelAllWithoutRunningSkill_DoesNotReportInterrupt()
+        {
+            var registry = new SkillRunnerRegistry(new WorldClock(), null, null, null);
+            registry.GetOrCreate(actorId: 7);
+
+            Assert.IsFalse(registry.CancelAll(actorId: 7));
+        }
+
+        [Test]
         public void ClientPredictionReconcileRollback_RejectsPreviouslyRestoredFrame()
         {
             var method = typeof(AbilityKit.Ability.Host.Extensions.FrameSync.ClientPredictionDriverModule)
@@ -1107,7 +1472,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.AreEqual(152, frameTime.Frame.Value);
             Assert.AreEqual(152 * fixedDelta, frameTime.Time, 0.00001f);
-            Assert.AreEqual(0f, frameTime.DeltaTime, 0.000001f);
+            Assert.AreEqual(fixedDelta, frameTime.DeltaTime, 0.000001f);
         }
 
         [Test]
@@ -1235,7 +1600,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 module.BufferOptions.Features);
             Assert.AreEqual(600, module.BufferOptions.InputHistoryCapacity);
             Assert.AreEqual(600, module.BufferOptions.RollbackSnapshotCapacity);
-            Assert.AreEqual(0, module.BufferOptions.StateHashHistoryCapacity);
+            Assert.AreEqual(600, module.BufferOptions.StateHashHistoryCapacity);
+            Assert.IsFalse(module.BufferOptions.Has(ClientPredictionDriverBufferFeatures.PredictedStateHashHistory));
+            Assert.IsFalse(module.BufferOptions.Has(ClientPredictionDriverBufferFeatures.AuthoritativeStateHashHistory));
         }
 
         [Test]
@@ -1327,7 +1694,9 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.AreEqual(425, SessionSimRuntimeTuning.ResolveInputObservedFrame(202, 424, 425));
             Assert.AreEqual(425, SessionSimRuntimeTuning.ResolveInputObservedFrame(425, 424, 420));
-            Assert.AreEqual(121, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in localPlan));
+            Assert.AreEqual(202, SessionSimRuntimeTuning.ResolveInputObservedFrame(202, 424, 425, in localPlan));
+            Assert.AreEqual(425, SessionSimRuntimeTuning.ResolveInputObservedFrame(202, 424, 425, in minimumLeadGatewayPlan));
+            Assert.AreEqual(120, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in localPlan));
             Assert.AreEqual(123, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in minimumLeadGatewayPlan));
             Assert.AreEqual(126, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in configuredLeadGatewayPlan));
             Assert.IsTrue(SessionSimRuntimeTuning.ShouldUseFrameSyncInput(BattleSyncMode.Lockstep));
@@ -1753,7 +2122,8 @@ namespace AbilityKit.Game.Test.UnitTest
             feature.StartControlledOperationForTesting("second", () => secondCompletion.Task);
 
             firstCompletion.SetException(new InvalidOperationException("stale failure"));
-            for (var i = 0; i < 20 && !firstExited.Task.IsCompleted; i++)
+            var firstDeadline = System.Diagnostics.Stopwatch.StartNew();
+            while (!firstExited.Task.IsCompleted && firstDeadline.Elapsed < TimeSpan.FromSeconds(2))
             {
                 yield return null;
             }
@@ -1765,7 +2135,8 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsEmpty(feature.OperationErrorForTesting);
 
             secondCompletion.SetResult(true);
-            for (var i = 0; i < 20 && feature.OperationBusyForTesting; i++)
+            var secondDeadline = System.Diagnostics.Stopwatch.StartNew();
+            while (feature.OperationBusyForTesting && secondDeadline.Elapsed < TimeSpan.FromSeconds(2))
             {
                 yield return null;
             }
@@ -2142,21 +2513,32 @@ namespace AbilityKit.Game.Test.UnitTest
             BattlePresentationCueViewEventHandler handler,
             BattlePresentationCueRequestKey requestKey)
         {
-            var field = typeof(BattlePresentationCueViewEventHandler).GetField(
-                "_activeByRequestKey",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.IsNotNull(field, "Cue handler active-request map was not found.");
-
-            var active = field.GetValue(handler) as Dictionary<BattlePresentationCueRequestKey, EC.IEntityId>;
-            Assert.IsNotNull(active, "Cue handler active-request map has an unexpected type.");
-            if (active.TryGetValue(requestKey, out var entityId)) return entityId;
+            if (handler.TryGetActiveEntityId(requestKey, out var entityId)) return entityId;
 
             throw new System.InvalidOperationException("Cue handler has no active entity for request key.");
         }
 
-        private static void InvokePrivate(object target, string methodName)
+        private static object InvokePrivate(object target, string methodName)
         {
-            InvokePrivate(target, methodName, Array.Empty<object>());
+            return InvokePrivate(target, methodName, Array.Empty<object>());
+        }
+
+        private static IEnumerator AwaitTask(Task task)
+        {
+            while (!task.IsCompleted)
+            {
+                yield return null;
+            }
+
+            if (task.IsFaulted)
+            {
+                throw task.Exception.GetBaseException();
+            }
+
+            if (task.IsCanceled)
+            {
+                throw new OperationCanceledException();
+            }
         }
 
         private static object InvokePrivate(object target, string methodName, params object[] args)
@@ -2731,6 +3113,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             public void OnAttach(in AbilityKit.Game.Flow.GamePhaseContext ctx) { }
             public void OnDetach(in AbilityKit.Game.Flow.GamePhaseContext ctx) { }
+            public Task DetachAsync(AbilityKit.Game.Flow.GamePhaseContext ctx) => Task.CompletedTask;
             public void Tick(in AbilityKit.Game.Flow.GamePhaseContext ctx, float deltaTime) { }
         }
     

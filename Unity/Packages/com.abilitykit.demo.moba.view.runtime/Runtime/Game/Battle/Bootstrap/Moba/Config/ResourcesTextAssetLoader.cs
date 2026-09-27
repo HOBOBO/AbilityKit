@@ -97,6 +97,10 @@ namespace AbilityKit.Demo.Moba.View.Config
             {
                 normalized = normalized.Substring(0, normalized.Length - 5);
             }
+            else if (normalized.EndsWith(".bytes", StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = normalized.Substring(0, normalized.Length - 6);
+            }
             return normalized;
         }
 

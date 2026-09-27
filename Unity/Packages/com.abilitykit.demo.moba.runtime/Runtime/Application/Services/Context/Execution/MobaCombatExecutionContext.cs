@@ -19,7 +19,8 @@ namespace AbilityKit.Demo.Moba.Services
             MobaGameplayOrigin origin,
             MobaTriggerExecutionSnapshot executionSnapshot,
             MobaSkillCastRuntimeHandle skillRuntimeHandle,
-            int frame)
+            int frame,
+            MobaCombatExecutionFacts combatFacts = default)
         {
             Payload = payload;
             LineageInput = lineageInput;
@@ -27,6 +28,7 @@ namespace AbilityKit.Demo.Moba.Services
             ExecutionSnapshot = executionSnapshot;
             SkillRuntimeHandle = skillRuntimeHandle;
             Frame = frame != 0 ? frame : executionSnapshot.Frame;
+            CombatFacts = new MobaCombatExecutionFacts(combatFacts.Flags);
         }
 
         /// <summary>
@@ -46,11 +48,13 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
         /// <summary>用于溯源与调试关联的帧号。</summary>
         public int Frame { get; }
+        /// <summary>Authoritative gameplay facts frozen for this execution boundary.</summary>
+        public MobaCombatExecutionFacts CombatFacts { get; }
  
         /// <summary>先从链路输入、再从快照推导出的执行类型。</summary>
         public EffectContextKind ContextKind => LineageInput.ContextKind != EffectContextKind.Unknown ? LineageInput.ContextKind : ExecutionSnapshot.Kind;
         /// <summary>从链路层继承的溯源种类。</summary>
-        public MobaTraceKind OriginKind => LineageInput.OriginKind;
+        public MobaExecutionKind OriginKind => LineageInput.OriginKind;
         /// <summary>先从链路、再从来源、最后从快照推导出的源角色。</summary>
         public int SourceActorId => LineageInput.SourceActorId != 0 ? LineageInput.SourceActorId : Origin.SourceActorId != 0 ? Origin.SourceActorId : ExecutionSnapshot.SourceActorId;
         /// <summary>先从链路、再从来源、最后从快照推导出的目标角色。</summary>
@@ -214,6 +218,18 @@ namespace AbilityKit.Demo.Moba.Services
             return MobaCombatExecutionContextFactory.WithSnapshot(in this, in executionSnapshot, frame);
         }
 
+        public MobaCombatExecutionContext WithPayload(object payload)
+        {
+            return new MobaCombatExecutionContext(
+                payload,
+                LineageInput,
+                Origin,
+                ExecutionSnapshot,
+                SkillRuntimeHandle,
+                Frame,
+                CombatFacts);
+        }
+
         public MobaCombatExecutionContext WithExecutionRoot(
             long rootContextId,
             int effectConfigId)
@@ -245,7 +261,7 @@ namespace AbilityKit.Demo.Moba.Services
                 : ConfigId;
             var lineageInput = new MobaEffectLineageInput(
                 ContextKind,
-                MobaTraceKind.EffectExecution,
+                MobaExecutionKind.EffectExecution,
                 SourceActorId,
                 TargetActorId,
                 effectContextId,
@@ -255,7 +271,7 @@ namespace AbilityKit.Demo.Moba.Services
             var origin = new MobaGameplayOrigin(
                 SourceActorId,
                 TargetActorId,
-                MobaTraceKind.EffectExecution,
+                MobaExecutionKind.EffectExecution,
                 configId,
                 effectContextId,
                 effectContextId,
@@ -279,7 +295,8 @@ namespace AbilityKit.Demo.Moba.Services
                 origin,
                 snapshot,
                 SkillRuntimeHandle,
-                Frame);
+                Frame,
+                CombatFacts);
         }
     }
 
@@ -294,6 +311,13 @@ namespace AbilityKit.Demo.Moba.Services
                 return true;
             }
 
+            if (payload is IMobaCombatExecutionContextProvider provider
+                && provider.TryGetCombatExecutionContext(out context)
+                && context.HasExecutionSource)
+            {
+                return true;
+            }
+
             if (payload is IMobaCombatContextSource sourceProvider
                 && sourceProvider.TryGetCombatContextSource(out var source)
                 && source.HasExecutionSource)
@@ -302,9 +326,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return context.HasExecutionSource;
             }
 
-            return payload is IMobaCombatExecutionContextProvider provider
-                   && provider.TryGetCombatExecutionContext(out context)
-                   && context.HasExecutionSource;
+            return false;
         }
     }
 }

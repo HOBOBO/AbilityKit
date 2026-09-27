@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Flow.Battle.View;
@@ -11,6 +14,7 @@ namespace AbilityKit.Game.Flow
         where TFeature : class, IViewFeatureRuntime
     {
         private readonly ViewVfxRuntimeFactory _factory;
+        private BattleVfxPoolStatsProvider _statsProvider;
 
         public ViewVfxSubFeature(ViewVfxRuntimeFactory factory = null)
         {
@@ -22,21 +26,35 @@ namespace AbilityKit.Game.Flow
             var runtime = ctx.Feature;
             if (runtime == null) return;
 
-            var hierarchy = runtime.Hierarchy;
-            runtime.Vfx = _factory.CreateManager(runtime.Resources, hierarchy);
-            runtime.VfxNode = _factory.CreateNode(runtime.Context, runtime.IsConfirmed);
-            if (runtime.Context != null && !runtime.IsConfirmed)
+            try
             {
-                runtime.ContextVfxBindingGeneration =
-                    runtime.Context.BindViewVfx(runtime.Vfx, runtime.VfxNode);
-            }
+                var hierarchy = runtime.Hierarchy;
+                runtime.Vfx = _factory.CreateManager(runtime.Resources, hierarchy);
+                runtime.VfxNode = _factory.CreateNode(runtime.Context, runtime.IsConfirmed);
+                if (runtime.Context != null && !runtime.IsConfirmed)
+                {
+                    runtime.ContextVfxBindingGeneration =
+                        runtime.Context.BindViewVfx(runtime.Vfx, runtime.VfxNode);
+                }
 
-            // If a stats overlay exists, register the VFX pool as a provider so the
-            // inspector surfaces VFX reuse counts alongside shell/area counts.
-            var overlay = hierarchy?.Root != null ? hierarchy.Root.GetComponent<BattleViewPoolStatsOverlay>() : null;
-            if (overlay != null && runtime.Vfx != null)
+                var overlay = hierarchy?.Root != null ? hierarchy.Root.GetComponent<BattleViewPoolStatsOverlay>() : null;
+                if (overlay != null && runtime.Vfx != null)
+                {
+                    _statsProvider = new BattleVfxPoolStatsProvider(runtime.Vfx.PoolForStats);
+                    overlay.RegisterProvider(_statsProvider);
+                }
+            }
+            catch (Exception attachError)
             {
-                overlay.RegisterProvider(new BattleVfxPoolStatsProvider(runtime.Vfx.PoolForStats));
+                try
+                {
+                    OnDetach(ctx);
+                }
+                catch (Exception cleanupError)
+                {
+                    throw new AggregateException("VFX attach and rollback failed.", attachError, cleanupError);
+                }
+                throw;
             }
         }
 
@@ -44,6 +62,12 @@ namespace AbilityKit.Game.Flow
         {
             var runtime = ctx.Feature;
             if (runtime == null) return;
+
+            var overlay = runtime.Hierarchy?.Root != null
+                ? runtime.Hierarchy.Root.GetComponent<BattleViewPoolStatsOverlay>()
+                : null;
+            if (_statsProvider != null) overlay?.UnregisterProvider(_statsProvider);
+            _statsProvider = null;
 
             if (runtime.Context != null &&
                 !runtime.IsConfirmed &&
@@ -83,15 +107,17 @@ namespace AbilityKit.Game.Flow
         {
             if (resources == null)
             {
+                var emptyDb = new VfxDatabase(new Dictionary<int, VfxDTO>());
                 return hierarchy != null
-                    ? new BattleVfxManager(null, new BattleVfxManagerComponentFactory(), hierarchy)
-                    : new BattleVfxManager(null, new BattleVfxManagerComponentFactory());
+                    ? new BattleVfxManager(emptyDb, new BattleVfxManagerComponentFactory(), hierarchy)
+                    : new BattleVfxManager(emptyDb, new BattleVfxManagerComponentFactory());
             }
 
             var db = resources.GetOrLoadVfxDb();
+            var assets = resources.AssetLookup;
             return hierarchy != null
-                ? new BattleVfxManager(db, new BattleVfxManagerComponentFactory(), hierarchy)
-                : new BattleVfxManager(db, new BattleVfxManagerComponentFactory());
+                ? new BattleVfxManager(db, new BattleVfxManagerComponentFactory(), hierarchy, assets)
+                : new BattleVfxManager(db, new BattleVfxManagerComponentFactory(), null, assets);
         }
 
         public IEntity CreateNode(BattleContext ctx, bool isConfirmed)

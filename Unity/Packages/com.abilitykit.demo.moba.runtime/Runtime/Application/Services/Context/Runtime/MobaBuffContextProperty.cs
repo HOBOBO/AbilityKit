@@ -20,9 +20,9 @@ namespace AbilityKit.Demo.Moba.Services
             int buffId,
             int sourceActorId,
             int targetActorId,
-            long traceContextId,
-            long rootTraceContextId,
-            long ownerTraceContextId,
+            long sourceContextId,
+            long rootContextId,
+            long ownerContextId,
             int stackCount,
             float remainingSeconds,
             float intervalRemainingSeconds,
@@ -33,9 +33,9 @@ namespace AbilityKit.Demo.Moba.Services
             BuffId = buffId;
             SourceActorId = sourceActorId;
             TargetActorId = targetActorId;
-            TraceContextId = traceContextId;
-            RootTraceContextId = rootTraceContextId;
-            OwnerTraceContextId = ownerTraceContextId;
+            SourceContextId = sourceContextId;
+            RootContextId = rootContextId;
+            OwnerContextId = ownerContextId;
             StackCount = stackCount;
             RemainingSeconds = remainingSeconds;
             IntervalRemainingSeconds = intervalRemainingSeconds;
@@ -47,9 +47,9 @@ namespace AbilityKit.Demo.Moba.Services
         public int BuffId { get; }
         public int SourceActorId { get; }
         public int TargetActorId { get; }
-        public long TraceContextId { get; }
-        public long RootTraceContextId { get; }
-        public long OwnerTraceContextId { get; }
+        public long SourceContextId { get; }
+        public long RootContextId { get; }
+        public long OwnerContextId { get; }
         public int StackCount { get; }
         public float RemainingSeconds { get; }
         public float IntervalRemainingSeconds { get; }
@@ -77,14 +77,14 @@ namespace AbilityKit.Demo.Moba.Services
                 case MobaRuntimeContextKeys.TargetActorId:
                     raw = TargetActorId;
                     break;
-                case MobaRuntimeContextKeys.TraceContextId:
-                    raw = TraceContextId;
+                case MobaRuntimeContextKeys.SourceContextId:
+                    raw = SourceContextId;
                     break;
-                case MobaRuntimeContextKeys.RootTraceContextId:
-                    raw = RootTraceContextId;
+                case MobaRuntimeContextKeys.RootContextId:
+                    raw = RootContextId;
                     break;
-                case MobaRuntimeContextKeys.OwnerTraceContextId:
-                    raw = OwnerTraceContextId;
+                case MobaRuntimeContextKeys.OwnerContextId:
+                    raw = OwnerContextId;
                     break;
                 case MobaRuntimeContextKeys.StackCount:
                     raw = StackCount;
@@ -142,9 +142,9 @@ namespace AbilityKit.Demo.Moba.Services
             BuffId = data.BuffId;
             SourceActorId = data.SourceActorId;
             TargetActorId = data.TargetActorId;
-            TraceContextId = data.TraceContextId;
-            RootTraceContextId = data.RootTraceContextId;
-            OwnerTraceContextId = data.OwnerTraceContextId;
+            SourceContextId = data.SourceContextId;
+            RootContextId = data.RootContextId;
+            OwnerContextId = data.OwnerContextId;
             StackCount = data.StackCount;
             RemainingSeconds = data.RemainingSeconds;
             IntervalRemainingSeconds = data.IntervalRemainingSeconds;
@@ -160,9 +160,9 @@ namespace AbilityKit.Demo.Moba.Services
         public int BuffId { get; }
         public int SourceActorId { get; }
         public int TargetActorId { get; }
-        public long TraceContextId { get; }
-        public long RootTraceContextId { get; }
-        public long OwnerTraceContextId { get; }
+        public long SourceContextId { get; }
+        public long RootContextId { get; }
+        public long OwnerContextId { get; }
         public int StackCount { get; }
         public float RemainingSeconds { get; }
         public float IntervalRemainingSeconds { get; }
@@ -181,9 +181,9 @@ namespace AbilityKit.Demo.Moba.Services
                 BuffId,
                 SourceActorId,
                 TargetActorId,
-                TraceContextId,
-                RootTraceContextId,
-                OwnerTraceContextId,
+                SourceContextId,
+                RootContextId,
+                OwnerContextId,
                 StackCount,
                 RemainingSeconds,
                 IntervalRemainingSeconds,
@@ -219,9 +219,9 @@ namespace AbilityKit.Demo.Moba.Services
                 property.BuffId,
                 property.SourceActorId,
                 property.TargetActorId,
-                property.TraceContextId,
-                property.RootTraceContextId,
-                property.OwnerTraceContextId,
+                property.SourceContextId,
+                property.RootContextId,
+                property.OwnerContextId,
                 property.StackCount,
                 property.RemainingSeconds,
                 property.IntervalRemainingSeconds,
@@ -253,8 +253,8 @@ namespace AbilityKit.Demo.Moba.Services
         public long CreatedAtMs { get; }
         public long Version { get; }
         public int Frame { get; }
-        public long SourceEntityId => _data.TraceContextId;
-        public long OwnerEntityId => _data.OwnerTraceContextId;
+        public long SourceEntityId => _data.SourceContextId;
+        public long OwnerEntityId => _data.OwnerContextId;
         public bool IsRealtimeAvailable => false;
         public bool IsDestroyed => _data.LifecycleState == MobaRuntimeContextLifecycleState.Ended ||
             _data.LifecycleState == MobaRuntimeContextLifecycleState.Destroyed;
@@ -277,9 +277,9 @@ namespace AbilityKit.Demo.Moba.Services
         public const string BuffId = "BuffId";
         public const string SourceActorId = "SourceActorId";
         public const string TargetActorId = "TargetActorId";
-        public const string TraceContextId = "TraceContextId";
-        public const string RootTraceContextId = "RootTraceContextId";
-        public const string OwnerTraceContextId = "OwnerTraceContextId";
+        public const string SourceContextId = "SourceContextId";
+        public const string RootContextId = "RootContextId";
+        public const string OwnerContextId = "OwnerContextId";
         public const string StackCount = "StackCount";
         public const string RemainingSeconds = "RemainingSeconds";
         public const string IntervalRemainingSeconds = "IntervalRemainingSeconds";

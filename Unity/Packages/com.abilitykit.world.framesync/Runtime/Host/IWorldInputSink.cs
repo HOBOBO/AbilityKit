@@ -8,4 +8,15 @@ namespace AbilityKit.Ability.Host
     {
         void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs);
     }
+
+    /// <summary>
+    /// Optional input boundary for rollback replay. The replay lifecycle lets a world distinguish
+    /// a retransmitted network command from a deterministic re-execution of recorded input.
+    /// </summary>
+    public interface IWorldInputReplaySink : IWorldInputSink
+    {
+        void BeginReplay(FrameIndex restoredFrame, FrameIndex replayToFrame);
+        void Replay(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs);
+        void EndReplay();
+    }
 }

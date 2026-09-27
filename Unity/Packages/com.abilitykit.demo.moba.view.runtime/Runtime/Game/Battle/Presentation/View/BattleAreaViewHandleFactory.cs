@@ -1,5 +1,5 @@
 using AbilityKit.Game.Battle.Hierarchy;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -40,7 +40,7 @@ namespace AbilityKit.Game.Flow
             _handles = handles ?? new BattleAreaViewHandleBuilder();
         }
 
-        public BattleAreaViewHandle TryCreate(BattleViewBinder binder, in MobaAreaEventSnapshotEntry evt)
+        public BattleAreaViewHandle TryCreate(BattleViewBinder binder, in AreaEventData evt)
         {
             var aoe = _resources.TryGetAoe(evt.TemplateId);
             if (aoe == null) return null;
@@ -60,7 +60,7 @@ namespace AbilityKit.Game.Flow
     internal sealed class BattleAreaViewPositionResolver
     {
         public Vector3 Resolve(
-            in MobaAreaEventSnapshotEntry evt,
+            in AreaEventData evt,
             float offsetX,
             float offsetY,
             float offsetZ)
@@ -74,7 +74,7 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class BattleAreaViewHandleBuilder
     {
-        public BattleAreaViewHandle Create(in MobaAreaEventSnapshotEntry evt)
+        public BattleAreaViewHandle Create(in AreaEventData evt)
         {
             return new BattleAreaViewHandle
             {

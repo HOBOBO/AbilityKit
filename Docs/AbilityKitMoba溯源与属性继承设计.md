@@ -33,7 +33,7 @@
 - projectile 已有 [`ProjectileSourceContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs:6)，可保存 source actor、target actor、root context、owner context、skill runtime handle。
 - summon 已有 [`SummonSourceContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/SummonSourceContext.cs:3)，可保存 spawn 来源和技能运行时归属。
 - area 事件已有 [`AreaEventArgs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/AreaEventArgs.cs:6)，可继续携带 source/root/owner context。
-- plan action 输入已经通过 [`MobaPlanActionInput`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionInput.cs:51) 收敛执行上下文、trace scope、caster/target、aim 等核心事实。
+- plan action 输入已经通过 [`MobaPlanActionInput`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionInput.cs:51) 收敛执行上下文、execution scope、caster/target、aim 等核心事实。
 - damage payload 已经通过 [`AttackInfo`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineModels.cs:6) 和 [`DamageResult`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineModels.cs:208) 传递 origin。
 
 主要缺口：
@@ -57,13 +57,13 @@
 
 ## 4. 概念区分
 
-### 4.1 Trace / Origin Context
+### 4.1 Execution Context / Origin
 
-Trace/origin context 是归因上下文，用于解释行为挂在哪条技能、效果、派生对象链路下。当前已有模块已经比较完整，不是本文要重新设计的重点。
+Execution Context / origin 是正式归因上下文，用于解释行为挂在哪条技能、效果、派生对象链路下。`MobaExecutionContextRegistry` 是身份与生命周期权威，Trace Adapter 只提供可选投影。当前已有模块已经比较完整，不是本文要重新设计的重点。
 
 它适合用于：
 
-- trace 创建子节点。
+- 创建正式 Execution Context 子节点，并可选投影 Trace。
 - 表现 cue 归因。
 - 战斗日志。
 - owner-bound trigger。

@@ -1,11 +1,10 @@
-using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Combat.Projectile;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Battle.Vfx;
-using AbilityKit.Protocol.Moba.StateSync;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
@@ -15,6 +14,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private readonly IBattleEntityQuery _query;
         private readonly BattleProjectileVfxSpawner _vfxSpawner;
         private readonly BattleProjectileShellSpawner _shellSpawner;
+        private readonly BattleProjectileShellPool _shellPool;
+        internal BattleProjectileShellPool PoolForStats => _shellPool;
         private readonly BattleProjectileVfxResolver _vfx;
         private readonly BattleProjectileSnapshotVfxResolver _snapshotVfx;
         private readonly BattleProjectileSnapshotDeduplicator _deduplicator;
@@ -50,6 +51,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             handlers ??= new BattleProjectileViewEventHandlerFactory();
 
             _query = query;
+            _shellPool = shellPool;
             _vfxSpawner = handlers.CreateSpawner(world, vfx, in vfxNode);
             _shellSpawner = handlers.CreateShellSpawner(shellPool, query, hierarchy);
             _vfx = handlers.CreateTriggerResolver(resources);
@@ -70,7 +72,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _vfxSpawner.TrySpawn(in spec);
         }
 
-        public void HandleSnapshot(MobaProjectileEventSnapshotEntry[] entries)
+        public void HandleSnapshot(ProjectileEventData[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             if (!_vfxSpawner.CanSpawn) return;
@@ -100,6 +102,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             ResetCrossSourceDeduplication();
         }
 
+        public void ClearPool() => _shellPool?.Clear();
+
         /// <summary>
         /// Clears cross-source deduplication state.
         /// Call this when entering a new world or starting a replay.
@@ -109,9 +113,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _seenHitActorIds.Clear();
         }
 
-        private void HandleSnapshotEntry(MobaProjectileEventSnapshotEntry entry)
+        private void HandleSnapshotEntry(ProjectileEventData entry)
         {
-            if (entry.Kind == (int)ProjectileEventKind.Exit)
+            if (entry.Kind == ProjectilePresentationEventKind.Exit)
             {
                 // Exit cleanup is idempotent. Completed projectile identities must not remain
                 // in session-lifetime caches after a high-volume launch has finished.
@@ -125,7 +129,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             if (!_deduplicator.ShouldHandle(in entry)) return;
 
             // For hit events, register in cross-source deduplication so Trigger path skips.
-            if (entry.Kind == (int)ProjectileEventKind.Hit && entry.ProjectileActorId > 0)
+            if (entry.Kind == ProjectilePresentationEventKind.Hit && entry.ProjectileActorId > 0)
             {
                 _seenHitActorIds.Add(entry.ProjectileActorId);
             }
@@ -145,148 +149,6 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                     in forward,
                     entry.LauncherActorId);
             }
-        }
-    }
-
-    internal readonly struct BattleProjectileSnapshotKey : IEquatable<BattleProjectileSnapshotKey>
-    {
-        private readonly int _kind;
-        private readonly int _identity;
-        private readonly int _templateId;
-        private readonly int _launcherActorId;
-        private readonly int _hitCollider;
-        private readonly int _exitReason;
-        private readonly int _positionHash;
-        private readonly bool _hasIdentity;
-
-        private BattleProjectileSnapshotKey(
-            int kind,
-            int identity,
-            int templateId,
-            int launcherActorId,
-            int hitCollider,
-            int exitReason,
-            int positionHash,
-            bool hasIdentity)
-        {
-            _kind = kind;
-            _identity = identity;
-            _templateId = templateId;
-            _launcherActorId = launcherActorId;
-            _hitCollider = hitCollider;
-            _exitReason = exitReason;
-            _positionHash = positionHash;
-            _hasIdentity = hasIdentity;
-        }
-
-        public static BattleProjectileSnapshotKey From(in MobaProjectileEventSnapshotEntry entry)
-        {
-            var identity = entry.ProjectileId > 0 ? entry.ProjectileId : entry.ProjectileActorId;
-            if (identity > 0)
-            {
-                return new BattleProjectileSnapshotKey(
-                    entry.Kind,
-                    identity,
-                    entry.TemplateId,
-                    0,
-                    0,
-                    0,
-                    0,
-                    hasIdentity: true);
-            }
-
-            return new BattleProjectileSnapshotKey(
-                entry.Kind,
-                0,
-                entry.TemplateId,
-                entry.LauncherActorId,
-                entry.HitCollider,
-                entry.ExitReason,
-                HashPosition(entry.X, entry.Y, entry.Z),
-                hasIdentity: false);
-        }
-
-        public bool Equals(BattleProjectileSnapshotKey other)
-        {
-            return _kind == other._kind
-                && _identity == other._identity
-                && _templateId == other._templateId
-                && _launcherActorId == other._launcherActorId
-                && _hitCollider == other._hitCollider
-                && _exitReason == other._exitReason
-                && _positionHash == other._positionHash
-                && _hasIdentity == other._hasIdentity;
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is BattleProjectileSnapshotKey other && Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                var hash = _kind;
-                hash = (hash * 397) ^ _identity;
-                hash = (hash * 397) ^ _templateId;
-                hash = (hash * 397) ^ _launcherActorId;
-                hash = (hash * 397) ^ _hitCollider;
-                hash = (hash * 397) ^ _exitReason;
-                hash = (hash * 397) ^ _positionHash;
-                hash = (hash * 397) ^ (_hasIdentity ? 1 : 0);
-                return hash;
-            }
-        }
-
-        private static int HashPosition(float x, float y, float z)
-        {
-            unchecked
-            {
-                var hash = Quantize(x);
-                hash = (hash * 397) ^ Quantize(y);
-                hash = (hash * 397) ^ Quantize(z);
-                return hash;
-            }
-        }
-
-        private static int Quantize(float value)
-        {
-            return (int)Math.Round(value * 1000f);
-        }
-    }
-
-    internal sealed class BattleProjectileSnapshotDeduplicator
-    {
-        private readonly HashSet<BattleProjectileSnapshotKey> _handled = new HashSet<BattleProjectileSnapshotKey>();
-
-        internal int Count => _handled.Count;
-
-        public bool ShouldHandle(in MobaProjectileEventSnapshotEntry entry)
-        {
-            var key = BattleProjectileSnapshotKey.From(in entry);
-            return _handled.Add(key);
-        }
-
-        public void ForgetLifecycle(in MobaProjectileEventSnapshotEntry exit)
-        {
-            var identity = exit.ProjectileId > 0 ? exit.ProjectileId : exit.ProjectileActorId;
-            if (identity <= 0) return;
-
-            Forget(in exit, (int)ProjectileEventKind.Spawn);
-            Forget(in exit, (int)ProjectileEventKind.Hit);
-        }
-
-        public void Clear()
-        {
-            _handled.Clear();
-        }
-
-        private void Forget(in MobaProjectileEventSnapshotEntry source, int kind)
-        {
-            var entry = source;
-            entry.Kind = kind;
-            _handled.Remove(BattleProjectileSnapshotKey.From(in entry));
         }
     }
 

@@ -9,6 +9,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleMoveInputState _secondaryMoveInputState;
         private BattleContext _ctx;
         private float _inputDiagCooldown;
+        private long _nextSkillInputSequence;
 
         public int TickCount { get; private set; }
         public int MoveReadCount { get; private set; }
@@ -35,6 +36,7 @@ namespace AbilityKit.Game.Flow
             _ctx = null;
             _moveInputState.Reset();
             _secondaryMoveInputState.Reset();
+            _nextSkillInputSequence = 0L;
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
@@ -56,7 +58,8 @@ namespace AbilityKit.Game.Flow
                 inputObservedFrame = SessionSimRuntimeTuning.ResolveInputObservedFrame(
                     inputObservedFrame,
                     confirmedFrame.Value,
-                    predictedFrame.Value);
+                    predictedFrame.Value,
+                    in plan);
             }
             var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(inputObservedFrame, in plan);
             var inputRuntime = _ctx.InputRuntime;
@@ -86,18 +89,25 @@ namespace AbilityKit.Game.Flow
 
             if (BattleKeyboardInputSource.TryReadSkillSlotDown(out var keyboardSlot))
             {
-                var skillCmd = BattleInputCommandFactory.CreateSkillSlot(nextFrame, playerId, keyboardSlot);
+                var sequence = NextSkillInputSequence();
+                var skillCmd = BattleInputCommandFactory.CreateSkillSlot(
+                    nextFrame, playerId, keyboardSlot, ToPredictionKey(sequence), sequence,
+                    _ctx.GetActorEntityVersion(_ctx.LocalActorId), _ctx.ActionInterruptEpoch);
                 SubmitSkill(submitter, in skillCmd);
             }
 
             if (BattleHudInputSource.TryConsumeSkillClick(_ctx, out var hudSlot))
             {
-                var skillCmd = BattleInputCommandFactory.CreateSkillSlot(nextFrame, playerId, hudSlot);
+                var sequence = NextSkillInputSequence();
+                var skillCmd = BattleInputCommandFactory.CreateSkillSlot(
+                    nextFrame, playerId, hudSlot, ToPredictionKey(sequence), sequence,
+                    _ctx.GetActorEntityVersion(_ctx.LocalActorId), _ctx.ActionInterruptEpoch);
                 SubmitSkill(submitter, in skillCmd);
             }
 
             if (BattleHudInputSource.TryConsumeSkillAimSubmit(_ctx, out var aimInput))
             {
+                var sequence = NextSkillInputSequence();
                 var aimCmd = BattleInputCommandFactory.CreateSkillAimRelease(
                     nextFrame,
                     playerId,
@@ -107,7 +117,11 @@ namespace AbilityKit.Game.Flow
                     aimInput.AimPosZ,
                     aimInput.AimDirX,
                     aimInput.AimDirY,
-                    aimInput.AimDirZ);
+                    aimInput.AimDirZ,
+                    ToPredictionKey(sequence),
+                    sequence,
+                    _ctx.GetActorEntityVersion(_ctx.LocalActorId),
+                    _ctx.ActionInterruptEpoch);
                 SubmitSkill(submitter, in aimCmd);
             }
 
@@ -118,6 +132,19 @@ namespace AbilityKit.Game.Flow
         {
             SkillSubmitAttemptCount++;
             if (submitter.Submit(in command)) SkillSubmitSuccessCount++;
+        }
+
+        private long NextSkillInputSequence()
+        {
+            _nextSkillInputSequence++;
+            if (_nextSkillInputSequence <= 0L) _nextSkillInputSequence = 1L;
+            return _nextSkillInputSequence;
+        }
+
+        private static int ToPredictionKey(long sequence)
+        {
+            var key = (int)(sequence % int.MaxValue);
+            return key > 0 ? key : 1;
         }
 
         private void SubmitLocalTrainingOpponentMove(int nextFrame, PlayerId primaryPlayerId, WorldId worldId)

@@ -45,3 +45,23 @@ types:
         name: payload
         scalarType: bytes
         required: true
+      - id: 8
+        name: predictionKey
+        scalarType: int32
+        required: true
+      - id: 9
+        name: targetFrame
+        scalarType: int32
+        required: true
+      - id: 10
+        name: inputSequence
+        scalarType: int64
+        required: true
+      - id: 11
+        name: entityVersion
+        scalarType: int32
+        required: true
+      - id: 12
+        name: interruptEpoch
+        scalarType: int32
+        required: true

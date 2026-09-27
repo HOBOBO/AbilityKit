@@ -6,7 +6,7 @@
       "catalogId": "abilitykit.moba.battle",
       "projectId": "abilitykit.moba",
       "domain": "battle",
-      "revision": 3,
+      "revision": 4,
       "defaultCodec": "memorypack",
       "messages": [
         {
@@ -335,6 +335,19 @@
           "minimumSchemaVersion": 1,
           "maximumSchemaVersion": 1,
           "maximumPayloadBytes": 524288,
+          "captureSampleRate": 1
+        },
+        {
+          "id": "action-ack.push",
+          "opCode": 4013,
+          "direction": "s2c",
+          "kind": "push",
+          "payloadType": "AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 262144,
           "captureSampleRate": 1
         }
       ]
@@ -1034,6 +1047,79 @@
           "maximumSchemaVersion": 1,
           "maximumPayloadBytes": 1048576,
           "captureSampleRate": 0.25
+        },
+        {
+          "id": "submit-frame-input.request",
+          "opCode": 121,
+          "direction": "c2s",
+          "kind": "request",
+          "payloadType": "AbilityKit.Protocol.Room.WireRoomSubmitFrameInputReq",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "response": "submit-frame-input.response",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 4096,
+          "captureSampleRate": 1,
+          "sensitiveFields": [
+            "sessionToken"
+          ]
+        },
+        {
+          "id": "submit-frame-input.response",
+          "opCode": 121,
+          "direction": "s2c",
+          "kind": "response",
+          "payloadType": "AbilityKit.Protocol.Room.WireRoomSubmitFrameInputRes",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 4096,
+          "captureSampleRate": 1
+        },
+        {
+          "id": "subscribe-frame-sync.request",
+          "opCode": 122,
+          "direction": "c2s",
+          "kind": "request",
+          "payloadType": "AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncReq",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "response": "subscribe-frame-sync.response",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 4096,
+          "captureSampleRate": 1,
+          "sensitiveFields": [
+            "sessionToken"
+          ]
+        },
+        {
+          "id": "subscribe-frame-sync.response",
+          "opCode": 122,
+          "direction": "s2c",
+          "kind": "response",
+          "payloadType": "AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncRes",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 4096,
+          "captureSampleRate": 1
+        },
+        {
+          "id": "frame-sync-frame.push",
+          "opCode": 9006,
+          "direction": "s2c",
+          "kind": "push",
+          "payloadType": "AbilityKit.Protocol.Room.WireRoomFramePush",
+          "codec": "memorypack",
+          "reliability": "realtime",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 65536,
+          "captureSampleRate": 1
         }
       ]
     },
@@ -1160,6 +1246,42 @@
           "maximumSchemaVersion": 3,
           "maximumPayloadBytes": 4194304,
           "captureSampleRate": 0.02
+        }
+      ]
+    },
+    {
+      "catalogId": "abilitykit.system",
+      "projectId": "abilitykit.shared",
+      "domain": "system",
+      "revision": 1,
+      "defaultCodec": "custom-binary",
+      "messages": [
+        {
+          "id": "catalog-advertisement.request",
+          "opCode": 1,
+          "direction": "c2s",
+          "kind": "request",
+          "payloadType": "AbilityKit.Protocol.Catalog.ProtocolCatalogAdvertisement",
+          "codec": "custom-binary",
+          "reliability": "reliable",
+          "response": "catalog-advertisement.response",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 1
+        },
+        {
+          "id": "catalog-advertisement.response",
+          "opCode": 1,
+          "direction": "s2c",
+          "kind": "response",
+          "payloadType": "AbilityKit.Protocol.Catalog.ProtocolCatalogAdvertisement",
+          "codec": "custom-binary",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 1
         }
       ]
     }
@@ -1443,6 +1565,146 @@
           "typeName": "",
           "isArray": false,
           "isOptional": false
+        },
+        {
+          "id": 8,
+          "name": "predictionKey",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 9,
+          "name": "targetFrame",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 10,
+          "name": "inputSequence",
+          "scalarType": "int64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 11,
+          "name": "entityVersion",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 12,
+          "name": "interruptEpoch",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.StateSync.MobaActionAckEntry",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "field",
+      "fields": [
+        {
+          "id": 0,
+          "name": "actorId",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "entityVersion",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "predictionKey",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "skillId",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 4,
+          "name": "accepted",
+          "scalarType": "bool",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 5,
+          "name": "authoritativeFrame",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 6,
+          "name": "reason",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 7,
+          "name": "interruptEpoch",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 8,
+          "name": "authoritySequence",
+          "scalarType": "int64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "field",
+      "fields": [
+        {
+          "id": 0,
+          "name": "entries",
+          "scalarType": "",
+          "typeName": "AbilityKit.Protocol.Moba.StateSync.MobaActionAckEntry",
+          "isArray": true,
+          "isOptional": false
         }
       ],
       "reservedIds": []
@@ -1550,6 +1812,14 @@
           "id": 6,
           "name": "z",
           "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 7,
+          "name": "entityVersion",
+          "scalarType": "int32",
           "typeName": "",
           "isArray": false,
           "isOptional": false
@@ -2797,6 +3067,46 @@
           "typeName": "",
           "isArray": false,
           "isOptional": false
+        },
+        {
+          "id": 10,
+          "name": "maxCharges",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 11,
+          "name": "currentCharges",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 12,
+          "name": "chargeRecoveryRemainingMs",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 13,
+          "name": "sharedCooldownRemainingMs",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 14,
+          "name": "globalCooldownRemainingMs",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
         }
       ],
       "reservedIds": []
@@ -2854,6 +3164,90 @@
       "reservedIds": []
     },
     {
+      "qualifiedType": "AbilityKit.Protocol.Room.WireRoomFrameInput",
+      "projectId": "abilitykit.shared",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "playerId",
+          "scalarType": "uint32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "inputOpCode",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "payload",
+          "scalarType": "uint8",
+          "typeName": "",
+          "isArray": true,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Room.WireRoomFramePush",
+      "projectId": "abilitykit.shared",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "roomId",
+          "scalarType": "uint64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "worldId",
+          "scalarType": "uint64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "frame",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "stateHash",
+          "scalarType": "uint32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 4,
+          "name": "inputs",
+          "scalarType": "",
+          "typeName": "AbilityKit.Protocol.Room.WireRoomFrameInput",
+          "isArray": true,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
       "qualifiedType": "AbilityKit.Protocol.Room.WireRoomGuestLoginReq",
       "projectId": "abilitykit.shared",
       "memoryPackMode": "sequential",
@@ -2863,6 +3257,182 @@
         {
           "id": 0,
           "name": "guestId",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Room.WireRoomSubmitFrameInputReq",
+      "projectId": "abilitykit.shared",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "sessionToken",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "roomId",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "battleId",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "worldId",
+          "scalarType": "uint64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 4,
+          "name": "frame",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 5,
+          "name": "playerId",
+          "scalarType": "uint32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 6,
+          "name": "inputOpCode",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 7,
+          "name": "payload",
+          "scalarType": "uint8",
+          "typeName": "",
+          "isArray": true,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Room.WireRoomSubmitFrameInputRes",
+      "projectId": "abilitykit.shared",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "accepted",
+          "scalarType": "bool",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "serverFrame",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "reason",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncReq",
+      "projectId": "abilitykit.shared",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "sessionToken",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "roomId",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "battleId",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "worldId",
+          "scalarType": "uint64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncRes",
+      "projectId": "abilitykit.shared",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "success",
+          "scalarType": "bool",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "message",
           "scalarType": "string",
           "typeName": "",
           "isArray": false,

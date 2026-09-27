@@ -218,7 +218,7 @@ Unity 手工验收：本批没有新增 Editor UI，不需要视觉验收。
 
 目标：在不可变内存快照之上建立可版本化、可验证、可离线查询的标准文件边界，同时保持既有分析 Artifact 向后兼容。
 
-关键结果：复用顶层 `abilitykit-analysis.v1`，新增可选 `battleDiagnostics` Section 和独立版本 `abilitykit-battle-diagnostics.v1`。Codec 显式映射 Event、State、Trace、Attribute、Buff、Tag、Effect 全部八条轨道、Store Metrics、Session 元数据和已知结构化 Event Payload；导入校验顶层/Section 版本、必需轨道、Event revision/count/sequence、World ActorCount、Scope、时间戳及领域构造约束。旧 Artifact 不含该 Section 时仍可作为普通分析 Artifact 导入。
+关键结果：复用顶层 `abilitykit-analysis.v1`，新增可选 `battleDiagnostics` Section；当前正式 section 版本已升级为 `abilitykit-battle-diagnostics.v2`，业务身份字段统一采用 Execution Context 命名。Codec 显式映射 Event、State、Trace、Attribute、Buff、Tag、Effect 全部八条轨道、Store Metrics、Session 元数据和已知结构化 Event Payload；导入校验顶层/Section 版本、必需轨道、Event revision/count/sequence、World ActorCount、Scope、时间戳及领域构造约束。
 
 离线查询：新增 `BattleDiagnosticOfflineSession`，通过 `IBattleDiagnosticReadOnlySession` 暴露导入快照，固定为 `Disconnected` / `Frozen`；保留各轨道 revision、Event 筛选和固定 revision 分页、latest-only Frame/Actor 不可用语义，以及不稳定或截断 Trace 的 `Partial/Truncated` 状态。
 

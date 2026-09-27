@@ -648,7 +648,7 @@ internal static class GatewaySkillAcceptanceArtifacts
         var entries = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
         foreach (var record in traceRecords)
         {
-            AddGeneratedDictionaryEntry(entries, "trace-kind", ReadString(record, "kind") ?? string.Empty, ReadString(record, "kind") ?? string.Empty, "MobaTraceKind");
+            AddGeneratedDictionaryEntry(entries, "trace-kind", ReadString(record, "kind") ?? string.Empty, ReadString(record, "kind") ?? string.Empty, "MobaExecutionKind");
             AddGeneratedDictionaryEntry(entries, "config", ReadInt(record, "configId").ToString(), ReadString(record, "configLabel") ?? string.Empty, ReadString(record, "configSource") ?? "admin-built-in-template");
             AddGeneratedDictionaryEntry(entries, "actor", ReadInt(record, "sourceActorId").ToString(), ReadString(record, "sourceActorLabel") ?? string.Empty, "admin-built-in-template");
             AddGeneratedDictionaryEntry(entries, "actor", ReadInt(record, "targetActorId").ToString(), ReadString(record, "targetActorLabel") ?? string.Empty, "admin-built-in-template");

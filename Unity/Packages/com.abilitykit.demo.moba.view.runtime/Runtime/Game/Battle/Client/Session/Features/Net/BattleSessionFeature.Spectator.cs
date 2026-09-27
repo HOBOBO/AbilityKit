@@ -24,8 +24,12 @@ namespace AbilityKit.Game.Flow
 
         public void StopSpectating()
         {
-            _runtime.Spectator.Stop();
+            SessionAsyncOperation.RequireCompleted(
+                StopSpectatingAsync(),
+                "Spectator session stop");
         }
+
+        public Task StopSpectatingAsync() => _runtime.Spectator.StopAsync();
 
         public void UpdateSpectatorWorld(int stepsBudget = 10)
         {

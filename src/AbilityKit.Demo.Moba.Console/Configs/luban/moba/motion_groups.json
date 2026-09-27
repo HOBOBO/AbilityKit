@@ -1,0 +1,48 @@
+[
+  {
+    "Id": 1,
+    "DefaultPriority": 0,
+    "Key": "locomotion",
+    "Name": "Locomotion",
+    "Stacking": 0,
+    "SuppressedGroupIds": []
+  },
+  {
+    "Id": 2,
+    "DefaultPriority": 10,
+    "Key": "ability",
+    "Name": "Ability",
+    "Stacking": 2,
+    "SuppressedGroupIds": [
+      1
+    ]
+  },
+  {
+    "Id": 3,
+    "DefaultPriority": 12,
+    "Key": "control",
+    "Name": "Control",
+    "Stacking": 2,
+    "SuppressedGroupIds": [
+      1,
+      2,
+      4
+    ]
+  },
+  {
+    "Id": 4,
+    "DefaultPriority": 0,
+    "Key": "path",
+    "Name": "Path",
+    "Stacking": 2,
+    "SuppressedGroupIds": []
+  },
+  {
+    "Id": 5,
+    "DefaultPriority": 0,
+    "Key": "passive_displacement",
+    "Name": "Passive Displacement",
+    "Stacking": 0,
+    "SuppressedGroupIds": []
+  }
+]

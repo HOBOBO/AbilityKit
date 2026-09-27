@@ -3,7 +3,6 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.StateSync;
 using FrameSnapshotDispatcher = AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot
@@ -21,29 +20,24 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot
 
             if (_snapshots == null || _sink == null) return;
 
-            _subscriptions.Add(_snapshots.Subscribe<EnterMobaGameRes>(
+            _subscriptions.Add(_snapshots.Subscribe<BattleEnterGameSnapshot>(
                 MobaOpCodes.Snapshot.EnterGame,
                 _sink.OnEnterGameSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<MobaActorTransformSnapshotEntry[]>(
+            _subscriptions.Add(_snapshots.Subscribe<ActorTransformData[]>(
                 MobaOpCodes.Snapshot.ActorTransform,
-                _sink.OnActorTransformSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<MobaProjectileEventSnapshotEntry[]>(
+                (packet, entries) => _sink.OnActorTransformSnapshot(packet, entries)));
+            _subscriptions.Add(_snapshots.Subscribe<ProjectileEventData[]>(
                 MobaOpCodes.Snapshot.ProjectileEvent,
                 _sink.OnProjectileEventSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<MobaAreaEventSnapshotEntry[]>(
+            _subscriptions.Add(_snapshots.Subscribe<AreaEventData[]>(
                 MobaOpCodes.Snapshot.AreaEvent,
                 _sink.OnAreaEventSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<MobaDamageEventSnapshotEntry[]>(
+            _subscriptions.Add(_snapshots.Subscribe<DamageEventData[]>(
                 MobaOpCodes.Snapshot.DamageEvent,
                 _sink.OnDamageEventSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<MobaPresentationCueSnapshotEntry[]>(
+            _subscriptions.Add(_snapshots.Subscribe<PresentationCueData[]>(
                 MobaOpCodes.Snapshot.PresentationCue,
-                OnPresentationCueSnapshot));
-        }
-
-        private void OnPresentationCueSnapshot(ISnapshotEnvelope packet, MobaPresentationCueSnapshotEntry[] entries)
-        {
-            _sink.OnPresentationCueSnapshot(packet, PresentationCueSnapshotMapper.Map(entries));
+                _sink.OnPresentationCueSnapshot));
         }
 
         public void Dispose()

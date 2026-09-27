@@ -34,6 +34,11 @@ namespace AbilityKit.Demo.Tiny.View
         private int _observedSnapshotRequests;
         private string _returnScene = DemoSceneRoutes.Starter;
 
+        public TinyBattleSession? Session => _session;
+        public bool IsReady => _session != null && _operation != NetworkOperation.Startup &&
+            string.IsNullOrEmpty(_error);
+        public string LastError => _error;
+
         private async void Start()
         {
             DemoMultiplayerLaunchRequest launch;

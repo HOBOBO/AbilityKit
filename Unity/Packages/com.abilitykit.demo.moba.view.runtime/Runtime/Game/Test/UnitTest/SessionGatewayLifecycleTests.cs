@@ -10,6 +10,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Flow;
+using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Runtime;
@@ -26,6 +27,33 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class SessionGatewayLifecycleTests
     {
+        [Test]
+        public void GatewaySubFeature_WhenPreparationIsRequired_InterceptsImmediateSessionStart()
+        {
+            var runtime = new StubSessionGatewayRuntime
+            {
+                PreparationRequired = true,
+            };
+            var subFeature = new SessionGatewayRoomSubFeature();
+
+            var intercepted = subFeature.TryStartGatewayRoomPreparation(runtime);
+
+            Assert.That(intercepted, Is.True);
+            Assert.That(runtime.StartCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void GatewaySubFeature_WhenPreparationIsNotRequired_DoesNotInterceptSessionStart()
+        {
+            var runtime = new StubSessionGatewayRuntime();
+            var subFeature = new SessionGatewayRoomSubFeature();
+
+            var intercepted = subFeature.TryStartGatewayRoomPreparation(runtime);
+
+            Assert.That(intercepted, Is.False);
+            Assert.That(runtime.StartCount, Is.Zero);
+        }
+
         [Test]
         public void GatewayRoomClient_ComposesNarrowCapabilitiesAndDisposalOwnership()
         {
@@ -379,6 +407,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 null);
             var task = runtime.Task;
             var stopTask = runtime.StopWorkAsync();
+            var sharedStopTask = runtime.StopWorkAsync();
+            Assert.That(sharedStopTask, Is.SameAs(stopTask));
             Assert.That(stopTask.IsCompleted, Is.False);
             client.GuestLoginCompletion.SetResult("late-token");
 
@@ -498,13 +528,17 @@ namespace AbilityKit.Game.Test.UnitTest
             var cancellationReenteredOwner = false;
             using (request.Token.Register(() =>
                    {
-                       var reentry = System.Threading.Tasks.Task.Run(() => runtime.Task);
-                       cancellationReenteredOwner = reentry.Wait(1000);
-                   }))
+                        var reentry = System.Threading.Tasks.Task.Run(() =>
+                        {
+                            _ = runtime.Task;
+                        });
+                        cancellationReenteredOwner = reentry.Wait(1000);
+                    }))
             {
                 var firstStopTask = runtime.StopWorkAsync();
                 var secondStopTask = runtime.StopWorkAsync();
 
+                Assert.That(secondStopTask, Is.SameAs(firstStopTask));
                 Assert.That(firstStopTask.IsCompleted, Is.False);
                 Assert.That(secondStopTask.IsCompleted, Is.False);
                 Assert.That(request.Token.IsCancellationRequested, Is.True);
@@ -718,6 +752,41 @@ namespace AbilityKit.Game.Test.UnitTest
             public SessionLifecycleDiagnosticsSnapshot LifecycleDiagnostics => default;
 
             public void ResetReconnect()
+            {
+            }
+        }
+
+        private sealed class StubSessionGatewayRuntime : ISessionGatewayRuntime
+        {
+            public bool PreparationRequired { get; set; }
+            public int StartCount { get; private set; }
+            public BattleSessionHooks Hooks { get; } = new BattleSessionHooks();
+            public bool HasGatewayRoomConnection => false;
+            public Task GatewayRoomPreparationTask => Task.CompletedTask;
+
+            public bool ShouldPrepareGatewayRoom() => PreparationRequired;
+
+            public Task StartGatewayRoomPreparation()
+            {
+                StartCount++;
+                return Task.CompletedTask;
+            }
+
+            public void CompleteGatewayRoomPreparation()
+            {
+            }
+
+            public Task StopGatewayRoomPreparationAsync() => Task.CompletedTask;
+
+            public void TickGatewayRoomConnection(float deltaTime)
+            {
+            }
+
+            public void OnStartSessionRequested()
+            {
+            }
+
+            public void NotifySessionFailed(Exception exception)
             {
             }
         }

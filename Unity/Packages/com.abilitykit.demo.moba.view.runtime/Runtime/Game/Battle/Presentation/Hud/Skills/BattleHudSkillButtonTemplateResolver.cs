@@ -1,5 +1,5 @@
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
-using AbilityKit.Protocol.Moba;
+using AbilityKit.Demo.Moba.Share;
 
 namespace AbilityKit.Game.Flow
 {
@@ -24,21 +24,21 @@ namespace AbilityKit.Game.Flow
         }
 
         public bool TryFindLoadout(
-            EnterMobaGameRes res,
+            BattleEnterGameSnapshot res,
             string playerId,
-            out MobaPlayerLoadout loadout)
+            out BattlePlayerLoadout loadout)
         {
             return _loadouts.TryFind(res, playerId, out loadout);
         }
 
-        public int ResolveSkillButtonCount(in MobaPlayerLoadout loadout)
+        public int ResolveSkillButtonCount(in BattlePlayerLoadout loadout)
         {
             var activeCount = loadout.SkillIds != null ? loadout.SkillIds.Length : 0;
             return loadout.BasicAttackSkillId > 0 ? activeCount + 1 : activeCount;
         }
 
         public bool TryResolveSkill(
-            in MobaPlayerLoadout loadout,
+            in BattlePlayerLoadout loadout,
             int slot,
             out SkillMO skill,
             out SkillButtonTemplateMO template,
@@ -53,7 +53,7 @@ namespace AbilityKit.Game.Flow
             return _templates.TryResolve(skillId, out skill, out template, out spec);
         }
 
-        public static bool TryResolveSkillId(in MobaPlayerLoadout loadout, int slot, out int skillId)
+        public static bool TryResolveSkillId(in BattlePlayerLoadout loadout, int slot, out int skillId)
         {
             skillId = 0;
             if (slot <= 0) return false;

@@ -22,7 +22,7 @@ namespace AbilityKit.Demo.Moba.Systems
 
         public readonly int IsExternalEvent;
 
-        public readonly MobaTraceKind OriginKind;
+        public readonly MobaExecutionKind OriginKind;
         public readonly int OriginConfigId;
         public readonly long OriginContextId;
         public readonly int OriginSourceActorId;
@@ -40,7 +40,7 @@ namespace AbilityKit.Demo.Moba.Systems
             in Vec3 aimPos,
             in Vec3 aimDir,
             int isExternalEvent,
-            MobaTraceKind originKind,
+            MobaExecutionKind originKind,
             int originConfigId,
             long originContextId,
             int originSourceActorId,

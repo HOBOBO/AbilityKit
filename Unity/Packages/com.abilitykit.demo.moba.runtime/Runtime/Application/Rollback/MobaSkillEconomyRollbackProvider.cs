@@ -7,6 +7,7 @@ using MemoryPack;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
+    [MobaRollbackProvider(DefaultKey)]
     public sealed class MobaSkillEconomyRollbackProvider : IRollbackStateProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10014;
@@ -30,15 +31,15 @@ namespace AbilityKit.Demo.Moba.Rollback
             {
                 var value = snapshot.Transactions[i];
                 transactions[i] = new MobaSkillEconomyTransactionRollbackEntry(
-                    value.Handle.RuntimeId, value.Handle.Generation, value.Handle.RootTraceContextId,
+                    value.Handle.RuntimeId, value.Handle.Generation, value.Handle.RootContextId,
                     value.ActorId, value.SkillId, value.SkillSlot, value.ResourceType,
                     value.ResourceAmountRaw, value.ChargeCost, value.RefundBeforeCommit,
                     value.CooldownMs, value.CooldownGroupId, value.SharedCooldownMs,
-                    value.GlobalCooldownMs, (int)value.State);
+                    value.GlobalCooldownMs, (int)value.State, value.RequireExplicitCommit);
             }
             var cooldowns = ToEntries(snapshot.Cooldowns);
             var globalCooldowns = ToEntries(snapshot.GlobalCooldowns);
-            return MemoryPackSerializer.Serialize(new MobaSkillEconomyRollbackPayload(1, transactions, cooldowns, globalCooldowns));
+            return MemoryPackSerializer.Serialize(new MobaSkillEconomyRollbackPayload(2, transactions, cooldowns, globalCooldowns));
         }
 
         public void ImportState(FrameIndex frame, byte[] payload)
@@ -49,18 +50,18 @@ namespace AbilityKit.Demo.Moba.Rollback
                 return;
             }
             var state = MemoryPackSerializer.Deserialize<MobaSkillEconomyRollbackPayload>(payload);
-            if (state.Version != 1) throw new InvalidOperationException($"Unsupported skill economy rollback payload version '{state.Version}'.");
+            if (state.Version != 2) throw new InvalidOperationException($"Unsupported skill economy rollback payload version '{state.Version}'.");
             var source = state.Transactions ?? Array.Empty<MobaSkillEconomyTransactionRollbackEntry>();
             var transactions = new MobaSkillEconomyTransactionSnapshot[source.Length];
             for (var i = 0; i < source.Length; i++)
             {
                 var value = source[i];
-                var handle = new MobaSkillCastRuntimeHandle(value.RuntimeId, value.Generation, value.RootTraceContextId);
+                var handle = new MobaSkillCastRuntimeHandle(value.RuntimeId, value.Generation, value.RootContextId);
                 transactions[i] = new MobaSkillEconomyTransactionSnapshot(
                     in handle, value.ActorId, value.SkillId, value.SkillSlot, value.ResourceType,
                     value.ResourceAmountRaw, value.ChargeCost, value.RefundBeforeCommit,
                     value.CooldownMs, value.CooldownGroupId, value.SharedCooldownMs,
-                    value.GlobalCooldownMs, (MobaSkillEconomyTransactionState)value.State);
+                    value.GlobalCooldownMs, (MobaSkillEconomyTransactionState)value.State, value.RequireExplicitCommit);
             }
             _economy.RestoreRollbackSnapshot(new MobaSkillEconomyServiceSnapshot(
                 transactions, FromEntries(state.Cooldowns), FromEntries(state.GlobalCooldowns)));
@@ -109,15 +110,16 @@ namespace AbilityKit.Demo.Moba.Rollback
     public readonly partial struct MobaSkillEconomyTransactionRollbackEntry
     {
         [MemoryPackOrder(0)] public readonly long RuntimeId; [MemoryPackOrder(1)] public readonly int Generation;
-        [MemoryPackOrder(2)] public readonly long RootTraceContextId; [MemoryPackOrder(3)] public readonly int ActorId;
+        [MemoryPackOrder(2)] public readonly long RootContextId; [MemoryPackOrder(3)] public readonly int ActorId;
         [MemoryPackOrder(4)] public readonly int SkillId; [MemoryPackOrder(5)] public readonly int SkillSlot;
         [MemoryPackOrder(6)] public readonly int ResourceType; [MemoryPackOrder(7)] public readonly long ResourceAmountRaw;
         [MemoryPackOrder(8)] public readonly int ChargeCost; [MemoryPackOrder(9)] public readonly bool RefundBeforeCommit;
         [MemoryPackOrder(10)] public readonly int CooldownMs; [MemoryPackOrder(11)] public readonly int CooldownGroupId;
         [MemoryPackOrder(12)] public readonly int SharedCooldownMs; [MemoryPackOrder(13)] public readonly int GlobalCooldownMs;
         [MemoryPackOrder(14)] public readonly int State;
-        public MobaSkillEconomyTransactionRollbackEntry(long runtimeId,int generation,long rootTraceContextId,int actorId,int skillId,int skillSlot,int resourceType,long resourceAmountRaw,int chargeCost,bool refundBeforeCommit,int cooldownMs,int cooldownGroupId,int sharedCooldownMs,int globalCooldownMs,int state)
-        {RuntimeId=runtimeId;Generation=generation;RootTraceContextId=rootTraceContextId;ActorId=actorId;SkillId=skillId;SkillSlot=skillSlot;ResourceType=resourceType;ResourceAmountRaw=resourceAmountRaw;ChargeCost=chargeCost;RefundBeforeCommit=refundBeforeCommit;CooldownMs=cooldownMs;CooldownGroupId=cooldownGroupId;SharedCooldownMs=sharedCooldownMs;GlobalCooldownMs=globalCooldownMs;State=state;}
+        [MemoryPackOrder(15)] public readonly bool RequireExplicitCommit;
+        public MobaSkillEconomyTransactionRollbackEntry(long runtimeId,int generation,long rootContextId,int actorId,int skillId,int skillSlot,int resourceType,long resourceAmountRaw,int chargeCost,bool refundBeforeCommit,int cooldownMs,int cooldownGroupId,int sharedCooldownMs,int globalCooldownMs,int state,bool requireExplicitCommit)
+        {RuntimeId=runtimeId;Generation=generation;RootContextId=rootContextId;ActorId=actorId;SkillId=skillId;SkillSlot=skillSlot;ResourceType=resourceType;ResourceAmountRaw=resourceAmountRaw;ChargeCost=chargeCost;RefundBeforeCommit=refundBeforeCommit;CooldownMs=cooldownMs;CooldownGroupId=cooldownGroupId;SharedCooldownMs=sharedCooldownMs;GlobalCooldownMs=globalCooldownMs;State=state;RequireExplicitCommit=requireExplicitCommit;}
     }
 
     [MemoryPackable]

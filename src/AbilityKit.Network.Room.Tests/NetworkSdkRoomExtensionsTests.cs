@@ -53,7 +53,7 @@ public sealed class NetworkSdkRoomExtensionsTests
             "SDK Room",
             true,
             8,
-            new Dictionary<string, string> { ["mode"] = "ranked" }));
+            new Dictionary<string, string> { ["mode"] = "ranked" }, "create-command-1"));
 
         var send = Assert.Single(connection.Sends);
         Assert.Equal(RoomGatewayOpCodes.CreateRoom, send.OpCode);
@@ -70,6 +70,7 @@ public sealed class NetworkSdkRoomExtensionsTests
         Assert.True(request.IsPublic);
         Assert.Equal(8, request.MaxPlayers);
         Assert.Equal("ranked", request.Tags!["mode"]);
+        Assert.Equal("create-command-1", request.CommandId);
 
         var response = new WireCreateRoomRes
         {

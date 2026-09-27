@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Systems;
-using AbilityKit.Trace;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
@@ -21,7 +20,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var sourceActorId = ReadInt(namedArgs, ctx, 0, "source_actor_id", "sourceactorid", "source_id", "sourceid");
             var removeAll = ReadBool(namedArgs, ctx, true, "remove_all", "removeall", "all", "clear");
             var removeSlow = ReadBoolNonZero(namedArgs, ctx, false, "remove_slow", "removeslow");
-            var reason = ReadEnum(namedArgs, ctx, TraceLifecycleReason.Dispelled, "reason", "remove_reason", "removereason");
+            var reason = ReadEnum(namedArgs, ctx, MobaExecutionEndReason.Dispelled, "reason", "remove_reason", "removereason");
             var targetRequest = MobaActionTargetSchemaReader.Read(namedArgs, ctx);
             return new RemoveBuffArgs(buffId, sourceActorId, removeAll, removeSlow, reason, in targetRequest);
         }

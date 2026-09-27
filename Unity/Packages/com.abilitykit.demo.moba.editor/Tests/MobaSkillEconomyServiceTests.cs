@@ -35,7 +35,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 .RegisterType<MobaSkillEconomyService, MobaSkillEconomyService>()
                 .Build();
 
-            var economy = container.Resolve<MobaSkillEconomyService>();
+            using var worldScope = container.CreateScope();
+            var economy = worldScope.Resolve<MobaSkillEconomyService>();
 
             Assert.That(economy, Is.Not.Null);
             Assert.That(economy.PendingTransactionCount, Is.Zero);
@@ -110,6 +111,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(committedPayload.GlobalCooldownMs, Is.EqualTo(300));
 
             scope.Diagnostics.Drafts.Clear();
+            scope.Time.TimeSeconds = 0.3f;
             var refunded = scope.CreateCast(slot: 2, skillId: EconomyTestScope.SkillTwoId);
             Assert.That(scope.Economy.TryReserve(refunded, scope.Reservation(), out failure), Is.True, failure);
             Assert.That(scope.Runtimes.Cancel(refunded.RuntimeHandle), Is.True);

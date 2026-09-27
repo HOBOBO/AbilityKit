@@ -1,5 +1,6 @@
 using System;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Game.Flow;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -19,7 +20,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         private readonly SkillButtonAimController _aim = new SkillButtonAimController();
         private readonly SkillButtonGestureController _gesture = new SkillButtonGestureController();
         private Camera _uiCamera;
-        private SkillButtonCooldownState _cooldownState;
+        private SkillCooldownPresentationState _cooldownState;
 
         public SkillButtonConfig Config
         {
@@ -177,9 +178,9 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             EndAim();
         }
 
-        public void ApplySkillState(in MobaSkillStateSnapshotEntry entry)
+        public void ApplySkillState(in SkillStateData entry)
         {
-            _cooldownState = SkillButtonCooldownState.FromSnapshot(entry, Time.unscaledTime);
+            _cooldownState = SkillCooldownPresentationState.FromSnapshot(entry, Time.unscaledTime);
             RefreshCooldownVisuals();
         }
 
@@ -202,18 +203,20 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         private void RefreshCooldownVisuals()
         {
             EnsureCooldownVisualOrder();
-            var visual = _cooldownState.GetVisualState(Time.unscaledTime);
+            var visual = _cooldownState.GetDisplayState(Time.unscaledTime);
             if (_cooldownOverlay != null)
             {
                 _cooldownOverlay.gameObject.SetActive(visual.ShowOverlay);
-                _cooldownOverlay.fillAmount = visual.OverlayFillAmount;
-                _cooldownOverlay.color = visual.OverlayColor;
+                _cooldownOverlay.fillAmount = visual.FillAmount;
+                _cooldownOverlay.color = visual.IsDisabled
+                    ? DisabledOverlayColor
+                    : CoolingOverlayColor;
             }
 
             if (_cooldownText != null)
             {
-                _cooldownText.gameObject.SetActive(visual.ShowCountdownText);
-                _cooldownText.text = visual.ShowCountdownText
+                _cooldownText.gameObject.SetActive(visual.ShowCountdown);
+                _cooldownText.text = visual.ShowCountdown
                     ? Mathf.CeilToInt(visual.RemainingSeconds).ToString()
                     : string.Empty;
             }
@@ -278,114 +281,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             OnAimCancel?.Invoke();
         }
 
-        private readonly struct SkillButtonCooldownVisualState
-        {
-            public readonly bool ShowOverlay;
-            public readonly bool ShowCountdownText;
-            public readonly float RemainingSeconds;
-            public readonly float OverlayFillAmount;
-            public readonly Color OverlayColor;
-
-            public SkillButtonCooldownVisualState(
-                bool showOverlay,
-                bool showCountdownText,
-                float remainingSeconds,
-                float overlayFillAmount,
-                Color overlayColor)
-            {
-                ShowOverlay = showOverlay;
-                ShowCountdownText = showCountdownText;
-                RemainingSeconds = remainingSeconds;
-                OverlayFillAmount = overlayFillAmount;
-                OverlayColor = overlayColor;
-            }
-        }
-
-        private struct SkillButtonCooldownState
-        {
-            private static readonly Color CoolingOverlayColor = new Color(0f, 0f, 0f, 0.58f);
-            private static readonly Color DisabledOverlayColor = new Color(0f, 0f, 0f, 0.72f);
-
-            private MobaSkillAvailabilityState _availability;
-            private int _disableReason;
-            private float _cooldownTotalSeconds;
-            private float _cooldownRemainingAtReceiveSeconds;
-            private float _localReceiveTimeSeconds;
-
-            public static SkillButtonCooldownState FromSnapshot(in MobaSkillStateSnapshotEntry entry, float localReceiveTimeSeconds)
-            {
-                var remainingMs = entry.CooldownRemainingMs;
-                if (entry.Availability == MobaSkillAvailabilityState.CoolingDown && entry.CooldownEndTimeMs > entry.ServerTimeMs)
-                {
-                    remainingMs = Math.Max(remainingMs, ClampToInt(entry.CooldownEndTimeMs - entry.ServerTimeMs));
-                }
-
-                remainingMs = Math.Max(0, remainingMs);
-                var totalMs = Math.Max(Math.Max(0, entry.CooldownTotalMs), remainingMs);
-                return new SkillButtonCooldownState
-                {
-                    _availability = entry.Availability,
-                    _disableReason = entry.DisableReason,
-                    _cooldownTotalSeconds = totalMs / 1000f,
-                    _cooldownRemainingAtReceiveSeconds = remainingMs / 1000f,
-                    _localReceiveTimeSeconds = localReceiveTimeSeconds
-                };
-            }
-
-            public bool BlocksInput(float nowSeconds)
-            {
-                if (IsDisabled) return true;
-                return GetCooldownRemainingSeconds(nowSeconds) > 0f;
-            }
-
-            public SkillButtonCooldownVisualState GetVisualState(float nowSeconds)
-            {
-                if (IsDisabled)
-                {
-                    return new SkillButtonCooldownVisualState(
-                        showOverlay: true,
-                        showCountdownText: false,
-                        remainingSeconds: 0f,
-                        overlayFillAmount: 1f,
-                        overlayColor: DisabledOverlayColor);
-                }
-
-                var remainingSeconds = GetCooldownRemainingSeconds(nowSeconds);
-                if (remainingSeconds <= 0f)
-                {
-                    return new SkillButtonCooldownVisualState(
-                        showOverlay: false,
-                        showCountdownText: false,
-                        remainingSeconds: 0f,
-                        overlayFillAmount: 0f,
-                        overlayColor: CoolingOverlayColor);
-                }
-
-                var fillAmount = _cooldownTotalSeconds > 0f
-                    ? Mathf.Clamp01(remainingSeconds / _cooldownTotalSeconds)
-                    : 1f;
-                return new SkillButtonCooldownVisualState(
-                    showOverlay: true,
-                    showCountdownText: true,
-                    remainingSeconds: remainingSeconds,
-                    overlayFillAmount: fillAmount,
-                    overlayColor: CoolingOverlayColor);
-            }
-
-            public float GetCooldownRemainingSeconds(float nowSeconds)
-            {
-                if (_availability != MobaSkillAvailabilityState.CoolingDown) return 0f;
-                var elapsed = Mathf.Max(0f, nowSeconds - _localReceiveTimeSeconds);
-                return Mathf.Max(0f, _cooldownRemainingAtReceiveSeconds - elapsed);
-            }
-
-            private bool IsDisabled => _availability == MobaSkillAvailabilityState.Disabled && _disableReason != 0;
-
-            private static int ClampToInt(long value)
-            {
-                if (value <= 0L) return 0;
-                return value > int.MaxValue ? int.MaxValue : (int)value;
-            }
-        }
+        private static readonly Color CoolingOverlayColor = new Color(0f, 0f, 0f, 0.58f);
+        private static readonly Color DisabledOverlayColor = new Color(0f, 0f, 0f, 0.72f);
     }
 }

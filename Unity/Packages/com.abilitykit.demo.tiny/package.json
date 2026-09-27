@@ -41,6 +41,11 @@
       "displayName": "06 Recovery",
       "description": "Recover from exhausted frame history using a full state.",
       "path": "Samples~/06-Recovery"
+    },
+    {
+      "displayName": "07 Project Entry",
+      "description": "Launch Tiny from an authenticated project-owned lobby.",
+      "path": "Samples~/07-ProjectEntry"
     }
   ]
 }

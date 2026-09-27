@@ -20,7 +20,9 @@ public class LiveSimTimelineRunnerTests
     [Fact]
     public void Timeline_press_and_wait_produces_real_skill_cast_trace()
     {
-        using var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        using var bootstrapper = new ConsoleBattleBootstrapper(
+            BattleStartConfig.CreateDefault(),
+            additionalModules: new[] { new MobaTraceAdapterModule() });
         bootstrapper.Initialize();
         bootstrapper.Start();
         for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();
@@ -58,9 +60,9 @@ public class LiveSimTimelineRunnerTests
         Assert.NotNull(services);
         Assert.True(services!.TryResolve<MobaTraceRegistry>(out var trace) && trace != null,
             "MobaTraceRegistry must be resolvable from the console world.");
-        Assert.True(trace!.GetNodesByKind((int)MobaTraceKind.SkillCast).Any(),
+        Assert.True(trace!.GetNodesByKind((int)MobaExecutionKind.SkillCast).Any(),
             "Timeline press must produce a real SkillCast trace node.");
-        Assert.True(trace.GetNodesByKind((int)MobaTraceKind.EffectExecution).Any(),
+        Assert.True(trace.GetNodesByKind((int)MobaExecutionKind.EffectExecution).Any(),
             "A cast skill must execute at least one formal effect trace.");
     }
 

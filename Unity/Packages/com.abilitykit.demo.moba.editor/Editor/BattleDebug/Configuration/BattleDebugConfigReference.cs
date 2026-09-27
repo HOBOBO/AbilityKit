@@ -93,13 +93,13 @@ namespace AbilityKit.Game.Editor
             in BattleDiagnosticTraceNodeSummary node,
             out BattleDebugConfigReference reference)
         {
-            if (!Enum.TryParse(node.Kind, true, out MobaTraceKind traceKind))
+            if (!Enum.TryParse(node.Kind, true, out MobaExecutionKind traceKind))
             {
                 reference = default;
                 return false;
             }
 
-            if (traceKind == MobaTraceKind.SkillPhase && node.CastFlowId > 0)
+            if (traceKind == MobaExecutionKind.SkillPhase && node.CastFlowId > 0)
             {
                 reference = new BattleDebugConfigReference(
                     BattleDebugConfigKind.SkillFlow,
@@ -108,7 +108,7 @@ namespace AbilityKit.Game.Editor
                 return true;
             }
 
-            if (traceKind == MobaTraceKind.EffectAction)
+            if (traceKind == MobaExecutionKind.EffectAction)
             {
                 return TryCreate(BattleDebugConfigKind.TriggerPlan, node.TriggerId, out reference);
             }
@@ -125,7 +125,7 @@ namespace AbilityKit.Game.Editor
                 reference = default;
                 return false;
             }
-            return TryCreate(MapTraceKind((MobaTraceKind)node.OriginKind), node.OriginConfigId, out reference);
+            return TryCreate(MapTraceKind((MobaExecutionKind)node.OriginKind), node.OriginConfigId, out reference);
         }
 
         private static bool TryCreate(
@@ -172,34 +172,34 @@ namespace AbilityKit.Game.Editor
             }
         }
 
-        private static BattleDebugConfigKind MapTraceKind(MobaTraceKind kind)
+        private static BattleDebugConfigKind MapTraceKind(MobaExecutionKind kind)
         {
             switch (kind)
             {
-                case MobaTraceKind.SkillCast:
-                case MobaTraceKind.SkillEffect:
-                case MobaTraceKind.SkillPhase:
+                case MobaExecutionKind.SkillCast:
+                case MobaExecutionKind.SkillEffect:
+                case MobaExecutionKind.SkillPhase:
                     return BattleDebugConfigKind.Skill;
-                case MobaTraceKind.EffectExecution:
+                case MobaExecutionKind.EffectExecution:
                     return BattleDebugConfigKind.Effect;
-                case MobaTraceKind.BuffApply:
-                case MobaTraceKind.BuffTick:
-                case MobaTraceKind.BuffRemove:
+                case MobaExecutionKind.BuffApply:
+                case MobaExecutionKind.BuffTick:
+                case MobaExecutionKind.BuffRemove:
                     return BattleDebugConfigKind.Buff;
-                case MobaTraceKind.ProjectileLaunch:
-                case MobaTraceKind.ProjectileHit:
+                case MobaExecutionKind.ProjectileLaunch:
+                case MobaExecutionKind.ProjectileHit:
                     return BattleDebugConfigKind.Projectile;
-                case MobaTraceKind.AreaSpawn:
-                case MobaTraceKind.AreaEnter:
-                case MobaTraceKind.AreaExit:
-                case MobaTraceKind.AreaExpire:
-                case MobaTraceKind.AreaStay:
+                case MobaExecutionKind.AreaSpawn:
+                case MobaExecutionKind.AreaEnter:
+                case MobaExecutionKind.AreaExit:
+                case MobaExecutionKind.AreaExpire:
+                case MobaExecutionKind.AreaStay:
                     return BattleDebugConfigKind.Area;
-                case MobaTraceKind.SummonSpawn:
-                case MobaTraceKind.SummonDeath:
+                case MobaExecutionKind.SummonSpawn:
+                case MobaExecutionKind.SummonDeath:
                     return BattleDebugConfigKind.Summon;
-                case MobaTraceKind.PresentationPlay:
-                case MobaTraceKind.PresentationStop:
+                case MobaExecutionKind.PresentationPlay:
+                case MobaExecutionKind.PresentationStop:
                     return BattleDebugConfigKind.PresentationTemplate;
                 default:
                     return BattleDebugConfigKind.Unknown;

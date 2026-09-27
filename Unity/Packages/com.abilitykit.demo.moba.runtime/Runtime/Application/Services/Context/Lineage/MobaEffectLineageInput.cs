@@ -10,7 +10,7 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public MobaEffectLineageInput(
             EffectContextKind contextKind,
-            MobaTraceKind originKind,
+            MobaExecutionKind originKind,
             int sourceActorId,
             int targetActorId,
             long parentContextId,
@@ -29,7 +29,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public EffectContextKind ContextKind { get; }
-        public MobaTraceKind OriginKind { get; }
+        public MobaExecutionKind OriginKind { get; }
         public int SourceActorId { get; }
         public int TargetActorId { get; }
         /// <summary>
@@ -58,25 +58,12 @@ namespace AbilityKit.Demo.Moba.Services
                                || OwnerContextId != 0
                                || OriginConfigId != 0;
 
-        public MobaEffectTraceInput ToTraceInput()
-        {
-            return new MobaEffectTraceInput(
-                ContextKind,
-                OriginKind,
-                SourceActorId,
-                TargetActorId,
-                ParentContextId,
-                RootContextId,
-                OwnerContextId,
-                OriginConfigId);
-        }
-
         public static MobaEffectLineageInput FromInvocation(IMobaTriggerInvocationContext invocation)
         {
             if (invocation == null) throw new ArgumentNullException(nameof(invocation));
             return new MobaEffectLineageInput(
                 invocation.Kind,
-                MobaTraceKind.EffectExecution,
+                MobaExecutionKind.EffectExecution,
                 invocation.SourceActorId,
                 invocation.TargetActorId,
                 invocation.SourceContextId,

@@ -22,6 +22,44 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
     public sealed class MobaRuntimeOwnershipLifecycleTests
     {
         [Test]
+        public void SkillRuntime_FailingFinalizingHookStillNotifiesOthersAndReleasesRuntime()
+        {
+            var service = new MobaSkillCastRuntimeService();
+            var events = new SkillLifecycleRecorder();
+            service.LifecycleHooks.Register(new FailingFinalizationHook());
+            service.LifecycleHooks.Register(events);
+            var runtime = CreateSkillRuntime(service, 105);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                service.MarkPipelineEnded(runtime.Handle, MobaSkillRuntimeEndReason.PipelineCompleted));
+
+            Assert.That(runtime.IsEnded, Is.True);
+            Assert.That(runtime.IsEnding, Is.False);
+            Assert.That(service.Count, Is.Zero);
+            Assert.That(events.Count(MobaSkillRuntimeLifecycleEventKind.Finalizing), Is.EqualTo(1));
+            Assert.That(events.Count(MobaSkillRuntimeLifecycleEventKind.Finalized), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void SkillRuntime_ClearContinuesAfterHookFailureAndPreservesFirstException()
+        {
+            var service = new MobaSkillCastRuntimeService();
+            var events = new SkillLifecycleRecorder();
+            service.LifecycleHooks.Register(new FailingFinalizationHook());
+            service.LifecycleHooks.Register(events);
+            var first = CreateSkillRuntime(service, 106);
+            var second = CreateSkillRuntime(service, 107);
+
+            var error = Assert.Throws<InvalidOperationException>(() => service.Clear());
+
+            Assert.That(error.Message, Is.EqualTo("finalization hook failed"));
+            Assert.That(first.IsEnded, Is.True);
+            Assert.That(second.IsEnded, Is.True);
+            Assert.That(service.Count, Is.Zero);
+            Assert.That(events.Count(MobaSkillRuntimeLifecycleEventKind.Finalized), Is.EqualTo(2));
+        }
+
+        [Test]
         public void SkillRuntime_NormalRelease_FinalizesWithExactlyOnceEvents()
         {
             var service = new MobaSkillCastRuntimeService();
@@ -262,7 +300,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             using (var scope = new SummonTestScope())
             {
-                var invalidHandle = new MobaSkillCastRuntimeHandle(9998L, 76, scope.RootTraceContextId);
+                var invalidHandle = new MobaSkillCastRuntimeHandle(9998L, 76, scope.RootContextId);
                 var source = scope.CreateSource(invalidHandle);
 
                 Assert.That(scope.Service.TrySummon(1, SummonTestScope.SummonId, Vec3.Zero, source), Is.False);
@@ -278,7 +316,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             using (var scope = new SummonTestScope())
             {
-                var parent = CreateSkillRuntime(scope.SkillRuntimes, 108, scope.RootTraceContextId);
+                var parent = CreateSkillRuntime(scope.SkillRuntimes, 108, scope.RootContextId);
                 var source = scope.CreateSource(parent.Handle);
                 Assert.That(scope.Service.TrySummon(1, SummonTestScope.SummonId, Vec3.Zero, source), Is.True);
                 Assert.That(scope.SkillRuntimes.CountPendingChildren(parent.Handle), Is.EqualTo(1));
@@ -292,11 +330,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             }
         }
 
-        private static MobaSkillCastRuntime CreateSkillRuntime(MobaSkillCastRuntimeService service, int skillId, long rootTraceContextId = 0L)
+        private static MobaSkillCastRuntime CreateSkillRuntime(MobaSkillCastRuntimeService service, int skillId, long rootContextId = 0L)
         {
             var aimPos = Vec3.Zero;
             var aimDir = Vec3.Forward;
-            var request = new MobaSkillCastRuntimeCreateRequest(skillId, 1, 1, 1, 1, 2, aimPos, aimDir, rootTraceContextId);
+            var request = new MobaSkillCastRuntimeCreateRequest(skillId, 1, 1, 1, 1, 2, aimPos, aimDir, rootContextId);
             return service.Create(request);
         }
 
@@ -305,7 +343,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var origin = new MobaGameplayOrigin(
                 sourceActorId,
                 targetActorId,
-                MobaTraceKind.BuffApply,
+                MobaExecutionKind.BuffApply,
                 buffId,
                 sourceContextId,
                 sourceContextId,
@@ -331,6 +369,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Missing field {fieldName}");
             field.SetValue(target, value);
+        }
+
+        private sealed class FailingFinalizationHook : IMobaSkillRuntimeLifecycleHook
+        {
+            public void OnSkillRuntimeLifecycle(in MobaSkillRuntimeLifecycleEvent lifecycleEvent)
+            {
+                if (lifecycleEvent.Kind == MobaSkillRuntimeLifecycleEventKind.Finalizing)
+                    throw new InvalidOperationException("finalization hook failed");
+            }
         }
 
         private sealed class SkillLifecycleRecorder : IMobaSkillRuntimeLifecycleHook
@@ -371,10 +418,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public SummonTestScope()
             {
                 SkillRuntimes = new MobaSkillCastRuntimeService();
+                ExecutionContexts = new MobaExecutionContextRegistry();
                 Trace = new MobaTraceRegistry();
+                Trace.AttachExecutionContexts(ExecutionContexts);
                 TraceEvents = new TraceEventRecorder(SummonId);
                 Trace.AttachDiagnosticCollector(TraceEvents);
-                RootTraceContextId = Trace.CreateRootContext(MobaTraceKind.SkillCast, 901, CasterId, 0);
+                RootContextId = ExecutionContexts.Create(new MobaExecutionContextCreateRequest(
+                    MobaExecutionKind.SkillCast, 901, CasterId, 0)).ContextId;
                 var caster = _contexts.actor.CreateEntity();
                 caster.AddActorId(CasterId);
                 caster.AddTransform(Transform3.Identity);
@@ -391,35 +441,37 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 Inject(Service, "_config", CreateSummonConfigs());
                 Inject(Service, "_actorSpawn", ActorSpawn);
                 Inject(Service, "_frameTime", new FixedFrameTime());
-                Inject(Service, "_trace", Trace);
+                Inject(Service, "_executionContexts", ExecutionContexts);
                 Inject(Service, "_skillRuntimes", SkillRuntimes);
+                Inject(SkillRuntimes, "_executionContexts", ExecutionContexts);
             }
 
             public MobaSummonService Service { get; }
             public MobaSkillCastRuntimeService SkillRuntimes { get; }
+            public MobaExecutionContextRegistry ExecutionContexts { get; }
             public MobaTraceRegistry Trace { get; }
             public TraceEventRecorder TraceEvents { get; }
             public RecordingSummonActorSpawnService ActorSpawn { get; }
-            public long RootTraceContextId { get; }
+            public long RootContextId { get; }
 
             public SummonSourceContext CreateSource(MobaSkillCastRuntimeHandle handle)
             {
                 var origin = new MobaGameplayOrigin(
                     CasterId,
                     0,
-                    MobaTraceKind.SkillCast,
+                    MobaExecutionKind.SkillCast,
                     901,
-                    RootTraceContextId,
-                    RootTraceContextId,
-                    RootTraceContextId,
-                    RootTraceContextId,
+                    RootContextId,
+                    RootContextId,
+                    RootContextId,
+                    RootContextId,
                     handle);
                 return SummonSourceContextBuilder.Create()
                     .WithActors(CasterId, 0)
                     .WithSummonConfig(SummonId)
-                    .WithSourceContext(RootTraceContextId)
-                    .WithRootContext(RootTraceContextId)
-                    .WithOwnerContext(RootTraceContextId)
+                    .WithSourceContext(RootContextId)
+                    .WithRootContext(RootContextId)
+                    .WithOwnerContext(RootContextId)
                     .WithSkillRuntime(handle)
                     .WithOrigin(origin)
                     .Build();
@@ -429,7 +481,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             {
                 Service.Dispose();
                 SkillRuntimes.Dispose();
-                Trace.EndContext(RootTraceContextId, TraceLifecycleReason.Cancelled);
+                ExecutionContexts.End(RootContextId, (int)MobaExecutionEndReason.Cancelled, frame: 7);
+                ExecutionContexts.Dispose();
                 _registry.Dispose();
                 _entities.Dispose();
                 _contexts.actor.DestroyAllEntities();

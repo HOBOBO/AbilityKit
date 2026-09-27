@@ -15,8 +15,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         protected override void Execute(object triggerArgs, ModifyResourceArgs args, ExecCtx<IWorldResolver> ctx)
         {
+            if (float.IsNaN(args.Amount) || float.IsInfinity(args.Amount))
+            {
+                LogRejected(ctx, "non-finite resource change.");
+                return;
+            }
             if (Math.Abs(args.Amount) <= float.Epsilon) return;
-            if (args.ResourceType == ResourceType.None)
+            if (args.ResourceType == ResourceType.None || args.ResourceType == ResourceType.Hp)
             {
                 LogRejected(ctx, "invalid resource type.");
                 return;
@@ -61,16 +66,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         {
             if (actorId <= 0) return;
             if (!actors.TryGetActorEntity(actorId, out var entity) || entity == null) return;
-            if (!entity.hasResourceContainer || entity.resourceContainer.Value == null || entity.resourceContainer.Value.Map == null) return;
-            if (!entity.resourceContainer.Value.Map.TryGetValue(args.ResourceType, out var state) || state == null) return;
+            if (!MobaResourceMutation.TryGetState(entity, args.ResourceType, out var state)) return;
 
             var next = state.Current + MobaResourceFixedConvert.ToFixed(args.Amount);
             if (args.HasMinValue && next < MobaResourceFixedConvert.ToFixed(args.MinValue)) next = MobaResourceFixedConvert.ToFixed(args.MinValue);
             if (args.HasMaxValue && next > MobaResourceFixedConvert.ToFixed(args.MaxValue)) next = MobaResourceFixedConvert.ToFixed(args.MaxValue);
             else if (state.LastMax > AbilityKit.Deterministic.Fixed64.Zero && next > state.LastMax) next = state.LastMax;
 
-            state.Current = next;
-            MobaResourceAttributeContextProjector.Refresh(entity);
+            if (next < AbilityKit.Deterministic.Fixed64.Zero) next = AbilityKit.Deterministic.Fixed64.Zero;
+            MobaResourceMutation.Set(entity, args.ResourceType, state, next);
             MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.ModifyResource, $"actorId={actorId}, type={args.ResourceType}, amount={args.Amount:0.###}, current={MobaResourceFixedConvert.ToSingle(state.Current):0.###}");
         }
     }

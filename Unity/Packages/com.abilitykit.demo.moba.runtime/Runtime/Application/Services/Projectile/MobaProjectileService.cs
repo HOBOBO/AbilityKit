@@ -18,7 +18,6 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Diagnostics;
-using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
@@ -32,7 +31,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         [WorldInject] private MobaProjectileLinkService _links = null;
         [WorldInject(required: false)] private MobaActorSpawnSnapshotService _spawnSnapshots = null;
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
-        [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
+        [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
         [WorldInject(required: false)] private MobaSkillParamModifierService _skillParamModifiers = null;
         [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn = null;
@@ -135,20 +134,20 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
                 transaction.Enlist("projectile-runtime", () => _projectiles.Despawn(pid, spawnFrame, ProjectileExitReason.Manual));
 
-                var createdTraceContextId = 0L;
+                var createdContextId = 0L;
                 var acquiredRetain = default(MobaSkillRuntimeRetainHandle);
                 if (_links != null)
                 {
                     transaction.Enlist("projectile-link", () => _links.RollbackLink(pid, projectileActorId));
                     _links.Link(pid, projectileActorId);
 
-                    transaction.Enlist("projectile-trace", () => EndFailedProjectileTrace(createdTraceContextId));
+                    transaction.Enlist("projectile-context", () => EndFailedProjectileContext(createdContextId));
                     var boundSource = CreateLaunchSource(
                         casterActorId,
                         0,
                         projectileCode,
                         in sourceContext,
-                        ref createdTraceContextId);
+                        ref createdContextId);
                     if (boundSource.IsValid)
                     {
                         _links.BindSource(pid, in boundSource);
@@ -168,7 +167,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                         OwnerNetId = casterActorId,
                         X = spawnPos.X,
                         Y = spawnPos.Y,
-                        Z = spawnPos.Z
+                        Z = spawnPos.Z,
+                        EntityVersion = _registry.GetEntityVersion(projectileActorId)
                     });
                 }
 
@@ -521,7 +521,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             var transaction = new MobaTemporaryEntitySpawnTransaction();
             transaction.Enlist("launcher-actor-spawn", () => RollbackSpawnedActor(launcherSpawnResult));
             var launcherSource = default(ProjectileSourceContext);
-            var launcherTraceContextId = 0L;
+            var launcherContextId = 0L;
             var launcherRetain = default(MobaSkillRuntimeRetainHandle);
             var sequenceResult = default(MobaProjectileLaunchResult);
             try
@@ -534,13 +534,13 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
                 var sourceContext = request.SourceContext;
                 transaction.Enlist("launcher-link", () => _links.UnlinkLauncher(launcherActorId));
-                transaction.Enlist("launcher-trace", () => EndFailedProjectileTrace(launcherTraceContextId));
+                transaction.Enlist("launcher-context", () => EndFailedProjectileContext(launcherContextId));
                 launcherSource = CreateLaunchSource(
                     casterActorId,
                     sourceContext.InitialTargetActorId,
                     projectile.Id,
                     in sourceContext,
-                    ref launcherTraceContextId);
+                    ref launcherContextId);
                 _links.BindLauncherSource(launcherActorId, in launcherSource);
                 transaction.Enlist("launcher-skill-retain", () => ReleaseProjectileSkillRuntime(launcherRetain));
                 RetainLauncherSkillRuntime(launcherActorId, launcher.Id, in launcherSource, out launcherRetain);
@@ -619,10 +619,10 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             }
         }
 
-        private void EndFailedProjectileTrace(long sourceContextId)
+        private void EndFailedProjectileContext(long sourceContextId)
         {
-            if (sourceContextId == 0L || _trace == null) return;
-            _trace.EndContext(sourceContextId, TraceLifecycleReason.Failed);
+            if (sourceContextId == 0L || _executionContexts == null) return;
+            _executionContexts.End(sourceContextId, (int)MobaExecutionEndReason.Failed, GetCurrentFrame());
         }
 
         private void ReleaseProjectileSkillRuntime(MobaSkillRuntimeRetainHandle retainHandle)
@@ -730,15 +730,15 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             int targetActorId,
             int projectileConfigId,
             in ProjectileSourceContext sourceContext,
-            ref long createdTraceContextId)
+            ref long createdContextId)
         {
-            createdTraceContextId = 0L;
+            createdContextId = 0L;
             var origin = sourceContext.TryGetOrigin(out var sourceOrigin)
                 ? sourceOrigin.WithActors(sourceActorId, targetActorId)
                 : new MobaGameplayOrigin(
                     sourceActorId,
                     targetActorId,
-                    MobaTraceKind.ProjectileLaunch,
+                    MobaExecutionKind.ProjectileLaunch,
                     projectileConfigId,
                     0,
                     0,
@@ -747,26 +747,29 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     default);
 
             var parentContextId = origin.EffectiveParentContextId;
-            var launchContextId = 0L;
-            if (_trace != null)
+            if (_executionContexts == null)
             {
-                launchContextId = parentContextId != 0L
-                    ? _trace.CreateChildContext(parentContextId, MobaTraceKind.ProjectileLaunch, projectileConfigId, sourceActorId, targetActorId)
-                    : _trace.CreateRootContext(MobaTraceKind.ProjectileLaunch, projectileConfigId, sourceActorId, targetActorId);
-                createdTraceContextId = launchContextId;
+                throw new InvalidOperationException("Projectile launch requires MobaExecutionContextRegistry.");
             }
 
-            if (launchContextId == 0L)
-            {
-                throw new InvalidOperationException($"Projectile launch requires trace context. sourceActorId={sourceActorId} targetActorId={targetActorId} projectileConfigId={projectileConfigId} parentContextId={parentContextId}");
-            }
+            var launchNode = _executionContexts.Create(new MobaExecutionContextCreateRequest(
+                MobaExecutionKind.ProjectileLaunch,
+                projectileConfigId,
+                sourceActorId,
+                targetActorId,
+                parentContextId,
+                origin.EffectiveRootContextId,
+                origin.OwnerContextId,
+                GetCurrentFrame()));
+            var launchContextId = launchNode.ContextId;
+            createdContextId = launchContextId;
 
             var rootContextId = origin.EffectiveRootContextId != 0L ? origin.EffectiveRootContextId : launchContextId;
             var ownerContextId = origin.OwnerContextId != 0L ? origin.OwnerContextId : launchContextId;
             origin = MobaGameplayOriginBuilder.Create()
                 .FromOrigin(in origin)
                 .WithActors(sourceActorId, targetActorId)
-                .WithLifecycleNode(MobaTraceKind.ProjectileLaunch, projectileConfigId, launchContextId)
+                .WithLifecycleNode(MobaExecutionKind.ProjectileLaunch, projectileConfigId, launchContextId)
                 .WithRootContext(rootContextId)
                 .WithOwnerContext(ownerContextId)
                 .Build();

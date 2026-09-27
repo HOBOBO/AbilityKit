@@ -347,19 +347,19 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var rootId = service.CurrentEffectContextId;
             Assert.That(trace.TryGetNodeSnapshot(rootId, out var root), Is.True);
             var rootMetadata = (MobaTraceMetadata)root.Metadata;
-            Assert.That(rootMetadata.OriginKind, Is.EqualTo(MobaTraceKind.SkillEffect));
+            Assert.That(rootMetadata.OriginKind, Is.EqualTo(MobaExecutionKind.SkillEffect));
             Assert.That(rootMetadata.OriginConfigId, Is.EqualTo(801));
 
             var lineage = new MobaEffectLineageInput(
-                EffectContextKind.Skill, MobaTraceKind.AreaStay, 7, 9,
+                EffectContextKind.Skill, MobaExecutionKind.AreaStay, 7, 9,
                 rootId, rootId, 0L, 601);
-            InvokePrivate(service, "BeginEffectTraceScope", 803, 804, lineage);
+            InvokePrivate(service, "BeginEffectExecutionScope", 803, 804, lineage);
             Assert.That(trace.TryGetNodeSnapshot(service.CurrentEffectContextId, out var child), Is.True);
             Assert.That(child.ParentId, Is.EqualTo(rootId));
             var metadata = (MobaTraceMetadata)child.Metadata;
             Assert.That(metadata.ConfigId, Is.EqualTo(803));
             Assert.That(metadata.TriggerId, Is.EqualTo(804));
-            Assert.That(metadata.OriginKind, Is.EqualTo(MobaTraceKind.AreaStay));
+            Assert.That(metadata.OriginKind, Is.EqualTo(MobaExecutionKind.AreaStay));
             Assert.That(metadata.OriginConfigId, Is.EqualTo(601));
         }
 
@@ -375,7 +375,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             service.ExitActionExecution(0, 901L, true);
 
             Assert.That(trace.TryGetNodeSnapshot(actionContextId, out var action), Is.True);
-            Assert.That(action.EndReason, Is.EqualTo((int)TraceLifecycleReason.Completed));
+            Assert.That(action.EndReason, Is.EqualTo((int)MobaExecutionEndReason.Completed));
             Assert.That(((MobaTraceMetadata)action.Metadata).TriggerId, Is.EqualTo(802));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionInvoked), Is.EqualTo(1L));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionSucceeded), Is.EqualTo(1L));
@@ -396,7 +396,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             service.ExitActionExecution(0, 902L, false);
 
             Assert.That(trace.TryGetNodeSnapshot(actionContextId, out var action), Is.True);
-            Assert.That(action.EndReason, Is.EqualTo((int)TraceLifecycleReason.Failed));
+            Assert.That(action.EndReason, Is.EqualTo((int)MobaExecutionEndReason.Failed));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionInvoked), Is.EqualTo(1L));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionFailed), Is.EqualTo(1L));
             Assert.That(HasSamples(MobaBattleDiagnosticMetric.EffectActionDuration + ".ms"), Is.False);
@@ -425,11 +425,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             service.EnterActionExecution(0, 904L);
             var actionContextId = service.CurrentActionChain[0];
 
-            InvokePrivate(service, "EndCurrentTrace", (int)TraceLifecycleReason.Failed);
+            InvokePrivate(service, "EndCurrentExecutionScope", (int)MobaExecutionEndReason.Failed);
             service.ExitActionExecution(0, 904L, false);
 
             Assert.That(trace.TryGetNodeSnapshot(actionContextId, out var action), Is.True);
-            Assert.That(action.EndReason, Is.EqualTo((int)TraceLifecycleReason.Failed));
+            Assert.That(action.EndReason, Is.EqualTo((int)MobaExecutionEndReason.Failed));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionInvoked), Is.EqualTo(1L));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionFailed), Is.EqualTo(1L));
             Assert.That(service.CurrentActionChain, Is.Empty);
@@ -488,14 +488,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             var lineage = new MobaEffectLineageInput(
                 EffectContextKind.Skill,
-                MobaTraceKind.SkillEffect,
+                MobaExecutionKind.SkillEffect,
                 7,
                 9,
                 0L,
                 0L,
                 0L,
                 801);
-            InvokePrivate(service, "BeginEffectTraceScope", 801, 802, lineage);
+            InvokePrivate(service, "BeginEffectExecutionScope", 801, 802, lineage);
         }
 
         private long GetCounter(string name)

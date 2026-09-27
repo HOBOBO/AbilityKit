@@ -15,15 +15,32 @@ namespace AbilityKit.Demo.Moba.Services
 
         protected override void OnInstantExecute(SkillPipelineContext context)
         {
-            if (context?.WorldServices == null || !context.TryGetSkillRuntimeHandle(out var handle)) return;
+            if (context?.WorldServices == null || !context.TryGetSkillRuntimeHandle(out var handle))
+            {
+                FailRequiredCommit(context);
+                return;
+            }
+            var economyCommitted = false;
             if (context.WorldServices.TryResolve<MobaSkillEconomyService>(out var economy) && economy != null)
             {
-                economy.Commit(in handle, _specification?.CommitId);
+                economyCommitted = economy.Commit(in handle, _specification?.CommitId);
+            }
+            if (_specification?.RequireEconomyReservation == true && !economyCommitted)
+            {
+                FailRequiredCommit(context);
+                return;
             }
             if (context.WorldServices.TryResolve<MobaSkillWindowRuntimeService>(out var windows) && windows != null)
             {
                 windows.Commit(in handle, _specification?.CommitId);
             }
+        }
+
+        private void FailRequiredCommit(SkillPipelineContext context)
+        {
+            if (context == null || _specification?.RequireEconomyReservation != true) return;
+            context.FailReason = "Skill commit requires an active economy reservation.";
+            context.IsAborted = true;
         }
     }
 }

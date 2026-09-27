@@ -9,6 +9,8 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaActorRegistry : IService
     {
         private readonly Dictionary<int, global::ActorEntity> _byId = new Dictionary<int, global::ActorEntity>();
+        private readonly Dictionary<int, int> _entityVersions = new Dictionary<int, int>();
+        private readonly Dictionary<int, global::ActorEntity> _lastEntityById = new Dictionary<int, global::ActorEntity>();
 
         public IEnumerable<KeyValuePair<int, global::ActorEntity>> Entries => _byId;
 
@@ -31,7 +33,45 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));
             if (entity == null) throw new ArgumentNullException(nameof(entity));
+
+            if (!_lastEntityById.TryGetValue(actorId, out var previous) ||
+                !ReferenceEquals(previous, entity))
+            {
+                _entityVersions.TryGetValue(actorId, out var version);
+                _entityVersions[actorId] = version == int.MaxValue ? 1 : version + 1;
+                _lastEntityById[actorId] = entity;
+            }
             _byId[actorId] = entity;
+        }
+
+        public int GetEntityVersion(int actorId)
+        {
+            return actorId > 0 && _entityVersions.TryGetValue(actorId, out var version)
+                ? version
+                : 0;
+        }
+
+        public bool MatchesEntityVersion(int actorId, int entityVersion)
+        {
+            return entityVersion > 0 && GetEntityVersion(actorId) == entityVersion;
+        }
+
+        internal void RegisterRestored(int actorId, global::ActorEntity entity, int entityVersion)
+        {
+            if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));
+            if (entity == null) throw new ArgumentNullException(nameof(entity));
+            if (entityVersion <= 0) throw new ArgumentOutOfRangeException(nameof(entityVersion));
+
+            _entityVersions[actorId] = entityVersion;
+            _lastEntityById[actorId] = entity;
+            _byId[actorId] = entity;
+        }
+
+        internal void ForgetEntityIdentity(int actorId)
+        {
+            if (actorId <= 0) return;
+            _entityVersions.Remove(actorId);
+            _lastEntityById.Remove(actorId);
         }
 
         public bool Contains(int actorId)
@@ -67,11 +107,13 @@ namespace AbilityKit.Demo.Moba.Services
         public void Clear()
         {
             _byId.Clear();
+            _entityVersions.Clear();
+            _lastEntityById.Clear();
         }
 
         public void Dispose()
         {
-            _byId.Clear();
+            Clear();
         }
     }
 }

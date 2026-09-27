@@ -48,7 +48,7 @@ namespace AbilityKit.Demo.Moba.Services
             int sourceActorId,
             int targetActorId,
             EffectContextKind contextKind,
-            MobaTraceKind originKind)
+            MobaExecutionKind originKind)
         {
             TriggerId = triggerId;
             Frame = frame;
@@ -67,7 +67,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int SourceActorId { get; }
         public int TargetActorId { get; }
         public EffectContextKind ContextKind { get; }
-        public MobaTraceKind OriginKind { get; }
+        public MobaExecutionKind OriginKind { get; }
 
         public long BudgetRootKey => RootContextId != 0 ? RootContextId : ParentContextId;
     }

@@ -3,6 +3,7 @@
 using System;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
 using AbilityKit.Protocol.Catalog;
+using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 using AbilityKit.Protocol.Moba.StateSync;
 using MemoryPack;
 
@@ -13,9 +14,30 @@ namespace AbilityKit.Protocol.Moba
     {
         public const string CatalogId = "abilitykit.moba.battle";
 
+        public static WireSpectatorSubscribeRes DecodeSpectatorSubscribeResponse(ReadOnlySpan<byte> payload)
+        {
+            if (payload.Length == 0) throw new ArgumentException("Spectator subscribe response is empty.", nameof(payload));
+            return MemoryPackSerializer.Deserialize<WireSpectatorSubscribeRes>(payload);
+        }
+
         public static void Register(ProtocolPayloadDecoderRegistry registry)
         {
             if (registry == null) throw new ArgumentNullException(nameof(registry));
+
+            Register<WireSubmitFrameInputReq>(registry, "frame-sync-submit-input.request");
+            Register<WireSubmitFrameInputRes>(registry, "frame-sync-submit-input.response");
+            Register<WireCatchUpRequest>(registry, "frame-sync-catch-up.request");
+            registry.TryRegister(CatalogId, "frame-sync-metrics.request", payload => payload.ToArray());
+            Register<WireFrameSyncMetrics>(registry, "frame-sync-metrics.response");
+            registry.TryRegister(CatalogId, "frame-sync-spectator-subscribe.request", payload =>
+            {
+                if (payload.Array == null || payload.Count != sizeof(ulong))
+                    throw new FormatException("Spectator subscribe request must contain an 8-byte room ID.");
+                return BitConverter.ToUInt64(payload.Array, payload.Offset);
+            });
+            Register<WireSpectatorSubscribeRes>(registry, "frame-sync-spectator-subscribe.response");
+            Register<WireFramePushedPush>(registry, "frame-sync-frame.push");
+            Register<WireCatchUpPayloadPush>(registry, "frame-sync-catch-up.push");
 
             Register<MobaMovePayload>(registry, "move-input.event");
             Register<SkillInputEvent>(registry, "skill-input.event");
@@ -33,6 +55,7 @@ namespace AbilityKit.Protocol.Moba
             Register<MobaPresentationCueSnapshotPayload>(registry, "presentation-cue.push");
             Register<MobaSkillStateSnapshotPayload>(registry, "skill-state.push");
             Register<MobaPlayerHeroChangedSnapshotPayload>(registry, "player-hero-changed.push");
+            Register<MobaActionAckPayload>(registry, "action-ack.push");
         }
 
         private static void Register<T>(ProtocolPayloadDecoderRegistry registry, string messageId)

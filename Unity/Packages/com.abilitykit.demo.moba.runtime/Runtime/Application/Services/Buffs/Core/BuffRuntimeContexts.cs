@@ -1,7 +1,6 @@
-﻿using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.GameplayTags;
-using AbilityKit.Trace;
 
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
@@ -10,20 +9,20 @@ using AbilityKit.Demo.Moba.Services.Buffs.Triggering;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
     /// <summary>
-    /// Buff 来源上下文：保留父级 trace、来源/目标 Actor、技能运行时句柄，用于后续事件和效果溯源。
+    /// Buff 来源上下文：保留父级 execution context、来源/目标 Actor、技能运行时句柄，用于后续事件和效果溯源。
     /// </summary>
     public readonly struct BuffOriginContext : IMobaOriginContextProvider
     {
         public readonly long ParentContextId;
         public readonly int OriginSourceActorId;
         public readonly int OriginTargetActorId;
-        public readonly MobaTraceKind OriginKind;
+        public readonly MobaExecutionKind OriginKind;
         public readonly int OriginConfigId;
         public readonly long OriginContextId;
         public readonly MobaSkillCastRuntimeHandle SkillRuntimeHandle;
         public readonly MobaGameplayOrigin Origin;
 
-        public BuffOriginContext(long parentContextId, int originSourceActorId, int originTargetActorId, MobaTraceKind originKind = MobaTraceKind.None, int originConfigId = 0, long originContextId = 0, MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
+        public BuffOriginContext(long parentContextId, int originSourceActorId, int originTargetActorId, MobaExecutionKind originKind = MobaExecutionKind.None, int originConfigId = 0, long originContextId = 0, MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
         {
             ParentContextId = parentContextId;
             OriginSourceActorId = originSourceActorId;
@@ -88,15 +87,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             return origin.IsValid;
         }
 
-        public TraceEndpoint ToOriginSourceEndpoint()
-        {
-            return TraceEndpoint.Actor(OriginSourceActorId);
-        }
-
-        public TraceEndpoint ToOriginTargetEndpoint()
-        {
-            return TraceEndpoint.Actor(OriginTargetActorId);
-        }
     }
 
     internal struct BuffApplyRequest
@@ -119,7 +109,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         public int BuffId;
         public int SourceActorId;
         public long SourceContextId;
-        public TraceLifecycleReason Reason;
+        public MobaExecutionEndReason Reason;
 
         public bool IsValid => TargetActorId > 0 && BuffId > 0;
     }

@@ -1,10 +1,10 @@
 # MOBA Trace、Context 与 Effect 执行深潜
 
 > 文档类型：MOBA 项目应用组合深潜
-> 事实基线：2026-08-16
-> 文档版本：v3.0
+> 事实基线：2026-09-22
+> 文档版本：v4.0
 >
-> 本文补充 MOBA 示例中 Trace、Context、Effect 三条链路的设计。它们解决的不是单个技能如何执行，而是“效果为什么被执行、由谁触发、挂在哪个父节点下、验收时如何证明动作确实发生”。
+> 本文补充 MOBA 示例中 Context 主链路、Effect 执行和可选 Trace 投影的设计。它们解决的不是单个技能如何执行，而是“效果为什么被执行、由谁触发、挂在哪个父节点下、验收时如何证明动作确实发生”。
 
 ## 1. 设计目标
 
@@ -12,20 +12,28 @@ MOBA 示例把技能、Buff、Projectile、Damage 都纳入同一套可追踪上
 
 | 目标 | 说明 | 代表源码 |
 |------|------|----------|
-| 可解释 | 每次效果执行都能还原来源、目标、配置、父子关系 | `MobaTraceRegistry`、`MobaTraceMetadata` |
+| 可解释 | 每次效果执行都能还原来源、目标、配置、父子关系 | `MobaExecutionContextRegistry`、`MobaExecutionContextNode` |
 | 可传递 | Skill、Buff、Trigger、Effect 之间传递统一 lineage input | `MobaEffectLineageInput`、`MobaTriggerLineageContext` |
 | 可归一 | 多个正式来源按字段补齐 provenance，非缺失冲突立即失败 | `MobaCanonicalProvenance`、`MobaTriggerContextResolveExtensions` |
-| 可拥有 | 跨帧 runtime 明确 retain/release，identity 不冒充 lifecycle ownership | `MobaTraceRetentionHandle`、`MobaRuntimeTraceRetentionService` |
+| 可增强 | 安装 Adapter 时投影 Trace、retention、query 与分析产物；卸载后业务不变 | `MobaTraceAdapterModule`、`MobaTraceRegistry` |
 | 可校验 | 缺少 source/context 时失败，并能返回稳定树结构错误 | `MobaEffectLineageInputResolver`、`MobaTraceQuery.ValidateChainDetailed` |
 | 可观测 | Action 成功/失败无条件计数，耗时与线程分配按 channel 采样 | `MobaEffectExecutionService`、`MobaAnalysisMetricCatalog` |
 | 可验收 | 单测断言 EffectExecution、EffectAction、ownership 与结构校验 | `MobaCanonicalProvenanceTests`、`MobaTraceDiagnosticProducerTests` |
 
-## 2. Trace 注册表分层
+## 2. Context 主链路与 Trace Adapter 分层
 
-`com.abilitykit.trace` 提供通用树结构，MOBA 只补充玩法语义。
+`com.abilitykit.demo.moba.runtime` 保存正式执行事实；`com.abilitykit.context` 提供只读生命周期 observer 契约；`com.abilitykit.demo.moba.trace.adapter` 依赖 Runtime Core 与 `com.abilitykit.trace`，把已提交的 Context 生命周期投影为 Trace。依赖方向不可反转。
 
 ```mermaid
 flowchart TB
+    subgraph MobaRuntime[MOBA Runtime Core]
+        ContextRegistry[MobaExecutionContextRegistry]
+        ContextNode[MobaExecutionContextNode]
+        Kind[MobaExecutionKind]
+    end
+
+    Lifecycle[IContextLifecycleSource]
+
     subgraph TraceCore[com.abilitykit.trace]
         Base[TraceTreeRegistryBase]
         Generic[TraceTreeRegistry<TMetadata>]
@@ -34,21 +42,22 @@ flowchart TB
         Origin[TraceOrigin / TraceEndpoint]
     end
 
-    subgraph MobaTrace[MOBA Runtime]
+    subgraph MobaTrace[MOBA Trace Adapter]
         Registry[MobaTraceRegistry]
         Metadata[MobaTraceMetadata]
-        Writer[MobaTraceWriter]
-        Lifecycle[MobaTraceLifecycle]
-        Query[MobaTraceQuery]
-        Kind[MobaTraceKind]
+        Adapter[MobaTraceAdapterModule]
+        Retention[MobaTraceRetention]
+        Validation[MobaTraceValidation]
     end
 
+    ContextRegistry --> ContextNode
+    ContextRegistry --> Lifecycle
+    Lifecycle -. committed events .-> Adapter
     Base --> Generic --> Registry
-    Origin --> Writer
     Registry --> Metadata
-    Registry --> Writer
-    Registry --> Lifecycle
-    Registry --> Query
+    Adapter --> Registry
+    Registry --> Retention
+    Registry --> Validation
     Scope --> Registry
     Export --> Registry
 ```
@@ -57,9 +66,10 @@ flowchart TB
 
 1. `TraceTreeRegistryBase` 保存内部节点、根节点、父子表和叶子数据；
 2. `TraceTreeRegistry<TMetadata>` 负责创建 root/child、快照查询、按 root 或 kind 枚举；
-3. `MobaTraceRegistry` 继承泛型注册表，把 `int kind` 映射为 `MobaTraceKind`；
-4. `MobaTraceMetadata` 保存 source actor、target actor、config id、origin display 等 MOBA 字段；
-5. `TraceRootScope` / `TraceTreeScope` 用 `IDisposable` 模式保证 begin/end 成对。
+3. `MobaExecutionContextRegistry` 分配正式 Context ID 并保存 `MobaExecutionKind`、父子关系和生命周期；
+4. `MobaTraceRegistry` 继承泛型注册表，把 Context 的 `MobaExecutionKind` 投影为 Trace kind；
+5. `MobaTraceMetadata` 保存 source actor、target actor、config id、origin display 等 MOBA 字段；
+6. `TraceRootScope` / `TraceTreeScope` 只管理可选 Trace 投影的引用和收尾。
 
 ## 3. MOBA Trace 节点模型
 
@@ -68,7 +78,7 @@ flowchart TB
 | 字段 | 来源 | 用途 |
 |------|------|------|
 | `RootId` | 注册表创建 root 时生成 | 标识整条执行链 |
-| `TraceKind` | `MobaTraceKind` | 区分 SkillCast、EffectExecution、EffectAction 等 |
+| `ExecutionKind` | `MobaExecutionKind` | 投影 SkillCast、EffectExecution、EffectAction 等正式执行分类 |
 | `ConfigId` | 技能、效果、动作、Buff 配置 id | 用于验收断言和回放定位 |
 | `SourceActorId` | lineage/source context | 说明谁触发 |
 | `TargetActorId` | lineage/target context | 说明作用于谁 |
@@ -84,14 +94,14 @@ flowchart TB
 | 属性 | 语义 |
 |------|------|
 | `ContextKind` | 当前执行来自 Skill、Buff、Projectile 等哪类上下文 |
-| `OriginKind` | 创建 trace 时采用的来源 kind，效果通常是 `EffectExecution` |
+| `OriginKind` | 创建执行 Context 时采用的来源 kind，效果通常是 `EffectExecution` |
 | `SourceActorId` / `TargetActorId` | 执行源与执行目标 |
-| `ParentContextId` | 新效果应挂接到哪个父 trace 节点 |
+| `ParentContextId` | 新效果应挂接到哪个父执行 Context |
 | `RootContextId` | 已知根节点；缺省时使用 parent 作为有效 root |
-| `OwnerContextId` | 传播、订阅与取消使用的路由身份；它本身不授予结束 trace 的生命周期权限 |
+| `OwnerContextId` | 传播、订阅与取消使用的路由身份；它本身不授予结束其他 Context 的生命周期权限 |
 | `OriginConfigId` | 导致执行的配置 id |
 
-已有 trace lineage 的输入通过 `HasExecutionSource` 要求 `SourceActorId > 0` 且 `ParentContextId != 0`。actor-only payload 是受控例外：Actor ID 与 trace context ID 属于不同命名空间，resolver 只保留 source/target actor，并令 parent/root/owner context 为零；effect service 创建新的 trace root 后，再把 execution frame 提升到该真实 root。实现不会把 Actor ID 伪装成 trace parent。
+已有 execution lineage 的输入通过 `HasExecutionSource` 要求 `SourceActorId > 0` 且 `ParentContextId != 0`。actor-only payload 是受控例外：Actor ID 与 execution context ID 属于不同命名空间，resolver 只保留 source/target actor，并令 parent/root/owner context 为零；effect service 创建新的 Context root 后，再把 execution frame 提升到该真实 root。实现不会把 Actor ID 伪装成 Context parent。
 
 ## 5. Context Source 解析与 canonical provenance
 
@@ -107,7 +117,6 @@ MobaContextSourceView
 -> IMobaContextSourceProvider
 -> IMobaOriginContextProvider
 -> IMobaTriggerLineageContextProvider
--> IMobaTriggerTraceContextProvider
 -> IMobaTriggerExecutionSnapshotProvider
 ```
 
@@ -230,34 +239,41 @@ sequenceDiagram
     participant Effect as MobaEffectExecutionService
     participant Context as CombatExecutionContext
     participant Executor as PlannedTriggerActionExecutor
-    participant Trace as MobaTraceRegistry
+    participant Registry as MobaExecutionContextRegistry
+    participant Adapter as Optional Trace Adapter
     participant Diagnostics as Battle Diagnostics
 
     Skill->>Resolver: 多来源 payload/context/snapshot
     Resolver->>Resolver: 逐字段 enrichment + conflict check
     Resolver-->>Effect: canonical lineage/context
-    Effect->>Trace: 创建或挂接 EffectExecution
+    Effect->>Registry: 创建或挂接 EffectExecution Context
+    Registry-->>Adapter: Created lifecycle event
     Effect->>Context: WithEffectExecutionNode
     Effect->>Executor: Execute action
     Executor->>Effect: EnterActionExecution
-    Effect->>Trace: Create EffectAction child
+    Effect->>Registry: Create EffectAction child Context
     Effect->>Diagnostics: invoked + optional sample start
     Executor-->>Executor: action/cue execution
     Executor->>Effect: ExitActionExecution(succeeded) in finally
-    Effect->>Trace: End Completed/Failed
+    Effect->>Registry: End Completed/Failed
+    Registry-->>Adapter: Ended lifecycle event
     Effect->>Diagnostics: success/failure + sampled duration/allocation
 ```
 
-## 10. 跨帧 ownership 与清理
+## 10. 跨帧 ownership、回滚与清理
 
-Trace identity 与 ownership 分离。`RootContextId`、`SourceContextId` 和 `OwnerContextId` 说明链路关系或路由身份，不代表调用方已经持有根引用。Buff、Projectile、Summon 和 Skill runtime 需要跨帧保存来源时，通过 `MobaRuntimeTraceRetentionService` 取得 `MobaTraceRetentionHandle`；handle 只在成功 retain 后有效，`Dispose()` exactly-once release。
+Context identity 与 runtime ownership 分离。`RootContextId`、`SourceContextId` 和 `OwnerContextId` 说明链路关系或路由身份，不代表调用方拥有对应领域 runtime。Buff、Projectile、Summon 和 Skill runtime 通过各自正式生命周期协议持有和释放业务所有权。
+
+技能局部回滚的正式 payload 只包含 `Version`、`RuntimeState`、`ExecutionContextNodes` 和 `ExecutionContextNextId`。导入时先校验 Context 范围，再撤销预测分配、恢复生命周期并发布 `Reconciled`。正式协议不包含任何 Trace rollback section，也不承担旧 wire 兼容。安装 Trace Adapter 时，它在 reconciliation 后从 Context 快照重建投影。
+
+Trace retention 只影响可选历史是否仍可查询。安装 Adapter 后，`MobaRuntimeTraceRetentionService` 与 `MobaTraceRetentionHandle` 管理 Trace 引用；handle 只在成功 retain 后有效，`Dispose()` exactly-once release。该引用计数不是业务恢复的输入。
 
 | 路径 | 必须完成的动作 |
 |------|----------------|
 | 正常结束/命中/完成 | 结束领域 runtime，释放其 retention handle |
 | 强制终止/取消 | 使用同一收尾入口释放，不依赖正常事件补偿 |
 | `Clear()` / `Dispose()` | 遍历仍存 runtime 并释放全部持有 |
-| 创建或恢复失败 | 逆序回滚已建立状态并释放已取得 handle |
+| Context 创建或恢复失败 | 逆序回滚业务状态；Adapter 随 Context 事件协调投影 |
 | stale 检查 | `ScanRetention()` 上报 retained/ended/stale root gauge 与 warning |
 
 通用 `TraceRootScope.Dispose()` 只 release、不结束树；MOBA 长生命周期 runtime 因此不把 scope 当作完整业务终态。Action 是同步执行边界，使用显式 `End()`；跨帧对象使用 retention handle。
@@ -298,13 +314,13 @@ Effect scope 复用当前 Action 字段，不为每次 Action 创建额外 instr
 
 | 边界 | 说明 |
 |------|------|
-| Trace 不负责执行业务 | 只记录根、父子、kind、metadata、生命周期 |
-| Context 不负责修改战斗状态 | 只提供稳定读模型与 source/root/parent 推导 |
+| Trace 不负责执行业务 | 只投影根、父子、kind、metadata、生命周期并提供查询/留存 |
+| Context 是执行权威 | 分配身份并提交 source/root/parent、结束状态、预测撤销与恢复 |
 | 通用 Context 不等于 MOBA combat context | `com.abilitykit.context` 管实体/Flow/Snapshot；canonical provenance 是 MOBA 应用层策略 |
 | EffectInvoker 不负责解释配置 | 只把 effectId 与 context 交给执行服务 |
 | Resolver 不做静默覆盖 | 缺失字段允许 enrichment，双方非缺失 identity/metadata 冲突 fail-fast |
 | Owner identity 不等于 lifecycle ownership | `OwnerContextId` 用于传播、订阅和取消；实际持有 runtime 的服务负责 retain/release |
-| Action observer 是执行边界 | Triggering 只发 Enter/Exit；MOBA 决定 Trace kind、结束原因和诊断指标 |
+| Action observer 是执行边界 | Triggering 只发 Enter/Exit；MOBA Runtime 决定 Execution kind、结束原因和诊断指标 |
 | 结构校验不是写入门禁 | `ValidateChainDetailed()` 是 MOBA 查询层能力，通用注册表仍允许弱约束写入 |
 | 验收基于结构而不是日志文本 | 断言 trace node、root、configId、kind、end reason 和 validation result |
 
@@ -316,8 +332,11 @@ Effect scope 复用当前 Action 字段，不为每次 Action 创建额外 instr
 | trace scope | `Unity/Packages/com.abilitykit.trace/Runtime/TraceTreeScope.cs` |
 | trace origin | `Unity/Packages/com.abilitykit.trace/Runtime/TraceOrigin.cs` |
 | trace export | `Unity/Packages/com.abilitykit.trace/Runtime/TraceTreeExport.cs` |
-| MOBA registry | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRegistry.cs` |
-| MOBA metadata | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceMetadata.cs` |
+| MOBA execution Context registry | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaExecutionContextRegistry.cs` |
+| Context lifecycle observer contract | `Unity/Packages/com.abilitykit.context/Runtime/Events/ContextLifecycleObservation.cs` |
+| MOBA Trace Adapter module | `Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceAdapterModule.cs` |
+| MOBA registry | `Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceRegistry.cs` |
+| MOBA metadata | `Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceMetadata.cs` |
 | lineage input | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaEffectLineageInput.cs` |
 | lineage resolver | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaEffectLineageInputResolver.cs` |
 | canonical provenance / provider resolver | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextResolveExtensions.cs` |
@@ -327,8 +346,8 @@ Effect scope 复用当前 Action 字段，不为每次 Action 创建额外 instr
 | Effect/Action lifecycle | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs` |
 | Action observer contract | `Unity/Packages/com.abilitykit.triggering/Runtime/Context/IServiceProvider.cs` |
 | Action observer invocation | `Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Execution/PlannedTriggerActionExecutor.cs` |
-| runtime retention | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRetention.cs` |
-| 结构校验 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRuntimeServices.cs` |
+| runtime retention | `Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceRetention.cs` |
+| 结构校验 | `Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceValidation.cs` |
 | Action 指标目录 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Diagnostics/MobaAnalysisMetricCatalog.cs` |
 | context wrapper | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/EffectContextWrapper.cs` |
 | canonical provenance 测试 | `Unity/Packages/com.abilitykit.demo.moba.editor/Tests/MobaCanonicalProvenanceTests.cs` |
@@ -351,4 +370,4 @@ Effect scope 复用当前 Action 字段，不为每次 Action 创建额外 instr
 
 ---
 
-*文档版本：v3.0 | 最后更新：2026-08-16 | 验证基线：canonical 14/14、ownership 9/9、Trace 15/15、Action diagnostics 15/15（均为 2026-08-15 artifact）*
+*文档版本：v4.0 | 最后更新：2026-09-22 | 正式边界：Context 主导业务生命周期与 rollback，Trace Adapter 提供可选投影*

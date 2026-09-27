@@ -354,8 +354,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
             var subscriptions = harness.World.Services.Resolve<MobaTriggerPlanSubscriptionService>();
             var gates = harness.World.Services.Resolve<MobaOwnerBoundTriggerGateService>();
             var trace = harness.World.Services.Resolve<MobaTraceRegistry>();
-            var ownerContextId = trace.CreateRootContext(
-                MobaTraceKind.SkillCast,
+            var ownerContextId = trace.CreateObservationRoot(
+                MobaExecutionKind.SkillCast,
                 MobaTriggerAuthoringTestIds.OverhealToShield,
                 casterId,
                 casterId);
@@ -405,7 +405,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
             {
                 subscriptions.Stop(ownerKey);
                 gates.UnregisterGate(gate);
-                trace.EndContext(ownerContextId, TraceLifecycleReason.Completed);
+                trace.EndContext(ownerContextId, MobaExecutionEndReason.Completed);
             }
         }
 

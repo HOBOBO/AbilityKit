@@ -87,7 +87,7 @@
     "RefreshPolicy": 1,
     "MaxStacks": 1,
     "TriggerIds": [],
-    "ContinuousTagTemplateId": 0,
+    "ContinuousTagTemplateId": 10010001,
     "TagNames": null,
     "Modifiers": [
       {

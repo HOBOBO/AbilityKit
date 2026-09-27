@@ -1,0 +1,21 @@
+{
+  "name": "AbilityKit.Demo.Moba.Presentation.ProtocolAdapter",
+  "rootNamespace": "AbilityKit.Demo.Moba.Share",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.Demo.Moba.Presentation.Contracts",
+    "AbilityKit.Protocol.Moba",
+    "AbilityKit.Protocol.Room",
+    "AbilityKit.World.DI",
+    "AbilityKit.World.FrameSync"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

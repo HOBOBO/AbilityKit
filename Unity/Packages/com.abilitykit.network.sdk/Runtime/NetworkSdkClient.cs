@@ -12,7 +12,7 @@ namespace AbilityKit.Network.Sdk
     /// <summary>
     /// Owns one connection and its single request client for the complete SDK lifetime.
     /// </summary>
-    public sealed class NetworkSdkClient : IReconnectableConnection, IDisposable
+    public sealed class NetworkSdkClient : IReconnectableConnection, INetworkProtocolTransport, IDisposable
     {
         private readonly IConnection _connection;
         private readonly IReconnectableConnection? _reconnectableConnection;
@@ -242,6 +242,16 @@ namespace AbilityKit.Network.Sdk
         {
             ThrowIfDisposed();
             return _requestClient.SendRequestAsync(opCode, payload, timeout, cancellationToken);
+        }
+
+        Task<ArraySegment<byte>> INetworkProtocolTransport.SendRequestAsync(
+            uint opCode, ArraySegment<byte> payload, TimeSpan? timeout, CancellationToken cancellationToken) =>
+            SendRawRequestAsync(opCode, payload, timeout, cancellationToken);
+
+        public NetworkProtocolAgent CreateProtocolAgent(INetworkProtocolCodec codec)
+        {
+            ThrowIfDisposed();
+            return new NetworkProtocolAgent(this, codec);
         }
 
         public void Dispose()

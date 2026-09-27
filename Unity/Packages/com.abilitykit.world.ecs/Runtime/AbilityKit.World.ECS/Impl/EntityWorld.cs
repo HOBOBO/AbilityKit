@@ -38,6 +38,7 @@ namespace AbilityKit.World.ECS
 
         // 空闲索引池（线程安全）
         private readonly System.Collections.Concurrent.ConcurrentStack<int> _freeIndices;
+        private int _nextEntityIndex;
 
         // 组件索引（类型ID -> 实体索引集合）
         private readonly Dictionary<int, HashSet<int>> _componentIndex;
@@ -67,6 +68,8 @@ namespace AbilityKit.World.ECS
             IWorldEventBus eventBus = null,
             Action<string> logHandler = null)
         {
+            if (initialCapacity <= 0) throw new ArgumentOutOfRangeException(nameof(initialCapacity));
+            if (maxCapacity <= 0) throw new ArgumentOutOfRangeException(nameof(maxCapacity));
             _maxCapacity = maxCapacity;
             _logHandler = logHandler;
             _componentRegistry = componentRegistry ?? ComponentRegistry.Shared;
@@ -81,7 +84,7 @@ namespace AbilityKit.World.ECS
                 maxSize: 256
             );
 
-            Allocate(initialCapacity);
+            Allocate(Math.Min(initialCapacity, maxCapacity));
         }
 
         #endregion
@@ -579,9 +582,16 @@ namespace AbilityKit.World.ECS
             int index;
             if (!_freeIndices.TryPop(out index))
             {
-                if (_versions.Length >= _maxCapacity)
-                    throw new InvalidOperationException($"Entity world capacity exceeded: {_maxCapacity}");
-                index = Allocate(_versions.Length == 0 ? 64 : _versions.Length * 2);
+                if (_nextEntityIndex == _versions.Length)
+                {
+                    if (_versions.Length >= _maxCapacity)
+                        throw new InvalidOperationException($"Entity world capacity exceeded: {_maxCapacity}");
+                    var newSize = _versions.Length <= _maxCapacity / 2
+                        ? _versions.Length * 2
+                        : _maxCapacity;
+                    Allocate(newSize);
+                }
+                index = _nextEntityIndex++;
             }
 
             var version = _versions[index];

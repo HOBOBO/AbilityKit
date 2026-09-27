@@ -124,7 +124,7 @@ public sealed class ConsoleMobaSmokeFlowTests : ConsoleMobaSmokeTestBase
         Assert.True(loadout!.TryGetSkillId(actorId, skillSlot, out var skillId), "Configured skill slot must map to a runtime skill id.");
 
         Assert.True(services.TryResolve<MobaTraceRegistry>(out var trace) && trace != null, "Runtime trace registry must be resolved.");
-        Assert.Contains(trace!.GetNodesByKind((int)MobaTraceKind.SkillCast), node => node.Metadata != null && node.Metadata.ConfigId == skillId);
-        Assert.True(trace.GetNodesByKind((int)MobaTraceKind.EffectExecution).Any(), "A configured skill cast must execute at least one formal effect trace.");
+        Assert.Contains(trace!.GetNodesByKind((int)MobaExecutionKind.SkillCast), node => node.Metadata != null && node.Metadata.ConfigId == skillId);
+        Assert.True(trace.GetNodesByKind((int)MobaExecutionKind.EffectExecution).Any(), "A configured skill cast must execute at least one formal effect trace.");
     }
 }

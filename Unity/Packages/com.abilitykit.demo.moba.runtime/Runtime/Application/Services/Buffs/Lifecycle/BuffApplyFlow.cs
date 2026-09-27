@@ -9,7 +9,6 @@ using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.Demo.Moba.Services.Buffs.Tagging;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.GameplayTags;
-using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
 {
@@ -181,7 +180,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             var targetActorId = context.TargetActorId;
             var durationSeconds = context.DurationSeconds;
             Exception firstFailure = null;
-            TryStep(() => _endFlow.EndCommittedRuntime(target, existingRuntime, existingRuntime.SourceId, TraceLifecycleReason.Replaced), ref firstFailure);
+            TryStep(() => _endFlow.EndCommittedRuntime(target, existingRuntime, existingRuntime.SourceId, MobaExecutionEndReason.Replaced), ref firstFailure);
             TryStep(() => _endFlow.NotifyLifecycle(replacement, MobaRuntimeLifecycleEventKind.Activated, "buff.lifecycle.active"), ref firstFailure);
             TryStep(() => _notifier.AppliedNew(buff, request.SourceActorId, targetActorId, durationSeconds, replacement), ref firstFailure);
             if (firstFailure != null)
@@ -231,7 +230,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             if (runtime == null) return;
 
             Exception firstFailure = null;
-            TryStep(() => _bindings?.EndContinuous(runtime, TraceLifecycleReason.Failed), ref firstFailure);
+            TryStep(() => _bindings?.EndContinuous(runtime, MobaExecutionEndReason.Failed), ref firstFailure);
             TryStep(() => _bindings?.CleanupContinuous(target, targetActorId, runtime, applyRemovalTags: false), ref firstFailure);
             TryStep(() => _ctx?.CancelAndEnd(runtime), ref firstFailure);
             TryStep(() => _endFlow.ReleaseSkillRuntime(runtime), ref firstFailure);

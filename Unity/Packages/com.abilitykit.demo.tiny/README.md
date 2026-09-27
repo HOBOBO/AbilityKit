@@ -1,5 +1,7 @@
 # Tiny Unity 示例
 
+通过 Unity Package Manager 导入 `Samples~/07-ProjectEntry` 可查看项目侧大厅入口装配；需要回合制时另装 `com.abilitykit.demo.tiny.turn` 并导入其 `10-TurnEntry`。仓库的 `verify-tiny-starter.ps1 -FocusChapter 01` 至 `06`、`09`、`10` 提供对应章节的短门禁；完整门禁使用独立工程和两个并行无头 Unity 客户端验证 State/Turn 的真实 Gateway 路径，证据在 `unity-cross-State/`、`unity-cross-Turn/`。无头证据不判断最终画面。
+
 脱离源码仓库接入时先阅读 [包内接入指南](Documentation~/IntegrationGuide.md)。它说明客户端入口、服务端前提与逐章学习顺序。
 
 ## 教程入口

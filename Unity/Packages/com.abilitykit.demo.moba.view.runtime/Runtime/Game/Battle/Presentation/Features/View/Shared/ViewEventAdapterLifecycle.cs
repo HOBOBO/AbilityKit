@@ -26,7 +26,7 @@ namespace AbilityKit.Game.Flow
 
             Detach(runtime);
 
-            var mode = _modePolicy.Resolve(runtime.Context);
+            var mode = _modePolicy.Resolve(runtime.Context?.Plan.Sync.ViewEventSourceMode);
 
             if (_modePolicy.ShouldUseTriggerAdapter(mode) && runtime.Context?.Session != null)
             {
@@ -66,23 +66,4 @@ namespace AbilityKit.Game.Flow
         }
     }
 
-    public sealed class ViewEventSourceModePolicy
-    {
-        public BattleViewEventSourceMode Resolve(IBattleRuntimeContext context)
-        {
-            return context != null
-                ? context.Plan.Sync.ViewEventSourceMode
-                : BattleViewEventSourceMode.SnapshotOnly;
-        }
-
-        public bool ShouldUseTriggerAdapter(BattleViewEventSourceMode mode)
-        {
-            return mode == BattleViewEventSourceMode.TriggerOnly || mode == BattleViewEventSourceMode.Hybrid;
-        }
-
-        public bool ShouldUseSnapshotAdapter(BattleViewEventSourceMode mode)
-        {
-            return mode == BattleViewEventSourceMode.SnapshotOnly || mode == BattleViewEventSourceMode.Hybrid;
-        }
-    }
 }

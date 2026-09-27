@@ -66,7 +66,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     var origin = effectInput.BuildOrigin(
                         effectInput.CasterActorId,
                         targetActorId,
-                        MobaTraceKind.EffectExecution,
+                        MobaExecutionKind.EffectExecution,
                         args.ReasonParam);
                     var result = damage.CommitHeal(
                         effectInput.CasterActorId,

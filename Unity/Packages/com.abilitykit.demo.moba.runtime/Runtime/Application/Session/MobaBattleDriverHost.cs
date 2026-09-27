@@ -49,7 +49,6 @@ namespace AbilityKit.Demo.Moba.Session
         // double IEEE 累计位一致，不参与逐帧模拟判定，故保留 double 不迁定点。
         private double _logicTimeSeconds;
         private bool _isRunning;
-        private bool _missingDriveGateLogged;
 
         // 位置快照事件回调（由 ET Logic 层设置）
         private System.Action<int, MobaActorTransformSnapshotEntry[]>? _onTransformSnapshot;
@@ -61,20 +60,42 @@ namespace AbilityKit.Demo.Moba.Session
 
         public void BindLogicWorld(IWorld world, HostRuntime hostRuntime)
         {
-            _world = world ?? throw new ArgumentNullException(nameof(world));
-            _hostRuntime = hostRuntime;
-
-            // 获取逻辑世界统一运行时端口，外部模块不直接依赖内部输入/快照服务。
-            if (_world?.Services != null)
+            if (_isRunning)
             {
-                _world.Services.TryResolve(out _runtime);
-                _world.Services.TryResolve(out _driveGate);
+                throw new InvalidOperationException("Cannot bind a logic world while the battle driver is running.");
             }
 
-            _missingDriveGateLogged = false;
-            _inputConverter = new MobaPlayerInputCommandConverter();
-            _transformSnapshots = new MobaTransformSnapshotDispatcher(_world);
-            _stateAdapter = new MobaCoordinatorStateAdapter();
+            if (world == null) throw new ArgumentNullException(nameof(world));
+            if (hostRuntime == null) throw new ArgumentNullException(nameof(hostRuntime));
+            if (world.Services == null)
+            {
+                throw new InvalidOperationException("MobaBattleDriverHost requires a world service resolver.");
+            }
+
+            // 获取逻辑世界统一运行时端口，外部模块不直接依赖内部输入/快照服务。
+            world.Services.TryResolve(out IMobaBattleRuntimePort runtime);
+            if (runtime == null)
+            {
+                throw new InvalidOperationException("MobaBattleDriverHost requires IMobaBattleRuntimePort before binding.");
+            }
+
+            world.Services.TryResolve(out ILogicWorldDriveGate driveGate);
+            if (driveGate == null)
+            {
+                throw new InvalidOperationException("MobaBattleDriverHost requires ILogicWorldDriveGate before binding.");
+            }
+
+            var inputConverter = new MobaPlayerInputCommandConverter();
+            var transformSnapshots = new MobaTransformSnapshotDispatcher(world);
+            var stateAdapter = new MobaCoordinatorStateAdapter();
+
+            _world = world;
+            _hostRuntime = hostRuntime;
+            _runtime = runtime;
+            _driveGate = driveGate;
+            _inputConverter = inputConverter;
+            _transformSnapshots = transformSnapshots;
+            _stateAdapter = stateAdapter;
         }
 
         /// <summary>
@@ -100,6 +121,17 @@ namespace AbilityKit.Demo.Moba.Session
 
         public void Start()
         {
+            if (_isRunning) return;
+            if (_world == null || _hostRuntime == null || _runtime == null || _driveGate == null)
+            {
+                throw new InvalidOperationException("MobaBattleDriverHost must be fully bound before starting.");
+            }
+
+            if (!_runtime.Status.IsReadyForBattleLoop)
+            {
+                throw new InvalidOperationException("MobaBattleDriverHost runtime is not ready for the battle loop. " + _runtime.Status);
+            }
+
             _isRunning = true;
             _currentFrame = new FrameIndex(0);
             _logicTimeSeconds = 0;
@@ -171,16 +203,19 @@ namespace AbilityKit.Demo.Moba.Session
 
         public SnapshotEntityState[] GetAllEntityStates()
         {
-            return _stateAdapter != null
-                ? _stateAdapter.ToCoordinatorStates(GetLogicWorldEntityStates())
-                : Array.Empty<SnapshotEntityState>();
+            if (_stateAdapter == null)
+            {
+                throw new InvalidOperationException("MobaBattleDriverHost must be bound before reading entity states.");
+            }
+
+            return _stateAdapter.ToCoordinatorStates(GetLogicWorldEntityStates());
         }
 
         public LogicWorldEntityState[] GetLogicWorldEntityStates()
         {
             if (_runtime == null)
             {
-                return Array.Empty<LogicWorldEntityState>();
+                throw new InvalidOperationException("MobaBattleDriverHost must be bound before reading entity states.");
             }
 
             var states = _runtime.GetAllEntityStates();
@@ -190,7 +225,12 @@ namespace AbilityKit.Demo.Moba.Session
         public int FillLogicWorldEntityStates(IList<LogicWorldEntityState> buffer)
         {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
-            return _runtime?.FillAllEntityStates(buffer) ?? 0;
+            if (_runtime == null)
+            {
+                throw new InvalidOperationException("MobaBattleDriverHost must be bound before reading entity states.");
+            }
+
+            return _runtime.FillAllEntityStates(buffer);
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
@@ -205,9 +245,9 @@ namespace AbilityKit.Demo.Moba.Session
 
         public int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32)
         {
-            if (_runtime == null)
+            if (frame.Value < 0)
             {
-                throw new InvalidOperationException("MobaBattleDriverHost requires IMobaBattleRuntimePort for snapshot output.");
+                throw new ArgumentOutOfRangeException(nameof(frame), frame.Value, "frame must be non-negative.");
             }
 
             if (snapshots == null)
@@ -215,12 +255,20 @@ namespace AbilityKit.Demo.Moba.Session
                 throw new ArgumentNullException(nameof(snapshots));
             }
 
+            if (maxSnapshots <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxSnapshots), maxSnapshots, "maxSnapshots must be positive.");
+            }
+
+            if (_runtime == null)
+            {
+                throw new InvalidOperationException("MobaBattleDriverHost requires IMobaBattleRuntimePort for snapshot output.");
+            }
+
             if (_runtime is IMobaBattleOutputPort snapshotReadModel)
             {
                 return snapshotReadModel.CollectSnapshots(frame, snapshots, maxSnapshots);
             }
-
-            if (maxSnapshots <= 0) return 0;
 
             var collected = 0;
             if (_runtime.TryGetSnapshot(frame, out var snapshot))
@@ -266,18 +314,7 @@ namespace AbilityKit.Demo.Moba.Session
 
         private bool CanDriveLogicWorld(float deltaTime)
         {
-            if (_driveGate != null)
-            {
-                return _driveGate.CanDriveLogicWorld(deltaTime);
-            }
-
-            if (!_missingDriveGateLogged)
-            {
-                _missingDriveGateLogged = true;
-                MobaRuntimeLog.Warning(MobaRuntimeLogModule.Session, MobaRuntimeLogPurpose.Validation, nameof(MobaBattleDriverHost), "Logic world drive blocked: ILogicWorldDriveGate not resolved");
-            }
-
-            return false;
+            return _driveGate != null && _driveGate.CanDriveLogicWorld(deltaTime);
         }
 
         /// <summary>

@@ -14,6 +14,11 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int IconId { get; }
         public int Category { get; }
         public SkillType SkillType { get; }
+        public int CastConflictGroup { get; }
+        public int InterruptPriority { get; }
+        public bool InterruptRunning { get; }
+        public bool Uninterruptible { get; }
+        public int TargetLostPolicy { get; }
         public int SkillButtonTemplateId { get; }
         public int RequiredTargetQueryId { get; }
         public int LevelTableId { get; }
@@ -31,6 +36,11 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             IconId = dto.IconId;
             Category = dto.Category;
             SkillType = (SkillType)dto.SkillType;
+            CastConflictGroup = dto.CastConflictGroup;
+            InterruptPriority = dto.InterruptPriority;
+            InterruptRunning = dto.InterruptRunning;
+            Uninterruptible = dto.Uninterruptible;
+            TargetLostPolicy = dto.TargetLostPolicy;
             SkillButtonTemplateId = dto.SkillButtonTemplateId;
             RequiredTargetQueryId = dto.RequiredTargetQueryId;
             LevelTableId = dto.LevelTableId;

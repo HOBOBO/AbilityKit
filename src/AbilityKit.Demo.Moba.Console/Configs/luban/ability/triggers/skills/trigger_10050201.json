@@ -1,0 +1,29 @@
+{
+  "triggers": [
+    {
+      "id": 10050201,
+      "name": "妲己-偶像魅力-锁定魅惑弹",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "shoot_projectile",
+          "launcher_id": 31050201,
+          "projectile_id": 30050201,
+          "target_query_id": 50050201,
+          "target_max_count": 1,
+          "track_target": true
+        },
+        {
+          "type": "debug_log",
+          "message": "妲己二技能偶像魅力：锁定目标并发射追踪魅惑弹",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

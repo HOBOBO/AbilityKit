@@ -13,9 +13,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 {
     [WorldService(typeof(ITriggerExecutionScheduler))]
     [WorldService(typeof(MobaTriggerExecutionRuntimeService))]
+    [AbilityKit.Demo.Moba.Rollback.MobaRollbackProvider(DefaultKey, autoResolve: true)]
     public sealed class MobaTriggerExecutionRuntimeService : IService, ITriggerExecutionScheduler, IRollbackStateProvider, IMobaStateRecoveryProvider
     {
-        public const int DefaultKey = 10011;
+        public const int DefaultKey = 10019;
 
         private readonly TriggerExecutionScheduler _scheduler = new TriggerExecutionScheduler();
 

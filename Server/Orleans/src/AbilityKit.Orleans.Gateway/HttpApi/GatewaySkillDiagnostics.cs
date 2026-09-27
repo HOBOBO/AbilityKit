@@ -8,7 +8,7 @@ internal static class GatewaySkillDiagnostics
 {
     private const string RuntimeContextOnly = "RuntimeContextOnly";
     private const string RuntimeEventsUnavailable = "Unavailable";
-    private const string RuntimeEventsSchemaVersion = "abilitykit-battle-diagnostics.v1";
+    private const string RuntimeEventsSchemaVersion = "abilitykit-battle-diagnostics.v2";
     private const string RuntimeEventsUnavailableReason =
         "The battle runtime diagnostic read channel is not connected to the Gateway.";
 

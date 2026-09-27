@@ -193,7 +193,8 @@ namespace AbilityKit.Network.Runtime
                     return;
                 }
 
-                _dispatcher.Post(() => ServerPushReceived?.Invoke(opCode, payload));
+                var ownedPush = Copy(payload);
+                _dispatcher.Post(() => ServerPushReceived?.Invoke(opCode, ownedPush));
                 return;
             }
 
@@ -203,7 +204,8 @@ namespace AbilityKit.Network.Runtime
                 return;
             }
 
-            _dispatcher.Post(() => PacketReceived?.Invoke(opCode, seq, payload));
+            var ownedPacket = Copy(payload);
+            _dispatcher.Post(() => PacketReceived?.Invoke(opCode, seq, ownedPacket));
         }
 
         private void SendRaw(NetworkPacketHeader header, ArraySegment<byte> payload)

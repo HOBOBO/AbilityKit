@@ -29,6 +29,10 @@ namespace AbilityKit.Game.Battle.Vfx
         private readonly BattleViewHierarchyManager _hierarchy;
         private readonly Dictionary<int, ObjectPool<GameObject>> _pools = new Dictionary<int, ObjectPool<GameObject>>(64);
         private readonly HashSet<int> _failedVfxIds = new HashSet<int>();
+        private readonly HashSet<GameObject> _leased = new HashSet<GameObject>();
+        private readonly BattleViewPoolMetricsTracker _metrics = new BattleViewPoolMetricsTracker();
+
+        public BattleViewPoolMetrics Metrics => _metrics.Capture(_pools.Values, _leased.Count);
 
         public BattleVfxGameObjectPool(Func<int, GameObject> factory, int capacityPerVfxId = 16, BattleViewHierarchyManager hierarchy = null)
         {
@@ -66,20 +70,35 @@ namespace AbilityKit.Game.Battle.Vfx
         public bool TryRent(int vfxId, out GameObject instance)
         {
             instance = null;
-            if (vfxId <= 0) return false;
-            if (_failedVfxIds.Contains(vfxId)) return false;
+            if (vfxId <= 0 || _failedVfxIds.Contains(vfxId))
+            {
+                _metrics.RecordFailure();
+                return false;
+            }
 
             try
             {
                 var pool = GetOrCreateBucket(vfxId);
                 instance = pool.Get();
+                if (instance != null)
+                {
+                    _leased.Add(instance);
+                    _metrics.ObserveActive(_leased.Count);
+                }
+                else _metrics.RecordFailure();
                 return instance != null;
             }
             catch (InvalidOperationException ex)
             {
                 _failedVfxIds.Add(vfxId);
+                _metrics.RecordFailure();
                 Debug.LogException(ex);
                 return false;
+            }
+            catch (Exception)
+            {
+                _metrics.RecordFailure();
+                throw;
             }
         }
 
@@ -88,10 +107,18 @@ namespace AbilityKit.Game.Battle.Vfx
         /// </summary>
         public bool Return(int vfxId, GameObject instance)
         {
-            if (instance == null) return false;
-            if (!_pools.TryGetValue(vfxId, out var pool))
+            if (instance == null || BattleVfxPoolableTag.Read(instance) != vfxId || !_leased.Contains(instance))
+            {
+                _metrics.RecordFailure();
                 return false;
+            }
+            if (!_pools.TryGetValue(vfxId, out var pool))
+            {
+                _metrics.RecordFailure();
+                return false;
+            }
             pool.Release(instance);
+            _leased.Remove(instance);
             return true;
         }
 
@@ -111,10 +138,13 @@ namespace AbilityKit.Game.Battle.Vfx
         /// </summary>
         public void Clear()
         {
+            _metrics.RecordClear(_pools.Values, _leased.Count);
             foreach (var kvp in _pools)
             {
                 kvp.Value.Clear(destroy: true);
             }
+            foreach (var instance in _leased) DestroySafely(instance);
+            _leased.Clear();
             _pools.Clear();
             _failedVfxIds.Clear();
         }

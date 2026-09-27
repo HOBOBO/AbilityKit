@@ -58,7 +58,8 @@ flowchart TB
         ProjectileSvc[MobaProjectileService]
         AreaSvc[IProjectileService area runtime]
         DamageSvc[MobaDamageService]
-        Trace[MobaTraceRegistry]
+        Context[MobaExecutionContextRegistry]
+        Trace[Optional MobaTraceRegistry]
     end
 
     Active --> SkillEvent --> EventBus
@@ -73,7 +74,8 @@ flowchart TB
     Damage --> DamageSvc
     Shoot --> ProjectileSvc
     SpawnArea --> AreaSvc
-    Effect --> Trace
+    Effect --> Context
+    Context -. lifecycle observer .-> Trace
 ```
 
 这条链路里有两个执行模式：
@@ -127,7 +129,7 @@ sequenceDiagram
 被动技能保存在 `SkillLoadoutComponent.PassiveSkills`，运行时状态是 `PassiveSkillRuntime`，监听状态由 `PassiveSkillTriggerListenersComponent` 保存。`MobaPassiveSkillLifecycleService.SyncActorPassives` 每帧同步 actor 当前被动：
 
 1. 对 loadout 中的 passive skill 创建 listener；
-2. 为 passive 创建 root/source trace context；
+2. 为 passive 创建 root/source Execution Context；Trace Adapter 可选观察；
 3. 按 `PassiveSkillMO.TriggerIds` 写入 `OngoingTriggerPlansComponent`；
 4. 通过 `MobaTriggerExecutionGateway.ApplyOwnerBoundTriggers` 注册 owner-bound trigger；
 5. 如果存在 continuous process，则同步被动持续触发 runtime。
@@ -235,7 +237,7 @@ Projectile stage trigger 的配置分发集中在 `MobaStageTriggerService`：
 | exit | `ProjectileMO.OnExitTriggerIds` | `ProjectileEventArgs` |
 | hit | `ProjectileMO.OnHitEffectId`、`ProjectileMO.OnHitTriggerIds` | `ProjectileHitArgs` |
 
-命中阶段有一个兼容性细节：`OnHitEffectId` 会先作为直接 effect 执行，`OnHitTriggerIds` 再逐个执行。这让旧式“单 effect id”配置和新式“多 trigger id”配置可以共存。launcher 结束时，despawn cleanup 先用 source 结束 trace，再消费并释放 launcher retain，最后 unlink record；消费 retain 不会提前清掉 source。
+命中阶段有一个兼容性细节：`OnHitEffectId` 会先作为直接 effect 执行，`OnHitTriggerIds` 再逐个执行。这让旧式“单 effect id”配置和新式“多 trigger id”配置可以共存。launcher 结束时，despawn cleanup 先用 source 结束正式 Execution Context，再消费并释放 launcher retain，最后 unlink record；消费 retain 不会提前清掉 source，Trace observer 可选跟随 Context 终态。
 
 ## 7. AOE / Area 触发
 
@@ -285,9 +287,9 @@ Area 阶段映射规则：
 
 这意味着 AOE 可以既是技能效果结果，也可以继续作为事件源，触发伤害、Buff、控制、召唤或表现 Cue。
 
-## 8. Source Context 与 Trace 继承
+## 8. Source Context 继承与 Trace 投影
 
-触发效果链路的关键约束是：每个副作用都必须能回答“谁产生的、从哪个技能/被动/Buff/projectile/area 派生、根来源是谁”。MOBA 示例通过 `MobaTraceRegistry`、`MobaGameplayOrigin`、`MobaContextSourceView` 和各类 source context 传递这些信息。
+触发效果链路的关键约束是：每个副作用都必须能回答“谁产生的、从哪个技能/被动/Buff/projectile/area 派生、根来源是谁”。MOBA 示例通过 `MobaExecutionContextRegistry`、`MobaGameplayOrigin`、`MobaContextSourceView` 和各类 source context 传递这些业务信息；`MobaTraceRegistry` 位于可选 Adapter 中，只投影已提交生命周期。
 
 | 场景 | context 处理 |
 |------|--------------|
@@ -297,7 +299,7 @@ Area 阶段映射规则：
 | Projectile | launch 从 parent context 派生 projectile launch context，hit payload 带 `ProjectileSourceContext` |
 | AOE | spawn action 创建 area spawn child context，area runtime 保存 source/root/owner context，enter 可再派生 child context |
 
-`MobaEffectExecutionService` 会在每次正式执行 TriggerPlan 时创建 effect trace scope，并为 plan actions 创建 action child nodes。actor-only payload 不会把 Actor ID 写成 parent/root trace ID；resolver 先输出零 parent/root 的 root candidate，effect trace root 创建成功后再通过 `PromoteToExecutionRoot` 提升 execution frame。这样 trace artifact 可以还原出：技能触发 projectile，projectile hit 触发 damage，damage event 激活 passive，被动再添加 Buff 的完整父子链。
+`MobaEffectExecutionService` 会在每次正式执行 TriggerPlan 时创建 effect execution scope，并为 plan actions 创建 action child Context。actor-only payload 不会把 Actor ID 写成 parent/root Context ID；resolver 先输出零 parent/root 的 root candidate，execution context root 创建成功后再推进 execution frame。可选 Trace Adapter 观察这些已提交节点，因此 trace artifact 仍可还原：技能触发 projectile，projectile hit 触发 damage，damage event 激活 passive，被动再添加 Buff 的完整父子链。
 
 ## 9. PlanAction 副作用边界
 
@@ -371,10 +373,10 @@ Area 阶段映射规则：
 
 | 链路 | 当前约束 |
 |------|----------|
-| Effect/Action trace | canonical provenance 统一保留 immediate/parent/root/owner context；Action 必须在所属 Effect 下成对开始/结束 |
+| Effect/Action Context | canonical provenance 统一保留 immediate/parent/root/owner context；Action 必须在所属 Effect 下成对开始/结束，Trace 可选投影 |
 | Buff 恢复 | parent skill runtime retain 必须重新取得；无效 parent 会回滚恢复项 |
 | Projectile | link、unlink、clear、dispose 统一消费 retain，launcher/projectile 不允许靠 GC 隐式结束 |
-| Area | `SpawnArea` 必须解析 Area runtime 与 Trace；注册失败回滚 runtime、despawn area 并以 Failed 结束 trace |
+| Area | `SpawnArea` 必须解析 Area runtime 与 `MobaExecutionContextRegistry`；注册失败回滚 runtime、despawn area 并以 Failed 结束正式 Context |
 | Damage | `attribute_source` 区分 AttributionActor 与 SkillCaster，数值属性来源不会篡改伤害归因 actor |
 | Skill pipeline | 正常结束、`ForceTerminate`、`Clear` 统一 exactly-once；Pipeline 不再重复结束 root trace |
 

@@ -150,6 +150,20 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 return false;
             }
 
+            if (request.RegisterActor && _registry == null)
+            {
+                result = MobaActorSpawnResult.Failed(
+                    "MobaActorRegistry is required when actor registration is enabled");
+                return false;
+            }
+
+            if (request.RegisterEntityManager && _entities == null)
+            {
+                result = MobaActorSpawnResult.Failed(
+                    "MobaEntityManager is required when entity-manager registration is enabled");
+                return false;
+            }
+
             var spec = request.Spec;
             if (spec.Info.ActorId <= 0)
             {
@@ -182,7 +196,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 }
 
                 MobaActorSpawnPostSetupApplier.Apply(entity, in request.PostSetup);
-                var registeredInEntityManager = CreateRegistrar().Register(
+                CreateRegistrar().Register(
                     entity,
                     in spec,
                     request.RegisterActor,
@@ -197,7 +211,12 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                     _entities != null &&
                     _entities.TryGetActorEntity(spec.Info.ActorId, out var entityRegistration) &&
                     ReferenceEquals(entityRegistration, entity);
-                if (publishSpawn && registeredInEntityManager && registeredEntityManager)
+                if (request.RegisterActor && !registeredActor)
+                    throw new InvalidOperationException($"Actor {spec.Info.ActorId} was not committed to MobaActorRegistry.");
+                if (request.RegisterEntityManager && !registeredEntityManager)
+                    throw new InvalidOperationException($"Actor {spec.Info.ActorId} was not committed to MobaEntityManager.");
+
+                if (publishSpawn && registeredEntityManager)
                 {
                     _entities.PublishSpawn(entity);
                 }

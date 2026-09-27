@@ -57,15 +57,16 @@ Trace ID 与 Runtime Context ID 分属不同注册表，即使数字相同也不
 核心概念：
 
 - `MobaGameplayOrigin`：回答来源是什么。
-- `MobaTriggerLineageContext`：回答当前执行如何接入 trace lineage。
-- `MobaTriggerTraceContext`：轻量触发 trace 表示。
+- `MobaTriggerLineageContext`：回答当前执行如何接入规范来源链。
 - `MobaContextSourceView`：用于查询、保留、调试和诊断的 source view。
 - `MobaPersistentContextSourceSnapshot`：跨帧、异步生命周期保留的 source snapshot。
+- Trace adapter：通过可选 hook/observer 将执行事实投影为 trace，不参与业务派发。
 
 维护规则：
 
-- trace/source/origin 是溯源，不等于 runtime context。
-- Buff、Projectile、Summon、AOE 这类对象即使没有实时可变状态，也仍然可以有 origin/source/trace。
+- lineage/source/origin 是来源事实，不等于 runtime context。
+- Buff、Projectile、Summon、AOE 这类对象即使没有实时可变状态，也仍然可以有 origin/source/lineage。
+- trace observer 可以缺席，context 的创建、传播和派发语义不得因此改变。
 - 跨帧对象不能长期持有上游 live runtime 对象，应保留 `MobaPersistentContextSourceSnapshot` 或稳定 id。
 
 ### 运行时上下文
@@ -154,14 +155,14 @@ flowchart LR
     Payload[Trigger payload]
 
     Payload --> Execution[MobaCombatExecutionContext]
-    Payload --> Source[MobaGameplayOrigin / Lineage / Trace / SourceView]
+    Payload --> Source[MobaGameplayOrigin / Lineage / SourceView]
     Payload --> RuntimeRef[MobaRuntimeContextReference]
 
     Execution --> CondCtx[MobaTriggerConditionContext]
     Execution --> PlanInput[MobaPlanActionInput]
     Execution --> DomainInput[Effect / Projectile / Summon input]
 
-    Source --> TraceScope[MobaEffectTraceScopeSnapshot]
+    Execution --> ExecutionScope[MobaEffectExecutionScopeSnapshot]
     Source --> Persistent[MobaPersistentContextSourceSnapshot]
     Persistent --> CrossFrame[Cross-frame object retention]
 

@@ -11,10 +11,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         MobaCombatExecutionContext ExecutionContext { get; }
     }
 
-    internal interface IMobaPlanActionTraceInput
+    internal interface IMobaPlanActionExecutionScopeInput
     {
-        MobaEffectTraceScopeSnapshot TraceScope { get; }
-        bool HasTraceScope { get; }
+        MobaEffectExecutionScopeSnapshot ExecutionScope { get; }
+        bool HasExecutionScope { get; }
     }
 
     internal interface IMobaPlanActionActorInput
@@ -48,11 +48,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     /// 计划动作共享的核心执行事实。
     /// 领域专属的动作数据应保留在动作参数对象或诸如 MobaMovementActionInput 之类的专用输入中，不要继续扩展该类型。
     /// </summary>
-    internal readonly struct MobaPlanActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput, IMobaPlanActionRuntimeContextInput
+    internal readonly struct MobaPlanActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionExecutionScopeInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput, IMobaPlanActionRuntimeContextInput
     {
         public MobaPlanActionInput(
             MobaCombatExecutionContext executionContext,
-            MobaEffectTraceScopeSnapshot traceScope,
+            MobaEffectExecutionScopeSnapshot executionScope,
             int casterActorId,
             int targetActorId,
             Vec3 aimPosition,
@@ -61,7 +61,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             bool hasAimDirection)
         {
             ExecutionContext = executionContext;
-            TraceScope = traceScope;
+            ExecutionScope = executionScope;
             CasterActorId = casterActorId;
             TargetActorId = targetActorId;
             AimPosition = aimPosition;
@@ -71,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
 
         public MobaCombatExecutionContext ExecutionContext { get; }
-        public MobaEffectTraceScopeSnapshot TraceScope { get; }
+        public MobaEffectExecutionScopeSnapshot ExecutionScope { get; }
         public int CasterActorId { get; }
         public int TargetActorId { get; }
         public Vec3 AimPosition { get; }
@@ -81,9 +81,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public bool HasCasterActor => CasterActorId > 0;
         public bool HasTargetActor => TargetActorId > 0;
-        public bool HasTraceScope => TraceScope.EffectContextId != 0;
+        public bool HasExecutionScope => ExecutionScope.EffectContextId != 0;
         public bool HasExecutionSource => ExecutionContext.HasExecutionSource;
-        public bool IsValid => HasExecutionSource || HasCasterActor || HasTargetActor || HasAimPosition || HasAimDirection || HasTraceScope;
+        public bool IsValid => HasExecutionSource || HasCasterActor || HasTargetActor || HasAimPosition || HasAimDirection || HasExecutionScope;
 
         public bool TryGetRuntimeContext(out MobaRuntimeContextReference reference)
         {
@@ -112,7 +112,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
     }
 
-    internal readonly struct MobaEffectActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput, IMobaPlanActionRuntimeContextInput
+    internal readonly struct MobaEffectActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionExecutionScopeInput, IMobaPlanActionActorInput, IMobaPlanActionRuntimeContextInput
     {
         private readonly MobaPlanActionInput _core;
 
@@ -122,12 +122,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
 
         public MobaCombatExecutionContext ExecutionContext => _core.ExecutionContext;
-        public MobaEffectTraceScopeSnapshot TraceScope => _core.TraceScope;
+        public MobaEffectExecutionScopeSnapshot ExecutionScope => _core.ExecutionScope;
         public int CasterActorId => _core.CasterActorId;
         public int TargetActorId => _core.TargetActorId;
         public bool HasCasterActor => _core.HasCasterActor;
         public bool HasTargetActor => _core.HasTargetActor;
-        public bool HasTraceScope => _core.HasTraceScope;
+        public bool HasExecutionScope => _core.HasExecutionScope;
         public bool HasExecutionSource => _core.HasExecutionSource;
         public bool IsValid => _core.IsValid;
 
@@ -157,13 +157,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return result.Found;
         }
  
-        public MobaGameplayOrigin BuildOrigin(int sourceActorId, int targetActorId, MobaTraceKind fallbackKind, int fallbackConfigId)
+        public MobaGameplayOrigin BuildOrigin(int sourceActorId, int targetActorId, MobaExecutionKind fallbackKind, int fallbackConfigId)
         {
             var executionContext = ExecutionContext;
-            var traceScope = TraceScope;
+            var executionScope = ExecutionScope;
             return MobaActionOriginBuilder.Build(
                 in executionContext,
-                in traceScope,
+                in executionScope,
                 sourceActorId,
                 targetActorId,
                 fallbackKind,
@@ -173,17 +173,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public MobaGameplayOrigin BuildFromOrigin(in MobaGameplayOrigin sourceOrigin, int sourceActorId, int targetActorId)
         {
             var executionContext = ExecutionContext;
-            var traceScope = TraceScope;
+            var executionScope = ExecutionScope;
             return MobaActionOriginBuilder.BuildFromOrigin(
                 in sourceOrigin,
                 in executionContext,
-                in traceScope,
+                in executionScope,
                 sourceActorId,
                 targetActorId);
         }
     }
 
-    internal readonly struct MobaProjectileActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput, IMobaPlanActionRuntimeContextInput
+    internal readonly struct MobaProjectileActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionExecutionScopeInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput, IMobaPlanActionRuntimeContextInput
     {
         private readonly MobaEffectActionInput _effect;
         private readonly MobaPlanActionInput _core;
@@ -195,14 +195,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
 
         public MobaCombatExecutionContext ExecutionContext => _effect.ExecutionContext;
-        public MobaEffectTraceScopeSnapshot TraceScope => _effect.TraceScope;
+        public MobaEffectExecutionScopeSnapshot ExecutionScope => _effect.ExecutionScope;
         public int CasterActorId => _effect.CasterActorId;
         public int TargetActorId => _effect.TargetActorId;
         public Vec3 AimPosition => _core.AimPosition;
         public Vec3 AimDirection => _core.AimDirection;
         public bool HasCasterActor => _effect.HasCasterActor;
         public bool HasTargetActor => _effect.HasTargetActor;
-        public bool HasTraceScope => _effect.HasTraceScope;
+        public bool HasExecutionScope => _effect.HasExecutionScope;
         public bool HasAimPosition => _core.HasAimPosition;
         public bool HasAimDirection => _core.HasAimDirection;
         public bool HasExecutionSource => _effect.HasExecutionSource;
@@ -236,7 +236,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
  
         public ProjectileSourceContext CreateSourceContext(int sourceActorId, int targetActorId, int projectileConfigId)
         {
-            var origin = _effect.BuildOrigin(sourceActorId, targetActorId, MobaTraceKind.ProjectileLaunch, projectileConfigId);
+            var origin = _effect.BuildOrigin(sourceActorId, targetActorId, MobaExecutionKind.ProjectileLaunch, projectileConfigId);
             return ProjectileSourceContextBuilder.Create()
                 .WithActors(sourceActorId, targetActorId)
                 .WithProjectileConfig(projectileConfigId)
@@ -248,7 +248,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
     }
 
-    internal readonly struct MobaSummonActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput, IMobaPlanActionRuntimeContextInput
+    internal readonly struct MobaSummonActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionExecutionScopeInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput, IMobaPlanActionRuntimeContextInput
     {
         private readonly MobaEffectActionInput _effect;
         private readonly MobaPlanActionInput _core;
@@ -262,14 +262,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
 
         public MobaCombatExecutionContext ExecutionContext => _effect.ExecutionContext;
-        public MobaEffectTraceScopeSnapshot TraceScope => _effect.TraceScope;
+        public MobaEffectExecutionScopeSnapshot ExecutionScope => _effect.ExecutionScope;
         public int CasterActorId => _effect.CasterActorId;
         public int TargetActorId => _effect.TargetActorId;
         public Vec3 AimPosition => _core.AimPosition;
         public Vec3 AimDirection => _core.AimDirection;
         public bool HasCasterActor => _effect.HasCasterActor;
         public bool HasTargetActor => _effect.HasTargetActor;
-        public bool HasTraceScope => _effect.HasTraceScope;
+        public bool HasExecutionScope => _effect.HasExecutionScope;
         public bool HasAimPosition => _core.HasAimPosition;
         public bool HasAimDirection => _core.HasAimDirection;
         public bool HasExecutionSource => _effect.HasExecutionSource;
@@ -323,7 +323,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public SummonSourceContext CreateSourceContext(int sourceActorId, int summonConfigId)
         {
-            var origin = _effect.BuildOrigin(sourceActorId, 0, MobaTraceKind.SummonSpawn, summonConfigId);
+            var origin = _effect.BuildOrigin(sourceActorId, 0, MobaExecutionKind.SummonSpawn, summonConfigId);
             return SummonSourceContextBuilder.Create()
                 .WithActors(sourceActorId, 0)
                 .WithSummonConfig(summonConfigId)
@@ -333,7 +333,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 .Build();
         }
 
-        public MobaGameplayOrigin BuildOrigin(int sourceActorId, int targetActorId, MobaTraceKind fallbackKind, int fallbackConfigId)
+        public MobaGameplayOrigin BuildOrigin(int sourceActorId, int targetActorId, MobaExecutionKind fallbackKind, int fallbackConfigId)
         {
             return _effect.BuildOrigin(sourceActorId, targetActorId, fallbackKind, fallbackConfigId);
         }

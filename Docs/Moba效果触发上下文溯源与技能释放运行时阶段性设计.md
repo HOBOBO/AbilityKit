@@ -63,12 +63,10 @@
 - [`MobaTriggerExecutionSnapshotBuilder`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshotBuilder.cs:1)
   - 从 lineage + payload 构建执行快照。
 
-### 2.3 溯源 / Origin / Trace 模块
+### 2.3 溯源 / Origin / Execution Context 模块
 
 - [`MobaTriggerLineageContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaTriggerLineageContext.cs:1)
-  - lineage 基础事实。
-- [`MobaTriggerTraceContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaTriggerTraceContext.cs:1)
-  - trace 视角的数据载体。
+  - 传播 source/root/owner execution context 的正式链路载体。
 - [`MobaEffectLineageInput`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaEffectLineageInput.cs:1)
   - effect 执行时的 lineage 输入。
 - [`MobaGameplayOrigin`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs:1)
@@ -81,7 +79,7 @@
 - [`SkillCastCoordinator`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs:45)
   - 技能输入、预处理、启动、runner 管理。
 - [`SkillCastPreparationService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastPreparationService.cs:13)
-  - 生成上下文、创建 trace root、创建 runtime。
+  - 生成上下文、创建 execution context root、创建 runtime。
 - [`SkillPipelineRunner`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs:18)
   - 执行 PreCast / Cast pipeline。
 - [`MobaSkillCastRuntimeService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:13)
@@ -155,10 +153,10 @@ flowchart TD
     E --> H[CreateCombatExecutionContext]
     H --> I[Normalize snapshot + lineage + origin]
     I --> J[Budget / Condition Check]
-    J --> K[Begin Trace Scope]
+    J --> K[Begin Execution Context Scope]
     K --> L[Execute TriggerPlan]
     L --> M[Action / Function / EventBus / Payload Resolver]
-    M --> N[Complete Trace / Exit Budget]
+    M --> N[Complete Context / Exit Budget]
 ```
 
 ---
@@ -172,7 +170,7 @@ flowchart TD
 它负责：
 
 - 构建正式执行上下文。
-- 建立/结束 trace scope。
+- 建立/结束 execution scope。
 - 创建 execution snapshot。
 - 执行预算检查。
 - 执行 condition 检查。
@@ -187,7 +185,7 @@ flowchart TD
 4. 通过 [`MobaCombatExecutionContextFactory`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContextFactory.cs:1) 生成正式执行上下文。
 5. 进入预算控制。
 6. 评估 trigger condition。
-7. 建立 trace scope。
+7. 建立 execution scope。
 8. 执行 trigger plan。
 9. 完成或失败后统一收尾。
 
@@ -201,7 +199,8 @@ sequenceDiagram
     participant Ctx as MobaCombatExecutionContext
     participant Budget as MobaTriggerExecutionBudget
     participant Cond as MobaTriggerConditionRegistry
-    participant Trace as MobaTraceRegistry
+    participant ContextRegistry as MobaExecutionContextRegistry
+    participant Trace as Optional Trace Adapter
     participant Exec as MobaTriggerPlanExecutor
 
     Source->>GW: ExecuteDirectTrigger(request)
@@ -212,10 +211,11 @@ sequenceDiagram
     alt allowed
         ES->>Cond: Evaluate(triggerId, conditionContext)
         Cond-->>ES: passed / failed
-        ES->>Trace: CreateEffectRoot / CreateChildContext
+        ES->>ContextRegistry: Create Effect root / child Context
+        ContextRegistry-->>Trace: lifecycle event
         ES->>Exec: Execute(triggerId, payload)
         Exec-->>ES: plan result
-        ES->>Trace: EndRoot / End
+        ES->>ContextRegistry: End context
         ES->>Budget: Exit(token)
     else blocked
         ES->>Budget: Exit(token if any)
@@ -332,17 +332,16 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[Execution Context / Payload] --> B[Build MobaEffectLineageInput]
-    B --> C{TraceRegistry available?}
-    C -->|No| D[Only keep lineage/origin facts]
-    C -->|Yes| E[BeginEffectTraceScope]
-    E --> F{Has parentContextId?}
-    F -->|Yes| G[CreateChildContext]
-    F -->|No| H[CreateEffectRoot]
-    G --> I[Push trace scope]
+    B --> C[MobaExecutionContextRegistry.Create]
+    C --> F{Has parentContextId?}
+    F -->|Yes| G[Create child Execution Context]
+    F -->|No| H[Create Effect root Context]
+    G --> I[Push execution scope]
+    C -. lifecycle observer .-> T[Optional Trace Adapter]
     H --> I
     I --> J[CreateActionChildNodes]
     J --> K[Execute Plan]
-    K --> L[EndCurrentTrace]
+    K --> L[End Execution Context]
 ```
 
 ### 7.4 现状评价
@@ -390,7 +389,7 @@ flowchart TD
 - 计算 aimPos / aimDir。
 - 读取技能等级。
 - 创建 `SkillCastContext`。
-- 创建 trace root。
+- 创建 execution context root。
 - 创建 `MobaSkillCastRuntime`。
 - 把 runtime handle 回填到 context。
 
@@ -446,7 +445,7 @@ classDiagram
 ```mermaid
 flowchart TD
     A[SkillCastCoordinator] --> B[SkillCastPreparationService.Prepare]
-    B --> C[Create Trace Root]
+    B --> C[Create Execution Context Root]
     B --> D[Create Runtime]
     D --> E[SkillPipelineRunner.Start]
     E --> F[PreCast Pipeline]
@@ -457,7 +456,7 @@ flowchart TD
     H --> I[MobaSkillCastRuntimeService.MarkPipelineEnded]
     I --> J{Pending children?}
     J -->|yes| K[WaitingChildren]
-    J -->|no| L[Finalize runtime + close trace]
+    J -->|no| L[Finalize runtime + end Context]
 ```
 
 ### 8.8 现状评价
@@ -465,7 +464,7 @@ flowchart TD
 技能 runtime 这条链路已经不是简单的“技能流程执行器”，而是具备：
 
 - 生命周期管理。
-- trace root 绑定。
+- execution context root 绑定。
 - child 维持。
 - blackboard。
 - diagnostics。
@@ -633,8 +632,8 @@ sequenceDiagram
    - 什么时候创建、什么时候 retain child、什么时候 finalize。
 3. 补一份**owner-bound 订阅规范**。
    - 说明 ownerKey / ownerContextId 的语义边界。
-4. 补一份**trace 诊断手册**。
-   - 说明如何通过 trace root / child / action chain 回溯问题。
+4. 补一份**Context / Trace 诊断手册**。
+   - 说明如何通过正式 Context root / child / action chain 回溯业务来源，并由可选 Trace 投影查询。
 5. 对技能、buff、projectile、damage、summon 写统一接入示例。
 
 ---

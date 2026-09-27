@@ -143,6 +143,17 @@ namespace AbilityKit.Demo.Moba.Services
                 OptionalRef(Ref<SkillFlowMO>(config.TryGetSkillFlow), skill.PreCastFlowId, report, path + ".preCastFlowId", "pre-cast skill flow", skill.Id);
                 RequiredRef(Ref<SkillFlowMO>(config.TryGetSkillFlow), skill.CastFlowId, report, path + ".castFlowId", "cast skill flow", skill.Id);
 
+                if (skill.CastConflictGroup < 0 || skill.InterruptPriority < 0 ||
+                    skill.TargetLostPolicy < (int)SkillTargetLostPolicy.Legacy ||
+                    skill.TargetLostPolicy > (int)SkillTargetLostPolicy.Reacquire ||
+                    (skill.TargetLostPolicy == (int)SkillTargetLostPolicy.Reacquire &&
+                     skill.RequiredTargetQueryId <= 0 && skill.Range <= 0))
+                {
+                    report.Error(Source, path + ".castPolicy", "Invalid skill conflict, interrupt or target-loss policy.",
+                        skill.Id.ToString(), code: "moba.skill.contract.invalid_cast_policy",
+                        category: MobaRuntimeValidationCategory.Config, businessNumericId: skill.Id);
+                }
+
                 if (skill.CooldownMs < 0)
                 {
                     report.Error(
@@ -166,6 +177,7 @@ namespace AbilityKit.Demo.Moba.Services
                 if (skill.CastFlowId > 0 && config.TryGetSkillFlow(skill.CastFlowId, out var castFlow))
                 {
                     ValidateSkillFlow(config, triggers, report, castFlow, $"skill.{skill.Id}.castFlow.{skill.CastFlowId}", skill.Id);
+                    ValidateExplicitCommitFlow(castFlow, report, $"skill.{skill.Id}.castFlow.{skill.CastFlowId}", skill.Id);
                 }
 
                 if (skill.PreCastFlowId > 0 && config.TryGetSkillFlow(skill.PreCastFlowId, out var preCastFlow))
@@ -248,6 +260,60 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             return hasPositiveCost;
+        }
+
+        private static void ValidateExplicitCommitFlow(SkillFlowMO flow, MobaRuntimeValidationReport report, string path, int skillId)
+        {
+            if (flow?.Phases == null) return;
+            var reservationCount = 0;
+            var requiredCommitCount = 0;
+            var invalid = !CheckExplicitCommitSequence(flow.Phases, ref reservationCount, ref requiredCommitCount);
+            if (reservationCount == 0 && requiredCommitCount == 0) return;
+            if (!invalid && reservationCount == 1 && requiredCommitCount == 1) return;
+            report.Error(Source, path + ".phases",
+                "Explicit economy reservation requires exactly one later, required CommitPoint on the sequential cast path.",
+                skillId.ToString(), code: "moba.skill.contract.explicit_commit_order",
+                category: MobaRuntimeValidationCategory.Config, businessNumericId: skillId);
+        }
+
+        private static bool CheckExplicitCommitSequence(IReadOnlyList<SkillPhaseDTO> phases,
+            ref int reservationCount, ref int requiredCommitCount)
+        {
+            if (phases == null) return true;
+            var valid = true;
+            for (var i = 0; i < phases.Count; i++)
+            {
+                var phase = phases[i];
+                if (phase == null) continue;
+                var type = (SkillPhaseType)phase.Type;
+                if (type == SkillPhaseType.Sequence)
+                {
+                    valid &= CheckExplicitCommitSequence(phase.Children, ref reservationCount, ref requiredCommitCount);
+                    continue;
+                }
+                if (type == SkillPhaseType.Economy &&
+                    (SkillEconomyOperation)(phase.Economy?.Operation ?? -1) == SkillEconomyOperation.ReserveCast &&
+                    phase.Economy.RequireExplicitCommit)
+                    reservationCount++;
+                if (type == SkillPhaseType.CommitPoint &&
+                    phase.CommitPoint?.RequireEconomyReservation == true)
+                {
+                    if (reservationCount != 1) valid = false;
+                    requiredCommitCount++;
+                }
+                if (type == SkillPhaseType.Parallel || type == SkillPhaseType.Race || type == SkillPhaseType.Repeat)
+                {
+                    var nestedReservations = 0;
+                    var nestedCommits = 0;
+                    CheckExplicitCommitSequence(phase.Children, ref nestedReservations, ref nestedCommits);
+                    if (phase.Repeat?.Phase != null)
+                        CheckExplicitCommitSequence(new[] { phase.Repeat.Phase }, ref nestedReservations, ref nestedCommits);
+                    if (nestedReservations > 0 || nestedCommits > 0) valid = false;
+                    reservationCount += nestedReservations;
+                    requiredCommitCount += nestedCommits;
+                }
+            }
+            return valid;
         }
 
         private static void ValidateSkillResourceContract(
@@ -1036,8 +1102,11 @@ namespace AbilityKit.Demo.Moba.Services
                 report.Error(Source, path + ".operation", "economy operation is not recognized.", businessId.ToString());
             if (economy.ResourceType < 0 || economy.ResourceType > (int)AbilityKit.Demo.Moba.Components.ResourceType.ComboPoint)
                 report.Error(Source, path + ".resourceType", "resource type is not recognized.", businessId.ToString());
-            if (economy.ResourceAmount < 0f)
-                report.Error(Source, path + ".resourceAmount", "resource amount is negative.", businessId.ToString());
+            if (float.IsNaN(economy.ResourceAmount) || float.IsInfinity(economy.ResourceAmount) || economy.ResourceAmount < 0f)
+                report.Error(Source, path + ".resourceAmount", "resource amount must be finite and non-negative.", businessId.ToString());
+            if (economy.ResourceType == (int)AbilityKit.Demo.Moba.Components.ResourceType.Hp &&
+                (economy.UseResolvedResourceCost || economy.ResourceAmount > 0f))
+                report.Error(Source, path + ".resourceType", "health costs require a health commit, not a resource debit.", businessId.ToString());
             if (economy.ChargeCost < 0)
                 report.Error(Source, path + ".chargeCost", "charge cost is negative.", businessId.ToString());
             if (economy.MaxCharges <= 0)

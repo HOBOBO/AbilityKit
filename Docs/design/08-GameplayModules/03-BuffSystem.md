@@ -43,7 +43,7 @@ Buff 系统承担的是“持续玩法状态”的统一承载能力。它覆盖
 - 通过命令队列统一处理 apply/remove，降低重入和生命周期交叉修改风险。
 - 通过配置驱动 OnAdd、OnRemove、OnInterval、OwnerBound TriggerPlan、标签门禁和连续修饰。
 - 通过 `MobaContinuousManager` 接入持续 Tick、剩余时间、间隔效果和 Modifier 投影。
-- 通过 `MobaTraceRegistry`、`MobaRuntimeLifecycleHookService`、`MobaSkillCastRuntimeService` 保持可追踪、可诊断、可归因。
+- 通过 `MobaExecutionContextRegistry` 和 `MobaSkillCastRuntimeService` 保持正式归因与生命周期，通过可选 `MobaTraceRegistry` Adapter 和 `MobaRuntimeLifecycleHookService` 增强诊断。
 - 通过 `MobaContinuousOwnerBoundTriggerLifecycleBinder` 将 Buff 的持续 TriggerPlan 绑定到 Continuous 生命周期，统一建立和解除 owner-bound 订阅。
 
 从设计上看，Buff 系统更像“持续上下文容器 + 生命周期编排器”，而不是属性系统或 Triggering 系统的替代品。

@@ -100,7 +100,7 @@ registry.Query()
 
 以下能力不应放进 `com.abilitykit.trace`：
 
-- MobaTraceKind 枚举。
+- `MobaExecutionKind` 枚举及其玩法语义。
 - skill / buff / projectile 等业务 kind 的固定解释。
 - 技能回放协议、战斗日志协议、运营埋点协议。
 - 业务元数据字段，如 `SkillConfigId`、`SourceActorId`、`TargetActorId`。
@@ -108,9 +108,9 @@ registry.Query()
 
 ### 4.3 正确扩展示例
 
-Trace 框架可以提供 `TraceNodeExportDto`，但 Moba 业务如果需要导出战斗回放，应在 Moba runtime 或更上层包中转换：
+Trace 框架可以提供 `TraceNodeExportDto`，但 Moba 业务如果需要导出战斗回放，应在可选 Moba Trace Adapter 或更上层包中转换：
 
-- `TraceNodeExportDto.Kind` → `MobaTraceKind`。
+- `TraceNodeExportDto.Kind` → `MobaExecutionKind`（只作为可选投影的显示/分析字段）。
 - `TraceNodeExportDto.Metadata` → `MobaTraceMetadata`。
 - 业务协议字段由 Moba exporter 决定。
 
@@ -260,7 +260,7 @@ Context 和 Trace 的拆分方向是合理的：
 建议落点：
 
 - `com.abilitykit.trace`：提供通用导出选项、遍历策略、metadata adapter 接口。
-- Moba runtime：实现 MobaTraceExporter，将 `MobaTraceMetadata` 转成战斗日志或回放协议。
+- `com.abilitykit.demo.moba.trace.adapter`：实现 MobaTraceExporter，将 `MobaTraceMetadata` 转成战斗日志或回放协议；runtime 不依赖该 exporter。
 
 验收标准：
 
@@ -314,15 +314,15 @@ Context 和 Trace 的拆分方向是合理的：
 
 - Rollback 不依赖 Moba 或 Shooter 类型。
 - 业务只实现 snapshot payload 和 restore adapter。
-- 能通过 trace/context 定位回滚目标，但不把业务规则写入框架。
+- 通过正式 Context 或稳定业务身份定位回滚目标；Trace 只用于解释和验收，不作为恢复输入。
 
 ### P2：Context / Trace 联动的可观测性增强
 
-优先级原因：Context 解决“当前流程有哪些状态”，Trace 解决“为什么产生这些状态”。两者联动后对调试复杂项目价值很高，但联动层也要避免业务化。
+优先级原因：Context 是执行身份和生命周期权威，Trace 通过只读 observer 可选投影“为什么产生这些状态”。两者联动后对调试复杂项目价值很高，但业务正确性不能依赖 Trace 是否安装。
 
 待优化点：
 
-- 增加通用 Context-Trace bridge 文档和测试。
+- 维护 `IContextLifecycleSource<TNode>` 的 observer bridge 文档和异常隔离测试。
 - 增加从 context entity 找 trace node、从 trace node 找 context entity 的通用索引方式。
 - 增加调试视图 DTO，但只包含 id、kind、phase、parent/root 等通用字段。
 - 支持导出某个 flow 下关联的 trace roots。
@@ -330,7 +330,7 @@ Context 和 Trace 的拆分方向是合理的：
 
 建议落点：
 
-- Context 包保留 `TraceContextProperty` 这种通用桥接属性。
+- `TraceContextProperty` 由 Trace 包提供，作为可选属性桥；Context 包不反向依赖 Trace。
 - Trace 包不依赖 Context 包的业务属性。
 - 工具或业务包负责把 bridge 展示为具体战斗含义。
 

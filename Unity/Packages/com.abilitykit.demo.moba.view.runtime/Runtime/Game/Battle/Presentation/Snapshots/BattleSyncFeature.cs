@@ -6,8 +6,9 @@ using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.StateSync;
+using FrameSnapshotDispatcher = AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher;
 
 namespace AbilityKit.Game.Flow
 {
@@ -16,7 +17,7 @@ namespace AbilityKit.Game.Flow
         private BattleContext _ctx;
         private IMobaBattleDiagnosticEventSink _diagnosticSink;
 
-        private readonly BattleSubscriptionGroup _subscriptions = new BattleSubscriptionGroup(3);
+        private readonly BattleSubscriptionGroup _subscriptions = new BattleSubscriptionGroup(4);
 
         public void OnAttach(in GamePhaseContext ctx)
         {
@@ -74,30 +75,34 @@ namespace AbilityKit.Game.Flow
             try
             {
                 _subscriptions.Add(
-                    snapshots.Subscribe<MobaActorSpawnSnapshotEntry[]>(
+                    snapshots.Subscribe<ActorSpawnData[]>(
                         MobaOpCodes.Snapshot.ActorSpawn,
                         OnActorSpawnSnapshot));
+                _subscriptions.Add(
+                    snapshots.Subscribe<ActorDespawnData[]>(
+                        MobaOpCodes.Snapshot.ActorDespawn,
+                        OnActorDespawnSnapshot));
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, "[BattleSyncFeature] Failed to subscribe ActorSpawnSnapshot");
+                Log.Exception(ex, "[BattleSyncFeature] Failed to subscribe actor lifecycle snapshots");
             }
 
             if (_ctx == null || !_ctx.EnableRemoteInterpolation)
             {
                 _subscriptions.Add(
-                    snapshots.Subscribe<MobaActorTransformSnapshotEntry[]>(
+                    snapshots.Subscribe<ActorTransformData[]>(
                         MobaOpCodes.Snapshot.ActorTransform,
                         OnActorTransformSnapshot));
             }
 
             _subscriptions.Add(
-                snapshots.Subscribe<MobaStateHashSnapshotPayload>(
+                snapshots.Subscribe<StateHashData>(
                     MobaOpCodes.Snapshot.StateHash,
                     OnStateHashSnapshot));
         }
 
-        private void OnStateHashSnapshot(ISnapshotEnvelope packet, MobaStateHashSnapshotPayload snap)
+        private void OnStateHashSnapshot(ISnapshotEnvelope packet, StateHashData snap)
         {
             BattleSnapshotEntityApplier.ApplyStateHash(_ctx, snap);
 
@@ -112,11 +117,11 @@ namespace AbilityKit.Game.Flow
             {
                 target.OnAuthoritativeStateHash(
                     packet.WorldId,
-                    new FrameIndex(snap.Frame),
-                    new AbilityKit.Ability.FrameSync.Rollback.WorldStateHash(snap.Hash));
+                    new FrameIndex(snap.FrameIndex),
+                    new AbilityKit.Ability.FrameSync.Rollback.WorldStateHash(snap.StateHash));
             }
 
-            CollectStateHashSnapshot(snap.Frame, snap.Hash);
+            CollectStateHashSnapshot(snap.FrameIndex, snap.StateHash);
         }
 
         private void CollectStateHashSnapshot(int authoritativeFrame, uint stateHash)
@@ -149,7 +154,7 @@ namespace AbilityKit.Game.Flow
             return sink;
         }
 
-        private void OnActorTransformSnapshot(ISnapshotEnvelope packet, MobaActorTransformSnapshotEntry[] entries)
+        private void OnActorTransformSnapshot(ISnapshotEnvelope packet, ActorTransformData[] entries)
         {
             if (_ctx != null)
             {
@@ -160,7 +165,7 @@ namespace AbilityKit.Game.Flow
             BattleSnapshotEntityApplier.ApplyTransform(_ctx, entries, logContext: "BattleSyncFeature");
         }
 
-        private void OnActorSpawnSnapshot(ISnapshotEnvelope packet, MobaActorSpawnSnapshotEntry[] entries)
+        private void OnActorSpawnSnapshot(ISnapshotEnvelope packet, ActorSpawnData[] entries)
         {
             if (entries == null || entries.Length == 0)
             {
@@ -172,6 +177,11 @@ namespace AbilityKit.Game.Flow
                 entries,
                 updateExisting: false,
                 logContext: "BattleSyncFeature");
+        }
+
+        private void OnActorDespawnSnapshot(ISnapshotEnvelope packet, ActorDespawnData[] entries)
+        {
+            BattleSnapshotEntityApplier.ApplyDespawn(_ctx, entries);
         }
     }
 }

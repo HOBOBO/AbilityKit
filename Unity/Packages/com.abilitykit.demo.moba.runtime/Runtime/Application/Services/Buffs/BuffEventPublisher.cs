@@ -1,11 +1,10 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Effect;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Demo.Moba.Events.Buff;
-using AbilityKit.Trace;
 
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
@@ -34,7 +33,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             PublishBaseEvent(MobaBuffTriggering.Events.ApplyOrRefresh, buff.Id, sourceActorId, targetActorId, durationSeconds, runtime);
         }
 
-        public void PublishRemove(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, TraceLifecycleReason reason)
+        public void PublishRemove(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, MobaExecutionEndReason reason)
         {
             if (_eventBus == null) return;
             if (buff == null) return;
@@ -57,7 +56,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 if (effectId <= 0) continue;
 
                 var eventId = MobaBuffTriggering.Events.WithEffect(baseEventId, effectId);
-                PublishEvent(CreateArgs(eventId, runtime != null ? runtime.BuffId : 0, effectId, stage, sourceActorId, targetActorId, 0f, TraceLifecycleReason.None, runtime));
+                PublishEvent(CreateArgs(eventId, runtime != null ? runtime.BuffId : 0, effectId, stage, sourceActorId, targetActorId, 0f, MobaExecutionEndReason.None, runtime));
             }
         }
 
@@ -66,15 +65,15 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             if (_eventBus == null) return;
             if (buff == null) return;
 
-            PublishEvent(CreateArgs(MobaBuffTriggering.Events.Interval, runtime != null ? runtime.BuffId : 0, 0, MobaBuffTriggering.Stages.Interval, sourceActorId, targetActorId, 0f, TraceLifecycleReason.None, runtime));
+            PublishEvent(CreateArgs(MobaBuffTriggering.Events.Interval, runtime != null ? runtime.BuffId : 0, 0, MobaBuffTriggering.Stages.Interval, sourceActorId, targetActorId, 0f, MobaExecutionEndReason.None, runtime));
         }
 
         private void PublishBaseEvent(string eventId, int buffId, int sourceActorId, int targetActorId, float durationSeconds, BuffRuntime runtime)
         {
-            PublishEvent(CreateArgs(eventId, buffId, 0, null, sourceActorId, targetActorId, durationSeconds, TraceLifecycleReason.None, runtime));
+            PublishEvent(CreateArgs(eventId, buffId, 0, null, sourceActorId, targetActorId, durationSeconds, MobaExecutionEndReason.None, runtime));
         }
 
-        private void PublishStageEvent(string baseEventId, IReadOnlyList<int> effectIds, string stage, int buffId, int sourceActorId, int targetActorId, BuffRuntime runtime, TraceLifecycleReason reason)
+        private void PublishStageEvent(string baseEventId, IReadOnlyList<int> effectIds, string stage, int buffId, int sourceActorId, int targetActorId, BuffRuntime runtime, MobaExecutionEndReason reason)
         {
             if (_eventBus == null) return;
             if (string.IsNullOrEmpty(baseEventId)) return;
@@ -93,7 +92,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             }
         }
 
-        private static BuffEventArgs CreateArgs(string eventId, int buffId, int effectId, string stage, int sourceActorId, int targetActorId, float durationSeconds, TraceLifecycleReason reason, BuffRuntime runtime)
+        private static BuffEventArgs CreateArgs(string eventId, int buffId, int effectId, string stage, int sourceActorId, int targetActorId, float durationSeconds, MobaExecutionEndReason reason, BuffRuntime runtime)
         {
             return new BuffEventArgs
             {

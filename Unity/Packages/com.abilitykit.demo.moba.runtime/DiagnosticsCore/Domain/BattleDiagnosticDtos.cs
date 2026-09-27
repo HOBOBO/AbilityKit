@@ -155,10 +155,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
     }
 
     [Serializable]
-    public readonly struct BattleDiagnosticTraceContextReference :
-        IEquatable<BattleDiagnosticTraceContextReference>
+    public readonly struct BattleDiagnosticExecutionContextReference :
+        IEquatable<BattleDiagnosticExecutionContextReference>
     {
-        public BattleDiagnosticTraceContextReference(long contextId)
+        public BattleDiagnosticExecutionContextReference(long contextId)
         {
             if (contextId == 0L) throw new ArgumentOutOfRangeException(nameof(contextId));
             ContextId = contextId;
@@ -167,14 +167,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public long ContextId { get; }
         public bool IsValid => ContextId != 0L;
 
-        public bool Equals(BattleDiagnosticTraceContextReference other)
+        public bool Equals(BattleDiagnosticExecutionContextReference other)
         {
             return ContextId == other.ContextId;
         }
 
         public override bool Equals(object obj)
         {
-            return obj is BattleDiagnosticTraceContextReference other && Equals(other);
+            return obj is BattleDiagnosticExecutionContextReference other && Equals(other);
         }
 
         public override int GetHashCode()
@@ -184,23 +184,23 @@ namespace AbilityKit.Demo.Moba.Diagnostics
 
         public override string ToString()
         {
-            return IsValid ? "TraceContext:" + ContextId : "<none>";
+            return IsValid ? "ExecutionContext:" + ContextId : "<none>";
         }
 
-        public static BattleDiagnosticTraceContextReference Create(long contextId)
+        public static BattleDiagnosticExecutionContextReference Create(long contextId)
         {
             return contextId == 0L
                 ? default
-                : new BattleDiagnosticTraceContextReference(contextId);
+                : new BattleDiagnosticExecutionContextReference(contextId);
         }
 
         public static bool operator ==(
-            BattleDiagnosticTraceContextReference left,
-            BattleDiagnosticTraceContextReference right) => left.Equals(right);
+            BattleDiagnosticExecutionContextReference left,
+            BattleDiagnosticExecutionContextReference right) => left.Equals(right);
 
         public static bool operator !=(
-            BattleDiagnosticTraceContextReference left,
-            BattleDiagnosticTraceContextReference right) => !left.Equals(right);
+            BattleDiagnosticExecutionContextReference left,
+            BattleDiagnosticExecutionContextReference right) => !left.Equals(right);
     }
 
     public enum BattleDiagnosticEventOutcome
@@ -682,21 +682,21 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             long monotonicTimestamp,
             int actorCount,
             int activeSkillRuntimeCount,
-            int activeTraceRootCount,
+            int activeExecutionRootCount,
             string stateHash = "")
         {
             if (!BattleDiagnosticFrames.IsValid(frame)) throw new ArgumentOutOfRangeException(nameof(frame));
             if (monotonicTimestamp < 0) throw new ArgumentOutOfRangeException(nameof(monotonicTimestamp));
             if (actorCount < 0) throw new ArgumentOutOfRangeException(nameof(actorCount));
             if (activeSkillRuntimeCount < 0) throw new ArgumentOutOfRangeException(nameof(activeSkillRuntimeCount));
-            if (activeTraceRootCount < 0) throw new ArgumentOutOfRangeException(nameof(activeTraceRootCount));
+            if (activeExecutionRootCount < 0) throw new ArgumentOutOfRangeException(nameof(activeExecutionRootCount));
 
             Scope = scope;
             Frame = frame;
             MonotonicTimestamp = monotonicTimestamp;
             ActorCount = actorCount;
             ActiveSkillRuntimeCount = activeSkillRuntimeCount;
-            ActiveTraceRootCount = activeTraceRootCount;
+            ActiveExecutionRootCount = activeExecutionRootCount;
             StateHash = stateHash ?? string.Empty;
         }
 
@@ -705,7 +705,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public long MonotonicTimestamp { get; }
         public int ActorCount { get; }
         public int ActiveSkillRuntimeCount { get; }
-        public int ActiveTraceRootCount { get; }
+        public int ActiveExecutionRootCount { get; }
         public string StateHash { get; }
 
         public bool Equals(BattleDiagnosticWorldSummary other)
@@ -715,7 +715,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    MonotonicTimestamp == other.MonotonicTimestamp &&
                    ActorCount == other.ActorCount &&
                    ActiveSkillRuntimeCount == other.ActiveSkillRuntimeCount &&
-                   ActiveTraceRootCount == other.ActiveTraceRootCount &&
+                   ActiveExecutionRootCount == other.ActiveExecutionRootCount &&
                    string.Equals(StateHash, other.StateHash, StringComparison.Ordinal);
         }
 
@@ -730,7 +730,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ MonotonicTimestamp.GetHashCode();
                 hashCode = (hashCode * 397) ^ ActorCount;
                 hashCode = (hashCode * 397) ^ ActiveSkillRuntimeCount;
-                hashCode = (hashCode * 397) ^ ActiveTraceRootCount;
+                hashCode = (hashCode * 397) ^ ActiveExecutionRootCount;
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(StateHash ?? string.Empty);
                 return hashCode;
             }
@@ -1070,9 +1070,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 throw new ArgumentOutOfRangeException(nameof(endFrame));
 
             Scope = scope;
-            RootContext = BattleDiagnosticTraceContextReference.Create(rootContextId);
-            Context = BattleDiagnosticTraceContextReference.Create(contextId);
-            ParentContext = BattleDiagnosticTraceContextReference.Create(parentContextId);
+            RootContext = BattleDiagnosticExecutionContextReference.Create(rootContextId);
+            Context = BattleDiagnosticExecutionContextReference.Create(contextId);
+            ParentContext = BattleDiagnosticExecutionContextReference.Create(parentContextId);
             StartFrame = startFrame;
             EndFrame = endFrame;
             State = state;
@@ -1102,9 +1102,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         }
 
         public BattleDiagnosticSessionScope Scope { get; }
-        public BattleDiagnosticTraceContextReference RootContext { get; }
-        public BattleDiagnosticTraceContextReference Context { get; }
-        public BattleDiagnosticTraceContextReference ParentContext { get; }
+        public BattleDiagnosticExecutionContextReference RootContext { get; }
+        public BattleDiagnosticExecutionContextReference Context { get; }
+        public BattleDiagnosticExecutionContextReference ParentContext { get; }
         public BattleDiagnosticRuntimeObjectReference SourceObject { get; }
         public BattleDiagnosticRuntimeObjectReference TargetObject { get; }
         public BattleDiagnosticDefinitionReference Definition { get; }

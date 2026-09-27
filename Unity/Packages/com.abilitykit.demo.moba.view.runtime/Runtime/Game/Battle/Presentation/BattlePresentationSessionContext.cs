@@ -43,6 +43,9 @@ namespace AbilityKit.Game.Flow
 
         public BattleViewResourceProvider Resources { get; }
 
+        internal BattleViewResourceProvider CreateViewResources() =>
+            new BattleViewResourceProvider(Resources.Configs, Resources.VfxDb, Resources.AssetLookup);
+
         internal void Retain()
         {
             _retainCount++;

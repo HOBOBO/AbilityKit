@@ -58,7 +58,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            if (args.ResourceType == ResourceType.None)
+            if (args.ResourceType == ResourceType.None || args.ResourceType == ResourceType.Hp)
             {
                 throw new InvalidOperationException($"[Plan] consume_resource failed: invalid resource type. actorId={casterActorId}, amount={args.Amount}");
             }
@@ -79,7 +79,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 throw new InvalidOperationException($"[Plan] consume_resource failed: {args.FailMessageKey}. actorId={casterActorId}, type={args.ResourceType}, amount={args.Amount}, current={MobaResourceFixedConvert.ToSingle(state.Current)}");
             }
 
-            state.Current -= MobaResourceFixedConvert.ToFixed(args.Amount);
+            MobaResourceMutation.TryConsume(entity, args.ResourceType, MobaResourceFixedConvert.ToFixed(args.Amount), out _, out _);
             LogApplied(ctx, $"actorId={casterActorId}, type={args.ResourceType}, amount={args.Amount}, remaining={MobaResourceFixedConvert.ToSingle(state.Current)}");
         }
     }

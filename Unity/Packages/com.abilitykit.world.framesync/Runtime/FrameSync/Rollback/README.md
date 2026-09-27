@@ -25,8 +25,16 @@
   - `byte[] Export(FrameIndex frame)`：导出该模块在指定帧的可回滚状态。
   - `void Import(FrameIndex frame, byte[] payload)`：恢复该模块在指定帧的状态。
 
+- **`CommandRollbackLog` / `CommandRollbackStateProvider`**
+  - 命令日志只保存 `Frame + Order + CommandType + PayloadVersion + Payload`，不保存闭包或运行时对象引用。
+  - `Record(...)` 会复制 payload；快照只编码 `Version + Epoch + NextOrder` 检查点，同帧内也能精确区分捕获前后的命令。
+  - `RollbackCommandHandlerRegistry` 必须在创建 Provider 前完成注册并 `Seal()`；Handler 通过稳定 ID 和 `RollbackCommandContext.Services` 解析业务对象。
+  - Restore preflight 会先检查 Epoch、日志保留范围、Handler、负载版本和负载格式，再严格按 Order 逆序执行。
+  - Handler 执行时禁止再次 `Record`。若执行已经开始后抛异常，Journal 会进入 faulted 状态，调用方必须重建世界并 `Clear()`，不能继续 replay。
+
 - **`RollbackCoordinator`**
   - Restore 会先执行可选 `IRollbackStatePreflightProvider.ValidateImport`；全部 preflight 通过后才调用 provider 的 `Import`，避免单个 provider 失败造成部分恢复。
+  - 全部预检通过后，先 Import `IRollbackStructureRestoreProvider`，再 Import 普通字段状态 Provider；每个阶段内部仍按 Key 保持稳定顺序。
   - 将 registry 中各 provider 的导出结果聚合为一个 `WorldRollbackSnapshot`。
   - 通过 `RollbackSnapshotRingBuffer` 管理历史快照。
   - 关键方法：

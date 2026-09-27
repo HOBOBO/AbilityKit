@@ -20,7 +20,7 @@ Runtime Context 正式引用携带本地 ContextEntityReference（RegistryId/Ent
 
 1. `MobaTriggerInvocationContextBase`
    - 推荐作为新触发载荷的基类。
-   - 载荷应通过统一的 `IMobaTriggerExecutionPayload` 契约公开起源、谱系和溯源信息。
+   - 载荷应通过统一的 `IMobaTriggerExecutionPayload` 契约公开起源和谱系信息。
 
 2. `MobaCombatExecutionContext`
    - 效果、动作和条件执行期间的规范执行期模型。
@@ -42,16 +42,16 @@ Runtime Context 正式引用携带本地 ContextEntityReference（RegistryId/Ent
 
 - `MobaGameplayOrigin` 回答该玩法操作来自何处。
 - `MobaTriggerLineageContext` 回答该操作如何接入溯源谱系链。
-- `MobaTriggerTraceContext` 是紧凑的触发器溯源表示。
 - `MobaContextSourceView` 是面向查询、快照、保留、调试面板和诊断的已解析来源视图。
 - `MobaCombatExecutionContext` 聚合当前可执行载荷、谱系输入、起源、执行快照、技能运行时句柄和帧。
+- Trace adapter 通过可选 hook/observer 投影上述执行事实，不参与正式载荷解析和派发。
 
 ## 新载荷规则
 
 新触发载荷应：
 
 1. 正式触发执行载荷应继承 `MobaTriggerInvocationContextBase`。
-2. 使用已有起源或谱系数据实现 `TryGetOrigin`、`TryGetLineageContext` 和 `TryGetTraceContext`。
+2. 使用已有起源或谱系数据实现 `TryGetOrigin` 和 `TryGetLineageContext`。
 3. 能公开查询/保留来源信息时实现 `IMobaContextSourceProvider`。
 4. 来源需要跨异步或跨帧执行存活时实现 `IMobaPersistentContextSourceProvider`。
 5. 不要只添加角色、配置或上下文 ID 等基础字段，而不同时公开正式的起源或谱系提供者。
@@ -69,7 +69,7 @@ Runtime Context 正式引用携带本地 ContextEntityReference（RegistryId/Ent
 
 ## 效果入口观察
 
-`MobaEffectExecutionEntrySnapshot` 是执行入口事实，不是 Runtime Context 最新值，也不是状态恢复基线。采集由逻辑层可选 hook 在诊断 Events/Full + Skill 通道且未冻结时触发，编辑器通过 Trace 摘要只读消费。数据存于独立 Trace-facts 快照存储；其中 EntityId 是 TraceContextId，不能混用 RuntimeContextId。详见 [受管快照与效果入口设计](../../../../Document/RuntimeContext运行时值与快照设计文档.md#71-效果执行入口的观察快照)。
+Core 通过 `MobaEffectExecutionEntryObservation` 发布执行入口的不可变事实；可选 Trace Adapter 再将其保存为 `MobaEffectExecutionEntrySnapshot`。该快照不是 Runtime Context 最新值，也不是状态恢复基线；其 `EntityId` 使用规范执行 `ContextId` 作为投影键，不能混用 `RuntimeContextId`。详见 [受管快照与效果入口设计](../../../../Document/RuntimeContext运行时值与快照设计文档.md#71-效果执行入口的观察快照)。
 
 `MobaActionExecutionSnapshot` 是独立动作观察类型，保存入口/结束的来源与目标 HP/Mana、调用状态及有界实际 HP 提交列表。只读取已有资源，通过现有提交事件按最近真实动作关联，不把调用成功等同于玩法成功，也不补采缺失或淘汰记录。详见 [动作前后事实设计](../../../../Document/RuntimeContext运行时值与快照设计文档.md#72-动作执行前后事实与实际-hp-提交)。
 

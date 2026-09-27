@@ -1,0 +1,29 @@
+{
+  "triggers": [
+    {
+      "id": 10060313,
+      "name": "嬴政-至尊王权-飞剑命中伤害",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "give_damage",
+          "damage_value": 90,
+          "source_attack_ratio": 0.08,
+          "damage_type": 2,
+          "reason_param": 10060301,
+          "target_max_count": 1
+        },
+        {
+          "type": "debug_log",
+          "message": "嬴政三技能至尊王权：飞剑命中造成法术伤害",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

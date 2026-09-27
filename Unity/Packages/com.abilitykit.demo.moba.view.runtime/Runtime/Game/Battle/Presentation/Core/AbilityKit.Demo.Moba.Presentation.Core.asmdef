@@ -1,0 +1,16 @@
+{
+  "name": "AbilityKit.Demo.Moba.Presentation.Core",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Demo.Moba.Presentation.Contracts"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

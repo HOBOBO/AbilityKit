@@ -238,7 +238,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(InputSubmissionStatsProvider.Current, Is.Not.Null);
             Assert.That(InputSubmissionStatsProvider.Current, Is.Not.SameAs(lightweightStats));
 
-            session.DisposeReplication();
+            session.ReplicationController.Dispose();
             Assert.That(InputSubmissionStatsProvider.Current, Is.Null);
         }
 

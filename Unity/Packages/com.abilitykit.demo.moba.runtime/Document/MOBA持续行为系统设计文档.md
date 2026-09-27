@@ -556,13 +556,15 @@ TriggerPlan 的执行入口需要同时服务两个目标：
 - 条件/行为模块读取业务数据，例如 Buff 层数、子弹命中点、区域半径、周期 tickIndex。
 - 溯源系统稳定记录来源链，例如谁触发、命中了谁、来自哪个配置、属于哪个持续对象、当前 trigger id 是什么。
 
-如果每个入口都随手传一个普通对象，触发计划也许还能读取某些业务字段，但 trace root、ownerKey、sourceContextId、contextKind 会丢失，后续很难回答“这个效果到底来自哪个 Buff / Projectile / Area / Summon”。
+如果每个入口都随手传一个普通对象，触发计划也许还能读取某些业务字段，但 execution context root、ownerContextId、sourceContextId、contextKind 会丢失，后续很难回答“这个效果到底来自哪个 Buff / Projectile / Area / Summon”。Trace 只能观察正式 Context，不能替代这些业务字段。
 
 因此运行时 payload 不再走单一胖基类，而是拆成三层契约：
 
 - 最小触发调用接口，只暴露执行入口必需的静态字段。
-- 独立 trace/provenance 对象，专门承载根链路、来源配置、归属锚点等静态溯源信息。
+- 独立 lineage/provenance 对象，专门承载根链路、来源配置、归属上下文等静态来源信息。
 - 可选的 runtime access provider，专门暴露 BuffRuntime、周期 runtime 等实时对象访问。
+
+Trace 不属于 payload 契约；可选 trace adapter 只通过 context hook/observer 投影正式执行事实。
 
 ### 7.2 推荐契约
 
@@ -577,17 +579,17 @@ TriggerPlan 的执行入口需要同时服务两个目标：
 | `SourceContextId`                 | 上游来源上下文 id，通常来自技能施放、BuffRuntime 或持续对象。              |
 
 
-`IMobaTriggerTraceContextProvider` 负责额外提供 `MobaTriggerTraceContext`：
+`IMobaTriggerLineageContextProvider` 负责额外提供 `MobaTriggerLineageContext`：
 
 
 | 字段                                | 含义                                                    |
 | --------------------------------- | ----------------------------------------------------- |
 | `ContextKind`                     | 业务上下文类型。                                              |
-| `TraceKind`                       | 溯源节点类型，例如 BuffApply、BuffTick、ProjectileHit、AreaEnter。 |
+| `OriginKind`                      | 来源执行类型，例如 BuffApply、BuffTick、ProjectileHit、AreaEnter。 |
 | `SourceActorId` / `TargetActorId` | 来源和目标 actor。                                          |
 | `SourceContextId`                 | 上游来源上下文 id。                                           |
 | `RootContextId`                   | 当前触发链路的根 id。                                          |
-| `OwnerKey`                        | 生命周期归属锚点，用于停止、清理、回滚对账。                                |
+| `OwnerContextId`                  | 生命周期归属上下文，用于停止、清理、回滚对账。                               |
 | `SourceConfigId`                  | 触发来源配置 id，例如 buffId、projectileTemplateId、areaId。      |
 
 
@@ -604,13 +606,13 @@ TriggerPlan 的执行入口需要同时服务两个目标：
 ### 7.3 各业务入口的上下文映射
 
 
-| 入口                                 | 运行时 payload                  | trace/provenance 重点                                                                            |
+| 入口                                 | 运行时 payload                  | lineage/provenance 重点                                                                          |
 | ---------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------- |
-| Buff add/remove                    | `BuffTriggerContext`         | `SourceContextId` 来自 BuffRuntime，`SourceConfigId` 为 buffId，`TraceKind` 为 BuffApply/BuffRemove。 |
-| Buff interval / 通用周期               | `MobaPeriodicTriggerContext` | 周期实例只决定触发时机，`RootContextId` 和 `OwnerKey` 回到持续对象本体。                                             |
-| Projectile hit                     | `ProjectileHitArgs`          | `TraceKind` 为 ProjectileHit，source actor 为发射者，target actor 为命中对象。                              |
-| Area enter/exit/expire             | `AreaTriggerPayload`         | `TraceKind` 区分 AreaEnter/AreaExit，`SourceConfigId` 记录区域实例或模板来源。                                |
-| 后续 Summon / Movement / Skill phase | 各自独立 payload                 | 仅实现最小触发接口和 trace provider，不再继承通用基类。                                                            |
+| Buff add/remove                    | `BuffTriggerContext`         | `SourceContextId` 来自 BuffRuntime，`SourceConfigId` 为 buffId，`OriginKind` 为 BuffApply/BuffRemove。 |
+| Buff interval / 通用周期               | `MobaPeriodicTriggerContext` | 周期实例只决定触发时机，`RootContextId` 和 `OwnerContextId` 回到持续对象本体。                                      |
+| Projectile hit                     | `ProjectileHitArgs`          | `OriginKind` 为 ProjectileHit，source actor 为发射者，target actor 为命中对象。                             |
+| Area enter/exit/expire             | `AreaTriggerPayload`         | `OriginKind` 区分 AreaEnter/AreaExit，`SourceConfigId` 记录区域实例或模板来源。                               |
+| 后续 Summon / Movement / Skill phase | 各自独立 payload                 | 实现正式触发接口和 lineage provider，不把 trace adapter 契约带入业务载荷。                                          |
 
 
 设计上不要求所有业务字段都统一到一个类里。业务对象继续保留强类型字段，方便 trigger condition/action 直接读取；溯源信息通过 provider 单独提供。
@@ -626,17 +628,17 @@ TriggerPlan 的执行入口需要同时服务两个目标：
 
 `MobaEffectExecutionService.ExecuteTriggerId` 现在按以下顺序提取信息：
 
-1. 优先读取 `IMobaTriggerTraceContextProvider`，得到完整 trace/provenance。
-2. 如果没有 trace provider，再读取 `IMobaTriggerInvocationContext`，至少保证 source/target/kind/triggerId 可用。
+1. 优先通过正式 context source、execution context、origin 和 lineage provider 解析规范来源。
+2. 如果没有强类型来源，再读取 `IMobaTriggerInvocationContext`，至少保证 source/target/kind/triggerId 可用。
 3. 最后兼容旧的 `IEffectContext`，只作为迁移过渡。
 4. 保留原始 payload 进入 TriggerPlan，让条件/行为模块读取业务字段。
 
-这使得“触发计划执行”和“效果溯源记录”不再是两套互相脱节的数据流。
+Context 负责创建、传播和派发；trace adapter 只观察同一条执行事实流，缺席时不影响战斗逻辑。
 
 ### 7.5 后续约束
 
-- 新增正式触发入口时，优先实现最小触发接口、trace provider，并按需实现 runtime provider，而不是继承通用上下文类。
-- `SourceContextId` 表达效果链路来源，`OwnerKey` 表达生命周期清理锚点，二者可以相同但语义不能混淆。
+- 新增正式触发入口时，优先实现触发执行契约、lineage provider，并按需实现 runtime provider，而不是引入 trace provider。
+- `SourceContextId` 表达效果链路来源，`OwnerContextId` 表达生命周期归属上下文，二者可以相同但语义不能混淆。
 - `Raw` 只应放在业务 payload 自己的字段里，不能再成为统一基类的一部分。
 - 可回滚数据应落在 runtime/component/event 的纯数据字段中，上下文对象只在本次触发调用期间存在。
 - TraceKind 应尽量使用领域类型，例如 BuffTick、ProjectileHit、AreaEnter，而不是统一退化成 EffectExecution。

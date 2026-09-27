@@ -9,6 +9,36 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Ability.World.DI;
 namespace AbilityKit.Demo.Moba.Services
 {
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+    public sealed class MobaSkillPhaseAttribute : Attribute
+    {
+        public SkillPhaseType PhaseType { get; }
+
+        public MobaSkillPhaseAttribute(SkillPhaseType phaseType)
+        {
+            PhaseType = phaseType;
+        }
+    }
+
+    internal static partial class MobaGeneratedSkillPhaseManifest
+    {
+        private static readonly HashSet<int> RegisteredPhaseTypes = CreateRegisteredPhaseTypes();
+
+        public static bool IsRegistered(SkillPhaseType phaseType)
+        {
+            return RegisteredPhaseTypes.Contains((int)phaseType);
+        }
+
+        private static HashSet<int> CreateRegisteredPhaseTypes()
+        {
+            var phaseTypes = new HashSet<int>();
+            AddGenerated(phaseTypes);
+            return phaseTypes;
+        }
+
+        static partial void AddGenerated(HashSet<int> phaseTypes);
+    }
+
     [WorldService(typeof(IMobaSkillPipelineLibrary), WorldLifetime.Scoped)]
     public sealed class TableDrivenMobaSkillPipelineLibrary : IMobaSkillPipelineLibrary
     {
@@ -222,6 +252,11 @@ namespace AbilityKit.Demo.Moba.Services
             if (phase == null) throw new InvalidOperationException($"Skill flow phase is missing. phaseId={fallbackPhaseId}");
 
             var type = (SkillPhaseType)phase.Type;
+            if (type != SkillPhaseType.Checks && type != SkillPhaseType.Handlers &&
+                !MobaGeneratedSkillPhaseManifest.IsRegistered(type))
+            {
+                throw new InvalidOperationException($"Unsupported skill phase type. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}, type={phase.Type}");
+            }
             switch (type)
             {
                 case SkillPhaseType.Checks:
@@ -435,6 +470,7 @@ namespace AbilityKit.Demo.Moba.Services
             public abstract IAbilityPipelinePhase<SkillPipelineContext> CreatePhase();
         }
 
+        [MobaSkillPhase(SkillPhaseType.Timeline)]
         private sealed class TimelinePhaseDefinition : PhaseDefinition
         {
             private readonly int _durationMs;
@@ -455,6 +491,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        [MobaSkillPhase(SkillPhaseType.RulePlan)]
         private sealed class RulePlanPhaseDefinition : PhaseDefinition
         {
             private readonly SkillRulePlanPhaseDTO _rulePlan;
@@ -497,6 +534,7 @@ namespace AbilityKit.Demo.Moba.Services
             protected abstract AbilityCompositePhase<SkillPipelineContext> CreateCompositePhase();
         }
 
+        [MobaSkillPhase(SkillPhaseType.Sequence)]
         private sealed class SequencePhaseDefinition : CompositePhaseDefinition
         {
             public SequencePhaseDefinition(AbilityPipelinePhaseId phaseId, IReadOnlyList<PhaseDefinition> children)
@@ -510,6 +548,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        [MobaSkillPhase(SkillPhaseType.Parallel)]
         private sealed class ParallelPhaseDefinition : CompositePhaseDefinition
         {
             public ParallelPhaseDefinition(AbilityPipelinePhaseId phaseId, IReadOnlyList<PhaseDefinition> children)
@@ -523,6 +562,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        [MobaSkillPhase(SkillPhaseType.Race)]
         private sealed class RacePhaseDefinition : CompositePhaseDefinition
         {
             public RacePhaseDefinition(AbilityPipelinePhaseId phaseId, IReadOnlyList<PhaseDefinition> children)
@@ -536,6 +576,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        [MobaSkillPhase(SkillPhaseType.AwaitEvent)]
         private sealed class AwaitEventPhaseDefinition : PhaseDefinition
         {
             private readonly SkillAwaitEventPhaseDTO _specification;
@@ -552,6 +593,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        [MobaSkillPhase(SkillPhaseType.Window)]
         private sealed class WindowPhaseDefinition : PhaseDefinition
         {
             private readonly SkillWindowPhaseDTO _specification;
@@ -570,6 +612,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        [MobaSkillPhase(SkillPhaseType.CommitPoint)]
         private sealed class CommitPointPhaseDefinition : PhaseDefinition
         {
             private readonly SkillCommitPointPhaseDTO _specification;
@@ -586,6 +629,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        [MobaSkillPhase(SkillPhaseType.Economy)]
         private sealed class EconomyPhaseDefinition : PhaseDefinition
         {
             private readonly SkillEconomyPhaseDTO _specification;
@@ -602,6 +646,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        [MobaSkillPhase(SkillPhaseType.DerivedSkill)]
         private sealed class DerivedSkillPhaseDefinition : PhaseDefinition
         {
             private readonly SkillDerivedSkillPhaseDTO _specification;
@@ -618,6 +663,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        [MobaSkillPhase(SkillPhaseType.Repeat)]
         private sealed class RepeatPhaseDefinition : PhaseDefinition
         {
             private readonly int _repeatCount;
@@ -644,6 +690,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        [MobaSkillPhase(SkillPhaseType.Delay)]
         private sealed class DelayPhaseDefinition : PhaseDefinition
         {
             private readonly float _delaySeconds;
@@ -660,6 +707,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        [MobaSkillPhase(SkillPhaseType.WaitUntil)]
         private sealed class WaitUntilPhaseDefinition : PhaseDefinition
         {
             private readonly ISkillWaitCondition _condition;

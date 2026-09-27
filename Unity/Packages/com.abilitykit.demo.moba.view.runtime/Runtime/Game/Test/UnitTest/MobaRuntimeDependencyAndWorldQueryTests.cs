@@ -163,7 +163,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var failed = fixture.Start();
 
             Assert.That(failed.Succeeded, Is.False);
-            Assert.That(failed.FailureCode, Is.EqualTo(MobaGameStartFailureCode.PublishEnterGameSnapshotFailed));
+            Assert.That(failed.FailureCode, Is.EqualTo(MobaGameStartFailureCode.PublishEnterGameSnapshotFailed), failed.Message);
             fixture.AssertCompensated();
 
             fixture.Snapshots.FailPrepare = false;
@@ -414,6 +414,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var resolver = new ConfigWorldResolver(config);
                 _gameplay = WorldTestInjector.For(new MobaGameplayService())
                     .With<IWorldResolver>(resolver)
+                    .With<IFrameTime>(new FrameTime())
                     .Build();
 
                 var generator = new ActorEntityInitPipeline(resolver);

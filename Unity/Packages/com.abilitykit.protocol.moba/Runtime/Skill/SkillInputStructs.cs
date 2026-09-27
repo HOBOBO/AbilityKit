@@ -20,7 +20,12 @@ namespace AbilityKit.Protocol.Moba
             in Vec3 aimPos = default,
             in Vec3 aimDir = default,
             int opCode = 0,
-            byte[] payload = null)
+            byte[] payload = null,
+            int predictionKey = 0,
+            int targetFrame = 0,
+            long inputSequence = 0L,
+            int entityVersion = 0,
+            int interruptEpoch = 0)
         {
             Slot = slot;
             Phase = phase;
@@ -30,6 +35,11 @@ namespace AbilityKit.Protocol.Moba
             AimDir = aimDir;
             OpCode = opCode;
             Payload = payload;
+            PredictionKey = predictionKey;
+            TargetFrame = targetFrame;
+            InputSequence = inputSequence;
+            EntityVersion = entityVersion;
+            InterruptEpoch = interruptEpoch;
         }
     }
 }

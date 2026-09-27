@@ -14,10 +14,10 @@
 | `MobaInputCoordinator` | 创建帧输入上下文，按 opCode 分发给已注册 handler | 解析每种业务 payload、直接释放技能 |
 | `MobaSkillInputCommandHandler` | 校验世界阶段、玩家 Actor、实体、Transform 和 payload，解码技能事件 | 创建技能 runtime、推进 Pipeline |
 | `SkillCastCoordinator` | 分派输入阶段、按槽位解析技能、准备并启动 runner、管理取消/推进 | 网络反序列化、把全部资源/目标规则硬编码在协调器内 |
-| `SkillCastPreparationService` | 解析施法者/目标、瞄准回退、Pipeline、等级、trace root 和 runtime handle | 决定并行/中断策略 |
+| `SkillCastPreparationService` | 解析施法者/目标、瞄准回退、Pipeline、等级、execution context root 和 runtime handle | 决定并行/中断策略 |
 | `SkillCastPolicyResolver` | 由全局 fallback 和技能类型得到本次并行策略 | 通用排队系统、任意技能分类策略 |
 | `SkillRunnerRegistry` / `SkillPipelineRunner` | 保存 actor 运行实例、更新输入、释放、取消、逐帧 Step | 玩家到 Actor 映射 |
-| `SkillCastContext` | 承载技能、来源、目标、瞄准、runtime、trace 和服务上下文 | 作为网络协议直接传输 |
+| `SkillCastContext` | 承载技能、来源、目标、瞄准、runtime、execution context 和服务上下文 | 作为网络协议直接传输 |
 
 当前没有独立的“Skill Executor”对象位于协调器之后。真正执行 pre-cast/cast 阶段的是 `SkillPipelineRunner`，协调器通过 registry 获取或创建 actor 对应 runner。
 
@@ -122,7 +122,7 @@ flowchart TD
 5. 从 `IMobaSkillPipelineLibrary` 读取 pre-cast/cast 配置与阶段；
 6. 从 loadout 读取技能等级，并为 actor 生成递增 cast sequence；
 7. 创建 `SkillCastRequest` 和 `SkillCastContext`；
-8. 在 `MobaTraceRegistry` 创建 SkillCast root context；
+8. 在 `MobaExecutionContextRegistry` 创建 SkillCast root context；安装 Trace Adapter 时再投影同 ID 节点；
 9. 通过 `MobaSkillCastRuntimeService` 创建 runtime 和有效 handle。
 
 ```mermaid
@@ -131,8 +131,9 @@ flowchart LR
     Unit --> Aim[Aim fallback]
     Aim --> Library[Pipeline Library]
     Library --> Context[SkillCastContext]
-    Context --> Trace[Trace Root]
-    Trace --> Runtime[Skill Runtime Handle]
+    Context --> Root[Execution Context Root]
+    Root --> Runtime[Skill Runtime Handle]
+    Root -. lifecycle observer .-> Trace[Optional Trace Projection]
     Runtime --> Ready[Preparation Result Ready]
 ```
 
@@ -221,7 +222,7 @@ UI 的按下状态、预览目标和本地动画不能成为权威释放条件�
 1. 检查 `MobaInputCommandResult`，先排除世界阶段、Actor 映射和 payload；
 2. 检查 `MobaSkillInputHandleResult.Code`，区分 phase 与 cast 拒绝；
 3. 检查 `MobaSkillCastFailure.Source/Stage/Code/Message`；
-4. 检查 Skill Logger、trace root、runtime handle 和 runner snapshot；
+4. 检查 Skill Logger、execution context root、runtime handle 和 runner snapshot；需要因果树时再检查可选 Trace 投影；
 5. 检查 Pipeline 条件、阶段结果及后续 Effect/Trigger。
 
 重点测试用例：

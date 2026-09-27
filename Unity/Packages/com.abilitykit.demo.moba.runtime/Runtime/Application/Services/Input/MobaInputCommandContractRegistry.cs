@@ -43,7 +43,8 @@ namespace AbilityKit.Demo.Moba.Services
             MobaInputCommandAuthority authority,
             MobaInputCommandFramePolicy framePolicy,
             string payloadSchema,
-            MobaInputPayloadValidator payloadValidator)
+            MobaInputPayloadValidator payloadValidator,
+            Func<IMobaInputCommandHandler> handlerFactory = null)
         {
             OpCode = opCode;
             HandlerType = handlerType;
@@ -53,6 +54,7 @@ namespace AbilityKit.Demo.Moba.Services
             FramePolicy = framePolicy;
             PayloadSchema = payloadSchema;
             PayloadValidator = payloadValidator;
+            HandlerFactory = handlerFactory;
         }
 
         public int OpCode { get; }
@@ -63,6 +65,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaInputCommandFramePolicy FramePolicy { get; }
         public string PayloadSchema { get; }
         public MobaInputPayloadValidator PayloadValidator { get; }
+        public Func<IMobaInputCommandHandler> HandlerFactory { get; }
     }
 
     public sealed class MobaInputCommandContractValidationResult
@@ -105,7 +108,8 @@ namespace AbilityKit.Demo.Moba.Services
                 MobaInputCommandAuthority.BattlePlayer,
                 MobaInputCommandFramePolicy.ExactBatchFrame,
                 nameof(MobaMovePayload),
-                ValidateMovePayload);
+                ValidateMovePayload,
+                () => new MobaMoveInputCommandHandler());
             registry.Require(
                 AbilityKit.Protocol.Moba.MobaOpCodes.Input.SkillInput,
                 typeof(MobaSkillInputCommandHandler),
@@ -113,7 +117,8 @@ namespace AbilityKit.Demo.Moba.Services
                 MobaInputCommandAuthority.BattlePlayer,
                 MobaInputCommandFramePolicy.ExactBatchFrame,
                 nameof(SkillInputEvent),
-                ValidateSkillInputPayload);
+                ValidateSkillInputPayload,
+                () => new MobaSkillInputCommandHandler());
             registry.Require(
                 AbilityKit.Protocol.Moba.MobaOpCodes.Input.DebugSpawnUnit,
                 typeof(MobaDebugSpawnUnitInputCommandHandler),
@@ -121,7 +126,8 @@ namespace AbilityKit.Demo.Moba.Services
                 MobaInputCommandAuthority.BattlePlayer,
                 MobaInputCommandFramePolicy.ExactBatchFrame,
                 nameof(MobaDebugSpawnUnitPayload) + ":v1",
-                ValidateDebugSpawnUnitPayload);
+                ValidateDebugSpawnUnitPayload,
+                () => new MobaDebugSpawnUnitInputCommandHandler());
             registry.Require(
                 AbilityKit.Protocol.Moba.MobaOpCodes.Input.DebugReplaceHero,
                 typeof(MobaDebugReplaceHeroInputCommandHandler),
@@ -129,7 +135,8 @@ namespace AbilityKit.Demo.Moba.Services
                 MobaInputCommandAuthority.BattlePlayer,
                 MobaInputCommandFramePolicy.ExactBatchFrame,
                 nameof(MobaDebugReplaceHeroPayload) + ":v1",
-                ValidateDebugReplaceHeroPayload);
+                ValidateDebugReplaceHeroPayload,
+                () => new MobaDebugReplaceHeroInputCommandHandler());
             return registry;
         }
 
@@ -152,7 +159,8 @@ namespace AbilityKit.Demo.Moba.Services
             MobaInputCommandAuthority authority,
             MobaInputCommandFramePolicy framePolicy,
             string payloadSchema,
-            MobaInputPayloadValidator payloadValidator)
+            MobaInputPayloadValidator payloadValidator,
+            Func<IMobaInputCommandHandler> handlerFactory = null)
         {
             Register(new MobaInputCommandContract(
                 opCode,
@@ -162,7 +170,8 @@ namespace AbilityKit.Demo.Moba.Services
                 authority,
                 framePolicy,
                 payloadSchema,
-                payloadValidator));
+                payloadValidator,
+                handlerFactory));
         }
 
         public void Register(in MobaInputCommandContract contract)
@@ -189,7 +198,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             _contracts.Add(contract.OpCode, contract);
             _contractList.Add(contract);
-            HandlerRegistry.Register(contract.OpCode, contract.HandlerType);
+            HandlerRegistry.Register(contract.OpCode, contract.HandlerType, contract.HandlerFactory);
         }
 
         public bool TryGetContract(int opCode, out MobaInputCommandContract contract)
@@ -231,6 +240,11 @@ namespace AbilityKit.Demo.Moba.Services
                     result.AddError($"input command payload validator is missing. opCode={contract.OpCode}, name={contract.Name}");
                 }
 
+                if (contract.HandlerFactory == null)
+                {
+                    result.AddError($"input command handler factory is missing. opCode={contract.OpCode}, name={contract.Name}");
+                }
+
                 if (!HandlerRegistry.TryGetHandlerDescriptor(contract.OpCode, out var descriptor))
                 {
                     result.AddError($"missing input command handler. opCode={contract.OpCode}, name={contract.Name}, expected={contract.HandlerType.Name}");
@@ -241,6 +255,11 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     var actual = descriptor.HandlerType == null ? "null" : descriptor.HandlerType.Name;
                     result.AddError($"input command handler type mismatch. opCode={contract.OpCode}, name={contract.Name}, expected={contract.HandlerType.Name}, actual={actual}");
+                }
+
+                if (descriptor.HandlerFactory == null)
+                {
+                    result.AddError($"input command handler descriptor factory is missing. opCode={contract.OpCode}, name={contract.Name}");
                 }
             }
 
@@ -438,6 +457,9 @@ namespace AbilityKit.Demo.Moba.Services
                 X = spawnPosition.X,
                 Y = spawnPosition.Y,
                 Z = spawnPosition.Z,
+                EntityVersion = context.Services.TryResolve<MobaActorRegistry>(out var actors) && actors != null
+                    ? actors.GetEntityVersion(spawnResult.ActorId)
+                    : 1,
             });
 
             result = MobaInputCommandResult.Accepted(

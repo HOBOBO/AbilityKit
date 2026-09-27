@@ -58,6 +58,14 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 var table = GetArg(args, "-table");
                 var excelFolder = GetArg(args, "-excelFolder") ?? MobaExcelSync.ExcelFolder;
 
+                if (!string.Equals(mode, "status", StringComparison.OrdinalIgnoreCase))
+                {
+                    Debug.LogError("[MobaConfigHeadlessSync] Legacy JSON/SO sync is retired. Edit LubanConfig/Moba/Production/Datas and run python LubanConfig/Moba/export_pipeline.py --apply.");
+                    if (Application.isBatchMode) EditorApplication.Exit(3);
+                    return;
+                }
+                Debug.LogWarning("[MobaConfigHeadlessSync] status reports the retired SO/MiniTemplate chain. Production source: LubanConfig/Moba/Production/Datas.");
+
                 var tables = LoadTables(table);
                 if (tables.Count == 0)
                 {

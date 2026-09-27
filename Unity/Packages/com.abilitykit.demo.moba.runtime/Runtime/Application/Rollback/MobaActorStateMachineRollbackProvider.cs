@@ -12,6 +12,7 @@ using AbilityKit.HFSM.Extension;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
+    [MobaRollbackProvider(DefaultKey)]
     public sealed class MobaActorStateMachineRollbackProvider : IRollbackStateProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10005;

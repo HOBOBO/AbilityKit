@@ -27,6 +27,8 @@ namespace AbilityKit.Game.Flow
             runtime.Binder?.Clear();
             runtime.Binder = _controllers.CreateBinder(runtime);
             _interpolationSettings.Apply(ctx.Phase, runtime.Binder);
+            if (runtime is ConfirmedBattleViewFeature sideView && sideView.IsPredictionView)
+                runtime.Binder.InterpolationEnabled = false;
 
             runtime.EntityDestroyedSubscription?.Dispose();
             var world = runtime.EntityContext?.EntityWorld;
@@ -54,6 +56,8 @@ namespace AbilityKit.Game.Flow
             if (runtime == null) return;
             if (runtime.Binder == null) return;
             _interpolationSettings.Apply(ctx.Phase, runtime.Binder);
+            if (runtime is ConfirmedBattleViewFeature sideView && sideView.IsPredictionView)
+                runtime.Binder.InterpolationEnabled = false;
         }
 
         public void RebindAll(in FeatureModuleContext<TFeature> ctx) { }

@@ -15,7 +15,6 @@ using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Pipeline;
 using AbilityKit.Triggering.Eventing;
-using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -23,24 +22,41 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public static readonly SkillCastPolicy Default = new SkillCastPolicy(allowParallel: false, interruptRunning: false);
 
-        public SkillCastPolicy(bool allowParallel, bool interruptRunning)
+        public SkillCastPolicy(bool allowParallel, bool interruptRunning, int conflictGroup = 0,
+            int interruptPriority = 0, bool uninterruptible = false, SkillTargetLostPolicy targetLostPolicy = SkillTargetLostPolicy.Legacy)
         {
             AllowParallel = allowParallel;
             InterruptRunning = interruptRunning;
+            ConflictGroup = conflictGroup;
+            InterruptPriority = interruptPriority;
+            Uninterruptible = uninterruptible;
+            TargetLostPolicy = targetLostPolicy;
         }
 
         public bool AllowParallel { get; }
         public bool InterruptRunning { get; }
+        public int ConflictGroup { get; }
+        public int InterruptPriority { get; }
+        public bool Uninterruptible { get; }
+        public SkillTargetLostPolicy TargetLostPolicy { get; }
 
         public SkillCastPolicy WithAllowParallel(bool allowParallel)
         {
-            return new SkillCastPolicy(allowParallel, InterruptRunning);
+            return new SkillCastPolicy(allowParallel, InterruptRunning, ConflictGroup, InterruptPriority, Uninterruptible, TargetLostPolicy);
         }
 
         public SkillCastPolicy WithInterruptRunning(bool interruptRunning)
         {
-            return new SkillCastPolicy(AllowParallel, interruptRunning);
+            return new SkillCastPolicy(AllowParallel, interruptRunning, ConflictGroup, InterruptPriority, Uninterruptible, TargetLostPolicy);
         }
+    }
+
+    public enum SkillTargetLostPolicy
+    {
+        Legacy = 0,
+        Cancel = 1,
+        KeepAim = 2,
+        Reacquire = 3,
     }
 
     [WorldService(typeof(SkillCastCoordinator))]
@@ -48,6 +64,7 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly IWorldResolver _services;
         private readonly IWorldClock _clock;
+        private readonly IFrameTime _time;
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly IUnitResolver _units;
         private readonly MobaSkillLoadoutService _loadout;
@@ -91,7 +108,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _services = services ?? throw new ArgumentNullException(nameof(services));
             _clock = clock ?? throw new ArgumentNullException(nameof(clock));
-            _ = time ?? throw new ArgumentNullException(nameof(time));
+            _time = time ?? throw new ArgumentNullException(nameof(time));
             _eventBus = eventBus;
             _units = units ?? throw new ArgumentNullException(nameof(units));
             _loadout = loadout ?? throw new ArgumentNullException(nameof(loadout));
@@ -134,6 +151,13 @@ namespace AbilityKit.Demo.Moba.Services
         public bool HandleInput(int actorId, in SkillInputEvent evt)
         {
             return TryHandleInputResult(actorId, in evt).Success;
+        }
+
+        public bool TryUpdateRunningInput(int actorId, int slot, in Vec3 aimPos, in Vec3 aimDir,
+            int targetActorId, bool hasAimPos, bool hasAimDir, bool hasTarget)
+        {
+            return _runnerRegistry.TryUpdateRunningInput(actorId, slot, in aimPos, in aimDir,
+                targetActorId, hasAimPos, hasAimDir, hasTarget);
         }
 
         public bool TryHandleInput(int actorId, in SkillInputEvent evt, out string failReason)
@@ -458,7 +482,7 @@ namespace AbilityKit.Demo.Moba.Services
             var runtime = runtimeHandle.IsValid
                 ? new BattleDiagnosticRuntimeHandle(runtimeHandle.RuntimeId, runtimeHandle.Generation)
                 : default;
-            var rootContextId = runtimeHandle.IsValid ? runtimeHandle.RootTraceContextId : 0L;
+            var rootContextId = runtimeHandle.IsValid ? runtimeHandle.RootContextId : 0L;
             var summary = $"code={payloadData.Code}, source={payloadData.Source}, stage={payloadData.Stage}, slot={slot}";
             if (!string.IsNullOrEmpty(payloadData.Message)) summary += $", message={payloadData.Message}";
             var draft = new MobaBattleDiagnosticEventDraft(
@@ -505,7 +529,7 @@ namespace AbilityKit.Demo.Moba.Services
             var ctx = prepared.Context;
 
             // Keep a post-preparation gate as a race-safe fallback. Any rejection after
-            // preparation must release the formal runtime, which owns the root trace.
+            // preparation must release the formal runtime, which owns the root execution context.
             if (!TryValidateCombatRules(actorId, out var combatFailure, out var combatMessage))
             {
                 prepared.Runtimes.ForceTerminate(in ctx.RuntimeHandle, MobaSkillRuntimeEndReason.RollbackCleanup);
@@ -572,7 +596,19 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void CancelAll(int actorId)
         {
-            _runnerRegistry.CancelAll(actorId);
+            if (_runnerRegistry.CancelAll(actorId))
+                AdvanceActionInterruptEpoch(actorId);
+        }
+
+        private void AdvanceActionInterruptEpoch(int actorId)
+        {
+            if (actorId <= 0 || _services == null) return;
+            if (!_services.TryResolve<MobaActorRegistry>(out var actors) || actors == null) return;
+            if (!_services.TryResolve<MobaActionAckSnapshotService>(out var actionAcks) || actionAcks == null) return;
+
+            var entityVersion = actors.GetEntityVersion(actorId);
+            if (entityVersion > 0)
+                actionAcks.AdvanceInterruptEpoch(actorId, entityVersion, _time.Frame.Value);
         }
 
         public void RemoveActor(int actorId)

@@ -92,7 +92,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
 
             var combatSource = new MobaCombatContextSource(
                 source.ContextKind != EffectContextKind.Unknown ? source.ContextKind : EffectContextKind.ContinuousPeriodic,
-                source.TraceKind != MobaTraceKind.None ? source.TraceKind : MobaTraceKind.ProjectileLaunch,
+                source.ExecutionKind != MobaExecutionKind.None ? source.ExecutionKind : MobaExecutionKind.ProjectileLaunch,
                 source.SourceActorId != 0 ? source.SourceActorId : CasterActorId,
                 source.TargetActorId,
                 source.SourceContextId != 0 ? source.SourceContextId : SourceContextId,
@@ -137,7 +137,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             var origin = new MobaGameplayOrigin(
                 CasterActorId,
                 0,
-                MobaTraceKind.ProjectileLaunch,
+                MobaExecutionKind.ProjectileLaunch,
                 ConfigId,
                 SourceContextId,
                 SourceContextId,

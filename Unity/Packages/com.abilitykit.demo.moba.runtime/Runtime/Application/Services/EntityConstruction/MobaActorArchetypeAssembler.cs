@@ -1,23 +1,32 @@
+using System;
+using System.Collections.Generic;
 using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 {
-    public static class MobaActorArchetypeAssembler
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
+    public sealed class MobaActorArchetypeAttribute : Attribute
+    {
+        public MobaEntityKind Kind { get; }
+
+        public MobaActorArchetypeAttribute(MobaEntityKind kind)
+        {
+            Kind = kind;
+        }
+    }
+
+    public static partial class MobaActorArchetypeAssembler
     {
         public static void RegisterDefaults(MobaActorArchetypeRegistry registry)
         {
             if (registry == null) return;
-
-            registry.Register(MobaEntityKind.Hero, CreateHero);
-            registry.Register(MobaEntityKind.Minion, CreateMinion);
-            registry.Register(MobaEntityKind.Monster, CreateMonster);
-            registry.Register(MobaEntityKind.Projectile, CreateProjectile);
-            registry.Register(MobaEntityKind.Summon, CreateSummon);
-            registry.Register(MobaEntityKind.ProjectileLauncher, CreateProjectileLauncher);
-            registry.Register(MobaEntityKind.Area, CreateArea);
+            AddGenerated(registry);
         }
 
-        private static ActorEntity CreateHero(ActorContext context, in MobaEntityInfo info)
+        static partial void AddGenerated(MobaActorArchetypeRegistry registry);
+
+        [MobaActorArchetype(MobaEntityKind.Hero)]
+        internal static ActorEntity CreateHero(ActorContext context, in MobaEntityInfo info)
         {
             var entity = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
@@ -32,7 +41,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             return entity;
         }
 
-        private static ActorEntity CreateMinion(ActorContext context, in MobaEntityInfo info)
+        [MobaActorArchetype(MobaEntityKind.Minion)]
+        internal static ActorEntity CreateMinion(ActorContext context, in MobaEntityInfo info)
         {
             var entity = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
@@ -47,7 +57,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             return entity;
         }
 
-        private static ActorEntity CreateMonster(ActorContext context, in MobaEntityInfo info)
+        [MobaActorArchetype(MobaEntityKind.Monster)]
+        internal static ActorEntity CreateMonster(ActorContext context, in MobaEntityInfo info)
         {
             var entity = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
@@ -61,7 +72,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             return entity;
         }
 
-        private static ActorEntity CreateProjectile(ActorContext context, in MobaEntityInfo info)
+        [MobaActorArchetype(MobaEntityKind.Projectile)]
+        internal static ActorEntity CreateProjectile(ActorContext context, in MobaEntityInfo info)
         {
             var entity = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
@@ -74,7 +86,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             return entity;
         }
 
-        private static ActorEntity CreateSummon(ActorContext context, in MobaEntityInfo info)
+        [MobaActorArchetype(MobaEntityKind.Summon)]
+        internal static ActorEntity CreateSummon(ActorContext context, in MobaEntityInfo info)
         {
             var entity = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
@@ -89,7 +102,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             return entity;
         }
 
-        private static ActorEntity CreateProjectileLauncher(ActorContext context, in MobaEntityInfo info)
+        [MobaActorArchetype(MobaEntityKind.ProjectileLauncher)]
+        internal static ActorEntity CreateProjectileLauncher(ActorContext context, in MobaEntityInfo info)
         {
             var entity = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)
@@ -100,7 +114,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             return entity;
         }
 
-        private static ActorEntity CreateArea(ActorContext context, in MobaEntityInfo info)
+        [MobaActorArchetype(MobaEntityKind.Area)]
+        internal static ActorEntity CreateArea(ActorContext context, in MobaEntityInfo info)
         {
             var entity = ActorEntityFactory.Create(context)
                 .WithActorId(info.ActorId)

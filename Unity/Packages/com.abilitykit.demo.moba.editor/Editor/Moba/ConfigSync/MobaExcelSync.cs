@@ -31,19 +31,19 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         [MenuItem("Tools/AbilityKit/Demos/Moba/Config Excel/Buff: Import Excel -> SO")]
         public static void ImportBuffExcelToSo()
         {
-            Import<BuffSO>("buffs.xlsx");
+            Debug.LogError("The legacy MiniTemplate import is retired. Edit LubanConfig/Moba/Production/Datas/buffs.xlsx and run export_pipeline.py --apply.");
         }
 
         [MenuItem("Tools/AbilityKit/Demos/Moba/Config Excel/Buff: Export SO -> Excel")]
         public static void ExportBuffSoToExcel()
         {
-            Export<BuffSO>("buffs.xlsx");
+            Debug.LogError("MOBA Production Excel is the source. Edit LubanConfig/Moba/Production/Datas/buffs.xlsx and run export_pipeline.py --apply.");
         }
 
         [MenuItem("Tools/AbilityKit/Demos/Moba/Config Excel/Buff: Create Skeleton Excel")]
         public static void CreateBuffSkeletonExcel()
         {
-            CreateSkeleton<BuffDTO>("buffs.xlsx");
+            Debug.LogError("MOBA Production Excel already exists in LubanConfig/Moba/Production/Datas/buffs.xlsx.");
         }
 
         /// <summary>表对应的 Excel 文件名：{FileWithoutExt}.xlsx（与 Resources 数组 JSON 同名规则）。</summary>

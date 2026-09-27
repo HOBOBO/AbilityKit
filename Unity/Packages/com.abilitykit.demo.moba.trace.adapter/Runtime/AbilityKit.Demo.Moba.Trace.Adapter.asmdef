@@ -1,0 +1,26 @@
+{
+  "name": "AbilityKit.Demo.Moba.Trace.Adapter",
+  "rootNamespace": "AbilityKit.Demo.Moba",
+  "references": [
+    "AbilityKit.Demo.Moba.Runtime",
+    "AbilityKit.Demo.Moba.Diagnostics.Core",
+    "AbilityKit.Trace",
+    "AbilityKit.Context",
+    "AbilityKit.Core",
+    "AbilityKit.Deterministic",
+    "AbilityKit.Ability",
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.Triggering",
+    "AbilityKit.World.DI",
+    "AbilityKit.Diagnostics"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

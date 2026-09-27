@@ -49,7 +49,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             if (dtoType == null) throw new ArgumentNullException(nameof(dtoType));
             if (string.IsNullOrEmpty(text)) return Array.CreateInstance(dtoType, 0);
 
-            if (dtoType == typeof(SkillFlowDTO) || dtoType == typeof(BuffDTO))
+            if (dtoType == typeof(SkillFlowDTO) || dtoType == typeof(BuffDTO) ||
+                dtoType == typeof(ContinuousTagTemplateDTO) || dtoType == typeof(TagTemplateDTO))
             {
                 return LubanConfigGroupDeserializer.Instance.DeserializeFromText(text, dtoType);
             }

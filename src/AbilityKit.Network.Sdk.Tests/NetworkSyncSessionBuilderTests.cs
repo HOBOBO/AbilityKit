@@ -7,6 +7,39 @@ namespace AbilityKit.Network.Sdk.Tests;
 public sealed class NetworkSyncSessionBuilderTests
 {
     [Fact]
+    public void Negotiate_ReturnsSameDescriptorAsControllerBuild()
+    {
+        var profile = NetworkSyncProfiles.AuthoritativeInterpolation;
+        var options = CreateOptions(profile, 1, 2);
+        options.RequiredProfile = profile;
+        options.RemoteCapabilities = NetworkSyncCapabilities.FromProfile(in profile, 1, 2);
+        options.RemoteCapabilityPolicy = NetworkSyncRemoteCapabilityPolicy.Require;
+        var registry = CreateRegistry(profile, (in int _) => "controller");
+
+        var descriptor = NetworkSyncSessionNegotiator.Negotiate(options);
+        var built = new NetworkSyncSessionBuilder<string, int>(registry, options).Build(0).Descriptor;
+
+        Assert.True(descriptor.IsRemoteNegotiated);
+        Assert.Equal(built.ProfileName, descriptor.ProfileName);
+        Assert.Equal(built.MinimumSchemaVersion, descriptor.MinimumSchemaVersion);
+        Assert.Equal(built.MaximumSchemaVersion, descriptor.MaximumSchemaVersion);
+    }
+
+    [Fact]
+    public void Negotiate_RequiredRemoteMissing_UsesBuilderFailureReason()
+    {
+        var profile = NetworkSyncProfiles.AuthoritativeInterpolation;
+        var options = CreateOptions(profile, 1, 1);
+        options.RequiredProfile = profile;
+        options.RemoteCapabilityPolicy = NetworkSyncRemoteCapabilityPolicy.Require;
+
+        var error = Assert.Throws<NetworkSyncSessionBuildException>(
+            () => NetworkSyncSessionNegotiator.Negotiate(options));
+
+        Assert.Equal(NetworkSyncSessionBuildFailureReason.MissingRemoteCapabilities, error.Reason);
+    }
+
+    [Fact]
     public void Build_ResolvesStableNameAndReturnsNegotiatedDescriptor()
     {
         var registry = CreateRegistry(NetworkSyncProfiles.PredictRollback, (in int _) => "controller");

@@ -1,5 +1,6 @@
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Shared.Time;
+using AbilityKit.Game.Flow;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Battle.Vfx
@@ -18,14 +19,16 @@ namespace AbilityKit.Game.Battle.Vfx
             if (!entity.IsValid) return;
             if (durationMs <= 0) return;
 
-            entity.WithRef(new BattleVfxLifetimeComponent { ExpireAtTime = _time.TimeSeconds + (durationMs / 1000f) });
+            entity.WithRef(new BattleVfxLifetimeComponent
+            {
+                ExpireAtTime = PresentationLifetimePolicy.ExpireAt(_time.TimeSeconds, durationMs)
+            });
         }
 
         public bool IsExpired(EC.IEntity entity)
         {
             if (!entity.TryGetRef(out BattleVfxLifetimeComponent life) || life == null) return false;
-            if (life.ExpireAtTime <= 0f) return false;
-            return _time.TimeSeconds >= life.ExpireAtTime;
+            return PresentationLifetimePolicy.IsExpired(_time.TimeSeconds, life.ExpireAtTime);
         }
     }
 }

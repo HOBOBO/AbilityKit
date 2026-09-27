@@ -1,0 +1,27 @@
+{
+  "triggers": [
+    {
+      "id": 10050101,
+      "name": "妲己-灵魂冲击-发射冲击波",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "shoot_projectile",
+          "launcher_id": 31050101,
+          "projectile_id": 30050101,
+          "directionSource": "cast_context"
+        },
+        {
+          "type": "debug_log",
+          "message": "妲己一技能灵魂冲击：发射直线冲击波",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

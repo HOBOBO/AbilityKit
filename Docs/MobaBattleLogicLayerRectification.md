@@ -141,8 +141,8 @@ flowchart TB
 3. 输入热更路由异常被吞掉。  
    [`MobaInputCoordinator.TryHandleBeforeDispatch`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Input/MobaInputCoordinator.cs:53) 捕获异常后返回 `false`，会继续走默认命令分发。热更路由如果是正式扩展点，异常应进入统一异常策略并使当前命令失败，而不是尝试另一条路径。
 
-4. 技能运行时创建与 trace 创建失败被静默忽略。  
-   [`SkillExecutor.CastSkillInternal`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillExecutor.cs:236) 中 trace 创建失败会把上下文置为 `0`，运行时创建失败会清空 handle 后继续启动技能。若这些能力已被定义为正式链路能力，应由校验器要求存在，并在失败时阻断技能启动。
+4. 技能运行时与正式 Execution Context 创建失败曾被静默忽略。
+   当前正式链路要求 `MobaExecutionContextRegistry` 和 runtime 创建成功，否则阻断技能启动；Trace Adapter 是可选能力，其缺失或 observer 失败不能改变业务结果。
 
 5. 技能目标默认回退为自己。  
    [`SkillExecutor.CastSkillInternal`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillExecutor.cs:236) 将缺省目标设为施法者。对于自施法技能这是合法配置，但不应作为所有技能的默认行为。目标来源应由技能配置或 TriggerPlan 的 target request 决定。

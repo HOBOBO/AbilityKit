@@ -39,7 +39,7 @@ namespace AbilityKit.Demo.Moba.Services
             in MobaSkillCastRuntimeHandle handle, int actorId, int skillId, int skillSlot,
             int resourceType, long resourceAmountRaw, int chargeCost, bool refundBeforeCommit,
             int cooldownMs, int cooldownGroupId, int sharedCooldownMs, int globalCooldownMs,
-            MobaSkillEconomyTransactionState state)
+            MobaSkillEconomyTransactionState state, bool requireExplicitCommit = false)
         {
             Handle = handle;
             ActorId = actorId;
@@ -49,6 +49,7 @@ namespace AbilityKit.Demo.Moba.Services
             ResourceAmountRaw = resourceAmountRaw;
             ChargeCost = chargeCost;
             RefundBeforeCommit = refundBeforeCommit;
+            RequireExplicitCommit = requireExplicitCommit;
             CooldownMs = cooldownMs;
             CooldownGroupId = cooldownGroupId;
             SharedCooldownMs = sharedCooldownMs;
@@ -64,6 +65,7 @@ namespace AbilityKit.Demo.Moba.Services
         public long ResourceAmountRaw { get; }
         public int ChargeCost { get; }
         public bool RefundBeforeCommit { get; }
+        public bool RequireExplicitCommit { get; }
         public int CooldownMs { get; }
         public int CooldownGroupId { get; }
         public int SharedCooldownMs { get; }
@@ -135,6 +137,7 @@ namespace AbilityKit.Demo.Moba.Services
             public long ResourceAfterRaw;
             public int ChargeCost;
             public bool RefundBeforeCommit;
+            public bool RequireExplicitCommit;
             public int CooldownMs;
             public int CooldownGroupId;
             public int SharedCooldownMs;
@@ -257,6 +260,7 @@ namespace AbilityKit.Demo.Moba.Services
                 ResourceAfterRaw = resourceAfterRaw,
                 ChargeCost = chargeCost,
                 RefundBeforeCommit = specification.RefundBeforeCommit,
+                RequireExplicitCommit = specification.RequireExplicitCommit,
                 CooldownMs = cooldownMs,
                 CooldownGroupId = cooldownGroupId,
                 SharedCooldownMs = Math.Max(0, specification.SharedCooldownMs),
@@ -388,11 +392,12 @@ namespace AbilityKit.Demo.Moba.Services
             var handle = lifecycleEvent.RuntimeHandle;
             if (!TryGetTransaction(in handle, out var transaction)) return;
 
-            if (lifecycleEvent.Reason == MobaSkillRuntimeEndReason.PipelineCompleted)
+            if (lifecycleEvent.Reason == MobaSkillRuntimeEndReason.PipelineCompleted && !transaction.RequireExplicitCommit)
             {
                 Commit(in handle);
             }
-            else if (transaction.State == MobaSkillEconomyTransactionState.Reserved && transaction.RefundBeforeCommit)
+            else if (transaction.State == MobaSkillEconomyTransactionState.Reserved &&
+                     (transaction.RefundBeforeCommit || transaction.RequireExplicitCommit))
             {
                 Refund(transaction, out var refundBeforeRaw, out var refundAfterRaw);
                 transaction.ResourceBeforeRaw = refundBeforeRaw;
@@ -424,7 +429,7 @@ namespace AbilityKit.Demo.Moba.Services
                     in value.Handle, value.ActorId, value.SkillId, value.SkillSlot,
                     (int)value.ResourceType, value.ResourceAmount.RawValue, value.ChargeCost,
                     value.RefundBeforeCommit, value.CooldownMs, value.CooldownGroupId,
-                    value.SharedCooldownMs, value.GlobalCooldownMs, value.State));
+                    value.SharedCooldownMs, value.GlobalCooldownMs, value.State, value.RequireExplicitCommit));
             }
             transactions.Sort((left, right) => left.Handle.RuntimeId.CompareTo(right.Handle.RuntimeId));
 
@@ -462,6 +467,7 @@ namespace AbilityKit.Demo.Moba.Services
                     ResourceAmount = Fixed64.FromRaw(value.ResourceAmountRaw),
                     ChargeCost = value.ChargeCost,
                     RefundBeforeCommit = value.RefundBeforeCommit,
+                    RequireExplicitCommit = value.RequireExplicitCommit,
                     CooldownMs = value.CooldownMs,
                     CooldownGroupId = value.CooldownGroupId,
                     SharedCooldownMs = value.SharedCooldownMs,
@@ -509,9 +515,13 @@ namespace AbilityKit.Demo.Moba.Services
             beforeRaw = 0L;
             afterRaw = 0L;
             if (amount <= Fixed64.Zero) return true;
-            if (resourceType == ResourceType.None || !_actors.TryGetActorEntity(actorId, out var actor) ||
-                actor == null || !actor.hasResourceContainer || actor.resourceContainer.Value?.Map == null ||
-                !actor.resourceContainer.Value.Map.TryGetValue(resourceType, out var resource) || resource == null)
+            if (resourceType == ResourceType.Hp)
+            {
+                failure = "Health costs require a health commit rather than a resource debit.";
+                return false;
+            }
+            if (!_actors.TryGetActorEntity(actorId, out var actor) ||
+                !MobaResourceMutation.TryGetState(actor, resourceType, out var resource))
             {
                 failure = "Required skill resource is unavailable.";
                 return false;
@@ -523,7 +533,7 @@ namespace AbilityKit.Demo.Moba.Services
                 failure = "Insufficient skill resource.";
                 return false;
             }
-            resource.Current -= amount;
+            MobaResourceMutation.TryConsume(actor, resourceType, amount, out _, out _);
             afterRaw = resource.Current.RawValue;
             return true;
         }
@@ -538,8 +548,7 @@ namespace AbilityKit.Demo.Moba.Services
                 actor.resourceContainer.Value.Map.TryGetValue(transaction.ResourceType, out var resource) && resource != null)
             {
                 beforeRaw = resource.Current.RawValue;
-                resource.Current += transaction.ResourceAmount;
-                if (resource.LastMax > Fixed64.Zero && resource.Current > resource.LastMax) resource.Current = resource.LastMax;
+                MobaResourceMutation.Refund(actor, transaction.ResourceType, resource, transaction.ResourceAmount);
                 afterRaw = resource.Current.RawValue;
             }
 
@@ -644,8 +653,8 @@ namespace AbilityKit.Demo.Moba.Services
                     sourceActorId: actorId,
                     targetActorId: targetActorId,
                     configId: skillId,
-                    rootContextId: runtimeHandle.RootTraceContextId,
-                    contextId: runtimeHandle.RootTraceContextId,
+                    rootContextId: runtimeHandle.RootContextId,
+                    contextId: runtimeHandle.RootContextId,
                     skillRuntime: runtime,
                     payloadVersion: BattleDiagnosticSkillExecutionPayload.CurrentSchemaVersion,
                     summary: $"{data.Stage} resource={data.ResourceBeforeRaw}->{data.ResourceAfterRaw} " +

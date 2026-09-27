@@ -89,8 +89,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var source = ResolveContextSource(input, sourceActorId, targetActorId, configId);
             var sourceContextId = source.SourceContextId != 0
                 ? source.SourceContextId
-                : input.ActionInput.HasTraceScope
-                    ? input.ActionInput.TraceScope.EffectContextId
+                : input.ActionInput.HasExecutionScope
+                    ? input.ActionInput.ExecutionScope.EffectContextId
                     : 0L;
 
             var runtime = new MobaMotionContinuousRuntime(
@@ -230,7 +230,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     MobaContextSourceResolveKind.DirectProvider,
                     MobaContextSourceBoundary.LiveRuntime,
                     source.ContextKind != EffectContextKind.Unknown ? source.ContextKind : EffectContextKind.ContinuousPeriodic,
-                    source.TraceKind != MobaTraceKind.None ? source.TraceKind : MobaTraceKind.EffectExecution,
+                    source.ExecutionKind != MobaExecutionKind.None ? source.ExecutionKind : MobaExecutionKind.EffectExecution,
                     source.SourceActorId != 0 ? source.SourceActorId : sourceActorId,
                     source.TargetActorId != 0 ? source.TargetActorId : targetActorId,
                     source.SourceContextId,
@@ -246,18 +246,18 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     source.SkillRuntimeHandle);
             }
 
-            if (actionInput.HasTraceScope)
+            if (actionInput.HasExecutionScope)
             {
-                var trace = actionInput.TraceScope;
+                var executionScope = actionInput.ExecutionScope;
                 var origin = new MobaGameplayOrigin(
                     sourceActorId,
                     targetActorId,
-                    MobaTraceKind.EffectExecution,
-                    trace.EffectConfigId != 0 ? trace.EffectConfigId : configId,
-                    trace.EffectContextId,
-                    trace.EffectContextId,
-                    trace.EffectContextId,
-                    trace.EffectContextId);
+                    MobaExecutionKind.EffectExecution,
+                    executionScope.EffectConfigId != 0 ? executionScope.EffectConfigId : configId,
+                    executionScope.EffectContextId,
+                    executionScope.EffectContextId,
+                    executionScope.EffectContextId,
+                    executionScope.EffectContextId);
                 var lineage = origin.ToLineageContext(EffectContextKind.ContinuousPeriodic);
                 return MobaContextSourceView.FromLineage(
                     in lineage,

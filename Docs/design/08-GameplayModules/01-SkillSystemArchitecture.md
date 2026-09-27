@@ -92,7 +92,8 @@ flowchart TD
     Prep --> Units[IUnitResolver]
     Prep --> Actors[MobaActorLookupService]
     Prep --> Library[IMobaSkillPipelineLibrary]
-    Prep --> Trace[MobaTraceRegistry]
+    Prep --> Context[MobaExecutionContextRegistry]
+    Context -. lifecycle observer .-> Trace[Optional Trace Adapter]
     Prep --> Runtime[MobaSkillCastRuntimeService]
 
     Library --> Config[MobaConfigDatabase]
@@ -327,7 +328,7 @@ flowchart TD
     H -- 成功 --> I[构造 SkillCastRequest]
     I --> J[ResolveSkillLevel + NextCastSequence]
     J --> K[SkillCastContextBuilder.Build]
-    K --> L[MobaTraceRegistry.CreateRootContext]
+    K --> L[MobaExecutionContextRegistry.Create]
     L -- 失败 --> Fail
     L -- 成功 --> M[MobaSkillCastRuntimeService.Create]
     M -- handle 无效 --> Fail
@@ -390,7 +391,7 @@ flowchart LR
 1. **不要把技能写成巨型 Executor**：复杂逻辑应拆到 Pipeline Phase、Trigger PlanAction、Effect Component、Combat Service。
 2. **不要在配置构建阶段修改世界状态**：`TableDrivenMobaSkillPipelineLibrary` 只构建 PhaseDefinition 和 Phase，状态修改应发生在运行时动作中。
 3. **需要可回放/可同步的逻辑必须确定性**：随机值、时间、帧号应由上层注入或来自 `IFrameTime`。
-4. **运行时必须可追踪**：正式技能释放应创建 `MobaTraceRegistry` 根上下文和 `MobaSkillCastRuntimeService` runtime handle。
+4. **运行时必须有正式身份**：正式技能释放应创建 `MobaExecutionContextRegistry` 根上下文和 `MobaSkillCastRuntimeService` runtime handle；Trace Adapter 可选投影该根。
 5. **清理必须集中处理**：阶段订阅、临时对象、持续效果绑定应注册到 `SkillPipelineContext` cleanup 中。
 6. **旧 Checks/Handlers 阶段不应继续扩散**：源码已明确要求迁移到 RulePlan 条件与动作。
 7. **不要把通用 `AbilityTimelinePhase.cs` 当成当前技能时间线实现**：该文件当前只是停用占位，MOBA 正在使用的是 `SkillTimelinePhase`。

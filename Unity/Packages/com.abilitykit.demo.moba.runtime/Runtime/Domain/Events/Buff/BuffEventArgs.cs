@@ -1,5 +1,5 @@
 using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Trace;
+using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Events.Buff
 {
@@ -33,7 +33,7 @@ namespace AbilityKit.Demo.Moba.Events.Buff
         public float DurationSeconds;
 
         /// <summary>移除原因</summary>
-        public TraceLifecycleReason RemoveReason;
+        public MobaExecutionEndReason RemoveReason;
 
         /// <summary>trace/source 上下文 ID，用于溯源链和 owner 绑定</summary>
         public long SourceContextId;

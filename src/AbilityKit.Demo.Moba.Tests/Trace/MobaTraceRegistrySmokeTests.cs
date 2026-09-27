@@ -1,7 +1,5 @@
 using System.Linq;
 using AbilityKit.Combat.Projectile;
-using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Projectile;
@@ -17,8 +15,8 @@ public sealed class MobaTraceRegistrySmokeTests
     public void Skill_phase_location_is_preserved_on_trace_metadata()
     {
         using var registry = new MobaTraceRegistry();
-        var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 1001, 1, 2);
-        var phaseId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 1001, 1, 2);
+        var rootId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 1001, 1, 2);
+        var phaseId = registry.CreateObservationChild(rootId, MobaExecutionKind.SkillPhase, 1001, 1, 2);
 
         Assert.True(registry.TrySetSkillPhaseLocation(phaseId, 1001, 3001, "cast.release"));
         Assert.True(registry.TryGetNodeSnapshot(phaseId, out var snapshot));
@@ -32,7 +30,7 @@ public sealed class MobaTraceRegistrySmokeTests
     public void Effect_trigger_is_preserved_on_trace_metadata()
     {
         using var registry = new MobaTraceRegistry();
-        var rootId = registry.CreateRootContext(MobaTraceKind.EffectExecution, 2001, 1, 2);
+        var rootId = registry.CreateObservationRoot(MobaExecutionKind.EffectExecution, 2001, 1, 2);
 
         Assert.True(registry.TrySetEffectTrigger(rootId, 7001));
         Assert.True(registry.TryGetNodeSnapshot(rootId, out var snapshot));
@@ -41,39 +39,25 @@ public sealed class MobaTraceRegistrySmokeTests
     }
 
     [Fact]
-    public void Pipeline_recorder_creates_and_completes_real_skill_phase_trace()
+    public void Pipeline_recorder_does_not_own_skill_phase_trace_lifecycle()
     {
         using var registry = new MobaTraceRegistry();
-        var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 1001, 1, 2);
-        var parentId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 1001, 1, 2);
-        var resolver = new TestWorldResolver(registry);
-        var aimPos = Vec3.Zero;
-        var aimDir = Vec3.Forward;
-        var request = new SkillCastRequest(1001, 1, 1, 2, in aimPos, in aimDir, resolver, null, null, null);
-        var castContext = new SkillCastContext { CastFlowId = 3001, SourceContextId = rootId };
+        var rootId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 1001, 1, 2);
+        registry.CreateObservationChild(rootId, MobaExecutionKind.SkillPhase, 1001, 1, 2);
+        var revision = registry.Revision;
         var context = new SkillPipelineContext();
-        context.Initialize(null, in request, castContext);
-        context.SetPipelineTraceLocation(3001, parentId);
         var owner = new TestPipelineRun(42, context);
-        var recorder = new MobaPipelineDiagnosticsRecorder(new TestBattleDiagnosticsService());
+        var diagnostics = new TestBattleDiagnosticsService();
+        var recorder = new MobaPipelineDiagnosticsRecorder(diagnostics);
         var pipelinePhaseId = new AbilityPipelinePhaseId("cast.release");
 
         recorder.Record(owner, new PipelineTraceData(1, EPipelineTraceEventType.PhaseStart, pipelinePhaseId, EAbilityPipelineState.Executing, "phase"));
-
-        var active = registry.GetNodeSnapshotsByRoot(rootId)
-            .Single(node => node.ParentId == parentId &&
-                            node.Metadata is MobaTraceMetadata metadata &&
-                            metadata.PhaseId == "cast.release");
-        var activeMetadata = Assert.IsType<MobaTraceMetadata>(active.Metadata);
-        Assert.False(active.IsEnded);
-        Assert.Equal(1001, activeMetadata.SkillId);
-        Assert.Equal(3001, activeMetadata.CastFlowId);
-
         recorder.Record(owner, new PipelineTraceData(2, EPipelineTraceEventType.PhaseComplete, pipelinePhaseId, EAbilityPipelineState.Executing, "phase"));
 
-        Assert.True(registry.TryGetNodeSnapshot(active.ContextId, out var ended));
-        Assert.True(ended.IsEnded);
-        Assert.Equal((int)TraceLifecycleReason.Completed, ended.EndReason);
+        Assert.Equal(revision, registry.Revision);
+        Assert.Equal(2, registry.GetNodeSnapshotsByRoot(rootId).Count());
+        Assert.Equal(1, diagnostics.Counters[MobaBattleDiagnosticMetric.PipelinePhaseStarted]);
+        Assert.Equal(1, diagnostics.Counters[MobaBattleDiagnosticMetric.PipelinePhaseCompleted]);
     }
 
     [Fact]
@@ -83,14 +67,14 @@ public sealed class MobaTraceRegistrySmokeTests
         var events = new List<TraceRegistryEvent>();
         registry.RegistryEvent += events.Add;
 
-        var rootId = registry.CreateRootContext(
-            MobaTraceKind.SkillEffect,
+        var rootId = registry.CreateObservationRoot(
+            MobaExecutionKind.SkillEffect,
             configId: 1001,
             sourceActorId: 1,
             targetActorId: 2);
-        var childId = registry.CreateChildContext(
+        var childId = registry.CreateObservationChild(
             rootId,
-            MobaTraceKind.EffectAction,
+            MobaExecutionKind.EffectAction,
             configId: 2001,
             sourceActorId: 1,
             targetActorId: 2);
@@ -102,19 +86,19 @@ public sealed class MobaTraceRegistrySmokeTests
         Assert.True(rootSnapshot.IsRoot);
         Assert.Equal(rootId, childSnapshot.RootId);
         Assert.Equal(rootId, childSnapshot.ParentId);
-        Assert.Equal((int)MobaTraceKind.SkillEffect, rootSnapshot.Kind);
-        Assert.Equal((int)MobaTraceKind.EffectAction, childSnapshot.Kind);
+        Assert.Equal((int)MobaExecutionKind.SkillEffect, rootSnapshot.Kind);
+        Assert.Equal((int)MobaExecutionKind.EffectAction, childSnapshot.Kind);
 
         var chain = registry.GetChain(rootId);
         Assert.Equal(2, chain.Count);
         Assert.Contains(chain, item => item.ContextId == rootId && item.Metadata.ConfigId == 1001);
-        Assert.Contains(chain, item => item.ContextId == childId && item.Kind == (int)MobaTraceKind.EffectAction);
+        Assert.Contains(chain, item => item.ContextId == childId && item.Kind == (int)MobaExecutionKind.EffectAction);
 
         var snapshots = registry.GetNodeSnapshotsByRoot(rootId).ToArray();
         Assert.Equal(2, snapshots.Length);
         Assert.Contains(snapshots, item => item.ContextId == childId);
 
-        Assert.True(registry.EndRoot(rootId, (int)TraceLifecycleReason.Completed) > 0);
+        Assert.True(registry.EndRoot(rootId, (int)MobaExecutionEndReason.Completed) > 0);
         Assert.True(registry.TryGetNodeSnapshot(rootId, out var endedRoot));
         Assert.Equal(rootId, endedRoot.ContextId);
         Assert.Contains(events, item => item.Kind == TraceRegistryEventKind.RootCreated && item.ContextId == rootId);
@@ -126,14 +110,14 @@ public sealed class MobaTraceRegistrySmokeTests
     public void Export_root_can_prune_nodes_and_strip_metadata()
     {
         using var registry = new MobaTraceRegistry();
-        var rootId = registry.CreateRootContext(
-            MobaTraceKind.SkillEffect,
+        var rootId = registry.CreateObservationRoot(
+            MobaExecutionKind.SkillEffect,
             configId: 1001,
             sourceActorId: 1,
             targetActorId: 2);
-        var childId = registry.CreateChildContext(
+        var childId = registry.CreateObservationChild(
             rootId,
-            MobaTraceKind.BuffApply,
+            MobaExecutionKind.BuffApply,
             configId: 2001,
             sourceActorId: 1,
             targetActorId: 2);
@@ -144,7 +128,7 @@ public sealed class MobaTraceRegistrySmokeTests
         Assert.Equal(rootId, full.RootId);
         Assert.Equal(2, full.Nodes.Count);
         Assert.False(full.Truncated);
-        Assert.Contains(full.Nodes, item => item.ContextId == rootId && item.KindName == nameof(MobaTraceKind.SkillEffect) && item.Metadata != null);
+        Assert.Contains(full.Nodes, item => item.ContextId == rootId && item.KindName == nameof(MobaExecutionKind.SkillEffect) && item.Metadata != null);
         Assert.Contains(full.Nodes, item => item.ContextId == childId && item.ParentId == rootId && item.Metadata != null);
 
         Assert.Equal(rootId, pruned.RootId);
@@ -157,20 +141,20 @@ public sealed class MobaTraceRegistrySmokeTests
     public void Export_root_can_apply_depth_and_tree_order_options()
     {
         using var registry = new MobaTraceRegistry();
-        var rootId = registry.CreateRootContext(
-            MobaTraceKind.SkillEffect,
+        var rootId = registry.CreateObservationRoot(
+            MobaExecutionKind.SkillEffect,
             configId: 1001,
             sourceActorId: 1,
             targetActorId: 2);
-        var childId = registry.CreateChildContext(
+        var childId = registry.CreateObservationChild(
             rootId,
-            MobaTraceKind.EffectAction,
+            MobaExecutionKind.EffectAction,
             configId: 2001,
             sourceActorId: 1,
             targetActorId: 2);
-        var grandChildId = registry.CreateChildContext(
+        var grandChildId = registry.CreateObservationChild(
             childId,
-            MobaTraceKind.BuffTick,
+            MobaExecutionKind.BuffTick,
             configId: 3001,
             sourceActorId: 1,
             targetActorId: 2);
@@ -193,14 +177,14 @@ public sealed class MobaTraceRegistrySmokeTests
     public void Projectile_source_snapshot_survives_link_cleanup_while_trace_remains_until_purge()
     {
         using var registry = new MobaTraceRegistry();
-        var rootId = registry.CreateRootContext(
-            MobaTraceKind.SkillCast,
+        var rootId = registry.CreateObservationRoot(
+            MobaExecutionKind.SkillCast,
             configId: 1001,
             sourceActorId: 101,
             targetActorId: 202);
-        var launchContextId = registry.CreateChildContext(
+        var launchContextId = registry.CreateObservationChild(
             rootId,
-            MobaTraceKind.ProjectileLaunch,
+            MobaExecutionKind.ProjectileLaunch,
             configId: 3001,
             sourceActorId: 101,
             targetActorId: 202);
@@ -221,7 +205,7 @@ public sealed class MobaTraceRegistrySmokeTests
         Assert.True(linkedSource.TryGetLineageContext(out var lineage));
         Assert.Equal(rootId, lineage.RootContextId);
 
-        Assert.True(registry.EndContext(launchContextId, TraceLifecycleReason.Completed));
+        Assert.True(registry.EndContext(launchContextId, MobaExecutionEndReason.Completed));
         links.UnlinkByActorId(actorId: 9001);
 
         Assert.False(links.TryGetSource(projectileId, out _));
@@ -245,14 +229,14 @@ public sealed class MobaTraceRegistrySmokeTests
     public void Retained_persistent_source_blocks_purge_until_handle_is_released()
     {
         using var registry = new MobaTraceRegistry();
-        var rootId = registry.CreateRootContext(
-            MobaTraceKind.BuffApply,
+        var rootId = registry.CreateObservationRoot(
+            MobaExecutionKind.BuffApply,
             configId: 4001,
             sourceActorId: 101,
             targetActorId: 202);
-        var childId = registry.CreateChildContext(
+        var childId = registry.CreateObservationChild(
             rootId,
-            MobaTraceKind.BuffTick,
+            MobaExecutionKind.BuffTick,
             configId: 4001,
             sourceActorId: 101,
             targetActorId: 202);
@@ -260,7 +244,7 @@ public sealed class MobaTraceRegistrySmokeTests
             MobaContextSourceResolveKind.DirectProvider,
             MobaContextSourceBoundary.Snapshot,
             EffectContextKind.Buff,
-            MobaTraceKind.BuffTick,
+            MobaExecutionKind.BuffTick,
             sourceActorId: 101,
             targetActorId: 202,
             sourceContextId: childId,
@@ -279,8 +263,8 @@ public sealed class MobaTraceRegistrySmokeTests
         Assert.True(registry.TryRetainPersistentSource(in snapshot, "buff.tick.delayed", out var handle));
         Assert.True(handle.IsValid);
         Assert.Equal(rootId, handle.RootId);
-        Assert.True(registry.EndContext(childId, TraceLifecycleReason.Completed));
-        Assert.True(registry.EndContext(rootId, TraceLifecycleReason.Completed));
+        Assert.True(registry.EndContext(childId, MobaExecutionEndReason.Completed));
+        Assert.True(registry.EndContext(rootId, MobaExecutionEndReason.Completed));
 
         var purgedWhileRetained = registry.Purge(currentFrame: 100, keepEndedFrames: 0);
 
@@ -305,8 +289,8 @@ public sealed class MobaTraceRegistrySmokeTests
     {
         using var registry = new MobaTraceRegistry();
         var diagnostics = new TestBattleDiagnosticsService();
-        var rootId = registry.CreateRootContext(
-            MobaTraceKind.ProjectileLaunch,
+        var rootId = registry.CreateObservationRoot(
+            MobaExecutionKind.ProjectileLaunch,
             configId: 3001,
             sourceActorId: 101,
             targetActorId: 202);
@@ -314,7 +298,7 @@ public sealed class MobaTraceRegistrySmokeTests
             MobaContextSourceResolveKind.DirectProvider,
             MobaContextSourceBoundary.Snapshot,
             EffectContextKind.Projectile,
-            MobaTraceKind.ProjectileLaunch,
+            MobaExecutionKind.ProjectileLaunch,
             sourceActorId: 101,
             targetActorId: 202,
             sourceContextId: rootId,
@@ -331,7 +315,7 @@ public sealed class MobaTraceRegistrySmokeTests
         var snapshot = MobaPersistentContextSourceSnapshotFactory.FromContextSource(in source);
 
         Assert.True(registry.TryRetainPersistentSource(in snapshot, "projectile.hit.delay", out var handle));
-        Assert.True(registry.EndRoot(rootId, (int)TraceLifecycleReason.Completed) > 0);
+        Assert.True(registry.EndRoot(rootId, (int)MobaExecutionEndReason.Completed) > 0);
 
         var result = registry.ScanRetention(diagnostics, staleFrameThreshold: 0, currentFrame: 20);
 
@@ -352,15 +336,16 @@ public sealed class MobaTraceRegistrySmokeTests
     public void Lifecycle_hook_trace_retention_survives_runtime_context_cleanup_until_release()
     {
         using var registry = new MobaTraceRegistry();
-        var hook = new MobaTraceRetentionLifecycleHook(registry);
-        var rootId = registry.CreateRootContext(
-            MobaTraceKind.SkillEffect,
+        var hook = new MobaTraceRetentionLifecycleHook(
+            new MobaRuntimeTraceRetentionService(registry));
+        var rootId = registry.CreateObservationRoot(
+            MobaExecutionKind.SkillEffect,
             configId: 1001,
             sourceActorId: 101,
             targetActorId: 202);
-        var buffContextId = registry.CreateChildContext(
+        var buffContextId = registry.CreateObservationChild(
             rootId,
-            MobaTraceKind.BuffApply,
+            MobaExecutionKind.BuffApply,
             configId: 4001,
             sourceActorId: 101,
             targetActorId: 202);
@@ -368,7 +353,7 @@ public sealed class MobaTraceRegistrySmokeTests
             MobaContextSourceResolveKind.DirectProvider,
             MobaContextSourceBoundary.Snapshot,
             EffectContextKind.Buff,
-            MobaTraceKind.BuffApply,
+            MobaExecutionKind.BuffApply,
             sourceActorId: 101,
             targetActorId: 202,
             sourceContextId: buffContextId,
@@ -393,8 +378,8 @@ public sealed class MobaTraceRegistrySmokeTests
 
         hook.OnRuntimeLifecycle(in activated);
         Assert.True(hook.IsRetained(runtime));
-        Assert.True(registry.EndContext(buffContextId, TraceLifecycleReason.Completed));
-        Assert.True(registry.EndContext(rootId, TraceLifecycleReason.Completed));
+        Assert.True(registry.EndContext(buffContextId, MobaExecutionEndReason.Completed));
+        Assert.True(registry.EndContext(rootId, MobaExecutionEndReason.Completed));
 
         runtime.SourceContextId = 0;
         runtime.ContextSource = default;
@@ -419,8 +404,8 @@ public sealed class MobaTraceRegistrySmokeTests
     public void Safe_purge_root_refuses_retained_roots_until_release()
     {
         using var registry = new MobaTraceRegistry();
-        var rootId = registry.CreateRootContext(
-            MobaTraceKind.ProjectileLaunch,
+        var rootId = registry.CreateObservationRoot(
+            MobaExecutionKind.ProjectileLaunch,
             configId: 3001,
             sourceActorId: 101,
             targetActorId: 202);
@@ -428,7 +413,7 @@ public sealed class MobaTraceRegistrySmokeTests
             MobaContextSourceResolveKind.DirectProvider,
             MobaContextSourceBoundary.Snapshot,
             EffectContextKind.Projectile,
-            MobaTraceKind.ProjectileLaunch,
+            MobaExecutionKind.ProjectileLaunch,
             sourceActorId: 101,
             targetActorId: 202,
             sourceContextId: rootId,
@@ -445,7 +430,7 @@ public sealed class MobaTraceRegistrySmokeTests
         var snapshot = MobaPersistentContextSourceSnapshotFactory.FromContextSource(in source);
 
         Assert.True(registry.TryRetainPersistentSource(in snapshot, "projectile.hit.delay", out var handle));
-        Assert.True(registry.EndContext(rootId, TraceLifecycleReason.Completed));
+        Assert.True(registry.EndContext(rootId, MobaExecutionEndReason.Completed));
 
         Assert.False(registry.TryPurgeReleasedRoot(rootId));
         Assert.True(registry.TryGetNodeSnapshot(rootId, out _));
@@ -458,6 +443,7 @@ public sealed class MobaTraceRegistrySmokeTests
     private sealed class TestBattleDiagnosticsService : IMobaBattleDiagnosticsService
     {
         public readonly Dictionary<string, long> Gauges = new();
+        public readonly Dictionary<string, long> Counters = new();
         public readonly List<KeyValuePair<string, string>> Warnings = new();
 
         public long GetTimestamp() => 0L;
@@ -465,7 +451,11 @@ public sealed class MobaTraceRegistrySmokeTests
         public bool ShouldSample(string channel) => true;
         public MobaBattleDiagnosticScope Measure(string metricName, double warnThresholdMs = 0d, string context = null) => default;
         public void RecordDuration(string metricName, long startTimestamp, double warnThresholdMs = 0d, string context = null) { }
-        public void Counter(string counterName, long value = 1L) { }
+        public void Counter(string counterName, long value = 1L)
+        {
+            Counters.TryGetValue(counterName, out var current);
+            Counters[counterName] = current + value;
+        }
         public void Gauge(string gaugeName, long value) => Gauges[gaugeName] = value;
         public void Sample(string sampleName, double value) { }
         public void Warning(string key, string message, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit) => Warnings.Add(new KeyValuePair<string, string>(key, message));
@@ -482,36 +472,6 @@ public sealed class MobaTraceRegistrySmokeTests
         public IReadOnlyList<MobaBattleDiagnosticWarningRecord> GetWarningsSnapshot() => Array.Empty<MobaBattleDiagnosticWarningRecord>();
         public IReadOnlyList<MobaBattleDiagnosticExceptionRecord> GetExceptionsSnapshot() => Array.Empty<MobaBattleDiagnosticExceptionRecord>();
         public MobaBattleDiagnosticsSnapshot GetSnapshot() => default;
-    }
-
-    private sealed class TestWorldResolver : IWorldResolver
-    {
-        private readonly MobaTraceRegistry _trace;
-
-        public TestWorldResolver(MobaTraceRegistry trace) => _trace = trace;
-
-        public object Resolve(Type serviceType) =>
-            serviceType == typeof(MobaTraceRegistry) ? _trace : null;
-
-        public T Resolve<T>() => TryResolve<T>(out var instance) ? instance : default;
-
-        public bool TryResolve(Type serviceType, out object instance)
-        {
-            instance = Resolve(serviceType);
-            return instance != null;
-        }
-
-        public bool TryResolve<T>(out T instance)
-        {
-            if (_trace is T resolved)
-            {
-                instance = resolved;
-                return true;
-            }
-
-            instance = default;
-            return false;
-        }
     }
 
     private sealed class TestPipelineRun : IAbilityPipelineRun<SkillPipelineContext>, IPipelineLifeOwner

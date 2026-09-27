@@ -1,6 +1,10 @@
 [CmdletBinding()]
 param(
     [switch]$SkipUnity,
+    [switch]$FocusTurnRecord,
+    [switch]$VerifyCrossProcess,
+    [ValidateSet('', '01', '02', '03', '04', '05', '06', '09', '10')]
+    [string]$FocusChapter = '',
     [string]$UnityExe = 'C:\Software\Unity 2022.3.62f3\Editor\Unity.exe',
     [int]$SiloPort = 11170,
     [int]$OrleansGatewayPort = 30070,
@@ -13,6 +17,8 @@ $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $siloProcess = $null
 $gatewayProcess = $null
 $project = $null
+$consumerProject = $null
+$consumerTurnProject = $null
 $previousEnvironment = $env:DOTNET_ENVIRONMENT
 $previousArtifactsPath = $env:ArtifactsPath
 $previousUseArtifactsOutput = $env:UseArtifactsOutput
@@ -23,13 +29,24 @@ $env:ArtifactsPath = Join-Path $outputRoot 'artifacts'
 $env:UseArtifactsOutput = 'true'
 $phaseResults = [ordered]@{}
 
-function Write-Phase([string]$Name, [string]$Status) {
+function Write-Phase([string]$Name, [string]$Status, [string]$Detail = '') {
     $phaseResults[$Name] = [ordered]@{
         status = $Status
         updatedAtUtc = [DateTime]::UtcNow.ToString('o')
     }
+    if ($Detail) { $phaseResults[$Name].detail = $Detail }
     $phaseResults | ConvertTo-Json -Depth 4 |
         Set-Content -LiteralPath (Join-Path $outputRoot 'phases.json') -Encoding UTF8
+}
+
+trap {
+    $failure = $_.Exception.Message
+    foreach ($name in @($phaseResults.Keys)) {
+        if ($phaseResults[$name].status -eq 'running') {
+            Write-Phase $name 'failed' $failure
+        }
+    }
+    throw $failure
 }
 
 function Invoke-Dotnet([string[]]$Arguments) {
@@ -66,6 +83,171 @@ function Invoke-TinyHybridMismatch([string]$Prefix) {
     }
 }
 
+function Invoke-TinyLiveRecord([string]$Prefix) {
+    $recordPath = Join-Path $outputRoot 'tiny-live-record.bin'
+    $logPath = Join-Path $outputRoot 'tiny-live-record.log'
+    $evidencePath = Join-Path $outputRoot 'tiny-live-record.json'
+    & dotnet run --no-build --project 'src/AbilityKit.Demo.Tiny.LiveRecord.Sample' -- `
+        '127.0.0.1' $TcpPort $Prefix $recordPath $evidencePath 2>&1 | Tee-Object -FilePath $logPath
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $recordPath) -or
+        -not (Test-Path -LiteralPath $evidencePath)) {
+        throw "Tiny live Record/Replay failed. Log: $logPath"
+    }
+    $evidence = Get-Content -LiteralPath $evidencePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $checkpoints = @($evidence.checkpointFrames)
+    $checkpointHashes = @($evidence.checkpointHashes)
+    if (-not $evidence.passed -or $evidence.inputCount -ne 6 -or
+        $evidence.snapshotCount -ne 3 -or $evidence.hashCount -lt 6 -or
+        $checkpoints.Count -ne 2 -or $checkpointHashes.Count -ne 2 -or
+        $evidence.baselineFrame -ge $checkpoints[0] -or
+        $checkpoints[0] -ge $checkpoints[1] -or
+        $checkpoints[1] -ge $evidence.finalFrame -or
+        @($checkpointHashes | Where-Object { $_ -ne $evidence.baselineHash }).Count -gt 0 -or
+        $evidence.ownerHp -ne 80 -or $evidence.guestHp -ne 80 -or
+        @($evidence.actions).Count -ne 6) {
+        throw "Tiny live Record/Replay evidence is incomplete: $evidencePath"
+    }
+}
+
+function Invoke-TinyProcessSmoke([string]$Mode, [string]$Prefix) {
+    $directory = Join-Path $outputRoot "process-$Mode"
+    [System.IO.Directory]::CreateDirectory($directory) | Out-Null
+    $clientDll = Join-Path $env:ArtifactsPath `
+        'bin/AbilityKit.Demo.Tiny.Client/debug/AbilityKit.Demo.Tiny.Client.dll'
+    if (-not (Test-Path -LiteralPath $clientDll)) {
+        throw "Tiny process client is missing: $clientDll"
+    }
+    $children = @()
+    try {
+        foreach ($role in @('owner', 'guest')) {
+            $start = [System.Diagnostics.ProcessStartInfo]::new('dotnet')
+            $start.WorkingDirectory = $repositoryRoot
+            $start.UseShellExecute = $false
+            $start.CreateNoWindow = $true
+            $start.RedirectStandardOutput = $true
+            $start.RedirectStandardError = $true
+            $start.Arguments = (@($clientDll, '127.0.0.1', [string]$TcpPort,
+                    $Prefix, "process-$role-$Mode", $directory) |
+                ForEach-Object { '"' + $_ + '"' }) -join ' '
+            $child = [System.Diagnostics.Process]::new()
+            $child.StartInfo = $start
+            if (-not $child.Start()) { throw "Tiny $Mode $role process did not start." }
+            $children += [pscustomobject]@{
+                Process = $child
+                Role = $role
+                Output = $child.StandardOutput.ReadToEndAsync()
+                Error = $child.StandardError.ReadToEndAsync()
+            }
+        }
+        foreach ($child in $children) {
+            if (-not $child.Process.WaitForExit(90000)) {
+                throw "Tiny $Mode $($child.Role) process timed out. Logs: $directory"
+            }
+            if ($child.Process.ExitCode -ne 0) {
+                throw "Tiny $Mode $($child.Role) process exited $($child.Process.ExitCode). Logs: $directory"
+            }
+        }
+        $owner = Get-Content -LiteralPath (Join-Path $directory 'owner.json') `
+            -Raw -Encoding UTF8 | ConvertFrom-Json
+        $guest = Get-Content -LiteralPath (Join-Path $directory 'guest.json') `
+            -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($owner.Role -ne 'owner' -or $guest.Role -ne 'guest' -or
+            $owner.Mode -ne $Mode -or $guest.Mode -ne $Mode -or
+            $owner.ProcessId -eq $guest.ProcessId -or
+            @($children | ForEach-Object { $_.Process.Id }) -notcontains $owner.ProcessId -or
+            @($children | ForEach-Object { $_.Process.Id }) -notcontains $guest.ProcessId -or
+            $owner.RoomId -ne $guest.RoomId -or $owner.BattleId -ne $guest.BattleId -or
+            $owner.TargetHp -ne 90 -or $guest.TargetHp -ne 90 -or
+            $owner.OwnerX -ne 0 -or $guest.OwnerX -ne 0 -or
+            $owner.AuthoritativeFrame -le 0 -or $guest.AuthoritativeFrame -le 0 -or
+            -not $guest.Recovered -or
+            ($Mode -eq 'Hybrid') -ne ($owner.LocalPredictions -gt 0)) {
+            throw "Tiny $Mode process evidence is incomplete: $directory"
+        }
+        Write-Host "Tiny $Mode independent processes passed: $($owner.ProcessId), $($guest.ProcessId)"
+    }
+    finally {
+        foreach ($child in $children) {
+            if (-not $child.Process.HasExited) {
+                $child.Process.Kill()
+                $child.Process.WaitForExit(5000) | Out-Null
+            }
+            $child.Output.GetAwaiter().GetResult() | Set-Content -LiteralPath `
+                (Join-Path $directory "$($child.Role).out.log") -Encoding UTF8
+            $child.Error.GetAwaiter().GetResult() | Set-Content -LiteralPath `
+                (Join-Path $directory "$($child.Role).err.log") -Encoding UTF8
+            $child.Process.Dispose()
+        }
+    }
+}
+
+function Invoke-TinyTurnSmoke([string]$Prefix) {
+    $directory = Join-Path $outputRoot 'process-Turn'
+    [System.IO.Directory]::CreateDirectory($directory) | Out-Null
+    $clientDll = Join-Path $env:ArtifactsPath `
+        'bin/AbilityKit.Demo.Tiny.Turn.StateSample/debug/AbilityKit.Demo.Tiny.Turn.StateSample.dll'
+    if (-not (Test-Path -LiteralPath $clientDll)) {
+        throw "Tiny Turn client is missing: $clientDll"
+    }
+    $children = @()
+    try {
+        foreach ($role in @('owner', 'guest')) {
+            $start = [System.Diagnostics.ProcessStartInfo]::new('dotnet')
+            $start.WorkingDirectory = $repositoryRoot
+            $start.UseShellExecute = $false
+            $start.CreateNoWindow = $true
+            $start.RedirectStandardOutput = $true
+            $start.RedirectStandardError = $true
+            $start.Arguments = (@($clientDll, '127.0.0.1', [string]$TcpPort,
+                    $Prefix, $role, $directory) | ForEach-Object { '"' + $_ + '"' }) -join ' '
+            $process = [System.Diagnostics.Process]::new()
+            $process.StartInfo = $start
+            if (-not $process.Start()) { throw "Tiny Turn $role process did not start." }
+            $children += [pscustomobject]@{
+                Process = $process
+                Role = $role
+                Output = $process.StandardOutput.ReadToEndAsync()
+                Error = $process.StandardError.ReadToEndAsync()
+            }
+        }
+        foreach ($child in $children) {
+            if (-not $child.Process.WaitForExit(110000)) {
+                throw "Tiny Turn $($child.Role) timed out: $directory"
+            }
+            if ($child.Process.ExitCode -ne 0) {
+                throw "Tiny Turn $($child.Role) exited $($child.Process.ExitCode): $directory"
+            }
+        }
+        $owner = Get-Content -LiteralPath (Join-Path $directory 'owner.json') -Raw | ConvertFrom-Json
+        $guest = Get-Content -LiteralPath (Join-Path $directory 'guest.json') -Raw | ConvertFrom-Json
+        if ($owner.ProcessId -eq $guest.ProcessId -or
+            $owner.ProcessId -ne $children[0].Process.Id -or
+            $guest.ProcessId -ne $children[1].Process.Id -or
+            $owner.BattleId -ne $guest.BattleId -or $owner.RoomId -ne $guest.RoomId -or
+            $owner.WinnerId -ne 1 -or $guest.WinnerId -ne 1 -or
+            $owner.Turn -ne 3 -or $guest.Turn -ne 3 -or
+            $owner.OwnerHp -ne 1 -or $guest.OwnerHp -ne 1 -or
+            $owner.GuestHp -ne 0 -or $guest.GuestHp -ne 0 -or
+            -not $owner.OutOfTurnRejected -or -not $guest.Recovered) {
+            throw "Tiny Turn evidence is incomplete: $directory"
+        }
+        Write-Host "Tiny Turn independent processes passed: $($owner.ProcessId), $($guest.ProcessId)"
+    }
+    finally {
+        foreach ($child in $children) {
+            if (-not $child.Process.HasExited) {
+                $child.Process.Kill()
+                $child.Process.WaitForExit(5000) | Out-Null
+            }
+            $child.Output.GetAwaiter().GetResult() | Set-Content -LiteralPath `
+                (Join-Path $directory "$($child.Role).out.log") -Encoding UTF8
+            $child.Error.GetAwaiter().GetResult() | Set-Content -LiteralPath `
+                (Join-Path $directory "$($child.Role).err.log") -Encoding UTF8
+            $child.Process.Dispose()
+        }
+    }
+}
+
 function Invoke-StateSample([string]$Prefix) {
     $logPath = Join-Path $outputRoot 'state-sample.log'
     & dotnet run --no-build --project 'src/AbilityKit.Demo.Tiny.StateSample' -- `
@@ -96,6 +278,90 @@ function Invoke-UnityBatch([string[]]$Arguments) {
         throw "Unity batchmode timed out after five minutes."
     }
     return $unity.ExitCode
+}
+
+function Invoke-TinyCrossProcessUnity([string]$Mode) {
+    $directory = Join-Path $outputRoot "unity-cross-$Mode"
+    [System.IO.Directory]::CreateDirectory($directory) | Out-Null
+    $roomFile = Join-Path $directory 'room-id.txt'
+    $previousPort = $env:ABILITYKIT_TINY_UNITY_PORT
+    $previousPrefix = $env:ABILITYKIT_TINY_UNITY_PREFIX
+    $previousMode = $env:ABILITYKIT_TINY_CROSS_MODE
+    $previousRoomFile = $env:ABILITYKIT_TINY_CROSS_ROOM_FILE
+    $previousEvidenceDir = $env:ABILITYKIT_TINY_CROSS_EVIDENCE_DIR
+    $children = @()
+    try {
+        foreach ($role in @('owner', 'guest')) {
+            $crossProject = Join-Path $directory "$role-project"
+            & (Join-Path $PSScriptRoot 'create-tiny-validation-project.ps1') `
+                -OutputPath $crossProject -Standalone -IncludeTurn
+            Assert-TinyPackageDistribution $crossProject
+        }
+        $env:ABILITYKIT_TINY_UNITY_PORT = [string]$TcpPort
+        $env:ABILITYKIT_TINY_UNITY_PREFIX = "tiny-$runId-cross-$Mode"
+        $env:ABILITYKIT_TINY_CROSS_MODE = $Mode
+        $env:ABILITYKIT_TINY_CROSS_ROOM_FILE = $roomFile
+        $env:ABILITYKIT_TINY_CROSS_EVIDENCE_DIR = $directory
+        foreach ($role in @('owner', 'guest')) {
+            $results = Join-Path $directory "$role.xml"
+            $log = Join-Path $directory "$role-unity.log"
+            $arguments = @(
+                '-batchmode', '-nographics', '-projectPath', (Join-Path $directory "$role-project"),
+                '-runTests', '-testPlatform', 'PlayMode',
+                '-assemblyNames', 'TinyConsumer.CrossProcess.PlayMode.Tests',
+                '-testFilter', "TinyConsumer.Tests.TinyConsumerCrossProcessPlayModeTests.Independent$($role.Substring(0, 1).ToUpper() + $role.Substring(1))UsesGateway",
+                '-testResults', $results, '-logFile', $log)
+            $child = Start-Process -FilePath $UnityExe -WindowStyle Hidden -PassThru `
+                -ArgumentList $arguments
+            $children += [pscustomobject]@{ Role = $role; Process = $child; Results = $results; Log = $log }
+        }
+        $deadline = [DateTime]::UtcNow.AddMinutes(5)
+        while (@($children | Where-Object { -not $_.Process.HasExited }).Count -gt 0 -and
+            [DateTime]::UtcNow -lt $deadline) {
+            Start-Sleep -Seconds 1
+        }
+        foreach ($child in $children) {
+            if (-not $child.Process.HasExited) { throw "Tiny $Mode cross-process Unity timed out: $directory" }
+            [xml]$xml = Get-Content -LiteralPath $child.Results -Raw -Encoding UTF8
+            $run = $xml.'test-run'
+            if ($child.Process.ExitCode -ne 0 -or $null -eq $run -or
+                [int]$run.total -ne 1 -or [int]$run.passed -ne 1 -or [int]$run.failed -ne 0) {
+                throw "Tiny $Mode $($child.Role) cross-process test failed: $($child.Log)"
+            }
+        }
+        $owner = Get-Content -LiteralPath (Join-Path $directory 'owner.json') `
+            -Raw -Encoding UTF8 | ConvertFrom-Json
+        $guest = Get-Content -LiteralPath (Join-Path $directory 'guest.json') `
+            -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($owner.mode -ne $Mode -or $guest.mode -ne $Mode -or
+            $owner.role -ne 'owner' -or $guest.role -ne 'guest' -or
+            $owner.processId -ne $children[0].Process.Id -or
+            $guest.processId -ne $children[1].Process.Id -or
+            $owner.processId -eq $guest.processId -or
+            -not $owner.sceneRootReady -or -not $guest.sceneRootReady -or
+            -not $owner.authoritativeResult -or -not $guest.authoritativeResult -or
+            -not $owner.returnedToLobby -or -not $guest.returnedToLobby -or
+            [string]::IsNullOrWhiteSpace($owner.roomId) -or
+            [string]::IsNullOrWhiteSpace($owner.battleId) -or
+            $owner.roomId -ne $guest.roomId -or $owner.battleId -ne $guest.battleId) {
+            throw "Tiny $Mode cross-process evidence is incomplete: $directory"
+        }
+        Write-Host "Tiny $Mode Unity cross-process passed: $($owner.roomId)"
+    }
+    finally {
+        foreach ($child in $children) {
+            if (-not $child.Process.HasExited) {
+                Stop-Process -Id $child.Process.Id -Force
+                $child.Process.WaitForExit(5000) | Out-Null
+            }
+            $child.Process.Dispose()
+        }
+        $env:ABILITYKIT_TINY_UNITY_PORT = $previousPort
+        $env:ABILITYKIT_TINY_UNITY_PREFIX = $previousPrefix
+        $env:ABILITYKIT_TINY_CROSS_MODE = $previousMode
+        $env:ABILITYKIT_TINY_CROSS_ROOM_FILE = $previousRoomFile
+        $env:ABILITYKIT_TINY_CROSS_EVIDENCE_DIR = $previousEvidenceDir
+    }
 }
 
 function Assert-TinyPackageDistribution([string]$Project) {
@@ -155,7 +421,45 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Room wire schema check failed.' }
         Write-Phase 'protocol' 'passed'
 
+        Write-Phase 'dependencies' 'running'
+        & (Join-Path $PSScriptRoot 'verify-tiny-dependencies.ps1')
+        if ($LASTEXITCODE -ne 0) { throw 'Tiny dependency tiers failed.' }
+        Write-Phase 'dependencies' 'passed'
+
         Write-Phase 'dotnet' 'running'
+        if ($FocusChapter) {
+            switch ($FocusChapter) {
+                '01' { Invoke-Dotnet @('run', '--project', 'src/AbilityKit.Demo.Tiny.Logic.Sample', '--no-launch-profile', '-v:q') }
+                '02' { Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.RoomSample/AbilityKit.Demo.Tiny.RoomSample.csproj', '--nologo', '-clp:ErrorsOnly') }
+                '03' { Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.StateSample/AbilityKit.Demo.Tiny.StateSample.csproj', '--nologo', '-clp:ErrorsOnly') }
+                '04' { Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.FrameSample/AbilityKit.Demo.Tiny.FrameSample.csproj', '--nologo', '-clp:ErrorsOnly') }
+                '05' { Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.HybridSample/AbilityKit.Demo.Tiny.HybridSample.csproj', '--nologo', '-clp:ErrorsOnly') }
+                '06' { Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.RecoverySample/AbilityKit.Demo.Tiny.RecoverySample.csproj', '--nologo', '-clp:ErrorsOnly') }
+                '09' {
+                    Invoke-Dotnet @('run', '--project', 'src/AbilityKit.Demo.Tiny.Record.Sample',
+                        '--no-launch-profile', '-v:q', '--', (Join-Path $outputRoot 'tiny-record.bin'))
+                    Invoke-Dotnet @('run', '--project', 'src/AbilityKit.Demo.Tiny.ProtocolEvolution.Sample',
+                        '--no-launch-profile', '-v:q')
+                    Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.LiveRecord.Sample/AbilityKit.Demo.Tiny.LiveRecord.Sample.csproj', '--nologo', '-clp:ErrorsOnly')
+                }
+                '10' {
+                    Invoke-Dotnet @('run', '--project', 'src/AbilityKit.Demo.Tiny.BattleStyles.Sample', '--no-launch-profile', '-v:q')
+                    Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.Turn.StateSample/AbilityKit.Demo.Tiny.Turn.StateSample.csproj', '--nologo', '-clp:ErrorsOnly')
+                }
+            }
+        }
+        elseif ($FocusTurnRecord) {
+            Invoke-Dotnet @('run', '--project', 'src/AbilityKit.Demo.Tiny.BattleStyles.Sample',
+                '--no-launch-profile', '-v:q')
+            Invoke-Dotnet @('run', '--project', 'src/AbilityKit.Demo.Tiny.Record.Sample',
+                '--no-launch-profile', '-v:q', '--', (Join-Path $outputRoot 'tiny-record.bin'))
+            foreach ($name in @('AbilityKit.Demo.Tiny.Turn.StateSample',
+                    'AbilityKit.Demo.Tiny.Turn.ClientHarness',
+                    'AbilityKit.Demo.Tiny.LiveRecord.Sample')) {
+                Invoke-Dotnet @('build', "src/$name/$name.csproj", '--nologo', '-clp:ErrorsOnly')
+            }
+        }
+        else {
         Invoke-Dotnet @('test', 'src/AbilityKit.Network.Room.Tests/AbilityKit.Network.Room.Tests.csproj',
             '--nologo', '-clp:ErrorsOnly')
         Invoke-Dotnet @('test', 'src/AbilityKit.Demo.Tiny.Replication.Tests/AbilityKit.Demo.Tiny.Replication.Tests.csproj',
@@ -170,7 +474,19 @@ try {
             '--no-launch-profile', '--nologo', '-v:q')
         Invoke-Dotnet @('run', '--project', 'src/AbilityKit.Demo.Tiny.ChapterSamples',
             '--no-launch-profile', '--nologo', '-v:q')
+        Invoke-Dotnet @('run', '--project', 'src/AbilityKit.Demo.Tiny.ProtocolEvolution.Sample',
+            '--no-launch-profile', '-v:q')
+        Invoke-Dotnet @('run', '--project', 'src/AbilityKit.Demo.Tiny.BattleStyles.Sample',
+            '--no-launch-profile', '-v:q')
+        Invoke-Dotnet @('run', '--project', 'src/AbilityKit.Demo.Tiny.Record.Sample',
+            '--no-launch-profile', '-v:q', '--', (Join-Path $outputRoot 'tiny-record.bin'))
         Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.Client/AbilityKit.Demo.Tiny.Client.csproj',
+            '--nologo', '-clp:ErrorsOnly')
+        Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.Turn.StateSample/AbilityKit.Demo.Tiny.Turn.StateSample.csproj',
+            '--nologo', '-clp:ErrorsOnly')
+        Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.Turn.ClientHarness/AbilityKit.Demo.Tiny.Turn.ClientHarness.csproj',
+            '--nologo', '-clp:ErrorsOnly')
+        Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.LiveRecord.Sample/AbilityKit.Demo.Tiny.LiveRecord.Sample.csproj',
             '--nologo', '-clp:ErrorsOnly')
         Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.StateSample/AbilityKit.Demo.Tiny.StateSample.csproj',
             '--nologo', '-clp:ErrorsOnly')
@@ -182,7 +498,14 @@ try {
             '--nologo', '-clp:ErrorsOnly')
         Invoke-Dotnet @('build', 'src/AbilityKit.Demo.Tiny.RecoverySample/AbilityKit.Demo.Tiny.RecoverySample.csproj',
             '--nologo', '-clp:ErrorsOnly')
+        }
         Write-Phase 'dotnet' 'passed'
+
+        if ($FocusChapter -eq '01') {
+            Write-Phase 'tcp' 'skipped'
+            Write-Host "Tiny chapter 01 passed. Evidence: $outputRoot"
+            return
+        }
 
         Write-Phase 'tcp' 'running'
         foreach ($port in @($SiloPort, $OrleansGatewayPort, $TcpPort, $HttpPort)) {
@@ -217,6 +540,27 @@ try {
             -RedirectStandardError (Join-Path $outputRoot 'gateway.err.log')
         Wait-Port $TcpPort $gatewayProcess
 
+        if ($FocusChapter) {
+            switch ($FocusChapter) {
+                '02' { Invoke-RoomSample "tiny-$runId-room" }
+                '03' { Invoke-StateSample "tiny-$runId-state" }
+                '04' { Invoke-SyncChapterSample 'Frame' "tiny-$runId-frame" }
+                '05' { Invoke-SyncChapterSample 'Hybrid' "tiny-$runId-hybrid" }
+                '06' { Invoke-SyncChapterSample 'Recovery' "tiny-$runId-recovery" }
+                '09' {
+                    Write-Phase 'tcp-record' 'running'
+                    Invoke-TinyLiveRecord "tiny-$runId-live-record"
+                    Write-Phase 'tcp-record' 'passed'
+                }
+                '10' {
+                    Write-Phase 'tcp-turn' 'running'
+                    Invoke-TinyTurnSmoke "tiny-$runId-turn"
+                    Write-Phase 'tcp-turn' 'passed'
+                }
+            }
+            Write-Phase 'tcp-process' 'skipped'
+        }
+        elseif (-not $FocusTurnRecord) {
         Invoke-RoomSample "tiny-$runId-room-sample"
         Invoke-StateSample "tiny-$runId-state-sample"
         Invoke-SyncChapterSample 'Frame' "tiny-$runId-frame-sample"
@@ -227,14 +571,34 @@ try {
             Invoke-TinySmoke "session-$mode" "tiny-$runId-session-$mode"
         }
         Invoke-TinyHybridMismatch "tiny-$runId-hybrid-mismatch"
+        Write-Phase 'tcp-process' 'running'
+        foreach ($mode in @('State', 'Frame', 'Hybrid')) {
+            Invoke-TinyProcessSmoke $mode "tiny-$runId-process-$mode"
+        }
+        Write-Phase 'tcp-process' 'passed'
+        } else {
+            Write-Phase 'tcp-process' 'skipped'
+        }
+        if (-not $FocusChapter) {
+            Write-Phase 'tcp-turn' 'running'
+            Invoke-TinyTurnSmoke "tiny-$runId-turn"
+            Write-Phase 'tcp-turn' 'passed'
+            Write-Phase 'tcp-record' 'running'
+            Invoke-TinyLiveRecord "tiny-$runId-live-record"
+            Write-Phase 'tcp-record' 'passed'
+        }
         Write-Phase 'tcp' 'passed'
 
-        if (-not $SkipUnity) {
+        if (-not $SkipUnity -and -not $FocusChapter) {
             Write-Phase 'unity-network-playmode' 'running'
             if (-not (Test-Path -LiteralPath $UnityExe)) { throw "Unity editor not found: $UnityExe" }
             $project = Join-Path $outputRoot 'unity-project'
-            & (Join-Path $PSScriptRoot 'create-tiny-validation-project.ps1') -OutputPath $project
+            & (Join-Path $PSScriptRoot 'create-tiny-validation-project.ps1') -OutputPath $project -IncludeTurn
             Assert-TinyPackageDistribution $project
+            $previousUnityPort = $env:ABILITYKIT_TINY_UNITY_PORT
+            $previousUnityPrefix = $env:ABILITYKIT_TINY_UNITY_PREFIX
+            $previousUnityEvidence = $env:ABILITYKIT_TINY_UNITY_EVIDENCE
+            if (-not $FocusTurnRecord) {
             $networkResults = Join-Path $outputRoot 'tiny-network-playmode.xml'
             $networkLog = Join-Path $outputRoot 'tiny-network-playmode-unity.log'
             $networkEvidencePath = Join-Path $outputRoot 'tiny-network-playmode.json'
@@ -290,6 +654,191 @@ try {
             }
             Write-Host "Tiny Unity network PlayMode passed: $($networkRun.passed)/$($networkRun.total)"
             Write-Phase 'unity-network-playmode' 'passed'
+            } else {
+                Write-Phase 'unity-network-playmode' 'skipped'
+            }
+
+            Write-Phase 'unity-turn-network-playmode' 'running'
+            $turnResults = Join-Path $outputRoot 'tiny-turn-network-playmode.xml'
+            $turnLog = Join-Path $outputRoot 'tiny-turn-network-unity.log'
+            $turnEvidencePath = Join-Path $outputRoot 'tiny-turn-network.json'
+            try {
+                $env:ABILITYKIT_TINY_UNITY_PORT = [string]$TcpPort
+                $env:ABILITYKIT_TINY_UNITY_PREFIX = "tiny-$runId-turn-unity"
+                $env:ABILITYKIT_TINY_UNITY_EVIDENCE = $turnEvidencePath
+                $turnArguments = @(
+                    '-batchmode', '-nographics', '-projectPath', $project,
+                    '-runTests', '-testPlatform', 'PlayMode',
+                    '-assemblyNames', 'AbilityKit.Demo.Tiny.Turn.Network.PlayMode.Tests',
+                    '-testResults', $turnResults,
+                    '-logFile', $turnLog)
+                for ($attempt = 1; $attempt -le 4; $attempt++) {
+                    $turnExitCode = Invoke-UnityBatch $turnArguments
+                    if ($turnExitCode -eq 0 -and (Test-Path -LiteralPath $turnResults)) { break }
+                    $logText = if (Test-Path -LiteralPath $turnLog) {
+                        Get-Content -LiteralPath $turnLog -Raw -Encoding UTF8
+                    } else { '' }
+                    if ($attempt -lt 4 -and $logText.Contains('MovedFromExtractor') -and
+                        $logText.Contains('-1073741757')) {
+                        Copy-Item -LiteralPath $turnLog -Destination `
+                            (Join-Path $outputRoot "tiny-turn-import-attempt-$attempt.log")
+                        Write-Warning "Tiny Turn import helper failed on attempt $attempt; retrying."
+                        continue
+                    }
+                    throw "Tiny Turn Unity network PlayMode failed. Log: $turnLog"
+                }
+            }
+            finally {
+                $env:ABILITYKIT_TINY_UNITY_PORT = $previousUnityPort
+                $env:ABILITYKIT_TINY_UNITY_PREFIX = $previousUnityPrefix
+                $env:ABILITYKIT_TINY_UNITY_EVIDENCE = $previousUnityEvidence
+            }
+            [xml]$turnXml = Get-Content -LiteralPath $turnResults -Raw -Encoding UTF8
+            $turnRun = $turnXml.'test-run'
+            if ($null -eq $turnRun -or [int]$turnRun.total -ne 2 -or
+                [int]$turnRun.passed -ne 2 -or [int]$turnRun.failed -ne 0 -or
+                -not (Test-Path -LiteralPath $turnEvidencePath)) {
+                throw "Tiny Turn Unity network evidence is incomplete: $turnResults"
+            }
+            $turnEvidence = Get-Content -LiteralPath $turnEvidencePath -Raw -Encoding UTF8 |
+                ConvertFrom-Json
+            if ($turnEvidence.turn -ne 3 -or $turnEvidence.winnerId -ne 1 -or
+                -not $turnEvidence.guestRestored -or -not $turnEvidence.returnedToLobby -or
+                [string]::IsNullOrWhiteSpace($turnEvidence.roomId)) {
+                throw "Tiny Turn Unity network result is incomplete: $turnEvidencePath"
+            }
+            Write-Phase 'unity-turn-network-playmode' 'passed'
+
+            if (-not $FocusTurnRecord) {
+            Write-Phase 'unity-consumer-network-playmode' 'running'
+            $consumerProject = Join-Path $outputRoot 'consumer-project'
+            & (Join-Path $PSScriptRoot 'create-tiny-validation-project.ps1') `
+                -OutputPath $consumerProject -Standalone
+            Assert-TinyPackageDistribution $consumerProject
+            $consumerNetworkResults = Join-Path $outputRoot 'tiny-consumer-network-playmode.xml'
+            $consumerNetworkLog = Join-Path $outputRoot 'tiny-consumer-network-unity.log'
+            $consumerNetworkEvidencePath = Join-Path $outputRoot 'tiny-consumer-network.json'
+            try {
+                $env:ABILITYKIT_TINY_UNITY_PORT = [string]$TcpPort
+                $env:ABILITYKIT_TINY_UNITY_PREFIX = "tiny-$runId-consumer"
+                $env:ABILITYKIT_TINY_UNITY_EVIDENCE = $consumerNetworkEvidencePath
+                $consumerNetworkArguments = @(
+                    '-batchmode', '-nographics', '-projectPath', $consumerProject,
+                    '-runTests', '-testPlatform', 'PlayMode',
+                    '-assemblyNames', 'TinyConsumer.Network.PlayMode.Tests',
+                    '-testResults', $consumerNetworkResults,
+                    '-logFile', $consumerNetworkLog)
+                for ($attempt = 1; $attempt -le 4; $attempt++) {
+                    $consumerNetworkExitCode = Invoke-UnityBatch $consumerNetworkArguments
+                    if ($consumerNetworkExitCode -eq 0 -and
+                        (Test-Path -LiteralPath $consumerNetworkResults)) { break }
+                    $logText = if (Test-Path -LiteralPath $consumerNetworkLog) {
+                        Get-Content -LiteralPath $consumerNetworkLog -Raw -Encoding UTF8
+                    } else { '' }
+                    if ($attempt -lt 4 -and $logText.Contains('MovedFromExtractor') -and
+                        $logText.Contains('-1073741757')) {
+                        Copy-Item -LiteralPath $consumerNetworkLog -Destination `
+                            (Join-Path $outputRoot "tiny-consumer-network-import-attempt-$attempt.log")
+                        Write-Warning "Tiny consumer network import helper failed on attempt $attempt; retrying."
+                        continue
+                    }
+                    throw "Tiny consumer network PlayMode failed. Log: $consumerNetworkLog"
+                }
+            }
+            finally {
+                $env:ABILITYKIT_TINY_UNITY_PORT = $previousUnityPort
+                $env:ABILITYKIT_TINY_UNITY_PREFIX = $previousUnityPrefix
+                $env:ABILITYKIT_TINY_UNITY_EVIDENCE = $previousUnityEvidence
+            }
+            [xml]$consumerNetworkXml = Get-Content -LiteralPath $consumerNetworkResults -Raw -Encoding UTF8
+            $consumerNetworkRun = $consumerNetworkXml.'test-run'
+            if ($null -eq $consumerNetworkRun -or [int]$consumerNetworkRun.total -ne 1 -or
+                [int]$consumerNetworkRun.passed -ne 1 -or [int]$consumerNetworkRun.failed -ne 0 -or
+                -not (Test-Path -LiteralPath $consumerNetworkEvidencePath)) {
+                throw "Tiny consumer network evidence is incomplete: $consumerNetworkResults"
+            }
+            $consumerNetworkEvidence = Get-Content -LiteralPath $consumerNetworkEvidencePath `
+                -Raw -Encoding UTF8 | ConvertFrom-Json
+            if (@($consumerNetworkEvidence.modes).Count -ne 3 -or
+                @($consumerNetworkEvidence.modes | Where-Object {
+                    -not $_.sceneRootReady -or -not $_.ownerProjected -or
+                    -not $_.guestConverged -or -not $_.guestRestored -or
+                    -not $_.returnedToLobby -or
+                    ($_.mode -eq 'Hybrid') -ne $_.predictedBeforeConfirmation -or
+                    [string]::IsNullOrWhiteSpace($_.roomId)
+                }).Count -gt 0) {
+                throw "Tiny consumer network mode evidence is incomplete: $consumerNetworkEvidencePath"
+            }
+            Write-Phase 'unity-consumer-network-playmode' 'passed'
+            } else {
+                Write-Phase 'unity-consumer-network-playmode' 'skipped'
+            }
+
+            Write-Phase 'unity-consumer-turn-network-playmode' 'running'
+            $consumerTurnProject = Join-Path $outputRoot 'consumer-turn-project'
+            & (Join-Path $PSScriptRoot 'create-tiny-validation-project.ps1') `
+                -OutputPath $consumerTurnProject -Standalone -IncludeTurn
+            Assert-TinyPackageDistribution $consumerTurnProject
+            $consumerTurnResults = Join-Path $outputRoot 'tiny-consumer-turn-network-playmode.xml'
+            $consumerTurnLog = Join-Path $outputRoot 'tiny-consumer-turn-network-unity.log'
+            $consumerTurnEvidencePath = Join-Path $outputRoot 'tiny-consumer-turn-network.json'
+            try {
+                $env:ABILITYKIT_TINY_UNITY_PORT = [string]$TcpPort
+                $env:ABILITYKIT_TINY_UNITY_PREFIX = "tiny-$runId-consumer-turn"
+                $env:ABILITYKIT_TINY_UNITY_EVIDENCE = $consumerTurnEvidencePath
+                $consumerTurnArguments = @(
+                    '-batchmode', '-nographics', '-projectPath', $consumerTurnProject,
+                    '-runTests', '-testPlatform', 'PlayMode',
+                    '-assemblyNames', 'TinyConsumer.Turn.Network.PlayMode.Tests',
+                    '-testResults', $consumerTurnResults,
+                    '-logFile', $consumerTurnLog)
+                for ($attempt = 1; $attempt -le 4; $attempt++) {
+                    $consumerTurnExitCode = Invoke-UnityBatch $consumerTurnArguments
+                    if ($consumerTurnExitCode -eq 0 -and
+                        (Test-Path -LiteralPath $consumerTurnResults)) { break }
+                    $logText = if (Test-Path -LiteralPath $consumerTurnLog) {
+                        Get-Content -LiteralPath $consumerTurnLog -Raw -Encoding UTF8
+                    } else { '' }
+                    if ($attempt -lt 4 -and $logText.Contains('MovedFromExtractor') -and
+                        $logText.Contains('-1073741757')) {
+                        Copy-Item -LiteralPath $consumerTurnLog -Destination `
+                            (Join-Path $outputRoot "tiny-consumer-turn-import-attempt-$attempt.log")
+                        Write-Warning "Tiny consumer Turn import helper failed on attempt $attempt; retrying."
+                        continue
+                    }
+                    throw "Tiny consumer Turn PlayMode failed. Log: $consumerTurnLog"
+                }
+            }
+            finally {
+                $env:ABILITYKIT_TINY_UNITY_PORT = $previousUnityPort
+                $env:ABILITYKIT_TINY_UNITY_PREFIX = $previousUnityPrefix
+                $env:ABILITYKIT_TINY_UNITY_EVIDENCE = $previousUnityEvidence
+            }
+            [xml]$consumerTurnXml = Get-Content -LiteralPath $consumerTurnResults -Raw -Encoding UTF8
+            $consumerTurnRun = $consumerTurnXml.'test-run'
+            if ($null -eq $consumerTurnRun -or [int]$consumerTurnRun.total -ne 1 -or
+                [int]$consumerTurnRun.passed -ne 1 -or [int]$consumerTurnRun.failed -ne 0 -or
+                -not (Test-Path -LiteralPath $consumerTurnEvidencePath)) {
+                throw "Tiny consumer Turn result is incomplete: $consumerTurnResults"
+            }
+            $consumerTurnEvidence = Get-Content -LiteralPath $consumerTurnEvidencePath `
+                -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($consumerTurnEvidence.turn -ne 3 -or $consumerTurnEvidence.winnerId -ne 1 -or
+                -not $consumerTurnEvidence.sceneRootReady -or
+                -not $consumerTurnEvidence.returnedToLobby -or
+                [string]::IsNullOrWhiteSpace($consumerTurnEvidence.roomId)) {
+                throw "Tiny consumer Turn evidence is incomplete: $consumerTurnEvidencePath"
+            }
+            Write-Phase 'unity-consumer-turn-network-playmode' 'passed'
+            if (-not $FocusTurnRecord -or $VerifyCrossProcess) {
+                Write-Phase 'unity-cross-process' 'running'
+                foreach ($mode in @('State', 'Turn')) {
+                    Invoke-TinyCrossProcessUnity $mode
+                }
+                Write-Phase 'unity-cross-process' 'passed'
+            } else {
+                Write-Phase 'unity-cross-process' 'skipped'
+            }
         }
     }
     finally { Pop-Location }
@@ -306,7 +855,7 @@ finally {
     $env:UseArtifactsOutput = $previousUseArtifactsOutput
 }
 
-if (-not $SkipUnity) {
+if (-not $SkipUnity -and -not $FocusTurnRecord -and -not $FocusChapter) {
     Write-Phase 'unity-editmode' 'running'
     if (-not (Test-Path -LiteralPath $UnityExe)) { throw "Unity editor not found: $UnityExe" }
     if ($null -eq $project) { throw 'Tiny Unity project was not created.' }
@@ -373,9 +922,7 @@ if (-not $SkipUnity) {
     Write-Phase 'unity-playmode' 'passed'
 
     Write-Phase 'unity-consumer-playmode' 'running'
-    $consumerProject = Join-Path $outputRoot 'consumer-project'
-    & (Join-Path $PSScriptRoot 'create-tiny-validation-project.ps1') `
-        -OutputPath $consumerProject -Standalone
+    if ($null -eq $consumerProject) { throw 'Tiny consumer project was not created.' }
     Assert-TinyPackageDistribution $consumerProject
     $consumerManifest = Get-Content -LiteralPath (Join-Path $consumerProject 'Packages/manifest.json') `
         -Raw -Encoding UTF8
@@ -454,7 +1001,12 @@ if (-not $SkipUnity) {
     Write-Host "Tiny Logic Unity EditMode tests passed: $($logicRun.passed)/$($logicRun.total)"
     Write-Phase 'unity-logic-editmode' 'passed'
 } else {
-    Write-Phase 'unity-network-playmode' 'skipped'
+    if ($SkipUnity) {
+        Write-Phase 'unity-network-playmode' 'skipped'
+        Write-Phase 'unity-turn-network-playmode' 'skipped'
+        Write-Phase 'unity-consumer-network-playmode' 'skipped'
+        Write-Phase 'unity-consumer-turn-network-playmode' 'skipped'
+    }
     Write-Phase 'unity-editmode' 'skipped'
     Write-Phase 'unity-playmode' 'skipped'
     Write-Phase 'unity-consumer-playmode' 'skipped'

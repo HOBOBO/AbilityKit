@@ -236,7 +236,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var origin = new MobaGameplayOrigin(
                 7,
                 9,
-                MobaTraceKind.EffectExecution,
+                MobaExecutionKind.EffectExecution,
                 201,
                 601,
                 600,
@@ -270,7 +270,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void DamageCalculationDraft_FailureKeepsAttackOriginAndPlannedValues()
         {
             var attack = new AttackInfo { AttackerActorId = 7, TargetActorId = 9, ReasonParam = 301 };
-            var origin = new MobaGameplayOrigin(7, 9, MobaTraceKind.EffectExecution,
+            var origin = new MobaGameplayOrigin(7, 9, MobaExecutionKind.EffectExecution,
                 201, 601, 600, 500, 400, new MobaSkillCastRuntimeHandle(55, 3, 500));
             attack.SetOrigin(in origin);
             var calc = new AttackCalcInfo(attack);

@@ -74,27 +74,20 @@ namespace AbilityKit.Game.Flow
             _lifecycleDiagnostics.RecordFailure(exception);
             _lifecycleDiagnostics.Transition(SessionLifecycleDiagnosticState.Faulted);
         }
-        internal sealed class TickState
+        internal sealed class TickState : SessionTickLoopState
         {
-            public int LastFrame;
-            public float TickAcc;
-            public int LastUpdateSteps;
-            public int BacklogSteps;
-            public long OverBudgetUpdateCount;
-            public double DroppedTimeSeconds;
-            public long InvalidDeltaCount;
+            public float TickAcc
+            {
+                get => AccumulatorSeconds;
+                set => AccumulatorSeconds = value;
+            }
+
             public bool WorldReady;
             public bool FirstFrameReceived;
 
-            public void Reset()
+            public override void Reset()
             {
-                LastFrame = 0;
-                TickAcc = 0f;
-                LastUpdateSteps = 0;
-                BacklogSteps = 0;
-                OverBudgetUpdateCount = 0L;
-                DroppedTimeSeconds = 0d;
-                InvalidDeltaCount = 0L;
+                base.Reset();
                 WorldReady = false;
                 FirstFrameReceived = false;
             }

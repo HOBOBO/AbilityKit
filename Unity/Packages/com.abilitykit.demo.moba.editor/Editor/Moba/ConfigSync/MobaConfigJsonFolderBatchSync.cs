@@ -11,6 +11,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         [MenuItem("Tools/AbilityKit/Demos/Moba/Config Json/Import Folder -> All SOs In Selected Folder")]
         public static void ImportAllInSelectedFolder()
         {
+            RejectLegacyMenu();
             var folder = TryGetSelectedFolderPath();
             var tables = LoadTables(folder);
 
@@ -36,6 +37,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         [MenuItem("Tools/AbilityKit/Demos/Moba/Config Json/Export Folder -> All SOs In Selected Folder")]
         public static void ExportAllInSelectedFolder()
         {
+            RejectLegacyMenu();
             var folder = TryGetSelectedFolderPath();
             var tables = LoadTables(folder);
 
@@ -57,6 +59,12 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             }
 
             Debug.Log($"[MobaConfigJsonFolderBatchSync] Exported {ok} tables from folder: {folder}");
+        }
+
+        private static void RejectLegacyMenu()
+        {
+            throw new System.InvalidOperationException(
+                "MOBA configs are authored in LubanConfig/Moba/Production/Datas. Run export_pipeline.py --apply to publish.");
         }
 
         private static string TryGetSelectedFolderPath()

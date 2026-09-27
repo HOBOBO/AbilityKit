@@ -8,6 +8,7 @@ using AbilityKit.Demo.Moba.Systems;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
+    [MobaRollbackProvider(DefaultKey, autoResolve: true)]
     public sealed class PassiveSkillTriggerEventRollbackLog : IRollbackStateProvider
     {
         public const int DefaultKey = 10020;

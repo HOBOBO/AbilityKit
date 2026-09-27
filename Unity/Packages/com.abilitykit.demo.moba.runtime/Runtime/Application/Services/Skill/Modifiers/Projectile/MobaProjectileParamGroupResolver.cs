@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -23,7 +24,9 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int ResolveLauncherId(MobaModifierResolveContext resolveContext, int launcherId, IModifierContext context = null)
         {
-            return _service.ResolveInt(resolveContext.ActorChain(), MobaSkillParamModifierKeys.Projectile.LauncherId, launcherId, context);
+            Span<MobaModifierOwnerRef> owners = stackalloc MobaModifierOwnerRef[1];
+            var count = resolveContext.WriteActorChain(owners);
+            return _service.ResolveInt(owners.Slice(0, count), MobaSkillParamModifierKeys.Projectile.LauncherId, launcherId, context);
         }
 
         public int ResolveProjectileId(int actorId, int projectileId, IModifierContext context = null)
@@ -38,7 +41,9 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int ResolveProjectileId(MobaModifierResolveContext resolveContext, int projectileId, IModifierContext context = null)
         {
-            return _service.ResolveInt(resolveContext.ActorChain(), MobaSkillParamModifierKeys.Projectile.ProjectileId, projectileId, context);
+            Span<MobaModifierOwnerRef> owners = stackalloc MobaModifierOwnerRef[1];
+            var count = resolveContext.WriteActorChain(owners);
+            return _service.ResolveInt(owners.Slice(0, count), MobaSkillParamModifierKeys.Projectile.ProjectileId, projectileId, context);
         }
 
         public int ResolveCountPerShot(int actorId, int countPerShot, IModifierContext context = null)
@@ -58,12 +63,16 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int ResolveCountPerShotFromLauncher(MobaModifierResolveContext resolveContext, int countPerShot, IModifierContext context = null)
         {
-            return _service.ResolveInt(resolveContext.LauncherThenActorChain(), MobaSkillParamModifierKeys.Projectile.CountPerShot, countPerShot, context);
+            Span<MobaModifierOwnerRef> owners = stackalloc MobaModifierOwnerRef[2];
+            var count = resolveContext.WriteLauncherThenActorChain(owners);
+            return _service.ResolveInt(owners.Slice(0, count), MobaSkillParamModifierKeys.Projectile.CountPerShot, countPerShot, context);
         }
 
         public int ResolveCountPerShotFromProjectile(MobaModifierResolveContext resolveContext, int countPerShot, IModifierContext context = null)
         {
-            return _service.ResolveInt(resolveContext.ProjectileThenLauncherThenActorChain(), MobaSkillParamModifierKeys.Projectile.CountPerShot, countPerShot, context);
+            Span<MobaModifierOwnerRef> owners = stackalloc MobaModifierOwnerRef[3];
+            var count = resolveContext.WriteProjectileThenLauncherThenActorChain(owners);
+            return _service.ResolveInt(owners.Slice(0, count), MobaSkillParamModifierKeys.Projectile.CountPerShot, countPerShot, context);
         }
 
         public float ResolveFanAngleDeg(int actorId, float fanAngleDeg, IModifierContext context = null)
@@ -83,12 +92,16 @@ namespace AbilityKit.Demo.Moba.Services
 
         public float ResolveFanAngleDegFromLauncher(MobaModifierResolveContext resolveContext, float fanAngleDeg, IModifierContext context = null)
         {
-            return _service.ResolveFloat(resolveContext.LauncherThenActorChain(), MobaSkillParamModifierKeys.Projectile.FanAngleDeg, fanAngleDeg, context);
+            Span<MobaModifierOwnerRef> owners = stackalloc MobaModifierOwnerRef[2];
+            var count = resolveContext.WriteLauncherThenActorChain(owners);
+            return _service.ResolveFloat(owners.Slice(0, count), MobaSkillParamModifierKeys.Projectile.FanAngleDeg, fanAngleDeg, context);
         }
 
         public float ResolveFanAngleDegFromProjectile(MobaModifierResolveContext resolveContext, float fanAngleDeg, IModifierContext context = null)
         {
-            return _service.ResolveFloat(resolveContext.ProjectileThenLauncherThenActorChain(), MobaSkillParamModifierKeys.Projectile.FanAngleDeg, fanAngleDeg, context);
+            Span<MobaModifierOwnerRef> owners = stackalloc MobaModifierOwnerRef[3];
+            var count = resolveContext.WriteProjectileThenLauncherThenActorChain(owners);
+            return _service.ResolveFloat(owners.Slice(0, count), MobaSkillParamModifierKeys.Projectile.FanAngleDeg, fanAngleDeg, context);
         }
 
         public int ResolveDurationMs(int actorId, int durationMs, IModifierContext context = null)
@@ -108,12 +121,16 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int ResolveDurationMsFromLauncher(MobaModifierResolveContext resolveContext, int durationMs, IModifierContext context = null)
         {
-            return _service.ResolveInt(resolveContext.LauncherThenActorChain(), MobaSkillParamModifierKeys.Projectile.DurationMs, durationMs, context);
+            Span<MobaModifierOwnerRef> owners = stackalloc MobaModifierOwnerRef[2];
+            var count = resolveContext.WriteLauncherThenActorChain(owners);
+            return _service.ResolveInt(owners.Slice(0, count), MobaSkillParamModifierKeys.Projectile.DurationMs, durationMs, context);
         }
 
         public int ResolveDurationMsFromProjectile(MobaModifierResolveContext resolveContext, int durationMs, IModifierContext context = null)
         {
-            return _service.ResolveInt(resolveContext.ProjectileThenLauncherThenActorChain(), MobaSkillParamModifierKeys.Projectile.DurationMs, durationMs, context);
+            Span<MobaModifierOwnerRef> owners = stackalloc MobaModifierOwnerRef[3];
+            var count = resolveContext.WriteProjectileThenLauncherThenActorChain(owners);
+            return _service.ResolveInt(owners.Slice(0, count), MobaSkillParamModifierKeys.Projectile.DurationMs, durationMs, context);
         }
 
         public MobaResolvedShootProjectileParams ResolveShootProjectile(

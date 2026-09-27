@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
@@ -139,18 +140,29 @@ namespace AbilityKit.Demo.Moba.Services
         public int ResolveInt(MobaModifierOwnerRef owner, ModifierKey key, int baseValue, IModifierContext context = null)
         {
             if (!owner.IsValid) return baseValue;
-            return ResolveInt(new[] { owner }, key, baseValue, context);
+            return ResolveIntCore(owner, key, baseValue, context);
         }
 
         public int ResolveInt(MobaModifierOwnerRef[] ownerChain, ModifierKey key, int baseValue, IModifierContext context = null)
         {
-            var filtered = CollectMatchingModifiers(ownerChain, key);
-            if (filtered.Count == 0) return baseValue;
+            return ResolveInt((ReadOnlySpan<MobaModifierOwnerRef>)ownerChain, key, baseValue, context);
+        }
 
-            var value = _calculator.Calculate(filtered.ToArray(), baseValue, context).FinalValue;
-            if (value <= int.MinValue) return int.MinValue;
-            if (value >= int.MaxValue) return int.MaxValue;
-            return (int)Math.Round(value);
+        public int ResolveInt(ReadOnlySpan<MobaModifierOwnerRef> ownerChain, ModifierKey key, int baseValue, IModifierContext context = null)
+        {
+            var matchCount = CountMatchingModifiers(ownerChain, key);
+            if (matchCount == 0) return baseValue;
+
+            var rented = ArrayPool<ModifierData>.Shared.Rent(matchCount);
+            try
+            {
+                var written = WriteMatchingModifiers(ownerChain, key, rented);
+                return RoundToInt(_calculator.Calculate(rented.AsSpan(0, written), baseValue, context).FinalValue);
+            }
+            finally
+            {
+                ArrayPool<ModifierData>.Shared.Return(rented, clearArray: true);
+            }
         }
 
         public float ResolveFloat(int actorId, ModifierKey key, float baseValue, IModifierContext context = null)
@@ -161,40 +173,149 @@ namespace AbilityKit.Demo.Moba.Services
         public float ResolveFloat(MobaModifierOwnerRef owner, ModifierKey key, float baseValue, IModifierContext context = null)
         {
             if (!owner.IsValid) return baseValue;
-            return ResolveFloat(new[] { owner }, key, baseValue, context);
+            return ResolveFloatCore(owner, key, baseValue, context);
         }
 
         public float ResolveFloat(MobaModifierOwnerRef[] ownerChain, ModifierKey key, float baseValue, IModifierContext context = null)
         {
-            var filtered = CollectMatchingModifiers(ownerChain, key);
-            if (filtered.Count == 0) return baseValue;
-            return _calculator.Calculate(filtered.ToArray(), baseValue, context).FinalValue;
+            return ResolveFloat((ReadOnlySpan<MobaModifierOwnerRef>)ownerChain, key, baseValue, context);
         }
 
-        private List<ModifierData> CollectMatchingModifiers(MobaModifierOwnerRef[] ownerChain, ModifierKey key)
+        public float ResolveFloat(ReadOnlySpan<MobaModifierOwnerRef> ownerChain, ModifierKey key, float baseValue, IModifierContext context = null)
         {
-            var filtered = new List<ModifierData>();
-            if (ownerChain == null || ownerChain.Length == 0) return filtered;
+            var matchCount = CountMatchingModifiers(ownerChain, key);
+            if (matchCount == 0) return baseValue;
 
-            for (int i = 0; i < ownerChain.Length; i++)
+            var rented = ArrayPool<ModifierData>.Shared.Rent(matchCount);
+            try
             {
-                var owner = ownerChain[i];
-                if (!owner.IsValid) continue;
+                var written = WriteMatchingModifiers(ownerChain, key, rented);
+                return _calculator.Calculate(rented.AsSpan(0, written), baseValue, context).FinalValue;
+            }
+            finally
+            {
+                ArrayPool<ModifierData>.Shared.Return(rented, clearArray: true);
+            }
+        }
 
-                var ownerKey = new OwnerKey(owner.Scope, owner.Id);
-                if (!_modifiersByOwner.TryGetValue(ownerKey, out var modifiers) || modifiers == null || modifiers.Count == 0) continue;
-
-                for (int j = 0; j < modifiers.Count; j++)
-                {
-                    var modifier = modifiers[j];
-                    if (modifier.Key.Equals(key))
-                    {
-                        filtered.Add(modifier);
-                    }
-                }
+        private int ResolveIntCore(MobaModifierOwnerRef owner, ModifierKey key, int baseValue, IModifierContext context)
+        {
+            if (!_modifiersByOwner.TryGetValue(new OwnerKey(owner.Scope, owner.Id), out var modifiers) ||
+                modifiers == null || modifiers.Count == 0)
+            {
+                return baseValue;
             }
 
-            return filtered;
+            var matchCount = CountMatchingModifiers(modifiers, key);
+            if (matchCount == 0) return baseValue;
+
+            var rented = ArrayPool<ModifierData>.Shared.Rent(matchCount);
+            try
+            {
+                var written = WriteMatchingModifiers(modifiers, key, rented, 0);
+                return RoundToInt(_calculator.Calculate(rented.AsSpan(0, written), baseValue, context).FinalValue);
+            }
+            finally
+            {
+                ArrayPool<ModifierData>.Shared.Return(rented, clearArray: true);
+            }
+        }
+
+        private float ResolveFloatCore(MobaModifierOwnerRef owner, ModifierKey key, float baseValue, IModifierContext context)
+        {
+            if (!_modifiersByOwner.TryGetValue(new OwnerKey(owner.Scope, owner.Id), out var modifiers) ||
+                modifiers == null || modifiers.Count == 0)
+            {
+                return baseValue;
+            }
+
+            var matchCount = CountMatchingModifiers(modifiers, key);
+            if (matchCount == 0) return baseValue;
+
+            var rented = ArrayPool<ModifierData>.Shared.Rent(matchCount);
+            try
+            {
+                var written = WriteMatchingModifiers(modifiers, key, rented, 0);
+                return _calculator.Calculate(rented.AsSpan(0, written), baseValue, context).FinalValue;
+            }
+            finally
+            {
+                ArrayPool<ModifierData>.Shared.Return(rented, clearArray: true);
+            }
+        }
+
+        private int CountMatchingModifiers(ReadOnlySpan<MobaModifierOwnerRef> ownerChain, ModifierKey key)
+        {
+            var count = 0;
+            for (var i = 0; i < ownerChain.Length; i++)
+            {
+                var owner = ownerChain[i];
+                if (!owner.IsValid ||
+                    !_modifiersByOwner.TryGetValue(new OwnerKey(owner.Scope, owner.Id), out var modifiers) ||
+                    modifiers == null)
+                {
+                    continue;
+                }
+
+                count += CountMatchingModifiers(modifiers, key);
+            }
+
+            return count;
+        }
+
+        private int WriteMatchingModifiers(
+            ReadOnlySpan<MobaModifierOwnerRef> ownerChain,
+            ModifierKey key,
+            ModifierData[] destination)
+        {
+            var written = 0;
+            for (var i = 0; i < ownerChain.Length; i++)
+            {
+                var owner = ownerChain[i];
+                if (!owner.IsValid ||
+                    !_modifiersByOwner.TryGetValue(new OwnerKey(owner.Scope, owner.Id), out var modifiers) ||
+                    modifiers == null)
+                {
+                    continue;
+                }
+
+                written = WriteMatchingModifiers(modifiers, key, destination, written);
+            }
+
+            return written;
+        }
+
+        private static int CountMatchingModifiers(List<ModifierData> modifiers, ModifierKey key)
+        {
+            var count = 0;
+            for (var i = 0; i < modifiers.Count; i++)
+            {
+                if (modifiers[i].Key.Equals(key)) count++;
+            }
+
+            return count;
+        }
+
+        private static int WriteMatchingModifiers(
+            List<ModifierData> modifiers,
+            ModifierKey key,
+            ModifierData[] destination,
+            int destinationIndex)
+        {
+            for (var i = 0; i < modifiers.Count; i++)
+            {
+                var modifier = modifiers[i];
+                if (modifier.Key.Equals(key)) destination[destinationIndex++] = modifier;
+            }
+
+            return destinationIndex;
+        }
+
+        private static int RoundToInt(float value)
+        {
+            if (value <= int.MinValue) return int.MinValue;
+            if (value >= int.MaxValue) return int.MaxValue;
+            return (int)Math.Round(value);
         }
 
         public void Dispose()

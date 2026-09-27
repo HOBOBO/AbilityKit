@@ -58,6 +58,28 @@ namespace AbilityKit.Game.Tests
             Assert.That(received[1], Is.EqualTo(secondExpected));
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void Receive_WithDeferredCallbackDispatcher_CopiesBorrowedDecoderPayload(bool isPush)
+        {
+            var transport = new TestTransport();
+            var callbacks = new ManualDispatcher();
+            using var session = new NetworkSession(
+                transport, callbacks, InlineDispatcher.Instance, new BorrowingFrameCodec(isPush));
+            byte[] received = null;
+            session.ServerPushReceived += (_, payload) => received = Copy(payload);
+            session.PacketReceived += (_, _, payload) => received = Copy(payload);
+            session.Start();
+
+            var borrowed = CreatePayload(64, 23);
+            var expected = (byte[])borrowed.Clone();
+            transport.Receive(new ArraySegment<byte>(borrowed));
+            Array.Fill(borrowed, (byte)0xCC);
+            callbacks.RunAll();
+
+            Assert.That(received, Is.EqualTo(expected));
+        }
+
         private static ArraySegment<byte> EncodePush(uint opCode, byte[] payload)
         {
             var header = new NetworkPacketHeader(
@@ -107,6 +129,47 @@ namespace AbilityKit.Game.Tests
                 while (_pending.Count > 0)
                 {
                     _pending.Dequeue().Invoke();
+                }
+            }
+        }
+
+        private sealed class BorrowingFrameCodec : IFrameCodec
+        {
+            private readonly bool _isPush;
+
+            public BorrowingFrameCodec(bool isPush) => _isPush = isPush;
+
+            public IFrameDecoder CreateDecoder() => new BorrowingDecoder(_isPush);
+
+            public ArraySegment<byte> Encode(NetworkPacketHeader header, ArraySegment<byte> payload) => payload;
+
+            private sealed class BorrowingDecoder : IFrameDecoder
+            {
+                private readonly bool _isPush;
+                private ArraySegment<byte> _pending;
+                private bool _hasPending;
+
+                public BorrowingDecoder(bool isPush) => _isPush = isPush;
+
+                public void Reset() => _hasPending = false;
+
+                public void Append(ArraySegment<byte> bytes)
+                {
+                    _pending = bytes;
+                    _hasPending = true;
+                }
+
+                public bool TryRead(out NetworkPacketHeader header, out ArraySegment<byte> payload)
+                {
+                    header = default;
+                    payload = default;
+                    if (!_hasPending) return false;
+                    _hasPending = false;
+                    payload = _pending;
+                    header = new NetworkPacketHeader(
+                        _isPush ? NetworkPacketFlags.ServerPush : NetworkPacketFlags.None,
+                        1001, 1, (uint)payload.Count);
+                    return true;
                 }
             }
         }

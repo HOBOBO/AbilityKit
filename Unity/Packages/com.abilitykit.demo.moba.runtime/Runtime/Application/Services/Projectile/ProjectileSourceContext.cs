@@ -1,5 +1,4 @@
 using AbilityKit.Combat.Projectile;
-using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
@@ -36,7 +35,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 : new MobaGameplayOrigin(
                     sourceActorId,
                     initialTargetActorId,
-                    MobaTraceKind.ProjectileLaunch,
+                    MobaExecutionKind.ProjectileLaunch,
                     projectileConfigId,
                     sourceContextId,
                     sourceContextId,
@@ -54,7 +53,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 : new MobaGameplayOrigin(
                     SourceActorId,
                     InitialTargetActorId,
-                    MobaTraceKind.ProjectileLaunch,
+                    MobaExecutionKind.ProjectileLaunch,
                     ProjectileConfigId,
                     SourceContextId,
                     SourceContextId,
@@ -72,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             var ownerContextId = OwnerContextId != 0 ? OwnerContextId : SourceContextId;
             return new MobaTriggerLineageContext(
                 EffectContextKind.Projectile,
-                MobaTraceKind.ProjectileHit,
+                MobaExecutionKind.ProjectileHit,
                 sourceActorId,
                 target,
                 SourceContextId,
@@ -81,16 +80,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 ProjectileConfigId);
         }
 
-        public MobaTriggerTraceContext ToHitTraceContext(ProjectileId projectileId, int targetActorId)
-        {
-            return ToHitLineageContext(projectileId, targetActorId).ToTraceContext();
-        }
-
         public bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)
         {
             lineageContext = new MobaTriggerLineageContext(
                 EffectContextKind.Projectile,
-                MobaTraceKind.ProjectileLaunch,
+                MobaExecutionKind.ProjectileLaunch,
                 SourceActorId,
                 InitialTargetActorId,
                 SourceContextId,

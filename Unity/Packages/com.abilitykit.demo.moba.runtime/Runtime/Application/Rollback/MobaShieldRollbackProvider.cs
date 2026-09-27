@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     /// Actor collection changes fail fast because this provider cannot safely
     /// create or destroy simulation entities.
     /// </summary>
+    [MobaRollbackProvider(DefaultKey)]
     public sealed class MobaShieldRollbackProvider : IRollbackStateProvider
     {
         public const int DefaultKey = 10007;

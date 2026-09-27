@@ -67,6 +67,43 @@ public sealed class MobaSkillConfigurationContractTests
     }
 
     [Fact]
+    public void Explicit_reservation_inside_race_cannot_be_guaranteed_by_a_later_commit()
+    {
+        var reserve = new SkillPhaseDTO
+        {
+            Type = (int)SkillPhaseType.Economy,
+            Economy = new SkillEconomyPhaseDTO { RequireExplicitCommit = true },
+        };
+        var commit = new SkillPhaseDTO
+        {
+            Type = (int)SkillPhaseType.CommitPoint,
+            CommitPoint = new SkillCommitPointPhaseDTO { RequireEconomyReservation = true },
+        };
+        var configs = CreateConfigDatabase(0, new[]
+        {
+            new SkillPhaseDTO { Type = (int)SkillPhaseType.Race, Children = new[] { reserve,
+                new SkillPhaseDTO { Type = (int)SkillPhaseType.Delay,
+                    Delay = new SkillDelayPhaseDTO { DelayMs = 100 } } } },
+            commit,
+        });
+
+        var report = Validate(configs);
+        Assert.Contains(report.Entries, entry => entry.Code == "moba.skill.contract.explicit_commit_order");
+        Assert.True(report.ShouldBlockStartup);
+    }
+
+    [Fact]
+    public void Reacquire_without_search_query_or_range_blocks_startup()
+    {
+        var configs = CreateConfigDatabase(0, CreateResourceContractPhases(),
+            skill => skill.TargetLostPolicy = (int)SkillTargetLostPolicy.Reacquire);
+
+        var report = Validate(configs);
+        Assert.Contains(report.Entries, entry => entry.Code == "moba.skill.contract.invalid_cast_policy");
+        Assert.True(report.ShouldBlockStartup);
+    }
+
+    [Fact]
     public void Pipeline_payload_uses_the_frozen_cast_configuration_snapshot()
     {
         var aimPos = Vec3.Zero;
@@ -127,25 +164,25 @@ public sealed class MobaSkillConfigurationContractTests
 
     private static MobaConfigDatabase CreateConfigDatabase(
         int cost,
-        SkillPhaseDTO[] phases)
+        SkillPhaseDTO[] phases,
+        Action<SkillDTO> configureSkill = null)
     {
         var configs = new MobaConfigDatabase();
+        var skill = new SkillDTO
+        {
+            Id = SkillId,
+            Name = "contract_test_skill",
+            CooldownMs = 1000,
+            SkillType = (int)SkillType.Active,
+            Tags = Array.Empty<int>(),
+            LevelTableId = LevelTableId,
+            CastFlowId = CastFlowId,
+        };
+        configureSkill?.Invoke(skill);
         var result = configs.ReloadFromDtoArrays(
             new Dictionary<Type, Array>
             {
-                [typeof(SkillDTO)] = new[]
-                {
-                    new SkillDTO
-                    {
-                        Id = SkillId,
-                        Name = "contract_test_skill",
-                        CooldownMs = 1000,
-                        SkillType = (int)SkillType.Active,
-                        Tags = Array.Empty<int>(),
-                        LevelTableId = LevelTableId,
-                        CastFlowId = CastFlowId,
-                    },
-                },
+                [typeof(SkillDTO)] = new[] { skill },
                 [typeof(SkillLevelTableDTO)] = new[]
                 {
                     new SkillLevelTableDTO

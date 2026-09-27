@@ -10,15 +10,23 @@ namespace AbilityKit.Game.Flow
     {
         internal void AddStandardViewSubFeatures<TFeature>(List<IViewSubFeature<TFeature>> subFeatures)
             where TFeature : class, IViewSharedSubFeatureHost
+            => AddStandardViewSubFeatures(subFeatures, BattleProjectionViewCapabilities.Full);
+
+        internal void AddStandardViewSubFeatures<TFeature>(List<IViewSubFeature<TFeature>> subFeatures,
+            BattleProjectionViewCapabilities capabilities)
+            where TFeature : class, IViewSharedSubFeatureHost
         {
             if (subFeatures == null) throw new ArgumentNullException(nameof(subFeatures));
 
             subFeatures.Add(new SharedDirtySyncSubFeature<TFeature>());
             subFeatures.Add(new SharedTimelineSubFeature<TFeature>());
             subFeatures.Add(new SharedInterpolationSubFeature<TFeature>());
-            subFeatures.Add(new SharedVfxTickSubFeature<TFeature>());
-            subFeatures.Add(new SharedProjectileTickSubFeature<TFeature>());
-            subFeatures.Add(new SharedFloatingTextSubFeature<TFeature>());
+            if ((capabilities & BattleProjectionViewCapabilities.Vfx) != 0)
+                subFeatures.Add(new SharedVfxTickSubFeature<TFeature>());
+            if ((capabilities & BattleProjectionViewCapabilities.Events) != 0)
+                subFeatures.Add(new SharedProjectileTickSubFeature<TFeature>());
+            if ((capabilities & BattleProjectionViewCapabilities.FloatingText) != 0)
+                subFeatures.Add(new SharedFloatingTextSubFeature<TFeature>());
         }
 
         internal ModuleHost<FeatureModuleContext<TFeature>, IViewSubFeature<TFeature>> CreateHost<TFeature>(

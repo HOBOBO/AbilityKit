@@ -28,6 +28,16 @@ namespace AbilityKit.Demo.Moba.Share
         void OnActorTransformSnapshot(in FrameSnapshotData snapshot);
 
         /// <summary>
+        /// Handles actor removal snapshots.
+        /// </summary>
+        void OnActorDespawnSnapshot(in FrameSnapshotData snapshot);
+
+        /// <summary>
+        /// Handles platform-neutral skill presentation states.
+        /// </summary>
+        void OnSkillStateSnapshot(in FrameSnapshotData snapshot);
+
+        /// <summary>
         /// 处理弹道事件快照
         /// 生成/更新/销毁弹道对象
         /// </summary>

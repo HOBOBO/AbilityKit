@@ -4,7 +4,7 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private int _sourceActorId;
         private int _targetActorId;
-        private MobaTraceKind _immediateKind;
+        private MobaExecutionKind _immediateKind;
         private int _immediateConfigId;
         private long _immediateContextId;
         private long _parentContextId;
@@ -26,7 +26,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _sourceActorId = 0;
             _targetActorId = 0;
-            _immediateKind = MobaTraceKind.None;
+            _immediateKind = MobaExecutionKind.None;
             _immediateConfigId = 0;
             _immediateContextId = 0L;
             _parentContextId = 0L;
@@ -72,7 +72,7 @@ namespace AbilityKit.Demo.Moba.Services
             return this;
         }
 
-        public MobaGameplayOriginBuilder WithImmediate(MobaTraceKind kind, int configId, long contextId)
+        public MobaGameplayOriginBuilder WithImmediate(MobaExecutionKind kind, int configId, long contextId)
         {
             _immediateKind = kind;
             _immediateConfigId = configId;
@@ -81,13 +81,13 @@ namespace AbilityKit.Demo.Moba.Services
             return this;
         }
 
-        public MobaGameplayOriginBuilder WithLifecycleNode(MobaTraceKind kind, int configId, long contextId)
+        public MobaGameplayOriginBuilder WithLifecycleNode(MobaExecutionKind kind, int configId, long contextId)
         {
             if (contextId == 0L)
             {
                 throw new System.ArgumentOutOfRangeException(
                     nameof(contextId),
-                    "A formal lifecycle node requires a non-zero trace context id.");
+                    "A formal lifecycle node requires a non-zero execution context id.");
             }
 
             _immediateKind = kind;

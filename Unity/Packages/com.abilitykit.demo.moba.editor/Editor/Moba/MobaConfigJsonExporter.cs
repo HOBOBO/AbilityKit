@@ -27,6 +27,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 
         public static void ExportFromFolder(string assetFolder)
         {
+            EnsureLubanOwnsRuntimeConfig();
+
             if (string.IsNullOrEmpty(assetFolder)) assetFolder = "Assets";
 
             var outputDir = GetMobaResourcesDirectory();
@@ -44,6 +46,12 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 
             AssetDatabase.Refresh();
             Debug.Log($"[MobaConfigJsonExporter] Exported to: {outputDir}");
+        }
+
+        private static void EnsureLubanOwnsRuntimeConfig()
+        {
+            throw new InvalidOperationException(
+                "MOBA runtime JSON is generated from LubanConfig/Moba/Production/Datas. Run python LubanConfig/Moba/export_pipeline.py --apply.");
         }
 
         private static string TryGetSelectedFolderPath()

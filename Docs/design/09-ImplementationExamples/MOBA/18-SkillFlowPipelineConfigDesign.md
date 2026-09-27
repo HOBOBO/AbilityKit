@@ -88,7 +88,7 @@ flowchart TB
 
 Battle Debug 已增加统一配置源索引和 `Open Config`：Skill Runtime、Event、Trace、Buff、Projectile 与 Area 面板通过类型化引用定位 `Resources/moba` 或 `Resources/ability` 下的权威 JSON 条目。索引使用 JSON Token 行号而不是文本搜索，TriggerPlan 按 `Triggers/TriggerId` 查找，SkillFlow 还支持在指定 Flow 内递归查找稳定 `PhaseId`。SkillFlow 索引校验通过后会选中正式 `SkillFlowSO` 资产并展开对应编辑节点；缺失条目不会退回同号或相似文本结果。
 
-Cast Pipeline 的正式 Phase 事件会在阶段 Trace 容器下生成真实 Phase 子节点，并将 `SkillId`、`CastFlowId`、`PhaseId` 写入 Trace DTO、ReadStore 和离线 Artifact。编辑器按 `SkillId -> CastFlowId -> PhaseId` 稳定身份直接定位 Inspector 树节点，不从 Summary 或 EndReason 解析字符串。PreCast 在启用独立 Flow 契约前不写入 CastFlowId，避免错误跳转到 Cast 配置。
+Cast Pipeline 的正式 Phase 事件会在 `MobaExecutionContextRegistry` 下生成真实 Phase 子节点，并将 `SkillId`、`CastFlowId`、`PhaseId` 作为正式执行事实传播。安装 Trace Adapter 时，这些字段再进入 Trace DTO、ReadStore 和离线 Artifact。编辑器按 `SkillId -> CastFlowId -> PhaseId` 稳定身份直接定位 Inspector 树节点，不从 Summary 或 EndReason 解析字符串。PreCast 在启用独立 Flow 契约前不写入 CastFlowId，避免错误跳转到 Cast 配置。
 
 ## 4. Timeline Phase
 

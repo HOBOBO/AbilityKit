@@ -1,0 +1,38 @@
+{
+  "actor_state_machines": {
+    "kind": "array",
+    "syntheticKey": true
+  },
+  "attributetemplates": {
+    "kind": "array",
+    "syntheticKey": false
+  },
+  "battle_start": {
+    "kind": "object",
+    "syntheticKey": true
+  },
+  "character_hfsm": {
+    "kind": "object",
+    "syntheticKey": true
+  },
+  "character_view_actions": {
+    "kind": "object",
+    "syntheticKey": true
+  },
+  "demo_tbitem": {
+    "kind": "array",
+    "syntheticKey": false
+  },
+  "dtbuff": {
+    "kind": "array",
+    "syntheticKey": false
+  },
+  "effect_plans": {
+    "kind": "object",
+    "syntheticKey": true
+  },
+  "ongoing_effects": {
+    "kind": "array",
+    "syntheticKey": false
+  }
+}

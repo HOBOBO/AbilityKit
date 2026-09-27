@@ -3,7 +3,7 @@ schemaVersion: 1
 catalogId: abilitykit.moba.battle
 projectId: abilitykit.moba
 domain: battle
-revision: 3
+revision: 4
 defaultCodec: memorypack
 messages:
   - id: frame-sync-submit-input.request
@@ -185,3 +185,10 @@ messages:
     kind: push
     payloadType: AbilityKit.Protocol.Moba.StateSync.MobaPlayerHeroChangedSnapshotPayload
     maximumPayloadBytes: 524288
+  - id: action-ack.push
+    opCode: 4013
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload
+    reliability: reliable
+    maximumPayloadBytes: 262144

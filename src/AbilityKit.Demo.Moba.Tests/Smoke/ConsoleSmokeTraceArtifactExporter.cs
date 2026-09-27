@@ -156,9 +156,9 @@ public static class ConsoleSmokeTraceArtifactExporter
         var seen = new HashSet<long>();
         var script = autoTestResult.ScriptResult;
 
-        foreach (MobaTraceKind kind in Enum.GetValues(typeof(MobaTraceKind)))
+        foreach (MobaExecutionKind kind in Enum.GetValues(typeof(MobaExecutionKind)))
         {
-            if (kind == MobaTraceKind.None) continue;
+            if (kind == MobaExecutionKind.None) continue;
 
             foreach (var node in trace.GetNodesByKind((int)kind))
             {
@@ -173,7 +173,7 @@ public static class ConsoleSmokeTraceArtifactExporter
                     RootId = node.RootId,
                     ParentId = node.ParentId,
                     NodeId = node.ContextId,
-                    Kind = ((MobaTraceKind)node.Kind).ToString(),
+                    Kind = ((MobaExecutionKind)node.Kind).ToString(),
                     KindValue = node.Kind,
                     ConfigId = metadata?.ConfigId ?? 0,
                     SourceActorId = metadata?.SourceActorId ?? 0,
@@ -232,11 +232,11 @@ public static class ConsoleSmokeTraceArtifactExporter
             Result = new ConsoleSmokeResultDto
             {
                 Passed = passed,
-                SkillCastTraceFound = records.Any(r => r.Kind == MobaTraceKind.SkillCast.ToString()),
-                EffectExecutionTraceFound = records.Any(r => r.Kind == MobaTraceKind.EffectExecution.ToString()),
+                SkillCastTraceFound = records.Any(r => r.Kind == MobaExecutionKind.SkillCast.ToString()),
+                EffectExecutionTraceFound = records.Any(r => r.Kind == MobaExecutionKind.EffectExecution.ToString()),
                 AllExpectedActionsExecuted = true,
-                ProjectileLaunched = records.Any(r => r.Kind == MobaTraceKind.ProjectileLaunch.ToString()),
-                EffectRootId = records.FirstOrDefault(r => r.Kind == MobaTraceKind.EffectExecution.ToString())?.RootId ?? 0,
+                ProjectileLaunched = records.Any(r => r.Kind == MobaExecutionKind.ProjectileLaunch.ToString()),
+                EffectRootId = records.FirstOrDefault(r => r.Kind == MobaExecutionKind.EffectExecution.ToString())?.RootId ?? 0,
                 FinalFrame = bootstrapper.Context.LastFrame,
                 FinalTimeMs = script?.TickCount ?? 0,
                 TraceNodeCount = records.Count,

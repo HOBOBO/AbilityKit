@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Flow.Battle.Modules;
 
@@ -6,8 +7,8 @@ namespace AbilityKit.Game.Flow
 {
     internal interface ISessionPlanHost
     {
-        void StartSession();
-        void StopSession();
+        Task StartSessionAsync();
+        Task StopSessionAsync();
         void ApplyAutoPlanActions();
         bool InvokeSubFeaturesPlanBuilt();
         void NotifySessionStarted(BattleStartPlan plan);
@@ -16,7 +17,7 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class SessionPlanController
     {
-        public void OnAttach(
+        public async Task OnAttachAsync(
             ISessionPlanHost host,
             IBattleBootstrapper bootstrapper,
             BattleSessionState state,
@@ -34,14 +35,14 @@ namespace AbilityKit.Game.Flow
             var startedImmediately = false;
             if (!IsSessionStartIntercepted(host, hooks, plan))
             {
-                if (!TryStartSession(host, plan)) return;
+                if (!await TryStartSessionAsync(host, plan).ConfigureAwait(false)) return;
                 startedImmediately = true;
             }
 
             SessionContextBinder.BindSession(ctx, state, handles, hooks, plan);
             if (startedImmediately &&
                 host is BattleSessionFeature feature &&
-                !TryBeginColdStartRecovery(host, feature))
+                !await TryBeginColdStartRecoveryAsync(host, feature).ConfigureAwait(false))
             {
                 return;
             }
@@ -67,11 +68,13 @@ namespace AbilityKit.Game.Flow
             return host.InvokeSubFeaturesPlanBuilt();
         }
 
-        private static bool TryStartSession(ISessionPlanHost host, BattleStartPlan plan)
+        private static async Task<bool> TryStartSessionAsync(
+            ISessionPlanHost host,
+            BattleStartPlan plan)
         {
             try
             {
-                host.StartSession();
+                await host.StartSessionAsync().ConfigureAwait(false);
                 host.NotifySessionStarted(plan);
                 host.ApplyAutoPlanActions();
                 return true;
@@ -79,13 +82,13 @@ namespace AbilityKit.Game.Flow
             catch (Exception ex)
             {
                 Log.Exception(ex, "[BattleSessionFeature] StartSession failed in OnAttach");
-                host.StopSession();
-                host.NotifySessionFailed(ex);
+                var failure = await StopAfterFailureAsync(host, ex).ConfigureAwait(false);
+                host.NotifySessionFailed(failure);
                 return false;
             }
         }
 
-        private static bool TryBeginColdStartRecovery(
+        private static async Task<bool> TryBeginColdStartRecoveryAsync(
             ISessionPlanHost host,
             BattleSessionFeature feature)
         {
@@ -100,9 +103,27 @@ namespace AbilityKit.Game.Flow
             catch (Exception ex)
             {
                 Log.Exception(ex, "[BattleSessionFeature] Cold-start recovery failed in OnAttach");
-                host.StopSession();
-                host.NotifySessionFailed(ex);
+                var failure = await StopAfterFailureAsync(host, ex).ConfigureAwait(false);
+                host.NotifySessionFailed(failure);
                 return false;
+            }
+        }
+
+        private static async Task<Exception> StopAfterFailureAsync(
+            ISessionPlanHost host,
+            Exception failure)
+        {
+            try
+            {
+                await host.StopSessionAsync().ConfigureAwait(false);
+                return failure;
+            }
+            catch (Exception cleanupFailure)
+            {
+                return new AggregateException(
+                    "Session startup failed and cleanup also reported failures.",
+                    failure,
+                    cleanupFailure);
             }
         }
 

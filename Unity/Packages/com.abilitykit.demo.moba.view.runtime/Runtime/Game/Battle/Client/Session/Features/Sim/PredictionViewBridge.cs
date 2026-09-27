@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Network.Battle.Projection;
@@ -24,11 +25,55 @@ namespace AbilityKit.Game.Flow
     {
         private readonly IECWorld _viewWorld;
         private readonly BattleEntityLookup _viewLookup;
+        private readonly BattleContext _viewContext;
+        private readonly Vector3 _offset;
+        private readonly List<ActorProjectionData> _buffer = new List<ActorProjectionData>(128);
+        private readonly HashSet<int> _activeActors = new HashSet<int>();
+        private readonly HashSet<int> _currentActors = new HashSet<int>();
+        private readonly List<int> _removedActors = new List<int>();
 
-        public PredictionViewBridge(IECWorld viewWorld, BattleEntityLookup viewLookup)
+        public PredictionViewBridge(IECWorld viewWorld, BattleEntityLookup viewLookup,
+            BattleContext viewContext = null, Vector3 offset = default)
         {
             _viewWorld = viewWorld;
             _viewLookup = viewLookup;
+            _viewContext = viewContext;
+            _offset = offset;
+        }
+
+        public void SyncAllActors(IActorProjectionProducer producer)
+        {
+            if (producer == null || _viewContext?.EntityFactory == null) return;
+            producer.ExtractAll(_buffer);
+            _currentActors.Clear();
+            foreach (var data in _buffer)
+            {
+                if (data.ActorId <= 0 || !data.Has(ActorProjectionFields.Core)) continue;
+                _currentActors.Add(data.ActorId);
+                if (!_activeActors.Contains(data.ActorId) ||
+                    !_viewLookup.TryResolve(_viewWorld, new BattleNetId(data.ActorId), out _))
+                {
+                    var spawn = producer.ExtractSpawn(data.ActorId);
+                    if (!spawn.Has(ActorProjectionFields.Spawn)) continue;
+                    ApplyActor(in spawn);
+                    _activeActors.Add(data.ActorId);
+                }
+                ApplyActor(in data);
+            }
+
+            _removedActors.Clear();
+            foreach (var actorId in _activeActors)
+                if (!_currentActors.Contains(actorId)) _removedActors.Add(actorId);
+            foreach (var actorId in _removedActors) RemoveActor(actorId, 0);
+        }
+
+        public void ClearActors()
+        {
+            _removedActors.Clear();
+            _removedActors.AddRange(_activeActors);
+            foreach (var actorId in _removedActors) RemoveActor(actorId, 0);
+            _buffer.Clear();
+            _currentActors.Clear();
         }
 
         /// <summary>
@@ -55,21 +100,45 @@ namespace AbilityKit.Game.Flow
         {
             if (_viewWorld == null || _viewLookup == null) return;
 
-            // 在 view EntityWorld 里找对应实体（通过 netId = actorId 映射）
-            if (!_viewLookup.TryResolve(_viewWorld, new BattleNetId(data.ActorId), out var viewEntity)) return;
+            var netId = new BattleNetId(data.ActorId);
+            if (!_viewLookup.TryResolve(_viewWorld, netId, out var viewEntity))
+            {
+                if (_viewContext?.EntityFactory == null || !data.Has(ActorProjectionFields.Spawn)) return;
+                viewEntity = data.Kind == 2
+                    ? _viewContext.EntityFactory.CreateProjectile(netId, new BattleNetId(data.OwnerNetId), data.Code)
+                    : _viewContext.EntityFactory.CreateCharacter(netId, data.Code);
+            }
 
             if (viewEntity.TryGetRef(out BattleTransformComponent viewTransform) && viewTransform != null)
             {
-                viewTransform.Position = new Vector3(data.PosX, data.PosY, data.PosZ);
+                viewTransform.Position = new Vector3(data.PosX, data.PosY, data.PosZ) + _offset;
                 viewTransform.Forward = RotationToForward(data.RotX, data.RotY, data.RotZ, data.RotW);
+                _viewContext?.DirtyEntities?.Add(viewEntity.Id);
+            }
+            if (_viewContext != null &&
+                viewEntity.TryGetRef(out BattleCharacterComponent character) && character != null)
+            {
+                if (data.Has(ActorProjectionFields.TeamId)) character.TeamId = data.TeamId;
+                if (data.Has(ActorProjectionFields.Hp))
+                {
+                    character.Hp = data.Hp;
+                    character.HpMax = data.HpMax;
+                }
+                if (data.Has(ActorProjectionFields.Spawn)) character.ModelId = data.Code;
             }
         }
 
         /// <summary>
-        /// 预测桥不负责移除 view 实体——销毁由 snapshot despawn 通道驱动。
+        /// The primary view keeps snapshot-owned entities; an independent view owns its actors.
         /// </summary>
         public void RemoveActor(int actorId, int frame)
         {
+            if (_viewContext == null || actorId <= 0) return;
+            var netId = new BattleNetId(actorId);
+            if (_viewLookup.TryResolve(_viewWorld, netId, out var entity) && entity.IsValid)
+                entity.Destroy();
+            _viewLookup.Unbind(netId);
+            _activeActors.Remove(actorId);
         }
 
         // forward = q * (0,0,1)，与 Transform3.Forward = Rotation.Rotate(Vec3.Forward) 同语义

@@ -7,7 +7,7 @@ namespace AbilityKit.Game.Flow
     internal sealed class BattleViewHandleStore
     {
         private readonly Dictionary<IEntityId, BattleViewHandle> _handles = new Dictionary<IEntityId, BattleViewHandle>();
-        private readonly Dictionary<int, IEntityId> _actorIdToEntityId = new Dictionary<int, IEntityId>();
+        private readonly PresentationActorIndex<IEntityId> _actors = new PresentationActorIndex<IEntityId>();
 
         public BattleViewHandle GetOrCreate(IEntityId entityId)
         {
@@ -30,7 +30,7 @@ namespace AbilityKit.Game.Flow
         {
             handle = null;
             entityId = default;
-            if (!_actorIdToEntityId.TryGetValue(actorId, out entityId)) return false;
+            if (!_actors.TryResolve(actorId, out entityId)) return false;
             return TryGet(entityId, out handle);
         }
 
@@ -38,29 +38,15 @@ namespace AbilityKit.Game.Flow
         {
             if (handle == null || actorId <= 0) return;
 
-            if (handle.ActorId != actorId)
-            {
-                if (handle.ActorId > 0 &&
-                    _actorIdToEntityId.TryGetValue(handle.ActorId, out var mappedEntityId) &&
-                    Equals(mappedEntityId, entityId))
-                {
-                    _actorIdToEntityId.Remove(handle.ActorId);
-                }
-                handle.ActorId = actorId;
-            }
-
-            _actorIdToEntityId[actorId] = entityId;
+            _actors.Rebind(handle.ActorId, actorId, entityId);
+            handle.ActorId = actorId;
         }
 
         public void Remove(IEntityId entityId)
         {
             if (_handles.TryGetValue(entityId, out var handle) && handle != null && handle.ActorId > 0)
             {
-                if (_actorIdToEntityId.TryGetValue(handle.ActorId, out var mappedEntityId) &&
-                    Equals(mappedEntityId, entityId))
-                {
-                    _actorIdToEntityId.Remove(handle.ActorId);
-                }
+                _actors.Remove(handle.ActorId, entityId);
             }
 
             _handles.Remove(entityId);
@@ -79,7 +65,7 @@ namespace AbilityKit.Game.Flow
         public void Clear()
         {
             _handles.Clear();
-            _actorIdToEntityId.Clear();
+            _actors.Clear();
         }
     }
 }

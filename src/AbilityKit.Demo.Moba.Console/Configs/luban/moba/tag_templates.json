@@ -1,0 +1,32 @@
+[
+  {
+    "Id": 1,
+    "BlockedTags": [],
+    "GrantTags": [
+      1
+    ],
+    "Name": "无敌标签",
+    "RemoveTags": [],
+    "RequiredTags": []
+  },
+  {
+    "Id": 2,
+    "BlockedTags": [],
+    "GrantTags": [
+      2
+    ],
+    "Name": "沉默标签",
+    "RemoveTags": [],
+    "RequiredTags": []
+  },
+  {
+    "Id": 3,
+    "BlockedTags": [],
+    "GrantTags": [
+      3
+    ],
+    "Name": "眩晕标签",
+    "RemoveTags": [],
+    "RequiredTags": []
+  }
+]

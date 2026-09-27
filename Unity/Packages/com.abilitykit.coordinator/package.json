@@ -19,6 +19,7 @@
         "com.abilitykit.world.di": "0.1.0",
         "com.abilitykit.host": "0.1.0",
         "com.abilitykit.protocol": "0.1.0",
-        "com.cysharp.memorypack": "1.10.0"
+        "com.cysharp.memorypack": "1.10.0",
+        "com.abilitykit.thirdparty.unsafe": "5.0.0"
     }
 }

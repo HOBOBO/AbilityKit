@@ -266,7 +266,8 @@ namespace AbilityKit.Demo.Moba.Services
                 spawnResult.ActorId,
                 position.X,
                 position.Y,
-                position.Z);
+                position.Z,
+                _registry.GetEntityVersion(spawnResult.ActorId));
             var changedEntry = new MobaPlayerHeroChangedSnapshotEntry(
                 request.Player.Value,
                 request.PreviousActorId,

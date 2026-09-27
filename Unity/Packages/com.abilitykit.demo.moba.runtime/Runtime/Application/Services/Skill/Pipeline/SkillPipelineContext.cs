@@ -29,7 +29,6 @@ namespace AbilityKit.Demo.Moba.Services
         public long RuntimeId { get; set; }
         public long SourceContextId { get; set; }
         public long DiagnosticCommandId { get; private set; }
-        public long PipelineTraceParentContextId { get; set; }
         public string FailReason { get; set; }
 
         public int SkillId { get; private set; }
@@ -139,7 +138,7 @@ namespace AbilityKit.Demo.Moba.Services
                             skillId: SkillId,
                             runtimeId: RuntimeId,
                             detail: "kind=" + kind,
-                            rootContextId: RuntimeHandle.RootTraceContextId,
+                            rootContextId: RuntimeHandle.RootContextId,
                             sourceContextId: SourceContextId,
                             runtimeHandle: RuntimeHandle),
                         MobaBattleExceptionSeverity.Recoverable);
@@ -184,7 +183,6 @@ namespace AbilityKit.Demo.Moba.Services
             RuntimeId = RuntimeHandle.IsValid ? RuntimeHandle.RuntimeId : triggerContext?.RuntimeId ?? 0L;
             SourceContextId = triggerContext?.SourceContextId ?? 0L;
             DiagnosticCommandId = triggerContext?.DiagnosticCommandId ?? 0L;
-            PipelineTraceParentContextId = 0L;
 
             SkillId = request.SkillId;
             CastFlowId = triggerContext?.CastFlowId ?? 0;
@@ -211,17 +209,33 @@ namespace AbilityKit.Demo.Moba.Services
             this.SetSkillRuntimeHandle(in runtimeHandle);
         }
 
-        public void SetPipelineTraceLocation(int castFlowId, long parentContextId)
+        public void SetCastFlowId(int castFlowId)
         {
             CastFlowId = castFlowId;
-            PipelineTraceParentContextId = parentContextId;
         }
 
         public void UpdateInput(in Vec3 aimPos, in Vec3 aimDir, int targetActorId)
         {
-            if (!aimPos.Equals(Vec3.Zero)) AimPos = aimPos;
-            if (!aimDir.Equals(Vec3.Zero)) AimDir = aimDir;
-            if (targetActorId > 0) TargetActorId = targetActorId;
+            UpdateInput(in aimPos, in aimDir, targetActorId,
+                !aimPos.Equals(Vec3.Zero), !aimDir.Equals(Vec3.Zero), targetActorId > 0);
+        }
+
+        public void UpdateInput(in Vec3 aimPos, in Vec3 aimDir, int targetActorId,
+            bool hasAimPos, bool hasAimDir, bool hasTarget)
+        {
+            if (hasAimPos) AimPos = aimPos;
+            if (hasAimDir && !aimDir.Equals(Vec3.Zero)) AimDir = aimDir;
+            if (hasTarget)
+            {
+                TargetActorId = targetActorId > 0 ? targetActorId : 0;
+                TargetUnit = null;
+                if (TargetActorId > 0 && WorldServices != null &&
+                    WorldServices.TryResolve<IUnitResolver>(out var units) && units != null)
+                {
+                    if (units.TryResolve(new EcsEntityId(TargetActorId), out var targetUnit))
+                        TargetUnit = targetUnit;
+                }
+            }
 
             var currentAimPos = AimPos;
             var currentAimDir = AimDir;

@@ -1,0 +1,33 @@
+{
+  "triggers": [
+    {
+      "id": 10010341,
+      "name": "廉颇-天崩地裂-第三段击飞",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "pull",
+          "speed": 8.0,
+          "duration_ms": 500,
+          "direction_mode": 2,
+          "target_distance": 0,
+          "priority": 110,
+          "motion_group_id": 3,
+          "continuous_tag_template_id": 10000001,
+          "target_query_id": 50010301,
+          "target_max_count": 10
+        },
+        {
+          "type": "debug_log",
+          "message": "廉颇三技能：第三段命中击飞目标",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

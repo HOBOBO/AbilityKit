@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using AbilityKit.Ability.Flow;
 using AbilityKit.Demo.Moba.View.Settings;
 using AbilityKit.Core.Logging;
@@ -84,10 +85,12 @@ namespace AbilityKit.Game.Flow
         public void Tick(float deltaTime) => _core.Tick(deltaTime);
         public void OnGUI() => _core.OnGUI();
         public void Shutdown() => _core.Shutdown();
+        public Task ShutdownAsync() => _core.ShutdownAsync();
         public void SwitchTo(IGamePhase next) => _core.SwitchTo(next);
 
         public void Attach(IGamePhaseFeature feature) => _core.Attach(feature);
         public void Detach(IGamePhaseFeature feature) => _core.Detach(feature);
+        public Task DetachAsync(IGamePhaseFeature feature) => _core.DetachAsync(feature);
         public int AttachBootFeatures() => _core.AttachBootFeatures();
         public int AttachBattleFeatures(IReadOnlyList<string> featureIds = null) => _core.AttachBattleFeatures(featureIds);
         public int AttachBattleFeatures(IReadOnlyList<string> featureIds, Func<BattleStartPlan, AbilityKit.Network.Abstractions.IConnection> gatewayConnectionFactory) =>

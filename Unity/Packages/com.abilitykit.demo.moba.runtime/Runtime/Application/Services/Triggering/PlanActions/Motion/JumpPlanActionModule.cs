@@ -74,7 +74,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     return;
                 }
 
-                var sourceConfigId = input.ActionInput.HasTraceScope ? input.ActionInput.TraceScope.EffectConfigId : executionContext.ConfigId;
+                var sourceConfigId = input.ActionInput.HasExecutionScope ? input.ActionInput.ExecutionScope.EffectConfigId : executionContext.ConfigId;
                 landingRuntime = new MobaMotionLandingTriggerRuntime(args.LandingTriggerIds, actorId, sourceConfigId, executionContext);
             }
 

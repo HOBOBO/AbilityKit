@@ -1,4 +1,3 @@
-using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
@@ -8,7 +7,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly int SourceActorId;
         public readonly bool RemoveAll;
         public readonly bool RemoveSlow;
-        public readonly TraceLifecycleReason Reason;
+        public readonly MobaExecutionEndReason Reason;
         public readonly MobaActionTargetRequest TargetRequest;
 
         public RemoveBuffArgs(
@@ -16,7 +15,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             int sourceActorId,
             bool removeAll,
             bool removeSlow,
-            TraceLifecycleReason reason,
+            MobaExecutionEndReason reason,
             in MobaActionTargetRequest targetRequest)
         {
             BuffId = buffId;

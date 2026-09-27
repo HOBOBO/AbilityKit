@@ -26,6 +26,14 @@ namespace ET.Logic
         {
         }
 
+        public void OnActorDespawnSnapshot(in FrameSnapshotData snapshot)
+        {
+        }
+
+        public void OnSkillStateSnapshot(in FrameSnapshotData snapshot)
+        {
+        }
+
         public void OnProjectileEventSnapshot(in FrameSnapshotData snapshot)
         {
         }

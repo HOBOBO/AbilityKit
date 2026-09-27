@@ -39,17 +39,22 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
         private Contexts _contexts;
         private ActorIdIndex _actorIndex;
+        private List<MobaExecutionContextRegistry> _damageExecutionContexts;
 
         [SetUp]
         public void SetUp()
         {
             _contexts = new Contexts();
             _actorIndex = new ActorIdIndex(_contexts);
+            _damageExecutionContexts = new List<MobaExecutionContextRegistry>();
         }
 
         [TearDown]
         public void TearDown()
         {
+            for (var i = 0; i < _damageExecutionContexts.Count; i++)
+                _damageExecutionContexts[i].Dispose();
+            _damageExecutionContexts.Clear();
             _actorIndex.Dispose();
             _contexts.Reset();
         }
@@ -76,12 +81,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var actor = CreateRegisteredActor(registry, entities, 80f);
             var actors = new MobaActorLookupService(_actorIndex, registry, entities, _contexts);
             var snapshots = new MobaDamageEventSnapshotService(new MobaLogicWorldRunGateService());
-            var damage = new MobaDamageService(actors, snapshots, eventBus: eventBus);
+            var executionContexts = new MobaExecutionContextRegistry();
+            _damageExecutionContexts.Add(executionContexts);
+            var damage = new MobaDamageService(actors, snapshots, eventBus: eventBus, executionContexts: executionContexts);
             using (var trace = new MobaTraceRegistry())
             using (var store = new MobaActionExecutionSnapshotStore(trace, registry, null, eventBus, 8, () => true))
             {
-                var id = trace.CreateRootContext(MobaTraceKind.EffectAction, 301, TargetActorId, TargetActorId);
-                var origin = new MobaGameplayOrigin(TargetActorId, TargetActorId, MobaTraceKind.EffectAction,
+                trace.AttachExecutionContexts(executionContexts);
+                var id = trace.CreateObservationRoot(MobaExecutionKind.EffectAction, 301, TargetActorId, TargetActorId);
+                var origin = new MobaGameplayOrigin(TargetActorId, TargetActorId, MobaExecutionKind.EffectAction,
                     301, id, id, id, id);
                 store.OnActionStarted(id, 0, 301, TargetActorId, TargetActorId, 10);
                 damage.CommitDamage(TargetActorId, TargetActorId, 0, Fixed64.FromSingle(20f), origin: origin);
@@ -320,6 +328,50 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void ResourceMutation_RejectsHealthAndProjectsOrdinaryResourceChanges()
+        {
+            CreateService(80f, new EventBus(), out var target);
+            var mana = new ResourceState
+            {
+                Current = Fixed64.FromInt32(50),
+                LastMax = Fixed64.FromInt32(100),
+            };
+            target.resourceContainer.Value.Map[ResourceType.Mana] = mana;
+
+            Assert.That(MobaResourceMutation.TryConsume(target, ResourceType.Hp, Fixed64.FromInt32(10),
+                out _, out _), Is.False);
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(80f));
+            Assert.That(MobaResourceMutation.TryConsume(target, ResourceType.Mana, Fixed64.FromInt32(10),
+                out var before, out var after), Is.True);
+            Assert.That(before, Is.EqualTo(Fixed64.FromInt32(50)));
+            Assert.That(after, Is.EqualTo(Fixed64.FromInt32(40)));
+            Assert.That(target.attributeGroup.Ctx.TryGetFloat("resource.mana.current", out var projected), Is.True);
+            Assert.That(projected, Is.EqualTo(40f));
+
+            MobaResourceMutation.Refund(target, ResourceType.Mana, mana, Fixed64.FromInt32(10));
+            Assert.That(target.attributeGroup.Ctx.TryGetFloat("resource.mana.current", out projected), Is.True);
+            Assert.That(projected, Is.EqualTo(50f));
+        }
+
+        [Test]
+        public void HealthCommits_RefreshResourceProjectionBeforePublishing()
+        {
+            var eventBus = new EventBus();
+            var service = CreateService(80f, eventBus, out var target);
+            var observed = new List<float>();
+            using var subscription = eventBus.Subscribe(CreateHealthCommittedKey(), _ =>
+            {
+                Assert.That(target.attributeGroup.Ctx.TryGetFloat("resource.hp.current", out var current), Is.True);
+                observed.Add(current);
+            });
+
+            service.CommitDamage(7, TargetActorId, 2, 20f);
+            service.CommitHeal(7, TargetActorId, 5, 15f);
+
+            Assert.That(observed, Is.EqualTo(new[] { 60f, 75f }));
+        }
+
+        [Test]
         public void HealPipeline_ValidatesPublishesAndCommitsThroughOneEntry()
         {
             var eventBus = new EventBus();
@@ -401,6 +453,129 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             Assert.That(result.Succeeded, Is.False);
             Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(80f));
+            Assert.That(_damageExecutionContexts[_damageExecutionContexts.Count - 1].Count, Is.Zero);
+        }
+
+        [Test]
+        public void HealPipeline_OriginCreatesChildAndRedirectUsesFinalTarget()
+        {
+            var transactions = new MobaCombatTransactionPipeline();
+            transactions.Register(new DelegateTransactionInterceptor<MobaHealTransaction>(
+                (transaction, stage, _) =>
+                {
+                    if (stage == MobaCombatTransactionStage.Modify) transaction.Redirect(TargetActorId);
+                }));
+            var service = CreateService(80f, new EventBus(), out var target, transactions);
+            var contexts = _damageExecutionContexts[_damageExecutionContexts.Count - 1];
+            var parent = contexts.Create(new MobaExecutionContextCreateRequest(
+                MobaExecutionKind.EffectAction, 42, 7, TargetActorId));
+            var origin = new MobaGameplayOrigin(7, 999, MobaExecutionKind.EffectAction,
+                42, parent.ContextId, parent.ContextId, parent.RootContextId, parent.OwnerContextId);
+
+            var result = service.CommitHeal(7, 999, 5, 10f, origin: origin);
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(90f));
+            Assert.That(result.Origin.TargetActorId, Is.EqualTo(TargetActorId));
+            Assert.That(result.Origin.ImmediateKind, Is.EqualTo(MobaExecutionKind.HealApply));
+            Assert.That(contexts.TryGet(result.Origin.ImmediateContextId, out var node), Is.True);
+            Assert.That(node.ParentContextId, Is.EqualTo(parent.ContextId));
+            Assert.That(node.RootContextId, Is.EqualTo(parent.RootContextId));
+            Assert.That(node.OwnerContextId, Is.EqualTo(parent.OwnerContextId));
+            Assert.That(node.TargetActorId, Is.EqualTo(TargetActorId));
+            Assert.That(node.EndReason, Is.EqualTo((int)MobaExecutionEndReason.Completed));
+        }
+
+        [Test]
+        public void HealPipeline_DirectRespawnCreatesIndependentCompletedRoot()
+        {
+            var service = CreateService(0f, new EventBus(), out _);
+            var contexts = _damageExecutionContexts[_damageExecutionContexts.Count - 1];
+
+            var result = service.CommitHeal(0, TargetActorId, 5, 30f, allowDeadTarget: true);
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(contexts.TryGet(result.Origin.ImmediateContextId, out var node), Is.True);
+            Assert.That(node.Kind, Is.EqualTo(MobaExecutionKind.HealApply));
+            Assert.That(node.SourceActorId, Is.Zero);
+            Assert.That(node.ParentContextId, Is.Zero);
+            Assert.That(node.RootContextId, Is.EqualTo(node.ContextId));
+            Assert.That(node.OwnerContextId, Is.EqualTo(node.ContextId));
+            Assert.That(node.IsEnded, Is.True);
+            Assert.That(node.EndReason, Is.EqualTo((int)MobaExecutionEndReason.Completed));
+        }
+
+        [Test]
+        public void HealPipeline_MissingExecutionContextsFailsBeforeMutationOrEvents()
+        {
+            var eventBus = new EventBus();
+            var service = CreateService(80f, eventBus, out var target);
+            SetPrivateField(service, "_executionContexts", (MobaExecutionContextRegistry)null);
+            var beforeCount = 0;
+            using var before = eventBus.Subscribe(
+                new EventKey<MobaHealRequest>(TriggeringIdUtil.GetEventEid(HealPipelineEvents.BeforeApply)),
+                _ => beforeCount++);
+
+            Assert.Throws<InvalidOperationException>(() => service.CommitHeal(7, TargetActorId, 5, 10f));
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(80f));
+            Assert.That(beforeCount, Is.Zero);
+        }
+
+        [Test]
+        public void HealPipeline_PostCommitSubscriberFailureEndsNodeAsCompleted()
+        {
+            var eventBus = new EventBus();
+            var service = CreateService(80f, eventBus, out var target);
+            var contexts = _damageExecutionContexts[_damageExecutionContexts.Count - 1];
+            using var subscription = eventBus.Subscribe<MobaHealthChangeResult>(
+                CreateHealthCommittedKey(),
+                _ => throw new InvalidOperationException("subscriber failed"));
+
+            Assert.Throws<InvalidOperationException>(() => service.CommitHeal(7, TargetActorId, 5, 10f));
+
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(90f));
+            Assert.That(contexts.Count, Is.EqualTo(1));
+            var node = contexts.CaptureLifecycleSnapshot()[0];
+            Assert.That(node.IsEnded, Is.True);
+            Assert.That(node.EndReason, Is.EqualTo((int)MobaExecutionEndReason.Completed));
+        }
+
+        [Test]
+        public void HealPipeline_FullHealthRejectsCommitAndEndsNodeAsFailed()
+        {
+            var service = CreateService(MaxHp, new EventBus(), out var target);
+            var contexts = _damageExecutionContexts[_damageExecutionContexts.Count - 1];
+
+            var result = service.CommitHeal(7, TargetActorId, 5, 10f);
+
+            Assert.That(result.Succeeded, Is.False);
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(MaxHp));
+            Assert.That(contexts.Count, Is.EqualTo(1));
+            var node = contexts.CaptureLifecycleSnapshot()[0];
+            Assert.That(node.IsEnded, Is.True);
+            Assert.That(node.EndReason, Is.EqualTo((int)MobaExecutionEndReason.Failed));
+        }
+
+        [Test]
+        public void HealPipeline_CompleteInterceptorFailureKeepsCommittedNode()
+        {
+            var transactions = new MobaCombatTransactionPipeline();
+            transactions.Register(new DelegateTransactionInterceptor<MobaHealTransaction>(
+                (transaction, stage, _) =>
+                {
+                    if (stage == MobaCombatTransactionStage.Complete)
+                        throw new InvalidOperationException("complete failed");
+                }));
+            var service = CreateService(80f, new EventBus(), out var target, transactions);
+            var contexts = _damageExecutionContexts[_damageExecutionContexts.Count - 1];
+
+            Assert.Throws<InvalidOperationException>(() => service.CommitHeal(7, TargetActorId, 5, 10f));
+
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(90f));
+            Assert.That(contexts.Count, Is.EqualTo(1));
+            var node = contexts.CaptureLifecycleSnapshot()[0];
+            Assert.That(node.IsEnded, Is.True);
+            Assert.That(node.EndReason, Is.EqualTo((int)MobaExecutionEndReason.Completed));
         }
 
         [Test]
@@ -427,6 +602,27 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 MobaCombatTransactionStage.Validate,
                 MobaCombatTransactionStage.Rollback,
             }));
+        }
+
+        [Test]
+        public void CombatTransaction_RollbackHookFailureDoesNotLeakRoot()
+        {
+            var pipeline = new MobaCombatTransactionPipeline();
+            var depths = new List<int>();
+            var failRollback = true;
+            pipeline.Register(new DelegateTransactionInterceptor<TestRevertibleTransaction>(
+                (transaction, stage, context) =>
+                {
+                    if (stage == MobaCombatTransactionStage.Prepare) depths.Add(context.Depth);
+                    if (stage == MobaCombatTransactionStage.Rollback && failRollback)
+                        throw new InvalidOperationException("rollback hook failed");
+                }));
+
+            Assert.Throws<InvalidOperationException>(() =>
+                pipeline.TryExecute(new TestRevertibleTransaction(), _ => false, _ => true));
+            failRollback = false;
+            Assert.That(pipeline.TryExecute(new TestRevertibleTransaction(), _ => true, _ => true), Is.True);
+            Assert.That(depths, Is.EqualTo(new[] { 0, 0 }));
         }
 
         [Test]
@@ -575,6 +771,146 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(stages, Is.EqualTo(new[] { "before_calc", "after_apply" }));
         }
 
+        [Test]
+        public void DamagePipeline_PreservesSkillEffectExecutionLineage()
+        {
+            var eventBus = new EventBus();
+            var transactions = new MobaCombatTransactionPipeline();
+            var pipeline = CreateDamagePipeline(80f, eventBus, transactions, out _, out _);
+            using var executionContexts = new MobaExecutionContextRegistry();
+            SetPrivateField(pipeline, "_executionContexts", executionContexts);
+
+            var skillRoot = executionContexts.Create(new MobaExecutionContextCreateRequest(
+                MobaExecutionKind.SkillCast,
+                configId: 501,
+                sourceActorId: 7,
+                targetActorId: TargetActorId,
+                frame: 10));
+            var effect = executionContexts.Create(new MobaExecutionContextCreateRequest(
+                MobaExecutionKind.SkillEffect,
+                configId: 601,
+                sourceActorId: 7,
+                targetActorId: TargetActorId,
+                parentContextId: skillRoot.ContextId,
+                rootContextId: skillRoot.ContextId,
+                ownerContextId: skillRoot.ContextId,
+                frame: 10));
+            var origin = new MobaGameplayOrigin(
+                sourceActorId: 7,
+                targetActorId: TargetActorId,
+                immediateKind: MobaExecutionKind.SkillEffect,
+                immediateConfigId: 601,
+                immediateContextId: effect.ContextId,
+                parentContextId: effect.ContextId,
+                rootContextId: skillRoot.ContextId,
+                ownerContextId: skillRoot.ContextId);
+            var attack = new AttackInfo
+            {
+                AttackerActorId = 7,
+                TargetActorId = TargetActorId,
+                DamageType = DamageType.Physical,
+                ReasonParam = 701,
+            };
+            attack.SetOrigin(in origin);
+            attack.BaseDamage.BaseValue = 20f;
+
+            var result = pipeline.Execute(attack);
+
+            Assert.That(result, Is.Not.Null);
+            var nodes = executionContexts.CaptureLifecycleSnapshot();
+            Assert.That(nodes.Count, Is.EqualTo(5));
+            AssertExecutionNode(nodes[2], MobaExecutionKind.DamageAttack, effect.ContextId, skillRoot.ContextId);
+            AssertExecutionNode(nodes[3], MobaExecutionKind.DamageCalc, nodes[2].ContextId, skillRoot.ContextId);
+            AssertExecutionNode(nodes[4], MobaExecutionKind.DamageApply, nodes[3].ContextId, skillRoot.ContextId);
+        }
+
+        [Test]
+        public void DamagePipeline_HealthCommittedOriginPointsToApplyNode()
+        {
+            var eventBus = new EventBus();
+            var pipeline = CreateDamagePipeline(80f, eventBus, new MobaCombatTransactionPipeline(), out _, out _);
+            MobaHealthChangeResult observed = default;
+            using var subscription = eventBus.Subscribe<MobaHealthChangeResult>(CreateHealthCommittedKey(),
+                change => observed = change);
+            var attack = new AttackInfo
+            {
+                AttackerActorId = 7,
+                TargetActorId = TargetActorId,
+                DamageType = DamageType.Physical,
+                ReasonParam = 701,
+            };
+            attack.BaseDamage.BaseValue = 20f;
+
+            Assert.That(pipeline.Execute(attack), Is.Not.Null);
+
+            Assert.That(observed.Origin.ImmediateKind, Is.EqualTo(MobaExecutionKind.DamageApply));
+            var nodes = _damageExecutionContexts[_damageExecutionContexts.Count - 1].CaptureLifecycleSnapshot();
+            Assert.That(observed.Origin.ImmediateContextId, Is.EqualTo(nodes[nodes.Count - 1].ContextId));
+            Assert.That(nodes[nodes.Count - 1].EndReason, Is.EqualTo((int)MobaExecutionEndReason.Completed));
+        }
+
+        [Test]
+        public void DamagePipeline_HealthSubscriberFailureFinalizesConsumedShieldAndCompletedNodes()
+        {
+            var eventBus = new EventBus();
+            var pipeline = CreateDamagePipeline(80f, eventBus, new MobaCombatTransactionPipeline(), out var target, out var shields);
+            shields.AddShield(TargetActorId, new ShieldLayer
+            {
+                ShieldId = 101,
+                SourceActorId = 7,
+                CurrentValue = Fixed64.FromSingle(5f),
+                MaxValue = Fixed64.FromSingle(5f),
+                InitialValue = Fixed64.FromSingle(5f),
+                AbsorbRatio = Fixed64.One,
+                StackingPolicy = ShieldStackingPolicy.Independent,
+                ConsumePolicy = ShieldConsumePolicy.PriorityThenOldest,
+            });
+            using var subscription = eventBus.Subscribe<MobaHealthChangeResult>(CreateHealthCommittedKey(),
+                _ => throw new InvalidOperationException("health subscriber failed"));
+            var attack = new AttackInfo
+            {
+                AttackerActorId = 7,
+                TargetActorId = TargetActorId,
+                DamageType = DamageType.Physical,
+            };
+            attack.BaseDamage.BaseValue = 20f;
+
+            Assert.That(Assert.Throws<InvalidOperationException>(() => pipeline.Execute(attack)).Message,
+                Is.EqualTo("health subscriber failed"));
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(65f));
+            Assert.That(shields.GetTotalRemaining(TargetActorId), Is.Zero);
+            Assert.That(shields.TryGetContainer(TargetActorId, out var container), Is.True);
+            Assert.That(container.Layers, Is.Empty);
+            var nodes = _damageExecutionContexts[_damageExecutionContexts.Count - 1].CaptureLifecycleSnapshot();
+            Assert.That(nodes, Has.Count.EqualTo(3));
+            Assert.That(nodes[2].EndReason, Is.EqualTo((int)MobaExecutionEndReason.Completed));
+            Assert.That(nodes[0].EndReason, Is.EqualTo((int)MobaExecutionEndReason.Completed));
+        }
+
+        [Test]
+        public void DamagePipeline_MissingExecutionContextRegistryFailsBeforeHealthMutation()
+        {
+            var pipeline = CreateDamagePipeline(
+                80f,
+                new EventBus(),
+                new MobaCombatTransactionPipeline(),
+                out var target,
+                out _);
+            SetPrivateField<MobaExecutionContextRegistry>(pipeline, "_executionContexts", null);
+            var attack = new AttackInfo
+            {
+                AttackerActorId = 7,
+                TargetActorId = TargetActorId,
+                DamageType = DamageType.Physical,
+            };
+            attack.BaseDamage.BaseValue = 20f;
+
+            var error = Assert.Throws<InvalidOperationException>(() => pipeline.Execute(attack));
+
+            Assert.That(error.Message, Is.EqualTo("Damage execution requires MobaExecutionContextRegistry."));
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(80f));
+        }
+
         [TestCase(0, BattleDiagnosticActionDamageOutcome.NoHpDamage, BattleDiagnosticDamageStage.Completed)]
         [TestCase(1, BattleDiagnosticActionDamageOutcome.FullyAbsorbed, BattleDiagnosticDamageStage.Completed)]
         [TestCase(2, BattleDiagnosticActionDamageOutcome.Applied, BattleDiagnosticDamageStage.Completed)]
@@ -604,13 +940,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             using var beforeApply = eventBus.Subscribe(new EventKey<AttackCalcInfo>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.BeforeApply)),
                 _ => { if (scenario == 7) shields.RemoveActor(TargetActorId); });
             using var trace = new MobaTraceRegistry();
+            trace.AttachExecutionContexts(_damageExecutionContexts[_damageExecutionContexts.Count - 1]);
             using var store = new MobaActionExecutionSnapshotStore(trace, null, collector, eventBus);
-            var id = trace.CreateRootContext(MobaTraceKind.EffectAction, 301, 7, TargetActorId);
+            var id = trace.CreateObservationRoot(MobaExecutionKind.EffectAction, 301, 7, TargetActorId);
             var attack = new AttackInfo
             {
                 AttackerActorId = 7, TargetActorId = scenario == 3 ? TargetActorId + 1 : scenario == 5 ? 0 : TargetActorId,
                 DamageType = DamageType.Physical,
-                Origin = new MobaGameplayOrigin(7, TargetActorId, MobaTraceKind.EffectAction, 301, id, id, id, id)
+                Origin = new MobaGameplayOrigin(7, TargetActorId, MobaExecutionKind.EffectAction, 301, id, id, id, id)
             };
             attack.BaseDamage.BaseValue = scenario == 0 ? 0f : 20f;
             store.OnActionStarted(id, 0, 301, 7, TargetActorId, 10);
@@ -652,10 +989,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             using var afterApply = eventBus.Subscribe(new EventKey<DamageResult>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply)),
                 _ => { if (scenario == 1) throw new InvalidOperationException("after apply failure"); });
             using var trace = new MobaTraceRegistry();
+            trace.AttachExecutionContexts(_damageExecutionContexts[_damageExecutionContexts.Count - 1]);
             using var store = new MobaActionExecutionSnapshotStore(trace, null, collector, eventBus);
-            var id = trace.CreateRootContext(MobaTraceKind.EffectAction, 301, 7, TargetActorId);
+            var id = trace.CreateObservationRoot(MobaExecutionKind.EffectAction, 301, 7, TargetActorId);
             var attack = new AttackInfo { AttackerActorId = 7, TargetActorId = TargetActorId, DamageType = DamageType.Physical,
-                Origin = new MobaGameplayOrigin(7, TargetActorId, MobaTraceKind.EffectAction, 301, id, id, id, id) };
+                Origin = new MobaGameplayOrigin(7, TargetActorId, MobaExecutionKind.EffectAction, 301, id, id, id, id) };
             attack.BaseDamage.BaseValue = 20f;
             store.OnActionStarted(id, 0, 301, 7, TargetActorId, 10);
             Assert.Throws<InvalidOperationException>(() => pipeline.Execute(attack));
@@ -786,7 +1124,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var actors = new MobaActorLookupService(_actorIndex, registry, entities, _contexts);
             var rules = new MobaCombatRulesService(actors);
             var snapshots = new MobaDamageEventSnapshotService(new MobaLogicWorldRunGateService());
-            var damage = new MobaDamageService(actors, snapshots, rules, eventBus: eventBus);
+            var executionContexts = new MobaExecutionContextRegistry();
+            _damageExecutionContexts.Add(executionContexts);
+            var damage = new MobaDamageService(actors, snapshots, rules, eventBus: eventBus, executionContexts: executionContexts);
             var deaths = new MobaUnitDeathSubscriber(eventBus, entities);
             var lifecycle = new MobaUnitLifecycleService(actors, entities, deaths, damage);
             var dieCount = 0;
@@ -834,7 +1174,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var actors = new MobaActorLookupService(_actorIndex, registry, entities, _contexts);
             var rules = new MobaCombatRulesService(actors);
             var snapshots = new MobaDamageEventSnapshotService(new MobaLogicWorldRunGateService());
-            return new MobaDamageService(actors, snapshots, rules, eventBus: eventBus, transactions: transactions);
+            var executionContexts = new MobaExecutionContextRegistry();
+            _damageExecutionContexts.Add(executionContexts);
+            return new MobaDamageService(actors, snapshots, rules, eventBus: eventBus,
+                transactions: transactions, executionContexts: executionContexts);
         }
 
         private DamagePipelineService CreateDamagePipeline(
@@ -853,7 +1196,36 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var snapshots = new MobaDamageEventSnapshotService(new MobaLogicWorldRunGateService());
             var damage = new MobaDamageService(actors, snapshots, rules, eventBus: eventBus, transactions: transactions);
             shields = new MobaShieldService();
-            return new DamagePipelineService(actors, damage, eventBus, shields: shields, eventCollector: collector, transactions: transactions);
+            var pipeline = new DamagePipelineService(
+                actors,
+                damage,
+                eventBus,
+                shields: shields,
+                eventCollector: collector,
+                transactions: transactions);
+            var executionContexts = new MobaExecutionContextRegistry();
+            _damageExecutionContexts.Add(executionContexts);
+            SetPrivateField(pipeline, "_executionContexts", executionContexts);
+            return pipeline;
+        }
+
+        private static void AssertExecutionNode(
+            in MobaExecutionContextNode node,
+            MobaExecutionKind expectedKind,
+            long expectedParentContextId,
+            long expectedRootContextId)
+        {
+            Assert.That(node.Kind, Is.EqualTo(expectedKind));
+            Assert.That(node.ParentContextId, Is.EqualTo(expectedParentContextId));
+            Assert.That(node.RootContextId, Is.EqualTo(expectedRootContextId));
+            Assert.That(node.OwnerContextId, Is.EqualTo(expectedRootContextId));
+        }
+
+        private static void SetPrivateField<T>(object target, string fieldName, T value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, fieldName);
+            field.SetValue(target, value);
         }
 
         private sealed class DelegateTransactionInterceptor<TTransaction> : IMobaCombatTransactionInterceptor<TTransaction>

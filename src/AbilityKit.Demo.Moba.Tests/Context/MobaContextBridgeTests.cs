@@ -1,6 +1,7 @@
 using System.Linq;
 using AbilityKit.Context;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Trace;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Context;
@@ -16,7 +17,7 @@ public sealed class MobaContextBridgeTests
 
         using var flow = registry.BeginFlow("moba-skill-effect");
         var tracedEntityId = flow.Create()
-            .WithTrace(rootTraceId: 10, traceContextId: 11, traceKind: (int)MobaTraceKind.SkillEffect)
+            .WithTrace(rootTraceId: 10, traceContextId: 11, traceKind: (int)MobaExecutionKind.SkillEffect)
             .Build();
         var plainEntityId = flow.CreateEntity();
 
@@ -27,10 +28,10 @@ public sealed class MobaContextBridgeTests
         Assert.True(registry.TryGetTrace(tracedEntityId, out var trace));
         Assert.Equal(10, trace.RootTraceId);
         Assert.Equal(11, trace.TraceContextId);
-        Assert.Equal((int)MobaTraceKind.SkillEffect, trace.TraceKind);
+        Assert.Equal((int)MobaExecutionKind.SkillEffect, trace.TraceKind);
         Assert.Equal(new[] { tracedEntityId }, registry.GetEntitiesByTraceRoot(10));
         Assert.Equal(new[] { tracedEntityId }, registry.GetEntitiesByTraceContext(11));
-        Assert.Equal(new[] { tracedEntityId }, registry.GetEntitiesByTraceKind((int)MobaTraceKind.SkillEffect));
+        Assert.Equal(new[] { tracedEntityId }, registry.GetEntitiesByTraceKind((int)MobaExecutionKind.SkillEffect));
 
         var tracedEntities = registry.Query()
             .CreateQuery()
@@ -58,11 +59,11 @@ public sealed class MobaContextBridgeTests
 
         using var flow = registry.BeginFlow("moba-buff-tick");
         var skillEntityId = flow.Create()
-            .WithTrace(rootTraceId: 100, traceContextId: 101, traceKind: (int)MobaTraceKind.SkillEffect)
+            .WithTrace(rootTraceId: 100, traceContextId: 101, traceKind: (int)MobaExecutionKind.SkillEffect)
             .With(new MobaContextCategoryProperty("skill"))
             .Build();
         var buffEntityId = flow.Create()
-            .WithTrace(rootTraceId: 100, traceContextId: 102, traceKind: (int)MobaTraceKind.BuffTick)
+            .WithTrace(rootTraceId: 100, traceContextId: 102, traceKind: (int)MobaExecutionKind.BuffTick)
             .With(new MobaContextCategoryProperty("buff"))
             .Build();
         _ = flow.CreateEntity();
@@ -70,7 +71,7 @@ public sealed class MobaContextBridgeTests
         var buffTraceEntities = registry.Query()
             .CreateQuery()
             .With<TraceContextProperty>()
-            .Where<TraceContextProperty>((_, trace) => trace.TraceKind == (int)MobaTraceKind.BuffTick)
+            .Where<TraceContextProperty>((_, trace) => trace.TraceKind == (int)MobaExecutionKind.BuffTick)
             .Execute()
             .ToArray();
         var businessCategoryEntities = registry.Query()
@@ -99,16 +100,16 @@ public sealed class MobaContextBridgeTests
 
         using var flow = registry.BeginFlow("typed-query-registry");
         _ = flow.Create()
-            .WithTrace(rootTraceId: 200, traceContextId: 201, traceKind: (int)MobaTraceKind.SkillEffect)
+            .WithTrace(rootTraceId: 200, traceContextId: 201, traceKind: (int)MobaExecutionKind.SkillEffect)
             .Build();
         var buffEntityId = flow.Create()
-            .WithTrace(rootTraceId: 200, traceContextId: 202, traceKind: (int)MobaTraceKind.BuffTick)
+            .WithTrace(rootTraceId: 200, traceContextId: 202, traceKind: (int)MobaExecutionKind.BuffTick)
             .Build();
 
         var result = registry.Query()
             .CreateQuery()
             .With<TraceContextProperty>()
-            .Where<TraceContextProperty>((_, trace) => trace.TraceKind == (int)MobaTraceKind.BuffTick)
+            .Where<TraceContextProperty>((_, trace) => trace.TraceKind == (int)MobaExecutionKind.BuffTick)
             .Execute(registry)
             .ToArray();
 

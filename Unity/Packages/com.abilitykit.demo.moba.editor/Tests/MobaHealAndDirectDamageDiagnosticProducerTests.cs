@@ -22,7 +22,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void DirectDamageCommitDraft_RetainsOriginAndAppliedValue()
         {
             var runtime = new MobaSkillCastRuntimeHandle(55, 3, 500);
-            var origin = new MobaGameplayOrigin(7, 11, MobaTraceKind.EffectExecution,
+            var origin = new MobaGameplayOrigin(7, 11, MobaExecutionKind.EffectExecution,
                 201, 601, 600, 500, 400, runtime);
             var result = new MobaHealthChangeResult(MobaHealthChangeKind.Damage,
                 7, 11, 1, 2, 401, 25f, 10f, 100f, 90f, 100f, in origin);
@@ -83,7 +83,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void HealCommitDraft_RetainsRequestedAppliedAndOrigin()
         {
             var runtime = new MobaSkillCastRuntimeHandle(55, 3, 500);
-            var origin = new MobaGameplayOrigin(7, 11, MobaTraceKind.EffectExecution,
+            var origin = new MobaGameplayOrigin(7, 11, MobaExecutionKind.EffectExecution,
                 201, 601, 600, 500, 400, runtime);
             var result = new MobaHealthChangeResult(MobaHealthChangeKind.Heal,
                 7, 11, 1, 2, 401, 25f, 10f, 90f, 100f, 100f, in origin);

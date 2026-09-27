@@ -90,7 +90,7 @@ flowchart TB
 | 规则执行 | EventBus、TriggerPlan、Action/Function Registry、ExecCtx | 事件 ID、payload、条件、动作注册和失败政策 | `MobaTriggerExecutionGateway`、PlanAction modules |
 | 持续生命周期 | `IContinuous`、Manager、Policy、暂停/恢复/终止契约 | Buff、引导、光环、位移等领域对象怎样绑定生命周期 | Buff/Passive/Motion continuous runtimes |
 | 目标与结算 | Targeting、Damage、Projectile、Motion 等原语 | 阵营、免疫、命中、护盾、资源、死亡和复活规则 | `MobaTargetQueryFactories`、`MobaDamageService` |
-| 上下文与诊断 | Context、Trace、Record、Snapshot 端口 | 业务来源类型、Actor 身份、归因字段和展示粒度 | `MobaTraceRegistry`、snapshot emitters |
+| 上下文与诊断 | Context、Trace、Record、Snapshot 端口 | 业务来源类型、Actor 身份、归因字段和展示粒度 | `MobaExecutionContextRegistry`、可选 `MobaTraceRegistry` Adapter、snapshot emitters |
 | 装配与驱动 | World.DI、Host、System、固定 Tick | 服务注册、System 顺序、World profile 和 readiness gate | `MobaBattleWorldBlueprint`、Bootstrap module |
 
 上表中的 MOBA 类型不是框架缺失实现的临时替代品。它们包含技能资源、阵营、Actor、Entitas、配置表和表现协议等项目决策，默认归示例应用层所有。其他项目可以复用其组织思路，但应重新建立自己的领域入口和失败语义。

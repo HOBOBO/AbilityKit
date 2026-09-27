@@ -24,7 +24,9 @@ builder.Services.AddAbilityKitGrainStateStorage(
     storageOptions.AllowInMemoryFallbackForUnsupportedProviders);
 
 builder.Services.AddSingleton(_ =>
-    ServerGameplayModuleCatalog.Default.WithModule(TinyServerGameplayModule.Create()));
+    ServerGameplayModuleCatalog.Default
+        .WithModule(TinyServerGameplayModule.Create())
+        .WithModule(TinyTurnGameplayModule.Create()));
 builder.Services.AddSingleton<ServerBattleWorldManager>(sp =>
     new ServerBattleWorldManager(sp.GetRequiredService<ILogger<ServerBattleWorldManager>>(),
         sp.GetRequiredService<ServerGameplayModuleCatalog>()));

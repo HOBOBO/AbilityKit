@@ -32,6 +32,10 @@ namespace AbilityKit.Game.Flow
         private readonly Dictionary<(int, PoolKind), ObjectPool<GameObject>> _pools =
             new Dictionary<(int, PoolKind), ObjectPool<GameObject>>(32);
         private readonly HashSet<(int, PoolKind)> _failedKeys = new HashSet<(int, PoolKind)>();
+        private readonly HashSet<GameObject> _leased = new HashSet<GameObject>();
+        private readonly BattleViewPoolMetricsTracker _metrics = new BattleViewPoolMetricsTracker();
+
+        public BattleViewPoolMetrics Metrics => _metrics.Capture(_pools.Values, _leased.Count);
 
         private BattleAreaVfxPool(Func<int, PoolKind, GameObject> factory, int capacityPerKindPerTemplate, BattleViewHierarchyManager hierarchy)
         {
@@ -79,21 +83,41 @@ namespace AbilityKit.Game.Flow
         public bool TryRent(int templateId, PoolKind kind, out GameObject instance)
         {
             instance = null;
-            if (templateId <= 0) return false;
+            if (templateId <= 0)
+            {
+                _metrics.RecordFailure();
+                return false;
+            }
             var key = (templateId, kind);
-            if (_failedKeys.Contains(key)) return false;
+            if (_failedKeys.Contains(key))
+            {
+                _metrics.RecordFailure();
+                return false;
+            }
 
             try
             {
                 var pool = GetOrCreateBucket(templateId, kind);
                 instance = pool.Get();
+                if (instance != null)
+                {
+                    _leased.Add(instance);
+                    _metrics.ObserveActive(_leased.Count);
+                }
+                else _metrics.RecordFailure();
                 return instance != null;
             }
             catch (InvalidOperationException ex)
             {
                 _failedKeys.Add(key);
+                _metrics.RecordFailure();
                 Debug.LogException(ex);
                 return false;
+            }
+            catch (Exception)
+            {
+                _metrics.RecordFailure();
+                throw;
             }
         }
 
@@ -126,10 +150,20 @@ namespace AbilityKit.Game.Flow
 
         public bool TryReturn(int templateId, PoolKind kind, GameObject instance)
         {
-            if (instance == null || templateId <= 0) return false;
+            if (instance == null || templateId <= 0 ||
+                BattleAreaPoolableTag.Read(instance) != (templateId, kind) || !_leased.Contains(instance))
+            {
+                _metrics.RecordFailure();
+                return false;
+            }
             var key = (templateId, kind);
-            if (!_pools.TryGetValue(key, out var pool)) return false;
+            if (!_pools.TryGetValue(key, out var pool))
+            {
+                _metrics.RecordFailure();
+                return false;
+            }
             pool.Release(instance);
+            _leased.Remove(instance);
             return true;
         }
 
@@ -138,10 +172,13 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         public void Clear()
         {
+            _metrics.RecordClear(_pools.Values, _leased.Count);
             foreach (var kvp in _pools)
             {
                 kvp.Value.Clear(destroy: true);
             }
+            foreach (var instance in _leased) DestroySafely(instance);
+            _leased.Clear();
             _pools.Clear();
             _failedKeys.Clear();
         }

@@ -1,14 +1,14 @@
 using AbilityKit.Core.Logging;
-using AbilityKit.Protocol.Moba;
+using AbilityKit.Demo.Moba.Share;
 
 namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleHudPlayerLoadoutResolver
     {
         public bool TryFind(
-            EnterMobaGameRes res,
+            BattleEnterGameSnapshot res,
             string playerId,
-            out MobaPlayerLoadout loadout)
+            out BattlePlayerLoadout loadout)
         {
             loadout = default;
             if (string.IsNullOrEmpty(playerId)) return false;
@@ -21,12 +21,12 @@ namespace AbilityKit.Game.Flow
                 return true;
             }
 
-            var responsePlayerId = res.PlayerId.Value;
+            var responsePlayerId = res.PlayerId;
             Log.Warning($"[BattleHudPlayerLoadoutResolver] local loadout not found. requested={playerId}, response={responsePlayerId}, loadoutCount={loadouts.Length}.");
             return false;
         }
 
-        private static bool TryFindByPlayerId(MobaPlayerLoadout[] loadouts, string playerId, out MobaPlayerLoadout loadout)
+        private static bool TryFindByPlayerId(BattlePlayerLoadout[] loadouts, string playerId, out BattlePlayerLoadout loadout)
         {
             loadout = default;
             if (string.IsNullOrEmpty(playerId)) return false;
@@ -35,7 +35,7 @@ namespace AbilityKit.Game.Flow
             for (int i = 0; i < loadouts.Length; i++)
             {
                 var candidate = loadouts[i];
-                if (candidate.PlayerId.Value == playerId)
+                if (string.Equals(candidate.PlayerId, playerId, System.StringComparison.OrdinalIgnoreCase))
                 {
                     loadout = candidate;
                     return true;

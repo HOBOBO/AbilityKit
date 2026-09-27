@@ -4,6 +4,7 @@ using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Demo.Moba.Services.Buffs;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
@@ -13,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Systems
         private SkillCastCoordinator _skills;
         private IWorldClock _clock;
         private MobaCombatRulesService _combatRules;
+        private MobaBuffService _buffs;
 
         private MobaWorldSystemServices _systemServices;
         private global::Entitas.IGroup<global::ActorEntity> _group;
@@ -27,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Systems
             Services.TryResolve(out _skills);
             Services.TryResolve(out _clock);
             Services.TryResolve(out _combatRules);
+            Services.TryResolve(out _buffs);
             _systemServices = MobaWorldSystemExecution.Resolve(Services);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId));
         }
@@ -77,6 +80,10 @@ namespace AbilityKit.Demo.Moba.Systems
                         if (!ruleResult.Passed)
                         {
                             _skills.CancelAll(actorId);
+                            if (ruleResult.Failure == MobaCombatRuleFailure.Dead)
+                            {
+                                _buffs?.EndAllForActor(actorId, MobaExecutionEndReason.Dead);
+                            }
                         }
                     }
                     _skills.Step(actorId);

@@ -27,14 +27,14 @@ namespace AbilityKit.Demo.Moba.Events.Unit
         /// <summary>模板 ID</summary>
         public readonly int TemplateId;
 
-        public readonly MobaTraceKind TraceKind;
+        public readonly MobaExecutionKind ExecutionKind;
 
         public UnitEventPayload(int actorId, Team team, EntityMainType mainType, UnitSubType unitSubType, PlayerId ownerPlayerId, int templateId)
-            : this(actorId, team, mainType, unitSubType, ownerPlayerId, templateId, MobaTraceKind.UnitSpawn)
+            : this(actorId, team, mainType, unitSubType, ownerPlayerId, templateId, MobaExecutionKind.UnitSpawn)
         {
         }
 
-        public UnitEventPayload(int actorId, Team team, EntityMainType mainType, UnitSubType unitSubType, PlayerId ownerPlayerId, int templateId, MobaTraceKind traceKind)
+        public UnitEventPayload(int actorId, Team team, EntityMainType mainType, UnitSubType unitSubType, PlayerId ownerPlayerId, int templateId, MobaExecutionKind executionKind)
         {
             ActorId = actorId;
             Team = team;
@@ -42,7 +42,7 @@ namespace AbilityKit.Demo.Moba.Events.Unit
             UnitSubType = unitSubType;
             OwnerPlayerId = ownerPlayerId;
             TemplateId = templateId;
-            TraceKind = traceKind != MobaTraceKind.None ? traceKind : MobaTraceKind.UnitSpawn;
+            ExecutionKind = executionKind != MobaExecutionKind.None ? executionKind : MobaExecutionKind.UnitSpawn;
         }
 
         public bool TryGetSourceActorId(out int actorId)
@@ -61,14 +61,14 @@ namespace AbilityKit.Demo.Moba.Events.Unit
         {
             origin = MobaGameplayOriginBuilder.Create()
                 .WithActors(ActorId, ActorId)
-                .WithImmediate(TraceKind, TemplateId, 0)
+                .WithImmediate(ExecutionKind, TemplateId, 0)
                 .Build();
             return origin.IsValid;
         }
 
         public bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)
         {
-            lineageContext = new MobaTriggerLineageContext(EffectContextKind.Unit, TraceKind, ActorId, ActorId, 0, 0, 0, TemplateId);
+            lineageContext = new MobaTriggerLineageContext(EffectContextKind.Unit, ExecutionKind, ActorId, ActorId, 0, 0, 0, TemplateId);
             return ActorId > 0;
         }
 

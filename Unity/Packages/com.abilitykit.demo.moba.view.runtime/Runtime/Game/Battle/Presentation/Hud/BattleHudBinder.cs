@@ -1,5 +1,5 @@
 using AbilityKit.Game.Flow.Battle.Hud;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;
 
@@ -32,12 +32,12 @@ namespace AbilityKit.Game.Flow
             _buffBars = controllers.CreateBuffBars(cfg, root, projector, this);
         }
 
-        public void OnDamageEvents(MobaDamageEventSnapshotEntry[] entries)
+        public void OnDamageEvents(DamageEventData[] entries)
         {
             _damageEvents.Present(entries);
         }
 
-        public void OnPresentationCues(MobaPresentationCueSnapshotEntry[] entries)
+        public void OnPresentationCues(PresentationCueData[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             _buffBars.HandleCues(entries);

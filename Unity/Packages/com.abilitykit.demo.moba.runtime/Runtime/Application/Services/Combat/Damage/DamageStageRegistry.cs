@@ -6,6 +6,53 @@ using AbilityKit.Ability.World.DI;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    public sealed class MobaDamageStageAttribute : Attribute
+    {
+        public string Id { get; }
+        public int Order { get; }
+        public string EventId { get; }
+        public bool IsCore { get; }
+
+        public MobaDamageStageAttribute(string id, int order, string eventId, bool isCore = false)
+        {
+            Id = id;
+            Order = order;
+            EventId = eventId;
+            IsCore = isCore;
+        }
+    }
+
+    public readonly struct MobaGeneratedDamageStageDescriptor
+    {
+        public readonly string Id;
+        public readonly int Order;
+        public readonly string EventId;
+        public readonly bool IsCore;
+        public readonly string TypeName;
+
+        public MobaGeneratedDamageStageDescriptor(string id, int order, string eventId, bool isCore, string typeName)
+        {
+            Id = id;
+            Order = order;
+            EventId = eventId;
+            IsCore = isCore;
+            TypeName = typeName;
+        }
+    }
+
+    internal static partial class MobaGeneratedDamageStageManifest
+    {
+        public static MobaGeneratedDamageStageDescriptor[] CreateDescriptors()
+        {
+            var descriptors = new List<MobaGeneratedDamageStageDescriptor>();
+            AddGenerated(descriptors);
+            return descriptors.ToArray();
+        }
+
+        static partial void AddGenerated(List<MobaGeneratedDamageStageDescriptor> descriptors);
+    }
+
     public static class MobaDamageStageOrders
     {
         public const int Base = 1000;

@@ -75,7 +75,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var origin = input.BuildOrigin(attackerActorId, targetActorId, MobaTraceKind.EffectExecution, 0);
+            var origin = input.BuildOrigin(attackerActorId, targetActorId, MobaExecutionKind.EffectExecution, 0);
             if (!TryResolveRequestedDamage(args, input, ctx, attackerActorId, targetActorId, out var attributeSourceActorId, out var requestedDamage, out var failure))
             {
                 MobaPlanActionDiagnostics.Rejected(
@@ -244,7 +244,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 .Append(" skillHandle=").Append(origin.SkillRuntimeHandle.ToString());
 
             AppendSkillRuntime(sb, ctx, in origin);
-            AppendTraceChain(sb, ctx, input, in origin);
+            AppendExecutionContextChain(sb, ctx, input, in origin);
 
             MobaPlanActionDiagnostics.Investigation(ctx.Context, TriggeringConstants.Actions.GiveDamage, sb.ToString());
         }
@@ -267,7 +267,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (!runtimes.TryGet(in handle, out var runtime) || runtime == null)
             {
                 sb.AppendLine().Append("  skillRuntime: not found handle=").Append(handle.ToString())
-                    .Append(" rootTrace=").Append(handle.RootTraceContextId);
+                    .Append(" rootContext=").Append(handle.RootContextId);
                 return;
             }
 
@@ -278,7 +278,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 .Append(" stage=").Append(runtime.Stage)
                 .Append(" caster=").Append(runtime.CasterActorId)
                 .Append(" target=").Append(runtime.TargetActorId)
-                .Append(" rootTrace=").Append(runtime.RootTraceContextId)
+                .Append(" rootContext=").Append(runtime.RootContextId)
                 .Append(" pendingChildren=").Append(runtime.PendingChildren);
 
             var children = runtime.Children;
@@ -287,58 +287,55 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 var child = children[i];
                 sb.AppendLine().Append("    child[").Append(i).Append("]: kind=").Append(child.Kind)
                     .Append(" id=").Append(child.ChildId)
-                    .Append(" traceCtx=").Append(child.TraceContextId)
+                    .Append(" context=").Append(child.ContextId)
                     .Append(" config=").Append(child.ConfigId);
             }
         }
 
-        private static void AppendTraceChain(StringBuilder sb, ExecCtx<IWorldResolver> ctx, MobaEffectActionInput input, in MobaGameplayOrigin origin)
+        private static void AppendExecutionContextChain(StringBuilder sb, ExecCtx<IWorldResolver> ctx, MobaEffectActionInput input, in MobaGameplayOrigin origin)
         {
-            if (!ctx.Context.TryResolve<MobaTraceRegistry>(out var traces) || traces == null)
+            if (!ctx.Context.TryResolve<MobaExecutionContextRegistry>(out var contexts) ||
+                contexts == null)
             {
-                sb.AppendLine().Append("  traceChain: registry not resolved");
+                sb.AppendLine().Append("  executionContexts: unavailable");
                 return;
             }
 
-            var rootId = ResolveTraceRootId(input, in origin);
+            var rootId = ResolveRootContextId(input, in origin);
             if (rootId == 0L)
             {
-                sb.AppendLine().Append("  traceChain: missing root id");
+                sb.AppendLine().Append("  executionContexts: missing root id");
                 return;
             }
 
-            var chain = traces.GetChain(rootId);
-            if (chain == null || chain.Count == 0)
+            if (!contexts.TryGetChain(rootId, out var chain) || chain == null || chain.Count == 0)
             {
-                sb.AppendLine().Append("  traceChain: empty root=").Append(rootId);
+                sb.AppendLine().Append("  executionContexts: empty root=").Append(rootId);
                 return;
             }
 
-            sb.AppendLine().Append("  traceChain: root=").Append(rootId).Append(" nodes=").Append(chain.Count);
+            sb.AppendLine().Append("  executionContexts: root=").Append(rootId).Append(" nodes=").Append(chain.Count);
             for (int i = 0; i < chain.Count; i++)
             {
                 var node = chain[i];
-                var metadata = node.Metadata != null ? node.Metadata.ToDisplayString() : string.Empty;
-                sb.AppendLine().Append("    [").Append(i).Append("] kind=").Append((MobaTraceKind)node.Kind)
+                var childCount = 0;
+                for (int childIndex = 0; childIndex < chain.Count; childIndex++)
+                    if (chain[childIndex].ParentContextId == node.ContextId) childCount++;
+                sb.AppendLine().Append("    [").Append(i).Append("] kind=").Append(node.Kind)
                     .Append(" ctx=").Append(node.ContextId)
-                    .Append(" parent=").Append(node.ParentId)
-                    .Append(" childCount=").Append(node.ChildCount);
-
-                if (!string.IsNullOrEmpty(metadata))
-                {
-                    sb.Append(" meta=").Append(metadata);
-                }
+                    .Append(" parent=").Append(node.ParentContextId)
+                    .Append(" childCount=").Append(childCount);
             }
         }
 
-        private static long ResolveTraceRootId(MobaEffectActionInput input, in MobaGameplayOrigin origin)
+        private static long ResolveRootContextId(MobaEffectActionInput input, in MobaGameplayOrigin origin)
         {
             if (origin.EffectiveRootContextId != 0L) return origin.EffectiveRootContextId;
-            if (origin.SkillRuntimeHandle.RootTraceContextId != 0L) return origin.SkillRuntimeHandle.RootTraceContextId;
+            if (origin.SkillRuntimeHandle.RootContextId != 0L) return origin.SkillRuntimeHandle.RootContextId;
 
             var executionContext = input.ExecutionContext;
             if (executionContext.RootContextId != 0L) return executionContext.RootContextId;
-            if (executionContext.SkillRuntimeHandle.RootTraceContextId != 0L) return executionContext.SkillRuntimeHandle.RootTraceContextId;
+            if (executionContext.SkillRuntimeHandle.RootContextId != 0L) return executionContext.SkillRuntimeHandle.RootContextId;
 
             return 0L;
         }

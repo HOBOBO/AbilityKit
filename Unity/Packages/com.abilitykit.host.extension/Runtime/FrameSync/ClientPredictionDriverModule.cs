@@ -44,6 +44,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         private void ResetReconcileInternal(WorldContext ctx)
         {
+            EndInputReplay(ctx);
             ctx.PredictedHashes?.Clear();
             ctx.AuthoritativeHashes?.Clear();
             ctx.ComparedAuthoritativeHashes?.Clear();
@@ -109,6 +110,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             public bool IdealFrameCappedWindow;
 
             public ReplayMode Mode;
+            public bool InputReplayActive;
             public FrameIndex ReplayTo;
             public FrameIndex LastRollbackFrame;
             public FrameIndex LastMissingAppliedHistoryFrame;
@@ -526,6 +528,10 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             runtime.Features.UnregisterFeature<IClientPredictionBaselineControl>();
             runtime.Features.UnregisterFeature<IHostRuntimeTickGate>();
 
+            foreach (var entry in _contexts)
+            {
+                EndInputReplay(entry.Value);
+            }
             _contexts.Clear();
             _lastConsumedConfirmedFrames = 0;
             _totalConsumedConfirmedFrames = 0;
@@ -724,6 +730,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             ctx.LastRollbackFrame = rollbackFrame;
             ctx.LastProcessedRollbackFrame = rollbackFrame;
             ctx.LastReplayWaitTargetFrame = -1;
+            BeginInputReplay(ctx, rollbackFrame, ctx.ReplayTo);
 
             _isReplaying = true;
             _replayToFrame = ctx.ReplayTo;
@@ -744,8 +751,48 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             return ctx.Rollback.TryRestore(frame);
         }
 
+        private static void BeginInputReplay(
+            WorldContext ctx,
+            FrameIndex restoredFrame,
+            FrameIndex replayToFrame)
+        {
+            if (ctx == null || ctx.InputReplayActive) return;
+            if (!(ctx.InputSink is IWorldInputReplaySink replaySink)) return;
+
+            replaySink.BeginReplay(restoredFrame, replayToFrame);
+            ctx.InputReplayActive = true;
+        }
+
+        private static void SubmitReplayInput(
+            WorldContext ctx,
+            FrameIndex frame,
+            IReadOnlyList<PlayerInputCommand> inputs)
+        {
+            if (ctx.InputReplayActive && ctx.InputSink is IWorldInputReplaySink replaySink)
+            {
+                replaySink.Replay(frame, inputs);
+                return;
+            }
+
+            ctx.InputSink?.Submit(frame, inputs);
+        }
+
+        private static void EndInputReplay(WorldContext ctx)
+        {
+            if (ctx == null || !ctx.InputReplayActive) return;
+            try
+            {
+                (ctx.InputSink as IWorldInputReplaySink)?.EndReplay();
+            }
+            finally
+            {
+                ctx.InputReplayActive = false;
+            }
+        }
+
         private void OnWorldDestroyed(WorldId worldId)
         {
+            if (_contexts.TryGetValue(worldId, out var ctx)) EndInputReplay(ctx);
             _contexts.Remove(worldId);
         }
 
@@ -910,6 +957,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                                     ctx.LastRollbackFrame = rollbackFrame;
                                     ctx.LastProcessedRollbackFrame = rollbackFrame;
                                     ctx.LastReplayWaitTargetFrame = -1;
+                                    BeginInputReplay(ctx, rollbackFrame, ctx.ReplayTo);
 
                                     _isReplaying = true;
                                     _replayToFrame = ctx.ReplayTo;
@@ -982,6 +1030,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
                     if (next.Value > ctx.ReplayTo.Value)
                     {
+                        EndInputReplay(ctx);
                         ctx.Mode = ReplayMode.Normal;
                         ctx.ReplayWaitTicks = 0;
                         ctx.LastReplayWaitTargetFrame = -1;
@@ -1034,6 +1083,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                             _totalReconcileAutoDisabledByReplayTimeout++;
                             _lastReconcileAutoDisabledByReplayTimeoutFrame = next;
                             ctx.ReconcileEnabled = false;
+                            EndInputReplay(ctx);
                             ctx.Mode = ReplayMode.Normal;
                             ctx.ReplayWaitTicks = 0;
                             ctx.LastReplayWaitTargetFrame = -1;
@@ -1045,7 +1095,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     ctx.LastReplayWaitTargetFrame = -1;
 
                     AlignFrameTime(ctx.FrameTime, next, deltaTime);
-                    ctx.InputSink.Submit(next, inputs);
+                    SubmitReplayInput(ctx, next, inputs);
                     _shouldRunWorldTick = true;
                     ctx.AppliedInputs?.Store(next, inputs);
                     ctx.PredictedFrame = next;

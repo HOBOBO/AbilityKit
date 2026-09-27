@@ -6,6 +6,7 @@ using AbilityKit.Ability.Host.Extensions.Moba.StartSources;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.LogicWorld;
+using AbilityKit.Demo.Moba.Session;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.CreateWorld;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -115,6 +116,68 @@ public sealed class MobaRuntimeFirstFrameSnapshotAcceptanceTests
         Assert.True(accepted.Succeeded);
         Assert.Equal(MobaInputSubmitFailureCode.None, accepted.FailureCode);
         Assert.Equal(1, accepted.CommandCount);
+    }
+
+    [Fact]
+    public void Runtime_io_port_rejects_invalid_snapshot_arguments_consistently()
+    {
+        var io = new MobaBattleIOPort(
+            new ScriptedInputCoordinator(),
+            EmptySnapshotProvider.Instance);
+        var snapshots = new List<WorldStateSnapshot>();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            io.TryGetSnapshot(new FrameIndex(-1), out _));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            io.CollectSnapshots(new FrameIndex(-1), snapshots));
+        Assert.Throws<ArgumentNullException>(() =>
+            io.CollectSnapshots(new FrameIndex(0), null!));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            io.CollectSnapshots(new FrameIndex(0), snapshots, 0));
+    }
+
+    [Fact]
+    public void Default_input_contracts_are_complete_and_have_explicit_handler_factories()
+    {
+        var registry = MobaInputCommandContractRegistry.CreateDefault();
+        var validation = registry.Validate();
+        var expectedOpCodes = new[]
+        {
+            MobaOpCodes.Input.Move,
+            MobaOpCodes.Input.SkillInput,
+            MobaOpCodes.Input.DebugSpawnUnit,
+            MobaOpCodes.Input.DebugReplaceHero,
+        };
+
+        Assert.True(validation.Succeeded, string.Join(Environment.NewLine, validation.Errors));
+        Assert.Equal(expectedOpCodes.Length, registry.ContractCount);
+        foreach (var opCode in expectedOpCodes)
+        {
+            Assert.True(registry.TryGetContract(opCode, out var contract));
+            Assert.True(contract.Required);
+            Assert.Equal(MobaInputCommandAuthority.BattlePlayer, contract.Authority);
+            Assert.Equal(MobaInputCommandFramePolicy.ExactBatchFrame, contract.FramePolicy);
+            Assert.False(string.IsNullOrWhiteSpace(contract.PayloadSchema));
+            Assert.NotNull(contract.PayloadValidator);
+            Assert.NotNull(contract.HandlerFactory);
+
+            Assert.True(registry.HandlerRegistry.TryGetHandlerDescriptor(opCode, out var descriptor));
+            Assert.Equal(contract.HandlerType, descriptor.HandlerType);
+            Assert.NotNull(descriptor.HandlerFactory);
+            Assert.IsAssignableFrom<IMobaInputCommandHandler>(descriptor.HandlerFactory());
+        }
+    }
+
+    [Fact]
+    public void Battle_driver_rejects_operations_before_binding()
+    {
+        var driver = new MobaBattleDriverHost();
+
+        Assert.Throws<InvalidOperationException>(() => driver.Start());
+        Assert.Throws<InvalidOperationException>(() => driver.GetAllEntityStates());
+        Assert.Throws<InvalidOperationException>(() => driver.GetLogicWorldEntityStates());
+        Assert.Throws<InvalidOperationException>(() =>
+            driver.FillLogicWorldEntityStates(new List<LogicWorldEntityState>()));
     }
 
     [Fact]

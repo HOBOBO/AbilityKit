@@ -2,7 +2,6 @@ using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.StateSync;
 
 namespace ET.Logic
 {
@@ -18,8 +17,20 @@ namespace ET.Logic
                 case MobaOpCodes.Snapshot.ActorSpawn:
                     return TryConvertActorSpawn(in snapshot, frameIndex, timestamp, out frameSnapshot);
 
+                case MobaOpCodes.Snapshot.ActorDespawn:
+                    return TryConvertActorDespawn(in snapshot, frameIndex, timestamp, out frameSnapshot);
+
+                case MobaOpCodes.Snapshot.SkillState:
+                    return TryConvertSkillState(in snapshot, frameIndex, timestamp, out frameSnapshot);
+
                 case MobaOpCodes.Snapshot.DamageEvent:
                     return TryConvertDamageEvent(in snapshot, frameIndex, timestamp, out frameSnapshot);
+
+                case MobaOpCodes.Snapshot.ProjectileEvent:
+                    return TryConvertProjectileEvent(in snapshot, frameIndex, timestamp, out frameSnapshot);
+
+                case MobaOpCodes.Snapshot.AreaEvent:
+                    return TryConvertAreaEvent(in snapshot, frameIndex, timestamp, out frameSnapshot);
 
                 case MobaOpCodes.Snapshot.PresentationCue:
                     return TryConvertPresentationCue(in snapshot, frameIndex, timestamp, out frameSnapshot);
@@ -35,24 +46,10 @@ namespace ET.Logic
 
         private static bool TryConvertActorTransform(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
         {
-            var entries = MobaActorTransformSnapshotCodec.Deserialize(snapshot.Payload);
-            if (entries.Length == 0)
+            if (!ActorTransformSnapshotRoute.TryDecode(in snapshot, out var transforms) || transforms.Length == 0)
             {
                 frameSnapshot = default;
                 return false;
-            }
-
-            var transforms = new ActorTransformData[entries.Length];
-            for (int i = 0; i < entries.Length; i++)
-            {
-                var entry = entries[i];
-                transforms[i] = new ActorTransformData(
-                    actorId: entry.ActorId,
-                    x: entry.X,
-                    y: entry.Z,
-                    z: entry.Y,
-                    rotationY: 0f,
-                    scale: 1f);
             }
 
             frameSnapshot = new FrameSnapshotData(
@@ -65,31 +62,10 @@ namespace ET.Logic
 
         private static bool TryConvertActorSpawn(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
         {
-            var entries = MobaActorSpawnSnapshotCodec.Deserialize(snapshot.Payload);
-            if (entries.Length == 0)
+            if (!ActorSpawnSnapshotRoute.TryDecode(in snapshot, out var spawns) || spawns.Length == 0)
             {
                 frameSnapshot = default;
                 return false;
-            }
-
-            var spawns = new ActorSpawnData[entries.Length];
-            for (int i = 0; i < entries.Length; i++)
-            {
-                var entry = entries[i];
-                spawns[i] = new ActorSpawnData(
-                    actorId: entry.NetId,
-                    entityCode: entry.Code,
-                    characterId: entry.Code,
-                    name: string.Empty,
-                    x: entry.X,
-                    y: entry.Z,
-                    z: entry.Y,
-                    rotationY: 0f,
-                    scale: 1f,
-                    teamId: 0,
-                    maxHp: 0f,
-                    hp: 0f,
-                    playerId: entry.OwnerNetId == 0 ? null : entry.OwnerNetId.ToString());
             }
 
             frameSnapshot = new FrameSnapshotData(
@@ -100,41 +76,89 @@ namespace ET.Logic
             return true;
         }
 
-        private static bool TryConvertDamageEvent(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
+        private static bool TryConvertActorDespawn(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
         {
-            var entries = MobaDamageEventSnapshotCodec.Deserialize(snapshot.Payload);
-            if (entries.Length == 0)
+            if (!ActorDespawnSnapshotRoute.TryDecode(in snapshot, out var despawns) || despawns.Length == 0)
             {
                 frameSnapshot = default;
                 return false;
-            }
-
-            var damageEvents = new DamageEventData[entries.Length];
-            for (int i = 0; i < entries.Length; i++)
-            {
-                var entry = entries[i];
-                damageEvents[i] = new DamageEventData(
-                    attackerId: entry.AttackerActorId,
-                    targetId: entry.TargetActorId,
-                    sourceId: entry.ReasonParam,
-                    damageType: entry.DamageType,
-                    damageValue: (int)MathF.Round(entry.Value),
-                    targetHpAfter: (int)MathF.Round(entry.TargetHp),
-                    isKill: entry.TargetHp <= 0f);
             }
 
             frameSnapshot = new FrameSnapshotData(
                 frameIndex: frameIndex,
                 timestamp: timestamp,
                 type: SnapshotType.Delta,
-                damageEvents: damageEvents);
+                actorDespawns: despawns);
+            return true;
+        }
+
+        private static bool TryConvertSkillState(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
+        {
+            if (!SkillStateSnapshotRoute.TryDecode(in snapshot, out var states) || states.Length == 0)
+            {
+                frameSnapshot = default;
+                return false;
+            }
+
+            frameSnapshot = new FrameSnapshotData(
+                frameIndex: frameIndex,
+                timestamp: timestamp,
+                type: SnapshotType.Delta,
+                skillStates: states);
+            return true;
+        }
+
+        private static bool TryConvertDamageEvent(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
+        {
+            if (!DamageEventSnapshotRoute.TryDecode(in snapshot, out var entries) || entries.Length == 0)
+            {
+                frameSnapshot = default;
+                return false;
+            }
+
+            frameSnapshot = new FrameSnapshotData(
+                frameIndex: frameIndex,
+                timestamp: timestamp,
+                type: SnapshotType.Delta,
+                damageEvents: entries);
+            return true;
+        }
+
+        private static bool TryConvertProjectileEvent(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
+        {
+            if (!ProjectileEventSnapshotRoute.TryDecode(in snapshot, out var entries) || entries.Length == 0)
+            {
+                frameSnapshot = default;
+                return false;
+            }
+
+            frameSnapshot = new FrameSnapshotData(
+                frameIndex: frameIndex,
+                timestamp: timestamp,
+                type: SnapshotType.Delta,
+                projectileEvents: entries);
+            return true;
+        }
+
+        private static bool TryConvertAreaEvent(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
+        {
+            if (!AreaEventSnapshotRoute.TryDecode(in snapshot, out var entries) || entries.Length == 0)
+            {
+                frameSnapshot = default;
+                return false;
+            }
+
+            frameSnapshot = new FrameSnapshotData(
+                frameIndex: frameIndex,
+                timestamp: timestamp,
+                type: SnapshotType.Delta,
+                areaEvents: entries);
             return true;
         }
 
         private static bool TryConvertPresentationCue(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
         {
-            var entries = MobaPresentationCueSnapshotCodec.Deserialize(snapshot.Payload);
-            if (entries.Length == 0)
+            if (!PresentationCueSnapshotRoute.TryDecode(in snapshot, out var entries) || entries.Length == 0)
             {
                 frameSnapshot = default;
                 return false;
@@ -144,14 +168,16 @@ namespace ET.Logic
                 frameIndex: frameIndex,
                 timestamp: timestamp,
                 type: SnapshotType.Delta,
-                presentationCues: PresentationCueSnapshotMapper.Map(entries));
+                presentationCues: entries);
             return true;
         }
 
         private static bool TryConvertStateHash(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
         {
-            var payload = MobaStateHashSnapshotCodec.Deserialize(snapshot.Payload);
-            if (payload.Version != MobaStateHashSnapshotCodec.Version || payload.Frame < 0 || payload.Hash == 0)
+            if (!StateHashSnapshotRoute.TryDecode(in snapshot, out var stateHash)
+                || stateHash.Version != StateHashSnapshotRoute.SupportedVersion
+                || stateHash.FrameIndex < 0
+                || stateHash.StateHash == 0)
             {
                 frameSnapshot = default;
                 return false;
@@ -161,7 +187,7 @@ namespace ET.Logic
                 frameIndex: frameIndex,
                 timestamp: timestamp,
                 type: SnapshotType.Delta,
-                stateHash: new StateHashData(payload.Frame, payload.Hash));
+                stateHash: stateHash);
             return true;
         }
     }

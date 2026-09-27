@@ -4,10 +4,10 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public static MobaGameplayOrigin Build(
             in MobaCombatExecutionContext executionContext,
-            in MobaEffectTraceScopeSnapshot traceScope,
+            in MobaEffectExecutionScopeSnapshot executionScope,
             int sourceActorId,
             int targetActorId,
-            MobaTraceKind fallbackKind,
+            MobaExecutionKind fallbackKind,
             int fallbackConfigId)
         {
             var origin = ResolveOrigin(
@@ -17,32 +17,32 @@ namespace AbilityKit.Demo.Moba.Services
                 fallbackKind,
                 fallbackConfigId);
 
-            return BuildFromOrigin(in origin, in executionContext, in traceScope, sourceActorId, targetActorId);
+            return BuildFromOrigin(in origin, in executionContext, in executionScope, sourceActorId, targetActorId);
         }
 
         public static MobaGameplayOrigin BuildFromOrigin(
             in MobaGameplayOrigin sourceOrigin,
             in MobaCombatExecutionContext executionContext,
-            in MobaEffectTraceScopeSnapshot traceScope,
+            in MobaEffectExecutionScopeSnapshot executionScope,
             int sourceActorId,
             int targetActorId)
         {
             var origin = sourceOrigin.WithActors(sourceActorId, targetActorId);
-            if (traceScope.EffectContextId != 0)
+            if (executionScope.EffectContextId != 0)
             {
                 var handle = executionContext.SkillRuntimeHandle;
-                var parentContextId = traceScope.CurrentActionContextId != 0
-                    ? traceScope.CurrentActionContextId
-                    : traceScope.EffectContextId;
-                var immediateKind = traceScope.CurrentActionContextId != 0
-                    ? MobaTraceKind.EffectAction
-                    : MobaTraceKind.EffectExecution;
-                var immediateConfigId = traceScope.CurrentActionContextId != 0
-                    ? (int)traceScope.CurrentActionId
-                    : traceScope.EffectConfigId;
+                var parentContextId = executionScope.CurrentActionContextId != 0
+                    ? executionScope.CurrentActionContextId
+                    : executionScope.EffectContextId;
+                var immediateKind = executionScope.CurrentActionContextId != 0
+                    ? MobaExecutionKind.EffectAction
+                    : MobaExecutionKind.EffectExecution;
+                var immediateConfigId = executionScope.CurrentActionContextId != 0
+                    ? (int)executionScope.CurrentActionId
+                    : executionScope.EffectConfigId;
                 var rootContextId = origin.EffectiveRootContextId != 0
                     ? origin.EffectiveRootContextId
-                    : traceScope.EffectContextId;
+                    : executionScope.EffectContextId;
                 var ownerContextId = origin.OwnerContextId != 0
                     ? origin.OwnerContextId
                     : parentContextId;
@@ -69,7 +69,7 @@ namespace AbilityKit.Demo.Moba.Services
             in MobaCombatExecutionContext executionContext,
             int sourceActorId,
             int targetActorId,
-            MobaTraceKind fallbackKind,
+            MobaExecutionKind fallbackKind,
             int fallbackConfigId)
         {
             if (executionContext.TryGetOrigin(out var contextOrigin) && contextOrigin.IsValid)

@@ -52,6 +52,10 @@ namespace AbilityKit.Game.Flow
                 {
                     confirmed.RebindAll();
                 }
+                if (ctx.Features.TryGet(out BattleSessionFeature session) && session != null)
+                {
+                    session.RebindProjectionViews();
+                }
             }
             GUILayout.EndArea();
 #endif

@@ -1,10 +1,12 @@
 ﻿# MOBA 战斗上下文当前设计文档
 
-本文档描述当前 `com.abilitykit.demo.moba.runtime` 战斗逻辑层在完成上下文归一化、factory 拆分、plan executor 拆分以及旧兼容回流移除后的实际设计。重点用于验证：输入、技能释放、效果执行、上下文生成、trace 跟踪、skill runtime 生命周期、plan action 分支是否符合预期。
+本文档描述当前 `com.abilitykit.demo.moba.runtime` 战斗逻辑层在完成上下文归一化、factory 拆分、plan executor 拆分以及 Trace 主链路分离后的正式设计。重点用于验证：输入、技能释放、效果执行、执行 Context 生成、skill runtime 生命周期、plan action 分支以及可选 Trace 投影是否符合预期。
+
+正式边界是：`MobaExecutionContextRegistry` 主导业务身份、父子关系、生命周期、预测撤销和 rollback；`com.abilitykit.demo.moba.trace.adapter` 通过 Context lifecycle observer 提供可安装、可移除的 Trace 增强。Runtime Core 不依赖 Trace，诊断业务字段也使用 Execution Context 语义。
 
 ## 1. 设计目标
 
-当前设计优先解决一个核心问题：战斗链路中上下文来源过多，导致 plan action、condition、damage、buff、projectile 各自从 payload、origin、snapshot、trace scope、runtime handle、dictionary 中重复推导同一批信息。
+当前设计优先解决一个核心问题：战斗链路中上下文来源过多，导致 plan action、condition、damage、buff、projectile 各自从 payload、origin、snapshot、execution scope、runtime handle、dictionary 中重复推导同一批信息。
 
 第一阶段的目标不是一步到位重构所有上下文模型，而是建立一个统一入口：`MobaCombatExecutionContext`。第二阶段已把构建和 snapshot 合并逻辑外移到 `MobaCombatExecutionContextFactory`。当前阶段进一步移除了统一 context 反向适配旧 provider/data bag 的路径，避免在框架设计阶段固化历史兼容层。
 
@@ -41,7 +43,7 @@ classDiagram
 
     class MobaEffectLineageInput {
         +EffectContextKind ContextKind
-        +MobaTraceKind OriginKind
+        +MobaExecutionKind OriginKind
         +int SourceActorId
         +int TargetActorId
         +long ParentContextId
@@ -53,7 +55,7 @@ classDiagram
     class MobaGameplayOrigin {
         +int SourceActorId
         +int TargetActorId
-        +MobaTraceKind ImmediateKind
+        +MobaExecutionKind ImmediateKind
         +int ImmediateConfigId
         +long ImmediateContextId
         +long ParentContextId
@@ -119,18 +121,18 @@ flowchart TD
     F -->|Cancel| K[CancelBySlot]
     H --> L[SkillExecutor.CastSkillInternal]
     L --> M[Create SkillCastContext]
-    M --> N[Create skill trace root]
+    M --> N[Create skill execution context root]
     N --> O[Create MobaSkillCastRuntime]
     O --> P[SkillPipelineRunner.Start]
     P --> Q[Pipeline phase executes effects]
     Q --> R[MobaEffectExecutionService.Execute]
     R --> S[Create MobaCombatExecutionContext]
     S --> T[Budget + Condition]
-    T --> U[Begin effect trace scope]
+    T --> U[Begin effect execution scope]
     U --> V[Trigger plan evaluate/execute]
     V --> W[Plan actions]
     W --> X[Damage/Buff/Projectile/etc]
-    X --> Y[End trace + pop context + exit budget]
+    X --> Y[End Context + pop execution frame + exit budget]
 ```
 
 ## 4. 输入到技能释放
@@ -196,7 +198,7 @@ flowchart TD
 - Release 优先释放 running skill，未命中时退化为释放一次技能。
 - Cancel 取消槽位对应运行中技能。
 
-## 5. 技能实例、trace root、skill runtime
+## 5. 技能实例、execution context root、skill runtime
 
 `SkillExecutor.CastSkillInternal` 是技能实例创建入口。它完成：
 
@@ -204,7 +206,7 @@ flowchart TD
 2. 从 actor transform 推导默认 aim position/aim direction。
 3. 创建 `SkillCastRequest`。
 4. 创建 `SkillCastContext`。
-5. 为当前技能创建 trace root。
+5. 在 `MobaExecutionContextRegistry` 中创建技能根 Context。
 6. 创建 `MobaSkillCastRuntime` 并把 handle 写回 `SkillCastContext`。
 7. 启动 `SkillPipelineRunner`。
 
@@ -212,15 +214,17 @@ flowchart TD
 sequenceDiagram
     participant Exec as SkillExecutor
     participant Lib as IMobaSkillPipelineLibrary
-    participant Trace as MobaTraceRegistry
+    participant Context as MobaExecutionContextRegistry
+    participant Adapter as Optional Trace Adapter
     participant RuntimeSvc as MobaSkillCastRuntimeService
     participant Runner as SkillPipelineRunner
 
     Exec->>Lib: TryGet(skillId)
     Lib-->>Exec: preConfig, prePhases, castConfig, castPhases
     Exec->>Exec: SkillCastRequest + SkillCastContext
-    Exec->>Trace: CreateRootContext(SkillCast, skillId, actorId, actorId)
-    Trace-->>Exec: SourceContextId
+    Exec->>Context: Create(SkillCast, skillId, actorId, actorId)
+    Context-->>Exec: SourceContextId
+    Context-->>Adapter: Created lifecycle event
     Exec->>RuntimeSvc: Create(MobaSkillCastRuntimeCreateRequest.FromCastContext(ctx))
     RuntimeSvc-->>Exec: RuntimeHandle + RuntimeId
     Exec->>Runner: Start(pre/cast pipeline, req, ctx)
@@ -257,14 +261,14 @@ stateDiagram-v2
 - `Execute(effectId, IAbilityPipelineContext context)`：技能 pipeline 内部 effect 执行。
 - `ExecuteTriggerId(triggerId, object payload)`：投射物命中、区域进入、Buff interval 等直接触发执行。
 
-两个入口现在都会先创建 `MobaCombatExecutionContext`，再进入预算、condition、trace、plan action。plan 查询、`ExecCtx<IWorldResolver>` 创建、`PlannedTrigger` evaluate/execute 和缺失 action 修复重试已经拆入 `MobaTriggerPlanExecutor`，`MobaEffectExecutionService` 只保留执行编排和 trace/session 生命周期。plan action 侧不负责创建正式 execution context，只从当前 session 或 typed payload provider 读取；遗留 fallback create 会记录 warning，用于定位绕过正式执行链路的入口。
+两个入口现在都会先创建 `MobaCombatExecutionContext`，再进入预算、condition、正式 Execution Context 和 plan action。plan 查询、`ExecCtx<IWorldResolver>` 创建、`PlannedTrigger` evaluate/execute 和缺失 action 修复重试已经拆入 `MobaTriggerPlanExecutor`，`MobaEffectExecutionService` 只保留执行编排和 Context session 生命周期。plan action 侧不负责创建正式 execution context，只从当前 session 或 typed payload provider 读取；遗留 fallback create 会记录 warning，用于定位绕过正式执行链路的入口。Trace Adapter 只观察已经提交的 session 生命周期。
 
-Buff interval 现在不是独立临时 periodic service，也不再由 Buff 系统直接驱动。Buff 应用时创建 `BuffContinuousRuntime` 并注册到 `IContinuousManager`；每帧由 `MobaContinuousTickSystem` 驱动 `MobaContinuousManager`，manager 统一 tick active continuous，并只通过 `IMobaTickableContinuous`、`IMobaContinuousIntervalState`、`IMobaContinuousRuntimeStateSync`、`IMobaContinuousPeriodicConfig`、`IMobaContinuousIntervalHandler` 这些抽象扩展点推进状态与分发 interval，不直接识别 Buff 业务类型。到达 interval 时通过所有匹配的 interval handler 分发到领域侧，Buff 领域由 `BuffContinuousIntervalHandler` 承接，再走 `BuffStageEffectExecutor.Execute`，payload 继续携带 Buff stage snapshot、origin、lineage、trace、skill runtime 和 live view provider，然后通过 `ExecuteTriggerId` 回到正式触发上下文链路。Buff interval 阶段的 trace kind 映射为 `BuffTick`，不再复用 apply 语义。
+Buff interval 现在不是独立临时 periodic service，也不再由 Buff 系统直接驱动。Buff 应用时创建 `BuffContinuousRuntime` 并注册到 `IContinuousManager`；每帧由 `MobaContinuousTickSystem` 驱动 `MobaContinuousManager`，manager 统一 tick active continuous，并只通过 `IMobaTickableContinuous`、`IMobaContinuousIntervalState`、`IMobaContinuousRuntimeStateSync`、`IMobaContinuousPeriodicConfig`、`IMobaContinuousIntervalHandler` 这些抽象扩展点推进状态与分发 interval，不直接识别 Buff 业务类型。到达 interval 时通过所有匹配的 interval handler 分发到领域侧，Buff 领域由 `BuffContinuousIntervalHandler` 承接，再走 `BuffStageEffectExecutor.Execute`，payload 继续携带 Buff stage snapshot、origin、lineage、execution context identity、skill runtime 和 live view provider，然后通过 `ExecuteTriggerId` 回到正式触发上下文链路。Buff interval 阶段的 `MobaExecutionKind` 映射为 `BuffTick`，不再复用 apply 语义；Trace Adapter 按需投影。
 
 ```mermaid
 flowchart TD
-    A1[Execute(effectId, pipeline context)] --> B1[EffectContextWrapper.Wrap]
-    A2[ExecuteTriggerId(triggerId, payload)] --> B2[payload]
+    A1["Execute(effectId, pipeline context)"] --> B1[EffectContextWrapper.Wrap]
+    A2["ExecuteTriggerId(triggerId, payload)"] --> B2[payload]
     B1 --> C[CreateCombatExecutionContext]
     B2 --> C
     C --> D[MobaEffectLineageInputResolver.Resolve]
@@ -274,14 +278,14 @@ flowchart TD
     G --> H[MobaTriggerExecutionBudget.TryEnter]
     H -->|blocked| I[Log warning and return]
     H -->|entered| J[Push execution context]
-    J --> K[BeginEffectTraceScope]
-    K --> L[CreateActionChildNodes]
+    J --> K[Create EffectExecution Context]
+    K --> L[Create Action Context Children]
     L --> M[EvaluateTriggerConditions]
-    M -->|failed| N[End trace failed]
+    M -->|failed| N[End Context failed]
     M -->|passed| O[MobaTriggerPlanExecutor.Execute]
     O --> O1[Create ExecCtx + PlannedTrigger]
     O1 --> O2[Evaluate and Execute plan]
-    O2 --> P[End trace completed/failed]
+    O2 --> P[End EffectExecution Context completed/failed]
     P --> Q[Pop execution context]
     Q --> R[Budget.Exit]
 ```
@@ -306,7 +310,7 @@ flowchart TD
     H --> I[Build snapshot]
     I --> J[MobaCombatExecutionContextFactory.Create]
     J --> K{payload already has context?}
-    K -->|yes| L[Factory.WithSnapshot(existing)]
+    K -->|yes| L["Factory.WithSnapshot(existing)"]
     K -->|no| M[TryResolveOrigin]
     M --> N[merge snapshot/runtime]
     N --> O[return normalized typed context]
@@ -341,13 +345,13 @@ flowchart TD
     B --> J[MobaTriggerConditionRegistry.Evaluate]
 ```
 
-### 7.3 执行会话、Plan executor、Trace scope 与执行上下文栈
+### 7.3 执行会话、Plan executor、Context scope 与执行上下文栈
 
-`MobaEffectExecutionService` 维护两组栈，并通过一次执行会话统一 enter/exit；plan 运行细节交给 `MobaTriggerPlanExecutor`：
+`MobaEffectExecutionService` 维护执行帧与 Context scope 栈，并通过一次执行会话统一 enter/exit；plan 运行细节交给 `MobaTriggerPlanExecutor`：
 
 - `_executionContexts`：当前嵌套 effect/trigger 的归一化执行上下文。
-- `_traceScopes`：当前嵌套 effect 的 trace scope。
-- `MobaEffectExecutionSession`：负责一次执行的 trace 完成、异常失败收尾、context pop、budget exit。
+- `_executionScopes`：当前嵌套 effect 的 Context scope。
+- `MobaEffectExecutionSession`：负责一次执行的 Context 完成、异常失败收尾、context pop、budget exit。
 - `MobaTriggerPlanExecutor`：负责按 triggerId 查询 plan，创建 `ExecCtx<IWorldResolver>`，执行 `PlannedTrigger` 的 evaluate/execute，并在 action 注册缺失时触发一次修复重试。
 
 它们的关系是：
@@ -356,30 +360,31 @@ flowchart TD
 sequenceDiagram
     participant Effect as MobaEffectExecutionService
     participant CtxStack as executionContexts
-    participant TraceStack as traceScopes
+    participant ContextStack as executionScopes
+    participant ContextRegistry as MobaExecutionContextRegistry
     participant PlanExec as MobaTriggerPlanExecutor
     participant Plan as TriggerPlan
     participant Action as PlanAction
 
     Effect->>Session: BeginExecutionSession(context, lineage, plan, budgetToken)
     Session->>CtxStack: Push(MobaCombatExecutionContext)
-    Session->>TraceStack: BeginEffectTraceScope(lineage)
-    Session->>TraceStack: CreateActionChildNodes(plan)
+    Session->>ContextStack: BeginEffectExecutionScope(lineage)
+    Session->>ContextRegistry: Create Effect/Action Context nodes
     Effect->>PlanExec: Execute(triggerId, args)
     PlanExec->>PlanExec: Create ExecCtx
     PlanExec->>Plan: Evaluate(args, execCtx)
     PlanExec->>Plan: Execute(args, execCtx)
     Plan->>Action: Invoke(triggerArgs, ExecCtx)
     Action->>Effect: TryGetCurrentExecutionContext()
-    Action->>Effect: TryGetCurrentTraceScope()
+    Action->>Effect: TryGetCurrentExecutionScope()
     Effect->>Session: Complete(executed)
-    Session->>TraceStack: EndCurrentTrace(reason)
+    Session->>ContextRegistry: End(contextId reason frame)
     Effect->>Session: Dispose()
     Session->>CtxStack: Pop()
     Session->>Effect: Budget.Exit(token)
 ```
 
-这样 action 不需要从 payload 里重复猜上下文，可以先通过 `MobaPlanActionInputResolver` 得到 action 输入视图，再由 `MobaActionOriginBuilder` 统一生成 action origin。执行会话保证即使 plan action 抛异常，也会用失败原因关闭 trace，并释放 budget 深度。plan executor 则把触发器运行时依赖检查、`ExecutionControl`、`ExecCtx`、缺失 action 修复重试从 effect service 中隔离出去。
+这样 action 不需要从 payload 里重复猜上下文，可以先通过 `MobaPlanActionInputResolver` 得到 action 输入视图，再由 `MobaActionOriginBuilder` 统一生成 action origin。执行会话保证即使 plan action 抛异常，也会用失败原因结束正式 Context，并释放 budget 深度；可选 Trace Adapter 从 `Ended` 事件关闭投影。plan executor 则把触发器运行时依赖检查、`ExecutionControl`、`ExecCtx`、缺失 action 修复重试从 effect service 中隔离出去。
 
 ## 8. Plan action 分支
 
@@ -392,7 +397,7 @@ sequenceDiagram
 - `SpawnSummonPlanActionModule`
 - `ConsumeResourcePlanActionModule`
 
-它们共享 `MobaPlanActionInputResolver` 读取 caster/target/aim/context/scope。需要生成 gameplay origin 的 action 再共享 `MobaActionOriginBuilder.Build`，展示、召唤、资源消耗等 action 则直接消费 typed action input。`MobaPlanActionExecutionContextResolver` 只负责读取当前执行上下文和 trace scope。
+它们共享 `MobaPlanActionInputResolver` 读取 caster/target/aim/context/scope。需要生成 gameplay origin 的 action 再共享 `MobaActionOriginBuilder.Build`，展示、召唤、资源消耗等 action 则直接消费 typed action input。`MobaPlanActionExecutionContextResolver` 只负责读取当前执行上下文和 execution scope。
 
 ```mermaid
 flowchart TD
@@ -407,8 +412,8 @@ flowchart TD
     G --> I
     H --> I
     I --> J[MobaActionOriginBuilder.Build]
-    J --> K{current trace scope exists?}
-    K -->|yes| L[origin.WithImmediate EffectExecution + trace scope id]
+    J --> K{current execution scope exists?}
+    K -->|yes| L[origin.WithImmediate EffectExecution + Context id]
     K -->|no| M[origin keeps fallback kind/config]
     L --> N[action-specific service]
     M --> N
@@ -471,7 +476,7 @@ flowchart TD
     D --> E[MobaProjectileService.Launch]
     E --> F[Projectile runtime may retain skill runtime]
     F --> G[Hit sync handler]
-    G --> H[ExecuteTriggerId(hit trigger, ProjectileHitArgs)]
+    G --> H["ExecuteTriggerId(hit trigger, ProjectileHitArgs)"]
 ```
 
 Projectile 命中后通常走直接 trigger 入口，继续携带 projectile source context 中的 root/owner/origin。
@@ -487,7 +492,7 @@ Projectile 命中后通常走直接 trigger 入口，继续携带 projectile sou
 1. 定义触发 payload 类型，例如 `XxxTriggerArgs` 或 `XxxEventArgs`。
 2. payload 至少实现 `IMobaActorContextProvider`，明确 source/target actor。
 3. 如果事件来自已有技能、Buff、Projectile、Summon 或 Area，payload 应继续携带 origin/lineage/runtime 信息，并实现对应的 context provider。
-4. 触发点只调用 `MobaEffectExecutionService.ExecuteTriggerId(triggerId, payload)`，不要在触发点手动创建 trace、手动执行 plan 或手动构建 action context。
+4. 触发点只调用 `MobaEffectExecutionService.ExecuteTriggerId(triggerId, payload)`，不要在触发点手动创建 Execution Context、手动执行 plan 或手动构建 action context；Trace 由可选 Adapter 统一观察。
 5. 在 `MobaEffectLineageInputResolver`、`MobaTriggerExecutionSnapshotBuilder` 与 `IMobaTriggerStageSnapshotProvider` 可识别的 provider 边界内补充新 payload 的信息来源；执行事实和阶段事实不要混放。Buff 这类仍可能存活的领域对象，如果后续 action 需要读取实时状态，应额外实现领域 live view provider，例如 `IBuffLiveViewProvider`。
 6. 用配置或订阅关系把事件映射到 triggerId，实际 plan 查询仍交给 `MobaTriggerPlanExecutor`。
 
@@ -498,7 +503,7 @@ flowchart TD
     C --> D[MobaEffectExecutionService.ExecuteTriggerId]
     D --> E[MobaEffectLineageInputResolver.Resolve]
     E --> F[MobaCombatExecutionContextFactory.Create]
-    F --> G[Begin execution session + trace scope]
+    F --> G[Begin execution session + Context scope]
     G --> H[MobaTriggerPlanExecutor.Execute]
     H --> I[Plan actions consume MobaPlanActionInput]
 ```
@@ -511,7 +516,7 @@ flowchart TD
 
 1. actor 身份：实现 `IMobaActorContextProvider`。
 2. 溯源信息：实现 `IMobaOriginContextProvider` 或 `IMobaTriggerLineageContextProvider`。
-3. trace 信息：实现 `IMobaTriggerTraceContextProvider`。
+3. 执行链路信息：实现 `IMobaTriggerLineageContextProvider` 或 `IMobaContextSourceProvider`，传播 source/parent/root/owner Context ID。
 4. skill runtime：实现 `IMobaTriggerSkillRuntimeContext`，让衍生对象保留技能生命周期 owner。
 5. 阶段快照：实现 `IMobaTriggerStageSnapshotProvider`，表达触发当帧的 stack、elapsed、remaining、duration。
 6. 领域实时视图：仍可能存活的领域对象实现对应 live view provider，例如 Buff 使用 `IBuffLiveViewProvider` 暴露 `BuffRuntimeView`。
@@ -527,7 +532,7 @@ flowchart TD
 2. 在 `PlanActions/Schemas` 下定义 schema，负责配置解析和编辑器/配置侧字段声明。
 3. 新建 `XxxPlanActionModule`，继承 `MobaPlanActionModuleBase<TArgs, TModule>`。
 4. 在 action 执行入口先调用 `MobaPlanActionInputResolver.Resolve(triggerArgs, ctx)`。
-5. caster、target、aim、execution context、trace scope 都从 `MobaPlanActionInput` 读取。
+5. caster、target、aim、execution context、execution scope 都从 `MobaPlanActionInput` 读取。
 6. 需要创建 Damage、Buff、Projectile、Summon、Area 等后续对象时，通过 `MobaActionOriginBuilder` 创建或继承 origin。
 7. action 只调用对应领域 service，不直接操作 effect trace stack、execution context stack 或 trigger plan executor。
 8. 如 action 会创建可延迟触发的子对象，应把 root/owner/origin/runtime handle 写入子对象 source context。
@@ -560,7 +565,7 @@ flowchart TD
 6. runtime service 从 `ExecCtx<IWorldResolver>.Context` 获取，不挂到核心 input 上。
 7. `PlanContextValueResolver` 已降级为 internal fallback，只允许 resolver 内部调用；action module 不应新增直接调用。
 
-当前 `MobaPlanActionInput` 的定位是 core action input。它可以承载 caster、target、aim、execution context、trace scope 这类基础事实，但不承载伤害、buff、投射物、召唤、区域、表现等领域字段。后续 targeting 如果扩展到命中列表、区域形状、目标集合、投射物生成点，应优先新增 `MobaTargetingActionInput`，而不是继续扩展 core input。
+当前 `MobaPlanActionInput` 的定位是 core action input。它可以承载 caster、target、aim、execution context、execution scope 这类基础事实，但不承载伤害、buff、投射物、召唤、区域、表现等领域字段。后续 targeting 如果扩展到命中列表、区域形状、目标集合、投射物生成点，应优先新增 `MobaTargetingActionInput`，而不是继续扩展 core input。
 
 ### 9.5 接入验收清单
 
@@ -587,7 +592,7 @@ flowchart TD
 
 当前第一阶段的关键约定：
 
-- skill cast 会创建 root trace context。
+- skill cast 会创建正式 root Execution Context；Trace Adapter 可选观察。
 - effect execution 如果有 parent，则创建 child context。
 - action child node 挂在当前 effect context 下。
 - buff/projectile 等衍生对象应保留 root/owner，使后续触发能回到同一条链。
@@ -597,12 +602,12 @@ flowchart TD
 建议重点验证以下问题：
 
 1. Press/Hold/Release/Cancel 的技能输入语义是否符合预期。
-2. 一个技能释放是否应该始终创建 skill cast root trace。
+2. 一个技能释放是否应该始终创建 skill cast root Context。
 3. `MobaSkillCastRuntime` 是否应该作为 Buff/Projectile/Area/Summon 的统一 owner。
-4. Effect trace scope 是否应该总是挂在 lineage parent 下。
-5. Plan action child trace 是否需要一 action 一节点，还是只对关键 action 建节点。
+4. Effect execution scope 是否应该总是挂在 lineage parent 下。
+5. Plan action child Context 是否需要一 action 一节点，还是只对关键 action 建节点。
 6. Damage/Buff/Projectile action 的 origin 统一规则是否都应继续沉淀到 `MobaActionOriginBuilder`。
-7. `OwnerContextId` 当前是否应该等同于 skill runtime owner，还是应独立于 trace root。
+7. `OwnerContextId` 当前是否应该等同于 skill runtime owner，还是应独立于 execution context root。
 8. `MobaCombatExecutionContext` 是否应继续从 facade 收敛为只读 execution fact，并继续减少 payload fallback。
 
 ## 12. 当前设计中仍然偏重的部分

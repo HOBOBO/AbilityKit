@@ -31,7 +31,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             builder.TryRegister<IMobaConfigDtoDeserializer>(WorldLifetime.Singleton, _ => JsonNetMobaConfigDtoDeserializer.Instance);
             builder.TryRegister<IMobaConfigDtoBytesDeserializer>(WorldLifetime.Singleton, _ => new LubanMobaConfigDtoBytesDeserializer());
             builder.TryRegister<IMobaConfigDtoProvider>(WorldLifetime.Singleton, _ => EmptyMobaConfigDtoProvider.Instance);
-            builder.TryRegister<IMobaConfigLoadProfile>(WorldLifetime.Singleton, _ => ResourcesJsonMobaConfigLoadProfile.Default);
+            builder.TryRegister<IMobaConfigLoadProfile>(WorldLifetime.Singleton, _ =>
+                new LubanGroupsMobaConfigLoadProfile(_.Resolve<ITextAssetLoader>()));
             builder.TryRegister<MobaBrainDecisionDriverRegistry>(
                 WorldLifetime.Singleton,
                 _ => MobaBrainDecisionDriverRegistry.CreateDefault(_.Resolve<ITextAssetLoader>()));
@@ -70,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
                 try
                 {
-                    loadProfile ??= ResourcesJsonMobaConfigLoadProfile.Default;
+                    loadProfile ??= new LubanGroupsMobaConfigLoadProfile(textAssetLoader);
                     loadProfile.Load(db, loadPipeline);
                     return db;
                 }

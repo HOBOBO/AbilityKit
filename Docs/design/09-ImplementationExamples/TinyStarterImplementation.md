@@ -35,13 +35,15 @@ Tiny 是新玩法接入 AbilityKit 的可运行参考项目：两名玩家、整
 
 ## 当前验收
 
-从仓库根目录运行 `./tools/verify-tiny-starter.ps1`：只读检查协议，执行 Room 与 Tiny 复制器测试，构建 Host/Gateway/客户端，在隔离端口依次完成 Room、State、Frame、Hybrid 独立双客户端工程、Recovery 四类故障验收及三模式综合 TCP 恢复验收。服务端仍运行时，隔离 Unity 网络 PlayMode 用两套正式会话和角色 View 验证三模式双端投影、访客恢复，并写入 `tiny-network-playmode.json`；随后运行 Tiny EditMode/PlayMode、无 Starter 消费工程与独立 Logic 工程测试。`-SkipUnity` 可省略 Unity 阶段。脚本检查每份 Unity XML 至少一项测试且全部通过。.NET 构建产物写入当次验收目录，避免与工作区其他构建共用 `bin/obj`。04–06 工程共编译 UPM 样例，并通过 `AbilityKit.Demo.Tiny.ClientHarness` 复用 .NET 无头网络驱动；正式会话实现仍只有 Unity 包 `Runtime/View` 中的一份。
+从仓库根目录运行 `./tools/verify-tiny-starter.ps1`：只读检查协议和 Tiny 依赖层级，执行 Room 与 Tiny 复制器测试，构建 Host/Gateway/客户端，在隔离端口依次完成 Room、State、Frame、Hybrid 独立双客户端工程、Recovery 四类故障验收及三模式综合 TCP 恢复验收。每种模式额外启动房主和访客两个独立 .NET 进程，检查不同 PID、相同 Room/Battle、权威攻击结果、预测策略和访客重连；当次目录的 `process-{Mode}/owner.json`、`guest.json` 及各进程日志保留证据。服务端仍运行时，隔离 Unity 网络 PlayMode 用两套正式会话和角色 View 验证三模式双端投影、访客恢复，并写入 `tiny-network-playmode.json`；随后运行 Tiny EditMode/PlayMode、无 Starter 消费工程与独立 Logic 工程测试。`-SkipUnity` 可省略 Unity 阶段。脚本检查每份 Unity XML 至少一项测试且全部通过。.NET 构建产物写入当次验收目录，避免与工作区其他构建共用 `bin/obj`。04–06 工程共编译 UPM 样例，并通过 `AbilityKit.Demo.Tiny.ClientHarness` 复用 .NET 无头网络驱动；正式会话实现仍只有 Unity 包 `Runtime/View` 中的一份。
 
-上述验证覆盖网络闭环、权威输入重放和断线全量恢复。Unity EditMode 验证工程编译和定向行为；普通 PlayMode 验证场景加载、独立项目入口、Bootstrap、返回大厅和 View 对象生命周期，并断言 State、Frame、Hybrid 到角色对象的投影。网络 PlayMode 使用真实 Gateway，但两套会话仍在同一个无头 Unity 进程中，直接驱动正式会话和 View 模块；它不等于两份可视化工程通过 `TinyGameplayRoot` 的完整界面交互。最终画面与交互仍需独立验收，不能以这些无头结果代替。
+上述验证覆盖网络闭环、权威输入重放和断线全量恢复。Unity EditMode 验证工程编译和定向行为；普通 PlayMode 验证场景加载、独立项目入口、Bootstrap、返回大厅和 View 对象生命周期，并断言 State、Frame、Hybrid 到角色对象的投影。网络 PlayMode 使用真实 Gateway，但两套会话仍在同一个无头 Unity 进程中，直接驱动正式会话和 View 模块。新增双进程验收证明两个独立 .NET 客户端连接同一 Gateway，仍不等于两份可视化工程通过 `TinyGameplayRoot` 的完整界面交互。最终画面与交互仍需独立验收，不能以这些无头结果代替。
+
+可选进阶工程 `Tiny.Record.Sample` 离线录制输入、快照和哈希；`Tiny.LiveRecord.Sample` 从真实 Gateway State 会话录制三次输入、两个快照并分别复演；`Tiny.ProtocolEvolution.Sample` 在隔离封套中验证 V1/V2 读取，并通过正式 Room 能力协商拒绝 schema 不兼容；`Tiny.BattleStyles.Sample` 比较本地回合所有权与实时双人 Tick。第二玩法 `TinyTurnGameplayModule` 使用独立回合制规则和 State 模板，`Tiny.Turn.StateSample` 用房主、访客双进程验证越权拒绝、重连、交替行动与胜者。回合规则源码位于可选的 `com.abilitykit.demo.tiny.turn`，它也提供 Unity 场景、会话和真实 Gateway 的无头 PlayMode 验收，不增加主 Tiny 包的 Record 或技能依赖。原 Tiny 双人实时玩法已经承担最小 Arena 演示。
 
 ## 后续交付顺序
 
 1. 已提供可移动的 Unity 工程模板：Starter 模式和不含 Starter 的 Tiny 消费模式均嵌入本地包闭包，manifest 不含本仓库绝对路径。MemoryPack 需要的 Unsafe 程序集由 `com.abilitykit.thirdparty.unsafe` 包提供，不再从源码工程 `Assets/Plugins` 补拷。消费工程用自有大厅及 `TinyProjectLaunch.Open` 验证进场；首次打开仍依赖公共 UPM 包解析。
-2. 待在两个独立 Unity 客户端中验收登录、创建/加入、准备、开战、输入、三种模式画面和重连，并保存可复查的日志或录像。
+2. 已增加两个独立 .NET 进程的三模式无头联机和重连证据。两个独立 Unity 可视客户端的登录、创建/加入、准备、开战、画面和交互仍需单独验收。
 3. 收敛项目装配边界：项目侧可注册服务端玩法模块，客户端入口无需修改公共 Starter 的 Tiny 分支；保持规则和表现为项目所有。
-4. `Docs/tutorials/tiny` 已按 State 主线、Frame/Hybrid 分支和恢复横切能力组织；Logic 包已独立。02–05 各有独立可运行的双客户端 .NET 工程，06 有独立恢复故障工程及三模式综合联机验收。08 提供跨层规则变更练习；正式 `Runtime` 实现只保留一份。
+4. `Docs/tutorials/tiny` 已按 State 主线、Frame/Hybrid 分支和恢复横切能力组织；Logic 包已独立。02–05 各有独立可运行的双客户端 .NET 工程，06 有独立恢复故障工程及三模式综合联机验收。08 提供跨层规则变更练习；09 从离线 Record 延伸到真实 Gateway 录制与 Room schema 协商；10 从本地节奏对比延伸到第二回合制服务端玩法及双进程验收。原 Tiny `Runtime` 的实时规则实现只保留一份。

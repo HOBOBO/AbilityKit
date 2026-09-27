@@ -146,7 +146,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
 
             var combatSource = new MobaCombatContextSource(
                 source.ContextKind != EffectContextKind.Unknown ? source.ContextKind : EffectContextKind.Buff,
-                source.TraceKind != MobaTraceKind.None ? source.TraceKind : MobaTraceKind.BuffTick,
+                source.ExecutionKind != MobaExecutionKind.None ? source.ExecutionKind : MobaExecutionKind.BuffTick,
                 source.SourceActorId != 0 ? source.SourceActorId : SourceActorId,
                 source.TargetActorId != 0 ? source.TargetActorId : TargetActorId,
                 source.SourceContextId != 0 ? source.SourceContextId : SourceContextId,
@@ -174,7 +174,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
                     MobaContextSourceResolveKind.DirectProvider,
                     MobaContextSourceBoundary.LiveRuntime,
                     Runtime.ContextSource.ContextKind != EffectContextKind.Unknown ? Runtime.ContextSource.ContextKind : EffectContextKind.Buff,
-                    Runtime.ContextSource.TraceKind,
+                    Runtime.ContextSource.ExecutionKind,
                     Runtime.ContextSource.SourceActorId != 0 ? Runtime.ContextSource.SourceActorId : SourceActorId,
                     Runtime.ContextSource.TargetActorId != 0 ? Runtime.ContextSource.TargetActorId : TargetActorId,
                     Runtime.ContextSource.SourceContextId != 0 ? Runtime.ContextSource.SourceContextId : SourceContextId,
@@ -197,7 +197,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
                 : new MobaGameplayOrigin(
                     SourceActorId,
                     TargetActorId,
-                    MobaTraceKind.BuffApply,
+                    MobaExecutionKind.BuffApply,
                     BuffId,
                     SourceContextId,
                     SourceContextId,

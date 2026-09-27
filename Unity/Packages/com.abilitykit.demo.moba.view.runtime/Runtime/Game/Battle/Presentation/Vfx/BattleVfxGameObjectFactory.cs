@@ -61,6 +61,14 @@ namespace AbilityKit.Game.Battle.Vfx
             return go;
         }
 
+        public void ReturnOrDestroy(int vfxId, GameObject go)
+        {
+            if (go == null) return;
+            if (_pool != null && _pool.Return(vfxId, go)) return;
+            if (Application.isPlaying) UnityEngine.Object.Destroy(go);
+            else UnityEngine.Object.DestroyImmediate(go);
+        }
+
         private static bool IsProjectileFallback(int vfxId)
         {
             return vfxId >= BattleViewPlaceholderIds.ProjectileVfx

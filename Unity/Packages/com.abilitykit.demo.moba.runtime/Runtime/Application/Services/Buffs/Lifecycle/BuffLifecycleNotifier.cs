@@ -3,7 +3,6 @@ using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Services.Buffs.Presentation;
 using AbilityKit.Demo.Moba.Services.Buffs.Triggering;
 using AbilityKit.Demo.Moba.Services.Observability;
-using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
 {
@@ -58,7 +57,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             }
         }
 
-        public void Removed(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, TraceLifecycleReason reason)
+        public void Removed(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, MobaExecutionEndReason reason)
         {
             if (buff == null || runtime == null) return;
 
@@ -82,7 +81,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             float durationSeconds,
             BuffRuntime runtime,
             int previousStackCount,
-            TraceLifecycleReason reason = TraceLifecycleReason.None)
+            MobaExecutionEndReason reason = MobaExecutionEndReason.None)
         {
             if (buff == null || runtime == null ||
                 _observationHook == null || !_observationHook.IsEnabled) return;

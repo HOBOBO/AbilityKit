@@ -43,8 +43,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 maxObserveTicks: 180,
                 requiredTraces: new[]
                 {
-                    new TraceRequirement(MobaTraceKind.ProjectileLaunch, 30020101),
-                    new TraceRequirement(MobaTraceKind.DamageApply, 10020101),
+                    new TraceRequirement(MobaExecutionKind.ProjectileLaunch, 30020101),
+                    new TraceRequirement(MobaExecutionKind.DamageApply, 10020101),
                 },
                 requireDamage: true,
                 requireKnockup: false,
@@ -61,8 +61,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 maxObserveTicks: 240,
                 requiredTraces: new[]
                 {
-                    new TraceRequirement(MobaTraceKind.AreaSpawn, 40020201),
-                    new TraceRequirement(MobaTraceKind.DamageApply, 10020201),
+                    new TraceRequirement(MobaExecutionKind.AreaSpawn, 40020201),
+                    new TraceRequirement(MobaExecutionKind.DamageApply, 10020201),
                 },
                 requireDamage: true,
                 requireKnockup: true),
@@ -77,7 +77,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 maxObserveTicks: 180,
                 requiredTraces: new[]
                 {
-                    new TraceRequirement(MobaTraceKind.BuffApply, 10020301),
+                    new TraceRequirement(MobaExecutionKind.BuffApply, 10020301),
                 },
                 requireDamage: false,
                 requireKnockup: false,
@@ -750,13 +750,13 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private readonly struct TraceRequirement
         {
-            public TraceRequirement(MobaTraceKind kind, int configId)
+            public TraceRequirement(MobaExecutionKind kind, int configId)
             {
                 Kind = kind;
                 ConfigId = configId;
             }
 
-            public MobaTraceKind Kind { get; }
+            public MobaExecutionKind Kind { get; }
             public int ConfigId { get; }
         }
 

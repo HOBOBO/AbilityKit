@@ -9,12 +9,7 @@ namespace AbilityKit.Demo.Moba.Services
         public readonly int ActiveSkillRuntimes;
         public readonly int WaitingSkillRuntimes;
         public readonly int PendingSkillChildren;
-        public readonly bool HasTraceRegistry;
-        public readonly int TraceRoots;
-        public readonly int ActiveTraceRoots;
-        public readonly int RetainedTraceRoots;
-        public readonly int RetainedEndedTraceRoots;
-        public readonly int StaleRetainedTraceRoots;
+        public readonly MobaOptionalHealthContribution OptionalHealth;
         public readonly bool HasValidationHistory;
         public readonly bool ValidationBlocksStartup;
         public readonly int ValidationErrors;
@@ -26,12 +21,7 @@ namespace AbilityKit.Demo.Moba.Services
             int activeSkillRuntimes,
             int waitingSkillRuntimes,
             int pendingSkillChildren,
-            bool hasTraceRegistry,
-            int traceRoots,
-            int activeTraceRoots,
-            int retainedTraceRoots,
-            int retainedEndedTraceRoots,
-            int staleRetainedTraceRoots,
+            MobaOptionalHealthContribution optionalHealth,
             bool hasValidationHistory,
             bool validationBlocksStartup,
             int validationErrors,
@@ -42,12 +32,7 @@ namespace AbilityKit.Demo.Moba.Services
             ActiveSkillRuntimes = activeSkillRuntimes;
             WaitingSkillRuntimes = waitingSkillRuntimes;
             PendingSkillChildren = pendingSkillChildren;
-            HasTraceRegistry = hasTraceRegistry;
-            TraceRoots = traceRoots;
-            ActiveTraceRoots = activeTraceRoots;
-            RetainedTraceRoots = retainedTraceRoots;
-            RetainedEndedTraceRoots = retainedEndedTraceRoots;
-            StaleRetainedTraceRoots = staleRetainedTraceRoots;
+            OptionalHealth = optionalHealth;
             HasValidationHistory = hasValidationHistory;
             ValidationBlocksStartup = validationBlocksStartup;
             ValidationErrors = validationErrors;
@@ -55,14 +40,14 @@ namespace AbilityKit.Demo.Moba.Services
             ValidationInfos = validationInfos;
         }
 
-        public bool HasRuntimeWarnings => WaitingSkillRuntimes > 0 || PendingSkillChildren > 0 || RetainedEndedTraceRoots > 0 || StaleRetainedTraceRoots > 0 || ValidationWarnings > 0;
-        public bool HasRuntimeErrors => ValidationBlocksStartup || ValidationErrors > 0;
+        public bool HasRuntimeWarnings => WaitingSkillRuntimes > 0 || PendingSkillChildren > 0 || OptionalHealth.WarningCount > 0 || ValidationWarnings > 0;
+        public bool HasRuntimeErrors => ValidationBlocksStartup || OptionalHealth.ErrorCount > 0 || ValidationErrors > 0;
         public bool HasObservabilityIssues => HasRuntimeWarnings || HasRuntimeErrors;
         public bool IsHealthy => !HasObservabilityIssues;
 
         public override string ToString()
         {
-            return $"healthy={IsHealthy}, skillRuntime={HasSkillRuntime}, activeSkills={ActiveSkillRuntimes}, waitingSkills={WaitingSkillRuntimes}, pendingSkillChildren={PendingSkillChildren}, trace={HasTraceRegistry}, traceRoots={TraceRoots}, activeTraceRoots={ActiveTraceRoots}, retainedTraceRoots={RetainedTraceRoots}, retainedEndedTraceRoots={RetainedEndedTraceRoots}, staleRetainedTraceRoots={StaleRetainedTraceRoots}, validation={HasValidationHistory}, validationErrors={ValidationErrors}, validationWarnings={ValidationWarnings}, validationInfos={ValidationInfos}, validationBlocksStartup={ValidationBlocksStartup}";
+            return $"healthy={IsHealthy}, skillRuntime={HasSkillRuntime}, activeSkills={ActiveSkillRuntimes}, waitingSkills={WaitingSkillRuntimes}, pendingSkillChildren={PendingSkillChildren}, optionalHealth={OptionalHealth.Source}, optionalWarnings={OptionalHealth.WarningCount}, optionalErrors={OptionalHealth.ErrorCount}, validation={HasValidationHistory}, validationErrors={ValidationErrors}, validationWarnings={ValidationWarnings}, validationInfos={ValidationInfos}, validationBlocksStartup={ValidationBlocksStartup}";
         }
     }
 
@@ -74,14 +59,10 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaRuntimeHealthSummaryValidator : IMobaRuntimeValidator, IMobaRuntimeHealthSummaryProvider, IBattleHealthProvider
     {
         public const string SourceName = "runtime.health.summary";
-        private const int DefaultTraceStaleFrameThreshold = 600;
         private const string MetricHealthy = "moba.runtime.health.healthy";
         private const string MetricSkillActive = "moba.runtime.health.skill.active";
         private const string MetricSkillWaiting = "moba.runtime.health.skill.waiting";
         private const string MetricSkillPendingChildren = "moba.runtime.health.skill.pending.children";
-        private const string MetricTraceRoots = "moba.runtime.health.trace.roots";
-        private const string MetricTraceRetainedRoots = "moba.runtime.health.trace.retained.roots";
-        private const string MetricTraceStaleRetainedRoots = "moba.runtime.health.trace.retained.stale.roots";
         private const string MetricValidationErrors = "moba.runtime.health.validation.errors";
         private const string MetricValidationWarnings = "moba.runtime.health.validation.warnings";
 
@@ -118,25 +99,12 @@ namespace AbilityKit.Demo.Moba.Services
                 report.Warning(SourceName, "skill.runtime", "MobaSkillCastRuntimeService is not resolved; skill runtime health cannot be aggregated.", nameof(MobaSkillCastRuntimeService), code: "moba.runtime.health.skill_runtime_missing", category: MobaRuntimeValidationCategory.Diagnostics);
             }
 
-            if (!summary.HasTraceRegistry)
-            {
-                report.Warning(SourceName, "trace.registry", "MobaTraceRegistry is not resolved; trace retention health cannot be aggregated.", nameof(MobaTraceRegistry), code: "moba.runtime.health.trace_registry_missing", category: MobaRuntimeValidationCategory.Diagnostics);
-            }
-
             if (summary.WaitingSkillRuntimes > 0)
             {
                 report.Warning(SourceName, "skill.runtime.waiting_children", $"Skill runtimes are waiting for retained children. waiting={summary.WaitingSkillRuntimes}, pendingChildren={summary.PendingSkillChildren}.", nameof(MobaSkillCastRuntimeService), code: "moba.runtime.health.skill_waiting_children", category: MobaRuntimeValidationCategory.Diagnostics);
             }
 
-            if (summary.RetainedEndedTraceRoots > 0)
-            {
-                report.Warning(SourceName, "trace.retention.ended", $"Ended trace roots are still externally retained. retainedEndedRoots={summary.RetainedEndedTraceRoots}.", nameof(MobaTraceRegistry), code: "moba.runtime.health.trace_retained_ended", category: MobaRuntimeValidationCategory.Diagnostics);
-            }
-
-            if (summary.StaleRetainedTraceRoots > 0)
-            {
-                report.Warning(SourceName, "trace.retention.stale", $"Stale retained trace roots detected. staleRetainedRoots={summary.StaleRetainedTraceRoots}.", nameof(MobaTraceRegistry), code: "moba.runtime.health.trace_retained_stale", category: MobaRuntimeValidationCategory.Diagnostics);
-            }
+            AppendOptionalHealthFindings(in summary.OptionalHealth, report);
 
             if (summary.HasValidationHistory && summary.ValidationBlocksStartup)
             {
@@ -156,9 +124,9 @@ namespace AbilityKit.Demo.Moba.Services
                 ? skillRuntimes.ScanDiagnostics(diagnostics)
                 : default;
 
-            var hasTraceRegistry = context.TryResolve<MobaTraceRegistry>(out var trace) && trace != null;
-            var traceScan = hasTraceRegistry
-                ? trace.ScanRetention(diagnostics, DefaultTraceStaleFrameThreshold, ResolveCurrentFrame(in context), SourceName + ".trace")
+            var hasOptionalContributor = context.TryResolve<IMobaOptionalHealthContributor>(out var contributor) && contributor != null;
+            var optionalHealth = hasOptionalContributor
+                ? contributor.CollectHealth(diagnostics, ResolveCurrentFrame(in context), SourceName + ".optional")
                 : default;
 
             MobaRuntimeValidationReport validationReport = null;
@@ -173,12 +141,7 @@ namespace AbilityKit.Demo.Moba.Services
                 skillScan.ActiveRuntimes,
                 skillScan.WaitingChildrenRuntimes,
                 skillScan.PendingChildren,
-                hasTraceRegistry,
-                traceScan.TotalRoots,
-                traceScan.ActiveRoots,
-                traceScan.RetainedRoots,
-                traceScan.RetainedEndedRoots,
-                traceScan.StaleRetainedRoots,
+                optionalHealth,
                 hasValidationHistory,
                 validationBlocksStartup,
                 validationErrors,
@@ -201,11 +164,34 @@ namespace AbilityKit.Demo.Moba.Services
             diagnostics.Gauge(MetricSkillActive, summary.ActiveSkillRuntimes);
             diagnostics.Gauge(MetricSkillWaiting, summary.WaitingSkillRuntimes);
             diagnostics.Gauge(MetricSkillPendingChildren, summary.PendingSkillChildren);
-            diagnostics.Gauge(MetricTraceRoots, summary.TraceRoots);
-            diagnostics.Gauge(MetricTraceRetainedRoots, summary.RetainedTraceRoots);
-            diagnostics.Gauge(MetricTraceStaleRetainedRoots, summary.StaleRetainedTraceRoots);
             diagnostics.Gauge(MetricValidationErrors, summary.ValidationErrors);
             diagnostics.Gauge(MetricValidationWarnings, summary.ValidationWarnings);
+        }
+
+        private static void AppendOptionalHealthFindings(
+            in MobaOptionalHealthContribution contribution,
+            MobaRuntimeValidationReport report)
+        {
+            var findings = contribution.Findings;
+            if (findings == null) return;
+
+            var source = contribution.IsAvailable ? contribution.Source : SourceName;
+            for (var i = 0; i < findings.Count; i++)
+            {
+                var finding = findings[i];
+                switch (finding.Severity)
+                {
+                    case MobaRuntimeValidationSeverity.Error:
+                        report.Error(source, finding.Path, finding.Message, blocksStartup: false, code: finding.Code, category: MobaRuntimeValidationCategory.Diagnostics);
+                        break;
+                    case MobaRuntimeValidationSeverity.Warning:
+                        report.Warning(source, finding.Path, finding.Message, code: finding.Code, category: MobaRuntimeValidationCategory.Diagnostics);
+                        break;
+                    default:
+                        report.Info(source, finding.Path, finding.Message, code: finding.Code, category: MobaRuntimeValidationCategory.Diagnostics);
+                        break;
+                }
+            }
         }
     }
 }

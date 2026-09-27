@@ -8,7 +8,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Projectile;
-using AbilityKit.Trace;
+using AbilityKit.Demo.Moba.Services.Buffs;
 
 namespace AbilityKit.Demo.Moba.Systems.EntityManager
 {
@@ -22,7 +22,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         private MobaActorDespawnSnapshotService _despawnSnapshots;
         private MobaProjectileLinkService _projectileLinks;
         private MobaSkillCastRuntimeService _skillRuntimes;
-        private MobaTraceRegistry _trace;
+        private MobaExecutionContextRegistry _executionContexts;
         private MobaSummonService _summons;
         private SkillCastCoordinator _skills;
         private MobaSkillLoadoutService _skillLoadouts;
@@ -30,6 +30,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         private MobaEffectiveTagQueryService _effectiveTags;
         private MobaCombatActivityService _combatActivity;
         private MobaShieldService _shields;
+        private MobaBuffService _buffs;
 
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
@@ -47,7 +48,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             Services.TryResolve(out _despawnSnapshots);
             Services.TryResolve(out _projectileLinks);
             Services.TryResolve(out _skillRuntimes);
-            Services.TryResolve(out _trace);
+            Services.TryResolve(out _executionContexts);
             Services.TryResolve(out _summons);
             Services.TryResolve(out _skills);
             Services.TryResolve(out _skillLoadouts);
@@ -55,6 +56,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             Services.TryResolve(out _effectiveTags);
             Services.TryResolve(out _combatActivity);
             Services.TryResolve(out _shields);
+            Services.TryResolve(out _buffs);
             _group = Contexts.Actor().GetGroup(ActorMatcher.ActorDespawnRequest);
         }
 
@@ -107,13 +109,13 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
                 return;
             }
 
+            CleanupProjectile(actorId, request);
+            ReclaimActorState(actorId, ToExecutionEndReason(request.Reason));
+
             if (entity.hasSummonMeta && _summons != null)
             {
                 if (_summons.ExecuteRequestedDespawn(actorId, ToSummonReason(request.Reason))) return;
             }
-
-            CleanupProjectile(actorId, request);
-            ReclaimActorState(actorId);
 
             _despawnSnapshots?.Enqueue(actorId, (byte)request.Reason);
             new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
@@ -123,8 +125,9 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             TryDestroy(entity, actorId, request.Reason);
         }
 
-        private void ReclaimActorState(int actorId)
+        private void ReclaimActorState(int actorId, MobaExecutionEndReason reason)
         {
+            _buffs?.EndAllForActor(actorId, reason);
             _skills?.RemoveActor(actorId);
             _skillLoadouts?.RemoveActor(actorId);
             _skillModifiers?.ClearActor(actorId);
@@ -139,7 +142,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
 
             if (_projectileLinks.TryGetProjectileId(actorId, out var projectileId))
             {
-                EndProjectileTrace(projectileId, request.Reason);
+                EndProjectileContext(projectileId, request.Reason);
                 ReleaseSkillRuntime(projectileId);
                 _projectileLinks.UnlinkByActorId(actorId);
             }
@@ -153,15 +156,15 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
 
             if (_projectileLinks.TryGetLauncherSource(launcherActorId, out var source)
                 && source.SourceContextId != 0L
-                && _trace != null)
+                && _executionContexts != null)
             {
                 try
                 {
-                    _trace.EndContext(source.SourceContextId, ToTraceReason(reason));
+                    _executionContexts.End(source.SourceContextId, (int)ToExecutionEndReason(reason), ResolveFrameOrDefault());
                 }
                 catch (System.Exception ex)
                 {
-                    Log.Exception(ex, $"[MobaActorDespawnCleanupSystem] End projectile launcher trace failed (launcherActorId={launcherActorId}, sourceContextId={source.SourceContextId})");
+                    Log.Exception(ex, $"[MobaActorDespawnCleanupSystem] End projectile launcher context failed (launcherActorId={launcherActorId}, sourceContextId={source.SourceContextId})");
                 }
             }
 
@@ -181,20 +184,25 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             _projectileLinks.UnlinkLauncher(launcherActorId);
         }
 
-        private void EndProjectileTrace(ProjectileId projectileId, ActorDespawnReason reason)
+        private void EndProjectileContext(ProjectileId projectileId, ActorDespawnReason reason)
         {
-            if (_trace == null || _projectileLinks == null) return;
+            if (_executionContexts == null || _projectileLinks == null) return;
             if (!_projectileLinks.TryGetSource(projectileId, out var source)) return;
             if (source.SourceContextId == 0L) return;
 
             try
             {
-                _trace.EndContext(source.SourceContextId, ToTraceReason(reason));
+                _executionContexts.End(source.SourceContextId, (int)ToExecutionEndReason(reason), ResolveFrameOrDefault());
             }
             catch (System.Exception ex)
             {
-                Log.Exception(ex, $"[MobaActorDespawnCleanupSystem] End projectile trace failed (projectileId={projectileId.Value}, sourceContextId={source.SourceContextId})");
+                Log.Exception(ex, $"[MobaActorDespawnCleanupSystem] End projectile context failed (projectileId={projectileId.Value}, sourceContextId={source.SourceContextId})");
             }
+        }
+
+        private int ResolveFrameOrDefault()
+        {
+            return TryGetConfirmedFrame(out var frame) ? frame : 0;
         }
 
         private void ReleaseSkillRuntime(ProjectileId projectileId)
@@ -280,14 +288,23 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             }
         }
 
-        private static TraceLifecycleReason ToTraceReason(ActorDespawnReason reason)
+        private static MobaExecutionEndReason ToExecutionEndReason(ActorDespawnReason reason)
         {
             switch (reason)
             {
+                case ActorDespawnReason.HeroReplaced:
+                case ActorDespawnReason.SummonReplacedByLimit:
+                    return MobaExecutionEndReason.Replaced;
+                case ActorDespawnReason.SummonOwnerDead:
+                case ActorDespawnReason.SummonKilled:
+                    return MobaExecutionEndReason.Dead;
+                case ActorDespawnReason.SummonManualRemove:
+                    return MobaExecutionEndReason.Dispelled;
+                case ActorDespawnReason.SceneCleanup:
                 case ActorDespawnReason.RollbackCleanup:
-                    return TraceLifecycleReason.Cancelled;
+                    return MobaExecutionEndReason.Cancelled;
                 default:
-                    return TraceLifecycleReason.Completed;
+                    return MobaExecutionEndReason.Completed;
             }
         }
     }

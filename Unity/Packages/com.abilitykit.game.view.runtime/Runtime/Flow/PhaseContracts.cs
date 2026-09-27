@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace AbilityKit.Game.View.Flow
 {
     public readonly struct PhaseContext<TEntry, TRoot>
@@ -24,6 +26,11 @@ namespace AbilityKit.Game.View.Flow
         void OnAttach(in TContext ctx);
         void OnDetach(in TContext ctx);
         void Tick(in TContext ctx, float deltaTime);
+    }
+
+    public interface IAsyncPhaseFeature<TContext> : IPhaseFeature<TContext>
+    {
+        Task DetachAsync(TContext ctx);
     }
 
     public interface IPhaseGuiFeature<TContext>

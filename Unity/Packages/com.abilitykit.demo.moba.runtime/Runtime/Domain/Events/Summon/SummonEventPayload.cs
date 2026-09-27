@@ -48,7 +48,7 @@ namespace AbilityKit.Demo.Moba.Events.Summon
 
             origin = MobaGameplayOriginBuilder.Create()
                 .WithActors(OwnerActorId, SummonActorId)
-                .WithImmediate(MobaTraceKind.SummonSpawn, SummonId, 0)
+                .WithImmediate(MobaExecutionKind.SummonSpawn, SummonId, 0)
                 .Build();
             return origin.IsValid;
         }
@@ -62,7 +62,7 @@ namespace AbilityKit.Demo.Moba.Events.Summon
 
             lineageContext = new MobaTriggerLineageContext(
                 EffectContextKind.Unknown,
-                MobaTraceKind.SummonSpawn,
+                MobaExecutionKind.SummonSpawn,
                 OwnerActorId,
                 SummonActorId,
                 0,

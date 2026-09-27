@@ -12,23 +12,23 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             int triggerId,
             int sourceActorId,
             int sourceConfigId,
-            MobaEffectTraceScopeSnapshot traceScope,
+            MobaEffectExecutionScopeSnapshot executionScope,
             MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
         {
             TriggerId = triggerId;
             SourceActorId = sourceActorId;
             SourceConfigId = sourceConfigId;
-            TraceScope = traceScope;
+            ExecutionScope = executionScope;
             SkillRuntimeHandle = skillRuntimeHandle;
         }
 
         public int TriggerId { get; }
         public int SourceActorId { get; }
         public int SourceConfigId { get; }
-        public MobaEffectTraceScopeSnapshot TraceScope { get; }
+        public MobaEffectExecutionScopeSnapshot ExecutionScope { get; }
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
 
-        public bool IsValid => TriggerId > 0 && SourceActorId > 0 && TraceScope.EffectContextId != 0;
+        public bool IsValid => TriggerId > 0 && SourceActorId > 0 && ExecutionScope.EffectContextId != 0;
 
         public MobaMotionHitTriggerRuntime WithSourceActor(int sourceActorId)
         {
@@ -36,7 +36,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
                 TriggerId,
                 sourceActorId,
                 SourceConfigId,
-                TraceScope,
+                ExecutionScope,
                 SkillRuntimeHandle);
         }
     }
@@ -70,29 +70,17 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             {
                 lineageContext = new MobaTriggerLineageContext(
                     EffectContextKind.Trigger,
-                    MobaTraceKind.EffectExecution,
+                    MobaExecutionKind.EffectExecution,
                     SourceActorId > 0 ? SourceActorId : Runtime.SourceActorId,
                     TargetActorId,
-                    Runtime.TraceScope.EffectContextId,
-                    Runtime.TraceScope.EffectContextId,
-                    Runtime.TraceScope.EffectContextId,
+                    Runtime.ExecutionScope.EffectContextId,
+                    Runtime.ExecutionScope.EffectContextId,
+                    Runtime.ExecutionScope.EffectContextId,
                     SourceConfigId != 0 ? SourceConfigId : Runtime.SourceConfigId);
                 return true;
             }
 
             lineageContext = default;
-            return false;
-        }
-
-        public override bool TryGetTraceContext(out MobaTriggerTraceContext traceContext)
-        {
-            if (TryGetLineageContext(out var lineageContext))
-            {
-                traceContext = lineageContext.ToTraceContext();
-                return true;
-            }
-
-            traceContext = default;
             return false;
         }
 

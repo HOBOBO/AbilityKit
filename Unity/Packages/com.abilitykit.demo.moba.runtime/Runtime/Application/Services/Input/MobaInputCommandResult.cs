@@ -21,6 +21,9 @@ namespace AbilityKit.Demo.Moba.Services
         ContractMissing = 12,
         AuthorityRejected = 13,
         FramePolicyRejected = 14,
+        PredictionIdentityRejected = 15,
+        InputSequenceRejected = 16,
+        InterruptEpochRejected = 17,
     }
 
     public readonly struct MobaInputCommandResult

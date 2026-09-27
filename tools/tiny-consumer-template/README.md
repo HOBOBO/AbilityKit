@@ -17,3 +17,21 @@ project handoff steps without requiring this repository's scripts.
 The `TinyConsumer.PlayMode.Tests` assembly checks the lobby-to-Tiny-to-lobby
 scene path in headless Unity. It uses a test token and an unavailable local port
 to validate scene composition without requiring a running server.
+
+`TinyConsumer.Network.PlayMode.Tests` runs only while the verification script's
+Gateway is active. It uses the real scene root and a second network session to
+check State, Frame, and Hybrid gameplay and recovery. The result is written to
+`tiny-consumer-network.json`; no Unity window or screenshot is required.
+
+With `-Standalone -IncludeTurn`, the generated project also contains
+`ConsumerTurnLobby` and the optional Turn package. Its own
+`TinyConsumerTurnLobby.Enter(authenticatedLaunch)` calls
+`TinyTurnProjectLaunch.Open`; `TinyConsumer.Turn.Network.PlayMode.Tests`
+checks the real Gateway battle and return path. The default Standalone
+project does not include this lobby or depend on Turn.
+
+The full verification gate also launches independent owner and guest headless
+Unity processes for State and Turn, each with its own generated project and
+`Library`. Their `unity-cross-State` and `unity-cross-Turn` directories contain
+per-process XML, logs, and JSON proving the shared room, authoritative result,
+and return to each lobby. This does not evaluate rendered image quality.

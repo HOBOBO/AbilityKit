@@ -4,7 +4,7 @@
 
 **Ability-Kit** 是一个面向复杂战斗项目的可组合工具集。它以 Unity UPM Package 组织源码，同时提供大量 .NET 工程用于脱离 Unity 的编译、测试、Console 宿主和 Orleans 服务端接入。项目关注的不是替项目预制一套固定 MOBA、ARPG 或 Shooter 应用层，而是提供技能编排、规则触发、战斗原子能力、逻辑世界、同步、回放、网络和表现解耦等可复用机制。
 
-核心战斗模块尽量保持为纯 C# runtime；Unity 相关代码主要承担场景入口、资源与配置创作、表现投影和编辑器工具。游戏规则、房间流程、账号接入、技能配置规范、会话组合根和表现策略仍由具体项目决定。MOBA、Shooter、Console、ET 与 Orleans 代码用于展示这些机制如何落地，不是所有项目必须继承的统一应用套件。
+核心战斗模块尽量保持为纯 C# runtime；Unity 相关代码主要承担场景入口、资源与配置创作、表现投影和编辑器工具。游戏规则、房间流程、账号接入、技能配置规范、会话组合根和表现策略仍由具体项目决定。Tiny、MOBA、Shooter、Console、ET 与 Orleans 代码用于展示这些机制如何落地，不是所有项目必须继承的统一应用套件。
 
 Ability-Kit 目前处于**开发期**。这个仓库保存的是 AbilityKit 相关模块包、示例工程、工具链和第三方适配的**完整源码集合**，方便统一开发、编译验证、示例演示和设计文档维护。
 
@@ -123,7 +123,8 @@ Ability-Kit 的高价值点不只在于模块数量，而在于这些模块可�
 | --- | --- | --- |
 | `demo.moba.*` | 技能输入、Pipeline、Trigger Plan、Buff/Continuous、投射物、区域、伤害、位移、召唤、寻路、碰撞、BT AI、表现 Cue、配置加载与 Entitas 集成 | 复用公共接口、战斗机制和分层思路；英雄规则、Blueprint、服务门面、System 顺序和配置 schema 属于 MOBA 项目策略 |
 | `demo.shooter.*` | 权威插值、预测校正、快照投影、可靠事件、重连恢复、Svelto ECS、双连接网络链和多进程验收 | 复用同步、快照、网络与记录组件；Room flow、客户端 controller、表现 step order 和容量策略属于 Shooter 项目策略 |
-| Unity Starter/Composition | 用统一的 launch request、Profile/Catalog 查询和 Gameplay Root 实例化入口启动 MOBA 或 Shooter | 公共层只解决“选择并启动哪个 Root”；scene、profile、root、session 和玩法流程继续由游戏 Package 或项目拥有 |
+| `demo.tiny.*` | 从独立确定性规则到 Room、State/Frame/Hybrid、恢复和项目装配的最小联机路径 | 复用 Network/Room、同步与回滚机制；输入语义、战斗规则、玩法模块和表现由项目拥有 |
+| Unity Starter/Composition | 用统一的 launch request、Profile/Catalog 查询和 Gameplay Root 实例化入口启动 MOBA、Shooter 或 Tiny | 公共层只解决“选择并启动哪个 Root”；scene、profile、root、session 和玩法流程继续由游戏 Package 或项目拥有 |
 | MOBA Console | 在纯 .NET 进程中组合 World、Host、同步适配、输入、表现投影和回放 | 用于理解完整组合根与无 Unity 验证；它自己的 Local/Hybrid adapter 不是 coordinator 包的公共实现 |
 | ET Demo | 把 ET Scene、Component/System、房间玩家和表现对象接到 MOBA runtime | 参考第三方宿主适配方法，不要求真实项目采用 ET 的对象模型 |
 | Orleans Server/Smoke | Gateway、Room、Battle Host、协议路由、状态存储边界和多进程验收 | 参考服务端权威链和验收方法；源码或 workflow 入口存在不等于本次构建已经通过真实 Smoke |
@@ -179,13 +180,13 @@ flowchart TB
 | --- | --- | --- |
 | 框架机制层 | Phase/Trigger/Action 契约，World/Host 生命周期接口，ECS 适配，同步、快照、记录、网络和诊断基础设施 | 英雄规则、房间阶段、账号登录、UI 流程、具体配置表结构 |
 | 项目应用层 | 组合根、会话、配置发布、权威模型、系统顺序、失败补偿、表现投影和资源所有权 | 把本项目策略包装成所有游戏必须使用的框架默认 |
-| 示例宿主层 | MOBA、Shooter、Console、ET、Unity Starter 和 Orleans 的可运行或可审计参考 | 证明另一种宿主、同步模式或项目规则也已自动适用 |
+| 示例宿主层 | Tiny、MOBA、Shooter、Console、ET、Unity Starter 和 Orleans 的可运行或可审计参考 | 证明另一种宿主、同步模式或项目规则也已自动适用 |
 
 这种边界是工具集的核心取舍：框架提供足够细且可以组合的积木，示例提供高接入度的完整对象图，但真实项目可以替换应用层而不需要 fork 基础机制。
 
 ### 多宿主装配
 
-- Unity Starter 只统一启动请求、Profile/Catalog 查询和 Gameplay Root 实例化；MOBA/Shooter 的 scene、root、entry、session 与 teardown 仍由各自 Package 拥有。
+- Unity Starter 只统一启动请求、Profile/Catalog 查询和 Gameplay Root 实例化；MOBA/Shooter/Tiny 的 scene、root、entry、session 与 teardown 仍由各自 Package 拥有。
 - MOBA Console 由 `Program` 与 `ConsoleBattleBootstrapper` 直接构造完整对象图，不消费 Unity Profile/Catalog，也不依赖一个公共 `SessionCoordinator`。
 - ET 由 ET Scene、Component/System 和 `ETBattleWorldFactory` 适配 MOBA runtime；Orleans 则由 Gateway、Room 和 Battle Host 组织服务端权威链。
 - `com.abilitykit.coordinator` 当前是收缩后的契约包，只保留 `SessionConfig`、host/policy 接口、drive gate、DTO 与 codec。仓库当前没有历史文档中的 `SessionCoordinator`、Local/Remote/Hybrid adapter 或统一远端 transport 实现。
@@ -565,7 +566,7 @@ Console Demo 是独立组合根。它适合验证纯 C# World、输入、战斗�
 
 ### 运行 Unity 示例
 
-- `Unity/Assets/Scenes/StarterScene.unity`：统一 Starter，可选择 MOBA/Shooter 与 Local/Multiplayer Profile。
+- `Unity/Assets/Scenes/StarterScene.unity`：统一 Starter，可选择 MOBA/Shooter/Tiny 已声明的 Profile。
 - `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Scenes/MobaDemoGameplayScene.unity`：MOBA Package 自有 Gameplay scene。
 - `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Scenes/ShooterDemoGameplayScene.unity`：Shooter Package 自有 Gameplay scene。
 
@@ -706,6 +707,10 @@ AbilityKit 各模块成熟度并不相同。例如 TCP 是当前多人主链，I
 
 
 ---
+
+## Tiny 示例
+
+Tiny 的 State 主线、Frame/Hybrid 分支、恢复与项目装配教程见 [从这里开始](Docs/tutorials/tiny/00-从这里开始.md)。独立 Logic 包提供 01 样例，完整 Tiny 包提供 02–06 的可导入片段，`src/AbilityKit.Demo.Tiny.StateSample` 提供可单独运行的 Room+State 双客户端工程。运行 `./tools/verify-tiny-starter.ps1` 可执行协议、.NET、双客户端 TCP 和 Unity 无头 EditMode/PlayMode 验收；`-SkipUnity` 跳过 Unity 批处理部分。
 
 ## License
 

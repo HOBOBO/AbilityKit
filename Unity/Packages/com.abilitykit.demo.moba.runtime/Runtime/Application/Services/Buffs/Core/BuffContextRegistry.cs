@@ -1,9 +1,7 @@
-﻿using System;
+using System;
 using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Core.Logging;
 using AbilityKit.Effect;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Trace;
 
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
@@ -12,23 +10,23 @@ using AbilityKit.Demo.Moba.Services.Buffs.Triggering;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
     /// <summary>
-    /// Buff 上下文注册器：trace 负责溯源链，runtime context 负责运行时值与快照生命周期。
+    /// Buff 上下文注册器：execution context 负责稳定身份与因果链，runtime context 负责运行时值与快照生命周期。
     /// </summary>
     internal sealed class BuffContextRegistry
     {
-        private readonly MobaTraceRegistry _trace;
+        private readonly MobaExecutionContextRegistry _executionContexts;
         private readonly MobaRuntimeContextService _runtimeContexts;
         private readonly IFrameTime _frameTime;
 
-        public BuffContextRegistry(MobaTraceRegistry trace, MobaRuntimeContextService runtimeContexts, IFrameTime frameTime)
+        public BuffContextRegistry(MobaExecutionContextRegistry executionContexts, MobaRuntimeContextService runtimeContexts, IFrameTime frameTime)
         {
-            _trace = trace;
+            _executionContexts = executionContexts;
             _runtimeContexts = runtimeContexts;
             _frameTime = frameTime;
         }
 
         /// <summary>
-        /// 确保运行时拥有稳定的 trace/source 快照，并注册独立 runtime context 供触发器读取实时值。
+        /// 确保运行时拥有稳定的执行/source 快照，并注册独立 runtime context 供触发器读取实时值。
         /// </summary>
         public void EnsureBuffContext(BuffRuntime rt, int buffId, int sourceActorId, int targetActorId, in BuffOriginContext origin)
         {
@@ -38,30 +36,26 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             var parentContextId = sourceOrigin.EffectiveParentContextId;
             var buffContextId = rt.SourceContextId;
 
-            if (buffContextId == 0 && _trace != null)
+            if (buffContextId == 0 && _executionContexts != null)
             {
-                buffContextId = parentContextId != 0
-                    ? _trace.CreateChildContext(
-                        parentContextId,
-                        MobaTraceKind.BuffApply,
-                        buffId,
-                        sourceActorId,
-                        targetActorId,
-                        origin.ToOriginSourceEndpoint(),
-                        origin.ToOriginTargetEndpoint())
-                    : _trace.CreateRootContext(
-                        MobaTraceKind.BuffApply,
-                        buffId,
-                        sourceActorId,
-                        targetActorId,
-                        origin.ToOriginSourceEndpoint(),
-                        origin.ToOriginTargetEndpoint());
+                var created = _executionContexts.Create(new MobaExecutionContextCreateRequest(
+                    MobaExecutionKind.BuffApply,
+                    buffId,
+                    sourceActorId,
+                    targetActorId,
+                    parentContextId,
+                    sourceOrigin.EffectiveRootContextId,
+                    sourceOrigin.OwnerContextId,
+                    GetFrameOrDefault(),
+                    originKind: ToExecutionKind(sourceOrigin.ImmediateKind),
+                    originConfigId: sourceOrigin.ImmediateConfigId));
+                buffContextId = created.ContextId;
             }
 
             var buffOrigin = MobaGameplayOriginBuilder.Create()
                 .FromOrigin(in sourceOrigin)
                 .WithActors(sourceActorId, targetActorId)
-                .WithImmediate(MobaTraceKind.BuffApply, buffId, buffContextId)
+                .WithImmediate(MobaExecutionKind.BuffApply, buffId, buffContextId)
                 .WithRootContext(sourceOrigin.EffectiveRootContextId != 0L ? sourceOrigin.EffectiveRootContextId : buffContextId)
                 .WithOwnerContext(sourceOrigin.OwnerContextId != 0L ? sourceOrigin.OwnerContextId : buffContextId)
                 .WithSkillRuntimeIfMissing(origin.SkillRuntimeHandle)
@@ -107,25 +101,21 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
 
             if (rt.SourceContextId == 0)
             {
-                DestroyRuntimeContext(rt, TraceLifecycleReason.Replaced);
+                DestroyRuntimeContext(rt, MobaExecutionEndReason.Replaced);
                 ClearSourceSnapshot(rt);
                 return;
             }
 
-            try
-            {
-                _trace?.EndContext(rt.SourceContextId, TraceLifecycleReason.Replaced);
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, $"[BuffContextRegistry] Trace.End exception (sourceContextId={rt.SourceContextId})");
-            }
+            _executionContexts?.End(
+                rt.SourceContextId,
+                (int)MobaExecutionEndReason.Replaced,
+                GetFrameOrDefault());
 
-            DestroyRuntimeContext(rt, TraceLifecycleReason.Replaced);
+            DestroyRuntimeContext(rt, MobaExecutionEndReason.Replaced);
             ClearSourceSnapshot(rt);
         }
 
-        public void EndByRuntime(BuffRuntime rt, TraceLifecycleReason reason)
+        public void EndByRuntime(BuffRuntime rt, MobaExecutionEndReason reason)
         {
             if (rt == null) return;
 
@@ -134,9 +124,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         }
 
         /// <summary>
-        /// 结束 trace 并取消 owner 动作，但保留运行时来源快照；移除阶段还需要用它发布事件/表现。
+        /// 结束执行上下文并取消 owner 动作，但保留运行时来源快照；移除阶段还需要用它发布事件/表现。
         /// </summary>
-        public void EndByRuntimeNoClear(BuffRuntime rt, TraceLifecycleReason reason)
+        public void EndByRuntimeNoClear(BuffRuntime rt, MobaExecutionEndReason reason)
         {
             if (rt == null) return;
 
@@ -146,23 +136,16 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
                 return;
             }
 
-            try
-            {
-                _trace?.EndContext(rt.SourceContextId, reason);
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, $"[BuffContextRegistry] Trace.End exception (sourceContextId={rt.SourceContextId}, reason={reason})");
-            }
+            _executionContexts?.End(rt.SourceContextId, (int)reason, GetFrameOrDefault());
 
             DestroyRuntimeContext(rt, reason, preserveReference: true);
         }
 
-        private void DestroyRuntimeContext(BuffRuntime rt, TraceLifecycleReason reason, bool preserveReference = false)
+        private void DestroyRuntimeContext(BuffRuntime rt, MobaExecutionEndReason reason, bool preserveReference = false)
         {
             if (rt == null || _runtimeContexts == null) return;
 
-            var state = reason == TraceLifecycleReason.Replaced
+            var state = reason == MobaExecutionEndReason.Replaced
                 ? MobaRuntimeContextLifecycleState.Destroyed
                 : MobaRuntimeContextLifecycleState.Ended;
             _runtimeContexts.SnapshotAndDestroyBuffContext(rt, state, GetFrameOrDefault(), preserveReference);
@@ -176,7 +159,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
                 : new MobaGameplayOrigin(
                     sourceActorId,
                     targetActorId,
-                    MobaTraceKind.BuffApply,
+                    MobaExecutionKind.BuffApply,
                     buffId,
                     origin.ParentContextId != 0 ? origin.ParentContextId : origin.OriginContextId,
                     origin.ParentContextId != 0 ? origin.ParentContextId : origin.OriginContextId,
@@ -199,6 +182,40 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         private int GetFrameOrDefault()
         {
             return _frameTime != null ? _frameTime.Frame.Value : 0;
+        }
+
+        private static MobaExecutionKind ToExecutionKind(MobaExecutionKind kind)
+        {
+            switch (kind)
+            {
+                case MobaExecutionKind.SkillCast: return MobaExecutionKind.SkillCast;
+                case MobaExecutionKind.SkillEffect: return MobaExecutionKind.SkillEffect;
+                case MobaExecutionKind.SkillPhase: return MobaExecutionKind.SkillPhase;
+                case MobaExecutionKind.EffectExecution: return MobaExecutionKind.EffectExecution;
+                case MobaExecutionKind.EffectAction: return MobaExecutionKind.EffectAction;
+                case MobaExecutionKind.BuffApply: return MobaExecutionKind.BuffApply;
+                case MobaExecutionKind.BuffTick: return MobaExecutionKind.BuffTick;
+                case MobaExecutionKind.BuffRemove: return MobaExecutionKind.BuffRemove;
+                case MobaExecutionKind.ProjectileLaunch: return MobaExecutionKind.ProjectileLaunch;
+                case MobaExecutionKind.ProjectileHit: return MobaExecutionKind.ProjectileHit;
+                case MobaExecutionKind.AreaSpawn: return MobaExecutionKind.AreaSpawn;
+                case MobaExecutionKind.AreaEnter: return MobaExecutionKind.AreaEnter;
+                case MobaExecutionKind.AreaExit: return MobaExecutionKind.AreaExit;
+                case MobaExecutionKind.AreaExpire: return MobaExecutionKind.AreaExpire;
+                case MobaExecutionKind.AreaStay: return MobaExecutionKind.AreaStay;
+                case MobaExecutionKind.SummonSpawn: return MobaExecutionKind.SummonSpawn;
+                case MobaExecutionKind.SummonDeath: return MobaExecutionKind.SummonDeath;
+                case MobaExecutionKind.UnitSpawn: return MobaExecutionKind.UnitSpawn;
+                case MobaExecutionKind.UnitDespawn: return MobaExecutionKind.UnitDespawn;
+                case MobaExecutionKind.UnitDeath: return MobaExecutionKind.UnitDeath;
+                case MobaExecutionKind.UnitRespawn: return MobaExecutionKind.UnitRespawn;
+                case MobaExecutionKind.DamageAttack: return MobaExecutionKind.DamageAttack;
+                case MobaExecutionKind.DamageCalc: return MobaExecutionKind.DamageCalc;
+                case MobaExecutionKind.DamageApply: return MobaExecutionKind.DamageApply;
+                case MobaExecutionKind.PresentationPlay: return MobaExecutionKind.PresentationPlay;
+                case MobaExecutionKind.PresentationStop: return MobaExecutionKind.PresentationStop;
+                default: return MobaExecutionKind.None;
+            }
         }
     }
 }

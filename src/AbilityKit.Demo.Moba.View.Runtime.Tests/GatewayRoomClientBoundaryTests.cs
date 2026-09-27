@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Game.Flow;
 using AbilityKit.Protocol.Room;
 using Xunit;
 
@@ -7,6 +8,25 @@ namespace AbilityKit.Demo.Moba.View.Runtime.Tests;
 
 public sealed class GatewayRoomClientBoundaryTests
 {
+    [Fact]
+    public void FormalRoomSession_ReusesGatewayClientsRoomPushSubscription()
+    {
+        var subscriptions = 0;
+        var unsubscriptions = 0;
+        using var transport = new GatewayRoomTransportAdapter(
+            (_, _, _, _) => Task.FromResult(default(ArraySegment<byte>)),
+            _ => subscriptions++,
+            _ => unsubscriptions++);
+        using var client = new GatewayRoomClient(transport, GatewayRoomOpCodes.Default);
+        var initialSubscriptions = subscriptions;
+
+        var session = new GatewayMultiplayerRoomSession(client, new ClientRoomStore());
+        Assert.Equal(initialSubscriptions, subscriptions);
+
+        session.Dispose();
+        Assert.Equal(0, unsubscriptions);
+    }
+
     [Fact]
     public async Task Transport_ForwardsExactRequestArguments()
     {

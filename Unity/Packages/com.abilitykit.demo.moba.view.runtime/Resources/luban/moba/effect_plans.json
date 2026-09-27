@@ -1,0 +1,92 @@
+[
+  {
+    "RowId": 1,
+    "Strings": {},
+    "Triggers": [
+      {
+        "TriggerId": 10001,
+        "EventName": "",
+        "EventId": 0,
+        "AllowExternal": false,
+        "Phase": 0,
+        "Priority": 0,
+        "Predicate": {
+          "Kind": "none",
+          "Nodes": null
+        },
+        "Actions": [
+          {
+            "ActionId": 176148626,
+            "Arity": 2,
+            "Args": {
+              "damage_value": {
+                "Kind": "Const",
+                "ConstValue": 200.0
+              },
+              "damage_type": {
+                "Kind": "Const",
+                "ConstValue": 1.0
+              }
+            }
+          }
+        ]
+      },
+      {
+        "TriggerId": 10002,
+        "EventName": "",
+        "EventId": 0,
+        "AllowExternal": false,
+        "Phase": 0,
+        "Priority": 0,
+        "Predicate": {
+          "Kind": "none",
+          "Nodes": null
+        },
+        "Actions": [
+          {
+            "ActionId": 176148626,
+            "Arity": 2,
+            "Args": {
+              "damage_value": {
+                "Kind": "Const",
+                "ConstValue": 300.0
+              },
+              "damage_type": {
+                "Kind": "Const",
+                "ConstValue": 1.0
+              }
+            }
+          }
+        ]
+      },
+      {
+        "TriggerId": 10003,
+        "EventName": "",
+        "EventId": 0,
+        "AllowExternal": false,
+        "Phase": 0,
+        "Priority": 0,
+        "Predicate": {
+          "Kind": "none",
+          "Nodes": null
+        },
+        "Actions": [
+          {
+            "ActionId": 176148626,
+            "Arity": 2,
+            "Args": {
+              "damage_value": {
+                "Kind": "Const",
+                "ConstValue": 400.0
+              },
+              "damage_type": {
+                "Kind": "Const",
+                "ConstValue": 1.0
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

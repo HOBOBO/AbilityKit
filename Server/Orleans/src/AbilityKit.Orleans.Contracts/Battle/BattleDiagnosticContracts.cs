@@ -5,7 +5,7 @@ namespace AbilityKit.Orleans.Contracts.Battle;
 
 public static class BattleDiagnosticContractConstants
 {
-    public const string SchemaVersion = "abilitykit-battle-diagnostics.v1";
+    public const string SchemaVersion = "abilitykit-battle-diagnostics.v2";
 }
 
 /// <summary>

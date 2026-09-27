@@ -31,6 +31,22 @@ namespace ET.Logic
             }
         }
 
+        public void OnActorDespawnSnapshot(in FrameSnapshotData snapshot)
+        {
+            for (int i = 0; i < _sinks.Length; i++)
+            {
+                _sinks[i]?.OnActorDespawnSnapshot(in snapshot);
+            }
+        }
+
+        public void OnSkillStateSnapshot(in FrameSnapshotData snapshot)
+        {
+            for (int i = 0; i < _sinks.Length; i++)
+            {
+                _sinks[i]?.OnSkillStateSnapshot(in snapshot);
+            }
+        }
+
         public void OnProjectileEventSnapshot(in FrameSnapshotData snapshot)
         {
             for (int i = 0; i < _sinks.Length; i++)

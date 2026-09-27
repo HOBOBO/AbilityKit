@@ -25,7 +25,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor.Hero
         [SerializeField] private int _attributeTemplateId;
         [SerializeField] private string _assetFolder = DefaultAssetFolder;
         [SerializeField] private string _charactersJsonPath = DefaultJsonPath;
-        [SerializeField] private bool _autoExportJson = true;
         [SerializeField] private bool _useSkillButtons = true;
 
         // 3 个主动技能槽（槽 2/3/4，对应技能 1/2/3）
@@ -109,7 +108,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor.Hero
             }
             _assetFolder = EditorGUILayout.TextField("Asset Output Folder", _assetFolder);
             _charactersJsonPath = EditorGUILayout.TextField("characters.json Path", _charactersJsonPath);
-            _autoExportJson = EditorGUILayout.Toggle("Auto Export JSON after creation", _autoExportJson);
+            EditorGUILayout.HelpBox("Creates draft SO assets. Add the hero to Production Excel and run the Luban export to publish runtime config.", MessageType.Info);
             _useSkillButtons = EditorGUILayout.Toggle("Create SkillButtonTemplateSO (1 per skill)", _useSkillButtons);
         }
 
@@ -145,10 +144,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor.Hero
                 if (GUILayout.Button("Create Assets", GUILayout.Height(32f)))
                 {
                     TryCreateAll();
-                }
-                if (GUILayout.Button("Export JSON Only", GUILayout.Height(32f)))
-                {
-                    TryExportJsonOnly();
                 }
             }
         }
@@ -269,10 +264,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor.Hero
                 }
 
                 // 写入 characters.json
-                if (_autoExportJson)
-                {
-                    TryExportJsonOnly(allocation, characterDto);
-                }
+                _report.Add("Draft only: update LubanConfig/Moba/Production/Datas and run export_pipeline.py --apply.");
 
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();

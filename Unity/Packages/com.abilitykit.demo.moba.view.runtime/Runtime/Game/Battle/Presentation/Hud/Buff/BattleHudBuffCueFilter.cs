@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 
 namespace AbilityKit.Game.Flow.Battle.Hud
 {
@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
         /// True when the entry represents a Buff lifecycle event we can render in the HUD.
         /// Skill/executor/area cues are skipped.
         /// </summary>
-        public static bool IsBuffCue(in MobaPresentationCueSnapshotEntry entry)
+        public static bool IsBuffCue(in PresentationCueData entry)
         {
             if (!string.Equals(entry.OwnerKind, BuffOwnerKind, System.StringComparison.Ordinal))
             {
@@ -54,8 +54,8 @@ namespace AbilityKit.Game.Flow.Battle.Hud
         /// Iterate all buff-cue entries from the source stream. Reuses the supplied buffer to avoid allocations.
         /// </summary>
         public static void CollectBuffCues(
-            IReadOnlyList<MobaPresentationCueSnapshotEntry> source,
-            List<MobaPresentationCueSnapshotEntry> buffer)
+            IReadOnlyList<PresentationCueData> source,
+            List<PresentationCueData> buffer)
         {
             if (buffer == null) return;
             buffer.Clear();

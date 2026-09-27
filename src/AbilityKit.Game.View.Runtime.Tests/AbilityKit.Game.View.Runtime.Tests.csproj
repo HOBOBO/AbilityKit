@@ -13,12 +13,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Battle\Presentation\View\MobaBattleViewBatch.cs" Link="MobaCompat\MobaBattleViewBatch.cs" />
-    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Battle\Shared\Modules\IGameModule.cs" Link="MobaCompat\IGameModule.cs" />
-    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Battle\Shared\Modules\ModuleHost.cs" Link="MobaCompat\ModuleHost.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">

@@ -114,7 +114,7 @@ public sealed class MobaBattleDiagnosticCapturePolicyTests
         var origin = new MobaGameplayOrigin(
             7,
             9,
-            MobaTraceKind.EffectExecution,
+            MobaExecutionKind.EffectExecution,
             401,
             immediateContextId: 902L,
             parentContextId: 901L,

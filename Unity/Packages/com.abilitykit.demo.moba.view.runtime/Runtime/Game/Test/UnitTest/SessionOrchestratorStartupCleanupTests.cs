@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
@@ -14,6 +15,7 @@ using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Demo.Common.Rooms;
 using NUnit.Framework;
+using UnityEngine.TestTools;
 
 namespace AbilityKit.Game.Test.UnitTest
 {
@@ -58,6 +60,7 @@ namespace AbilityKit.Game.Test.UnitTest
             "recovery",
             "snapshot-routing",
             "confirmed-view",
+            "projected-views",
             "destroy-worlds",
             "confirmed-world",
             "remote-world",
@@ -163,8 +166,13 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(fixture.Host.HasActiveSessionResources, Is.False);
         }
 
-        [Test]
-        public async Task StopSessionAsync_WaitsForRecoveryBeforeDestroyingSessionResources()
+        [UnityTest]
+        public IEnumerator StopSessionAsync_WaitsForRecoveryBeforeDestroyingSessionResources()
+        {
+            yield return AwaitTask(StopSessionAsync_WaitsForRecoveryBeforeDestroyingSessionResourcesCore());
+        }
+
+        private static async Task StopSessionAsync_WaitsForRecoveryBeforeDestroyingSessionResourcesCore()
         {
             var fixture = CreateFixture();
             fixture.Orchestrator.StartSession();
@@ -184,8 +192,13 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(fixture.Host.CleanupCalls, Is.EqualTo(CleanupOrder));
         }
 
-        [Test]
-        public async Task StopSessionAsync_ConcurrentCallersSharePendingStop()
+        [UnityTest]
+        public IEnumerator StopSessionAsync_ConcurrentCallersSharePendingStop()
+        {
+            yield return AwaitTask(StopSessionAsync_ConcurrentCallersSharePendingStopCore());
+        }
+
+        private static async Task StopSessionAsync_ConcurrentCallersSharePendingStopCore()
         {
             var fixture = CreateFixture();
             fixture.Orchestrator.StartSession();
@@ -205,6 +218,109 @@ namespace AbilityKit.Game.Test.UnitTest
                 fixture.State.Lifecycle,
                 Is.EqualTo(BattleSessionLifecycleState.Stopped));
             Assert.That(fixture.Host.CleanupCalls, Is.EqualTo(CleanupOrder));
+        }
+
+        [UnityTest]
+        public IEnumerator StartSessionAsync_ConcurrentCallersShareReplacementStart()
+        {
+            yield return AwaitTask(StartSessionAsync_ConcurrentCallersShareReplacementStartCore());
+        }
+
+        private static async Task StartSessionAsync_ConcurrentCallersShareReplacementStartCore()
+        {
+            var fixture = CreateFixture();
+            fixture.Orchestrator.StartSession();
+            var recoveryCompletion = fixture.Host.SuspendRecoveryStop();
+
+            var firstStart = fixture.Orchestrator.StartSessionAsync();
+            var secondStart = fixture.Orchestrator.StartSessionAsync();
+
+            Assert.That(secondStart, Is.SameAs(firstStart));
+            Assert.That(firstStart.IsCompleted, Is.False);
+            Assert.That(fixture.Host.CountCalls("start-logic"), Is.EqualTo(1));
+
+            recoveryCompletion.SetResult(true);
+            await firstStart;
+
+            Assert.That(fixture.State.Lifecycle, Is.EqualTo(BattleSessionLifecycleState.Running));
+            Assert.That(fixture.Host.CountCalls("start-logic"), Is.EqualTo(2));
+        }
+
+        [UnityTest]
+        public IEnumerator StopSessionAsync_DuringReplacementStartStopsNewGeneration()
+        {
+            yield return AwaitTask(StopSessionAsync_DuringReplacementStartStopsNewGenerationCore());
+        }
+
+        private static async Task StopSessionAsync_DuringReplacementStartStopsNewGenerationCore()
+        {
+            var fixture = CreateFixture();
+            fixture.Orchestrator.StartSession();
+            var recoveryCompletion = fixture.Host.SuspendRecoveryStop();
+
+            var startTask = fixture.Orchestrator.StartSessionAsync();
+            var stopTask = fixture.Orchestrator.StopSessionAsync();
+
+            Assert.That(startTask.IsCompleted, Is.False);
+            Assert.That(stopTask.IsCompleted, Is.False);
+
+            recoveryCompletion.SetResult(true);
+            await Task.WhenAll(startTask, stopTask);
+
+            Assert.That(fixture.State.Lifecycle, Is.EqualTo(BattleSessionLifecycleState.Stopped));
+            Assert.That(fixture.Host.CountCalls("start-logic"), Is.EqualTo(2));
+            Assert.That(fixture.Host.HasActiveSessionResources, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator StartSessionAsync_AfterQueuedStopStartsFollowingGeneration()
+        {
+            yield return AwaitTask(StartSessionAsync_AfterQueuedStopStartsFollowingGenerationCore());
+        }
+
+        private static async Task StartSessionAsync_AfterQueuedStopStartsFollowingGenerationCore()
+        {
+            var fixture = CreateFixture();
+            fixture.Orchestrator.StartSession();
+            var recoveryCompletion = fixture.Host.SuspendRecoveryStop();
+
+            var replacementStart = fixture.Orchestrator.StartSessionAsync();
+            var queuedStop = fixture.Orchestrator.StopSessionAsync();
+            var followingStart = fixture.Orchestrator.StartSessionAsync();
+            var sharedFollowingStart = fixture.Orchestrator.StartSessionAsync();
+
+            Assert.That(followingStart, Is.Not.SameAs(replacementStart));
+            Assert.That(sharedFollowingStart, Is.SameAs(followingStart));
+
+            recoveryCompletion.SetResult(true);
+            await Task.WhenAll(replacementStart, queuedStop, followingStart);
+
+            Assert.That(fixture.State.Lifecycle, Is.EqualTo(BattleSessionLifecycleState.Running));
+            Assert.That(fixture.Host.CountCalls("start-logic"), Is.EqualTo(3));
+            Assert.That(fixture.Host.HasActiveSessionResources, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator StartSession_SynchronousCompatibilityEntryFailsFastForPendingReplacement()
+        {
+            yield return AwaitTask(StartSession_SynchronousCompatibilityEntryFailsFastForPendingReplacementCore());
+        }
+
+        private static async Task StartSession_SynchronousCompatibilityEntryFailsFastForPendingReplacementCore()
+        {
+            var fixture = CreateFixture();
+            fixture.Orchestrator.StartSession();
+            var recoveryCompletion = fixture.Host.SuspendRecoveryStop();
+
+            var exception = Assert.Throws<InvalidOperationException>(
+                () => fixture.Orchestrator.StartSession());
+            Assert.That(exception.Message, Does.Contain("Await"));
+
+            var pendingStart = fixture.Orchestrator.StartSessionAsync();
+            recoveryCompletion.SetResult(true);
+            await pendingStart;
+
+            Assert.That(fixture.State.Lifecycle, Is.EqualTo(BattleSessionLifecycleState.Running));
         }
 
         [Test]
@@ -340,13 +456,20 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(thrown.InnerExceptions[1].Message, Is.EqualTo("third failed"));
         }
 
-        [Test]
-        public void ExecuteAsync_WhenMultipleStepsFail_ContinuesAndAggregatesInExecutionOrder()
+        [UnityTest]
+        public IEnumerator ExecuteAsync_WhenMultipleStepsFail_ContinuesAndAggregatesInExecutionOrder()
+        {
+            yield return AwaitTask(ExecuteAsync_WhenMultipleStepsFail_ContinuesAndAggregatesInExecutionOrderCore());
+        }
+
+        private static async Task ExecuteAsync_WhenMultipleStepsFail_ContinuesAndAggregatesInExecutionOrderCore()
         {
             var calls = new List<string>();
 
-            var thrown = Assert.Throws<AggregateException>(() =>
-                SessionTeardownPolicy.ExecuteAsync(
+            AggregateException thrown = null;
+            try
+            {
+                await SessionTeardownPolicy.ExecuteAsync(
                         new AsyncSessionTeardownStep(
                             "first",
                             (Action)(() =>
@@ -364,10 +487,14 @@ namespace AbilityKit.Game.Test.UnitTest
                             })),
                         new AsyncSessionTeardownStep(
                             "third",
-                            () => calls.Add("third")))
-                    .GetAwaiter()
-                    .GetResult());
+                            () => calls.Add("third")));
+            }
+            catch (AggregateException exception)
+            {
+                thrown = exception;
+            }
 
+            Assert.That(thrown, Is.Not.Null);
             Assert.That(calls, Is.EqualTo(new[] { "first", "second", "third" }));
             Assert.That(thrown.InnerExceptions, Has.Count.EqualTo(2));
             Assert.That(thrown.InnerExceptions[0].Message, Does.Contain("first"));
@@ -397,6 +524,24 @@ namespace AbilityKit.Game.Test.UnitTest
             var handles = new BattleSessionHandles();
             var host = new FailureInjectingHost(CreatePlan());
             return new Fixture(state, host, new SessionOrchestrator(state, handles, host));
+        }
+
+        private static IEnumerator AwaitTask(Task task)
+        {
+            while (!task.IsCompleted)
+            {
+                yield return null;
+            }
+
+            if (task.IsFaulted)
+            {
+                throw task.Exception.GetBaseException();
+            }
+
+            if (task.IsCanceled)
+            {
+                throw new OperationCanceledException();
+            }
         }
 
         private static BattleStartPlan CreatePlan(
@@ -574,6 +719,7 @@ namespace AbilityKit.Game.Test.UnitTest
             public void TryDestroyBattleWorlds() => CleanupCall("destroy-worlds");
             public void DisposeSnapshotRouting() => CleanupCall("snapshot-routing");
             public void DisposeConfirmedView() => CleanupCall("confirmed-view");
+            public void DisposeProjectionViews() => CleanupCall("projected-views");
 
             public void DisposeRemoteDrivenWorld()
             {

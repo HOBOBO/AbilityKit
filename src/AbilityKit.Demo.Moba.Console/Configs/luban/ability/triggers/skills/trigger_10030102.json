@@ -1,0 +1,80 @@
+{
+  "triggers": [
+    {
+      "id": 10030102,
+      "name": "赵云-惊雷之龙-二档追加冲锋段",
+      "event": "skill.cast.complete",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 45,
+      "conditions": [
+        {
+          "type": "arg_eq",
+          "left": "payload:skill.id",
+          "right": "10030101"
+        },
+        {
+          "type": "has_buff",
+          "buff_id": 10030001,
+          "check_stack": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "dash",
+          "speed": 16.0,
+          "duration_ms": 350,
+          "direction_mode": 0,
+          "apply_to_caster": true,
+          "priority": 20,
+          "motion_group_id": 2,
+          "hit_trigger_plan_id": 10030111
+        },
+        {
+          "type": "debug_log",
+          "message": "赵云一技能二档增强：龙鸣二档触发额外一段冲锋突进",
+          "dump_args": false
+        }
+      ]
+    },
+    {
+      "id": 10030103,
+      "name": "赵云-惊雷之龙-三档追加冲锋段",
+      "event": "skill.cast.complete",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 44,
+      "conditions": [
+        {
+          "type": "arg_eq",
+          "left": "payload:skill.id",
+          "right": "10030101"
+        },
+        {
+          "type": "has_buff",
+          "buff_id": 10030002,
+          "check_stack": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "dash",
+          "speed": 18.0,
+          "duration_ms": 400,
+          "direction_mode": 0,
+          "apply_to_caster": true,
+          "priority": 20,
+          "motion_group_id": 2,
+          "hit_trigger_plan_id": 10030111
+        },
+        {
+          "type": "debug_log",
+          "message": "赵云一技能三档增强：龙鸣三档触发更长距离额外冲锋突进",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

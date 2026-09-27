@@ -17,7 +17,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaGameplayOrigin Origin { get; }
         public bool IsValid => Source.IsValid || Origin.IsValid;
         public EffectContextKind ContextKind => Source.ContextKind != EffectContextKind.Unknown ? Source.ContextKind : EffectContextKind.Unknown;
-        public MobaTraceKind TraceKind => Source.TraceKind != MobaTraceKind.None ? Source.TraceKind : Origin.ImmediateKind;
+        public MobaExecutionKind ExecutionKind => Source.ExecutionKind != MobaExecutionKind.None ? Source.ExecutionKind : Origin.ImmediateKind;
         public int SourceActorId => Source.SourceActorId != 0 ? Source.SourceActorId : Origin.SourceActorId;
         public int TargetActorId => Source.TargetActorId != 0 ? Source.TargetActorId : Origin.TargetActorId;
         public long SourceContextId => Source.SourceContextId != 0 ? Source.SourceContextId : Origin.ImmediateContextId;
@@ -36,9 +36,9 @@ namespace AbilityKit.Demo.Moba.Services
             return kind != EffectContextKind.Unknown && ContextKind == kind;
         }
 
-        public bool IsTraceKind(MobaTraceKind kind)
+        public bool IsExecutionKind(MobaExecutionKind kind)
         {
-            return kind != MobaTraceKind.None && TraceKind == kind;
+            return kind != MobaExecutionKind.None && ExecutionKind == kind;
         }
 
         public bool IsRuntimeKind(string runtimeKind)
@@ -53,7 +53,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool IsBuff()
         {
-            return IsContextKind(EffectContextKind.Buff) || IsRuntimeKind(MobaRuntimeKindNames.Buff) || IsTraceKind(MobaTraceKind.BuffApply) || IsTraceKind(MobaTraceKind.BuffTick) || IsTraceKind(MobaTraceKind.BuffRemove);
+            return IsContextKind(EffectContextKind.Buff) || IsRuntimeKind(MobaRuntimeKindNames.Buff) || IsExecutionKind(MobaExecutionKind.BuffApply) || IsExecutionKind(MobaExecutionKind.BuffTick) || IsExecutionKind(MobaExecutionKind.BuffRemove);
         }
 
         public bool IsBuff(int buffId)
@@ -63,7 +63,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool IsDamage()
         {
-            return IsRuntimeKind(MobaRuntimeKindNames.DamageAttack) || IsRuntimeKind(MobaRuntimeKindNames.DamageCalc) || IsRuntimeKind(MobaRuntimeKindNames.DamageResult) || IsTraceKind(MobaTraceKind.DamageAttack) || IsTraceKind(MobaTraceKind.DamageCalc) || IsTraceKind(MobaTraceKind.DamageApply);
+            return IsRuntimeKind(MobaRuntimeKindNames.DamageAttack) || IsRuntimeKind(MobaRuntimeKindNames.DamageCalc) || IsRuntimeKind(MobaRuntimeKindNames.DamageResult) || IsExecutionKind(MobaExecutionKind.DamageAttack) || IsExecutionKind(MobaExecutionKind.DamageCalc) || IsExecutionKind(MobaExecutionKind.DamageApply);
         }
 
         public bool HasContext(long contextId)

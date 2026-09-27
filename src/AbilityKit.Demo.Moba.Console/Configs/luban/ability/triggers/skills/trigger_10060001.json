@@ -1,0 +1,17 @@
+{
+  "id": 10060001,
+  "name": "嬴政-普通攻击-发射",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "shoot_projectile",
+      "launcher_id": 31060001,
+      "projectile_id": 30060001
+    }
+  ]
+}

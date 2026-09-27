@@ -13,7 +13,6 @@ namespace AbilityKit.Demo.Moba.Services
         SourceContextId,
         ContextKind,
         TriggerId,
-        TraceKind,
         OwnerKey,
         SourceConfigId,
         Stage,

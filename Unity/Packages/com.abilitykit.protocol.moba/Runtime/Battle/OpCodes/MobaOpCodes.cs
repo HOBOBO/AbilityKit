@@ -36,6 +36,7 @@ namespace AbilityKit.Protocol.Moba
             public const int PresentationCue = 4010;
             public const int SkillState = 4011;
             public const int PlayerHeroChanged = 4012;
+            public const int ActionAck = 4013;
         }
     }
 }

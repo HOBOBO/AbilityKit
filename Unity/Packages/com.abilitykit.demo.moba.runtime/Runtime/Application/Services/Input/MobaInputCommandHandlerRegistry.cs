@@ -17,14 +17,19 @@ namespace AbilityKit.Demo.Moba.Services
 {
     public readonly struct MobaInputCommandHandlerDescriptor
     {
-        public MobaInputCommandHandlerDescriptor(int opCode, Type handlerType)
+        public MobaInputCommandHandlerDescriptor(
+            int opCode,
+            Type handlerType,
+            Func<IMobaInputCommandHandler> handlerFactory = null)
         {
             OpCode = opCode;
             HandlerType = handlerType;
+            HandlerFactory = handlerFactory;
         }
 
         public int OpCode { get; }
         public Type HandlerType { get; }
+        public Func<IMobaInputCommandHandler> HandlerFactory { get; }
     }
 
     /// <summary>
@@ -93,22 +98,28 @@ namespace AbilityKit.Demo.Moba.Services
         /// </summary>
         public void Register(int opCode, Type implType)
         {
-            RegisterCore(opCode, implType);
+            RegisterCore(opCode, implType, null);
+        }
+
+        public void Register(int opCode, Type implType, Func<IMobaInputCommandHandler> handlerFactory)
+        {
+            RegisterCore(opCode, implType, handlerFactory);
         }
 
         internal bool TryRegisterGenerated(int opCode, Type implType)
         {
-            return RegisterCore(opCode, implType);
+            return RegisterCore(opCode, implType, null);
         }
 
-        private bool RegisterCore(int opCode, Type implType)
+        private bool RegisterCore(int opCode, Type implType, Func<IMobaInputCommandHandler> handlerFactory)
         {
             if (!TryRegisterUniqueKey(key: opCode, implType)) return false;
 
-            _descriptors[opCode] = new MobaInputCommandHandlerDescriptor(opCode, implType);
+            var descriptor = new MobaInputCommandHandlerDescriptor(opCode, implType, handlerFactory);
+            _descriptors[opCode] = descriptor;
             if (_services != null)
             {
-                TryBindHandler(opCode, implType, allowFallback: true);
+                TryBindHandler(in descriptor);
             }
 
             return true;
@@ -121,7 +132,8 @@ namespace AbilityKit.Demo.Moba.Services
 
             foreach (KeyValuePair<int, MobaInputCommandHandlerDescriptor> pair in _descriptors)
             {
-                TryBindHandler(pair.Key, pair.Value.HandlerType, allowFallback: true);
+                var descriptor = pair.Value;
+                TryBindHandler(in descriptor);
             }
         }
 
@@ -137,7 +149,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (!_handlers.TryGetValue(command.OpCode, out IMobaInputCommandHandler handler))
             {
-                if (!_descriptors.TryGetValue(command.OpCode, out MobaInputCommandHandlerDescriptor descriptor) || !TryBindHandler(command.OpCode, descriptor.HandlerType, allowFallback: true))
+                if (!_descriptors.TryGetValue(command.OpCode, out MobaInputCommandHandlerDescriptor descriptor) || !TryBindHandler(in descriptor))
                 {
                     MobaRuntimeLog.Warning(
                         MobaRuntimeLogModule.Input,
@@ -169,8 +181,10 @@ namespace AbilityKit.Demo.Moba.Services
             return handled;
         }
 
-        private bool TryBindHandler(int opCode, Type implType, bool allowFallback)
+        private bool TryBindHandler(in MobaInputCommandHandlerDescriptor descriptor)
         {
+            var opCode = descriptor.OpCode;
+            var implType = descriptor.HandlerType;
             if (implType == null) return false;
             if (_handlers.ContainsKey(opCode)) return true;
 
@@ -180,12 +194,13 @@ namespace AbilityKit.Demo.Moba.Services
                 return true;
             }
 
-            if (!allowFallback) return false;
+            var factory = descriptor.HandlerFactory;
+            if (factory == null) return false;
 
-            IMobaInputCommandHandler fallbackHandler = Activator.CreateInstance(implType) as IMobaInputCommandHandler;
-            if (fallbackHandler == null) return false;
+            var handler = factory();
+            if (handler == null || !implType.IsInstanceOfType(handler)) return false;
 
-            _handlers[opCode] = fallbackHandler;
+            _handlers[opCode] = handler;
             return true;
         }
 

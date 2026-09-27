@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -94,98 +92,6 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
-    public interface IMobaRuntimeTraceRetention
-    {
-        bool IsRetained(object runtime);
-        void Retain(object runtime, in MobaContextSourceView source, string reason);
-        void Release(object runtime);
-    }
-
-    public sealed class MobaRuntimeTraceRetentionService : IMobaRuntimeTraceRetention
-    {
-        private sealed class RetentionSlot
-        {
-            public MobaTraceRetentionHandle Handle;
-        }
-
-        private readonly MobaTraceRegistry _trace;
-        private readonly ConditionalWeakTable<object, RetentionSlot> _retentions = new ConditionalWeakTable<object, RetentionSlot>();
-
-        public MobaRuntimeTraceRetentionService(MobaTraceRegistry trace)
-        {
-            _trace = trace;
-        }
-
-        public bool IsRetained(object runtime)
-        {
-            return runtime != null
-                   && _retentions.TryGetValue(runtime, out var slot)
-                   && slot.Handle != null
-                   && slot.Handle.IsValid;
-        }
-
-        public void Retain(object runtime, in MobaContextSourceView source, string reason)
-        {
-            if (_trace == null || runtime == null) return;
-            var slot = _retentions.GetOrCreateValue(runtime);
-            if (slot.Handle != null && slot.Handle.IsValid) return;
-
-            if (_trace.TryRetainContextSource(in source, reason, out var handle)
-                || _trace.TryRetainPayloadSource(runtime, reason, out handle))
-            {
-                slot.Handle = handle;
-            }
-        }
-
-        public void Release(object runtime)
-        {
-            if (runtime == null) return;
-            if (!_retentions.TryGetValue(runtime, out var slot)) return;
-
-            slot.Handle?.Dispose();
-            slot.Handle = null;
-            _retentions.Remove(runtime);
-        }
-    }
-
-    public sealed class MobaTraceRetentionLifecycleHook : IMobaRuntimeLifecycleHook
-    {
-        private readonly IMobaRuntimeTraceRetention _retention;
-
-        public MobaTraceRetentionLifecycleHook(MobaTraceRegistry trace)
-            : this(trace != null ? new MobaRuntimeTraceRetentionService(trace) : null)
-        {
-        }
-
-        public MobaTraceRetentionLifecycleHook(IMobaRuntimeTraceRetention retention)
-        {
-            _retention = retention;
-        }
-
-        public void OnRuntimeLifecycle(in MobaRuntimeLifecycleEvent lifecycleEvent)
-        {
-            if (lifecycleEvent.Runtime == null || _retention == null) return;
-
-            switch (lifecycleEvent.Kind)
-            {
-                case MobaRuntimeLifecycleEventKind.Activated:
-                    var source = lifecycleEvent.Source;
-                    _retention.Retain(lifecycleEvent.Runtime, in source, lifecycleEvent.Reason);
-                    break;
-                case MobaRuntimeLifecycleEventKind.Ended:
-                case MobaRuntimeLifecycleEventKind.Cleared:
-                case MobaRuntimeLifecycleEventKind.Failed:
-                    _retention.Release(lifecycleEvent.Runtime);
-                    break;
-            }
-        }
-
-        public bool IsRetained(object runtime)
-        {
-            return _retention != null && _retention.IsRetained(runtime);
-        }
-    }
-
     public static class MobaRuntimeLifecycleHookFactory
     {
         public static MobaSkillRuntimeLifecycleBridgeHook CreateSkillRuntimeBridge(MobaRuntimeLifecycleHookService runtimeHooks)
@@ -193,17 +99,12 @@ namespace AbilityKit.Demo.Moba.Services
             return runtimeHooks != null ? new MobaSkillRuntimeLifecycleBridgeHook(runtimeHooks) : null;
         }
 
-        public static MobaRuntimeLifecycleHookService CreateDefault(MobaTraceRegistry trace)
-        {
-            return CreateDefault(trace != null ? new MobaRuntimeTraceRetentionService(trace) : null);
-        }
-
-        public static MobaRuntimeLifecycleHookService CreateDefault(IMobaRuntimeTraceRetention traceRetention)
+        public static MobaRuntimeLifecycleHookService CreateDefault(IMobaRuntimeLifecycleHook optionalHook = null)
         {
             var hooks = new MobaRuntimeLifecycleHookService();
-            if (traceRetention != null)
+            if (optionalHook != null)
             {
-                hooks.Register(new MobaTraceRetentionLifecycleHook(traceRetention));
+                hooks.Register(optionalHook);
             }
  
             return hooks;

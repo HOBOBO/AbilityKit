@@ -1,0 +1,25 @@
+{
+  "id": 900101012,
+  "name": "skill_commit_default",
+  "enabled": true,
+  "phase": "immediate",
+  "event": "",
+  "allowExternal": false,
+  "priority": 0,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "consume_resource",
+      "resource_type": 2,
+      "amount": {
+        "payload": "skill.cost"
+      }
+    },
+    {
+      "type": "start_cooldown",
+      "cooldown_ms": {
+        "payload": "skill.cooldown_ms"
+      }
+    }
+  ]
+}

@@ -20,6 +20,29 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
 jobs:
+  moba-luban-config:
+    name: MOBA Luban generated config check
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8 for Luban
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Verify Excel-generated resources
+        shell: powershell
+        run: python LubanConfig/Moba/export_pipeline.py --check-published
+
   contract-validation:
     name: Gate contract validation
     runs-on: windows-latest
@@ -186,6 +209,12 @@ jobs:
             local/Logs/tiny-acceptance-*/phases.json
             local/Logs/tiny-acceptance-*/hybrid-mismatch.json
             local/Logs/tiny-acceptance-*/tiny-network-playmode.json
+            local/Logs/tiny-acceptance-*/tiny-turn-network.json
+            local/Logs/tiny-acceptance-*/tiny-consumer-network.json
+            local/Logs/tiny-acceptance-*/tiny-consumer-turn-network.json
+            local/Logs/tiny-acceptance-*/tiny-live-record.json
+            local/Logs/tiny-acceptance-*/*.bin
+            local/Logs/tiny-acceptance-*/process-*/*
           if-no-files-found: warn
 
   tiny-unity:
@@ -219,6 +248,13 @@ jobs:
             local/Logs/tiny-acceptance-*/phases.json
             local/Logs/tiny-acceptance-*/hybrid-mismatch.json
             local/Logs/tiny-acceptance-*/tiny-network-playmode.json
+            local/Logs/tiny-acceptance-*/tiny-turn-network.json
+            local/Logs/tiny-acceptance-*/tiny-consumer-network.json
+            local/Logs/tiny-acceptance-*/tiny-consumer-turn-network.json
+            local/Logs/tiny-acceptance-*/tiny-live-record.json
+            local/Logs/tiny-acceptance-*/unity-cross-*/*
+            local/Logs/tiny-acceptance-*/*.bin
+            local/Logs/tiny-acceptance-*/process-*/*
           if-no-files-found: warn
 
   moba-acceptance-dotnet:

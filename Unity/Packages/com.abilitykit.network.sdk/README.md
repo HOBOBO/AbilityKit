@@ -5,7 +5,7 @@
 - **版本**：0.1.0（Beta）
 - **程序集**：`AbilityKit.Network.Sdk`（纯 C#，`noEngineReferences`）
 - **依赖**：`com.abilitykit.network.runtime` 0.1.0
-- **公共类型**：`NetworkSdkBuilder`、`NetworkSdkClient`
+- **公共类型**：`NetworkSdkBuilder`、`NetworkSdkClient`、`NetworkProtocolAgent`
 
 ## 一、能力定位与非目标
 
@@ -210,3 +210,17 @@ var room = sdk.CreateRoomClient();
 - 传输与连接原语：`com.abilitykit.network.runtime`
 - 可选传输：`com.abilitykit.network.transport.inmemory`、`com.abilitykit.network.transport.litenet`、`com.abilitykit.network.transport.websocket`
 - 多人接入清单：`Docs/design/07-NetworkSynchronization/07-MultiplayerSdkIntegrationGuide.md`
+## 十二、强类型协议 Agent
+
+`NetworkSdkClient.CreateProtocolAgent(codec)` 在现有连接与请求链上提供强类型协议收发。`codec` 实现 `INetworkProtocolCodec`；Agent 不持有 SDK 的所有权，应先释放 Agent 再释放 SDK。
+
+```csharp
+using var agent = sdk.CreateProtocolAgent(codec);
+var response = await agent.RequestAsync<MyRequest, MyResponse>(
+    catalog, "my.catalog", "login.request", request,
+    cancellationToken: cancellationToken);
+using var pushes = agent.Subscribe<MyPush>(
+    catalog, "my.catalog", "state.push", OnPush);
+```
+
+Catalog 重载校验消息方向、载荷类型和请求响应映射；动态路由可直接传 OpCode。推送订阅通过 `IDisposable` 释放，解码或回调失败通过 `PushDispatchFailed` 报告，不中断其他订阅者。回调仍遵循 SDK 的 dispatcher 配置。Room 协议使用 `sdk.CreateRoomClient()`，其内部已使用 Agent，无需业务再创建一个。

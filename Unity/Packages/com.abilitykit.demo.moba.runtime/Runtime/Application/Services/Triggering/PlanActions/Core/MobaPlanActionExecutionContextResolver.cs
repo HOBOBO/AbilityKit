@@ -38,15 +38,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             throw new System.InvalidOperationException($"[MobaPlanActionExecutionContextResolver] Missing combat execution context. payloadType={payloadType}. Action must run inside MobaEffectExecutionService session or provide IMobaCombatContextSource/IMobaCombatExecutionContextProvider.");
         }
 
-        public static bool TryResolveTraceScope(ExecCtx<IWorldResolver> ctx, out MobaEffectTraceScopeSnapshot traceScope)
+        public static bool TryResolveExecutionScope(ExecCtx<IWorldResolver> ctx, out MobaEffectExecutionScopeSnapshot executionScope)
         {
-            traceScope = default;
+            executionScope = default;
             var services = ctx.Context;
             return services != null
                    && services.TryResolve<MobaEffectExecutionService>(out var effects)
                    && effects != null
-                   && effects.TryGetCurrentTraceScope(out traceScope)
-                   && traceScope.EffectContextId != 0;
+                   && effects.TryGetCurrentExecutionScope(out executionScope)
+                   && executionScope.EffectContextId != 0;
         }
 
     }

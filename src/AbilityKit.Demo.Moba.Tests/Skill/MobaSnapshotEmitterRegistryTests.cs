@@ -14,8 +14,8 @@ public sealed class MobaSnapshotEmitterRegistryTests
 
         var generatedCount = MobaGeneratedSnapshotEmitterManifest.Register(registry);
 
-        Assert.Equal(11, generatedCount);
-        Assert.Equal(11, registry.Count);
+        Assert.Equal(12, generatedCount);
+        Assert.Equal(generatedCount, registry.Count);
 
         var runtimeAssembly = typeof(MobaSnapshotEmitterRegistry).Assembly;
         var reflectedEmitters = runtimeAssembly.GetTypes()
@@ -40,7 +40,7 @@ public sealed class MobaSnapshotEmitterRegistryTests
         {
             var registry = MobaSnapshotEmitterRegistry.CreateDefault();
 
-            Assert.True(registry.Count >= 11);
+            Assert.True(registry.Count >= 12);
             Assert.True(registry.ContainsRegistration(999, typeof(ExternalSnapshotEmitter)));
         }
         finally

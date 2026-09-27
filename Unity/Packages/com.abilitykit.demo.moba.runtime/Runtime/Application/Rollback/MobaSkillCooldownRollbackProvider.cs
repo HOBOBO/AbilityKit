@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     /// - 回滚时直接恢复这两个字段。
     /// - ActiveSkillRuntime 是 mutable class，直接修改字段即可，无需重建。
     /// </summary>
+    [MobaRollbackProvider(DefaultKey)]
     public sealed class MobaSkillCooldownRollbackProvider : IRollbackStateProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10004;

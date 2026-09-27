@@ -129,6 +129,19 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         {
             if (loader == null) throw new ArgumentNullException(nameof(loader));
             if (catalog == null) throw new ArgumentNullException(nameof(catalog));
+            if (resourcePath == DefaultResourcePath &&
+                loader.TryLoadBytes("luban/moba_bytes/brains.bytes", out var bytes))
+            {
+                var table = new moba_luban.Brains(Luban.ByteBuf.Wrap(bytes));
+                foreach (var row in table.DataList)
+                {
+                    var definition = new MobaActorBrainDefinition(
+                        row.BrainId, row.DriverKind, row.DecisionName,
+                        ParseSkillSelectionPolicy(row.SkillSelectionPolicy));
+                    catalog.Register(in definition);
+                }
+                return table.DataList.Count;
+            }
             if (!loader.TryLoadText(resourcePath, out var json) || string.IsNullOrWhiteSpace(json))
                 throw new InvalidOperationException($"MOBA brain catalog resource '{resourcePath}' was not found.");
             return LoadJson(json, catalog);

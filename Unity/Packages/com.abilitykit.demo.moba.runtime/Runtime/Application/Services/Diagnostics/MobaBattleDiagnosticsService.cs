@@ -44,7 +44,7 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public MobaBattleDiagnosticContext(long rootContextId = 0L, long sourceContextId = 0L, MobaSkillCastRuntimeHandle runtimeHandle = default, int actorId = 0, int skillId = 0, string detail = null)
         {
-            RootContextId = rootContextId != 0L ? rootContextId : runtimeHandle.RootTraceContextId;
+            RootContextId = rootContextId != 0L ? rootContextId : runtimeHandle.RootContextId;
             SourceContextId = sourceContextId;
             RuntimeHandle = runtimeHandle;
             ActorId = actorId;
@@ -67,7 +67,7 @@ namespace AbilityKit.Demo.Moba.Services
             var message = string.Empty;
             if (RootContextId != 0L) message += " rootContextId=" + RootContextId;
             if (SourceContextId != 0L) message += " sourceContextId=" + SourceContextId;
-            if (RuntimeHandle.IsValid) message += " runtimeHandle=" + RuntimeHandle + " runtimeRoot=" + RuntimeHandle.RootTraceContextId;
+            if (RuntimeHandle.IsValid) message += " runtimeHandle=" + RuntimeHandle + " runtimeRoot=" + RuntimeHandle.RootContextId;
             if (ActorId != 0) message += " actor=" + ActorId;
             if (SkillId != 0) message += " skill=" + SkillId;
             if (!string.IsNullOrEmpty(Detail)) message += " " + Detail;

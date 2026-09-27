@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleSessionState _state;
         private readonly BattleSessionHandles _handles;
         private readonly IBattleSessionWorldInstaller _worldInstaller;
-        private readonly BattlePresentationSessionResources _presentation;
+        private readonly ISessionPresentationPort _presentation;
         private readonly BattleSessionDiagnostics _diagnostics;
         private PredictionViewBridge _predictionViewBridge;
 
@@ -51,6 +51,22 @@ namespace AbilityKit.Game.Flow
             BattleSessionHandles handles,
             IBattleSessionWorldInstaller worldInstaller,
             BattlePresentationSessionResources presentation,
+            BattleSessionDiagnostics diagnostics)
+            : this(
+                state,
+                handles,
+                worldInstaller,
+                new SessionPresentationController(
+                    presentation ?? throw new ArgumentNullException(nameof(presentation))),
+                diagnostics)
+        {
+        }
+
+        internal BattleSimulationRuntime(
+            BattleSessionState state,
+            BattleSessionHandles handles,
+            IBattleSessionWorldInstaller worldInstaller,
+            ISessionPresentationPort presentation,
             BattleSessionDiagnostics diagnostics)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));

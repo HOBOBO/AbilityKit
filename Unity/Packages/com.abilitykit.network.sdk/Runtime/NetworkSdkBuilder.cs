@@ -92,6 +92,11 @@ namespace AbilityKit.Network.Sdk
             return this;
         }
 
+        /// <summary>
+        /// Selects the thread that consumes callbacks and the thread that decodes transport bytes.
+        /// Use a Unity main-thread dispatcher for callbacks that touch Unity objects.
+        /// The runtime copies transport and packet payloads before deferred dispatch.
+        /// </summary>
         public NetworkSdkBuilder UseDispatchers(
             IDispatcher callbackDispatcher,
             IDispatcher? ioDispatcher = null)

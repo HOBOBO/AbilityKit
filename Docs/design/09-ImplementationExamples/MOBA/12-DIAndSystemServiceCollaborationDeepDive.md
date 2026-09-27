@@ -186,7 +186,7 @@ MOBA 的主业务边界集中在可组合、可替换、可测试的 Service 中
 “Service + ECS System”不是要求所有 System 都只能调用一个服务方法。MOBA 里至少有两类合理例外：
 
 - `MobaMotionTickSystem` 会在系统内读取 `motion` 和 `transform` 组件，执行 motion pipeline tick，并写回 `ReplaceTransform` / `ReplaceMotion`。这些逻辑高度贴近 Entitas group 和组件局部性，留在 System 里更直接。
-- `MobaProjectileSyncSystem` 会从 `IProjectileService` drain spawn/tick/exit/hit 事件，然后分发给内部 handler，并联动 `MobaEntityManager`、`MobaActorRegistry`、`MobaTriggerExecutionGateway`、`MobaTraceRegistry` 等服务。它不是纯一行 wrapper，而是 PostExecute 阶段的事件路由器。
+- `MobaProjectileSyncSystem` 会从 `IProjectileService` drain spawn/tick/exit/hit 事件，然后分发给内部 handler，并联动 `MobaEntityManager`、`MobaActorRegistry`、`MobaTriggerExecutionGateway`、`MobaExecutionContextRegistry` 等服务。它不是纯一行 wrapper，而是 PostExecute 阶段的事件路由器；Trace Adapter 不属于业务必需依赖。
 
 判断边界可以用一个简单规则：跨系统复用、需要配置/诊断/生命周期、需要单元测试的业务规则放进 Service；只服务于当前 phase/group/component 写回的局部流程可以留在 System。
 
@@ -246,7 +246,7 @@ flowchart LR
 
 - 从 `IProjectileService` 取出待处理事件。
 - 调用不同 handler。
-- 依赖 `MobaEntityManager`、`MobaActorRegistry`、`MobaTriggerExecutionGateway`、`MobaTraceRegistry` 等服务完成实际业务。
+- 依赖 `MobaEntityManager`、`MobaActorRegistry`、`MobaTriggerExecutionGateway`、`MobaExecutionContextRegistry` 等服务完成实际业务；Trace 通过 observer 可选投影。
 
 这种方式的意义是：
 

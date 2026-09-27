@@ -5,11 +5,6 @@ namespace AbilityKit.Demo.Moba.Services
         bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext);
     }
 
-    public interface IMobaTriggerTraceContextProvider
-    {
-        bool TryGetTraceContext(out MobaTriggerTraceContext traceContext);
-    }
-
     public interface IMobaContextSourceProvider
     {
         bool TryGetContextSource(out MobaContextSourceView source);
@@ -35,7 +30,6 @@ namespace AbilityKit.Demo.Moba.Services
         CombatExecutionContext = 2,
         Origin = 3,
         Lineage = 4,
-        Trace = 5,
         ExecutionSnapshot = 6,
         RuntimeDebug = 7
     }
@@ -53,7 +47,7 @@ namespace AbilityKit.Demo.Moba.Services
             MobaContextSourceResolveKind resolveKind,
             MobaContextSourceBoundary boundary,
             EffectContextKind contextKind,
-            MobaTraceKind traceKind,
+            MobaExecutionKind executionKind,
             int sourceActorId,
             int targetActorId,
             long sourceContextId,
@@ -71,7 +65,7 @@ namespace AbilityKit.Demo.Moba.Services
             ResolveKind = resolveKind;
             Boundary = boundary;
             ContextKind = contextKind;
-            TraceKind = traceKind;
+            ExecutionKind = executionKind;
             SourceActorId = sourceActorId;
             TargetActorId = targetActorId;
             SourceContextId = sourceContextId;
@@ -93,8 +87,8 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaContextSourceBoundary Boundary { get; }
         /// <summary>提供者能够判断时得到的归一化上下文类型。</summary>
         public EffectContextKind ContextKind { get; }
-        /// <summary>与来源视图关联的溯源种类。</summary>
-        public MobaTraceKind TraceKind { get; }
+        /// <summary>与来源视图关联的执行种类。</summary>
+        public MobaExecutionKind ExecutionKind { get; }
         /// <summary>产生来源上下文的角色。</summary>
         public int SourceActorId { get; }
         /// <summary>来源上下文指向的目标角色。</summary>
@@ -171,19 +165,13 @@ namespace AbilityKit.Demo.Moba.Services
                 skillRuntimeHandle);
         }
 
-        public static MobaContextSourceView FromTrace(in MobaTriggerTraceContext traceContext, MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
-        {
-            var lineageContext = traceContext.ToLineageContext();
-            return FromLineage(in lineageContext, MobaContextSourceResolveKind.Trace, MobaContextSourceBoundary.Snapshot, skillRuntimeHandle);
-        }
-
         public static MobaContextSourceView FromExecutionSnapshot(in MobaTriggerExecutionSnapshot snapshot, MobaContextSourceResolveKind resolveKind = MobaContextSourceResolveKind.ExecutionSnapshot)
         {
             return new MobaContextSourceView(
                 resolveKind,
                 MobaContextSourceBoundary.Execution,
                 snapshot.Kind,
-                MobaTraceKind.EffectExecution,
+                MobaExecutionKind.EffectExecution,
                 snapshot.SourceActorId,
                 snapshot.TargetActorId,
                 snapshot.SourceContextId,
@@ -205,7 +193,7 @@ namespace AbilityKit.Demo.Moba.Services
                 MobaContextSourceResolveKind.RuntimeDebug,
                 MobaContextSourceBoundary.LiveRuntime,
                 EffectContextKind.Unknown,
-                MobaTraceKind.None,
+                MobaExecutionKind.None,
                 debug.SourceActorId,
                 debug.TargetActorId,
                 debug.SourceContextId,

@@ -382,6 +382,20 @@ namespace ET.Logic
                 LastActorSpawnSnapshot = actorSpawns;
                 dispatcher.DispatchActorSpawn(snapshot.FrameIndex, actorSpawns);
             }
+
+            if (snapshot.ActorDespawns != null && snapshot.ActorDespawns.Count > 0)
+            {
+                dispatcher.DispatchActorDespawn(
+                    snapshot.FrameIndex,
+                    ToArray(snapshot.ActorDespawns));
+            }
+
+            if (snapshot.SkillStates != null && snapshot.SkillStates.Count > 0)
+            {
+                dispatcher.DispatchSkillState(
+                    snapshot.FrameIndex,
+                    ToArray(snapshot.SkillStates));
+            }
         }
 
         private void DispatchViewSnapshot(in MobaFrameSnapshotData snapshot)
@@ -394,6 +408,16 @@ namespace ET.Logic
             if (snapshot.ActorTransforms != null && snapshot.ActorTransforms.Count > 0)
             {
                 ViewSink?.OnActorTransformSnapshot(in snapshot);
+            }
+
+            if (snapshot.ActorDespawns != null && snapshot.ActorDespawns.Count > 0)
+            {
+                ViewSink?.OnActorDespawnSnapshot(in snapshot);
+            }
+
+            if (snapshot.SkillStates != null && snapshot.SkillStates.Count > 0)
+            {
+                ViewSink?.OnSkillStateSnapshot(in snapshot);
             }
 
             if (snapshot.DamageEvents != null && snapshot.DamageEvents.Count > 0)

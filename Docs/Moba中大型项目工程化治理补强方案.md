@@ -60,8 +60,8 @@
 
 #### 2.2.3 Trace / Origin / Lineage
 
-- 任何能跨步骤追踪的业务动作都应有 trace root。
-- trace root 的生命周期必须可释放、可保留、可扫描。
+- 任何能跨步骤追踪的业务动作都应有 execution context root。
+- 安装 Trace Adapter 后，对应 Trace root 的生命周期必须可释放、可保留、可扫描，但不能成为业务执行前提。
 - lineage/origin 只负责描述来源和链路，不承担执行逻辑。
 
 #### 2.2.4 技能运行时
@@ -118,7 +118,7 @@
 
 #### 3.2.3 Runtime 依赖规则
 
-围绕 [`MobaSkillCastRuntimeService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:1) 和 [`MobaTraceRegistry`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRegistry.cs:8) 补充：
+围绕 [`MobaSkillCastRuntimeService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:1)、[`MobaExecutionContextRegistry`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaExecutionContextRegistry.cs:1) 和可选 [`MobaTraceRegistry`](Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceRegistry.cs:1) 补充：
 
 - trace registry 缺失时禁止正式技能运行。
 - runtime service 缺失时禁止正式技能运行。
@@ -158,7 +158,7 @@
 
 ## 4. 诊断工具补强方案
 
-当前已有 [`MobaBattleDiagnosticsService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Diagnostics/MobaBattleDiagnosticsService.cs:142)、[`MobaPlanActionDiagnostics`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionDiagnostics.cs:9)、[`MobaTraceRetention.ScanRetention()`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRetention.cs:101) 和 [`MobaSkillCastRuntimeService.ScanDiagnostics()`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:1)，可以直接拼成一套正式诊断入口。
+当前已有 [`MobaBattleDiagnosticsService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Diagnostics/MobaBattleDiagnosticsService.cs:142)、[`MobaPlanActionDiagnostics`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionDiagnostics.cs:9)、可选 [`MobaTraceRetention.ScanRetention()`](Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceRetention.cs:1) 和 [`MobaSkillCastRuntimeService.ScanDiagnostics()`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:1)，可以组合为正式诊断入口；业务健康状态以 Execution Context 为准，Trace retention 仅作为已安装增强项。
 
 ### 4.1 诊断入口建议
 
@@ -255,7 +255,7 @@
 |---|---|
 | 单次 direct trigger | 测试最短执行路径开销 |
 | 单次 owner-bound trigger | 测试事件派发与订阅成本 |
-| 单次 skill cast | 测试 runtime + trace root 创建成本 |
+| 单次 skill cast | 分别测试 runtime + execution context root 的必选成本，以及 Trace Adapter 投影的增量成本 |
 | 单次 buff tick | 测试持续行为与定时触发开销 |
 | 单次 damage pipeline | 测试伤害计算和 trace 成本 |
 

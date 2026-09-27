@@ -182,6 +182,48 @@ public sealed class PhaseFeatureHostTests
         Assert.True(host.IsAttached);
     }
 
+    [Fact]
+    public async Task RemoveAsync_WaitsForAsyncFeatureBeforeRemovingIt()
+    {
+        var release = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var feature = new AsyncFeature(release.Task);
+        var host = new PhaseFeatureHost<TestContext, IPhaseFeature<TestContext>>();
+        var ctx = new TestContext(5);
+        host.Add(feature, in ctx);
+        host.AttachAll(in ctx);
+
+        var remove = host.RemoveAsync(feature, ctx);
+
+        Assert.False(remove.IsCompleted);
+        Assert.Single(host.Features);
+        Assert.Equal(1, feature.AsyncDetachCount);
+        Assert.Equal(0, feature.SyncDetachCount);
+
+        release.SetResult(true);
+        Assert.True(await remove);
+
+        Assert.Empty(host.Features);
+    }
+
+    [Fact]
+    public async Task DetachAllAsync_ContinuesAfterFailureAndResetsState()
+    {
+        var events = new List<string>();
+        var host = new PhaseFeatureHost<TestContext, IPhaseFeature<TestContext>>();
+        var ctx = new TestContext(5);
+        host.Add(new AsyncFeature(Task.CompletedTask, "first", events, throwOnDetach: true), in ctx);
+        host.Add(new AsyncFeature(Task.CompletedTask, "second", events), in ctx);
+        host.AttachAll(in ctx);
+
+        var exception = await Assert.ThrowsAsync<AggregateException>(
+            () => host.DetachAllAsync(ctx));
+
+        Assert.Equal(new[] { "second", "first" }, events);
+        Assert.Single(exception.InnerExceptions);
+        Assert.False(host.IsAttached);
+    }
+
     private readonly record struct TestContext(int Value);
 
     private class TestFeature : IPhaseFeature<TestContext>
@@ -235,6 +277,50 @@ public sealed class PhaseFeatureHostTests
         {
             _events.Add($"detach:{_id}");
             if (ThrowOnDetach) throw new InvalidOperationException($"detach:{_id}");
+        }
+
+        public void Tick(in TestContext ctx, float deltaTime)
+        {
+        }
+    }
+
+    private sealed class AsyncFeature : IAsyncPhaseFeature<TestContext>
+    {
+        private readonly Task _release;
+        private readonly string? _id;
+        private readonly List<string>? _events;
+        private readonly bool _throwOnDetach;
+
+        public AsyncFeature(
+            Task release,
+            string? id = null,
+            List<string>? events = null,
+            bool throwOnDetach = false)
+        {
+            _release = release;
+            _id = id;
+            _events = events;
+            _throwOnDetach = throwOnDetach;
+        }
+
+        public int AsyncDetachCount { get; private set; }
+        public int SyncDetachCount { get; private set; }
+
+        public void OnAttach(in TestContext ctx)
+        {
+        }
+
+        public void OnDetach(in TestContext ctx)
+        {
+            SyncDetachCount++;
+        }
+
+        public async Task DetachAsync(TestContext ctx)
+        {
+            AsyncDetachCount++;
+            await _release;
+            if (_id != null) _events?.Add(_id);
+            if (_throwOnDetach) throw new InvalidOperationException(_id);
         }
 
         public void Tick(in TestContext ctx, float deltaTime)

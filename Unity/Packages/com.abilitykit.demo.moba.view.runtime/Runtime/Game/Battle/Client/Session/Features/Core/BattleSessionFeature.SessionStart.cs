@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Game.Flow
@@ -6,6 +7,11 @@ namespace AbilityKit.Game.Flow
     public sealed partial class BattleSessionFeature
     {
         private void OnStartSessionRequested()
+        {
+            _ = StartSessionAfterGatewayPreparationAsync();
+        }
+
+        private async Task StartSessionAfterGatewayPreparationAsync()
         {
             try
             {
@@ -16,7 +22,7 @@ namespace AbilityKit.Game.Flow
                 }
 
                 Log.Info("[BattleSessionFeature] Starting session");
-                StartSession();
+                await StartSessionAsync().ConfigureAwait(false);
                 _eventsCtrl.NotifySessionStarted(this, _plan);
                 ApplyAutoPlanActions();
                 SessionContextBinder.BindSession(_ctx, _state, _handles, Hooks, _plan);
@@ -27,8 +33,20 @@ namespace AbilityKit.Game.Flow
             {
                 Log.Exception(ex, "[BattleSessionFeature] StartSession failed after gateway room preparation");
                 _runtime.Replay.Stop();
-                StopSession();
-                _eventsCtrl.NotifySessionFailed(this, ex);
+                var failure = ex;
+                try
+                {
+                    await StopSessionAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    failure = new AggregateException(
+                        "Gateway session startup failed and cleanup also reported failures.",
+                        ex,
+                        cleanupFailure);
+                }
+
+                _eventsCtrl.NotifySessionFailed(this, failure);
             }
         }
 

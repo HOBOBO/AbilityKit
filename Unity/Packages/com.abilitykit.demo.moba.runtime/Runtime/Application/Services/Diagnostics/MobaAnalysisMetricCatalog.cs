@@ -16,12 +16,12 @@ namespace AbilityKit.Demo.Moba.Services
             Add(catalog, MobaBattleDiagnosticMetric.BuffDrain, "moba.buff", "duration", "ms", "Buff drain execution duration.", "stable", "sampled", "buff", "frame", "actor", "buff");
             Add(catalog, MobaBattleDiagnosticMetric.DamagePipeline, "moba.damage", "duration", "ms", "Damage pipeline execution duration.", "stable", "sampled", "damage", "frame", "actor", "skill");
             Add(catalog, MobaBattleDiagnosticMetric.DamageStage, "moba.damage", "duration", "ms", "Damage stage execution duration.", "stable", "sampled", "damage", "frame", "stage", "actor", "skill");
-            Add(catalog, MobaBattleDiagnosticMetric.EffectsStep, "moba.effect", "duration", "ms", "Skill effect step execution duration.", "stable", "sampled", "skill", "frame", "actor", "skill", "traceKind");
+            Add(catalog, MobaBattleDiagnosticMetric.EffectsStep, "moba.effect", "duration", "ms", "Skill effect step execution duration.", "stable", "sampled", "skill", "frame", "actor", "skill", "executionKind");
             Add(catalog, MobaBattleDiagnosticMetric.SkillPipelineStep, "moba.skill", "duration", "ms", "Skill cast pipeline step duration.", "stable", "sampled", "skill", "frame", "actor", "skill", "pipelineStep");
             Add(catalog, MobaBattleDiagnosticMetric.SkillRunnerStep, "moba.skill", "duration", "ms", "Skill runner step duration.", "stable", "sampled", "skill", "frame", "runtime", "skill");
 
-            Add(catalog, MobaBattleDiagnosticMetric.TraceRoots, "moba.trace", "gauge", "count", "Total trace roots retained by the MOBA trace registry.", "stable", "always", "trace", "frameRange");
-            Add(catalog, MobaBattleDiagnosticMetric.TraceActiveRoots, "moba.trace", "gauge", "count", "Active trace roots that have not reached a terminal state.", "stable", "always", "trace", "frameRange", "traceKind");
+            Add(catalog, MobaBattleDiagnosticMetric.TraceRoots, "moba.trace", "gauge", "count", "Active execution roots derived from the canonical MOBA Context registry.", "stable", "always", "trace", "frameRange");
+            Add(catalog, MobaBattleDiagnosticMetric.TraceActiveRoots, "moba.trace", "gauge", "count", "Active projected execution roots that have not reached a terminal state.", "stable", "always", "trace", "frameRange", "executionKind");
             Add(catalog, MobaBattleDiagnosticMetric.TraceRetainedRoots, "moba.trace", "gauge", "count", "Trace roots retained for analysis export.", "stable", "always", "trace", "frameRange");
             Add(catalog, MobaBattleDiagnosticMetric.TraceRetainedEndedRoots, "moba.trace", "gauge", "count", "Ended trace roots still retained for later analysis.", "stable", "always", "trace", "frameRange");
             Add(catalog, MobaBattleDiagnosticMetric.TraceStaleRetainedRoots, "moba.trace", "gauge", "count", "Retained trace roots considered stale by cleanup policy.", "stable", "always", "trace", "frameRange");

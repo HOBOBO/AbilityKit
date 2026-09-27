@@ -106,7 +106,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 _origin = MobaGameplayOriginBuilder.Create()
                     .FromOrigin(in _origin)
                     .WithActors(_sourceActorId, _initialTargetActorId)
-                    .WithLifecycleNode(MobaTraceKind.ProjectileLaunch, _projectileConfigId, sourceContextId)
+                    .WithLifecycleNode(MobaExecutionKind.ProjectileLaunch, _projectileConfigId, sourceContextId)
                     .WithRootContext(_rootContextId)
                     .WithOwnerContext(_ownerContextId)
                     .WithSkillRuntimeIfMissing(in _skillRuntimeHandle)
@@ -126,7 +126,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 _origin = new MobaGameplayOrigin(
                     _sourceActorId,
                     _initialTargetActorId,
-                    MobaTraceKind.ProjectileLaunch,
+                    MobaExecutionKind.ProjectileLaunch,
                     _projectileConfigId,
                     _sourceContextId,
                     _sourceContextId,

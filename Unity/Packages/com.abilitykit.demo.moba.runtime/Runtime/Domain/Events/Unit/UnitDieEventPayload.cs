@@ -41,7 +41,7 @@ namespace AbilityKit.Demo.Moba.Events.Unit
             ReasonKind = reasonKind;
             ReasonParam = reasonParam;
             DamageValue = damageValue;
-            Origin = origin.IsValid ? origin.WithImmediate(MobaTraceKind.UnitDeath, reasonParam, origin.EffectiveParentContextId) : default;
+            Origin = origin.IsValid ? origin.WithImmediate(MobaExecutionKind.UnitDeath, reasonParam, origin.EffectiveParentContextId) : default;
         }
 
         public bool TryGetSourceActorId(out int actorId)
@@ -66,7 +66,7 @@ namespace AbilityKit.Demo.Moba.Events.Unit
 
             origin = MobaGameplayOriginBuilder.Create()
                 .WithActors(KillerActorId, ActorId)
-                .WithImmediate(MobaTraceKind.UnitDeath, ReasonParam, 0)
+                .WithImmediate(MobaExecutionKind.UnitDeath, ReasonParam, 0)
                 .Build();
             return origin.IsValid;
         }
@@ -79,7 +79,7 @@ namespace AbilityKit.Demo.Moba.Events.Unit
                 return true;
             }
 
-            lineageContext = new MobaTriggerLineageContext(EffectContextKind.Unit, MobaTraceKind.UnitDeath, KillerActorId, ActorId, 0, 0, 0, ReasonParam);
+            lineageContext = new MobaTriggerLineageContext(EffectContextKind.Unit, MobaExecutionKind.UnitDeath, KillerActorId, ActorId, 0, 0, 0, ReasonParam);
             return KillerActorId > 0 || ActorId > 0;
         }
 

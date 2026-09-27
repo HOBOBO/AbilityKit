@@ -188,6 +188,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         {
         }
 
+        [MobaActorInitializer("core.model", 100)]
         private sealed class ModelInitializer : IMobaActorInitializerStep
         {
             public string Id => "core.model";
@@ -209,6 +210,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             }
         }
 
+        [MobaActorInitializer("core.attributes", 200)]
         private sealed class AttributeInitializer : IMobaActorInitializerStep
         {
             private readonly MobaActorAttributeInitializer _initializer;
@@ -235,6 +237,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             }
         }
 
+        [MobaActorInitializer("core.skills", 300)]
         private sealed class SkillInitializer : IMobaActorInitializerStep
         {
             private readonly MobaActorSkillLoadoutInitializer _initializer;
@@ -266,6 +269,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             }
         }
 
+        [MobaActorInitializer("core.brain", 400)]
         private sealed class BrainInitializer : IMobaActorInitializerStep
         {
             private readonly ActorEntityInitPipeline _pipeline;

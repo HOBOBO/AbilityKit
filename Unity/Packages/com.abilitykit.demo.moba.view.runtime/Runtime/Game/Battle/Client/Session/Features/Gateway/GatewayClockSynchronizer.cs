@@ -70,8 +70,7 @@ namespace AbilityKit.Game.Flow
                         runtimeOptions,
                         samplePublished,
                         failurePublished,
-                        token),
-                    token);
+                        token));
             }
 
             BeginDrain(
@@ -199,6 +198,11 @@ namespace AbilityKit.Game.Flow
                     return System.Threading.Tasks.Task.CompletedTask;
                 }
 
+                if (_cancellation == null && _task == null)
+                {
+                    return _pendingStop ?? System.Threading.Tasks.Task.CompletedTask;
+                }
+
                 _generation++;
                 cancellation = _cancellation;
                 task = _task;
@@ -258,6 +262,10 @@ namespace AbilityKit.Game.Flow
                     .ConfigureAwait(false);
                 completion.TrySetResult(true);
             }
+            catch (OperationCanceledException) when (cancellation != null)
+            {
+                completion.TrySetResult(true);
+            }
             catch (Exception exception)
             {
                 completion.TrySetException(exception);
@@ -278,8 +286,7 @@ namespace AbilityKit.Game.Flow
             {
                 await task.ConfigureAwait(false);
             }
-            catch (OperationCanceledException) when (
-                cancellation != null && cancellation.IsCancellationRequested)
+            catch (OperationCanceledException) when (cancellation != null)
             {
             }
         }

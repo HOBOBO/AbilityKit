@@ -2,7 +2,6 @@ using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.GameplayTags;
-using AbilityKit.Trace;
 
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
@@ -95,22 +94,22 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             }
         }
 
-        public static ContinuousEndReason ToContinuousEndReason(TraceLifecycleReason reason)
+        public static ContinuousEndReason ToContinuousEndReason(MobaExecutionEndReason reason)
         {
             switch (reason)
             {
-                case TraceLifecycleReason.Expired:
-                case TraceLifecycleReason.Completed:
+                case MobaExecutionEndReason.Expired:
+                case MobaExecutionEndReason.Completed:
                     return ContinuousEndReason.Completed;
-                case TraceLifecycleReason.Dispelled:
-                case TraceLifecycleReason.Interrupted:
-                case TraceLifecycleReason.Cancelled:
-                case TraceLifecycleReason.Dead:
-                case TraceLifecycleReason.Replaced:
-                case TraceLifecycleReason.Overridden:
-                case TraceLifecycleReason.Failed:
+                case MobaExecutionEndReason.Dispelled:
+                case MobaExecutionEndReason.Interrupted:
+                case MobaExecutionEndReason.Cancelled:
+                case MobaExecutionEndReason.Dead:
+                case MobaExecutionEndReason.Replaced:
+                case MobaExecutionEndReason.Overridden:
+                case MobaExecutionEndReason.Failed:
                     return ContinuousEndReason.Interrupted;
-                case TraceLifecycleReason.None:
+                case MobaExecutionEndReason.None:
                 default:
                     return ContinuousEndReason.CleanedUp;
             }

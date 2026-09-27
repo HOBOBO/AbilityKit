@@ -60,7 +60,7 @@ Runtime 当前提供独立于 Editor 查询面的内存快照源和本地快照�
 - 各 Store 在单次快照调用内执行防御性复制；后续写入、淘汰或 Clear 不改变已经生成的快照。
 - 快照源使用独立窄接口，`IBattleDiagnosticReadOnlySession` 和 Editor 面板不因此获得整批导出或可变控制权限。
 
-协调器按轨道顺序复制，不暂停采集，也不承诺跨 Store 原子事务。标准文件层复用顶层 `abilitykit-analysis.v1`，以可选 `battleDiagnostics` Section 承载独立版本 `abilitykit-battle-diagnostics.v1`；旧 Artifact 缺失该 Section 时仍可正常导入。Codec 显式映射全部八条轨道和已知结构化 Event Payload，并校验顶层版本、Section 版本、必需轨道、Event Metrics/Sequence、Actor 数量和领域构造约束。
+协调器按轨道顺序复制，不暂停采集，也不承诺跨 Store 原子事务。标准文件层复用顶层 `abilitykit-analysis.v1`，以可选 `battleDiagnostics` Section 承载当前唯一正式版本 `abilitykit-battle-diagnostics.v2`；旧 Trace 命名 section schema 不再导入。Codec 显式映射全部八条轨道和已知结构化 Event Payload，并校验顶层版本、Section 版本、必需轨道、Event Metrics/Sequence、Actor 数量和领域构造约束。
 
 `BattleDiagnosticOfflineSession` 将导入快照适配为 `IBattleDiagnosticReadOnlySession`，固定呈现为 `Disconnected` / `Frozen`，保留各轨道独立 revision、Event 固定 revision 分页、latest-only 状态查询和 Trace Partial 语义。Battle Debug 工具栏可在活动实时会话中捕获并导出标准 JSON，也可在 Play Mode 或 Edit Mode 打开文件并离线浏览；实时与离线来源互斥，损坏的新文件不会替换当前离线现场，“返回实时”会释放离线 Session。
 

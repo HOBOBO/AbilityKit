@@ -8,6 +8,7 @@
   "dependencies": {
     "com.abilitykit.core": "0.1.0",
     "com.abilitykit.world.snapshot": "0.1.0",
+    "com.abilitykit.thirdparty.unsafe": "5.0.0",
     "com.cysharp.memorypack": "1.10.0"
   }
 }

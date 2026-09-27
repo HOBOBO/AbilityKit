@@ -1,0 +1,28 @@
+{
+  "name": "AbilityKit.Demo.Moba.Prediction.PlayMode.Tests",
+  "rootNamespace": "AbilityKit.Demo.Moba.Prediction.PlayMode.Tests",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.Combat.Collision.Abstractions",
+    "AbilityKit.Combat.Motion",
+    "AbilityKit.Demo.Moba.Runtime",
+    "AbilityKit.Demo.Moba.Share",
+    "AbilityKit.Demo.Moba.Presentation.Contracts",
+    "AbilityKit.Demo.Moba.Presentation.Adapter",
+    "AbilityKit.Demo.Moba.View.Runtime",
+    "AbilityKit.World.ECS",
+    "AbilityKit.World.StateSync"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

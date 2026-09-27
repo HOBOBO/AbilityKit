@@ -2,9 +2,9 @@ using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.View.Abstractions.Shared.Types;
 using AbilityKit.Game.Flow;
-using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
 using AbstractBattleProjectileTriggerHitInput = AbilityKit.Demo.Moba.View.Abstractions.Battle.View.BattleProjectileTriggerHitInput;
 using AbstractBattleProjectileVfxIds = AbilityKit.Demo.Moba.View.Abstractions.Battle.View.BattleProjectileVfxIds;
@@ -62,7 +62,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             return true;
         }
 
-        public int ResolveSnapshotVfxId(int templateId, int kind)
+        public int ResolveSnapshotVfxId(int templateId, ProjectilePresentationEventKind kind)
         {
             if (templateId <= 0) return 0;
 
@@ -70,7 +70,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var vfxId = _snapshotVfxIds.Resolve(projectile, kind);
             if (vfxId > 0) return vfxId;
 
-            return kind == (int)ProjectileEventKind.Spawn
+            return kind == ProjectilePresentationEventKind.Spawn
                 ? BattleViewFallbackPolicy.DevelopmentOnly(
                     BattleViewPlaceholderIds.ProjectileSpawnVfx,
                     "projectile.spawn-vfx:" + templateId)
@@ -145,7 +145,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _resolver = resolver ?? new AbstractBattleProjectileVfxResolver();
         }
 
-        public int Resolve(ProjectileMO projectile, int kind)
+        public int Resolve(ProjectileMO projectile, ProjectilePresentationEventKind kind)
         {
             if (projectile == null) return 0;
 
@@ -154,7 +154,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 projectile.OnSpawnVfxId,
                 projectile.OnHitVfxId,
                 projectile.OnExpireVfxId);
-            return _resolver.ResolveSnapshotVfxId(in vfxIds, kind);
+            return _resolver.ResolveSnapshotVfxId(in vfxIds, (int)kind);
         }
     }
 }

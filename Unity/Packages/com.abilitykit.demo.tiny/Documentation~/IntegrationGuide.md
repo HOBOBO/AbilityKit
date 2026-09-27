@@ -48,6 +48,8 @@ var catalog = ServerGameplayModuleCatalog.Default
 
 先按 01→02→03 完成 State 主线，再选学 04 Frame、05 Hybrid。06 是三种模式的横切故障处理。02–06 的片段只展示本章新增 API；可运行联机状态机在 `Runtime/View/TinyBattleSession.cs`，不应从样例片段拼出第二套会话。
 
+仓库内另有可选 09 Record/Replay 与协议版本演进练习、10 回合制与实时 Arena 规则样例。09 在离线录制之后增加真实 Gateway State 会话的权威帧录制与复演，并用 Room 能力协商拒绝不兼容 schema。10 在本地规则对比之后增加 `tiny-turn` 服务端玩法模块与双进程 State 客户端，验证回合所有权、重连和胜者快照。可选的 `com.abilitykit.demo.tiny.turn` 包提供回合制 Unity 场景、项目入口和输入界面；使用它时需单独安装该包，不会增加本包的 Record、技能或物理依赖。详见 `Docs/tutorials/tiny`。
+
 ## 运行与排错
 
 使用两个独立 Unity 工程目录打开两个可视客户端，避免共用 `Library` 锁。连接同一 Gateway，用不同账号登录；一端创建房间，另一端通过 Room ID 加入，双方准备后由房主开始。分别选 State、Frame、Hybrid，检查 WASD 移动、空格攻击、HP、权威帧与预测计数，再断开一端验证全量恢复。
@@ -59,6 +61,8 @@ var catalog = ServerGameplayModuleCatalog.Default
 | `Resynchronizing` | 帧历史、哈希、收件箱溢出以及全量快照是否覆盖缺口 |
 | 返回大厅失败 | 大厅和 Tiny 场景是否都在 Build Settings，返回场景名是否正确 |
 
-仓库开发者可运行 `tools/verify-tiny-starter.ps1`，它构建隔离工程并运行协议、.NET、真实 Gateway TCP、Unity EditMode/PlayMode 门禁；`-SkipUnity` 只运行前几项。`tools/create-tiny-validation-project.ps1 -Standalone` 生成不含 Starter 的消费工程。上述脚本属于源码仓库，不是 UPM 包的运行依赖。
+仓库开发者可运行 `tools/verify-tiny-starter.ps1`，它构建隔离工程并运行依赖检查、协议、.NET、真实 Gateway TCP、Unity EditMode/PlayMode 门禁；`-SkipUnity` 只运行无头 .NET 与 TCP 阶段。三模式 TCP 阶段分别启动两个独立 .NET 客户端进程，证据位于 `local/Logs/tiny-acceptance-*/process-{Mode}`；回合制证据位于 `process-Turn`，真实录制保存为 `tiny-live-record.bin`。`tools/create-tiny-validation-project.ps1 -Standalone` 生成不含 Starter 的消费工程。上述脚本属于源码仓库，不是 UPM 包的运行依赖。
 
-无头 PlayMode 能证明对象、会话和 Gateway 行为，但不能证明最终渲染观感。画面检查应在独立可视客户端中完成；不要把测试替身的投影断言当成真实双端联机证据。
+完整 Unity 批处理还会在消费工程中从自有大厅进入 Tiny 场景，连接真实 Gateway，逐模式验证攻击投影、访客恢复与返回大厅。`tiny-consumer-network.json` 记录权威帧、预测帧和校正计数；Hybrid 应在发送确认前出现本地预测，State/Frame 不应出现。协议或同步 schema 不兼容时，能力协商应阻止订阅和输入；当前 Tiny 客户端要求 schema 版本 1。
+
+无头 PlayMode 能证明对象、会话和 Gateway 行为；双进程 TCP 能证明独立客户端进程的联机闭环。二者都不能证明最终渲染观感。画面检查应在独立可视客户端中完成；不要把测试替身的投影断言当成可视双端联机证据。

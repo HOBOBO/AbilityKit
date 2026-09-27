@@ -5,6 +5,7 @@
     "UnitSubType": 1,
     "ModelId": 1001,
     "AttributeTemplateId": 1001,
+    "BrainId": 1,
     "LifetimeMs": 60000,
     "DespawnOnOwnerDie": true,
     "MaxAlivePerOwner": 10,

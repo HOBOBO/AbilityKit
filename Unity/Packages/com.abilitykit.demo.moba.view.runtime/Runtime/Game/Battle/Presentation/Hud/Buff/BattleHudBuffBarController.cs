@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow.Battle.Hud
@@ -59,7 +59,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             _barsByActorId[actorId] = bar;
         }
 
-        public void HandleCues(IReadOnlyList<MobaPresentationCueSnapshotEntry> entries)
+        public void HandleCues(IReadOnlyList<PresentationCueData> entries)
         {
             if (entries == null || entries.Count == 0) return;
             var localOnly = _cfg.BuffBarOnlyLocalActor;
@@ -73,7 +73,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
                 if (actorId <= 0) continue;
                 if (localOnly && !IsLocalActor(actorId)) continue;
 
-                var stage = (PresentationCueStage)entry.Stage;
+                var stage = entry.Stage;
                 var isRemove = BattleHudBuffCueFilter.IsBuffRemoveStage(stage);
                 var isActive = BattleHudBuffCueFilter.IsBuffActiveStage(stage);
 
@@ -154,7 +154,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             _actorByInstanceKey.Remove(instanceKey);
         }
 
-        private static float ResolveTotalSecondsHint(in MobaPresentationCueSnapshotEntry entry)
+        private static float ResolveTotalSecondsHint(in PresentationCueData entry)
         {
             if (entry.DurationMsOverride > 0) return entry.DurationMsOverride / 1000f;
             return 0f;

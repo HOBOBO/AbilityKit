@@ -41,7 +41,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             int[] targets = null;
             Vec3[] positions = null;
-            long sourceContextId = input.TraceScope.EffectContextId;
+            long sourceContextId = input.ExecutionScope.EffectContextId;
 
             switch (mode)
             {
@@ -84,7 +84,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 SourceActorId = casterActorId,
                 TargetActorId = targetActorId,
                 SourceContextId = sourceContextId,
-                TraceKind = args.Stop ? MobaTraceKind.PresentationStop : MobaTraceKind.PresentationPlay,
+                ExecutionKind = args.Stop ? MobaExecutionKind.PresentationStop : MobaExecutionKind.PresentationPlay,
                 Scale = args.Scale != 1 ? args.Scale : (float?)null,
                 Radius = args.Radius > 0 ? args.Radius : (float?)null,
             };

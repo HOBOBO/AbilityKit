@@ -8,73 +8,90 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
-    /// <summary>
-    /// 将 <see cref="GatewayStateSyncSnapshot"/> 中插值后的 actor 状态应用到 view EntityWorld。
-    ///
-    /// 与 snapshot 通道的 BattleSnapshotEntityApplier 的关系：
-    /// - BattleSnapshotEntityApplier 处理 MobaActorTransformSnapshotEntry（旧 codec 路径）。
-    /// - 本类处理 GatewayStateSyncActorSnapshot（插值后的 state-sync push）。
-    /// - 两者共用同一个 view EntityWorld 和 BattleEntityLookup。
-    ///
-    /// 启用客户端预测时，本地玩家的 transform 由 PredictionViewBridge 负责；
-    /// 纯权威快照模式下，本地玩家与远端玩家一样应用插值结果。
-    /// </summary>
     internal static class BattleRemoteInterpolationApplier
     {
-        internal static int ResolveExcludedLocalActorId(
-            bool enableClientPrediction,
-            int localActorId)
+        internal static int ResolveExcludedLocalActorId(bool enableClientPrediction, int localActorId)
         {
             return enableClientPrediction ? localActorId : 0;
         }
 
-        /// <summary>
-        /// 将插值后的 snapshot 应用到 view EntityWorld 中的远端实体。
-        /// State-sync 快照是完整的 actor 表现来源，不依赖旧 codec 的 spawn 快照先到达。
-        /// </summary>
-        /// <param name="entityContext">View entity capabilities used to resolve or create actors.</param>
-        /// <param name="snapshot">插值后的 actor 列表</param>
-        /// <param name="localActorId">本地玩家 actorId（跳过，由 PredictionViewBridge 负责）</param>
         public static void Apply(
             IBattleEntityContext entityContext,
             in GatewayStateSyncSnapshot snapshot,
             int localActorId)
         {
-            if (entityContext == null) return;
+            new Session().Apply(entityContext, in snapshot, localActorId);
+        }
 
-            var world = entityContext.EntityWorld;
-            var lookup = entityContext.EntityLookup;
-            var factory = entityContext.EntityFactory;
-            if (world == null || lookup == null || factory == null) return;
+        internal sealed class Session
+        {
+            private readonly BattleActorViewProjectionWorkspace _workspace =
+                new BattleActorViewProjectionWorkspace();
+            private UnityActorViewPort _port;
 
-            var actors = snapshot.Actors ?? System.Array.Empty<GatewayStateSyncActorSnapshot>();
-            var dirty = entityContext.DirtyEntities;
-            if (dirty == null)
+            public void Apply(
+                IBattleEntityContext context,
+                in GatewayStateSyncSnapshot snapshot,
+                int localActorId)
             {
-                dirty = new List<IEntityId>(actors.Length);
-                entityContext.DirtyEntities = dirty;
+                if (context?.EntityWorld == null ||
+                    context.EntityLookup == null ||
+                    context.EntityFactory == null) return;
+
+                if (_port == null || !_port.Matches(context))
+                    _port = new UnityActorViewPort(context);
+                BattleActorViewProjector.ApplyWithoutBatch(
+                    _port, in snapshot, localActorId, _workspace);
             }
 
-            var authoritativeActorIds = snapshot.IsFullSnapshot
-                ? new HashSet<int>()
-                : null;
-            for (int i = 0; i < actors.Length; i++)
+            public void Reset()
             {
-                var actor = actors[i];
-                if (actor.ActorId <= 0) continue;
+                _port = null;
+            }
+        }
 
-                authoritativeActorIds?.Add(actor.ActorId);
-                if (actor.ActorId == localActorId) continue;
+        private sealed class UnityActorViewPort : IBattleActorViewPort
+        {
+            private readonly IBattleEntityContext _context;
+            private readonly IECWorld _world;
+            private readonly BattleEntityLookup _lookup;
+            private readonly BattleEntityFactory _factory;
 
+            public UnityActorViewPort(IBattleEntityContext context)
+            {
+                _context = context;
+                _world = context.EntityWorld;
+                _lookup = context.EntityLookup;
+                _factory = context.EntityFactory;
+            }
+
+            public bool Matches(IBattleEntityContext context)
+            {
+                return ReferenceEquals(_context, context) &&
+                       ReferenceEquals(_world, context.EntityWorld) &&
+                       ReferenceEquals(_lookup, context.EntityLookup) &&
+                       ReferenceEquals(_factory, context.EntityFactory);
+            }
+
+            public IEnumerable<int> GetActorIds()
+            {
+                var ids = new List<int>();
+                _world.ForEachAlive(entity =>
+                {
+                    if (entity.TryGetRef(out BattleNetIdComponent netId) && netId != null)
+                        ids.Add(netId.NetId.Value);
+                });
+                return ids;
+            }
+
+            public void Upsert(in GatewayStateSyncActorSnapshot actor)
+            {
                 var netId = new BattleNetId(actor.ActorId);
-                if (!lookup.TryResolve(world, netId, out var entity))
+                if (!_lookup.TryResolve(_world, netId, out var entity))
                 {
                     entity = actor.Kind == (int)SpawnEntityKind.Projectile
-                        ? factory.CreateProjectile(
-                            netId,
-                            new BattleNetId(actor.OwnerNetId),
-                            actor.Code)
-                        : factory.CreateCharacter(netId, actor.Code);
+                        ? _factory.CreateProjectile(netId, new BattleNetId(actor.OwnerNetId), actor.Code)
+                        : _factory.CreateCharacter(netId, actor.Code);
                 }
 
                 if (!entity.TryGetRef(out BattleTransformComponent transform) || transform == null)
@@ -84,51 +101,43 @@ namespace AbilityKit.Game.Flow
                 }
 
                 transform.Position = new Vector3(actor.X, actor.Y, actor.Z);
-                transform.Forward = RotationToForward(actor.Rotation);
+                transform.Forward = new Vector3(Mathf.Sin(actor.Rotation), 0f, Mathf.Cos(actor.Rotation));
+                var dirty = _context.DirtyEntities;
+                if (dirty == null)
+                {
+                    dirty = new List<IEntityId>();
+                    _context.DirtyEntities = dirty;
+                }
                 dirty.Add(entity.Id);
             }
 
-            if (authoritativeActorIds != null)
+            public void Remove(int actorId)
             {
-                RemoveActorsMissingFromFullSnapshot(
-                    world,
-                    lookup,
-                    authoritativeActorIds,
-                    localActorId);
-            }
-        }
-
-        private static void RemoveActorsMissingFromFullSnapshot(
-            IECWorld world,
-            BattleEntityLookup lookup,
-            HashSet<int> authoritativeActorIds,
-            int localActorId)
-        {
-            var staleEntities = new List<IEntityId>();
-            world.ForEachAlive(entity =>
-            {
-                if (!entity.TryGetRef(out BattleNetIdComponent netId) || netId == null) return;
-                if (netId.NetId.Value == localActorId) return;
-                if (authoritativeActorIds.Contains(netId.NetId.Value)) return;
-
-                staleEntities.Add(entity.Id);
-            });
-
-            for (int i = 0; i < staleEntities.Count; i++)
-            {
-                var entityId = staleEntities[i];
-                lookup.UnbindByEntityId(entityId);
-                if (world.IsAlive(entityId))
+                var netId = new BattleNetId(actorId);
+                if (_lookup.TryResolve(_world, netId, out var entity))
                 {
-                    world.Wrap(entityId).Destroy();
+                    Destroy(entity.Id);
+                    return;
                 }
-            }
-        }
 
-        // Yaw → forward vector (右手系 Y-up, Forward=(0,0,1))
-        private static Vector3 RotationToForward(float yaw)
-        {
-            return new Vector3(Mathf.Sin(yaw), 0f, Mathf.Cos(yaw));
+                var staleIds = new List<IEntityId>();
+                _world.ForEachAlive(candidate =>
+                {
+                    if (candidate.TryGetRef(out BattleNetIdComponent component) &&
+                        component != null &&
+                        component.NetId.Value == actorId)
+                    {
+                        staleIds.Add(candidate.Id);
+                    }
+                });
+                foreach (var id in staleIds) Destroy(id);
+            }
+
+            private void Destroy(IEntityId id)
+            {
+                _lookup.UnbindByEntityId(id);
+                if (_world.IsAlive(id)) _world.Wrap(id).Destroy();
+            }
         }
     }
 }

@@ -12,7 +12,7 @@ public sealed class AnalysisBattleDiagnosticSectionTests
     [Fact]
     public void Schema_version_constant_is_stable()
     {
-        Assert.Equal("abilitykit-battle-diagnostics.v1", AnalysisBattleDiagnosticSchema.Version);
+        Assert.Equal("abilitykit-battle-diagnostics.v2", AnalysisBattleDiagnosticSchema.Version);
     }
 
     [Fact]

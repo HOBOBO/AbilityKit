@@ -47,7 +47,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(results[0].SkillId, Is.EqualTo(202));
             Assert.That(results[0].CasterActorId, Is.EqualTo(33));
             Assert.That(results[0].TargetActorId, Is.EqualTo(44));
-            Assert.That(results[0].Handle.RootTraceContextId, Is.EqualTo(1002L));
+            Assert.That(results[0].Handle.RootContextId, Is.EqualTo(1002L));
             Assert.That(results[0].IsEnded, Is.False);
         }
 
@@ -142,7 +142,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var request = new MobaSkillCastRuntimeCreateRequest(
                 303, 2, 4, 19, 55, 66,
                 in aimPosition, in aimDirection,
-                rootTraceContextId: 2001L,
+                rootContextId: 2001L,
                 diagnosticCommandId: 4401L);
             var runtime = service.Create(in request);
             var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Projectile, 71L, 72L);
@@ -344,12 +344,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
-        public void LocalSkillRollback_RestoresTraceLifecycleWithoutChangingAuthorityPayload()
+        public void LocalSkillRollback_RestoresContextLifecycleWithoutChangingAuthorityPayload()
         {
+            using var contexts = new MobaExecutionContextRegistry();
             using var trace = new MobaTraceRegistry();
             using var service = new MobaSkillCastRuntimeService();
-            SetPrivateField(service, "_trace", trace);
-            var rootId = trace.CreateRootContext(MobaTraceKind.SkillCast, 512, 101, 201);
+            trace.AttachExecutionContexts(contexts);
+            SetPrivateField(service, "_executionContexts", contexts);
+            var rootId = contexts.Create(new MobaExecutionContextCreateRequest(
+                MobaExecutionKind.SkillCast, 512, 101, 201)).ContextId;
             var runtime = CreateRuntime(service, 512, rootId);
             var handle = runtime.Handle;
             var provider = new MobaSkillRuntimeRollbackProvider(service);

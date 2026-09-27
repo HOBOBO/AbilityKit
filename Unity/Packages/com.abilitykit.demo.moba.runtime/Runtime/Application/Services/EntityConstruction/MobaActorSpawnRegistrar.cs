@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 
@@ -76,6 +77,12 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                         spec.Info.OwnerPlayer);
                 }
 
+                if (actorRegistered && entityRegistered &&
+                    _entities.TryGetActorRollbackCommands(out var rollbackCommands))
+                {
+                    rollbackCommands.RecordCreated(entity, spec.Info.Kind);
+                }
+
                 return entityRegistered;
             }
             catch
@@ -87,6 +94,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 if (actorRegistered)
                 {
                     _registry?.Unregister(actorId);
+                    _registry?.ForgetEntityIdentity(actorId);
                 }
                 throw;
             }
@@ -119,6 +127,14 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             entity = entityRegistered ? indexedEntity : actorEntity;
             if (!actorRegistered && !entityRegistered) return false;
 
+            byte[] rollbackPayload = null;
+            MobaActorRollbackCommandRuntime rollbackCommands = null;
+            if (actorRegistered && entityRegistered &&
+                _entities.TryGetActorRollbackCommands(out rollbackCommands))
+            {
+                rollbackPayload = rollbackCommands.CaptureDestroyed(entity);
+            }
+
             if (entityRegistered && !_entities.UnregisterSilently(actorId, out entity))
             {
                 throw new InvalidOperationException(
@@ -127,6 +143,27 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             if (actorRegistered)
             {
                 _registry.Unregister(actorId);
+            }
+
+            try
+            {
+                if (rollbackPayload != null)
+                    rollbackCommands.RecordDestroyed(actorId, rollbackPayload);
+            }
+            catch
+            {
+                if (actorRegistered) _registry.Register(actorId, entity);
+                if (entityRegistered)
+                {
+                    _entities.RegisterSilently(
+                        actorId,
+                        entity,
+                        entity.team.Value,
+                        entity.entityMainType.Value,
+                        entity.unitSubType.Value,
+                        entity.ownerPlayerId.Value);
+                }
+                throw;
             }
 
             if (publishDespawn && entityRegistered)

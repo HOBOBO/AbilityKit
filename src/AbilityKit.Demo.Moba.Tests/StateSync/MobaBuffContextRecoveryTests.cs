@@ -159,7 +159,7 @@ public sealed class MobaBuffContextRecoveryTests : IDisposable
         var flow = new BuffEndFlow(null, new BuffContextRegistry(null, _contexts, null), null,
             new BuffRuntimeBindingCoordinator(hooks, null, null));
 
-        var error = Assert.Throws<InvalidOperationException>(() => flow.EndRuntime(_actor, _actor.buffs.Active, 0, runtime, 2, TraceLifecycleReason.Expired));
+        var error = Assert.Throws<InvalidOperationException>(() => flow.EndRuntime(_actor, _actor.buffs.Active, 0, runtime, 2, MobaExecutionEndReason.Expired));
         Assert.Equal("callback failed", error.Message);
         Assert.True(hook.Called);
         Assert.Empty(_actor.buffs.Active);

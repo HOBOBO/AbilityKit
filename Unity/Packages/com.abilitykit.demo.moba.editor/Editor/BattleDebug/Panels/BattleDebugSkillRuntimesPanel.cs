@@ -127,7 +127,7 @@ namespace AbilityKit.Game.Editor
                 $"阶段={BattleDebugDisplayText.SkillStage(runtime.Stage)}  流水线结束={BattleDebugDisplayText.Bool(runtime.PipelineEnded)}  正在结束={BattleDebugDisplayText.Bool(runtime.IsEnding)}  原因={BattleDebugDisplayText.SkillRuntimeEndReason(runtime.EndReason)}");
             EditorGUILayout.LabelField(
                 "资源",
-                $"待处理子对象={runtime.PendingChildren}  黑板项={runtime.BlackboardEntryCount}  根 Trace={handle.RootTraceContextId}");
+                $"待处理子对象={runtime.PendingChildren}  黑板项={runtime.BlackboardEntryCount}  根 Context={handle.RootContextId}");
 
             EditorGUILayout.BeginHorizontal();
             DrawActorButton("施法者", runtime.CasterActorId, ctx.SelectActor);
@@ -140,10 +140,10 @@ namespace AbilityKit.Game.Editor
                     runtime.SkillId));
             }
             EditorGUI.EndDisabledGroup();
-            EditorGUI.BeginDisabledGroup(handle.RootTraceContextId <= 0L || ctx.OpenTrace == null);
+            EditorGUI.BeginDisabledGroup(handle.RootContextId <= 0L || ctx.OpenTrace == null);
             if (GUILayout.Button("打开 Trace", GUILayout.Width(90)))
             {
-                ctx.OpenTrace?.Invoke(handle.RootTraceContextId, handle.RootTraceContextId);
+                ctx.OpenTrace?.Invoke(handle.RootContextId, handle.RootContextId);
             }
             EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndHorizontal();
@@ -249,12 +249,12 @@ namespace AbilityKit.Game.Editor
                 var child = children[i];
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.LabelField(
-                    $"{BattleDebugDisplayText.SkillRuntimeChildKind(child.Kind)}  ID={child.ChildId}  配置={child.ConfigId}  Trace={child.TraceContextId}",
+                    $"{BattleDebugDisplayText.SkillRuntimeChildKind(child.Kind)}  ID={child.ChildId}  配置={child.ConfigId}  Context={child.ContextId}",
                     EditorStyles.miniLabel);
-                EditorGUI.BeginDisabledGroup(child.TraceContextId <= 0L || openTrace == null);
+                EditorGUI.BeginDisabledGroup(child.ContextId <= 0L || openTrace == null);
                 if (GUILayout.Button("Trace", EditorStyles.miniButton, GUILayout.Width(48)))
                 {
-                    openTrace?.Invoke(child.TraceContextId, child.TraceContextId);
+                    openTrace?.Invoke(child.ContextId, child.ContextId);
                 }
                 EditorGUI.EndDisabledGroup();
                 EditorGUILayout.EndHorizontal();

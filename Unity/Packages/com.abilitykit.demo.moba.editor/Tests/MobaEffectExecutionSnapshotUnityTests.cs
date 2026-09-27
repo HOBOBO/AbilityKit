@@ -1,5 +1,6 @@
 using AbilityKit.Context;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Observability;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -12,13 +13,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             using (var trace = new MobaTraceRegistry())
             using (var snapshots = new MobaEffectExecutionSnapshotStore(trace, 2, () => true))
             {
-                var id = trace.CreateRootContext(MobaTraceKind.EffectExecution, 101);
+                var id = trace.CreateObservationRoot(MobaExecutionKind.EffectExecution, 101);
                 var payload = new StagePayload();
                 var context = new MobaCombatExecutionContext(payload, default, default, default, default, 10);
-                snapshots.OnExecutionStarted(id, 101, 201, in context);
+                Observe(snapshots, id, 101, 201, in context);
                 var reference = Reference(trace, id);
                 payload.StackCount = 99;
-                snapshots.OnExecutionStarted(id, 102, 202, in context);
+                Observe(snapshots, id, 102, 202, in context);
                 var facts = snapshots.Read(reference);
                 Assert.That(facts.IsCaptured, Is.True);
                 Assert.That(facts.HasStageSnapshot, Is.True);
@@ -57,12 +58,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             using (var trace = new MobaTraceRegistry())
             using (var snapshots = new MobaEffectExecutionSnapshotStore(trace, 1, () => true))
             {
-                var first = trace.CreateRootContext(MobaTraceKind.EffectExecution, 101);
+                var first = trace.CreateObservationRoot(MobaExecutionKind.EffectExecution, 101);
                 var context = new MobaCombatExecutionContext(new StagePayload(), default, default, default, default, 10);
-                snapshots.OnExecutionStarted(first, 101, 201, in context);
+                Observe(snapshots, first, 101, 201, in context);
                 var old = Reference(trace, first);
-                var second = trace.CreateRootContext(MobaTraceKind.EffectExecution, 101);
-                snapshots.OnExecutionStarted(second, 101, 201, in context);
+                var second = trace.CreateObservationRoot(MobaExecutionKind.EffectExecution, 101);
+                Observe(snapshots, second, 101, 201, in context);
                 var current = Reference(trace, second);
                 Assert.That(snapshots.Read(old).Availability, Is.EqualTo(BattleDiagnosticDataAvailability.Evicted));
                 Assert.That(snapshots.Read(current).IsCaptured, Is.True);
@@ -75,6 +76,18 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             Assert.That(trace.TryGetNodeSnapshot(id, out var node), Is.True);
             return ((MobaTraceMetadata)node.Metadata).ExecutionSnapshot;
+        }
+
+        private static void Observe(
+            MobaEffectExecutionSnapshotStore store,
+            long contextId,
+            int effectConfigId,
+            int triggerId,
+            in MobaCombatExecutionContext context)
+        {
+            var observation = MobaEffectExecutionEntryObservation.Create(
+                contextId, effectConfigId, triggerId, in context);
+            store.OnObserved(in observation);
         }
 
         private sealed class StagePayload : IMobaTriggerStageSnapshotProvider

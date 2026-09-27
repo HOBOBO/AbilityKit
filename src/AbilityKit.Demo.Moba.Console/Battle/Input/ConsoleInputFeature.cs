@@ -314,7 +314,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
     {
         public static byte[] Serialize(float dx, float dz)
         {
-            return System.Text.Encoding.UTF8.GetBytes($"{{\"dx\":{dx:F4},\"dz\":{dz:F4}}}");
+            return AbilityKit.Protocol.Moba.StateSync.MobaMoveCodec.Serialize(dx, dz);
         }
     }
 

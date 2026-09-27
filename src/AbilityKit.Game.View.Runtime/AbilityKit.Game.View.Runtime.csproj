@@ -12,12 +12,6 @@
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.game.view.runtime/Runtime/**/*.cs"
              Exclude="../../Unity/Packages/com.abilitykit.game.view.runtime/Runtime/**/*.asmdef" />
-    <!-- 阶段 7a：战斗资源加载（纯 C# 部分，无 UnityEngine 依赖），供 Flow.Core 的 BattleAssetLoadCoordinator 使用 -->
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/IBattleAssetLoadService.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/BattleAssetManifest.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/IBattleAssetLease.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/BattleAssetLease.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/BattleAssetLoadService.cs" />
   </ItemGroup>
 
   <ItemGroup>

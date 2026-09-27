@@ -96,7 +96,7 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField("帧", w.Frame.ToString());
             EditorGUILayout.LabelField("Actor 数", w.ActorCount.ToString());
             EditorGUILayout.LabelField("活跃技能运行时", w.ActiveSkillRuntimeCount.ToString());
-            EditorGUILayout.LabelField("活跃 Trace 根", w.ActiveTraceRootCount.ToString());
+            EditorGUILayout.LabelField("活跃执行 Context 根", w.ActiveExecutionRootCount.ToString());
             if (!string.IsNullOrEmpty(w.StateHash))
             {
                 EditorGUILayout.LabelField("状态哈希", w.StateHash);

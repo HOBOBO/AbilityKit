@@ -2,10 +2,8 @@ using System;
 using System.Threading.Tasks;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;
 using AbilityKit.Network.Abstractions;
-using AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -62,6 +60,7 @@ namespace AbilityKit.Game.Flow
         public void TryDestroyBattleWorlds() => _resources.TryDestroyBattleWorlds();
         public void DisposeSnapshotRouting() => _resources.DisposeSnapshotRouting();
         public void DisposeConfirmedView() => _resources.DisposeConfirmedView();
+        public void DisposeProjectionViews() => _resources.DisposeProjectionViews();
         public void DisposeRemoteDrivenWorld() => _resources.DisposeRemoteDrivenWorld();
         public void DisposeConfirmedWorld() => _resources.DisposeConfirmedWorld();
         public void DisposeRemoteInterpolation() => _resources.DisposeRemoteInterpolation();
@@ -71,88 +70,38 @@ namespace AbilityKit.Game.Flow
     internal sealed class SessionRuntimeResourcesPort : ISessionRuntimeResourcesPort
     {
         private readonly BattleSessionRuntime _runtime;
-        private readonly Func<BattleStartPlan> _getPlan;
-        private readonly Func<BattleContext> _getContext;
-        private readonly Func<GameFlowDomain> _getFlow;
-        private readonly Func<bool> _hasLogicSession;
-        private readonly Func<float> _getFixedDeltaSeconds;
-        private readonly Func<WorldId, int> _resolveIdealFrameLimit;
-        private readonly Action<IEntity> _destroyEntityTree;
+        private readonly SessionSimulationController _simulation;
+        private readonly SessionReplicationController _replication;
 
-        internal SessionRuntimeResourcesPort(
-            BattleSessionRuntime runtime,
-            Func<BattleStartPlan> getPlan,
-            Func<BattleContext> getContext,
-            Func<GameFlowDomain> getFlow,
-            Func<bool> hasLogicSession,
-            Func<float> getFixedDeltaSeconds,
-            Func<WorldId, int> resolveIdealFrameLimit,
-            Action<IEntity> destroyEntityTree)
+        internal SessionRuntimeResourcesPort(BattleSessionRuntime runtime)
         {
             _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
-            _getPlan = getPlan ?? throw new ArgumentNullException(nameof(getPlan));
-            _getContext = getContext ?? throw new ArgumentNullException(nameof(getContext));
-            _getFlow = getFlow ?? throw new ArgumentNullException(nameof(getFlow));
-            _hasLogicSession = hasLogicSession ?? throw new ArgumentNullException(nameof(hasLogicSession));
-            _getFixedDeltaSeconds = getFixedDeltaSeconds ??
-                throw new ArgumentNullException(nameof(getFixedDeltaSeconds));
-            _resolveIdealFrameLimit = resolveIdealFrameLimit ??
-                throw new ArgumentNullException(nameof(resolveIdealFrameLimit));
-            _destroyEntityTree = destroyEntityTree ??
-                throw new ArgumentNullException(nameof(destroyEntityTree));
+            _simulation = runtime.SimulationController ??
+                throw new InvalidOperationException("Battle session simulation controller is not configured.");
+            _replication = runtime.ReplicationController;
         }
 
-        public void StartRemoteDrivenLocalWorld()
-        {
-            _runtime.Simulation.StartRemoteDriven(
-                _getPlan(),
-                _getContext(),
-                _getFixedDeltaSeconds(),
-                _resolveIdealFrameLimit,
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                () => _runtime.Diagnostics.ShouldForceClientHashMismatch);
-#else
-                () => false);
-#endif
-        }
+        public void StartRemoteDrivenLocalWorld() => _simulation.StartRemoteDriven();
 
-        public void StartConfirmedAuthorityWorld()
-        {
-            _runtime.Simulation.StartConfirmedAuthority(
-                _getPlan(),
-                _getContext(),
-                _getFlow(),
-                _hasLogicSession(),
-                _getFixedDeltaSeconds(),
-                _resolveIdealFrameLimit,
-                _destroyEntityTree);
-        }
+        public void StartConfirmedAuthorityWorld() => _simulation.StartConfirmedAuthority();
 
         public void DisposeReplayRecordWriter() => _runtime.Replay.DisposeRecordWriter();
 
-        public Task StopRecoveryAsync() =>
-            _runtime.Recovery?.StopAsync() ?? Task.CompletedTask;
+        public Task StopRecoveryAsync() => _replication.StopRecoveryAsync();
 
-        public void TryDestroyBattleWorlds() =>
-            _runtime.Simulation.DestroyBattleWorlds(_getPlan());
+        public void TryDestroyBattleWorlds() => _simulation.DestroyWorlds();
 
         public void DisposeSnapshotRouting() => _runtime.SnapshotRouting.Dispose();
 
-        public void DisposeConfirmedView() =>
-            _runtime.Simulation.DisposeConfirmedView(_getFlow(), _destroyEntityTree);
+        public void DisposeConfirmedView() => _simulation.DisposeConfirmedView();
 
-        public void DisposeRemoteDrivenWorld() =>
-            _runtime.Simulation.DisposeRemoteDrivenWorld();
+        public void DisposeProjectionViews() => _runtime.Presentation.DisposeProjectionViews();
 
-        public void DisposeConfirmedWorld() =>
-            _runtime.Simulation.DisposeConfirmedWorld(_getContext());
+        public void DisposeRemoteDrivenWorld() => _simulation.DisposeRemoteDrivenWorld();
 
-        public void DisposeRemoteInterpolation()
-        {
-            _runtime.DisposeReplication();
-            var context = _getContext();
-            if (context != null) context.CanSubmitGameplayInput = true;
-        }
+        public void DisposeConfirmedWorld() => _simulation.DisposeConfirmedWorld();
+
+        public void DisposeRemoteInterpolation() => _replication.Dispose();
 
         public void ResetSessionHandles() => _runtime.Handles.ResetSessionResources();
     }

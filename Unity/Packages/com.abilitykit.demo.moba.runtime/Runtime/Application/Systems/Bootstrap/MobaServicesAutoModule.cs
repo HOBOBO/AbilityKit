@@ -6,6 +6,19 @@ using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
+    internal static partial class MobaGeneratedWorldServiceManifest
+    {
+        public static void Configure(
+            WorldContainerBuilder builder,
+            WorldServiceProfile profile = WorldServiceProfile.All)
+        {
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
+            AddGenerated(builder, profile);
+        }
+
+        static partial void AddGenerated(WorldContainerBuilder builder, WorldServiceProfile profile);
+    }
+
     /// <summary>
     /// 聚合 MOBA 逻辑世界使用的 runtime 服务注册模块。
     /// 作为 host 的稳定入口保留，同时内部模块组仍可替换。
@@ -30,6 +43,13 @@ namespace AbilityKit.Demo.Moba.Systems
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
             Log.Info($"[MobaServicesAutoModule] Configure services for assembly: {_targetAssembly.GetName().Name}");
+
+            if (_targetAssembly == typeof(MobaServicesAutoModule).Assembly)
+            {
+                MobaGeneratedWorldServiceManifest.Configure(builder, WorldServiceProfile.All);
+                Log.Info("[MobaServicesAutoModule] Configure done (generated manifest)");
+                return;
+            }
 
             builder.AddModule(new MobaApplicationServicesModule(_targetAssembly));
             builder.AddModule(new MobaApplicationSystemsServicesModule(_targetAssembly));

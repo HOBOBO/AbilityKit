@@ -1,0 +1,74 @@
+{
+  "characters": {},
+  "attribute_templates": {},
+  "attr_types": {},
+  "skills": {},
+  "passive_skills": {},
+  "skill_flows": {
+    "Phases": "array"
+  },
+  "skill_level_tables": {
+    "Levels": "array"
+  },
+  "models": {},
+  "buffs": {
+    "Modifiers": "array"
+  },
+  "continuous_processes": {
+    "Modifiers": "array"
+  },
+  "projectile_launchers": {},
+  "projectiles": {},
+  "aoes": {},
+  "emitters": {},
+  "summons": {},
+  "summon_attr_inherits": {},
+  "component_templates": {
+    "Ops": "array"
+  },
+  "skill_button_templates": {},
+  "tag_templates": {},
+  "continuous_tag_templates": {},
+  "search_query_templates": {
+    "Provider": "object",
+    "Selector": "object",
+    "Scorers": "array",
+    "Rules": "array"
+  },
+  "spawn_summon_action_templates": {},
+  "presentation_templates": {},
+  "battle_maps": {
+    "SpawnPoints": "array",
+    "WalkableAreas": "array",
+    "CollisionObjects": "array",
+    "Bounds": "object"
+  },
+  "gameplays": {},
+  "motion_groups": {},
+  "effects": {},
+  "brains": {},
+  "actor_state_machines": {
+    "states": "array",
+    "transitions": "array"
+  },
+  "attributetemplates": {},
+  "battle_start": {
+    "Network": "object",
+    "Players": "array"
+  },
+  "character_hfsm": {
+    "machines": "array"
+  },
+  "character_view_actions": {
+    "states": "array",
+    "variants": "array"
+  },
+  "demo_tbitem": {},
+  "dtbuff": {},
+  "effect_plans": {
+    "Strings": "object",
+    "Triggers": "array"
+  },
+  "ongoing_effects": {},
+  "ability_nodes": {}
+}

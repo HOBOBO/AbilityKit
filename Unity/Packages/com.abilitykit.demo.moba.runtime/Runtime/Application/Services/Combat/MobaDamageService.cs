@@ -1,5 +1,7 @@
 ﻿using System;
 using AbilityKit.Core.Eventing;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Diagnostics;
@@ -19,6 +21,11 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly IMobaBattleDiagnosticEventSink _eventCollector;
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly MobaCombatTransactionPipeline _transactions;
+        [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
+        [WorldInject(required: false)] private IFrameTime _frameTime = null;
+
+        internal MobaExecutionContextRegistry HealExecutionContexts => _executionContexts;
+        internal int HealExecutionFrame => _frameTime != null ? _frameTime.Frame.Value : 0;
 
         public MobaDamageService(
             MobaActorLookupService actors,
@@ -26,7 +33,8 @@ namespace AbilityKit.Demo.Moba.Services
             MobaCombatRulesService rules = null,
             IMobaBattleDiagnosticEventSink eventCollector = null,
             AbilityKit.Triggering.Eventing.IEventBus eventBus = null,
-            MobaCombatTransactionPipeline transactions = null)
+            MobaCombatTransactionPipeline transactions = null,
+            MobaExecutionContextRegistry executionContexts = null)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _snapshots = snapshots ?? throw new ArgumentNullException(nameof(snapshots));
@@ -34,6 +42,7 @@ namespace AbilityKit.Demo.Moba.Services
             _eventCollector = eventCollector;
             _eventBus = eventBus;
             _transactions = transactions;
+            _executionContexts = executionContexts;
         }
 
         internal MobaHealthChangeResult CommitDamage(
@@ -44,7 +53,8 @@ namespace AbilityKit.Demo.Moba.Services
             int reasonKind = 0,
             int reasonParam = 0,
             MobaGameplayOrigin origin = default,
-            bool collectDiagnostic = true)
+            bool collectDiagnostic = true,
+            Action onCommitted = null)
         {
             if (targetActorId <= 0 || value <= Fixed64.Zero) return default;
             if (_rules != null && !_rules.CanReceiveDamage(attackerActorId, targetActorId).Passed) return default;
@@ -58,6 +68,8 @@ namespace AbilityKit.Demo.Moba.Services
             if (actual <= Fixed64.Zero) return default;
 
             attrs.FixedHp = newHp;
+            onCommitted?.Invoke();
+            MobaResourceAttributeContextProjector.Refresh(target);
             var result = new MobaHealthChangeResult(
                 MobaHealthChangeKind.Damage,
                 attackerActorId,
@@ -100,7 +112,8 @@ namespace AbilityKit.Demo.Moba.Services
             int reasonKind = 0,
             int reasonParam = 0,
             MobaGameplayOrigin origin = default,
-            bool allowDeadTarget = false)
+            bool allowDeadTarget = false,
+            Action onCommitted = null)
         {
             var request = new MobaHealRequest(
                 healerActorId,
@@ -111,7 +124,7 @@ namespace AbilityKit.Demo.Moba.Services
                 reasonParam,
                 origin,
                 allowDeadTarget);
-            return HealPipelineService.Execute(this, _eventBus, _transactions, in request);
+            return HealPipelineService.Execute(this, _eventBus, _transactions, in request, onCommitted);
         }
 
         internal MobaHealthChangeResult CommitHealCore(
@@ -122,10 +135,11 @@ namespace AbilityKit.Demo.Moba.Services
             int reasonKind = 0,
             int reasonParam = 0,
             MobaGameplayOrigin origin = default,
-            bool allowDeadTarget = false)
+            bool allowDeadTarget = false,
+            Action onCommitted = null)
         {
             if (targetActorId <= 0 || !IsFinitePositive(value)) return default;
-            return CommitHealFixed(healerActorId, targetActorId, healType, MobaResourceFixedConvert.ToFixed(value), reasonKind, reasonParam, origin, allowDeadTarget);
+            return CommitHealFixed(healerActorId, targetActorId, healType, MobaResourceFixedConvert.ToFixed(value), reasonKind, reasonParam, origin, allowDeadTarget, onCommitted);
         }
 
         internal MobaHealthChangeResult CommitHealFixed(
@@ -136,7 +150,8 @@ namespace AbilityKit.Demo.Moba.Services
             int reasonKind = 0,
             int reasonParam = 0,
             MobaGameplayOrigin origin = default,
-            bool allowDeadTarget = false)
+            bool allowDeadTarget = false,
+            Action onCommitted = null)
         {
             if (targetActorId <= 0 || value <= Fixed64.Zero) return default;
             if (!allowDeadTarget && _rules != null && (!_rules.TryGetActor(targetActorId, out _) || !_rules.IsAlive(targetActorId))) return default;
@@ -150,6 +165,8 @@ namespace AbilityKit.Demo.Moba.Services
             if (actual <= Fixed64.Zero) return default;
 
             attrs.FixedHp = newHp;
+            onCommitted?.Invoke();
+            MobaResourceAttributeContextProjector.Refresh(target);
             var kind = allowDeadTarget ? MobaHealthChangeKind.Respawn : MobaHealthChangeKind.Heal;
             var result = new MobaHealthChangeResult(
                 kind,

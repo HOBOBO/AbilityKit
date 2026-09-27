@@ -1,8 +1,8 @@
 # Trace 生命周期与导出协议
 
 > 文档类型：FrameworkCore canonical
-> 事实基线：2026-08-16
-> 文档版本：v3.0
+> 事实基线：2026-09-22
+> 文档版本：v4.0
 >
 ## 一、文档定位
 
@@ -202,15 +202,17 @@ flowchart LR
 
 ## 六、生产接入
 
-MOBA 示例已把 Skill、Effect、Action、Damage、Buff、Projectile 和 Summon 组织为可传播 lineage，并将 Trace identity 写入战斗执行上下文。正式 Effect 执行会先创建或挂接 `EffectExecution` 节点，再把执行上下文推进到该节点；Triggering 执行器通过 action observer 在每个正式 Action 前后建立 `EffectAction` 子节点，并用 `try/finally` 保证成功、异常和清理路径都有退出信号。
+MOBA 的正式主链路由 `MobaExecutionContextRegistry` 创建和结束 Skill、Effect、Action、Damage、Buff、Projectile 与 Summon 的执行 Context。它实现 `IContextLifecycleSource<MobaExecutionContextNode>`，在权威状态提交后发布生命周期事件。`com.abilitykit.demo.moba.trace.adapter` 是可选模块：订阅这些事件并把节点投影到 `MobaTraceRegistry`，未安装 Adapter 时业务执行和回滚语义不变。
 
-长生命周期 runtime 不依赖 Scope 猜测所有权。Skill、Buff、Projectile 和 Summon 在持有可跨帧来源时显式 `RetainRoot()`，并由一次性 retention handle 在正常结束、强制终止、Clear、Dispose 和失败回滚路径 `ReleaseRoot()`。`OwnerContextId` 只是路由身份，不自动授予结束或释放 Trace 的权限。
+Observer 失败由 Context 注册表逐个隔离，不能否决或回滚已提交状态。预测撤销与生命周期恢复也由 Context 主导；恢复发布 `Reconciled` 后，Adapter 从 Context 快照重建 Trace 投影。技能 rollback payload 只保存 Execution Context 节点和 next-id，不包含独立 Trace rollback section。
+
+长生命周期 Trace 留存仍是可选观测层自身的职责。安装 Adapter 后，retention handle 管理 Trace 历史可查询性；`OwnerContextId` 只是业务路由身份，不自动授予 Trace release 权限，也不成为业务生命周期的真值来源。
 
 接入时建议遵循以下约束：
 
 1. 根节点对应一个可解释的原始请求，不要按每个低层函数创建根。
 2. `Kind` 和 `EndReason` 由业务集中注册，避免不同模块复用相同整数表达不同语义。
-3. 节点结束在业务状态提交后执行，使 `EndedFrame` 与实际结果帧一致；异常清理应复用同一幂等收尾入口。
+3. Context 节点结束必须先提交，Trace 再通过 observer 投影；观察失败只进入可选诊断，不得改变业务结果。
 4. 跨帧 runtime 必须显式记录自己取得的 retention handle，并覆盖正常结束、强制结束、清空、释放和创建失败回滚。
 5. 在验收、诊断导出或恢复边界调用领域结构校验；不要把“能够写入注册表”等同于“链路结构有效”。
 6. 导出前决定是否需要保留元数据；元数据可能包含业务对象，不应默认进入网络或公开日志。
@@ -255,14 +257,16 @@ MOBA 示例已把 Skill、Effect、Action、Damage、Buff、Projectile 和 Summo
 | 导出选项与 DTO | `Unity/Packages/com.abilitykit.trace/Runtime/TraceTreeExport.cs` |
 | 来源与生命周期原因 | `Unity/Packages/com.abilitykit.trace/Runtime/TraceOrigin.cs` |
 | Editor 树视图 | `Unity/Packages/com.abilitykit.trace/Editor/Windows/TraceTreeWindow.cs` |
-| MOBA 结构校验 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRuntimeServices.cs` |
-| MOBA retention handle | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRetention.cs` |
+| MOBA Context 生命周期源 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaExecutionContextRegistry.cs` |
+| MOBA Trace Adapter 入口 | `Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceAdapterModule.cs` |
+| MOBA 结构校验 | `Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceValidation.cs` |
+| MOBA retention handle | `Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceRetention.cs` |
 | MOBA 生产接入深潜 | [MOBA Trace、Context 与 Effect 执行深潜](../09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md) |
 
 ## 十、结论
 
-Trace 的核心契约是一棵带帧状态和业务元数据的因果树。创建、结束、外部持有和清理分别由不同 API 管理，任何接入都应显式处理这四个阶段。MOBA 已在领域层补齐跨帧 runtime ownership、Effect/Action 真实生命周期、结构校验和寄宿式 E3 证据；这些补强没有改变通用注册表的弱结构约束。child scope 引用配对、并发与事件异常、稳定序列化协议和通用包专项测试仍是明确工程边界。
+Trace 的核心契约是一棵带帧状态和业务元数据的因果投影树。创建、结束、外部持有和清理分别由不同 API 管理，但 MOBA 的业务身份、生命周期与 rollback 真值只属于 Context。Trace Adapter 负责观察和增强，不得成为主链路依赖。child scope 引用配对、并发与事件异常、稳定序列化协议和通用包专项测试仍是明确工程边界。
 
 ---
 
-*文档版本：v3.0 | 最后更新：2026-08-16 | 验证基线：MOBA Trace 15/15、ownership 9/9、Effect diagnostics 15/15（2026-08-15 artifact）；通用 Trace 包仍无独立专项测试程序集*
+*文档版本：v4.0 | 最后更新：2026-09-22 | 正式边界：Context 是 MOBA 权威状态，Trace 是可选 observer 投影*

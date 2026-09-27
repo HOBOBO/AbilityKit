@@ -4,6 +4,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     /// <summary>
     /// take_damage Action 的强类型参数。
     /// </summary>
+    [GenerateMobaPlanActionSchema(AbilityKit.Demo.Moba.Systems.TriggeringConstants.Actions.TakeDamage)]
     public readonly struct TakeDamageArgs
     {
         /// <summary>
@@ -16,7 +17,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         /// </summary>
         public readonly int ReasonParam;
 
-        public TakeDamageArgs(float rate, int reasonParam)
+        public TakeDamageArgs(
+            [MobaPlanActionArg(MobaPlanActionArgKind.Float, 1d, false, "rate", "damage_rate", "damagerate", Min = 0d)] float rate,
+            [MobaPlanActionArg(MobaPlanActionArgKind.Int, 0d, false, "reason_param", "reasonparam")] int reasonParam)
         {
             Rate = rate;
             ReasonParam = reasonParam;

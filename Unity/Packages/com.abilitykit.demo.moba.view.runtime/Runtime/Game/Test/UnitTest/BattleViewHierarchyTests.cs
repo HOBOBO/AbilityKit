@@ -1,3 +1,4 @@
+using System.Text;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Flow;
@@ -51,6 +52,43 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 Assert.IsTrue(second == null);
             }
+        }
+
+        [Test]
+        public void SharedOverlay_KeepsOtherViewProviderAfterOneLeaseDetaches()
+        {
+            var predicted = BattleViewHierarchyRoot.Acquire();
+            var confirmed = BattleViewHierarchyRoot.Acquire();
+            var overlay = predicted.GetOrAddStatsOverlay();
+            var predictedStats = new NamedStatsProvider("predicted");
+            var confirmedStats = new NamedStatsProvider("confirmed");
+            try
+            {
+                overlay.RegisterProvider(predictedStats);
+                overlay.RegisterProvider(confirmedStats);
+                overlay.RefreshNow();
+                StringAssert.Contains("predicted", predicted.gameObject.name);
+                StringAssert.Contains("confirmed", predicted.gameObject.name);
+
+                overlay.UnregisterProvider(predictedStats);
+                overlay.UnregisterProvider(predictedStats);
+                predicted.Release();
+                overlay.RefreshNow();
+                StringAssert.DoesNotContain("predicted", confirmed.gameObject.name);
+                StringAssert.Contains("confirmed", confirmed.gameObject.name);
+            }
+            finally
+            {
+                overlay.UnregisterProvider(confirmedStats);
+                confirmed.Release();
+            }
+        }
+
+        private sealed class NamedStatsProvider : IPoolStatsProvider
+        {
+            private readonly string _name;
+            public NamedStatsProvider(string name) => _name = name;
+            public void AppendStats(StringBuilder builder) => builder.Append(_name);
         }
 
         [Test]

@@ -8,13 +8,20 @@ using MemoryPack;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
+    [MobaRollbackProvider(DefaultKey)]
     public sealed class MobaEntitasComponentRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider
     {
         public const int DefaultKey = 10018;
         private readonly global::ActorContext _context;
+        private readonly bool _allowMissingActorsRestoredByCommands;
 
-        public MobaEntitasComponentRollbackProvider(global::ActorContext context) =>
+        public MobaEntitasComponentRollbackProvider(
+            global::ActorContext context,
+            bool allowMissingActorsRestoredByCommands = false)
+        {
             _context = context ?? throw new ArgumentNullException(nameof(context));
+            _allowMissingActorsRestoredByCommands = allowMissingActorsRestoredByCommands;
+        }
 
         public int Key => DefaultKey;
 
@@ -52,7 +59,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             foreach (var entry in snapshot.Entries ?? Array.Empty<MobaEntitasComponentRollbackEntry>())
             {
                 if (entry.Data == null || entry.Data.Length == 0 ||
-                    entry.ActorId > 0 && !byActor.Contains(entry.ActorId) ||
+                    entry.ActorId > 0 && !_allowMissingActorsRestoredByCommands && !byActor.Contains(entry.ActorId) ||
                     entry.CastId > 0 && !byCast.Contains(entry.CastId))
                     throw new InvalidOperationException($"Missing or invalid Entitas component snapshot for actor {entry.ActorId}, cast {entry.CastId}.");
             }

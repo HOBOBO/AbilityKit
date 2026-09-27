@@ -10,6 +10,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services.Observability;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
@@ -36,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
         [WorldInject(required: false)] private IMobaRuntimeObjectBootstrapRegistry _objectBootstrap = null;
 
         private bool _objectBootstrapRegistered;
+        private MobaActorRollbackCommandRuntime _actorRollbackCommands;
 
         public readonly BattleEntityManager<int> Index;
 
@@ -113,7 +115,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
             Team team,
             EntityMainType mainType,
             UnitSubType unitSubType,
-            PlayerId ownerPlayer)
+            PlayerId ownerPlayer,
+            bool publishObjectLifecycle = true)
         {
             if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));
             if (entity == null) throw new ArgumentNullException(nameof(entity));
@@ -146,7 +149,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
                 ByMainType.SetKey(actorId, mainType);
                 ByUnitSubType.SetKey(actorId, unitSubType);
                 ByOwnerPlayer.SetKey(actorId, ownerPlayer);
-                if (isNew)
+                if (isNew && publishObjectLifecycle)
                 {
                     PublishObjectLifecycle(entity, MobaRuntimeObjectLifecycleStage.Created);
                 }
@@ -187,7 +190,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
 
         internal void PublishSpawn(global::ActorEntity entity)
         {
-            PublishEntityEvent(entity, MobaUnitTriggering.Events.Spawn, MobaTraceKind.UnitSpawn);
+            PublishEntityEvent(entity, MobaUnitTriggering.Events.Spawn, MobaExecutionKind.UnitSpawn);
         }
 
         public void Unregister(int actorId)
@@ -198,7 +201,35 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
 
         internal void PublishDespawn(global::ActorEntity entity)
         {
-            PublishEntityEvent(entity, MobaUnitTriggering.Events.Despawn, MobaTraceKind.UnitDespawn);
+            PublishEntityEvent(entity, MobaUnitTriggering.Events.Despawn, MobaExecutionKind.UnitDespawn);
+        }
+
+        internal MobaActorRollbackCommandRuntime GetOrCreateActorRollbackCommands(
+            global::ActorContext context,
+            MobaActorRegistry actors,
+            IFrameTime frameTime)
+        {
+            if (_actorRollbackCommands == null)
+            {
+                _actorRollbackCommands = new MobaActorRollbackCommandRuntime(
+                    context,
+                    actors,
+                    this,
+                    frameTime);
+            }
+            else if (!_actorRollbackCommands.Matches(context, actors, frameTime))
+            {
+                throw new InvalidOperationException(
+                    "MobaEntityManager cannot bind actor rollback commands to different world services.");
+            }
+
+            return _actorRollbackCommands;
+        }
+
+        internal bool TryGetActorRollbackCommands(out MobaActorRollbackCommandRuntime runtime)
+        {
+            runtime = _actorRollbackCommands;
+            return runtime != null;
         }
 
         private void PublishObjectLifecycle(
@@ -263,7 +294,10 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
                 _objectBootstrapRegistered = true;
         }
 
-        internal bool UnregisterSilently(int actorId, out global::ActorEntity entity)
+        internal bool UnregisterSilently(
+            int actorId,
+            out global::ActorEntity entity,
+            bool publishObjectLifecycle = true)
         {
             entity = null;
             if (actorId <= 0) return false;
@@ -284,7 +318,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
             {
                 Index.Remove(actorId);
                 _byActorId.Remove(actorId);
-                PublishObjectLifecycle(entity, MobaRuntimeObjectLifecycleStage.Destroyed);
+                if (publishObjectLifecycle)
+                    PublishObjectLifecycle(entity, MobaRuntimeObjectLifecycleStage.Destroyed);
                 return true;
             }
             catch
@@ -306,10 +341,10 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
         {
             if (entity == null || !entity.hasActorId) return;
             if (!_byActorId.ContainsKey(entity.actorId.Value)) return;
-            PublishEntityEvent(entity, MobaUnitTriggering.Events.Respawn, MobaTraceKind.UnitRespawn);
+            PublishEntityEvent(entity, MobaUnitTriggering.Events.Respawn, MobaExecutionKind.UnitRespawn);
         }
 
-        private void PublishEntityEvent(global::ActorEntity entity, string eventId, MobaTraceKind traceKind)
+        private void PublishEntityEvent(global::ActorEntity entity, string eventId, MobaExecutionKind executionKind)
         {
             if (entity == null || !entity.hasActorId) return;
 
@@ -320,16 +355,16 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
             var mainType = entity.hasEntityMainType ? entity.entityMainType.Value : EntityMainType.Unit;
             var unitSubType = entity.hasUnitSubType ? entity.unitSubType.Value : UnitSubType.Hero;
             var ownerPlayer = entity.hasOwnerPlayerId ? entity.ownerPlayerId.Value : default;
-            PublishUnitEvent(eventId, actorId, team, mainType, unitSubType, ownerPlayer, entity, traceKind);
+            PublishUnitEvent(eventId, actorId, team, mainType, unitSubType, ownerPlayer, entity, executionKind);
         }
 
-        private void PublishUnitEvent(string eventId, int actorId, Team team, EntityMainType mainType, UnitSubType unitSubType, PlayerId ownerPlayer, global::ActorEntity entity, MobaTraceKind traceKind)
+        private void PublishUnitEvent(string eventId, int actorId, Team team, EntityMainType mainType, UnitSubType unitSubType, PlayerId ownerPlayer, global::ActorEntity entity, MobaExecutionKind executionKind)
         {
             if (string.IsNullOrEmpty(eventId)) return;
 
             var templateId = entity != null && entity.hasModelId ? entity.modelId.Value : 0;
 
-            var payload = new UnitEventPayload(actorId, team, mainType, unitSubType, ownerPlayer, templateId, traceKind);
+            var payload = new UnitEventPayload(actorId, team, mainType, unitSubType, ownerPlayer, templateId, executionKind);
 
             var eventBus = _eventBus;
             if (eventBus == null) return;
@@ -353,6 +388,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
 
         public void Clear()
         {
+            _actorRollbackCommands?.Clear();
             _byActorId.Clear();
             var tmp = s_actorIdListPool.Get();
             try

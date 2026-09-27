@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
@@ -22,6 +23,43 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             modifiers.ClearSource(7, 102);
             Assert.That(modifiers.Skill.ResolveCooldownMs(7, 1000), Is.EqualTo(1000));
+        }
+
+        [Test]
+        public void ProjectileParameters_ResolveOwnerChainInSpecificToGeneralOrder()
+        {
+            using var modifiers = new MobaSkillParamModifierService();
+            var key = MobaSkillParamModifierKeys.Projectile.CountPerShot;
+            modifiers.AddFixed(MobaModifierOwnerRef.Projectile(30), key, ModifierOp.Override, 8f, priority: 30);
+            modifiers.AddFixed(MobaModifierOwnerRef.Launcher(20), key, ModifierOp.Override, 6f, priority: 20);
+            modifiers.AddFixed(MobaModifierOwnerRef.Actor(10), key, ModifierOp.Override, 4f, priority: 10);
+            var resolveContext = new MobaModifierResolveContext(
+                actorId: 10,
+                launcherActorId: 20,
+                projectileActorId: 30);
+
+            var resolved = modifiers.Projectile.ResolveCountPerShotFromProjectile(resolveContext, 1);
+
+            Assert.That(resolved, Is.EqualTo(8));
+        }
+
+        [Test]
+        public void ResolveOwnerChain_SkipsInvalidOwnersAndReturnsBaseWhenNoModifierMatches()
+        {
+            using var modifiers = new MobaSkillParamModifierService();
+            var resolveContext = new MobaModifierResolveContext(actorId: 7, projectileActorId: 31);
+            Span<MobaModifierOwnerRef> owners = stackalloc MobaModifierOwnerRef[3];
+            var count = resolveContext.WriteProjectileThenLauncherThenActorChain(owners);
+
+            Assert.That(count, Is.EqualTo(2));
+            Assert.That(owners[0].Scope, Is.EqualTo(MobaModifierOwnerScope.Projectile));
+            Assert.That(owners[1].Scope, Is.EqualTo(MobaModifierOwnerScope.Actor));
+            Assert.That(
+                modifiers.ResolveFloat(
+                    owners.Slice(0, count),
+                    MobaSkillParamModifierKeys.Projectile.FanAngleDeg,
+                    12.5f),
+                Is.EqualTo(12.5f));
         }
 
         [Test]

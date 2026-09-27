@@ -63,6 +63,12 @@ namespace AbilityKit.Demo.Moba.Services
 
             Require<DamagePipelineService>(in context, report, "damage.pipeline");
             Require<HealPipelineService>(in context, report, "heal.pipeline");
+            Require<MobaDamageService>(in context, report, "health.commit");
+            Require<MobaCombatRulesService>(in context, report, "combat.rules");
+            Require<IMobaEffectiveTagQueryService>(in context, report, "combat.effective_tags");
+            Require<MobaExecutionContextRegistry>(in context, report, "combat.execution_contexts");
+            Require<MobaSkillEconomyService>(in context, report, "combat.skill_economy");
+            Require<MobaShieldService>(in context, report, "combat.shields");
             if (!context.TryResolve<IMobaDamageStageProvider>(out var provider) || provider == null)
             {
                 ReportMissing(report, "damage.stage_provider", typeof(IMobaDamageStageProvider));
@@ -117,7 +123,6 @@ namespace AbilityKit.Demo.Moba.Services
         {
             Require<IMobaBattleDiagnosticsService>(in context, report, "battle.diagnostics");
             Require<IMobaBattleExceptionPolicy>(in context, report, "exception.policy");
-            Require<MobaTraceRegistry>(in context, report, "trace.registry");
         }
     }
 

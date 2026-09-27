@@ -59,7 +59,7 @@ namespace AbilityKit.Demo.Moba.Services
             ActorId = actorId;
             SkillId = skillId;
             RuntimeId = runtimeId != 0L ? runtimeId : runtimeHandle.RuntimeId;
-            RootContextId = rootContextId != 0L ? rootContextId : runtimeHandle.RootTraceContextId;
+            RootContextId = rootContextId != 0L ? rootContextId : runtimeHandle.RootContextId;
             SourceContextId = sourceContextId;
             RuntimeHandle = runtimeHandle;
             Detail = detail;

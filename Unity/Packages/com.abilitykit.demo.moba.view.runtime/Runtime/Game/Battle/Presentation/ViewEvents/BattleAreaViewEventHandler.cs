@@ -1,6 +1,6 @@
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Flow.Battle.View;
-using AbilityKit.Protocol.Moba.StateSync;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
@@ -24,7 +24,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _areaViews = areaViews;
         }
 
-        public void HandleSnapshot(MobaAreaEventSnapshotEntry[] entries)
+        public void HandleSnapshot(AreaEventData[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             if (_world == null) return;

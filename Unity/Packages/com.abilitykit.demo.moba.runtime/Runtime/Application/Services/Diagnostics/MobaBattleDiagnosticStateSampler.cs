@@ -44,7 +44,7 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaSkillCastRuntimeService _skillRuntimes = null;
 
         [WorldInject(required: false)]
-        private MobaTraceRegistry _traceRegistry = null;
+        private MobaExecutionContextRegistry _executionContexts = null;
 
         [WorldInject(required: false)]
         private IBattleDiagnosticActorAttributeStore _attributeStore = null;
@@ -202,7 +202,7 @@ namespace AbilityKit.Demo.Moba.Services
                     timestamp,
                     actors.Count,
                     _skillRuntimes?.Count ?? 0,
-                    CountActiveTraceRoots());
+                    CountActiveExecutionRoots());
 
                 if (!_stateStore.TryReplaceSnapshot(world, actors))
                 {
@@ -798,17 +798,16 @@ namespace AbilityKit.Demo.Moba.Services
             return value;
         }
 
-        private int CountActiveTraceRoots()
+        private int CountActiveExecutionRoots()
         {
-            if (_traceRegistry == null) return 0;
+            if (_executionContexts == null) return 0;
 
             var activeRootCount = 0;
-            foreach (var root in _traceRegistry.GetActiveRoots())
+            var nodes = _executionContexts.CaptureLifecycleSnapshot();
+            for (var i = 0; i < nodes.Count; i++)
             {
-                if (root.ActiveCount > 0)
-                {
-                    activeRootCount++;
-                }
+                var node = nodes[i];
+                if (node.ParentContextId == 0L && !node.IsEnded) activeRootCount++;
             }
 
             return activeRootCount;

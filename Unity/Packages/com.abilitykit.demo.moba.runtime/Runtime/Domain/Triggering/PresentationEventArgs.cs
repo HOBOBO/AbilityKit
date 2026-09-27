@@ -21,7 +21,7 @@ namespace AbilityKit.Demo.Moba.Triggering
         public long SourceContextId;
         public long RootContextId;
         public long OwnerContextId;
-        public MobaTraceKind TraceKind;
+        public MobaExecutionKind ExecutionKind;
 
         public object Scale;
         public object Radius;
@@ -41,10 +41,10 @@ namespace AbilityKit.Demo.Moba.Triggering
 
         public bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
-            var traceKind = TraceKind != MobaTraceKind.None ? TraceKind : MobaTraceKind.PresentationPlay;
+            var executionKind = ExecutionKind != MobaExecutionKind.None ? ExecutionKind : MobaExecutionKind.PresentationPlay;
             origin = MobaGameplayOriginBuilder.Create()
                 .WithActors(SourceActorId, TargetActorId)
-                .WithImmediate(traceKind, TemplateId, SourceContextId)
+                .WithImmediate(executionKind, TemplateId, SourceContextId)
                 .WithRootContext(RootContextId)
                 .WithOwnerContext(OwnerContextId)
                 .Build();
@@ -67,8 +67,8 @@ namespace AbilityKit.Demo.Moba.Triggering
                 return true;
             }
 
-            var traceKind = TraceKind != MobaTraceKind.None ? TraceKind : MobaTraceKind.PresentationPlay;
-            lineageContext = new MobaTriggerLineageContext(EffectContextKind.Trigger, traceKind, SourceActorId, TargetActorId, SourceContextId, RootContextId, OwnerContextId, TemplateId);
+            var executionKind = ExecutionKind != MobaExecutionKind.None ? ExecutionKind : MobaExecutionKind.PresentationPlay;
+            lineageContext = new MobaTriggerLineageContext(EffectContextKind.Trigger, executionKind, SourceActorId, TargetActorId, SourceContextId, RootContextId, OwnerContextId, TemplateId);
             return SourceActorId > 0 || TargetActorId > 0 || SourceContextId != 0 || TemplateId > 0;
         }
 

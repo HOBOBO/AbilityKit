@@ -159,7 +159,7 @@ namespace AbilityKit.Demo.Moba.Services
                 var root = trace.Roots[i];
                 if (root == null || root.Nodes == null || root.Nodes.Count == 0) continue;
                 var rootNode = root.Nodes[0];
-                if (rootNode == null || !IsKind(rootNode, MobaTraceKind.SkillCast)) continue;
+                if (rootNode == null || !IsKind(rootNode, MobaExecutionKind.SkillCast)) continue;
 
                 skillRoots++;
                 if (rootNode.IsEnded) completeSkillRoots++;
@@ -428,30 +428,30 @@ namespace AbilityKit.Demo.Moba.Services
 
         private static bool IsSkillEffect(AnalysisTraceNode node)
         {
-            return IsKind(node, MobaTraceKind.SkillEffect) || IsKind(node, MobaTraceKind.EffectExecution) || IsKind(node, MobaTraceKind.EffectAction) || IsKind(node, MobaTraceKind.SkillPhase);
+            return IsKind(node, MobaExecutionKind.SkillEffect) || IsKind(node, MobaExecutionKind.EffectExecution) || IsKind(node, MobaExecutionKind.EffectAction) || IsKind(node, MobaExecutionKind.SkillPhase);
         }
 
         private static bool IsDamage(AnalysisTraceNode node)
         {
-            return IsKind(node, MobaTraceKind.DamageAttack) || IsKind(node, MobaTraceKind.DamageCalc) || IsKind(node, MobaTraceKind.DamageApply);
+            return IsKind(node, MobaExecutionKind.DamageAttack) || IsKind(node, MobaExecutionKind.DamageCalc) || IsKind(node, MobaExecutionKind.DamageApply);
         }
 
         private static bool IsProjectile(AnalysisTraceNode node)
         {
-            return IsKind(node, MobaTraceKind.ProjectileLaunch) || IsKind(node, MobaTraceKind.ProjectileHit);
+            return IsKind(node, MobaExecutionKind.ProjectileLaunch) || IsKind(node, MobaExecutionKind.ProjectileHit);
         }
 
         private static bool IsBuff(AnalysisTraceNode node)
         {
-            return IsKind(node, MobaTraceKind.BuffApply) || IsKind(node, MobaTraceKind.BuffTick) || IsKind(node, MobaTraceKind.BuffRemove);
+            return IsKind(node, MobaExecutionKind.BuffApply) || IsKind(node, MobaExecutionKind.BuffTick) || IsKind(node, MobaExecutionKind.BuffRemove);
         }
 
         private static bool IsPresentation(AnalysisTraceNode node)
         {
-            return IsKind(node, MobaTraceKind.PresentationPlay) || IsKind(node, MobaTraceKind.PresentationStop);
+            return IsKind(node, MobaExecutionKind.PresentationPlay) || IsKind(node, MobaExecutionKind.PresentationStop);
         }
 
-        private static bool IsKind(AnalysisTraceNode node, MobaTraceKind kind)
+        private static bool IsKind(AnalysisTraceNode node, MobaExecutionKind kind)
         {
             if (node == null) return false;
             return node.Kind == (int)kind || string.Equals(node.KindName, kind.ToString(), StringComparison.Ordinal);

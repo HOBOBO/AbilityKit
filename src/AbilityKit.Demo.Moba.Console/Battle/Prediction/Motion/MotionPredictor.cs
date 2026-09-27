@@ -8,7 +8,8 @@ using IPredictionHandler = AbilityKit.Ability.StateSync.Prediction.IPredictionHa
 using StateSlots = AbilityKit.Ability.StateSync.Prediction.StateSlots;
 using PredictionStrategy = AbilityKit.Ability.StateSync.PredictionStrategy;
 using PredictionResult = AbilityKit.Ability.StateSync.PredictionResult;
-using Handlers = AbilityKit.Demo.Moba.Console.Battle.Prediction.Handlers;
+using MoveInput = AbilityKit.Demo.Moba.Share.Prediction.MobaMovePredictionInput;
+using SlotNames = AbilityKit.Demo.Moba.Share.Prediction.MobaPredictionSlotNames;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Prediction.Motion;
 
@@ -160,7 +161,7 @@ public sealed class MotionPredictionHandler : IPredictionHandler
 {
     public string Name => "Motion";
     public PredictionStrategy Strategy => PredictionStrategy.OptimisticWithRollback;
-    public System.Collections.Generic.IReadOnlyList<string> RequiredSlots => new[] { Handlers.SlotNames.Position, Handlers.SlotNames.Velocity };
+    public System.Collections.Generic.IReadOnlyList<string> RequiredSlots => new[] { SlotNames.Position, SlotNames.Velocity };
 
     private readonly MotionPredictor _predictor = new();
     private readonly float _frameTime;
@@ -174,8 +175,8 @@ public sealed class MotionPredictionHandler : IPredictionHandler
     public void Predict(IInputCommand input, StateSlots slots, Frame frame)
     {
         // 从槽位获取当前位置
-        var currentPos = slots.GetPosition(Handlers.SlotNames.Position);
-        var currentFwd = slots.GetQuaternion(Handlers.SlotNames.Rotation);
+        var currentPos = slots.GetPosition(SlotNames.Position);
+        var currentFwd = slots.GetQuaternion(SlotNames.Rotation);
 
         // 初始化预测器（如果需要）
         if (!_predictor.HasActiveMotion)
@@ -184,13 +185,13 @@ public sealed class MotionPredictionHandler : IPredictionHandler
         }
 
         // 根据输入类型添加/更新运动
-        if (input is Handlers.MoveInput move)
+        if (input is MoveInput move)
         {
             var loco = new LocomotionDescriptor
             {
                 StartFrame = frame.Value,
-                InputX = move.VelX,
-                InputZ = move.VelZ,
+                InputX = move.VelocityX,
+                InputZ = move.VelocityZ,
                 Speed = 5.0f, // 应该从配置获取
                 ForwardX = MathF.Sin(move.Rotation),
                 ForwardZ = MathF.Cos(move.Rotation),
@@ -207,18 +208,18 @@ public sealed class MotionPredictionHandler : IPredictionHandler
 
         // 更新槽位
         var predictedPos = _predictor.CurrentPosition;
-        slots.Set(Handlers.SlotNames.Position, predictedPos);
+        slots.Set(SlotNames.Position, predictedPos);
 
         // 导出速度
         var dx = predictedPos.X - currentPos.X;
         var dz = predictedPos.Z - currentPos.Z;
-        slots.Set(Handlers.SlotNames.Velocity, new Vector3(dx / _frameTime, 0, dz / _frameTime));
+        slots.Set(SlotNames.Velocity, new Vector3(dx / _frameTime, 0, dz / _frameTime));
     }
 
     public PredictionResult Validate(StateSlots predicted, StateSlots server)
     {
-        var predPos = predicted.GetPosition(Handlers.SlotNames.Position);
-        var servPos = server.GetPosition(Handlers.SlotNames.Position);
+        var predPos = predicted.GetPosition(SlotNames.Position);
+        var servPos = server.GetPosition(SlotNames.Position);
 
         var dx = predPos.X - servPos.X;
         var dz = predPos.Z - servPos.Z;
@@ -232,11 +233,11 @@ public sealed class MotionPredictionHandler : IPredictionHandler
 
     public void ApplyServerState(StateSlots server, StateSlots current)
     {
-        var servPos = server.GetPosition(Handlers.SlotNames.Position);
-        var servVel = server.GetPosition(Handlers.SlotNames.Velocity);
+        var servPos = server.GetPosition(SlotNames.Position);
+        var servVel = server.GetPosition(SlotNames.Velocity);
 
-        current.Set(Handlers.SlotNames.Position, servPos);
-        current.Set(Handlers.SlotNames.Velocity, servVel);
+        current.Set(SlotNames.Position, servPos);
+        current.Set(SlotNames.Velocity, servVel);
 
         // 同步预测器
         _predictor.SyncFromServer(servPos, new Frame(0));

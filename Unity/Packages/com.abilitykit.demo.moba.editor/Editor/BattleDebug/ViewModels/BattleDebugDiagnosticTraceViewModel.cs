@@ -739,7 +739,7 @@ namespace AbilityKit.Game.Editor
                    MatchesDefinition(node.TriggerDefinition) ||
                    MatchesDefinition(node.SkillDefinition) ||
                    MatchesDefinition(node.OriginDefinition) ||
-                   (node.HasOrigin && Contains(((MobaTraceKind)node.OriginKind).ToString(), _searchText)) ||
+                   (node.HasOrigin && Contains(((MobaExecutionKind)node.OriginKind).ToString(), _searchText)) ||
                    (node.OriginConfigId != 0 && Contains(node.OriginConfigId.ToString(), _searchText));
         }
 

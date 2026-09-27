@@ -38,7 +38,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
         private MobaConfigDatabase _configs;
         private MobaActorDespawnSnapshotService _despawnSnapshots;
         private MobaSkillCastRuntimeService _skillRuntimes;
-        private MobaTraceRegistry _trace;
+        private MobaExecutionContextRegistry _executionContexts;
         private AbilityKit.Demo.Moba.Services.MobaProjectileEventSnapshotService _projectileSnapshots;
         private IMobaTemporaryEntityLifecycleService _lifecycle;
         private MobaAuthorityFrameService _authority;
@@ -68,7 +68,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
         internal MobaConfigDatabase Configs => _configs;
         internal MobaActorDespawnSnapshotService DespawnSnapshots => _despawnSnapshots;
         internal MobaSkillCastRuntimeService SkillRuntimes => _skillRuntimes;
-        internal MobaTraceRegistry Trace => _trace;
+        internal MobaExecutionContextRegistry ExecutionContexts => _executionContexts;
         internal AbilityKit.Demo.Moba.Services.MobaProjectileEventSnapshotService ProjectileSnapshots => _projectileSnapshots;
         internal global::ActorContext ActorContext => Contexts.Actor();
         internal IMobaBattleDiagnosticEventSink EventCollector => _eventCollector;
@@ -94,7 +94,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             Services.TryResolve(out _configs);
             Services.TryResolve(out _despawnSnapshots);
             Services.TryResolve(out _skillRuntimes);
-            Services.TryResolve(out _trace);
+            Services.TryResolve(out _executionContexts);
             Services.TryResolve(out _projectileSnapshots);
             Services.TryResolve(out _lifecycle);
             Services.TryResolve(out _authority);
@@ -190,11 +190,12 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             if (entity == null) return;
             var actorId = entity.hasActorId ? entity.actorId.Value : 0;
             if (actorId <= 0) return;
+            var frame = TryGetFrame(out var currentFrame) ? currentFrame : 0;
 
-            if (_trace != null && sourceContextId != 0L)
+            if (_executionContexts != null && sourceContextId != 0L)
             {
-                try { _trace.EndContext(sourceContextId, AbilityKit.Trace.TraceLifecycleReason.Completed); }
-                catch (System.Exception ex) { Log.Exception(ex, $"[MobaProjectileSyncSystem] end projectile trace failed (projectileId={projectileId.Value}, sourceContextId={sourceContextId})"); }
+                try { _executionContexts.End(sourceContextId, (int)MobaExecutionEndReason.Completed, frame); }
+                catch (System.Exception ex) { Log.Exception(ex, $"[MobaProjectileSyncSystem] end projectile context failed (projectileId={projectileId.Value}, sourceContextId={sourceContextId})"); }
             }
 
             if (_skillRuntimes != null && _links != null && _links.TryConsumeRetain(projectileId, out var retainHandle))

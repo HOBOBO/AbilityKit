@@ -58,6 +58,10 @@ namespace AbilityKit.Game.Test.UnitTest
         private static int _enemyActorId;
         private static int _scenarioIndex;
         private static ScenarioPhase _scenarioPhase;
+        private static bool _moveInputSubmitted;
+        private static bool _moveInputValidated;
+        private static int _moveInputStartTick;
+        private static Vector3 _moveInputStartPosition;
         private static int _scenarioStartTick;
         private static int _scenarioSubmitTick;
         private static double _scenarioSubmitLogicTime;
@@ -210,6 +214,12 @@ namespace AbilityKit.Game.Test.UnitTest
                 }
             }
 
+            if (!_moveInputValidated)
+            {
+                ValidateMoveInput(flow, ctx);
+                return null;
+            }
+
             if (_scenarioIndex >= s_scenarios.Length)
             {
                 return TickAdditionalValidations(flow, ctx);
@@ -242,6 +252,50 @@ namespace AbilityKit.Game.Test.UnitTest
                 default:
                     throw new InvalidOperationException($"Unsupported scenario phase: {_scenarioPhase}");
             }
+        }
+
+        private static void ValidateMoveInput(GameFlowDomain flow, BattleContext ctx)
+        {
+            if (!_moveInputSubmitted)
+            {
+                if (!TryGetLocalActorPosition(ctx, out _moveInputStartPosition))
+                    throw new InvalidOperationException(DescribeContextWaitFailure(ctx));
+
+                _moveInputSubmitted = true;
+                _moveInputStartTick = _ticks;
+                ctx.BeginHudMove();
+                ctx.SetHudMove(1f, 0f);
+                Stage("movement.submitted", flow, ctx);
+                FlowTick(flow, 2);
+                return;
+            }
+
+            if (!TryGetLocalActorPosition(ctx, out var current))
+                throw new InvalidOperationException(DescribeContextWaitFailure(ctx));
+
+            var distance = PlanarDistance(_moveInputStartPosition, current);
+            if (distance > 0.1f)
+            {
+                ctx.EndHudMove();
+                FlowTick(flow, 2);
+                if (!TrySetActorPosition(ctx, ctx.LocalActorId, _startPosition))
+                    throw new InvalidOperationException("Movement validation could not restore the local actor position.");
+
+                _moveInputValidated = true;
+                s_scenarioResults.Add($"move.input: distance={distance:F3}");
+                Stage("movement.validated", flow, ctx);
+                return;
+            }
+
+            if (_ticks - _moveInputStartTick > 90)
+            {
+                ctx.EndHudMove();
+                throw new TimeoutException(
+                    $"Movement input did not move the local actor. start={_moveInputStartPosition}, current={current}, " +
+                    BuildDiagnostic(flow, ctx));
+            }
+
+            Stage("movement.observing", flow, ctx);
         }
 
         private static string TickAdditionalValidations(GameFlowDomain flow, BattleContext ctx)
@@ -921,6 +975,10 @@ namespace AbilityKit.Game.Test.UnitTest
             _enemyActorId = 0;
             _scenarioIndex = 0;
             _scenarioPhase = ScenarioPhase.Prepare;
+            _moveInputSubmitted = false;
+            _moveInputValidated = false;
+            _moveInputStartTick = 0;
+            _moveInputStartPosition = default;
             _scenarioStartTick = 0;
             _scenarioSubmitTick = 0;
             _scenarioSubmitLogicTime = 0d;

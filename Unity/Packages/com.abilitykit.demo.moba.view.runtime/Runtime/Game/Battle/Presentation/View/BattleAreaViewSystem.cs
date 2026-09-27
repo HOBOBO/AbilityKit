@@ -1,7 +1,6 @@
-using AbilityKit.Protocol.Moba;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Hierarchy;
-using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Game.Flow
 {
@@ -35,7 +34,7 @@ namespace AbilityKit.Game.Flow
         public void HandleSnapshot(
             BattleViewBinder binder,
             IBattleEntityQuery query,
-            MobaAreaEventSnapshotEntry[] entries)
+            AreaEventData[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             if (query == null) return;
@@ -46,11 +45,11 @@ namespace AbilityKit.Game.Flow
                 var evt = entries[i];
                 if (evt.AreaId <= 0) continue;
 
-                if (evt.Kind == (int)AreaEventKind.Spawn)
+                if (evt.Kind == AreaPresentationEventKind.Spawn)
                 {
                     Spawn(binder, in evt);
                 }
-                else if (evt.Kind == (int)AreaEventKind.Expire)
+                else if (evt.Kind == AreaPresentationEventKind.Expire)
                 {
                     Expire(evt.AreaId);
                 }
@@ -62,7 +61,7 @@ namespace AbilityKit.Game.Flow
             _areaViews.Clear();
         }
 
-        private void Spawn(BattleViewBinder binder, in MobaAreaEventSnapshotEntry evt)
+        private void Spawn(BattleViewBinder binder, in AreaEventData evt)
         {
             if (_areaViews.Contains(evt.AreaId)) return;
 

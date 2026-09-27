@@ -12,6 +12,7 @@ using AbilityKit.Game.Flow;
 using AbilityKit.Game.Flow.Battle.Replay;
 using AbilityKit.Network.Battle;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
+using MemoryPack;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 
@@ -39,7 +40,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(runtime.Driver, Is.Null);
             Assert.That(client.PushSubscriberCount, Is.EqualTo(1));
 
-            request.Complete(CreateMetricsResponse(worldId: 71UL, currentFrame: 0));
+            request.Complete(CreateSubscriptionResponse(worldId: 71UL, currentFrame: 0));
             await AwaitWithTimeoutAsync(startTask);
 
             Assert.That(runtime.IsStarting, Is.False);
@@ -66,11 +67,12 @@ namespace AbilityKit.Game.Test.UnitTest
             var startTask = runtime.StartAsync(client, 18UL, () => world);
             var request = await client.WaitForRequestAsync();
 
-            runtime.Stop();
+            var stopTask = runtime.StopAsync();
 
             Assert.That(request.CancellationToken.IsCancellationRequested, Is.True);
+            await AwaitWithTimeoutAsync(stopTask);
             Assert.That(client.PushSubscriberCount, Is.Zero);
-            request.Complete(CreateMetricsResponse(worldId: 72UL, currentFrame: 0));
+            request.Complete(CreateSubscriptionResponse(worldId: 72UL, currentFrame: 0));
 
             Assert.That(await IsCanceledAsync(startTask), Is.True);
             Assert.That(runtime.Driver, Is.Null);
@@ -96,9 +98,9 @@ namespace AbilityKit.Game.Test.UnitTest
             var activeTask = runtime.StartAsync(activeClient, 20UL, () => activeWorld);
             var activeRequest = await activeClient.WaitForRequestAsync();
 
-            activeRequest.Complete(CreateMetricsResponse(worldId: 73UL, currentFrame: 0));
+            activeRequest.Complete(CreateSubscriptionResponse(worldId: 73UL, currentFrame: 0));
             await AwaitWithTimeoutAsync(activeTask);
-            staleRequest.Complete(CreateMetricsResponse(worldId: 74UL, currentFrame: 0));
+            staleRequest.Complete(CreateSubscriptionResponse(worldId: 74UL, currentFrame: 0));
 
             Assert.That(await IsCanceledAsync(staleTask), Is.True);
             Assert.That(runtime.World, Is.SameAs(activeWorld));
@@ -126,7 +128,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var startTask = runtime.StartAsync(client, 21UL, () => world);
             var request = await client.WaitForRequestAsync();
-            request.Complete(CreateMetricsResponse(worldId: 75UL, currentFrame: 0));
+            request.Complete(CreateSubscriptionResponse(worldId: 75UL, currentFrame: 0));
             await AwaitWithTimeoutAsync(startTask);
 
             Assert.Throws<InvalidOperationException>(() => runtime.Stop());
@@ -155,14 +157,15 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var startTask = runtime.StartAsync(client, 22UL, () => world);
             var subscribeRequest = await client.WaitForRequestAsync();
-            subscribeRequest.Complete(CreateMetricsResponse(worldId: 76UL, currentFrame: 12));
+            subscribeRequest.Complete(CreateSubscriptionResponse(worldId: 76UL, currentFrame: 12));
             var catchUpRequest = await client.WaitForRequestAsync();
 
             Assert.That(catchUpRequest.OpCode, Is.EqualTo(OpCodes.CatchUpRequest));
             Assert.That(runtime.Driver, Is.Null);
             Assert.That(world.DisposeCount, Is.Zero);
 
-            runtime.Stop();
+            var stopTask = runtime.StopAsync();
+            await AwaitWithTimeoutAsync(stopTask);
             catchUpRequest.Complete(Array.Empty<byte>());
 
             Assert.That(catchUpRequest.CancellationToken.IsCancellationRequested, Is.True);
@@ -186,7 +189,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var startTask = runtime.StartAsync(client, 23UL, () => throw failure);
             var request = await client.WaitForRequestAsync();
-            request.Complete(CreateMetricsResponse(worldId: 77UL, currentFrame: 0));
+            request.Complete(CreateSubscriptionResponse(worldId: 77UL, currentFrame: 0));
 
             Exception thrown = null;
             try
@@ -218,16 +221,77 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var startTask = runtime.StartAsync(client, 24UL, () => world);
             var request = await client.WaitForRequestAsync();
-            request.Complete(CreateMetricsResponse(worldId: 78UL, currentFrame: 0));
+            request.Complete(CreateSubscriptionResponse(worldId: 78UL, currentFrame: 0));
             await AwaitWithTimeoutAsync(startTask);
 
             runtime.Stop();
             runtime.Stop();
             runtime.Dispose();
+            runtime.Dispose();
 
             Assert.That(world.DisposeCount, Is.EqualTo(1));
             Assert.That(runtime.Driver, Is.Null);
             Assert.That(client.PushSubscriberCount, Is.Zero);
+        }
+
+        [UnityTest]
+        public IEnumerator StopAsync_ConcurrentCallersSharePendingStop()
+        {
+            yield return AwaitTask(StopAsync_ConcurrentCallersSharePendingStopCore());
+        }
+
+        private static async Task StopAsync_ConcurrentCallersSharePendingStopCore()
+        {
+            var client = new ControllableNetworkClient();
+            var runtime = new SpectatorSessionRuntime();
+            var startTask = runtime.StartAsync(
+                client,
+                25UL,
+                () => new TrackingWorld("spectator-concurrent-stop"));
+            var request = await client.WaitForRequestAsync();
+
+            var firstStop = runtime.StopAsync();
+            var secondStop = runtime.StopAsync();
+
+            Assert.That(secondStop, Is.SameAs(firstStop));
+            Assert.That(request.CancellationToken.IsCancellationRequested, Is.True);
+
+            await AwaitWithTimeoutAsync(firstStop);
+            request.Complete(CreateSubscriptionResponse(worldId: 79UL, currentFrame: 0));
+            Assert.That(await IsCanceledAsync(startTask), Is.True);
+            Assert.That(client.PushSubscriberCount, Is.Zero);
+        }
+
+        [UnityTest]
+        public IEnumerator StopAsync_DuringReplacementStopsNewGeneration()
+        {
+            yield return AwaitTask(StopAsync_DuringReplacementStopsNewGenerationCore());
+        }
+
+        private static async Task StopAsync_DuringReplacementStopsNewGenerationCore()
+        {
+            var staleClient = new ControllableNetworkClient();
+            var activeClient = new ControllableNetworkClient();
+            var runtime = new SpectatorSessionRuntime();
+            var staleStart = runtime.StartAsync(
+                staleClient,
+                26UL,
+                () => new TrackingWorld("spectator-stale-stop"));
+            var staleRequest = await staleClient.WaitForRequestAsync();
+
+            var activeStart = runtime.StartAsync(
+                activeClient,
+                27UL,
+                () => new TrackingWorld("spectator-active-stop"));
+            var stopTask = runtime.StopAsync();
+
+            await AwaitWithTimeoutAsync(stopTask);
+            Assert.That(await IsCanceledAsync(staleStart), Is.True);
+            Assert.That(await IsCanceledAsync(activeStart), Is.True);
+            Assert.That(staleClient.PushSubscriberCount, Is.Zero);
+            Assert.That(activeClient.PushSubscriberCount, Is.Zero);
+
+            staleRequest.Complete(CreateSubscriptionResponse(worldId: 81UL, currentFrame: 0));
         }
 
         [UnityTest]
@@ -249,8 +313,8 @@ namespace AbilityKit.Game.Test.UnitTest
             var secondTask = second.StartAsync(secondClient, 26UL, () => secondWorld);
             var firstRequest = await firstClient.WaitForRequestAsync();
             var secondRequest = await secondClient.WaitForRequestAsync();
-            firstRequest.Complete(CreateMetricsResponse(worldId: 79UL, currentFrame: 0));
-            secondRequest.Complete(CreateMetricsResponse(worldId: 80UL, currentFrame: 0));
+            firstRequest.Complete(CreateSubscriptionResponse(worldId: 79UL, currentFrame: 0));
+            secondRequest.Complete(CreateSubscriptionResponse(worldId: 80UL, currentFrame: 0));
             await AwaitWithTimeoutAsync(Task.WhenAll(firstTask, secondTask));
 
             first.Stop();
@@ -264,28 +328,10 @@ namespace AbilityKit.Game.Test.UnitTest
             second.Stop();
         }
 
-        private static byte[] CreateMetricsResponse(ulong worldId, int currentFrame)
+        private static byte[] CreateSubscriptionResponse(ulong worldId, int currentFrame)
         {
-            var metrics = new WireFrameSyncMetrics(
-                roomId: 1UL,
-                worldId: worldId,
-                battleId: "spectator-test",
-                currentFrame: currentFrame,
-                tickRate: 30,
-                observerCount: 1,
-                avgTickDeltaMs: 0d,
-                lastTickDeltaMs: 0d,
-                effectiveHz: 30d,
-                totalFramesReceived: 0,
-                catchUpHistoryFrames: 0,
-                recordingFrameCount: 0,
-                uptimeSeconds: 0L);
-            var payload = WireCustomBinary.Serialize(metrics);
-            if (payload.Array == null) return Array.Empty<byte>();
-
-            var result = new byte[payload.Count];
-            Array.Copy(payload.Array, payload.Offset, result, 0, payload.Count);
-            return result;
+            return MemoryPackSerializer.Serialize(
+                new WireSpectatorSubscribeRes(worldId, 30, currentFrame));
         }
 
         private static IEnumerator AwaitTask(Task task)

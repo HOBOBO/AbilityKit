@@ -66,7 +66,7 @@ flowchart LR
 
 根对象默认写入 `AbilityKitAnalysisSchema.Version`，当前值为 `abilitykit-analysis.v1`。通用 JSON Exporter 在导出前发现根版本为空时也会补上该值。
 
-`BattleDiagnostics` 是可选 section，并有独立版本 `abilitykit-battle-diagnostics.v1`。独立版本允许战斗诊断轨道在不改变所有通用 section 的情况下演进，但导入方必须同时校验根版本和 section 版本。
+`BattleDiagnostics` 是可选 section，当前唯一正式版本为 `abilitykit-battle-diagnostics.v2`。该版本使用 Execution Context 命名表达业务身份；旧 Trace 命名 schema 不再兼容。独立版本允许战斗诊断轨道在不改变所有通用 section 的情况下演进，但导入方必须同时校验根版本和 section 版本。
 
 ```mermaid
 flowchart TD

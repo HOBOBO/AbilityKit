@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     /// Instance membership and Continuous bindings are lifecycle-owned, so an unsafe
     /// shape change fails fast instead of silently producing a partial restoration.
     /// </summary>
+    [MobaRollbackProvider(DefaultKey)]
     public sealed class MobaBuffTimerRollbackProvider : IRollbackStateProvider
     {
         public const int DefaultKey = 10003;

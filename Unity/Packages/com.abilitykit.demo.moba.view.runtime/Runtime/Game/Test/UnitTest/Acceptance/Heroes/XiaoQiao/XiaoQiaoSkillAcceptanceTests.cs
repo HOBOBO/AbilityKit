@@ -7,6 +7,7 @@ using AbilityKit.Combat.Collision;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Protocol.Moba;
@@ -107,7 +108,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.Greater(transformEntry.X, initialPosition.X + 0.05f, $"The fan projectile transform snapshot should carry the moved projectile position. initialX={initialPosition.X:F3}, snapshotX={transformEntry.X:F3}");
 
                 var resolver = new BattleProjectileVfxResolver();
-                Assert.AreEqual(90002001, resolver.ResolveSnapshotVfxId(entry.TemplateId, entry.Kind), "Xiao Qiao skill 1 projectile spawn snapshot should resolve to the configured fan VFX instead of a placeholder.");
+                Assert.AreEqual(90002001, resolver.ResolveSnapshotVfxId(entry.TemplateId, (ProjectilePresentationEventKind)entry.Kind), "Xiao Qiao skill 1 projectile spawn snapshot should resolve to the configured fan VFX instead of a placeholder.");
             }
         }
 
@@ -263,9 +264,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 var castResult = skills.TryCastBySlot(playerActorId, slot: 1, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
                 Assert.IsTrue(castResult.Success, $"Xiao Qiao skill 1 cast should succeed in the passive contract test. failReason={castResult.FailReason}");
 
-                harness.TickUntilTraceNode(MobaTraceKind.SkillCast, 10020101, maxTicks: 10, message: "Xiao Qiao skill 1 should emit SkillCast after direct cast.");
-                harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, 10020101, maxTicks: 10, message: "Xiao Qiao skill 1 should execute effect 10020101 after direct cast.");
-                harness.TickUntilTraceNode(MobaTraceKind.BuffApply, passiveBuffId, maxTicks: 30, message: "Xiao Qiao passive should apply buff 10020001 after skill cast completes.");
+                harness.TickUntilTraceNode(MobaExecutionKind.SkillCast, 10020101, maxTicks: 10, message: "Xiao Qiao skill 1 should emit SkillCast after direct cast.");
+                harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, 10020101, maxTicks: 10, message: "Xiao Qiao skill 1 should execute effect 10020101 after direct cast.");
+                harness.TickUntilTraceNode(MobaExecutionKind.BuffApply, passiveBuffId, maxTicks: 30, message: "Xiao Qiao passive should apply buff 10020001 after skill cast completes.");
 
                 Assert.IsTrue(harness.HasActorBuff(playerActorId, passiveBuffId), "Passive speed buff should exist immediately after the cast-triggered passive resolves.");
                 Assert.AreEqual(buffedMoveSpeed, harness.GetActorMoveSpeed(playerActorId), 0.01f, "Passive speed buff should raise move speed by the configured modifier amount.");

@@ -500,8 +500,8 @@ namespace AbilityKit.Demo.Moba.Services
             return new BattleDiagnosticEvent(scope, item.Frame, item.Sequence, item.MonotonicTimestamp, (BattleDiagnosticEventKind)item.Kind, (BattleDiagnosticEventChannel)item.Channel, (BattleDiagnosticEventOutcome)item.Outcome, item.SourceActorId, item.TargetActorId, item.ConfigId, item.RootContextId, item.ContextId, new BattleDiagnosticRuntimeHandle(item.SkillRuntimeId, item.SkillRuntimeGeneration), item.AttackId, item.PayloadVersion, item.Summary, payload, (BattleDiagnosticDefinitionKind)item.DefinitionKind, item.SourceActorGeneration, item.TargetActorGeneration, (BattleDiagnosticRuntimeObjectKind)item.SubjectObjectKind, item.SubjectRuntimeId, item.SubjectGeneration);
         }
 
-        private static AnalysisBattleDiagnosticWorld ToDto(BattleDiagnosticWorldSummary x) => new AnalysisBattleDiagnosticWorld { Frame = x.Frame, MonotonicTimestamp = x.MonotonicTimestamp, ActorCount = x.ActorCount, ActiveSkillRuntimeCount = x.ActiveSkillRuntimeCount, ActiveTraceRootCount = x.ActiveTraceRootCount, StateHash = x.StateHash };
-        private static BattleDiagnosticWorldSummary FromDto(AnalysisBattleDiagnosticWorld x, BattleDiagnosticSessionScope s) => new BattleDiagnosticWorldSummary(s, x.Frame, x.MonotonicTimestamp, x.ActorCount, x.ActiveSkillRuntimeCount, x.ActiveTraceRootCount, x.StateHash);
+        private static AnalysisBattleDiagnosticWorld ToDto(BattleDiagnosticWorldSummary x) => new AnalysisBattleDiagnosticWorld { Frame = x.Frame, MonotonicTimestamp = x.MonotonicTimestamp, ActorCount = x.ActorCount, ActiveSkillRuntimeCount = x.ActiveSkillRuntimeCount, ActiveExecutionRootCount = x.ActiveExecutionRootCount, StateHash = x.StateHash };
+        private static BattleDiagnosticWorldSummary FromDto(AnalysisBattleDiagnosticWorld x, BattleDiagnosticSessionScope s) => new BattleDiagnosticWorldSummary(s, x.Frame, x.MonotonicTimestamp, x.ActorCount, x.ActiveSkillRuntimeCount, x.ActiveExecutionRootCount, x.StateHash);
         private static AnalysisBattleDiagnosticActor ToDto(BattleDiagnosticActorSummary x) => new AnalysisBattleDiagnosticActor { Frame = x.Frame, ActorId = x.ActorId, Kind = (int)x.Kind, ConfigId = x.ConfigId, TeamId = x.TeamId, PositionX = x.PositionX, PositionY = x.PositionY, PositionZ = x.PositionZ, Health = x.Health, MaximumHealth = x.MaximumHealth, IsAlive = x.IsAlive, DisplayName = x.DisplayName };
         private static BattleDiagnosticActorSummary FromDto(AnalysisBattleDiagnosticActor x, BattleDiagnosticSessionScope s) => new BattleDiagnosticActorSummary(s, x.Frame, x.ActorId, (BattleDiagnosticActorKind)x.Kind, x.ConfigId, x.TeamId, x.PositionX, x.PositionY, x.PositionZ, x.Health, x.MaximumHealth, x.IsAlive, x.DisplayName);
         private static AnalysisBattleDiagnosticTraceNode ToDto(BattleDiagnosticTraceNodeSummary x)
@@ -713,20 +713,20 @@ namespace AbilityKit.Demo.Moba.Services
                 x.PayloadTypeName, x.HasRuntimeContext, x.RuntimeContextId, x.RuntimeContextVersion,
                 x.HasStageSnapshot, x.StackCount, x.ElapsedSeconds, x.RemainingSeconds, x.DurationSeconds);
 
-        private static AnalysisBattleDiagnosticTraceContextReference ToDto(
-            BattleDiagnosticTraceContextReference x)
+        private static AnalysisBattleDiagnosticExecutionContextReference ToDto(
+            BattleDiagnosticExecutionContextReference x)
         {
             return x.IsValid
-                ? new AnalysisBattleDiagnosticTraceContextReference { ContextId = x.ContextId }
+                ? new AnalysisBattleDiagnosticExecutionContextReference { ContextId = x.ContextId }
                 : null;
         }
 
-        private static BattleDiagnosticTraceContextReference FromDto(
-            AnalysisBattleDiagnosticTraceContextReference x)
+        private static BattleDiagnosticExecutionContextReference FromDto(
+            AnalysisBattleDiagnosticExecutionContextReference x)
         {
             return x == null
                 ? default
-                : BattleDiagnosticTraceContextReference.Create(x.ContextId);
+                : BattleDiagnosticExecutionContextReference.Create(x.ContextId);
         }
 
         private static AnalysisBattleDiagnosticRuntimeObjectReference ToDto(

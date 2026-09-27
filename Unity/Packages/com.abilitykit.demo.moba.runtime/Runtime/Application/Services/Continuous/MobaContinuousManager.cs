@@ -36,7 +36,7 @@ namespace AbilityKit.Demo.Moba.Services
             services.TryResolve(out MobaConfigDatabase configs);
             services.TryResolve(out AbilityKit.Triggering.Eventing.IEventBus eventBus);
             services.TryResolve(out MobaEffectExecutionService effects);
-            services.TryResolve(out MobaTraceRegistry trace);
+            services.TryResolve(out MobaExecutionContextRegistry executionContexts);
             services.TryResolve(out IFrameTime frameTime);
             services.TryResolve(out MobaPresentationCueSnapshotService cueSnapshots);
             services.TryResolve(out MobaRuntimeContextService runtimeContexts);
@@ -57,9 +57,9 @@ namespace AbilityKit.Demo.Moba.Services
             AddLifecycleBinder(_contextLifecycleBinder);
             _ownerBoundTriggerBinder = new MobaContinuousOwnerBoundTriggerLifecycleBinder(triggerGateway, ownerBoundTriggerGates);
             AddLifecycleBinder(_ownerBoundTriggerBinder);
-            var buffContextRegistry = new BuffContextRegistry(trace, runtimeContexts, frameTime);
+            var buffContextRegistry = new BuffContextRegistry(executionContexts, runtimeContexts, frameTime);
             var events = new BuffEventPublisher(eventBus);
-            var stageEffects = new BuffStageEffectExecutor(triggerGateway);
+            var stageEffects = new BuffStageEffectExecutor(triggerGateway, executionContexts, frameTime);
             var presentationCues = new MobaBuffPresentationCueReporter(configs, cueSnapshots);
             _buffIntervalHandler = new BuffContinuousIntervalHandler(
                 configs,

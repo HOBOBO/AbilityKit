@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using AbilityKit.Game.View.Foundation;
 
 namespace AbilityKit.Game.View.Flow
@@ -7,12 +8,14 @@ namespace AbilityKit.Game.View.Flow
     public sealed class PhaseFeatureHost<TContext, TFeature> where TFeature : class, IPhaseFeature<TContext>
     {
         public delegate void FeatureContextAction(TFeature feature, in TContext ctx);
+        public delegate Task AsyncFeatureContextAction(TFeature feature, TContext ctx);
         public delegate void FeatureTickAction(TFeature feature, in TContext ctx, float deltaTime);
 
         private readonly List<TFeature> _features;
         private readonly Action<string>? _fail;
         private readonly FeatureContextAction _attachFeature;
         private readonly FeatureContextAction _detachFeature;
+        private readonly AsyncFeatureContextAction _detachFeatureAsync;
         private readonly FeatureTickAction _tickFeature;
         private bool _isAttached;
 
@@ -21,12 +24,14 @@ namespace AbilityKit.Game.View.Flow
             int initialCapacity = 8,
             FeatureContextAction? attachFeature = null,
             FeatureContextAction? detachFeature = null,
-            FeatureTickAction? tickFeature = null)
+            FeatureTickAction? tickFeature = null,
+            AsyncFeatureContextAction? detachFeatureAsync = null)
         {
             _features = new List<TFeature>(Math.Max(0, initialCapacity));
             _fail = fail;
             _attachFeature = attachFeature ?? DefaultAttachFeature;
             _detachFeature = detachFeature ?? DefaultDetachFeature;
+            _detachFeatureAsync = detachFeatureAsync ?? DefaultDetachFeatureAsync;
             _tickFeature = tickFeature ?? DefaultTickFeature;
         }
 
@@ -53,6 +58,21 @@ namespace AbilityKit.Game.View.Flow
             if (_isAttached)
             {
                 _detachFeature(feature, in ctx);
+            }
+
+            _features.RemoveAt(index);
+            return true;
+        }
+
+        public async Task<bool> RemoveAsync(TFeature feature, TContext ctx)
+        {
+            if (feature == null) return false;
+            var index = _features.IndexOf(feature);
+            if (index < 0) return false;
+
+            if (_isAttached)
+            {
+                await (_detachFeatureAsync(feature, ctx) ?? Task.CompletedTask).ConfigureAwait(false);
             }
 
             _features.RemoveAt(index);
@@ -136,6 +156,41 @@ namespace AbilityKit.Game.View.Flow
             }
         }
 
+        public async Task DetachAllAsync(TContext ctx)
+        {
+            if (!_isAttached)
+            {
+                _fail?.Invoke("DetachAllAsync called while not attached.");
+                return;
+            }
+
+            List<Exception>? exceptions = null;
+            try
+            {
+                for (var i = _features.Count - 1; i >= 0; i--)
+                {
+                    if (_features[i] == null) continue;
+                    try
+                    {
+                        await (_detachFeatureAsync(_features[i], ctx) ?? Task.CompletedTask).ConfigureAwait(false);
+                    }
+                    catch (Exception exception)
+                    {
+                        (exceptions ??= new List<Exception>()).Add(exception);
+                    }
+                }
+            }
+            finally
+            {
+                _isAttached = false;
+            }
+
+            if (exceptions != null)
+            {
+                throw new AggregateException("One or more features failed to detach.", exceptions);
+            }
+        }
+
         public void Clear(in TContext ctx)
         {
             try
@@ -143,6 +198,21 @@ namespace AbilityKit.Game.View.Flow
                 if (_isAttached)
                 {
                     DetachAll(ctx);
+                }
+            }
+            finally
+            {
+                _features.Clear();
+            }
+        }
+
+        public async Task ClearAsync(TContext ctx)
+        {
+            try
+            {
+                if (_isAttached)
+                {
+                    await DetachAllAsync(ctx).ConfigureAwait(false);
                 }
             }
             finally
@@ -189,6 +259,17 @@ namespace AbilityKit.Game.View.Flow
         private static void DefaultDetachFeature(TFeature feature, in TContext ctx)
         {
             feature.OnDetach(ctx);
+        }
+
+        private static Task DefaultDetachFeatureAsync(TFeature feature, TContext ctx)
+        {
+            if (feature is IAsyncPhaseFeature<TContext> asyncFeature)
+            {
+                return asyncFeature.DetachAsync(ctx) ?? Task.CompletedTask;
+            }
+
+            feature.OnDetach(ctx);
+            return Task.CompletedTask;
         }
 
         private static void DefaultTickFeature(TFeature feature, in TContext ctx, float deltaTime)

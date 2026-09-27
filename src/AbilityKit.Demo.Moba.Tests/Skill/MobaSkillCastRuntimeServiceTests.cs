@@ -22,11 +22,11 @@ public sealed class MobaSkillCastRuntimeServiceTests
             targetActorId: 202,
             aimPos: Vec3.Zero,
             aimDir: Vec3.Zero,
-            rootTraceContextId: 9001));
+            rootContextId: 9001));
         var handle = runtime.Handle;
-        var buff = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Buff, childId: 40001, traceContextId: 9101, configId: 4001);
-        var projectile = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Projectile, childId: 30001, traceContextId: 9201, configId: 3001);
-        var summon = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Summon, childId: 20001, traceContextId: 9301, configId: 2001);
+        var buff = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Buff, childId: 40001, contextId: 9101, configId: 4001);
+        var projectile = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Projectile, childId: 30001, contextId: 9201, configId: 3001);
+        var summon = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Summon, childId: 20001, contextId: 9301, configId: 2001);
 
         Assert.True(service.RetainChild(in handle, in buff, out var buffRetain));
         Assert.True(service.RetainChild(in handle, in projectile, out var projectileRetain));
@@ -73,9 +73,9 @@ public sealed class MobaSkillCastRuntimeServiceTests
             targetActorId: 202,
             aimPos: Vec3.Zero,
             aimDir: Vec3.Zero,
-            rootTraceContextId: 0));
+            rootContextId: 0));
         var handle = runtime.Handle;
-        var summon = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Summon, childId: 20002, traceContextId: 9302, configId: 2002);
+        var summon = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Summon, childId: 20002, contextId: 9302, configId: 2002);
 
         Assert.True(service.RetainChild(in handle, in summon, out var retain));
         var recorder = new RecordingHook();
@@ -105,9 +105,9 @@ public sealed class MobaSkillCastRuntimeServiceTests
             targetActorId: 202,
             aimPos: Vec3.Zero,
             aimDir: Vec3.Zero,
-            rootTraceContextId: 9401));
+            rootContextId: 9401));
         var handle = runtime.Handle;
-        var buff = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Buff, childId: 40003, traceContextId: 9501, configId: 4003);
+        var buff = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Buff, childId: 40003, contextId: 9501, configId: 4003);
 
         Assert.True(service.RetainChild(in handle, in buff, out _));
         Assert.True(service.MarkPipelineEnded(in handle, MobaSkillRuntimeEndReason.PipelineCompleted));
@@ -142,7 +142,7 @@ public sealed class MobaSkillCastRuntimeServiceTests
             targetActorId: 202,
             aimPos: Vec3.Zero,
             aimDir: Vec3.Zero,
-            rootTraceContextId: 9601));
+            rootContextId: 9601));
         var handle = runtime.Handle;
 
         Assert.True(service.MarkPipelineEnded(in handle, MobaSkillRuntimeEndReason.PipelineCompleted));

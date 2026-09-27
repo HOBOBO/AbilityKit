@@ -9,16 +9,18 @@ using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Flow.Battle.View;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.Share;
-using AbilityKit.Protocol.Moba.StateSync;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
     public sealed class BattleViewEventSink : IBattleViewEventSink
     {
+        private readonly BattleContext _context;
         private readonly BattleAreaViewEventHandler _areaEvents;
         private readonly BattleDamageViewEventHandler _damageEvents;
         private readonly BattleProjectileViewEventHandler _projectileEvents;
+        private readonly BattleViewPoolStatsOverlay _poolStatsOverlay;
+        private readonly BattleProjectilePoolStatsProvider _projectileStatsProvider;
         private readonly BattleSummonViewEventHandler _summonEvents;
         private readonly BattleActorDeathViewEventHandler _deathEvents;
         private readonly BattleActorRespawnViewEventHandler _respawnEvents;
@@ -26,6 +28,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private readonly BattleViewDirtyEntityRefresher _dirtyViews;
         private readonly bool _presentDamageTriggers;
         private readonly bool _presentDamageSnapshots;
+        private long _observedRollbackCount;
 
         public BattleViewEventSink(
             BattleContext ctx,
@@ -54,9 +57,18 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             handlers ??= new BattleViewEventSinkHandlerFactory();
 
+            _context = ctx;
             _areaEvents = handlers.CreateAreaEvents(ctx, query, binder, areaViews);
             _damageEvents = handlers.CreateDamageEvents(ctx, query, in vfxNode, floatingTexts);
             _projectileEvents = handlers.CreateProjectileEvents(ctx, query, vfx, in vfxNode, resources, hierarchy);
+            _poolStatsOverlay = hierarchy?.Root != null
+                ? hierarchy.Root.GetComponent<BattleViewPoolStatsOverlay>()
+                : null;
+            if (_poolStatsOverlay != null && _projectileEvents?.PoolForStats != null)
+            {
+                _projectileStatsProvider = new BattleProjectilePoolStatsProvider(_projectileEvents.PoolForStats);
+                _poolStatsOverlay.RegisterProvider(_projectileStatsProvider);
+            }
             _summonEvents = handlers.CreateSummonEvents(query, vfx, in vfxNode);
             _deathEvents = handlers.CreateDeathEvents(query, vfx, in vfxNode);
             _respawnEvents = handlers.CreateRespawnEvents(query, vfx, in vfxNode);
@@ -67,6 +79,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 : BattleViewEventSourceMode.SnapshotOnly;
             _presentDamageTriggers = BattleDamagePresentationSourcePolicy.ShouldPresentTrigger(sourceMode);
             _presentDamageSnapshots = BattleDamagePresentationSourcePolicy.ShouldPresentSnapshot(sourceMode);
+            _observedRollbackCount = ResolveRollbackCount();
         }
 
         public void OnDamageResult(in DamageResult result)
@@ -87,27 +100,27 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _summonEvents?.Handle(eventId, in payload);
         }
 
-        public void OnEnterGameSnapshot(ISnapshotEnvelope packet, EnterMobaGameRes res)
+        public void OnEnterGameSnapshot(ISnapshotEnvelope packet, BattleEnterGameSnapshot res)
         {
             _dirtyViews.Refresh();
         }
 
-        public void OnActorTransformSnapshot(ISnapshotEnvelope packet, MobaActorTransformSnapshotEntry[] entries)
+        public void OnActorTransformSnapshot(ISnapshotEnvelope packet, ActorTransformData[] entries)
         {
             _dirtyViews.Refresh();
         }
 
-        public void OnProjectileEventSnapshot(ISnapshotEnvelope packet, MobaProjectileEventSnapshotEntry[] entries)
+        public void OnProjectileEventSnapshot(ISnapshotEnvelope packet, ProjectileEventData[] entries)
         {
             _projectileEvents.HandleSnapshot(entries);
         }
 
-        public void OnAreaEventSnapshot(ISnapshotEnvelope packet, MobaAreaEventSnapshotEntry[] entries)
+        public void OnAreaEventSnapshot(ISnapshotEnvelope packet, AreaEventData[] entries)
         {
             _areaEvents.HandleSnapshot(entries);
         }
 
-        public void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries)
+        public void OnDamageEventSnapshot(ISnapshotEnvelope packet, DamageEventData[] entries)
         {
             if (_presentDamageSnapshots)
             {
@@ -125,6 +138,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         /// </summary>
         public void Tick()
         {
+            ObservePresentationRollbackGeneration();
             _projectileEvents?.Tick();
         }
 
@@ -133,7 +147,27 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         /// </summary>
         public void Clear()
         {
+            _poolStatsOverlay?.UnregisterProvider(_projectileStatsProvider);
             _projectileEvents?.Clear();
+            _projectileEvents?.ClearPool();
+            _presentationCues?.Clear();
+            _observedRollbackCount = ResolveRollbackCount();
+        }
+
+        private void ObservePresentationRollbackGeneration()
+        {
+            var rollbackCount = ResolveRollbackCount();
+            if (rollbackCount == _observedRollbackCount) return;
+
+            _observedRollbackCount = rollbackCount;
+            _presentationCues?.BeginReconciliationGeneration(
+                _presentationCues.ReconciliationGeneration + 1);
+        }
+
+        private long ResolveRollbackCount()
+        {
+            var count = _context?.PredictionStats?.TotalRollbackCount ?? 0L;
+            return count > 0L ? count : 0L;
         }
     }
 

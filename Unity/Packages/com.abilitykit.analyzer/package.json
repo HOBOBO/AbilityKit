@@ -7,5 +7,7 @@
   "author": {
     "name": "AbilityKit"
   },
-  "dependencies": {}
+  "dependencies": {
+    "com.abilitykit.thirdparty.unsafe": "5.0.0"
+  }
 }

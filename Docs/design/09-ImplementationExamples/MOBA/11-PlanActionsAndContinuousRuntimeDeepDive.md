@@ -333,7 +333,7 @@ MOBA 的 continuous runtime 与 context 设计很强调边界来源：
 | Action | 新增/收紧语义 | 失败行为 |
 |--------|---------------|----------|
 | `GiveDamage` | `attribute_source` 明确区分 AttributionActor 与 SkillCaster；攻击属性来源不改变 damage attribution actor | ratio 非零时无法解析 runtime/caster/attribute group 会显式 rejected，不再静默退化为纯基础伤害 |
-| `SpawnArea` | `MobaAreaRuntimeService` 与 `MobaTraceRegistry` 变为必需依赖，source context 必须可建立 | 注册失败会 rollback area runtime、despawn area 并以 Failed 结束 trace |
+| `SpawnArea` | `MobaAreaRuntimeService` 与 `MobaExecutionContextRegistry` 是必需依赖，source context 必须可建立 | 注册失败会 rollback area runtime、despawn area 并以 Failed 结束正式 Context；Trace 可选投影 |
 
 配置完整性还必须早于运行时事务。2026-08-16 主 MOBA .NET 工程 279/305，26 项共同被 SpawnArea `duration 300ms < delay 400ms` 的 BootstrapStrict 校验阻断。View Runtime 147/147、Host 6/6、Acceptance 8/8 独立通过；本地 Unity ownership 9/9 证明 Buff/Projectile/Summon/Skill capability 清理，不覆盖 PlanAction 全 DSL。
 

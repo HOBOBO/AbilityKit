@@ -1946,7 +1946,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var session = new DefinitionLookupSession
             {
                 TraceNodes = new[] { TraceNode(100, 100, 0, "EffectExecution",
-                    originKind: (int)MobaTraceKind.AreaStay, originConfigId: 601,
+                    originKind: (int)MobaExecutionKind.AreaStay, originConfigId: 601,
                     originDefinitionKind: BattleDiagnosticDefinitionKind.Area) }
             };
             session.Definitions[origin] = Definition(in origin, "Burning Field");

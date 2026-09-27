@@ -1,7 +1,8 @@
 using System;
 using AbilityKit.Core.Snapshots.Routing;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.StateSync;
+using FrameSnapshotDispatcher = AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher;
 
 namespace AbilityKit.Game.Flow
 {
@@ -10,7 +11,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleContext _ctx;
         private readonly long _contextBindingGeneration;
 
-        private readonly BattleSubscriptionGroup _subscriptions = new BattleSubscriptionGroup(3);
+        private readonly BattleSubscriptionGroup _subscriptions = new BattleSubscriptionGroup(4);
 
         public FrameSnapshotDispatcher Snapshots { get; private set; }
         public SnapshotPipeline Pipeline { get; private set; }
@@ -87,17 +88,21 @@ namespace AbilityKit.Game.Flow
 
             _subscriptions.Clear();
             _subscriptions.Add(
-                Snapshots.Subscribe<MobaActorTransformSnapshotEntry[]>(
+                Snapshots.Subscribe<ActorTransformData[]>(
                     MobaOpCodes.Snapshot.ActorTransform,
                     (packet, entries) => BattleSnapshotEntityApplier.ApplyTransform(ctx, entries)));
             _subscriptions.Add(
-                Snapshots.Subscribe<MobaStateHashSnapshotPayload>(
+                Snapshots.Subscribe<StateHashData>(
                     MobaOpCodes.Snapshot.StateHash,
                     (packet, snap) => BattleSnapshotEntityApplier.ApplyStateHash(ctx, snap)));
             _subscriptions.Add(
-                Snapshots.Subscribe<MobaActorSpawnSnapshotEntry[]>(
+                Snapshots.Subscribe<ActorSpawnData[]>(
                     MobaOpCodes.Snapshot.ActorSpawn,
                     (packet, entries) => BattleSnapshotEntityApplier.ApplySpawn(ctx, entries)));
+            _subscriptions.Add(
+                Snapshots.Subscribe<ActorDespawnData[]>(
+                    MobaOpCodes.Snapshot.ActorDespawn,
+                    (packet, entries) => BattleSnapshotEntityApplier.ApplyDespawn(ctx, entries)));
         }
     }
 }

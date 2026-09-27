@@ -21,7 +21,7 @@ namespace AbilityKit.Game.Battle.Shared.Assets
 
         public void Release(Object asset)
         {
-            if (asset == null || asset is GameObject || asset is Component) return;
+            if (asset == null || asset is GameObject || asset is UnityEngine.Component) return;
             Resources.UnloadAsset(asset);
         }
     }

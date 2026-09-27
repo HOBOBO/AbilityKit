@@ -1,5 +1,5 @@
 using AbilityKit.Game.Flow;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.View.Runtime.Tests;
@@ -30,7 +30,7 @@ public sealed class BattleHudSessionModelTests
     }
 
     [Fact]
-    public void EnterGameSnapshotFillsMissingIdentityWithoutReplacingSelectedPlayer()
+    public void EnterGameSnapshotDoesNotBindAnotherPlayersActor()
     {
         var model = new BattleHudSessionModel();
         model.Synchronize("p1", localActorId: 0, loadoutRevision: 0);
@@ -38,7 +38,7 @@ public sealed class BattleHudSessionModelTests
         model.ApplyEnterGameSnapshot("p2", localActorId: 22);
 
         Assert.Equal("p1", model.LocalPlayerId);
-        Assert.Equal(22, model.LocalActorId);
+        Assert.Equal(0, model.LocalActorId);
         Assert.False(model.ShouldUseEnterGameLoadout("p2", hasExplicitLocalControl: true));
         Assert.True(model.ShouldUseEnterGameLoadout("p2", hasExplicitLocalControl: false));
 
@@ -112,13 +112,8 @@ public sealed class BattleHudSessionModelTests
         Assert.Equal(40, model.LocalActorId);
     }
 
-    private static MobaSkillStateSnapshotEntry SkillState(int actorId, int slot, int skillId)
+    private static SkillStateData SkillState(int actorId, int slot, int skillId)
     {
-        return new MobaSkillStateSnapshotEntry
-        {
-            ActorId = actorId,
-            Slot = slot,
-            SkillId = skillId,
-        };
+        return new SkillStateData(actorId, slot, skillId);
     }
 }

@@ -7,6 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Orleans.Grains/AbilityKit.Orleans.Grains.csproj" />
     <ProjectReference Include="../../../../src/AbilityKit.Demo.Tiny.Core/AbilityKit.Demo.Tiny.Core.csproj" />
+    <ProjectReference Include="../../../../src/AbilityKit.Demo.Tiny.Turn.Core/AbilityKit.Demo.Tiny.Turn.Core.csproj" />
     <ProjectReference Include="../../../../src/AbilityKit.Host/AbilityKit.Host.csproj" />
     <ProjectReference Include="../../../../src/AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
   </ItemGroup>

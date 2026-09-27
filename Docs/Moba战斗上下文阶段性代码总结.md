@@ -10,7 +10,7 @@
 
 - `MobaCombatExecutionContext` 作为只读 execution fact。
 - `MobaCombatExecutionContextFactory` 负责上下文构建和 snapshot 合并。
-- `MobaEffectExecutionService` 负责 effect 执行编排、预算、condition、trace/session 生命周期。
+- `MobaEffectExecutionService` 负责 effect 执行编排、预算、condition 和正式 Context session 生命周期；Trace Adapter 可选观察。
 - `MobaTriggerPlanExecutor` 负责 trigger plan 查询、运行时依赖检查、evaluate/execute。
 - `MobaPlanActionInputResolver` 负责 action 侧输入视图。
 - `MobaActionOriginBuilder` 负责 action origin 生成。
@@ -43,10 +43,10 @@
 
 ### 2.3 effect execution session 明确生命周期边界
 
-`MobaEffectExecutionService` 当前通过 `_executionContexts` 与 `_traceScopes` 维护执行栈，并通过内部 `MobaEffectExecutionSession` 保证：
+`MobaEffectExecutionService` 当前通过 `_executionContexts` 与 execution scope 维护执行栈，并通过内部 `MobaEffectExecutionSession` 保证正式 Context 成对结束；可选 Trace Adapter 只观察 Context 生命周期：
 
 - 进入执行时 push context。
-- 创建 effect trace scope。
+- 创建 effect execution scope。
 - 创建 action child trace。
 - plan 执行完成后按结果关闭 trace。
 - 异常或提前退出时仍能 pop context、关闭 trace、释放 budget。
@@ -71,7 +71,7 @@
 
 ### 2.5 action 输入读取开始统一
 
-当前常规 action 已经迁到 `MobaPlanActionInputResolver`，该 resolver 只定位为 core action input，负责 caster、target、aim、execution context、trace scope 这类基础执行事实。motion action 额外通过 `MobaMovementActionInputResolver` 收敛移动输入：
+当前常规 action 已经迁到 `MobaPlanActionInputResolver`，该 resolver 只定位为 core action input，负责 caster、target、aim、execution context、execution scope 这类基础执行事实。motion action 额外通过 `MobaMovementActionInputResolver` 收敛移动输入：
 
 - damage
 - buff
@@ -94,7 +94,7 @@
 
 - 优先继承 execution context 中已有 origin。
 - 没有 origin 时从 source/target/fallback kind/config 创建 legacy origin。
-- 有当前 effect trace scope 时，把 immediate context 指向当前 effect execution。
+- 有当前 effect execution scope 时，把 immediate context 指向当前 effect execution。
 - 保留 root/owner/skill runtime handle。
 
 这对 Damage、Buff、Projectile 这类会产生后续链路的 action 很关键。否则每个 action 自己构造 origin，root、owner、parent、runtime handle 很容易分叉。
@@ -105,7 +105,7 @@
 
 Buff 周期触发不再由 `MobaPeriodicEffectService` 这套临时 service/component/system 调度，也不再由 `MobaBuffTickSystem` 直接推进。当前正式路径是：Buff 应用阶段创建 `BuffContinuousRuntime` 并注册到 `IContinuousManager`；`MobaContinuousTickSystem` 每帧驱动 `MobaContinuousManager`；manager 统一 tick active continuous，并只从 `IMobaContinuousPeriodicConfig`、`IMobaContinuousIntervalState` 等 continuous 抽象读取 interval 与 interval triggerIds；到达 interval 时交给所有匹配的 `IMobaContinuousIntervalHandler`，Buff 领域由 `BuffContinuousIntervalHandler` 承接，再通过 `BuffStageEffectExecutor` 构造 `BuffTriggerContext` 后调用 `MobaEffectExecutionService.ExecuteTriggerId`。
 
-这个拆分把持续行为推进收敛回 continuous 模块：`IContinuousManager` 管注册、激活、暂停、恢复、中断，`MobaContinuousManager` 在业务层统一处理 duration/interval tick，但不直接认识 Buff、Area、Channel 等领域类型。领域 runtime 状态同步由 continuous 自己实现 `IMobaContinuousRuntimeStateSync`，领域触发由 handler 实现。Buff interval 的触发 payload 继续暴露 stage snapshot 与 live view，因此 action 能区分“触发当帧状态”和“当前仍激活的实时状态”；interval 阶段 trace kind 使用 `BuffTick`，避免和 apply/remove 语义混淆。
+这个拆分把持续行为推进收敛回 continuous 模块：`IContinuousManager` 管注册、激活、暂停、恢复、中断，`MobaContinuousManager` 在业务层统一处理 duration/interval tick，但不直接认识 Buff、Area、Channel 等领域类型。领域 runtime 状态同步由 continuous 自己实现 `IMobaContinuousRuntimeStateSync`，领域触发由 handler 实现。Buff interval 的触发 payload 继续暴露 stage snapshot 与 live view，因此 action 能区分“触发当帧状态”和“当前仍激活的实时状态”；interval 阶段正式 `MobaExecutionKind` 使用 `BuffTick`，避免和 apply/remove 语义混淆，Trace Adapter 按需投影。
 
 阶段判断：方向正确。旧 `MobaPeriodicEffectService`、独立 periodic runtime/component/tick system 与 Buff binder 已删除；后续如果 Area/Summon/Channel 也需要周期行为，应实现 continuous 抽象与 interval handler 接入 manager，而不是重新引入独立 periodic service 或领域系统自驱动周期逻辑。
 
@@ -121,7 +121,7 @@ Buff 周期触发不再由 `MobaPeriodicEffectService` 这套临时 service/comp
 - buff stage payload
 - origin context
 - lineage context
-- trace context
+- execution context（Trace 仅可选投影）
 - runtime handle
 - dictionary data bag
 - plan action 自己 fallback

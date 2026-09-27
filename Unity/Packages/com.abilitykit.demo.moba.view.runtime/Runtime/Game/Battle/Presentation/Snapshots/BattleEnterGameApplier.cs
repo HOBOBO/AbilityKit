@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Protocol.Moba;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Demo.Moba.Config;
@@ -7,7 +7,6 @@ using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow;
 using AbilityKit.Core.Logging;
-using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;
 
@@ -15,7 +14,7 @@ namespace AbilityKit.Game.Flow.Battle.Snapshot
 {
     public static class BattleEnterGameApplier
     {
-        public static void Apply(BattleContext ctx, EnterMobaGameRes res)
+        public static void Apply(BattleContext ctx, BattleEnterGameSnapshot res)
         {
             if (ctx == null) return;
             if (ctx.EntityWorld == null || ctx.EntityLookup == null || ctx.EntityFactory == null)
@@ -28,12 +27,12 @@ namespace AbilityKit.Game.Flow.Battle.Snapshot
             if (!string.IsNullOrEmpty(localPlayerId) &&
                 !string.Equals(
                     localPlayerId,
-                    res.PlayerId.Value,
+                    res.PlayerId,
                     StringComparison.OrdinalIgnoreCase))
             {
                 Log.Warning(
                     $"[BattleEnterGameApplier] Ignored non-local enter-game actor. " +
-                    $"localPlayer={localPlayerId}, responsePlayer={res.PlayerId.Value}, actor={res.LocalActorId}.");
+                    $"localPlayer={localPlayerId}, responsePlayer={res.PlayerId}, actor={res.LocalActorId}.");
                 return;
             }
 
@@ -57,14 +56,14 @@ namespace AbilityKit.Game.Flow.Battle.Snapshot
                 dirty.Clear();
             }
 
-            if (!MobaEnterGamePayloadCodec.TryDeserializePosition(res.OpCode, res.Payload, out var p))
+            if (!res.HasLocalActorPosition)
             {
                 return;
             }
 
-            var pos = new Vector3(p.X, p.Y, p.Z);
+            var pos = new Vector3(res.LocalActorX, res.LocalActorY, res.LocalActorZ);
 
-            var localNetId = new BattleNetId(res.LocalActorId);
+            var localNetId = new AbilityKit.Game.Battle.Entity.BattleNetId(res.LocalActorId);
             if (!lookup.TryResolve(world, localNetId, out var e))
             {
                 return;

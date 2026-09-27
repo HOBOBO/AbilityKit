@@ -98,8 +98,8 @@ namespace AbilityKit.Demo.Moba.Services
             var runtime = handle.IsValid
                 ? new BattleDiagnosticRuntimeHandle(handle.RuntimeId, handle.Generation)
                 : default;
-            var rootContextId = handle.RootTraceContextId != 0L
-                ? handle.RootTraceContextId
+            var rootContextId = handle.RootContextId != 0L
+                ? handle.RootContextId
                 : ctx.SourceContextId;
             var summary = string.IsNullOrEmpty(ctx.FailReason)
                 ? eventId

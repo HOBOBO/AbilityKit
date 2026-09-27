@@ -5,7 +5,7 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Logging;
-using AbilityKit.Trace;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services.Combat.Transactions;
 
@@ -19,8 +19,10 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaShieldService _shields;
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly IMobaDamageStageProvider _stageProvider;
+        private System.Collections.Generic.IReadOnlyList<MobaDamageStageDescriptor> _validatedStages;
         private readonly MobaCombatTransactionPipeline _transactions;
-        [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
+        [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
+        [WorldInject(required: false)] private IFrameTime _frameTime = null;
         [WorldInject(required: false)] private MobaCombatActivityService _combatActivity = null;
  
         private readonly IMobaBattleDiagnosticsService _diagnostics;
@@ -88,9 +90,27 @@ namespace AbilityKit.Demo.Moba.Services
 
         private DamageResult ExecuteCore(AttackInfo attack)
         {
-
             var diagnostics = _diagnostics;
             var start = diagnostics != null ? diagnostics.GetTimestamp() : 0L;
+            var combatFacts = MobaCombatExecutionFacts.Resolve(attack);
+            attack.CombatFlags = combatFacts.Flags;
+            attack.TryResolveCombatExecutionContext(out var sourceContext);
+            var attackNode = BeginDamageExecution(
+                MobaExecutionKind.DamageAttack,
+                attack.ReasonParam,
+                attack.AttackerActorId,
+                attack.TargetActorId,
+                in sourceContext,
+                in combatFacts,
+                out var attackContext);
+            if (attackNode.ContextId != 0L)
+            {
+                attackContext = attackContext.WithPayload(attack);
+                attack.SetExecutionContext(in attackContext);
+            }
+
+            var attackSucceeded = false;
+            var healthCommitted = false;
 
             try
             {
@@ -105,14 +125,88 @@ namespace AbilityKit.Demo.Moba.Services
                 Publish(DamagePipelineEvents.BeforeCalc, attack);
 
                 var calc = new AttackCalcInfo(attack);
+                var calcParent = attackNode.ContextId != 0L ? attackContext : sourceContext;
+                var calcNode = BeginDamageExecution(
+                    MobaExecutionKind.DamageCalc,
+                    attack.ReasonParam,
+                    attack.AttackerActorId,
+                    attack.TargetActorId,
+                    in calcParent,
+                    in combatFacts,
+                    out var calcContext);
+                if (calcNode.ContextId != 0L)
+                {
+                    calcContext = calcContext.WithPayload(calc);
+                    calc.SetExecutionContext(in calcContext);
+                }
 
-                Publish(DamagePipelineEvents.CalcBegin, calc);
+                var calcSucceeded = false;
+                try
+                {
+                    Publish(DamagePipelineEvents.CalcBegin, calc);
+                    ApplyFormula(calc);
+                    Publish(DamagePipelineEvents.BeforeApply, calc);
+                    calcSucceeded = true;
+                }
+                finally
+                {
+                    EndDamageExecution(in calcNode, calcSucceeded);
+                }
 
-                ApplyFormula(calc);
+                var applyParent = calcNode.ContextId != 0L ? calcContext : calcParent;
+                var applyNode = BeginDamageExecution(
+                    MobaExecutionKind.DamageApply,
+                    attack.ReasonParam,
+                    attack.AttackerActorId,
+                    attack.TargetActorId,
+                    in applyParent,
+                    in combatFacts,
+                    out var applyContext);
+                var applySucceeded = false;
+                DamageResult result;
+                try
+                {
+                    result = CommitDamage(attack, calc, target, in applyNode, in applyContext,
+                        () => healthCommitted = true);
+                    applySucceeded = result != null;
+                }
+                finally
+                {
+                    EndDamageExecution(in applyNode, applySucceeded || healthCommitted);
+                }
 
-                Publish(DamagePipelineEvents.BeforeApply, calc);
+                if (result == null) return null;
 
-                var shieldCommitted = calc.ShieldPlan == null || _shields == null || _shields.CommitAbsorb(calc.ShieldPlan);
+                attackSucceeded = true;
+                RecordCombatActivity(result);
+                Publish(DamagePipelineEvents.AfterApply, result);
+                TryCollectDamage(result, calc);
+                diagnostics?.Counter("moba.damage.applied");
+                diagnostics?.Sample("moba.damage.value", result.Value);
+                attackSucceeded = true;
+                return result;
+            }
+            finally
+            {
+                EndDamageExecution(in attackNode, attackSucceeded || healthCommitted);
+                diagnostics?.RecordDuration(
+                    MobaBattleDiagnosticMetric.DamagePipeline,
+                    start,
+                    MobaBattleDiagnosticsDefaults.DamagePipelineWarnMs);
+            }
+        }
+
+        private DamageResult CommitDamage(
+            AttackInfo attack,
+            AttackCalcInfo calc,
+            global::ActorEntity target,
+            in MobaExecutionContextNode applyNode,
+            in MobaCombatExecutionContext applyContext,
+            Action onHealthCommitted)
+        {
+            var diagnostics = _diagnostics;
+
+            var shieldCommitted = calc.ShieldPlan == null || _shields == null || _shields.CommitAbsorb(calc.ShieldPlan);
                 if (!shieldCommitted)
                 {
                     diagnostics?.Counter("moba.damage.shieldCommitConflict");
@@ -120,7 +214,12 @@ namespace AbilityKit.Demo.Moba.Services
                     return null;
                 }
 
+            var hpCommitted = false;
+            var shieldFinalized = false;
+            try
+            {
                 attack.TryGetOrigin(out var attackOrigin);
+                var commitOrigin = applyNode.ContextId != 0L ? applyContext.Origin : attackOrigin;
                 var hpDamage = calc.HpDamage.FixedValue;
                 var committed = hpDamage > AbilityKit.Deterministic.Fixed64.Zero
                     ? _damage.CommitDamage(
@@ -130,12 +229,16 @@ namespace AbilityKit.Demo.Moba.Services
                         value: hpDamage,
                         reasonKind: (int)attack.ReasonKind,
                         reasonParam: attack.ReasonParam,
-                        origin: attackOrigin,
-                        collectDiagnostic: _eventCollector == null)
+                        origin: commitOrigin,
+                        collectDiagnostic: _eventCollector == null,
+                        onCommitted: () =>
+                        {
+                            hpCommitted = true;
+                            onHealthCommitted?.Invoke();
+                        })
                     : default;
                 if (hpDamage > AbilityKit.Deterministic.Fixed64.Zero && !committed.Succeeded)
                 {
-                    _shields?.RollbackAbsorb(calc.ShieldPlan);
                     diagnostics?.Counter("moba.damage.healthCommitRejected");
                     TryCollectDamageCalculation(attack, calc, BattleDiagnosticDamageStage.HealthCommitRejected, 0f);
                     return null;
@@ -151,32 +254,36 @@ namespace AbilityKit.Demo.Moba.Services
                     CritType = attack.CritType,
                     ReasonKind = attack.ReasonKind,
                     ReasonParam = attack.ReasonParam,
+                    CombatFlags = attack.CombatFlags,
                     Value = committed.AppliedValue,
                     TargetHp = committed.Succeeded ? committed.TargetHp : targetAttributes.Hp,
                     TargetMaxHp = committed.Succeeded ? committed.TargetMaxHp : targetAttributes.MaxHp,
                 };
 
+                shieldFinalized = true;
                 _shields?.FinalizeAbsorb(calc.ShieldPlan);
 
-                if (attack.TryGetOrigin(out var origin))
+                if (applyNode.ContextId != 0L)
+                {
+                    var resultContext = applyContext.WithPayload(result);
+                    result.SetExecutionContext(in resultContext);
+                }
+                else if (attack.TryGetOrigin(out var origin))
                 {
                     result.SetOrigin(in origin);
-                    TryTraceDamageApply(in origin, result);
                 }
 
-                RecordCombatActivity(result);
-                Publish(DamagePipelineEvents.AfterApply, result);
-                TryCollectDamage(result, calc);
-                diagnostics?.Counter("moba.damage.applied");
-                diagnostics?.Sample("moba.damage.value", result.Value);
                 return result;
             }
             finally
             {
-                diagnostics?.RecordDuration(
-                    MobaBattleDiagnosticMetric.DamagePipeline,
-                    start,
-                    MobaBattleDiagnosticsDefaults.DamagePipelineWarnMs);
+                if (shieldCommitted && !shieldFinalized)
+                {
+                    if (hpCommitted || calc.HpDamage.FixedValue <= AbilityKit.Deterministic.Fixed64.Zero)
+                        _shields?.FinalizeAbsorb(calc.ShieldPlan);
+                    else
+                        _shields?.RollbackAbsorb(calc.ShieldPlan);
+                }
             }
         }
 
@@ -192,13 +299,16 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 case DamageFormulaKind.Standard:
                 default:
-                    var validation = _stageProvider.Validate();
-                    if (!validation.Succeeded)
+                    if (_validatedStages == null)
                     {
-                        throw new InvalidOperationException("Invalid damage stage configuration: " + string.Join("; ", validation.Errors));
+                        var validation = _stageProvider.Validate();
+                        if (!validation.Succeeded)
+                            throw new InvalidOperationException("Invalid damage stage configuration: " + string.Join("; ", validation.Errors));
+                        _validatedStages = _stageProvider.GetStages() ??
+                            throw new InvalidOperationException("Damage stage provider returned no stages.");
                     }
 
-                    RunStages(calc, _stageProvider.GetStages());
+                    RunStages(calc, _validatedStages);
                     break;
             }
         }
@@ -378,28 +488,133 @@ namespace AbilityKit.Demo.Moba.Services
             combatActivity.RecordCombat(result.TargetActorId);
         }
 
-        private void TryTraceDamageApply(in MobaGameplayOrigin origin, DamageResult result)
+        private MobaExecutionContextNode BeginDamageExecution(
+            MobaExecutionKind kind,
+            int configId,
+            int sourceActorId,
+            int targetActorId,
+            in MobaCombatExecutionContext parentContext,
+            in MobaCombatExecutionFacts combatFacts,
+            out MobaCombatExecutionContext executionContext)
         {
-            if (result == null) return;
-            var trace = _trace;
-            if (trace == null) return;
-
-            var parentContextId = origin.EffectiveParentContextId;
-            if (parentContextId == 0L) return;
-
-            var configId = result.ReasonParam != 0 ? result.ReasonParam : origin.ImmediateConfigId;
-            if (configId == 0) return;
-
-            var contextId = trace.CreateChildContext(
-                parentContextId,
-                MobaTraceKind.DamageApply,
-                configId,
-                result.AttackerActorId,
-                result.TargetActorId);
-
-            if (contextId != 0L)
+            executionContext = default;
+            var contexts = _executionContexts;
+            if (contexts == null)
             {
-                trace.EndContext(contextId, TraceLifecycleReason.Completed);
+                throw new InvalidOperationException(
+                    "Damage execution requires MobaExecutionContextRegistry.");
+            }
+
+            var frame = _frameTime != null ? _frameTime.Frame.Value : parentContext.Frame;
+            var effectiveConfigId = configId != 0 ? configId : parentContext.ConfigId;
+            var node = contexts.Create(new MobaExecutionContextCreateRequest(
+                kind,
+                effectiveConfigId,
+                sourceActorId,
+                targetActorId,
+                parentContextId: parentContext.ParentContextId,
+                rootContextId: parentContext.RootContextId,
+                ownerContextId: parentContext.OwnerContextId,
+                frame: frame,
+                triggerId: parentContext.TriggerId,
+                originKind: ToExecutionKind(parentContext.OriginKind),
+                originConfigId: parentContext.ConfigId,
+                combatFlags: combatFacts.Flags));
+
+            var executionKind = NormalizeDamageExecutionKind(kind);
+            var handle = parentContext.SkillRuntimeHandle;
+            var origin = new MobaGameplayOrigin(
+                sourceActorId,
+                targetActorId,
+                executionKind,
+                effectiveConfigId,
+                node.ContextId,
+                node.ContextId,
+                node.RootContextId,
+                node.OwnerContextId,
+                handle);
+            var lineage = new MobaEffectLineageInput(
+                EffectContextKind.Trigger,
+                executionKind,
+                sourceActorId,
+                targetActorId,
+                node.ContextId,
+                node.RootContextId,
+                node.OwnerContextId,
+                effectiveConfigId);
+            var snapshot = new MobaTriggerExecutionSnapshot(
+                EffectContextKind.Trigger,
+                sourceActorId,
+                targetActorId,
+                node.ContextId,
+                node.RootContextId,
+                node.OwnerContextId,
+                parentContext.TriggerId,
+                effectiveConfigId,
+                frame,
+                handle);
+            executionContext = new MobaCombatExecutionContext(
+                null,
+                lineage,
+                origin,
+                snapshot,
+                handle,
+                frame,
+                combatFacts);
+            return node;
+        }
+
+        private void EndDamageExecution(in MobaExecutionContextNode node, bool succeeded)
+        {
+            if (node.ContextId == 0L) return;
+            _executionContexts?.End(
+                node.ContextId,
+                (int)(succeeded ? MobaExecutionEndReason.Completed : MobaExecutionEndReason.Failed),
+                _frameTime != null ? _frameTime.Frame.Value : node.CreatedFrame);
+        }
+
+        private static MobaExecutionKind ToExecutionKind(MobaExecutionKind kind)
+        {
+            switch (kind)
+            {
+                case MobaExecutionKind.SkillCast: return MobaExecutionKind.SkillCast;
+                case MobaExecutionKind.SkillEffect: return MobaExecutionKind.SkillEffect;
+                case MobaExecutionKind.SkillPhase: return MobaExecutionKind.SkillPhase;
+                case MobaExecutionKind.EffectExecution: return MobaExecutionKind.EffectExecution;
+                case MobaExecutionKind.EffectAction: return MobaExecutionKind.EffectAction;
+                case MobaExecutionKind.BuffApply: return MobaExecutionKind.BuffApply;
+                case MobaExecutionKind.BuffTick: return MobaExecutionKind.BuffTick;
+                case MobaExecutionKind.BuffRemove: return MobaExecutionKind.BuffRemove;
+                case MobaExecutionKind.ProjectileLaunch: return MobaExecutionKind.ProjectileLaunch;
+                case MobaExecutionKind.ProjectileHit: return MobaExecutionKind.ProjectileHit;
+                case MobaExecutionKind.AreaSpawn: return MobaExecutionKind.AreaSpawn;
+                case MobaExecutionKind.AreaEnter: return MobaExecutionKind.AreaEnter;
+                case MobaExecutionKind.AreaExit: return MobaExecutionKind.AreaExit;
+                case MobaExecutionKind.AreaExpire: return MobaExecutionKind.AreaExpire;
+                case MobaExecutionKind.AreaStay: return MobaExecutionKind.AreaStay;
+                case MobaExecutionKind.SummonSpawn: return MobaExecutionKind.SummonSpawn;
+                case MobaExecutionKind.SummonDeath: return MobaExecutionKind.SummonDeath;
+                case MobaExecutionKind.UnitSpawn: return MobaExecutionKind.UnitSpawn;
+                case MobaExecutionKind.UnitDespawn: return MobaExecutionKind.UnitDespawn;
+                case MobaExecutionKind.UnitDeath: return MobaExecutionKind.UnitDeath;
+                case MobaExecutionKind.UnitRespawn: return MobaExecutionKind.UnitRespawn;
+                case MobaExecutionKind.DamageAttack: return MobaExecutionKind.DamageAttack;
+                case MobaExecutionKind.DamageCalc: return MobaExecutionKind.DamageCalc;
+                case MobaExecutionKind.DamageApply: return MobaExecutionKind.DamageApply;
+                case MobaExecutionKind.PresentationPlay: return MobaExecutionKind.PresentationPlay;
+                case MobaExecutionKind.PresentationStop: return MobaExecutionKind.PresentationStop;
+                default: return MobaExecutionKind.None;
+            }
+        }
+
+        private static MobaExecutionKind NormalizeDamageExecutionKind(MobaExecutionKind kind)
+        {
+            switch (kind)
+            {
+                case MobaExecutionKind.DamageAttack: return MobaExecutionKind.DamageAttack;
+                case MobaExecutionKind.DamageCalc: return MobaExecutionKind.DamageCalc;
+                case MobaExecutionKind.DamageApply: return MobaExecutionKind.DamageApply;
+                default: return MobaExecutionKind.None;
             }
         }
 

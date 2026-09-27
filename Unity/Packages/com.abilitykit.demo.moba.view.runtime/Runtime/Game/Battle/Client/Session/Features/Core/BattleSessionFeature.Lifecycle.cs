@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle.Shared.Assets;
@@ -16,6 +17,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
+            _featureLifecycle.Attach();
             TryInstallUnityLogSinkIfNeeded();
 
             _phaseCtx = ctx;
@@ -60,30 +62,39 @@ namespace AbilityKit.Game.Flow
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            var detachContext = ctx;
-            Battle.Replay.BattleReplayControlProvider.Withdraw(
-                _plan.World.WorldId,
-                this);
-            if (ReferenceEquals(Battle.Replay.BattleReplayControlProvider.Current, this))
+            var detachTask = DetachAsync(ctx);
+            if (!detachTask.IsCompleted)
             {
-                Battle.Replay.BattleReplayControlProvider.Current = null;
+                _ = ObserveDetachFailureAsync(detachTask);
+                return;
             }
 
-            try
+            if (detachTask.IsCanceled)
             {
-                DetachAsync(detachContext).GetAwaiter().GetResult();
+                throw new TaskCanceledException(detachTask);
             }
-            finally
+
+            if (detachTask.IsFaulted)
             {
-                _ctx = null;
-                _flow = null;
-                _phaseCtx = default;
+                var exception = detachTask.Exception;
+                if (exception.InnerExceptions.Count == 1)
+                {
+                    ExceptionDispatchInfo.Capture(exception.InnerExceptions[0]).Throw();
+                }
+
+                throw exception;
             }
         }
 
-        private Task DetachAsync(GamePhaseContext detachContext)
+        public Task DetachAsync(GamePhaseContext detachContext) =>
+            _featureLifecycle.DetachAsync(detachContext);
+
+        private AsyncSessionTeardownStep[] CreateTeardownSteps(
+            GamePhaseContext detachContext)
         {
-            return SessionTeardownPolicy.ExecuteAsync(
+            return new[]
+            {
+                new AsyncSessionTeardownStep("replay control", WithdrawReplayControl),
                 new AsyncSessionTeardownStep(
                     "sub-features",
                     () => _subFeatureHost?.Detach(new FeatureModuleContext<BattleSessionFeature>(detachContext, this))),
@@ -99,7 +110,39 @@ namespace AbilityKit.Game.Flow
                 new AsyncSessionTeardownStep("input context", () => _runtime.UnbindContext(_ctx)),
                 new AsyncSessionTeardownStep("asset load port", () => UnpublishAssetLoadPort(detachContext)),
                 new AsyncSessionTeardownStep("session diagnostics", _runtime.Diagnostics.Dispose),
-                new AsyncSessionTeardownStep("asset lease", _runtime.Assets.Dispose));
+                new AsyncSessionTeardownStep("asset lease", _runtime.Assets.Dispose),
+                new AsyncSessionTeardownStep("feature references", ClearFeatureReferences),
+            };
+        }
+
+        private void WithdrawReplayControl()
+        {
+            Battle.Replay.BattleReplayControlProvider.Withdraw(
+                _plan.World.WorldId,
+                this);
+            if (ReferenceEquals(Battle.Replay.BattleReplayControlProvider.Current, this))
+            {
+                Battle.Replay.BattleReplayControlProvider.Current = null;
+            }
+        }
+
+        private void ClearFeatureReferences()
+        {
+            _ctx = null;
+            _flow = null;
+            _phaseCtx = default;
+        }
+
+        private static async Task ObserveDetachFailureAsync(Task detachTask)
+        {
+            try
+            {
+                await (detachTask ?? Task.CompletedTask);
+            }
+            catch (Exception exception)
+            {
+                Log.Exception(exception, "[BattleSessionFeature] Asynchronous detach failed");
+            }
         }
 
         internal void AdoptAssetLease(IBattleAssetLease lease) =>

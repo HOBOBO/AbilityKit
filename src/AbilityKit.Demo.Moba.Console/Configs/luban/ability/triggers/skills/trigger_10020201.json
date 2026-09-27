@@ -1,0 +1,28 @@
+{
+  "triggers": [
+    {
+      "id": 10020201,
+      "name": "小乔-甜蜜恋风-生成区域",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "spawn_area",
+          "area_id": 40020201,
+          "position_mode": 2,
+          "radius": 4,
+          "duration_ms": 1000
+        },
+        {
+          "type": "debug_log",
+          "message": "小乔二技能：生成击飞区域",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

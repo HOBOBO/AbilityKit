@@ -13,6 +13,32 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 [Trait("Gate", "BattleFlow")]
 public sealed class BattleFlowRealSkillTests
 {
+    [Theory]
+    [InlineData(1001, 10010101)]
+    [InlineData(1002, 10020101)]
+    [InlineData(1003, 10030101)]
+    [InlineData(1004, 10040101)]
+    [InlineData(1005, 10050101)]
+    [InlineData(1006, 10060101)]
+    public void Luban_six_heroes_spawn_and_cast_first_skill(int heroId, int skillId)
+    {
+        var scenario = BattleFlowCompiler.Compile($"luban-hero-{heroId}", new BattleBlock[]
+        {
+            new SpawnActorBlock { Alias = "caster", HeroId = heroId, AttributeTemplateId = heroId,
+                PlayerId = "player_1", Position = new TestVector3(0, 0, 0) },
+            new SpawnActorBlock { Alias = "target", HeroId = 1001, AttributeTemplateId = 1001,
+                TeamId = 2, Position = new TestVector3(6, 0, 0) },
+            new TimelineStepBlock { AtMs = 100, Action = "cast_skill", ActorAlias = "caster", TargetAlias = "target", Slot = 1 },
+            new AssertionsBlock(new MobaBattleFlowAssertions
+            {
+                MustContain = { new MobaTraceAssertion { Kind = "SkillCast", ConfigId = skillId } },
+            }),
+        });
+
+        var result = MobaBattleFlowScenarioRunner.Run(scenario);
+        Assert.True(result.Passed, result.Summary);
+    }
+
     [Fact]
     public void Run_RealHeroWithLoadout_CastsRealSkillAndReadsState()
     {

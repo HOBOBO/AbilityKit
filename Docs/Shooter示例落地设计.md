@@ -109,7 +109,7 @@ catchUpFrames = targetFrame - snapshot.Frame
 ### 预测回滚类型边界
 
 - 快照型回滚：用于玩家、子弹、血量、分数、当前帧等纯逻辑状态。Shooter 使用 `ShooterPackedSnapshotRollbackProvider` 包装 `ExportPackedSnapshotBytes` / `ImportPackedSnapshotBytes`，预测 tick 后写入本地 rollback ring buffer，收到权威快照后导入权威状态并重放未确认输入。
-- 命令补偿型回滚：用于不适合进入纯状态快照的可逆副作用，例如预测创建表现对象、播放一次性表现事件、注册外部资源或维护事件日志。框架提供 `IRollbackCommand`、`CommandRollbackLog` 和 `CommandRollbackStateProvider`，按帧记录补偿动作，恢复到目标帧时从新到旧执行补偿。
+- 命令补偿型回滚：用于不适合进入纯状态快照的可逆副作用，例如预测创建表现对象、注册外部资源或维护结构关系。框架通过 `CommandRollbackLog` 记录 `CommandType + PayloadVersion + byte[] Payload`，由密封的 `RollbackCommandHandlerRegistry` 分派稳定 Handler；`CommandRollbackStateProvider` 在快照中保存精确 Journal Checkpoint，恢复时预检完整命令后按 Order 逆序执行。命令不得捕获运行时对象闭包，一次性表现事件还应配合 PredictionKey 去重/取消。
 - 两类机制可以同时注册到 `RollbackRegistry`。纯逻辑状态优先走快照型 provider，副作用和命令生命周期走命令补偿日志，避免把表现副作用混入战斗状态快照。
 
 ### 推荐落地顺序

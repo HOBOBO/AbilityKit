@@ -75,9 +75,7 @@ namespace AbilityKit.Demo.Moba.Share
             for (int i = 0; i < events.Count; i++)
             {
                 var evt = events[i];
-                OnProjectileEvent(evt.ProjectileId, evt.OwnerId, evt.Kind, evt.TargetId,
-                    evt.PositionX, evt.PositionY, evt.PositionZ,
-                    evt.StartPosX, evt.StartPosY, evt.StartPosZ);
+                OnProjectileEvent(in evt);
             }
 
             LastProcessedFrame = snapshot.FrameIndex;
@@ -97,7 +95,7 @@ namespace AbilityKit.Demo.Moba.Share
             for (int i = 0; i < events.Count; i++)
             {
                 var evt = events[i];
-                OnAreaEvent(evt.AreaId, evt.Kind, evt.CenterX, evt.CenterY, evt.CenterZ, evt.Radius);
+                OnAreaEvent(in evt);
             }
 
             LastProcessedFrame = snapshot.FrameIndex;
@@ -176,6 +174,46 @@ namespace AbilityKit.Demo.Moba.Share
         }
 
         /// <summary>
+        /// Handles actor removal snapshots.
+        /// </summary>
+        public virtual void OnActorDespawnSnapshot(in FrameSnapshotData snapshot)
+        {
+            if (snapshot.ActorDespawns == null || snapshot.ActorDespawns.Count == 0)
+            {
+                return;
+            }
+
+            var despawns = snapshot.ActorDespawns;
+            for (int i = 0; i < despawns.Count; i++)
+            {
+                var despawn = despawns[i];
+                OnActorDespawn(in despawn);
+            }
+
+            LastProcessedFrame = snapshot.FrameIndex;
+        }
+
+        /// <summary>
+        /// Handles skill presentation state snapshots.
+        /// </summary>
+        public virtual void OnSkillStateSnapshot(in FrameSnapshotData snapshot)
+        {
+            if (snapshot.SkillStates == null || snapshot.SkillStates.Count == 0)
+            {
+                return;
+            }
+
+            var states = snapshot.SkillStates;
+            for (int i = 0; i < states.Count; i++)
+            {
+                var state = states[i];
+                OnSkillState(in state);
+            }
+
+            LastProcessedFrame = snapshot.FrameIndex;
+        }
+
+        /// <summary>
         /// 处理触发器事件
         /// </summary>
         public virtual void OnTriggerEvent(in TriggerEventData evt)
@@ -220,13 +258,12 @@ namespace AbilityKit.Demo.Moba.Share
         /// <summary>
         /// 弹道事件处理（子类实现）
         /// </summary>
-        protected abstract void OnProjectileEvent(int projectileId, int ownerId, ProjectileEventKind kind, int targetId,
-            float x, float y, float z, float startX, float startY, float startZ);
+        protected abstract void OnProjectileEvent(in ProjectileEventData data);
 
         /// <summary>
         /// 区域事件处理（子类实现）
         /// </summary>
-        protected abstract void OnAreaEvent(int areaId, AreaEventKind kind, float x, float y, float z, float radius);
+        protected abstract void OnAreaEvent(in AreaEventData data);
 
         /// <summary>
         /// 伤害事件处理（子类实现）
@@ -249,5 +286,19 @@ namespace AbilityKit.Demo.Moba.Share
         /// 角色生成处理（子类实现）
         /// </summary>
         protected abstract void OnActorSpawn(in ActorSpawnData data);
+
+        /// <summary>
+        /// Actor removal handling for platform implementations.
+        /// </summary>
+        protected virtual void OnActorDespawn(in ActorDespawnData data)
+        {
+        }
+
+        /// <summary>
+        /// Skill state handling for platform implementations.
+        /// </summary>
+        protected virtual void OnSkillState(in SkillStateData data)
+        {
+        }
     }
 }

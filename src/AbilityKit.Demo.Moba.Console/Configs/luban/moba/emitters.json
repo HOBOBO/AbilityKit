@@ -1,0 +1,34 @@
+[
+  {
+    "Id": 1,
+    "CenterMode": 0,
+    "CountPerShot": 1,
+    "DelayMs": 0,
+    "DurationMs": 0,
+    "EmitKind": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "发射器1",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "TemplateId": 1,
+    "TotalCount": 1
+  },
+  {
+    "Id": 2,
+    "CenterMode": 0,
+    "CountPerShot": 1,
+    "DelayMs": 0,
+    "DurationMs": 0,
+    "EmitKind": 1,
+    "FanAngleDeg": 90,
+    "IntervalMs": 0,
+    "Name": "发射器2-扇形",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "TemplateId": 2,
+    "TotalCount": 5
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "name": "AbilityKit.Demo.Tiny.Turn.Network.PlayMode.Tests",
+  "rootNamespace": "AbilityKit.Demo.Tiny.Turn.Tests",
+  "references": [
+    "AbilityKit.Demo.Tiny.Turn.View",
+    "AbilityKit.Demo.Tiny.Turn.Logic",
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Network.Room",
+    "AbilityKit.Network.Runtime",
+    "AbilityKit.Protocol.Room"
+  ],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

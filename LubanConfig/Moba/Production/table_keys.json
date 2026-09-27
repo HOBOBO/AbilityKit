@@ -1,0 +1,13 @@
+{
+  "effects": "Id",
+  "brains": "BrainId",
+  "actor_state_machines": "RowId",
+  "attributetemplates": "Code",
+  "battle_start": "RowId",
+  "character_hfsm": "RowId",
+  "character_view_actions": "RowId",
+  "demo_tbitem": "id",
+  "dtbuff": "Id",
+  "effect_plans": "RowId",
+  "ongoing_effects": "Id"
+}

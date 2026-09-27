@@ -19,6 +19,10 @@ namespace AbilityKit.Game.Flow
         private readonly int _maxSize;
         private readonly Dictionary<int, ObjectPool<GameObject>> _pools = new Dictionary<int, ObjectPool<GameObject>>(32);
         private readonly HashSet<int> _failedTemplateIds = new HashSet<int>();
+        private readonly HashSet<GameObject> _leased = new HashSet<GameObject>();
+        private readonly BattleViewPoolMetricsTracker _metrics = new BattleViewPoolMetricsTracker();
+
+        public BattleViewPoolMetrics Metrics => _metrics.Capture(_pools.Values, _leased.Count);
         private readonly BattleViewHierarchyManager _hierarchy;
 
         /// <param name="factory">Creates a fresh projectile shell GameObject for the given projectileTemplateId.</param>
@@ -50,20 +54,35 @@ namespace AbilityKit.Game.Flow
         public bool TryRent(int projectileTemplateId, out GameObject instance)
         {
             instance = null;
-            if (projectileTemplateId <= 0) return false;
-            if (_failedTemplateIds.Contains(projectileTemplateId)) return false;
+            if (projectileTemplateId <= 0 || _failedTemplateIds.Contains(projectileTemplateId))
+            {
+                _metrics.RecordFailure();
+                return false;
+            }
 
             try
             {
                 var pool = GetOrCreateBucket(projectileTemplateId);
                 instance = pool.Get();
+                if (instance != null)
+                {
+                    _leased.Add(instance);
+                    _metrics.ObserveActive(_leased.Count);
+                }
+                else _metrics.RecordFailure();
                 return instance != null;
             }
             catch (InvalidOperationException ex)
             {
                 _failedTemplateIds.Add(projectileTemplateId);
+                _metrics.RecordFailure();
                 Debug.LogException(ex);
                 return false;
+            }
+            catch (Exception)
+            {
+                _metrics.RecordFailure();
+                throw;
             }
         }
 
@@ -91,9 +110,21 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         public void Return(int projectileTemplateId, GameObject instance)
         {
-            if (instance == null || projectileTemplateId <= 0) return;
-            if (!_pools.TryGetValue(projectileTemplateId, out var pool)) return;
+            TryReturn(projectileTemplateId, instance);
+        }
+
+        public bool TryReturn(int projectileTemplateId, GameObject instance)
+        {
+            if (instance == null || projectileTemplateId <= 0 ||
+                BattleProjectilePoolableTag.ReadTemplateId(instance) != projectileTemplateId || !_leased.Contains(instance) ||
+                !_pools.TryGetValue(projectileTemplateId, out var pool))
+            {
+                _metrics.RecordFailure();
+                return false;
+            }
             pool.Release(instance);
+            _leased.Remove(instance);
+            return true;
         }
 
         /// <summary>
@@ -101,10 +132,13 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         public void Clear()
         {
+            _metrics.RecordClear(_pools.Values, _leased.Count);
             foreach (var kvp in _pools)
             {
                 kvp.Value.Clear(destroy: true);
             }
+            foreach (var instance in _leased) DestroySafely(instance);
+            _leased.Clear();
             _pools.Clear();
             _failedTemplateIds.Clear();
         }

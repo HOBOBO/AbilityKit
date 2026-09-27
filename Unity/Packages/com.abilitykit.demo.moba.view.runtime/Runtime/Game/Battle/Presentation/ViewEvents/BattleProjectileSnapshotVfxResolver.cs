@@ -1,4 +1,4 @@
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;
 
@@ -24,7 +24,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _specs = specs ?? new BattleProjectileVfxSpawnSpecFactory();
         }
 
-        public bool TryResolve(in MobaProjectileEventSnapshotEntry entry, out BattleProjectileVfxSpawnSpec spec)
+        public bool TryResolve(in ProjectileEventData entry, out BattleProjectileVfxSpawnSpec spec)
         {
             spec = default;
 
@@ -51,7 +51,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
     internal sealed class BattleProjectileSnapshotPositionResolver
     {
-        public Vector3 Resolve(in MobaProjectileEventSnapshotEntry entry)
+        public Vector3 Resolve(in ProjectileEventData entry)
         {
             return new BattleProjectileVfxResolver().ResolveSnapshotPosition(entry.X, entry.Y, entry.Z);
         }

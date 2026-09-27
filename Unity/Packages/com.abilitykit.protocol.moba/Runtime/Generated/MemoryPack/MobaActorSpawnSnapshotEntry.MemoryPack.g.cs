@@ -30,5 +30,8 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(6)]
         public float Z;
 
+        [MemoryPackOrder(7)]
+        public int EntityVersion;
+
     }
 }

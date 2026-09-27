@@ -1,6 +1,4 @@
-using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.World.ECS;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;
@@ -138,14 +136,15 @@ namespace AbilityKit.Game.Flow
                 ? _ctx.Plan.World.WorldId
                 : launchSpec.WorldId;
 
-            var res = new EnterMobaGameRes(
-                new WorldId(worldId),
-                launchSpec.LocalPlayerId,
+            var res = new BattleEnterGameSnapshot(
+                worldId,
+                launchSpec.LocalPlayerId.Value,
                 _session.LocalActorId,
                 launchSpec.RandomSeed,
                 launchSpec.TickRate,
                 launchSpec.InputDelayFrames,
-                playersLoadout: _ctx.BuildEffectivePlayerLoadouts());
+                playersLoadout: BattleEnterGameSnapshotMapper.MapLoadouts(
+                    _ctx.BuildEffectivePlayerLoadouts()));
 
             ApplySkillButtonTemplates(res);
         }
@@ -169,15 +168,15 @@ namespace AbilityKit.Game.Flow
             _snapshotController.Bind(_ctx, OnEnterGameSnapshot, OnDamageEventSnapshot, OnSkillStateSnapshot, OnPresentationCueSnapshot);
         }
 
-        private void OnEnterGameSnapshot(EnterMobaGameRes res)
+        private void OnEnterGameSnapshot(BattleEnterGameSnapshot res)
         {
             if (_ctx == null) return;
             SynchronizeSessionFromContext();
-            _session.ApplyEnterGameSnapshot(res.PlayerId.Value, res.LocalActorId);
+            _session.ApplyEnterGameSnapshot(res.PlayerId, res.LocalActorId);
             PublishLocalActorId();
 
             if (!_session.ShouldUseEnterGameLoadout(
-                    res.PlayerId.Value,
+                    res.PlayerId,
                     !string.IsNullOrEmpty(_ctx.LocalControlPlayerId)))
             {
                 ApplyLaunchSpecSkillTemplates();
@@ -187,7 +186,7 @@ namespace AbilityKit.Game.Flow
             ApplySkillButtonTemplates(res);
         }
 
-        private void ApplySkillButtonTemplates(EnterMobaGameRes res)
+        private void ApplySkillButtonTemplates(BattleEnterGameSnapshot res)
         {
             if (_inputController == null ||
                 !_inputController.ApplySkillButtonTemplates(res, _session.LocalPlayerId))
@@ -199,17 +198,17 @@ namespace AbilityKit.Game.Flow
             _aimPreview?.SetSkillSpecs(_inputController.SkillSpecs);
         }
 
-        private void OnDamageEventSnapshot(MobaDamageEventSnapshotEntry[] entries)
+        private void OnDamageEventSnapshot(DamageEventData[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             _binder?.OnDamageEvents(entries);
         }
 
-        private void OnSkillStateSnapshot(MobaSkillStateSnapshotEntry[] entries)
+        private void OnSkillStateSnapshot(SkillStateData[] entries)
         {
             if (_ctx == null || entries == null || entries.Length == 0) return;
             SynchronizeSessionFromContext();
-            System.Predicate<MobaSkillStateSnapshotEntry> matchesLoadout = null;
+            System.Predicate<SkillStateData> matchesLoadout = null;
             if (_inputController != null)
             {
                 matchesLoadout = _inputController.SkillStateMatchesTemplate;
@@ -223,7 +222,7 @@ namespace AbilityKit.Game.Flow
             _inputController?.ApplySkillStates(entries, localActorId);
         }
 
-        private void OnPresentationCueSnapshot(MobaPresentationCueSnapshotEntry[] entries)
+        private void OnPresentationCueSnapshot(PresentationCueData[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             _binder?.OnPresentationCues(entries);

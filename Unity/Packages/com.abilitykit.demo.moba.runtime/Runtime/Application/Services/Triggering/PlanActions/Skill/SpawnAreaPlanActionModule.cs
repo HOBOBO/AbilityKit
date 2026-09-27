@@ -2,7 +2,6 @@ using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Combat.Projectile;
-using AbilityKit.Trace;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Area;
@@ -45,14 +44,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var input = MobaPlanActionInputAssembler.AssembleSummon(in coreInput, ctx);
             var effectInput = new MobaEffectActionInput(in coreInput);
             LogInvestigation(ctx,
-                $"resolved input caster={input.CasterActorId} hasCaster={input.HasCasterActor} target={input.TargetActorId} hasTarget={input.HasTargetActor} hasTraceScope={input.HasTraceScope} hasAimPos={input.HasAimPosition} hasAimDir={input.HasAimDirection} hasTargetRequest={args.HasTargetRequest}");
+                $"resolved input caster={input.CasterActorId} hasCaster={input.HasCasterActor} target={input.TargetActorId} hasTarget={input.HasTargetActor} hasExecutionScope={input.HasExecutionScope} hasAimPos={input.HasAimPosition} hasAimDir={input.HasAimDirection} hasTargetRequest={args.HasTargetRequest}");
             if (!input.HasCasterActor)
             {
                 LogRejected(ctx, "requires caster actor.");
                 return;
             }
 
-            if (!TryResolveRuntimeDependencies(ctx.Context, out var areaRuntime, out var trace, out var dependencyFailure))
+            if (!TryResolveRuntimeDependencies(ctx.Context, out var areaRuntime, out var executionContexts, out var dependencyFailure))
             {
                 LogRejected(ctx, dependencyFailure);
                 return;
@@ -79,7 +78,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 center = center + offset;
                 LogInvestigation(ctx,
                     $"resolved area params center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} stayIntervalFrames={stayIntervalFrames} delayFrames={delayFrames} collisionMask={collisionLayerMask} frame={frame}");
-                if (SpawnOneArea(projectiles, areaRuntime, trace, args, aoe, input, ctx, in center, input.TargetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId) &&
+                if (SpawnOneArea(projectiles, areaRuntime, executionContexts, args, aoe, input, ctx, in center, input.TargetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId) &&
                     (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, runtimeAreaId, out var outputError) ||
                      !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, 1, out outputError)))
                 {
@@ -117,7 +116,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     center = center + offset;
                     LogInvestigation(ctx,
                         $"resolved target area params target={targetActorId} center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} stayIntervalFrames={stayIntervalFrames} delayFrames={delayFrames} collisionMask={collisionLayerMask} frame={frame}");
-                    if (SpawnOneArea(projectiles, areaRuntime, trace, args, aoe, input, ctx, in center, targetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId))
+                    if (SpawnOneArea(projectiles, areaRuntime, executionContexts, args, aoe, input, ctx, in center, targetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId))
                     {
                         if (firstRuntimeAreaId == 0) firstRuntimeAreaId = runtimeAreaId;
                         spawned++;
@@ -143,7 +142,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         private bool SpawnOneArea(
             IProjectileService projectiles,
             MobaAreaRuntimeService areaRuntime,
-            MobaTraceRegistry trace,
+            MobaExecutionContextRegistry executionContexts,
             SpawnAreaArgs args,
             AoeMO aoe,
             MobaSummonActionInput input,
@@ -159,7 +158,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             out int runtimeAreaId)
         {
             runtimeAreaId = 0;
-            var origin = input.BuildOrigin(input.CasterActorId, targetActorId, MobaTraceKind.AreaSpawn, args.AreaId);
+            var origin = input.BuildOrigin(input.CasterActorId, targetActorId, MobaExecutionKind.AreaSpawn, args.AreaId);
             var skillRuntimeHandle = origin.SkillRuntimeHandle;
             LogInvestigation(ctx,
                 $"resolved origin immediate={origin.ImmediateContextId} parent={origin.EffectiveParentContextId} root={origin.EffectiveRootContextId} owner={origin.OwnerContextId} target={targetActorId}");
@@ -170,18 +169,20 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return false;
             }
 
-            var sourceContextId = trace.CreateChildContext(
-                origin.EffectiveParentContextId,
-                MobaTraceKind.AreaSpawn,
+            var areaNode = executionContexts.Create(new MobaExecutionContextCreateRequest(
+                MobaExecutionKind.AreaSpawn,
                 args.AreaId,
                 input.CasterActorId,
                 targetActorId,
-                TraceEndpoint.Config(MobaRuntimeKindNames.Area, args.AreaId),
-                TraceEndpoint.Actor(targetActorId));
+                origin.EffectiveParentContextId,
+                origin.EffectiveRootContextId,
+                origin.OwnerContextId,
+                frame));
+            var sourceContextId = areaNode.ContextId;
             if (sourceContextId == 0L)
             {
-                AbilityKit.Core.Logging.Log.Warning($"[SpawnAreaPlanActionModule] rejected area trace creation failed areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} parent={origin.EffectiveParentContextId}");
-                LogRejected(ctx, $"area trace creation failed. areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId}");
+                AbilityKit.Core.Logging.Log.Warning($"[SpawnAreaPlanActionModule] rejected area context creation failed areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} parent={origin.EffectiveParentContextId}");
+                LogRejected(ctx, $"area context creation failed. areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId}");
                 return false;
             }
 
@@ -193,7 +194,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 : sourceContextId;
 
             LogInvestigation(ctx,
-                $"resolved area trace source={sourceContextId} parent={origin.EffectiveParentContextId} root={rootContextId} owner={ownerContextId} target={targetActorId}");
+                $"resolved area context source={sourceContextId} parent={origin.EffectiveParentContextId} root={rootContextId} owner={ownerContextId} target={targetActorId}");
 
             var spawnParams = new AreaSpawnParams(input.CasterActorId, in center, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames);
             var areaId = projectiles.SpawnArea(in spawnParams, frame);
@@ -201,7 +202,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 if (sourceContextId != 0L)
                 {
-                    trace.EndContext(sourceContextId, TraceLifecycleReason.Failed);
+                    executionContexts.End(sourceContextId, (int)MobaExecutionEndReason.Failed, frame);
                 }
 
                 AbilityKit.Core.Logging.Log.Warning($"[SpawnAreaPlanActionModule] rejected spawn failed areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} collisionMask={collisionLayerMask} frame={frame}");
@@ -232,11 +233,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 projectiles.DespawnArea(areaId, frame);
                 try
                 {
-                    trace.EndContext(sourceContextId, TraceLifecycleReason.Failed);
+                    executionContexts.End(sourceContextId, (int)MobaExecutionEndReason.Failed, frame);
                 }
                 catch (Exception cleanupEx)
                 {
-                    AbilityKit.Core.Logging.Log.Exception(cleanupEx, $"[SpawnAreaPlanActionModule] end area trace failed during spawn rollback. areaId={areaId.Value} sourceContextId={sourceContextId}");
+                    AbilityKit.Core.Logging.Log.Exception(cleanupEx, $"[SpawnAreaPlanActionModule] end area context failed during spawn rollback. areaId={areaId.Value} sourceContextId={sourceContextId}");
                 }
 
                 AbilityKit.Core.Logging.Log.Exception(ex, $"[SpawnAreaPlanActionModule] register spawn failed and was rolled back. areaId={areaId.Value} templateId={args.AreaId} caster={input.CasterActorId} target={targetActorId}");
@@ -252,11 +253,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         internal static bool TryResolveRuntimeDependencies(
             IWorldResolver services,
             out MobaAreaRuntimeService areaRuntime,
-            out MobaTraceRegistry trace,
+            out MobaExecutionContextRegistry executionContexts,
             out string failure)
         {
             areaRuntime = null;
-            trace = null;
+            executionContexts = null;
             if (services == null)
             {
                 failure = "requires world services for area runtime registration.";
@@ -269,9 +270,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return false;
             }
 
-            if (!services.TryResolve(out trace) || trace == null)
+            if (!services.TryResolve(out executionContexts) || executionContexts == null)
             {
-                failure = "cannot resolve mandatory MobaTraceRegistry.";
+                failure = "cannot resolve mandatory MobaExecutionContextRegistry.";
                 return false;
             }
 

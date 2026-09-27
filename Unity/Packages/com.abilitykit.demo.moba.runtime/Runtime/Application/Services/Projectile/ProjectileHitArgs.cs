@@ -42,18 +42,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return false;
         }
 
-        public override bool TryGetTraceContext(out MobaTriggerTraceContext traceContext)
-        {
-            if (TryGetLineageContext(out var lineageContext))
-            {
-                traceContext = lineageContext.ToTraceContext();
-                return true;
-            }
-
-            traceContext = default;
-            return false;
-        }
-
         public override bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
             if (SourceContext.TryGetOrigin(out var sourceOrigin))

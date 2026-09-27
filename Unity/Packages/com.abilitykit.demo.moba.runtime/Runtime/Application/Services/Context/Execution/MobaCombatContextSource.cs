@@ -17,7 +17,7 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public MobaCombatContextSource(
             EffectContextKind contextKind,
-            MobaTraceKind traceKind,
+            MobaExecutionKind executionKind,
             int sourceActorId,
             int targetActorId,
             long sourceContextId,
@@ -32,7 +32,7 @@ namespace AbilityKit.Demo.Moba.Services
             bool hasLiveRuntime = false)
         {
             ContextKind = contextKind;
-            TraceKind = traceKind;
+            ExecutionKind = executionKind;
             SourceActorId = sourceActorId;
             TargetActorId = targetActorId;
             SourceContextId = sourceContextId;
@@ -49,8 +49,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         /// <summary>归一化后的来源执行类型。</summary>
         public EffectContextKind ContextKind { get; }
-        /// <summary>与来源数据关联的溯源种类。</summary>
-        public MobaTraceKind TraceKind { get; }
+        /// <summary>与来源数据关联的执行种类。</summary>
+        public MobaExecutionKind ExecutionKind { get; }
         /// <summary>产生该来源数据的源角色。</summary>
         public int SourceActorId { get; }
         /// <summary>来源数据所指向的目标角色。</summary>
@@ -77,7 +77,7 @@ namespace AbilityKit.Demo.Moba.Services
         public bool HasLiveRuntime { get; }
 
         public bool IsValid => ContextKind != EffectContextKind.Unknown
-                               || TraceKind != MobaTraceKind.None
+                               || ExecutionKind != MobaExecutionKind.None
                                || SourceActorId != 0
                                || TargetActorId != 0
                                || SourceContextId != 0
@@ -94,7 +94,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             return new MobaTriggerLineageContext(
                 ContextKind,
-                TraceKind,
+                ExecutionKind,
                 SourceActorId,
                 TargetActorId,
                 SourceContextId,
@@ -131,7 +131,7 @@ namespace AbilityKit.Demo.Moba.Services
                 resolveKind,
                 boundary,
                 ContextKind,
-                TraceKind,
+                ExecutionKind,
                 SourceActorId,
                 TargetActorId,
                 SourceContextId,
@@ -155,7 +155,8 @@ namespace AbilityKit.Demo.Moba.Services
             var lineageInput = source.ToLineageContext().ToLineageInput();
             var origin = source.ToOrigin();
             var snapshot = source.ToExecutionSnapshot();
-            return new MobaCombatExecutionContext(payload, lineageInput, origin, snapshot, source.SkillRuntimeHandle, source.Frame);
+            var facts = MobaCombatExecutionFacts.Resolve(payload);
+            return new MobaCombatExecutionContext(payload, lineageInput, origin, snapshot, source.SkillRuntimeHandle, source.Frame, facts);
         }
 
         public static bool TryFromSource(object payload, out MobaCombatExecutionContext context)
@@ -191,7 +192,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             return new MobaCombatContextSource(
                 EffectContextKind.Skill,
-                MobaTraceKind.SkillCast,
+                MobaExecutionKind.SkillCast,
                 casterActorId,
                 targetActorId,
                 sourceContextId,

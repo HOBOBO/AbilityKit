@@ -288,7 +288,7 @@ namespace AbilityKit.Game.Tests
                 runtimeContextVersion: 3L,
                 originSourceActorId: 10,
                 originTargetActorId: 42,
-                originTraceKind: (int)MobaTraceKind.BuffApply,
+                originExecutionKind: (int)MobaExecutionKind.BuffApply,
                 originConfigId: 7001,
                 originImmediateContextId: 3002L,
                 originParentContextId: 3002L,
@@ -296,7 +296,7 @@ namespace AbilityKit.Game.Tests
                 originOwnerContextId: 3002L,
                 skillRuntimeId: 51L,
                 skillRuntimeGeneration: 4,
-                skillRuntimeRootTraceContextId: 3001L);
+                skillRuntimeRootContextId: 3001L);
             var runtime = new BuffRuntime();
 
             entry.ApplyTo(runtime);
@@ -305,7 +305,7 @@ namespace AbilityKit.Game.Tests
             Assert.That(runtime.ContextSource.HasLiveRuntime, Is.False);
             Assert.That(runtime.SkillRuntimeHandle.RuntimeId, Is.EqualTo(51L));
             Assert.That(runtime.SkillRuntimeHandle.Generation, Is.EqualTo(4));
-            Assert.That(runtime.SkillRuntimeHandle.RootTraceContextId, Is.EqualTo(3001L));
+            Assert.That(runtime.SkillRuntimeHandle.RootContextId, Is.EqualTo(3001L));
             Assert.That(runtime.SkillRuntimeRetainHandle.IsValid, Is.False);
         }
 

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Game.Battle;
 using AbilityKit.Core.Recording.FrameRecord;
@@ -47,15 +48,15 @@ namespace AbilityKit.Game.Flow
 
         private readonly SessionRuntimeResourcesPort _runtimeResourcesPort;
         private readonly SessionLifecycleHost _lifecycleHost;
-        private readonly TickLoopHost _tickLoopHost;
         private readonly SessionNetAdapterContextHost _netAdapterContextHost;
         private readonly SessionDispatchersController _dispatchers;
         private readonly SessionNetAdapterController _net;
         private readonly SessionReplayController _replayCtrl;
         private readonly SessionPlanController _planCtrl;
         private readonly SessionEventsController _eventsCtrl;
-        private readonly TickLoopController _tickLoop;
+        private readonly SessionTickLoopController _tickLoop;
         private readonly SessionWorldCatchUpController _worldCatchUp;
+        private readonly BattleSessionLifecycleController<GamePhaseContext> _featureLifecycle;
 
 #if UNITY_EDITOR
         private static bool _editorPlayModeHookInstalled;
@@ -93,13 +94,7 @@ namespace AbilityKit.Game.Flow
             _gatewayRoomClientFactory = gatewayRoomClientFactory ?? new DefaultBattleSessionGatewayRoomClientFactory();
             _sessionRegistry = sessionRegistry ?? new DefaultBattleLogicSessionRegistry();
             _runtime.ConfigureSimulation(worldInstaller ?? new DefaultBattleSessionWorldInstaller());
-            _runtime.ConfigureGatewayRoom(
-                _connectionRegistry,
-                _gatewayConnectionFactory,
-                _gatewayRoomClientFactory,
-                NetworkCondition);
-            _runtimeResourcesPort = new SessionRuntimeResourcesPort(
-                _runtime,
+            _runtime.ConfigureSimulationController(
                 () => _plan,
                 () => _ctx,
                 () => _flow,
@@ -107,6 +102,12 @@ namespace AbilityKit.Game.Flow
                 GetFixedDeltaSeconds,
                 ResolveIdealFrameLimit,
                 DestroyEntityTree);
+            _runtime.ConfigureGatewayRoom(
+                _connectionRegistry,
+                _gatewayConnectionFactory,
+                _gatewayRoomClientFactory,
+                NetworkCondition);
+            _runtimeResourcesPort = new SessionRuntimeResourcesPort(_runtime);
             _lifecycleHost = new SessionLifecycleHost(
                 _handles,
                 this,
@@ -118,12 +119,12 @@ namespace AbilityKit.Game.Flow
             _replayCtrl = new SessionReplayController();
             _planCtrl = new SessionPlanController();
             _eventsCtrl = new SessionEventsController();
-            _tickLoopHost = new TickLoopHost(
-                GetFixedDeltaSeconds,
-                TickRemoteDrivenLocalSim,
-                TickConfirmedAuthorityWorldSim,
-                TickRemoteInterpolation);
-            _tickLoop = new TickLoopController(_state, _handles, _tickLoopHost);
+            _featureLifecycle = new BattleSessionLifecycleController<GamePhaseContext>(
+                CreateTeardownSteps);
+            _tickLoop = new SessionTickLoopController(
+                _state.Tick,
+                this,
+                new StopwatchSessionTickClock());
             _netAdapterContextHost = new SessionNetAdapterContextHost(
                 () => _plan,
                 _handles,
@@ -202,6 +203,10 @@ namespace AbilityKit.Game.Flow
 
         private void StartSession() => _orchestrator.StartSession();
 
+        private Task StartSessionAsync() => _orchestrator.StartSessionAsync();
+
         private void StopSession() => _orchestrator.StopSession();
+
+        private Task StopSessionAsync() => _orchestrator.StopSessionAsync();
     }
 }

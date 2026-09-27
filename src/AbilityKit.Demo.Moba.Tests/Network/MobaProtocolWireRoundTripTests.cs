@@ -23,7 +23,12 @@ public sealed class MobaProtocolWireRoundTripTests
             aimPos: in aimPos,
             aimDir: in aimDir,
             opCode: 99,
-            payload: new byte[] { 3, 1, 4 });
+            payload: new byte[] { 3, 1, 4 },
+            predictionKey: 87,
+            targetFrame: 120,
+            inputSequence: 9004,
+            entityVersion: 2,
+            interruptEpoch: 3);
 
         var decodedInput = MemoryPackSerializer.Deserialize<SkillInputEvent>(
             MemoryPackSerializer.Serialize(input));
@@ -33,6 +38,11 @@ public sealed class MobaProtocolWireRoundTripTests
         Assert.Equal(input.AimPos, decodedInput.AimPos);
         Assert.Equal(input.AimDir, decodedInput.AimDir);
         Assert.Equal(input.Payload, decodedInput.Payload);
+        Assert.Equal(87, decodedInput.PredictionKey);
+        Assert.Equal(120, decodedInput.TargetFrame);
+        Assert.Equal(9004, decodedInput.InputSequence);
+        Assert.Equal(2, decodedInput.EntityVersion);
+        Assert.Equal(3, decodedInput.InterruptEpoch);
 
         var room = new MobaRoomSnapshot(
             12,
@@ -81,9 +91,10 @@ public sealed class MobaProtocolWireRoundTripTests
         var spawn = Assert.Single(MobaActorSpawnSnapshotCodec.Deserialize(
             MobaActorSpawnSnapshotCodec.Serialize(new[]
             {
-                new MobaActorSpawnSnapshotEntry(12, 1, 200, 11, 4f, 5f, 6f)
+                new MobaActorSpawnSnapshotEntry(12, 1, 200, 11, 4f, 5f, 6f, entityVersion: 3)
             })));
         Assert.Equal(200, spawn.Code);
+        Assert.Equal(3, spawn.EntityVersion);
 
         var despawn = Assert.Single(MobaActorDespawnSnapshotCodec.Deserialize(
             MobaActorDespawnSnapshotCodec.Serialize(new[]

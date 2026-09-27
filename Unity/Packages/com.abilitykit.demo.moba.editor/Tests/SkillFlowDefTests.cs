@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Editor;
+using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Share.Config;
 using NUnit.Framework;
@@ -12,6 +13,28 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 {
     public sealed class SkillFlowDefTests
     {
+        [Test]
+        public void LegacyJsonTagTemplates_MapConfiguredApplicationAndGrantTags()
+        {
+            var continuous = (ContinuousTagTemplateDTO[])LegacyJsonConfigGroupDeserializer.Instance.DeserializeFromText(
+                "[{\"Id\":10010001,\"ApplicationTags\":[\"State.SuperArmor\"]}]",
+                typeof(ContinuousTagTemplateDTO));
+            var tag = (TagTemplateDTO[])LegacyJsonConfigGroupDeserializer.Instance.DeserializeFromText(
+                "[{\"Id\":1,\"GrantTags\":[\"State.SuperArmor\"]}]",
+                typeof(TagTemplateDTO));
+
+            Assert.That(continuous[0].ApplicationTagNames, Is.EqualTo(new[] { "State.SuperArmor" }));
+            Assert.That(tag[0].GrantTagNames, Is.EqualTo(new[] { "State.SuperArmor" }));
+            var direct = (ContinuousTagTemplateDTO[])JsonNetMobaConfigDtoDeserializer.Instance.DeserializeDtoArray(
+                "[{\"Id\":10010001,\"ApplicationTags\":[\"State.SuperArmor\"]}]",
+                typeof(ContinuousTagTemplateDTO));
+            Assert.That(direct[0].ApplicationTagNames, Is.EqualTo(new[] { "State.SuperArmor" }));
+            var named = (ContinuousTagTemplateDTO[])JsonNetMobaConfigDtoDeserializer.Instance.DeserializeDtoArray(
+                "[{\"Id\":10010001,\"ApplicationTagNames\":[\"State.SuperArmor\"]}]",
+                typeof(ContinuousTagTemplateDTO));
+            Assert.That(named[0].ApplicationTagNames, Is.EqualTo(new[] { "State.SuperArmor" }));
+        }
+
         [Test]
         public void P1EconomyShowcase_DeserializesAndIsEditableAsSkillFlowAsset()
         {

@@ -510,6 +510,7 @@ public sealed class GatewayMultiplayerRoomSessionTests
     {
         return new MultiplayerRoomLaunchSpec
         {
+            AccountId = "owner-1",
             SessionToken = "token-1",
             Region = "dev",
             ServerId = "server-1",

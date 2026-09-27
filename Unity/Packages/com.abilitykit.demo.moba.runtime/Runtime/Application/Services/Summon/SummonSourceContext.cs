@@ -33,7 +33,7 @@ namespace AbilityKit.Demo.Moba.Services
                 : new MobaGameplayOrigin(
                     sourceActorId,
                     summonActorId,
-                    MobaTraceKind.SummonSpawn,
+                    MobaExecutionKind.SummonSpawn,
                     summonConfigId,
                     sourceContextId,
                     sourceContextId,
@@ -51,7 +51,7 @@ namespace AbilityKit.Demo.Moba.Services
                 : new MobaGameplayOrigin(
                     SourceActorId,
                     SummonActorId,
-                    MobaTraceKind.SummonSpawn,
+                    MobaExecutionKind.SummonSpawn,
                     SummonConfigId,
                     SourceContextId,
                     SourceContextId,
@@ -65,7 +65,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             lineageContext = new MobaTriggerLineageContext(
                 EffectContextKind.Summon,
-                MobaTraceKind.SummonSpawn,
+                MobaExecutionKind.SummonSpawn,
                 SourceActorId,
                 SummonActorId,
                 SourceContextId,
@@ -222,7 +222,7 @@ namespace AbilityKit.Demo.Moba.Services
                 _origin = MobaGameplayOriginBuilder.Create()
                     .FromOrigin(in _origin)
                     .WithActors(_sourceActorId, _summonActorId)
-                    .WithLifecycleNode(MobaTraceKind.SummonSpawn, _summonConfigId, sourceContextId)
+                    .WithLifecycleNode(MobaExecutionKind.SummonSpawn, _summonConfigId, sourceContextId)
                     .WithRootContext(_rootContextId)
                     .WithOwnerContext(_ownerContextId)
                     .WithSkillRuntimeIfMissing(in _skillRuntimeHandle)
@@ -242,7 +242,7 @@ namespace AbilityKit.Demo.Moba.Services
                 _origin = new MobaGameplayOrigin(
                     _sourceActorId,
                     _summonActorId,
-                    MobaTraceKind.SummonSpawn,
+                    MobaExecutionKind.SummonSpawn,
                     _summonConfigId,
                     _sourceContextId,
                     _sourceContextId,

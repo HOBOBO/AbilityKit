@@ -88,7 +88,8 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
             // 组合 _basePath 和路径
             var combined = Path.Combine(_basePath, normalizedPath);
             // 添加 .json 扩展名（文件名本身包含 .json）
-            if (!combined.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            if (!combined.EndsWith(".json", StringComparison.OrdinalIgnoreCase) &&
+                !combined.EndsWith(".bytes", StringComparison.OrdinalIgnoreCase))
             {
                 combined += ".json";
             }

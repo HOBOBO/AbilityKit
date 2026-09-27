@@ -6,6 +6,7 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Observability;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Observability;
+using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Trace;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Triggering.PlanActions;
@@ -63,17 +64,17 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                         new FixedRuntimeObjectKeyResolver(7, 3, 21, 5)
                 });
 
-            var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501, 7, 21);
+            var rootId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501, 7, 21);
             frameTime.StepTo(new FrameIndex(11), 0.02f);
-            var firstChildId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 502, 7, 21);
+            var firstChildId = registry.CreateObservationChild(rootId, MobaExecutionKind.SkillPhase, 502, 7, 21);
             registry.TrySetSkillPhaseLocation(firstChildId, 501, 7001, "cast.release");
-            var secondChildId = registry.CreateChildContext(rootId, MobaTraceKind.EffectExecution, 503, 8, 22);
+            var secondChildId = registry.CreateObservationChild(rootId, MobaExecutionKind.EffectExecution, 503, 8, 22);
             registry.TrySetEffectTrigger(secondChildId, 7003);
-            registry.TrySetEffectOrigin(secondChildId, MobaTraceKind.AreaStay, 601);
+            registry.TrySetEffectOrigin(secondChildId, MobaExecutionKind.AreaStay, 601);
             frameTime.StepTo(new FrameIndex(12), 0.02f);
-            var grandChildId = registry.CreateChildContext(firstChildId, MobaTraceKind.EffectAction, 504, 9, 23);
+            var grandChildId = registry.CreateObservationChild(firstChildId, MobaExecutionKind.EffectAction, 504, 9, 23);
             frameTime.StepTo(new FrameIndex(15), 0.02f);
-            registry.EndContext(grandChildId, TraceLifecycleReason.Completed);
+            registry.EndContext(grandChildId, MobaExecutionEndReason.Completed);
 
             var result = store.QueryTrace(1, rootId);
 
@@ -96,7 +97,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(result.Items[1].CastFlowId, Is.EqualTo(7001));
             Assert.That(result.Items[1].PhaseId, Is.EqualTo("cast.release"));
             Assert.That(result.Items[2].State, Is.EqualTo(BattleDiagnosticTraceNodeState.Ended));
-            Assert.That(result.Items[2].EndReason, Is.EqualTo(nameof(TraceLifecycleReason.Completed)));
+            Assert.That(result.Items[2].EndReason, Is.EqualTo(nameof(MobaExecutionEndReason.Completed)));
             Assert.That(result.Items[2].ActorId, Is.EqualTo(9));
             Assert.That(result.Items[2].SourceActorId, Is.EqualTo(9));
             Assert.That(result.Items[2].TargetActorId, Is.EqualTo(23));
@@ -117,7 +118,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(result.Items[3].TriggerDefinition.Kind,
                 Is.EqualTo(BattleDiagnosticDefinitionKind.Trigger));
             Assert.That(result.Items[3].HasOrigin, Is.True);
-            Assert.That(result.Items[3].OriginKind, Is.EqualTo((int)MobaTraceKind.AreaStay));
+            Assert.That(result.Items[3].OriginKind, Is.EqualTo((int)MobaExecutionKind.AreaStay));
             Assert.That(result.Items[3].OriginDefinition,
                 Is.EqualTo(BattleDiagnosticDefinitionReference.Create(BattleDiagnosticDefinitionKind.Area, 601)));
         }
@@ -128,10 +129,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var collector = MakeCollector();
             using var registry = new MobaTraceRegistry();
             registry.AttachDiagnosticCollector(collector);
-            var root = registry.CreateRootContext(MobaTraceKind.SkillCast, 501);
+            var root = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501);
             var boundary = registry.NextContextId;
-            var predictedChild = registry.CreateChildContext(root, MobaTraceKind.EffectExecution, 502);
-            var predictedRoot = registry.CreateRootContext(MobaTraceKind.SkillCast, 503);
+            var predictedChild = registry.CreateObservationChild(root, MobaExecutionKind.EffectExecution, 502);
+            var predictedRoot = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 503);
             var store = new MobaBattleDiagnosticTraceReadStore(registry, collector.Store);
             var before = store.QueryTrace(1, root);
             Assert.That(before.Items.Count, Is.EqualTo(2));
@@ -168,16 +169,16 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             var collector = MakeCollector();
             var registry = new MobaTraceRegistry();
-            var firstRootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501);
-            var firstChildId = registry.CreateChildContext(
+            var firstRootId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501);
+            var firstChildId = registry.CreateObservationChild(
                 firstRootId,
-                MobaTraceKind.SkillPhase,
+                MobaExecutionKind.SkillPhase,
                 502);
-            var secondRootId = registry.CreateRootContext(MobaTraceKind.EffectExecution, 503);
+            var secondRootId = registry.CreateObservationRoot(MobaExecutionKind.EffectExecution, 503);
             var store = new MobaBattleDiagnosticTraceReadStore(registry, collector.Store);
 
             var snapshot = store.CaptureTraceSnapshot();
-            registry.CreateChildContext(secondRootId, MobaTraceKind.EffectAction, 504);
+            registry.CreateObservationChild(secondRootId, MobaExecutionKind.EffectAction, 504);
 
             Assert.That(snapshot.Revision, Is.EqualTo(3));
             Assert.That(snapshot.IsStable, Is.True);
@@ -194,19 +195,19 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             var collector = MakeCollector();
             var registry = new MobaTraceRegistry();
-            var issueRoot = registry.CreateRootContext(MobaTraceKind.SkillCast, 501);
-            var failedAction = registry.CreateChildContext(
+            var issueRoot = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501);
+            var failedAction = registry.CreateObservationChild(
                 issueRoot,
-                MobaTraceKind.EffectAction,
+                MobaExecutionKind.EffectAction,
                 601);
-            registry.EndContext(failedAction, TraceLifecycleReason.Failed);
-            registry.EndContext(issueRoot, TraceLifecycleReason.Completed);
+            registry.EndContext(failedAction, MobaExecutionEndReason.Failed);
+            registry.EndContext(issueRoot, MobaExecutionEndReason.Completed);
 
-            var activeRoot = registry.CreateRootContext(MobaTraceKind.SkillCast, 502);
-            registry.CreateChildContext(activeRoot, MobaTraceKind.SkillPhase, 602);
+            var activeRoot = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 502);
+            registry.CreateObservationChild(activeRoot, MobaExecutionKind.SkillPhase, 602);
 
-            var completedRoot = registry.CreateRootContext(MobaTraceKind.EffectExecution, 503);
-            registry.EndContext(completedRoot, TraceLifecycleReason.Completed);
+            var completedRoot = registry.CreateObservationRoot(MobaExecutionKind.EffectExecution, 503);
+            registry.EndContext(completedRoot, MobaExecutionEndReason.Completed);
 
             var store = new MobaBattleDiagnosticTraceReadStore(registry, collector.Store);
             var result = store.QueryTraceRoots(new BattleDiagnosticTraceRootQuery(
@@ -228,9 +229,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void Registry_FrameZeroEnd_RemainsExplicitlyEndedAcrossSnapshotsAndExport()
         {
             var registry = new MobaTraceRegistry();
-            var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501);
+            var rootId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501);
 
-            Assert.That(registry.EndContext(rootId, TraceLifecycleReason.Completed), Is.True);
+            Assert.That(registry.EndContext(rootId, MobaExecutionEndReason.Completed), Is.True);
             Assert.That(registry.TryGetNodeSnapshot(rootId, out var snapshot), Is.True);
             var typedSnapshot = registry.TryGetSnapshot(rootId);
             var export = registry.ExportRoot(rootId);
@@ -251,12 +252,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             var collector = MakeCollector();
             var registry = new MobaTraceRegistry();
-            var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501);
-            var failedId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 502);
-            var cancelledId = registry.CreateChildContext(rootId, MobaTraceKind.EffectExecution, 503);
-            var activeId = registry.CreateChildContext(rootId, MobaTraceKind.EffectAction, 504);
-            registry.EndContext(failedId, TraceLifecycleReason.Failed);
-            registry.EndContext(cancelledId, TraceLifecycleReason.Cancelled);
+            var rootId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501);
+            var failedId = registry.CreateObservationChild(rootId, MobaExecutionKind.SkillPhase, 502);
+            var cancelledId = registry.CreateObservationChild(rootId, MobaExecutionKind.EffectExecution, 503);
+            var activeId = registry.CreateObservationChild(rootId, MobaExecutionKind.EffectAction, 504);
+            registry.EndContext(failedId, MobaExecutionEndReason.Failed);
+            registry.EndContext(cancelledId, MobaExecutionEndReason.Cancelled);
             var store = new MobaBattleDiagnosticTraceReadStore(registry, collector.Store);
 
             var result = store.QueryTrace(1, rootId);
@@ -281,7 +282,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var store = new MobaBattleDiagnosticTraceReadStore(registry, collector.Store);
 
             var beforeProduction = store.QueryTrace(1, 999);
-            registry.CreateRootContext(MobaTraceKind.SkillCast, 501);
+            registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501);
             var afterProduction = store.QueryTrace(2, 999);
 
             Assert.That(beforeProduction.Status.Availability,
@@ -301,7 +302,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 collector.StateStore,
                 traceStore);
 
-            var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501);
+            var rootId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501);
             var traceRevision = session.TraceStoreRevision;
             collector.TryCollect(new MobaBattleDiagnosticEventDraft(
                 BattleDiagnosticEventKind.Damage,
@@ -336,19 +337,16 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void AttributeWorldServicesModule_ResolvesTraceStoreAndSessionOverSharedScopedRegistry()
         {
             AttributeWorldServicesModule.ClearCache();
-            var runtimeAssembly = typeof(MobaBattleDiagnosticTraceReadStore).Assembly;
             var builder = new WorldContainerBuilder()
-                .AddModule(new AttributeWorldServicesModule(
-                    WorldServiceProfile.Default,
-                    new[] { runtimeAssembly },
-                    new[] { "AbilityKit.Demo.Moba.Services" }));
+                .AddModule(new MobaServicesAutoModule())
+                .AddModule(new MobaTraceAdapterModule());
 
             using var container = builder.Build();
             using var scope = container.CreateScope();
             var registry = scope.Resolve<MobaTraceRegistry>();
             var traceStore = scope.Resolve<IBattleDiagnosticTraceReadStore>();
             var session = scope.Resolve<IBattleDiagnosticReadOnlySession>();
-            var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501);
+            var rootId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501);
 
             var result = session.QueryTrace(1, rootId);
 

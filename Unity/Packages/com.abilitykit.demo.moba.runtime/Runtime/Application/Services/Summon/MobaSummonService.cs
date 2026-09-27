@@ -14,7 +14,6 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Effect;
 using AbilityKit.Core.Eventing;
-using AbilityKit.Trace;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services.Observability;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
@@ -35,7 +34,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject] private AbilityKit.Triggering.Eventing.IEventBus _eventBus = null;
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
         [WorldInject(required: false)] private IWorldClock _clock = null;
-        [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
+        [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
         [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn = null;
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
@@ -143,7 +142,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var spawnSourceContext = default(SummonSourceContext);
-            var createdTraceContextId = 0L;
+            var createdContextId = 0L;
             try
             {
                 var entity = spawnResult.Entity;
@@ -158,7 +157,7 @@ namespace AbilityKit.Demo.Moba.Services
                     actorId,
                     summonId,
                     in sourceContext,
-                    out createdTraceContextId);
+                    out createdContextId);
 
                 if (_generator != null)
                 {
@@ -203,7 +202,7 @@ namespace AbilityKit.Demo.Moba.Services
                     actorId,
                     summonId,
                     in spawnSourceContext,
-                    createdTraceContextId);
+                    createdContextId);
                 _lifecycle?.RecordRejected(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
                 Log.Exception(ex, $"[MobaSummonService] summon post-spawn initialization failed (summonId={summonId}, actorId={actorId}, casterActorId={casterActorId})");
                 return false;
@@ -301,7 +300,7 @@ namespace AbilityKit.Demo.Moba.Services
             UntrackSummon(rootOwner, summonActorId);
             var sourceContext = ConsumeSourceContext(summonActorId);
             ReleaseSkillRuntime(summonActorId, summonId);
-            EndSpawnTrace(in sourceContext, reason);
+            EndSpawnContext(in sourceContext, reason);
             _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
             if (reason == SummonDespawnReason.ReplacedByLimit) _lifecycle?.RecordReplaced(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
             CollectSummonEnded(summonActorId, summonId, (int)reason, in sourceContext);
@@ -638,16 +637,15 @@ namespace AbilityKit.Demo.Moba.Services
             _skillRuntimeRetainsBySummonActorId.Clear();
         }
 
-        private void EndSpawnTrace(in SummonSourceContext sourceContext, SummonDespawnReason reason)
+        private void EndSpawnContext(in SummonSourceContext sourceContext, SummonDespawnReason reason)
         {
-            EndSpawnTrace(sourceContext.SourceContextId, reason);
+            EndSpawnContext(sourceContext.SourceContextId, reason);
         }
 
-        private void EndSpawnTrace(long sourceContextId, SummonDespawnReason reason)
+        private void EndSpawnContext(long sourceContextId, SummonDespawnReason reason)
         {
-            if (_trace == null) return;
             if (sourceContextId == 0L) return;
-            _trace.EndContext(sourceContextId, ToTraceReason(reason));
+            _executionContexts?.End(sourceContextId, (int)ToExecutionEndReason(reason), CurrentFrame);
         }
 
         private void CompensateFailedSpawn(
@@ -656,21 +654,21 @@ namespace AbilityKit.Demo.Moba.Services
             int summonActorId,
             int summonId,
             in SummonSourceContext createdSourceContext,
-            long createdTraceContextId)
+            long createdContextId)
         {
             var rollbackSpawnResult = spawnResult;
             var fallbackSourceContext = createdSourceContext;
             var trackedSourceContext = default(SummonSourceContext);
             var transaction = new MobaTemporaryEntitySpawnTransaction();
             transaction.Enlist("summon-actor-spawn", () => RollbackSummonActor(rollbackSpawnResult));
-            transaction.Enlist("summon-trace", () =>
+            transaction.Enlist("summon-context", () =>
             {
-                var traceContextId = trackedSourceContext.SourceContextId != 0L
+                var contextId = trackedSourceContext.SourceContextId != 0L
                     ? trackedSourceContext.SourceContextId
                     : fallbackSourceContext.SourceContextId != 0L
                         ? fallbackSourceContext.SourceContextId
-                        : createdTraceContextId;
-                EndSpawnTrace(traceContextId, SummonDespawnReason.SceneCleanup);
+                        : createdContextId;
+                EndSpawnContext(contextId, SummonDespawnReason.SceneCleanup);
             });
             transaction.Enlist("summon-owner-tracking", () => UntrackSummon(rootOwnerActorId, summonActorId));
             transaction.Enlist("summon-source-context", () => trackedSourceContext = ConsumeSourceContext(summonActorId));
@@ -784,15 +782,15 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private SummonSourceContext CreateSpawnSourceContext(int casterActorId, int summonActorId, int summonId, in SummonSourceContext sourceContext, out long createdTraceContextId)
+        private SummonSourceContext CreateSpawnSourceContext(int casterActorId, int summonActorId, int summonId, in SummonSourceContext sourceContext, out long createdContextId)
         {
-            createdTraceContextId = 0L;
+            createdContextId = 0L;
             var origin = sourceContext.TryGetOrigin(out var sourceOrigin)
                 ? sourceOrigin.WithActors(casterActorId, summonActorId)
                 : new MobaGameplayOrigin(
                     casterActorId,
                     summonActorId,
-                    MobaTraceKind.SummonSpawn,
+                    MobaExecutionKind.SummonSpawn,
                     summonId,
                     0,
                     0,
@@ -801,24 +799,27 @@ namespace AbilityKit.Demo.Moba.Services
                     default);
 
             var parentContextId = origin.EffectiveParentContextId;
-            var spawnContextId = 0L;
-            if (_trace != null)
+            if (_executionContexts == null)
             {
-                spawnContextId = parentContextId != 0L
-                    ? _trace.CreateChildContext(parentContextId, MobaTraceKind.SummonSpawn, summonId, casterActorId, summonActorId, TraceEndpoint.Actor(casterActorId), TraceEndpoint.Actor(summonActorId))
-                    : _trace.CreateRootContext(MobaTraceKind.SummonSpawn, summonId, casterActorId, summonActorId, TraceEndpoint.Actor(casterActorId), TraceEndpoint.Actor(summonActorId));
-                createdTraceContextId = spawnContextId;
+                throw new InvalidOperationException("Summon spawn requires MobaExecutionContextRegistry.");
             }
 
-            if (spawnContextId == 0L)
-            {
-                throw new InvalidOperationException($"Summon spawn requires trace context. casterActorId={casterActorId} summonActorId={summonActorId} summonId={summonId} parentContextId={parentContextId}");
-            }
+            var spawnNode = _executionContexts.Create(new MobaExecutionContextCreateRequest(
+                MobaExecutionKind.SummonSpawn,
+                summonId,
+                casterActorId,
+                summonActorId,
+                parentContextId,
+                origin.EffectiveRootContextId,
+                origin.OwnerContextId,
+                CurrentFrame));
+            var spawnContextId = spawnNode.ContextId;
+            createdContextId = spawnContextId;
 
             origin = MobaGameplayOriginBuilder.Create()
                 .FromOrigin(in origin)
                 .WithActors(casterActorId, summonActorId)
-                .WithLifecycleNode(MobaTraceKind.SummonSpawn, summonId, spawnContextId)
+                .WithLifecycleNode(MobaExecutionKind.SummonSpawn, summonId, spawnContextId)
                 .WithRootContext(origin.EffectiveRootContextId != 0L ? origin.EffectiveRootContextId : spawnContextId)
                 .WithOwnerContext(origin.OwnerContextId != 0L ? origin.OwnerContextId : spawnContextId)
                 .Build();
@@ -892,23 +893,23 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private static TraceLifecycleReason ToTraceReason(SummonDespawnReason reason)
+        private static MobaExecutionEndReason ToExecutionEndReason(SummonDespawnReason reason)
         {
             switch (reason)
             {
                 case SummonDespawnReason.OwnerDead:
                 case SummonDespawnReason.Killed:
-                    return TraceLifecycleReason.Dead;
+                    return MobaExecutionEndReason.Dead;
                 case SummonDespawnReason.ReplacedByLimit:
-                    return TraceLifecycleReason.Replaced;
+                    return MobaExecutionEndReason.Replaced;
                 case SummonDespawnReason.SceneCleanup:
-                    return TraceLifecycleReason.Cancelled;
+                    return MobaExecutionEndReason.Cancelled;
                 case SummonDespawnReason.ManualRemove:
-                    return TraceLifecycleReason.Dispelled;
+                    return MobaExecutionEndReason.Dispelled;
                 case SummonDespawnReason.Timeout:
                 case SummonDespawnReason.None:
                 default:
-                    return TraceLifecycleReason.Completed;
+                    return MobaExecutionEndReason.Completed;
             }
         }
 
@@ -1055,7 +1056,7 @@ namespace AbilityKit.Demo.Moba.Services
                 var summonActorId = _queryBuffer[i];
                 var sourceContext = ConsumeSourceContext(summonActorId);
                 ReleaseSkillRuntime(summonActorId, sourceContext.SummonConfigId);
-                EndSpawnTrace(in sourceContext, SummonDespawnReason.SceneCleanup);
+                EndSpawnContext(in sourceContext, SummonDespawnReason.SceneCleanup);
             }
 
             _queryBuffer.Clear();

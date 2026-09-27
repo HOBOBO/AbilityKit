@@ -17,6 +17,34 @@ public sealed class RoomGatewaySessionFlowRestoreTests
     private const uint PlayerId = 1u;
 
     [Fact]
+    public async Task RestoreWithoutPlayerIdAsync_UsesServerPlayerIdAndSnapshot()
+    {
+        var client = new FakeRoomClient
+        {
+            RestoreResult = Restore(success: true, currentPlayerId: 7u),
+            GetSnapshotTimesOut = false,
+        };
+        var flow = new RoomGatewaySessionFlow(client);
+
+        var result = await flow.RestoreWithoutPlayerIdAsync(Token, "region", "server");
+
+        Assert.Equal(7u, result.PlayerId);
+        Assert.Equal("room-1", result.RoomId);
+        Assert.NotNull(result.Snapshot);
+        Assert.Equal(RoomGatewayStagedRestoreNextStep.SetReadyAndBeginLoading, result.NextStep);
+        Assert.Equal(1, client.RestoreCalls);
+    }
+
+    [Fact]
+    public async Task RestoreAsync_WithZeroPlayerId_StillRejectsUnknownIdentity()
+    {
+        var flow = new RoomGatewaySessionFlow(new FakeRoomClient());
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => flow.RestoreAsync(Token, "region", "server", 0u));
+    }
+
+    [Fact]
     public async Task RestoreAsync_RestoreRequestTimeout_ReturnsTimeoutResultWithNoNextStep()
     {
         var flow = new RoomGatewaySessionFlow(new FakeRoomClient { RestoreResult = null });
@@ -84,7 +112,8 @@ public sealed class RoomGatewaySessionFlowRestoreTests
         bool isInBattle = false,
         string battleId = "",
         RoomGatewaySessionRestoreStatus status = RoomGatewaySessionRestoreStatus.Restored,
-        RoomGatewaySessionRestoreErrorCode errorCode = RoomGatewaySessionRestoreErrorCode.None)
+        RoomGatewaySessionRestoreErrorCode errorCode = RoomGatewaySessionRestoreErrorCode.None,
+        uint currentPlayerId = 0u)
         => new RoomGatewayRestoreRoomResult(
             success,
             hasActiveRoom: success,
@@ -99,12 +128,14 @@ public sealed class RoomGatewaySessionFlowRestoreTests
             serverNowTicks: 0L,
             worldId: 1ul,
             status: status,
-            errorCode: errorCode);
+            errorCode: errorCode,
+            currentPlayerId: currentPlayerId);
 
     private sealed class FakeRoomClient : IRoomGatewaySessionClientBase
     {
         public RoomGatewayRestoreRoomResult? RestoreResult;
         public bool GetSnapshotTimesOut = true;
+        public int RestoreCalls;
 
         public Task<RoomGatewayCreateResult> CreateRoomAsync(RoomGatewayCreateRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
@@ -116,9 +147,12 @@ public sealed class RoomGatewaySessionFlowRestoreTests
             => throw new NotImplementedException();
 
         public Task<RoomGatewayRestoreRoomResult> RestoreRoomAsync(RoomGatewayRestoreRoomRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-            => RestoreResult.HasValue
+        {
+            RestoreCalls++;
+            return RestoreResult.HasValue
                 ? Task.FromResult(RestoreResult.Value)
                 : throw new TimeoutException("restore timeout");
+        }
 
         public Task<RoomGatewayGetSnapshotResult> GetSnapshotAsync(RoomGatewayGetSnapshotRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
             => GetSnapshotTimesOut

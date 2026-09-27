@@ -1,0 +1,3943 @@
+[
+  {
+    "Id": 1,
+    "Kind": "object",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 2,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/$schema",
+    "ValueJson": "json:\"abilitykit-trigger-source-v1\""
+  },
+  {
+    "Id": 3,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/version",
+    "ValueJson": "json:1"
+  },
+  {
+    "Id": 4,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/description",
+    "ValueJson": "json:\"MOBA demo readable trigger source. Human-authored actions use readable type names and are compiled to runtime ActionId values by the trigger source exporter.\""
+  },
+  {
+    "Id": 5,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:{\"debug_log\":{\"type\":\"debug_log\",\"displayName\":\"调试日志\",\"category\":\"Debug\",\"params\":[{\"name\":\"message\",\"type\":\"string\",\"required\":true},{\"name\":\"dump_args\",\"type\":\"bool\",\"required\":false,\"defaultValue\":false}]},\"shoot_projectile\":{\"type\":\"shoot_projectile\",\"displayName\":\"发射弹道\",\"category\":\"Combat\",\"params\":[{\"name\":\"launcher_id\",\"type\":\"int\",\"required\":true},{\"name\":\"projectile_id\",\"type\":\"int\",\"required\":true},{\"name\":\"continuous_process_id\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"targetCode\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"directionSource\",\"type\":\"string\",\"required\":false,\"defaultValue\":\"cast_context\"}]},\"spawn_area\":{\"type\":\"spawn_area\",\"displayName\":\"生成区域\",\"category\":\"Combat\",\"params\":[{\"name\":\"area_id\",\"type\":\"int\",\"required\":true},{\"name\":\"position_mode\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"radius\",\"type\":\"float\",\"required\":false,\"defaultValue\":0},{\"name\":\"duration_ms\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"duration_frames\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"stay_interval_frames\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"collision_layer_mask\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"offset_x\",\"type\":\"float\",\"required\":false,\"defaultValue\":0},{\"name\":\"offset_y\",\"type\":\"float\",\"required\":false,\"defaultValue\":0},{\"name\":\"offset_z\",\"type\":\"float\",\"required\":false,\"defaultValue\":0},{\"name\":\"target_query_id\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"target_max_count\",\"type\":\"int\",\"required\":false,\"defaultValue\":1}]},\"give_damage\":{\"type\":\"give_damage\",\"displayName\":\"造成伤害\",\"category\":\"Combat\",\"params\":[{\"name\":\"damage_value\",\"type\":\"float\",\"required\":true},{\"name\":\"damage_type\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"reason_param\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"target_query_id\",\"type\":\"int\",\"required\":false,\"defaultValue\":0}]},\"add_buff\":{\"type\":\"add_buff\",\"displayName\":\"添加Buff\",\"category\":\"Buff\",\"params\":[{\"name\":\"buffIds\",\"type\":\"int[]\",\"required\":true},{\"name\":\"targetCode\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"target_self\",\"type\":\"bool\",\"required\":false,\"defaultValue\":false},{\"name\":\"target_payload_field_id\",\"type\":\"int\",\"required\":false,\"defaultValue\":0}]},\"dash\":{\"type\":\"dash\",\"displayName\":\"冲刺位移\",\"category\":\"Motion\",\"params\":[{\"name\":\"speed\",\"type\":\"float\",\"required\":true},{\"name\":\"duration_ms\",\"type\":\"int\",\"required\":true},{\"name\":\"direction_mode\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"apply_to_caster\",\"type\":\"bool\",\"required\":false,\"defaultValue\":true},{\"name\":\"priority\",\"type\":\"int\",\"required\":false,\"defaultValue\":10},{\"name\":\"motion_group_id\",\"type\":\"int\",\"required\":false,\"defaultValue\":2}]},\"pull\":{\"type\":\"pull\",\"displayName\":\"牵引/击飞位移\",\"category\":\"Motion\",\"params\":[{\"name\":\"speed\",\"type\":\"float\",\"required\":true},{\"name\":\"duration_ms\",\"type\":\"int\",\"required\":true},{\"name\":\"direction_mode\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"target_distance\",\"type\":\"float\",\"required\":false,\"defaultValue\":0},{\"name\":\"priority\",\"type\":\"int\",\"required\":false,\"defaultValue\":12},{\"name\":\"motion_group_id\",\"type\":\"int\",\"required\":false,\"defaultValue\":3},{\"name\":\"continuous_process_id\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"continuous_tag_template_id\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"trigger_ids\",\"type\":\"int[]\",\"required\":false},{\"name\":\"interval_ms\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"interval_trigger_ids\",\"type\":\"int[]\",\"required\":false}]},\"add_shield\":{\"type\":\"add_shield\",\"displayName\":\"添加护盾\",\"category\":\"Buff\",\"params\":[{\"name\":\"shield_id\",\"type\":\"int\",\"required\":true},{\"name\":\"shield_value\",\"type\":\"float\",\"required\":true},{\"name\":\"duration_ms\",\"type\":\"int\",\"required\":true},{\"name\":\"absorb_ratio\",\"type\":\"float\",\"required\":false,\"defaultValue\":1},{\"name\":\"target_self\",\"type\":\"bool\",\"required\":false,\"defaultValue\":false}]},\"modify_resource\":{\"type\":\"modify_resource\",\"displayName\":\"修改资源\",\"category\":\"Resource\",\"params\":[{\"name\":\"resource_type\",\"type\":\"int\",\"required\":true},{\"name\":\"amount\",\"type\":\"float\",\"required\":true},{\"name\":\"min\",\"type\":\"float\",\"required\":false},{\"name\":\"max\",\"type\":\"float\",\"required\":false},{\"name\":\"target_self\",\"type\":\"bool\",\"required\":false,\"defaultValue\":false},{\"name\":\"target_payload_field\",\"type\":\"string\",\"required\":false}]},\"convert_resource_to_heal\":{\"type\":\"convert_resource_to_heal\",\"displayName\":\"资源转治�?\",\"category\":\"Resource\",\"params\":[{\"name\":\"resource_type\",\"type\":\"int\",\"required\":true},{\"name\":\"amount\",\"type\":\"float\",\"required\":true},{\"name\":\"heal_ratio\",\"type\":\"float\",\"required\":false,\"defaultValue\":1},{\"name\":\"out_of_combat_seconds\",\"type\":\"float\",\"required\":false,\"defaultValue\":0},{\"name\":\"heal_type\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"reason_kind\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"reason_param\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"target_self\",\"type\":\"bool\",\"required\":false,\"defaultValue\":false}]},\"adjust_damage_number\":{\"type\":\"adjust_damage_number\",\"displayName\":\"调整伤害数�?\",\"category\":\"Combat\",\"params\":[{\"name\":\"number_slot\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"op\",\"type\":\"int\",\"required\":false,\"defaultValue\":1},{\"name\":\"value\",\"type\":\"float\",\"required\":false,\"defaultValue\":0},{\"name\":\"source_id\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"reason_kind\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"reason_param\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"require_skill_runtime\",\"type\":\"bool\",\"required\":false,\"defaultValue\":true},{\"name\":\"skip_first_hit\",\"type\":\"bool\",\"required\":false,\"defaultValue\":true},{\"name\":\"repeat_target_decay_factor\",\"type\":\"float\",\"required\":false,\"defaultValue\":0},{\"name\":\"target_hit_count_key_base\",\"type\":\"int\",\"required\":false,\"defaultValue\":1200000}]},\"heal\":{\"type\":\"heal\",\"displayName\":\"治疗\",\"category\":\"Combat\",\"params\":[{\"name\":\"amount\",\"type\":\"float\",\"required\":true},{\"name\":\"heal_type\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"reason_kind\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"reason_param\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"target_self\",\"type\":\"bool\",\"required\":false,\"defaultValue\":false}]},\"advance_gameplay_counter\":{\"type\":\"advance_gameplay_counter\",\"displayName\":\"推进玩法计数�?\",\"category\":\"Gameplay\",\"params\":[{\"name\":\"key_id\",\"type\":\"int\",\"required\":true},{\"name\":\"scope_payload_field_id\",\"type\":\"int\",\"required\":false,\"defaultValue\":0},{\"name\":\"threshold\",\"type\":\"float\",\"required\":true},{\"name\":\"delta\",\"type\":\"float\",\"required\":false,\"defaultValue\":1},{\"name\":\"reset_value\",\"type\":\"float\",\"required\":false,\"defaultValue\":0},{\"name\":\"trigger_id\",\"type\":\"int\",\"required\":false,\"defaultValue\":0}]}}"
+  },
+  {
+    "Id": 6,
+    "Kind": "array",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers",
+    "ValueJson": ""
+  },
+  {
+    "Id": 7,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/0",
+    "ValueJson": "json:{\"id\":10010000,\"name\":\"廉颇-勇士之魂-释放技能时霸体战意\",\"event\":\"skill.cast.complete\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10010000],\"targetCode\":1,\"duration_ms\":1500},{\"type\":\"debug_log\",\"message\":\"廉颇被动触发：添加霸体战意与防御韧性状�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 8,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/1",
+    "ValueJson": "json:{\"id\":10010004,\"name\":\"廉颇-勇士之魂-造成伤害获得怒气\",\"event\":\"damage.apply.after\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":45,\"conditions\":[{\"type\":\"arg_gt\",\"arg_name\":\"damage_value\",\"value\":0},{\"type\":\"arg_neq\",\"left\":\"payload:attacker_actor_id\",\"right\":\"payload:target_actor_id\"}],\"actions\":[{\"type\":\"modify_resource\",\"resource_type\":3,\"amount\":10,\"max\":100,\"target_payload_field\":\"attacker_actor_id\"}]}"
+  },
+  {
+    "Id": 9,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/2",
+    "ValueJson": "json:{\"id\":10010002,\"name\":\"廉颇-勇士之魂-承受伤害获得怒气\",\"event\":\"damage.apply.after\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":44,\"conditions\":[{\"type\":\"arg_gt\",\"arg_name\":\"damage_value\",\"value\":0},{\"type\":\"arg_neq\",\"left\":\"payload:attacker_actor_id\",\"right\":\"payload:target_actor_id\"}],\"actions\":[{\"type\":\"modify_resource\",\"resource_type\":3,\"amount\":5,\"max\":100,\"target_payload_field\":\"target_actor_id\"}]}"
+  },
+  {
+    "Id": 10,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/3",
+    "ValueJson": "json:{\"id\":10010003,\"name\":\"廉颇-勇士之魂-脱战怒气转生�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":true,\"phase\":\"immediate\",\"priority\":40,\"conditions\":[],\"actions\":[{\"type\":\"convert_resource_to_heal\",\"resource_type\":3,\"amount\":10,\"heal_ratio\":8,\"out_of_combat_seconds\":5,\"heal_type\":0,\"reason_kind\":2,\"reason_param\":10010000,\"target_self\":true}]}"
+  },
+  {
+    "Id": 11,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/4",
+    "ValueJson": "json:{\"id\":10010101,\"name\":\"廉颇-爆裂冲撞-发起冲锋\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10010000],\"targetCode\":1,\"duration_ms\":1500},{\"type\":\"dash\",\"speed\":12.3,\"duration_ms\":650,\"direction_mode\":0,\"apply_to_caster\":true,\"priority\":20,\"motion_group_id\":2,\"hit_trigger_plan_id\":10010111},{\"type\":\"debug_log\",\"message\":\"廉颇一技能：霸体并向指向方向冲锋，移动过程命中触发判�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 12,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/5",
+    "ValueJson": "json:{\"id\":10010111,\"name\":\"廉颇-爆裂冲撞-命中伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"pull\",\"speed\":7.0,\"duration_ms\":300,\"direction_mode\":2,\"target_distance\":0,\"priority\":100,\"motion_group_id\":3,\"continuous_tag_template_id\":10000001},{\"type\":\"give_damage\",\"damage_value\":160,\"damage_type\":1,\"reason_param\":10010101,\"target_max_count\":1},{\"type\":\"debug_log\",\"message\":\"廉颇一技能：冲撞命中造成物理伤害并击飞目�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 13,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/6",
+    "ValueJson": "json:{\"id\":10010201,\"name\":\"廉颇-熔岩重击-生成蓄力区域\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10010000],\"targetCode\":1,\"duration_ms\":1500},{\"type\":\"add_shield\",\"shield_id\":10010201,\"shield_value\":350,\"absorb_ratio\":1.0,\"duration_ms\":2500,\"priority\":20,\"target_self\":true,\"stacking_policy\":1,\"consume_policy\":0},{\"type\":\"spawn_area\",\"area_id\":40010201,\"position_mode\":0,\"radius\":3.5,\"duration_ms\":700},{\"type\":\"debug_log\",\"message\":\"廉颇二技能：获得护盾并生成延迟范围伤害区�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 14,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/7",
+    "ValueJson": "json:{\"id\":10010211,\"name\":\"廉颇-熔岩重击-区域伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":180,\"damage_type\":1,\"reason_param\":10010201,\"target_query_id\":50010201},{\"type\":\"add_buff\",\"buffIds\":[10010212],\"target_query_id\":50010201,\"target_max_count\":10,\"duration_ms\":1500},{\"type\":\"debug_log\",\"message\":\"廉颇二技能：蓄力区域造成物理伤害并降低目标移�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 15,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/8",
+    "ValueJson": "json:{\"id\":10010301,\"name\":\"廉颇-天崩地裂-第一段区�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10010000],\"targetCode\":1,\"duration_ms\":1800},{\"type\":\"spawn_area\",\"area_id\":40010301,\"position_mode\":0,\"radius\":4.5,\"duration_ms\":300},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：第一段砸地区�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 16,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/9",
+    "ValueJson": "json:{\"id\":10010311,\"name\":\"廉颇-天崩地裂-第二段区�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40010311,\"position_mode\":0,\"radius\":4.5,\"duration_ms\":300},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：第二段砸地区�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 17,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/10",
+    "ValueJson": "json:{\"id\":10010321,\"name\":\"廉颇-天崩地裂-第三段区�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40010321,\"position_mode\":0,\"radius\":4.5,\"duration_ms\":300},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：第三段砸地区域，命中目标触发击飞\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 18,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/11",
+    "ValueJson": "json:{\"id\":10010331,\"name\":\"廉颇-天崩地裂-段落伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":150,\"damage_type\":1,\"reason_param\":10010301,\"target_query_id\":50010301},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：段落范围造成物理伤害\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 19,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/12",
+    "ValueJson": "json:{\"id\":10010341,\"name\":\"廉颇-天崩地裂-第三段击�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"pull\",\"speed\":8.0,\"duration_ms\":500,\"direction_mode\":2,\"target_distance\":0,\"priority\":110,\"motion_group_id\":3,\"continuous_tag_template_id\":10000001,\"target_query_id\":50010301,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：第三段命中击飞目�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 20,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/13",
+    "ValueJson": "json:{\"id\":10020000,\"name\":\"小乔-治愈微笑-释放技能后短暂移�?\",\"event\":\"skill.cast.complete\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10020001],\"target_self\":true},{\"type\":\"debug_log\",\"message\":\"小乔被动触发：释放技能后添加短暂移速状�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 21,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/14",
+    "ValueJson": "json:{\"id\":10020101,\"name\":\"小乔-绽放之舞-发射扇子\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"shoot_projectile\",\"launcher_id\":31020101,\"projectile_id\":30020101,\"continuous_process_id\":10020101,\"directionSource\":\"cast_context\"},{\"type\":\"debug_log\",\"message\":\"小乔一技能：发射扇子投射�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 22,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/15",
+    "ValueJson": "json:{\"id\":10020111,\"name\":\"小乔-绽放之舞-扇子命中\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":500,\"source_attack_ratio\":0.8,\"damage_type\":2,\"reason_param\":10020101},{\"type\":\"debug_log\",\"message\":\"小乔一技能：扇子往返命中造成法术伤害\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 23,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/16",
+    "ValueJson": "json:{\"id\":10020112,\"name\":\"小乔-绽放之舞-多目标伤害衰�?\",\"event\":\"damage.attack.before_calc\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":61,\"conditions\":[],\"actions\":[{\"type\":\"adjust_damage_number\",\"number_slot\":0,\"op\":1,\"reason_kind\":1,\"reason_param\":10020101,\"require_skill_runtime\":true,\"skip_first_hit\":true,\"repeat_target_decay_factor\":0.8,\"target_hit_count_key_base\":1202010}]}"
+  },
+  {
+    "Id": 24,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/17",
+    "ValueJson": "json:{\"id\":10020201,\"name\":\"小乔-甜蜜恋风-生成区域\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40020201,\"position_mode\":1,\"radius\":4.0,\"duration_ms\":1000},{\"type\":\"debug_log\",\"message\":\"小乔二技能：生成击飞区域\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 25,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/18",
+    "ValueJson": "json:{\"id\":10020211,\"name\":\"小乔-甜蜜恋风-区域命中\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":100,\"damage_type\":2,\"reason_param\":10020201,\"target_query_id\":50020201,\"target_max_count\":10},{\"type\":\"pull\",\"speed\":8.0,\"duration_ms\":500,\"direction_mode\":2,\"target_distance\":0,\"priority\":110,\"motion_group_id\":3,\"continuous_tag_template_id\":10000001,\"target_query_id\":50020201,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"小乔二技能：区域命中造成法术伤害并击飞目�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 26,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/19",
+    "ValueJson": "json:{\"id\":10020301,\"name\":\"小乔-星华缭乱-添加持续状�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10020301],\"targetCode\":1},{\"type\":\"debug_log\",\"message\":\"小乔三技能：添加持续落星状�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 27,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/20",
+    "ValueJson": "json:{\"id\":10020311,\"name\":\"小乔-星华缭乱-周期搜敌落星\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40020301,\"position_mode\":1,\"radius\":2.5,\"duration_ms\":700,\"target_query_id\":50020301,\"target_max_count\":1},{\"type\":\"debug_log\",\"message\":\"小乔三技能：周期搜敌并在目标位置生成延迟落星区域\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 28,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/21",
+    "ValueJson": "json:{\"id\":10020312,\"name\":\"小乔-星华缭乱-重复命中伤害衰减\",\"event\":\"damage.attack.before_calc\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":60,\"conditions\":[],\"actions\":[{\"type\":\"adjust_damage_number\",\"number_slot\":0,\"op\":1,\"reason_kind\":1,\"reason_param\":10020301,\"require_skill_runtime\":true,\"skip_first_hit\":true,\"repeat_target_decay_factor\":0.5,\"target_hit_count_key_base\":1200000}]}"
+  },
+  {
+    "Id": 29,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/22",
+    "ValueJson": "json:{\"id\":10020313,\"name\":\"小乔-星华缭乱-落星区域延迟伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":80,\"damage_type\":2,\"reason_param\":10020301,\"target_query_id\":50020302,\"target_max_count\":1},{\"type\":\"debug_log\",\"message\":\"小乔三技能：落星区域延迟命中造成法术伤害\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 30,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/23",
+    "ValueJson": "json:{\"id\":10030000,\"name\":\"赵云-龙鸣-低血量免伤配�?\",\"event\":\"damage.attack.before_calc\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":65,\"conditions\":[{\"type\":\"owner_matches_payload_target\"}],\"actions\":[{\"type\":\"adjust_damage_number\",\"number_slot\":0,\"op\":1,\"value\":0,\"target_missing_hp_ratio_coefficient\":-0.33,\"source_id\":10030000,\"reason_kind\":0,\"reason_param\":0,\"require_skill_runtime\":false,\"skip_first_hit\":false},{\"type\":\"debug_log\",\"message\":\"赵云被动龙鸣：按已损生命配置免伤参数，运行时后续补充动态比例计�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 31,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/24",
+    "ValueJson": "json:{\"id\":10030002,\"name\":\"赵云-龙鸣-配置标记\",\"event\":\"\",\"enabled\":true,\"allowExternal\":true,\"phase\":\"immediate\",\"priority\":40,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10030000],\"target_self\":true},{\"type\":\"debug_log\",\"message\":\"赵云被动龙鸣：配置声明每损失3%最大生命获�?%免伤，最�?3%\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 32,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/25",
+    "ValueJson": "json:{\"id\":10030101,\"name\":\"赵云-惊雷之龙-位移并强化普�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"dash\",\"speed\":17.8,\"duration_ms\":450,\"direction_mode\":0,\"apply_to_caster\":true,\"priority\":20,\"motion_group_id\":2},{\"type\":\"add_buff\",\"buffIds\":[10030101],\"target_self\":true,\"duration_ms\":5000},{\"type\":\"debug_log\",\"message\":\"赵云一技能惊雷之龙：向指定方向突进，并使下一次普攻附带额外伤害与减�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 33,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/26",
+    "ValueJson": "json:{\"id\":10030111,\"name\":\"赵云-惊雷之龙-强化普攻命中\",\"event\":\"damage.apply.after\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":55,\"conditions\":[{\"type\":\"arg_gt\",\"arg_name\":\"damage_value\",\"value\":0},{\"type\":\"arg_eq\",\"left\":\"payload:reason_kind\",\"right\":\"2\"},{\"type\":\"has_buff\",\"buff_id\":10030101,\"check_stack\":0}],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":190,\"source_attack_ratio\":1,\"damage_type\":1,\"reason_param\":10030101,\"target_max_count\":1},{\"type\":\"add_buff\",\"buffIds\":[10030102],\"target_max_count\":1,\"duration_ms\":2000},{\"type\":\"debug_log\",\"message\":\"赵云一技能强化普攻：造成额外物理伤害并减速；Buff消耗逻辑后续补齐\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 34,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/27",
+    "ValueJson": "json:{\"id\":10030201,\"name\":\"赵云-破云之龙-四段枪刺\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40030201,\"position_mode\":0,\"radius\":3.5,\"duration_ms\":760},{\"type\":\"debug_log\",\"message\":\"赵云二技能破云之龙：向前连续四次刺击，命中造成物理伤害并回复自身生�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 35,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/28",
+    "ValueJson": "json:{\"id\":10030211,\"name\":\"赵云-破云之龙-第一段命�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":85,\"source_attack_ratio\":0.35,\"damage_type\":1,\"reason_param\":10030201,\"target_query_id\":50030201,\"target_max_count\":10},{\"type\":\"heal\",\"amount\":35,\"heal_type\":0,\"reason_kind\":1,\"reason_param\":10030201,\"target_self\":true},{\"type\":\"debug_log\",\"message\":\"赵云二技能第一段：命中敌人并回血\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 36,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/29",
+    "ValueJson": "json:{\"id\":10030212,\"name\":\"赵云-破云之龙-第二段命�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":85,\"source_attack_ratio\":0.35,\"damage_type\":1,\"reason_param\":10030201,\"target_query_id\":50030201,\"target_max_count\":10},{\"type\":\"heal\",\"amount\":35,\"heal_type\":0,\"reason_kind\":1,\"reason_param\":10030201,\"target_self\":true}]}"
+  },
+  {
+    "Id": 37,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/30",
+    "ValueJson": "json:{\"id\":10030213,\"name\":\"赵云-破云之龙-第三段命�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":85,\"source_attack_ratio\":0.35,\"damage_type\":1,\"reason_param\":10030201,\"target_query_id\":50030201,\"target_max_count\":10},{\"type\":\"heal\",\"amount\":35,\"heal_type\":0,\"reason_kind\":1,\"reason_param\":10030201,\"target_self\":true}]}"
+  },
+  {
+    "Id": 38,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/31",
+    "ValueJson": "json:{\"id\":10030214,\"name\":\"赵云-破云之龙-第四段命�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":85,\"source_attack_ratio\":0.35,\"damage_type\":1,\"reason_param\":10030201,\"target_query_id\":50030201,\"target_max_count\":10},{\"type\":\"heal\",\"amount\":35,\"heal_type\":0,\"reason_kind\":1,\"reason_param\":10030201,\"target_self\":true}]}"
+  },
+  {
+    "Id": 39,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/32",
+    "ValueJson": "json:{\"id\":10030301,\"name\":\"赵云-天翔之龙-跃向目标区域\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40030301,\"position_mode\":2,\"radius\":4.5,\"duration_ms\":700},{\"type\":\"debug_log\",\"message\":\"赵云三技能天翔之龙：跃向目标区域，落地造成伤害、击飞并施加感电标记\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 40,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/33",
+    "ValueJson": "json:{\"id\":10030311,\"name\":\"赵云-天翔之龙-落地伤害与感�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":350,\"source_attack_ratio\":1.3,\"damage_type\":1,\"reason_param\":10030301,\"target_query_id\":50030301,\"target_max_count\":10},{\"type\":\"add_buff\",\"buffIds\":[10030301],\"target_query_id\":50030301,\"target_max_count\":10,\"duration_ms\":5000},{\"type\":\"debug_log\",\"message\":\"赵云三技能：落地命中目标并附加感电标�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 41,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/34",
+    "ValueJson": "json:{\"id\":10030312,\"name\":\"赵云-天翔之龙-感电目标额外伤害\",\"event\":\"damage.apply.after\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":45,\"conditions\":[{\"type\":\"arg_gt\",\"arg_name\":\"damage_value\",\"value\":0},{\"type\":\"has_buff\",\"buff_id\":10030301,\"check_stack\":0}],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":30,\"source_attack_ratio\":0.13,\"damage_type\":2,\"reason_param\":10030301,\"target_max_count\":1},{\"type\":\"debug_log\",\"message\":\"赵云三技能感电：后续伤害触发额外法术伤害；标记消耗逻辑后续补齐\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 42,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/35",
+    "ValueJson": "json:{\"id\":10030321,\"name\":\"赵云-天翔之龙-落地击飞\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"pull\",\"speed\":8,\"duration_ms\":500,\"direction_mode\":2,\"target_distance\":0,\"priority\":100,\"motion_group_id\":3,\"target_query_id\":50030301,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"赵云三技能：落地区域击飞敌人\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 43,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/36",
+    "ValueJson": "json:{\"id\":10040000,\"name\":\"墨子-机关�?释放技能获得护�?\",\"event\":\"skill.cast.complete\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10040000],\"target_self\":true,\"duration_ms\":3000},{\"type\":\"add_shield\",\"shield_id\":10040000,\"shield_value\":300,\"absorb_ratio\":1,\"duration_ms\":3000,\"priority\":20,\"target_self\":true,\"stacking_policy\":1,\"consume_policy\":0},{\"type\":\"debug_log\",\"message\":\"墨子被动机关术：释放技能获得机关护�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 44,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/37",
+    "ValueJson": "json:{\"id\":10040001,\"name\":\"墨子-机关�?普攻计数\",\"event\":\"damage.apply.after\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":45,\"conditions\":[{\"type\":\"arg_gt\",\"arg_name\":\"damage_value\",\"value\":0},{\"type\":\"arg_eq\",\"left\":\"payload:reason_kind\",\"right\":\"2\"},{\"type\":\"arg_neq\",\"left\":\"payload:attacker_actor_id\",\"right\":\"payload:target_actor_id\"}],\"actions\":[{\"type\":\"advance_gameplay_counter\",\"key_id\":10040001,\"scope_payload_field_id\":1993035528,\"threshold\":4,\"delta\":1,\"reset_value\":0,\"trigger_id\":10040002}]}"
+  },
+  {
+    "Id": 45,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/38",
+    "ValueJson": "json:{\"id\":10040002,\"name\":\"墨子-机关�?第四次普攻炮�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":true,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"shoot_projectile\",\"launcher_id\":31040201,\"projectile_id\":30040201,\"directionSource\":\"cast_context\"},{\"type\":\"add_buff\",\"buffIds\":[10040000],\"target_self\":true,\"duration_ms\":3000},{\"type\":\"debug_log\",\"message\":\"墨子被动机关术：第四次普攻转换为机关炮击并刷新护�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 46,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/39",
+    "ValueJson": "json:{\"id\":10040101,\"name\":\"墨子-和平漫步-突进并强化普�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"dash\",\"speed\":18,\"duration_ms\":450,\"direction_mode\":0,\"apply_to_caster\":true,\"priority\":20,\"motion_group_id\":2,\"hit_trigger_plan_id\":10040111},{\"type\":\"add_buff\",\"buffIds\":[10040101],\"target_self\":true},{\"type\":\"add_shield\",\"shield_id\":10040101,\"shield_value\":300,\"absorb_ratio\":1,\"duration_ms\":3000,\"priority\":20,\"target_self\":true,\"stacking_policy\":1,\"consume_policy\":0},{\"type\":\"debug_log\",\"message\":\"墨子一技能和平漫步：向前突进，获得强化普攻Buff，普攻技能ID临时替换为强化炮�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 47,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/40",
+    "ValueJson": "json:{\"id\":10040111,\"name\":\"墨子-和平漫步-路径命中\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":200,\"source_attack_ratio\":0.6,\"damage_type\":2,\"reason_param\":10040101,\"target_max_count\":1},{\"type\":\"debug_log\",\"message\":\"墨子一技能：突进路径命中造成法术伤害\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 48,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/41",
+    "ValueJson": "json:{\"id\":10040112,\"name\":\"墨子-和平漫步-强化近战普攻\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":55,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":240,\"source_attack_ratio\":0.7,\"damage_type\":2,\"reason_param\":10040112,\"target_mode\":2,\"target_max_count\":1},{\"type\":\"pull\",\"speed\":12,\"duration_ms\":300,\"direction_mode\":1,\"target_distance\":3,\"priority\":15,\"motion_group_id\":3,\"target_mode\":2},{\"type\":\"remove_buff\",\"buff_id\":10040101,\"target_self\":true,\"remove_all\":true},{\"type\":\"debug_log\",\"message\":\"墨子一技能强化普攻：近战命中造成法术伤害、击退目标并消耗强化普攻Buff\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 49,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/42",
+    "ValueJson": "json:{\"id\":10040201,\"name\":\"墨子-机关重炮-发射炮弹\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"shoot_projectile\",\"launcher_id\":31040201,\"projectile_id\":30040201,\"directionSource\":\"cast_context\"},{\"type\":\"debug_log\",\"message\":\"墨子二技能机关重炮：发射远程炮弹，命中后在目标点爆炸并眩�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 50,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/43",
+    "ValueJson": "json:{\"id\":10040211,\"name\":\"墨子-机关重炮-命中生成爆炸\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40040201,\"position_mode\":2,\"radius\":3.5,\"duration_ms\":2000},{\"type\":\"debug_log\",\"message\":\"墨子二技能：炮弹结束后生成弹坑持续伤害区�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 51,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/44",
+    "ValueJson": "json:{\"id\":10040212,\"name\":\"墨子-机关重炮-爆炸伤害与眩�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":525,\"source_attack_ratio\":0.45,\"damage_type\":2,\"reason_param\":10040201,\"target_query_id\":50040201,\"target_max_count\":10},{\"type\":\"add_buff\",\"buffIds\":[10040001],\"target_query_id\":50040201,\"target_max_count\":10,\"duration_ms\":1000},{\"type\":\"debug_log\",\"message\":\"墨子二技能：爆炸范围造成法术伤害并眩�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 52,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/45",
+    "ValueJson": "json:{\"id\":10040301,\"name\":\"墨子-墨守成规-展开机关屏障\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40040301,\"position_mode\":0,\"radius\":5,\"duration_ms\":3500},{\"type\":\"add_buff\",\"buffIds\":[10040003],\"target_self\":true,\"duration_ms\":3500},{\"type\":\"add_shield\",\"shield_id\":10040301,\"shield_value\":450,\"absorb_ratio\":1,\"duration_ms\":3500,\"priority\":20,\"target_self\":true,\"stacking_policy\":1,\"consume_policy\":0},{\"type\":\"debug_log\",\"message\":\"墨子三技能墨守成规：展开机关屏障，持续伤害并控制范围敌人\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 53,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/46",
+    "ValueJson": "json:{\"id\":10040311,\"name\":\"墨子-墨守成规-持续伤害与控�?\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":200,\"source_attack_ratio\":0.45,\"damage_type\":2,\"reason_param\":10040301,\"target_query_id\":50040301,\"target_max_count\":10},{\"type\":\"add_buff\",\"buffIds\":[10040002],\"target_query_id\":50040301,\"target_max_count\":10,\"duration_ms\":500},{\"type\":\"debug_log\",\"message\":\"墨子三技能：屏障内敌人受到持续法术伤害和短暂眩晕\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 54,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/47",
+    "ValueJson": "json:{\"id\":10040321,\"name\":\"墨子-墨守成规-进入屏障控制\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10040002],\"duration_ms\":500},{\"type\":\"debug_log\",\"message\":\"墨子三技能：敌人进入屏障时受到短暂控�?\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 55,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/48",
+    "ValueJson": "json:{\"id\":10010001,\"name\":\"廉颇-普通攻击\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":120,\"source_attack_ratio\":1,\"damage_type\":1,\"reason_kind\":2,\"reason_param\":10010001,\"target_mode\":2,\"target_max_count\":1}]}"
+  },
+  {
+    "Id": 56,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/49",
+    "ValueJson": "json:{\"id\":10020001,\"name\":\"小乔-普通攻击-发射\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"shoot_projectile\",\"launcher_id\":31020001,\"projectile_id\":30020001}]}"
+  },
+  {
+    "Id": 57,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/50",
+    "ValueJson": "json:{\"id\":10020011,\"name\":\"小乔-普通攻击-命中伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":105,\"source_attack_ratio\":1,\"damage_type\":2,\"reason_kind\":2,\"reason_param\":10020001}]}"
+  },
+  {
+    "Id": 58,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/51",
+    "ValueJson": "json:{\"id\":10030001,\"name\":\"赵云-普通攻击\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":115,\"source_attack_ratio\":1,\"damage_type\":1,\"reason_kind\":2,\"reason_param\":10030001,\"target_mode\":2,\"target_max_count\":1}]}"
+  },
+  {
+    "Id": 59,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/52",
+    "ValueJson": "json:{\"id\":10040011,\"name\":\"墨子-普通攻击-发射\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"shoot_projectile\",\"launcher_id\":31040011,\"projectile_id\":30040011}]}"
+  },
+  {
+    "Id": 60,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/53",
+    "ValueJson": "json:{\"id\":10040012,\"name\":\"墨子-普通攻击-命中伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":110,\"source_attack_ratio\":1,\"damage_type\":2,\"reason_kind\":2,\"reason_param\":10040011}]}"
+  },
+  {
+    "Id": 61,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/54",
+    "ValueJson": "json:{\"id\":10050001,\"name\":\"妲己-普通攻击-发射\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"shoot_projectile\",\"launcher_id\":31050001,\"projectile_id\":30050001}]}"
+  },
+  {
+    "Id": 62,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/55",
+    "ValueJson": "json:{\"id\":10050011,\"name\":\"妲己-普通攻击-命中伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":105,\"source_attack_ratio\":1,\"damage_type\":2,\"reason_kind\":2,\"reason_param\":10050001}]}"
+  },
+  {
+    "Id": 63,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/56",
+    "ValueJson": "json:{\"id\":10060001,\"name\":\"嬴政-普通攻击-发射\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"shoot_projectile\",\"launcher_id\":31060001,\"projectile_id\":30060001}]}"
+  },
+  {
+    "Id": 64,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source.json",
+    "Pointer": "/triggers/57",
+    "ValueJson": "json:{\"id\":10060011,\"name\":\"嬴政-普通攻击-命中伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":110,\"source_attack_ratio\":1,\"damage_type\":2,\"reason_kind\":2,\"reason_param\":10060001}]}"
+  },
+  {
+    "Id": 65,
+    "Kind": "object",
+    "Path": "ability/ability_trigger_plans_source_example.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 66,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source_example.json",
+    "Pointer": "/$schema",
+    "ValueJson": "json:\"abilitykit-trigger-source-v1\""
+  },
+  {
+    "Id": 67,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source_example.json",
+    "Pointer": "/version",
+    "ValueJson": "json:\"1.0\""
+  },
+  {
+    "Id": 68,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source_example.json",
+    "Pointer": "/metadata",
+    "ValueJson": "json:{\"author\":\"team\",\"created_at\":\"2026-05-01T10:00:00Z\",\"last_modified\":\"2026-05-01T10:00:00Z\",\"description\":\"触发器源配置（可直接编辑）\"}"
+  },
+  {
+    "Id": 69,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source_example.json",
+    "Pointer": "/variables",
+    "ValueJson": "json:[{\"name\":\"$caster\",\"description\":\"技能释放者\"},{\"name\":\"$target\",\"description\":\"目标实体\"},{\"name\":\"$self\",\"description\":\"触发者自身\"}]"
+  },
+  {
+    "Id": 70,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source_example.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:{\"debug_log\":{\"type\":\"debug_log\",\"displayName\":\"调试日志\",\"description\":\"输出调试信息到控制台\",\"category\":\"调试\",\"params\":[{\"name\":\"message\",\"type\":\"string\",\"required\":true},{\"name\":\"dump_args\",\"type\":\"bool\",\"required\":false,\"defaultValue\":false}]},\"shoot_projectile\":{\"type\":\"shoot_projectile\",\"displayName\":\"发射弹道\",\"description\":\"从发射者向目标发射弹道\",\"category\":\"战斗\",\"params\":[{\"name\":\"launcher\",\"type\":\"entity\",\"required\":true},{\"name\":\"target\",\"type\":\"entity\",\"required\":true},{\"name\":\"projectile_id\",\"type\":\"int\",\"required\":true},{\"name\":\"speed\",\"type\":\"float\",\"required\":false,\"defaultValue\":300.0}]},\"give_damage\":{\"type\":\"give_damage\",\"displayName\":\"造成伤害\",\"description\":\"对目标造成伤害\",\"category\":\"战斗\",\"params\":[{\"name\":\"from\",\"type\":\"entity\",\"required\":true},{\"name\":\"to\",\"type\":\"entity\",\"required\":true},{\"name\":\"amount\",\"type\":\"expr\",\"required\":true},{\"name\":\"reason\",\"type\":\"int\",\"required\":false,\"defaultValue\":0}]},\"add_buff\":{\"type\":\"add_buff\",\"displayName\":\"添加Buff\",\"description\":\"为目标添加Buff效果\",\"category\":\"Buff\",\"params\":[{\"name\":\"target\",\"type\":\"entity\",\"required\":true},{\"name\":\"buff_id\",\"type\":\"int\",\"required\":true},{\"name\":\"duration\",\"type\":\"float\",\"required\":false,\"defaultValue\":-1.0}]},\"seq\":{\"type\":\"seq\",\"displayName\":\"顺序执行\",\"description\":\"按顺序执行多个动作\",\"category\":\"流程\",\"isComposite\":true,\"params\":[{\"name\":\"items\",\"type\":\"action[]\",\"required\":true}]}}"
+  },
+  {
+    "Id": 71,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source_example.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:{\"all\":{\"type\":\"all\",\"displayName\":\"全部满足\",\"description\":\"所有子条件都必须满足\",\"category\":\"复合\",\"isComposite\":true,\"params\":[{\"name\":\"items\",\"type\":\"condition[]\",\"required\":true}]},\"any\":{\"type\":\"any\",\"displayName\":\"任一满足\",\"description\":\"任一子条件满足即可\",\"category\":\"复合\",\"isComposite\":true,\"params\":[{\"name\":\"items\",\"type\":\"condition[]\",\"required\":true}]},\"not\":{\"type\":\"not\",\"displayName\":\"取反\",\"description\":\"对子条件取反\",\"category\":\"复合\",\"isComposite\":true,\"params\":[{\"name\":\"item\",\"type\":\"condition\",\"required\":true}]},\"arg_eq\":{\"type\":\"arg_eq\",\"displayName\":\"参数等于\",\"description\":\"检查参数值是否等于指定值\",\"category\":\"参数\",\"params\":[{\"name\":\"arg_name\",\"type\":\"string\",\"required\":true},{\"name\":\"value\",\"type\":\"number\",\"required\":true}]},\"arg_gt\":{\"type\":\"arg_gt\",\"displayName\":\"参数大于\",\"description\":\"检查参数值是否大于指定值\",\"category\":\"参数\",\"params\":[{\"name\":\"arg_name\",\"type\":\"string\",\"required\":true},{\"name\":\"value\",\"type\":\"number\",\"required\":true}]}}"
+  },
+  {
+    "Id": 72,
+    "Kind": "json",
+    "Path": "ability/ability_trigger_plans_source_example.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10001,\"name\":\"普攻发射弹道\",\"event\":\"attack.hit\",\"priority\":100,\"phase\":\"immediate\",\"enabled\":true,\"allowExternal\":false,\"comment\":\"当普攻命中时发射弹道\",\"conditions\":[],\"actions\":[{\"type\":\"debug_log\",\"message\":\"普攻命中，发射弹道\"},{\"type\":\"shoot_projectile\",\"launcher\":\"$caster\",\"target\":\"$target\",\"projectile_id\":200001,\"speed\":600}]},{\"id\":10002,\"name\":\"技能造成伤害\",\"event\":\"skill.cast.complete\",\"priority\":50,\"phase\":\"immediate\",\"enabled\":true,\"conditions\":[{\"type\":\"arg_gt\",\"arg_name\":\"skill_level\",\"value\":0}],\"actions\":[{\"type\":\"give_damage\",\"from\":\"$caster\",\"to\":\"$target\",\"amount\":\"=$caster.attack * 1.5 + $caster.skill_power * 0.5\",\"reason\":1}]},{\"id\":10003,\"name\":\"添加灼烧Buff\",\"event\":\"buff.applied\",\"priority\":0,\"phase\":\"immediate\",\"enabled\":true,\"conditions\":[{\"type\":\"all\",\"items\":[{\"type\":\"arg_eq\",\"arg_name\":\"buff_id\",\"value\":2001},{\"type\":\"arg_gt\",\"arg_name\":\"stack\",\"value\":3}]}],\"actions\":[{\"type\":\"add_buff\",\"target\":\"$target\",\"buff_id\":3001,\"duration\":5.0}]}]"
+  },
+  {
+    "Id": 73,
+    "Kind": "object",
+    "Path": "ability/ability_triggers.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 74,
+    "Kind": "json",
+    "Path": "ability/ability_triggers.json",
+    "Pointer": "/Triggers",
+    "ValueJson": "json:[{\"TriggerId\":10001,\"EventId\":\"\",\"AllowExternal\":false,\"InitialLocalVars\":null,\"Conditions\":[],\"Actions\":[{\"Type\":\"debug_log\",\"Args\":{\"message\":\"测试日志输出1111122233333\",\"dump_args\":false},\"Items\":null},{\"Type\":\"shoot_projectile\",\"Args\":{\"launcherId\":100001,\"projectileId\":200001},\"Items\":null}]},{\"TriggerId\":20001,\"EventId\":\"skill.cast.complete\",\"AllowExternal\":false,\"InitialLocalVars\":null,\"Conditions\":[],\"Actions\":[{\"Type\":\"debug_log\",\"Args\":{\"message\":\"释放技能完成日志输出11111\",\"dump_args\":false},\"Items\":null},{\"Type\":\"emit\",\"Args\":{\"emitterId\":400001},\"Items\":null}]},{\"TriggerId\":20002,\"EventId\":\"skill.cast.complete\",\"AllowExternal\":true,\"InitialLocalVars\":null,\"Conditions\":[],\"Actions\":[{\"Type\":\"debug_log\",\"Args\":{\"message\":\"监听别人释放技能完成日志输出22222\",\"dump_args\":false},\"Items\":null}]},{\"TriggerId\":20003,\"EventId\":\"\",\"AllowExternal\":false,\"InitialLocalVars\":null,\"Conditions\":[],\"Actions\":[{\"Type\":\"add_buff\",\"Args\":{\"buffIds\":[100001]},\"Items\":null}]},{\"TriggerId\":20004,\"EventId\":\"\",\"AllowExternal\":false,\"InitialLocalVars\":null,\"Conditions\":[],\"Actions\":[{\"Type\":\"debug_log\",\"Args\":{\"message\":\"被动日志输出11111\",\"dump_args\":false},\"Items\":null}]},{\"TriggerId\":20005,\"EventId\":\"\",\"AllowExternal\":false,\"InitialLocalVars\":null,\"Conditions\":[],\"Actions\":[{\"Type\":\"debug_log\",\"Args\":{\"message\":\"碰撞回调日志\",\"dump_args\":true},\"Items\":null},{\"Type\":\"give_damage\",\"Args\":{\"value\":50.0,\"damageType\":1,\"crit\":0,\"reasonKind\":1,\"reasonParam\":0,\"queryTemplateId\":101,\"log\":true},\"Items\":null}]},{\"TriggerId\":22001,\"EventId\":\"\",\"AllowExternal\":false,\"InitialLocalVars\":null,\"Conditions\":[],\"Actions\":[{\"Type\":\"emit\",\"Args\":{\"emitterId\":400001},\"Items\":null}]}]"
+  },
+  {
+    "Id": 75,
+    "Kind": "object",
+    "Path": "ability/rules/commit/skill_commit_default.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 76,
+    "Kind": "json",
+    "Path": "ability/rules/commit/skill_commit_default.json",
+    "Pointer": "/id",
+    "ValueJson": "json:900101012"
+  },
+  {
+    "Id": 77,
+    "Kind": "json",
+    "Path": "ability/rules/commit/skill_commit_default.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"skill_commit_default\""
+  },
+  {
+    "Id": 78,
+    "Kind": "json",
+    "Path": "ability/rules/commit/skill_commit_default.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 79,
+    "Kind": "json",
+    "Path": "ability/rules/commit/skill_commit_default.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 80,
+    "Kind": "json",
+    "Path": "ability/rules/commit/skill_commit_default.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 81,
+    "Kind": "json",
+    "Path": "ability/rules/commit/skill_commit_default.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 82,
+    "Kind": "json",
+    "Path": "ability/rules/commit/skill_commit_default.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:0"
+  },
+  {
+    "Id": 83,
+    "Kind": "json",
+    "Path": "ability/rules/commit/skill_commit_default.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 84,
+    "Kind": "json",
+    "Path": "ability/rules/commit/skill_commit_default.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"consume_resource\",\"resource_type\":2,\"amount\":{\"payload\":\"skill.cost\"}},{\"type\":\"start_cooldown\",\"cooldown_ms\":{\"payload\":\"skill.cooldown_ms\"}}]"
+  },
+  {
+    "Id": 85,
+    "Kind": "object",
+    "Path": "ability/rules/release/skill_release_default.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 86,
+    "Kind": "json",
+    "Path": "ability/rules/release/skill_release_default.json",
+    "Pointer": "/id",
+    "ValueJson": "json:900101011"
+  },
+  {
+    "Id": 87,
+    "Kind": "json",
+    "Path": "ability/rules/release/skill_release_default.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"skill_release_default\""
+  },
+  {
+    "Id": 88,
+    "Kind": "json",
+    "Path": "ability/rules/release/skill_release_default.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 89,
+    "Kind": "json",
+    "Path": "ability/rules/release/skill_release_default.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 90,
+    "Kind": "json",
+    "Path": "ability/rules/release/skill_release_default.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 91,
+    "Kind": "json",
+    "Path": "ability/rules/release/skill_release_default.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 92,
+    "Kind": "json",
+    "Path": "ability/rules/release/skill_release_default.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:0"
+  },
+  {
+    "Id": 93,
+    "Kind": "json",
+    "Path": "ability/rules/release/skill_release_default.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[{\"type\":\"compare_numeric\",\"op\":\"GreaterThanOrEqual\",\"left\":{\"payload\":\"caster.resource.2\"},\"right\":{\"payload\":\"skill.cost\"}},{\"type\":\"compare_numeric\",\"op\":\"LessThanOrEqual\",\"left\":{\"payload\":\"skill.cooldown_remaining_ms\"},\"right\":0}]"
+  },
+  {
+    "Id": 94,
+    "Kind": "json",
+    "Path": "ability/rules/release/skill_release_default.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 95,
+    "Kind": "object",
+    "Path": "ability/trigger_manifest.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 96,
+    "Kind": "json",
+    "Path": "ability/trigger_manifest.json",
+    "Pointer": "/entries",
+    "ValueJson": "json:[{\"trigger_id\":10001,\"path\":\"skills\\\\trigger_10001.json\",\"category\":\"skills\"},{\"trigger_id\":20001,\"path\":\"buffs\\\\trigger_20001.json\",\"category\":\"buffs\"},{\"trigger_id\":20002,\"path\":\"buffs\\\\trigger_20002.json\",\"category\":\"buffs\"},{\"trigger_id\":20003,\"path\":\"buffs\\\\trigger_20003.json\",\"category\":\"buffs\"},{\"trigger_id\":20004,\"path\":\"buffs\\\\trigger_20004.json\",\"category\":\"buffs\"},{\"trigger_id\":20005,\"path\":\"buffs\\\\trigger_20005.json\",\"category\":\"buffs\"},{\"trigger_id\":22001,\"path\":\"passives\\\\trigger_22001.json\",\"category\":\"passives\"},{\"trigger_id\":10010000,\"path\":\"passives\\\\trigger_10010000.json\",\"category\":\"passives\"},{\"trigger_id\":10010101,\"path\":\"skills\\\\trigger_10010101.json\",\"category\":\"skills\"},{\"trigger_id\":10010111,\"path\":\"skills\\\\trigger_10010111.json\",\"category\":\"skills\"},{\"trigger_id\":10010201,\"path\":\"skills\\\\trigger_10010201.json\",\"category\":\"skills\"},{\"trigger_id\":10010211,\"path\":\"skills\\\\trigger_10010211.json\",\"category\":\"skills\"},{\"trigger_id\":10010301,\"path\":\"skills\\\\trigger_10010301.json\",\"category\":\"skills\"},{\"trigger_id\":10010311,\"path\":\"skills\\\\trigger_10010311.json\",\"category\":\"skills\"},{\"trigger_id\":10010321,\"path\":\"skills\\\\trigger_10010321.json\",\"category\":\"skills\"},{\"trigger_id\":10010331,\"path\":\"skills\\\\trigger_10010331.json\",\"category\":\"skills\"},{\"trigger_id\":10010341,\"path\":\"skills\\\\trigger_10010341.json\",\"category\":\"skills\"},{\"trigger_id\":10020000,\"path\":\"passives\\\\trigger_10020000.json\",\"category\":\"passives\"},{\"trigger_id\":10020101,\"path\":\"skills\\\\trigger_10020101.json\",\"category\":\"skills\"},{\"trigger_id\":10020111,\"path\":\"skills\\\\trigger_10020111.json\",\"category\":\"skills\"},{\"trigger_id\":10020112,\"path\":\"skills\\\\trigger_10020111.json\",\"category\":\"skills\"},{\"trigger_id\":10020201,\"path\":\"skills\\\\trigger_10020201.json\",\"category\":\"skills\"},{\"trigger_id\":10020211,\"path\":\"skills\\\\trigger_10020211.json\",\"category\":\"skills\"},{\"trigger_id\":10020301,\"path\":\"skills\\\\trigger_10020301.json\",\"category\":\"skills\"},{\"trigger_id\":10020311,\"path\":\"skills\\\\trigger_10020311.json\",\"category\":\"skills\"},{\"trigger_id\":10020312,\"path\":\"skills\\\\trigger_10020312.json\",\"category\":\"skills\"},{\"trigger_id\":10020313,\"path\":\"skills\\\\trigger_10020313.json\",\"category\":\"skills\"},{\"trigger_id\":10030000,\"path\":\"passives\\\\trigger_10030000.json\",\"category\":\"passives\"},{\"trigger_id\":10030001,\"path\":\"skills\\\\trigger_10030001.json\",\"category\":\"skills\"},{\"trigger_id\":10030002,\"path\":\"passives\\\\trigger_10030000.json\",\"category\":\"passives\"},{\"trigger_id\":10030101,\"path\":\"skills\\\\trigger_10030101.json\",\"category\":\"skills\"},{\"trigger_id\":10030102,\"path\":\"skills\\\\trigger_10030102.json\",\"category\":\"skills\"},{\"trigger_id\":10030103,\"path\":\"skills\\\\trigger_10030102.json\",\"category\":\"skills\"},{\"trigger_id\":10030111,\"path\":\"skills\\\\trigger_10030111.json\",\"category\":\"skills\"},{\"trigger_id\":10030201,\"path\":\"skills\\\\trigger_10030201.json\",\"category\":\"skills\"},{\"trigger_id\":10030202,\"path\":\"skills\\\\trigger_10030202.json\",\"category\":\"skills\"},{\"trigger_id\":10030203,\"path\":\"skills\\\\trigger_10030202.json\",\"category\":\"skills\"},{\"trigger_id\":10030211,\"path\":\"skills\\\\trigger_10030211.json\",\"category\":\"skills\"},{\"trigger_id\":10030212,\"path\":\"skills\\\\trigger_10030212.json\",\"category\":\"skills\"},{\"trigger_id\":10030213,\"path\":\"skills\\\\trigger_10030212.json\",\"category\":\"skills\"},{\"trigger_id\":10030214,\"path\":\"skills\\\\trigger_10030212.json\",\"category\":\"skills\"},{\"trigger_id\":10030301,\"path\":\"skills\\\\trigger_10030301.json\",\"category\":\"skills\"},{\"trigger_id\":10030311,\"path\":\"skills\\\\trigger_10030311.json\",\"category\":\"skills\"},{\"trigger_id\":10030312,\"path\":\"skills\\\\trigger_10030312.json\",\"category\":\"skills\"},{\"trigger_id\":10030313,\"path\":\"skills\\\\trigger_10030312.json\",\"category\":\"skills\"},{\"trigger_id\":10030321,\"path\":\"skills\\\\trigger_10030321.json\",\"category\":\"skills\"},{\"trigger_id\":10040000,\"path\":\"passives\\\\trigger_10040000.json\",\"category\":\"passives\"},{\"trigger_id\":10040001,\"path\":\"passives\\\\trigger_10040000.json\",\"category\":\"passives\"},{\"trigger_id\":10040002,\"path\":\"passives\\\\trigger_10040000.json\",\"category\":\"passives\"},{\"trigger_id\":10040101,\"path\":\"skills\\\\trigger_10040101.json\",\"category\":\"skills\"},{\"trigger_id\":10040111,\"path\":\"skills\\\\trigger_10040111.json\",\"category\":\"skills\"},{\"trigger_id\":10040112,\"path\":\"skills\\\\trigger_10040112.json\",\"category\":\"skills\"},{\"trigger_id\":10040201,\"path\":\"skills\\\\trigger_10040201.json\",\"category\":\"skills\"},{\"trigger_id\":10040211,\"path\":\"skills\\\\trigger_10040211.json\",\"category\":\"skills\"},{\"trigger_id\":10040212,\"path\":\"skills\\\\trigger_10040212.json\",\"category\":\"skills\"},{\"trigger_id\":10040301,\"path\":\"skills\\\\trigger_10040301.json\",\"category\":\"skills\"},{\"trigger_id\":10040311,\"path\":\"skills\\\\trigger_10040311.json\",\"category\":\"skills\"},{\"trigger_id\":10040321,\"path\":\"skills\\\\trigger_10040321.json\",\"category\":\"skills\"},{\"trigger_id\":10050000,\"path\":\"passives\\\\trigger_10050000.json\",\"category\":\"passives\"},{\"trigger_id\":10050101,\"path\":\"skills\\\\trigger_10050101.json\",\"category\":\"skills\"},{\"trigger_id\":10050111,\"path\":\"skills\\\\trigger_10050111.json\",\"category\":\"skills\"},{\"trigger_id\":10050201,\"path\":\"skills\\\\trigger_10050201.json\",\"category\":\"skills\"},{\"trigger_id\":10050211,\"path\":\"skills\\\\trigger_10050211.json\",\"category\":\"skills\"},{\"trigger_id\":10050301,\"path\":\"skills\\\\trigger_10050301.json\",\"category\":\"skills\"},{\"trigger_id\":10050311,\"path\":\"skills\\\\trigger_10050311.json\",\"category\":\"skills\"},{\"trigger_id\":10050313,\"path\":\"skills\\\\trigger_10050313.json\",\"category\":\"skills\"},{\"trigger_id\":10060000,\"path\":\"passives\\\\trigger_10060000.json\",\"category\":\"passives\"},{\"trigger_id\":10060002,\"path\":\"passives\\\\trigger_10060000.json\",\"category\":\"passives\"},{\"trigger_id\":10060003,\"path\":\"passives\\\\trigger_10060000.json\",\"category\":\"passives\"},{\"trigger_id\":10060101,\"path\":\"skills\\\\trigger_10060101.json\",\"category\":\"skills\"},{\"trigger_id\":10060111,\"path\":\"skills\\\\trigger_10060111.json\",\"category\":\"skills\"},{\"trigger_id\":10060201,\"path\":\"skills\\\\trigger_10060201.json\",\"category\":\"skills\"},{\"trigger_id\":10060211,\"path\":\"skills\\\\trigger_10060211.json\",\"category\":\"skills\"},{\"trigger_id\":10060301,\"path\":\"skills\\\\trigger_10060301.json\",\"category\":\"skills\"},{\"trigger_id\":10060311,\"path\":\"skills\\\\trigger_10060311.json\",\"category\":\"skills\"},{\"trigger_id\":10060313,\"path\":\"skills\\\\trigger_10060313.json\",\"category\":\"skills\"},{\"trigger_id\":10010001,\"path\":\"skills\\\\trigger_10010001.json\",\"category\":\"skills\"},{\"trigger_id\":10020001,\"path\":\"skills\\\\trigger_10020001.json\",\"category\":\"skills\"},{\"trigger_id\":10020011,\"path\":\"skills\\\\trigger_10020011.json\",\"category\":\"skills\"},{\"trigger_id\":10040011,\"path\":\"skills\\\\trigger_10040011.json\",\"category\":\"skills\"},{\"trigger_id\":10040012,\"path\":\"skills\\\\trigger_10040012.json\",\"category\":\"skills\"},{\"trigger_id\":10050001,\"path\":\"skills\\\\trigger_10050001.json\",\"category\":\"skills\"},{\"trigger_id\":10050011,\"path\":\"skills\\\\trigger_10050011.json\",\"category\":\"skills\"},{\"trigger_id\":10060001,\"path\":\"skills\\\\trigger_10060001.json\",\"category\":\"skills\"},{\"trigger_id\":10060011,\"path\":\"skills\\\\trigger_10060011.json\",\"category\":\"skills\"}]"
+  },
+  {
+    "Id": 97,
+    "Kind": "object",
+    "Path": "ability/trigger_source_manifest.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 98,
+    "Kind": "json",
+    "Path": "ability/trigger_source_manifest.json",
+    "Pointer": "/entries",
+    "ValueJson": "json:[{\"trigger_id\":10001,\"category\":\"skills\"},{\"trigger_id\":20001,\"category\":\"buffs\"},{\"trigger_id\":20002,\"category\":\"buffs\"},{\"trigger_id\":20003,\"category\":\"buffs\"},{\"trigger_id\":20004,\"category\":\"buffs\"},{\"trigger_id\":20005,\"category\":\"buffs\"},{\"trigger_id\":22001,\"category\":\"passives\"},{\"trigger_id\":10010000,\"category\":\"passives\"},{\"trigger_id\":10010101,\"category\":\"skills\"},{\"trigger_id\":10010111,\"category\":\"skills\"},{\"trigger_id\":10010201,\"category\":\"skills\"},{\"trigger_id\":10010211,\"category\":\"skills\"},{\"trigger_id\":10010301,\"category\":\"skills\"},{\"trigger_id\":10010311,\"category\":\"skills\"},{\"trigger_id\":10010321,\"category\":\"skills\"},{\"trigger_id\":10010331,\"category\":\"skills\"},{\"trigger_id\":10010341,\"category\":\"skills\"},{\"trigger_id\":10020000,\"category\":\"passives\"},{\"trigger_id\":10020101,\"category\":\"skills\"},{\"trigger_id\":10020111,\"category\":\"skills\"},{\"trigger_id\":10020112,\"category\":\"skills\"},{\"trigger_id\":10020201,\"category\":\"skills\"},{\"trigger_id\":10020211,\"category\":\"skills\"},{\"trigger_id\":10020301,\"category\":\"skills\"},{\"trigger_id\":10020311,\"category\":\"skills\"},{\"trigger_id\":10020312,\"category\":\"skills\"},{\"trigger_id\":10020313,\"category\":\"skills\"},{\"trigger_id\":10030000,\"path\":\"passives\\\\trigger_10030000.json\",\"category\":\"passives\"},{\"trigger_id\":10030001,\"path\":\"skills\\\\trigger_10030001.json\",\"category\":\"skills\"},{\"trigger_id\":10030002,\"path\":\"passives\\\\trigger_10030000.json\",\"category\":\"passives\"},{\"trigger_id\":10030101,\"path\":\"skills\\\\trigger_10030101.json\",\"category\":\"skills\"},{\"trigger_id\":10030102,\"category\":\"skills\"},{\"trigger_id\":10030103,\"category\":\"skills\"},{\"trigger_id\":10030111,\"path\":\"skills\\\\trigger_10030111.json\",\"category\":\"skills\"},{\"trigger_id\":10030201,\"path\":\"skills\\\\trigger_10030201.json\",\"category\":\"skills\"},{\"trigger_id\":10030202,\"category\":\"skills\"},{\"trigger_id\":10030203,\"category\":\"skills\"},{\"trigger_id\":10030211,\"path\":\"skills\\\\trigger_10030211.json\",\"category\":\"skills\"},{\"trigger_id\":10030212,\"path\":\"skills\\\\trigger_10030212.json\",\"category\":\"skills\"},{\"trigger_id\":10030213,\"path\":\"skills\\\\trigger_10030212.json\",\"category\":\"skills\"},{\"trigger_id\":10030214,\"path\":\"skills\\\\trigger_10030212.json\",\"category\":\"skills\"},{\"trigger_id\":10030301,\"path\":\"skills\\\\trigger_10030301.json\",\"category\":\"skills\"},{\"trigger_id\":10030311,\"path\":\"skills\\\\trigger_10030311.json\",\"category\":\"skills\"},{\"trigger_id\":10030312,\"path\":\"skills\\\\trigger_10030312.json\",\"category\":\"skills\"},{\"trigger_id\":10030313,\"category\":\"skills\"},{\"trigger_id\":10030321,\"path\":\"skills\\\\trigger_10030321.json\",\"category\":\"skills\"},{\"trigger_id\":10040000,\"path\":\"passives\\\\trigger_10040000.json\",\"category\":\"passives\"},{\"trigger_id\":10040001,\"path\":\"passives\\\\trigger_10040000.json\",\"category\":\"passives\"},{\"trigger_id\":10040002,\"path\":\"passives\\\\trigger_10040000.json\",\"category\":\"passives\"},{\"trigger_id\":10040101,\"path\":\"skills\\\\trigger_10040101.json\",\"category\":\"skills\"},{\"trigger_id\":10040111,\"path\":\"skills\\\\trigger_10040111.json\",\"category\":\"skills\"},{\"trigger_id\":10040112,\"path\":\"skills\\\\trigger_10040112.json\",\"category\":\"skills\"},{\"trigger_id\":10040201,\"path\":\"skills\\\\trigger_10040201.json\",\"category\":\"skills\"},{\"trigger_id\":10040211,\"path\":\"skills\\\\trigger_10040211.json\",\"category\":\"skills\"},{\"trigger_id\":10040212,\"path\":\"skills\\\\trigger_10040212.json\",\"category\":\"skills\"},{\"trigger_id\":10040301,\"path\":\"skills\\\\trigger_10040301.json\",\"category\":\"skills\"},{\"trigger_id\":10040311,\"path\":\"skills\\\\trigger_10040311.json\",\"category\":\"skills\"},{\"trigger_id\":10040321,\"path\":\"skills\\\\trigger_10040321.json\",\"category\":\"skills\"},{\"trigger_id\":10050000,\"path\":\"passives\\\\trigger_10050000.json\",\"category\":\"passives\"},{\"trigger_id\":10050101,\"path\":\"skills\\\\trigger_10050101.json\",\"category\":\"skills\"},{\"trigger_id\":10050111,\"path\":\"skills\\\\trigger_10050111.json\",\"category\":\"skills\"},{\"trigger_id\":10050201,\"path\":\"skills\\\\trigger_10050201.json\",\"category\":\"skills\"},{\"trigger_id\":10050211,\"path\":\"skills\\\\trigger_10050211.json\",\"category\":\"skills\"},{\"trigger_id\":10050301,\"path\":\"skills\\\\trigger_10050301.json\",\"category\":\"skills\"},{\"trigger_id\":10050311,\"path\":\"skills\\\\trigger_10050311.json\",\"category\":\"skills\"},{\"trigger_id\":10050313,\"path\":\"skills\\\\trigger_10050313.json\",\"category\":\"skills\"},{\"trigger_id\":10060000,\"path\":\"passives\\\\trigger_10060000.json\",\"category\":\"passives\"},{\"trigger_id\":10060002,\"path\":\"passives\\\\trigger_10060000.json\",\"category\":\"passives\"},{\"trigger_id\":10060003,\"path\":\"passives\\\\trigger_10060000.json\",\"category\":\"passives\"},{\"trigger_id\":10060101,\"path\":\"skills\\\\trigger_10060101.json\",\"category\":\"skills\"},{\"trigger_id\":10060111,\"path\":\"skills\\\\trigger_10060111.json\",\"category\":\"skills\"},{\"trigger_id\":10060201,\"path\":\"skills\\\\trigger_10060201.json\",\"category\":\"skills\"},{\"trigger_id\":10060211,\"path\":\"skills\\\\trigger_10060211.json\",\"category\":\"skills\"},{\"trigger_id\":10060301,\"path\":\"skills\\\\trigger_10060301.json\",\"category\":\"skills\"},{\"trigger_id\":10060311,\"path\":\"skills\\\\trigger_10060311.json\",\"category\":\"skills\"},{\"trigger_id\":10060313,\"path\":\"skills\\\\trigger_10060313.json\",\"category\":\"skills\"},{\"trigger_id\":10010001,\"category\":\"skills\"},{\"trigger_id\":10020001,\"category\":\"skills\"},{\"trigger_id\":10020011,\"category\":\"skills\"},{\"trigger_id\":10040011,\"category\":\"skills\"},{\"trigger_id\":10040012,\"category\":\"skills\"},{\"trigger_id\":10050001,\"category\":\"skills\"},{\"trigger_id\":10050011,\"category\":\"skills\"},{\"trigger_id\":10060001,\"category\":\"skills\"},{\"trigger_id\":10060011,\"category\":\"skills\"}]"
+  },
+  {
+    "Id": 99,
+    "Kind": "object",
+    "Path": "ability/trigger_sources/trigger_sources.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 100,
+    "Kind": "json",
+    "Path": "ability/trigger_sources/trigger_sources.json",
+    "Pointer": "/version",
+    "ValueJson": "json:\"1.0\""
+  },
+  {
+    "Id": 101,
+    "Kind": "json",
+    "Path": "ability/trigger_sources/trigger_sources.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:{\"emit\":{\"params\":[{\"name\":\"emitter_id\",\"type\":\"int\",\"required\":true}],\"description\":\"Emit visual or audio effect\",\"displayName\":\"Emit Effect\",\"type\":\"emit\",\"category\":\"VFX\"},\"shoot_projectile\":{\"params\":[{\"name\":\"launcher\",\"type\":\"entity\",\"required\":true},{\"name\":\"target\",\"type\":\"entity\",\"required\":true},{\"name\":\"projectile_id\",\"type\":\"int\",\"required\":true},{\"defaultValue\":300,\"name\":\"speed\",\"type\":\"float\",\"required\":false}],\"description\":\"Shoot projectile to target\",\"displayName\":\"Shoot Projectile\",\"type\":\"shoot_projectile\",\"category\":\"Combat\"},\"add_buff\":{\"params\":[{\"name\":\"target\",\"type\":\"entity\",\"required\":true},{\"name\":\"buff_id\",\"type\":\"int\",\"required\":true},{\"defaultValue\":-1,\"name\":\"duration\",\"type\":\"float\",\"required\":false}],\"description\":\"Add buff to target\",\"displayName\":\"Add Buff\",\"type\":\"add_buff\",\"category\":\"Buff\"},\"give_damage\":{\"params\":[{\"name\":\"from\",\"type\":\"entity\",\"required\":true},{\"name\":\"to\",\"type\":\"entity\",\"required\":true},{\"name\":\"amount\",\"type\":\"expr\",\"required\":true},{\"defaultValue\":0,\"name\":\"damage_type\",\"type\":\"int\",\"required\":false}],\"description\":\"Deal damage to target\",\"displayName\":\"Deal Damage\",\"type\":\"give_damage\",\"category\":\"Combat\"},\"debug_log\":{\"params\":[{\"name\":\"message\",\"type\":\"string\",\"required\":true},{\"defaultValue\":false,\"name\":\"dump_args\",\"type\":\"bool\",\"required\":false}],\"description\":\"Output debug message\",\"displayName\":\"Debug Log\",\"type\":\"debug_log\",\"category\":\"Debug\"}}"
+  },
+  {
+    "Id": 102,
+    "Kind": "json",
+    "Path": "ability/trigger_sources/trigger_sources.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:{\"arg_gt\":{\"params\":[{\"name\":\"arg_name\",\"type\":\"string\",\"required\":true},{\"name\":\"value\",\"type\":\"number\",\"required\":true}],\"description\":\"Check if argument greater than value\",\"displayName\":\"Arg Greater Than\",\"type\":\"arg_gt\",\"category\":\"Parameter\"},\"arg_eq\":{\"params\":[{\"name\":\"arg_name\",\"type\":\"string\",\"required\":true},{\"name\":\"value\",\"type\":\"number\",\"required\":true}],\"description\":\"Check if argument equals value\",\"displayName\":\"Arg Equal\",\"type\":\"arg_eq\",\"category\":\"Parameter\"}}"
+  },
+  {
+    "Id": 103,
+    "Kind": "json",
+    "Path": "ability/trigger_sources/trigger_sources.json",
+    "Pointer": "/metadata",
+    "ValueJson": "json:{\"created_at\":\"2026-05-16T15:47:01Z\",\"last_modified\":\"2026-05-16T15:47:01Z\",\"description\":\"Auto-generated from ability_triggers.json\",\"author\":\"moba-config-generator\"}"
+  },
+  {
+    "Id": 104,
+    "Kind": "json",
+    "Path": "ability/trigger_sources/trigger_sources.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"comment\":\"Debug log output\",\"id\":10001,\"enabled\":true,\"phase\":\"immediate\",\"conditions\":[],\"event\":\"\",\"name\":\"Trigger_10001\",\"allowExternal\":false,\"actions\":[{\"message\":\"测试日志输出1111122233333\",\"dump_args\":false,\"type\":\"debug_log\"},{\"launcher\":100001,\"type\":\"shoot_projectile\",\"projectile_id\":200001}],\"priority\":50},{\"comment\":\"Debug log output\",\"id\":20001,\"enabled\":true,\"phase\":\"immediate\",\"conditions\":[],\"event\":\"skill.cast.complete\",\"name\":\"Skill Cast Complete\",\"allowExternal\":false,\"actions\":[{\"message\":\"释放技能完成日志输出11111\",\"dump_args\":false,\"type\":\"debug_log\"},{\"emitter_id\":400001,\"type\":\"emit\"}],\"priority\":50},{\"comment\":\"Debug log output\",\"id\":20002,\"enabled\":true,\"phase\":\"immediate\",\"conditions\":[],\"event\":\"skill.cast.complete\",\"name\":\"Skill Cast Complete\",\"allowExternal\":true,\"actions\":[{\"message\":\"监听别人释放技能完成日志输出22222\",\"dump_args\":false,\"type\":\"debug_log\"}],\"priority\":50},{\"comment\":\"Add buff\",\"id\":20003,\"enabled\":true,\"phase\":\"immediate\",\"conditions\":[],\"event\":\"\",\"name\":\"Trigger_20003\",\"allowExternal\":false,\"actions\":[{\"type\":\"add_buff\",\"buff_id\":100001}],\"priority\":50},{\"comment\":\"Debug log output\",\"id\":20004,\"enabled\":true,\"phase\":\"immediate\",\"conditions\":[],\"event\":\"\",\"name\":\"Trigger_20004\",\"allowExternal\":false,\"actions\":[{\"message\":\"被动日志输出11111\",\"dump_args\":false,\"type\":\"debug_log\"}],\"priority\":50},{\"comment\":\"Debug log output\",\"id\":20005,\"enabled\":true,\"phase\":\"immediate\",\"conditions\":[],\"event\":\"\",\"name\":\"Trigger_20005\",\"allowExternal\":false,\"actions\":[{\"message\":\"碰撞回调日志\",\"dump_args\":true,\"type\":\"debug_log\"},{\"damage_type\":1,\"type\":\"give_damage\",\"reason_kind\":1,\"reason_param\":0,\"log\":true,\"crit\":0,\"query_template_id\":101,\"amount\":\"=50.0\"}],\"priority\":50},{\"comment\":\"Emit effect\",\"id\":22001,\"enabled\":true,\"phase\":\"immediate\",\"conditions\":[],\"event\":\"\",\"name\":\"Trigger_22001\",\"allowExternal\":false,\"actions\":[{\"emitter_id\":400001,\"type\":\"emit\"}],\"priority\":50}]"
+  },
+  {
+    "Id": 105,
+    "Kind": "json",
+    "Path": "ability/trigger_sources/trigger_sources.json",
+    "Pointer": "/variables",
+    "ValueJson": "json:[{\"name\":\"$caster\",\"description\":\"Skill caster\"},{\"name\":\"$target\",\"description\":\"Target entity\"},{\"name\":\"$self\",\"description\":\"Self entity\"}]"
+  },
+  {
+    "Id": 106,
+    "Kind": "json",
+    "Path": "ability/trigger_sources/trigger_sources.json",
+    "Pointer": "/$schema",
+    "ValueJson": "json:\"abilitykit-trigger-source-v1\""
+  },
+  {
+    "Id": 107,
+    "Kind": "object",
+    "Path": "ability/triggering_event_map.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 108,
+    "Kind": "json",
+    "Path": "ability/triggering_event_map.json",
+    "Pointer": "/version",
+    "ValueJson": "json:1"
+  },
+  {
+    "Id": 109,
+    "Kind": "json",
+    "Path": "ability/triggering_event_map.json",
+    "Pointer": "/allowedDomains",
+    "ValueJson": "json:[\"ability\",\"common\",\"net\"]"
+  },
+  {
+    "Id": 110,
+    "Kind": "json",
+    "Path": "ability/triggering_event_map.json",
+    "Pointer": "/events",
+    "ValueJson": "json:[{\"name\":\"ability.on_cast\",\"argsType\":\"Your.Namespace.CastArgs\"}]"
+  },
+  {
+    "Id": 111,
+    "Kind": "object",
+    "Path": "ability/triggers/buffs/trigger_10101.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 112,
+    "Kind": "json",
+    "Path": "ability/triggers/buffs/trigger_10101.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10101,\"name\":\"持续掉血触发器\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"message\":\"触发器执行：持续扣血10点！\",\"dump_args\":false,\"type\":\"debug_log\"},{\"damageType\":\"physical\",\"value\":10,\"scale\":0,\"formulaType\":\"fixed\",\"attrTypeId\":0,\"type\":\"give_damage\"}]}]"
+  },
+  {
+    "Id": 113,
+    "Kind": "object",
+    "Path": "ability/triggers/buffs/trigger_20001.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 114,
+    "Kind": "json",
+    "Path": "ability/triggers/buffs/trigger_20001.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":20001,\"name\":\"Trigger_20001\",\"event\":\"skill.cast.complete\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"message\":\"释放技能完成日志输出11111\",\"dump_args\":false,\"type\":\"debug_log\"},{\"emitterId\":400001,\"type\":\"emit\"}]}]"
+  },
+  {
+    "Id": 115,
+    "Kind": "object",
+    "Path": "ability/triggers/buffs/trigger_20002.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 116,
+    "Kind": "json",
+    "Path": "ability/triggers/buffs/trigger_20002.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":20002,\"name\":\"Trigger_20002\",\"event\":\"skill.cast.complete\",\"enabled\":true,\"allowExternal\":true,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"message\":\"监听别人释放技能完成日志输出22222\",\"dump_args\":false,\"type\":\"debug_log\"}]}]"
+  },
+  {
+    "Id": 117,
+    "Kind": "object",
+    "Path": "ability/triggers/buffs/trigger_20003.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 118,
+    "Kind": "json",
+    "Path": "ability/triggers/buffs/trigger_20003.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":20003,\"name\":\"Trigger_20003\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[100001]}]}]"
+  },
+  {
+    "Id": 119,
+    "Kind": "object",
+    "Path": "ability/triggers/buffs/trigger_20004.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 120,
+    "Kind": "json",
+    "Path": "ability/triggers/buffs/trigger_20004.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":20004,\"name\":\"Trigger_20004\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"message\":\"被动日志输出11111\",\"dump_args\":false,\"type\":\"debug_log\"}]}]"
+  },
+  {
+    "Id": 121,
+    "Kind": "object",
+    "Path": "ability/triggers/buffs/trigger_20005.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 122,
+    "Kind": "json",
+    "Path": "ability/triggers/buffs/trigger_20005.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":20005,\"name\":\"Trigger_20005\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"message\":\"碰撞回调日志\",\"dump_args\":true,\"type\":\"debug_log\"},{\"damageType\":1,\"type\":\"give_damage\",\"reasonParam\":0,\"queryTemplateId\":101,\"value\":50.0,\"log\":true,\"crit\":0,\"reasonKind\":1}]}]"
+  },
+  {
+    "Id": 123,
+    "Kind": "object",
+    "Path": "ability/triggers/buffs/trigger_21001.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 124,
+    "Kind": "json",
+    "Path": "ability/triggers/buffs/trigger_21001.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 125,
+    "Kind": "object",
+    "Path": "ability/triggers/buffs/trigger_21002.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 126,
+    "Kind": "json",
+    "Path": "ability/triggers/buffs/trigger_21002.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 127,
+    "Kind": "object",
+    "Path": "ability/triggers/buffs/trigger_buff101_add.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 128,
+    "Kind": "json",
+    "Path": "ability/triggers/buffs/trigger_buff101_add.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":101,\"name\":\"Buff101-添加时日志\",\"event\":\"on_buff_added\",\"enabled\":false,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"message\":\"Buff101 已添加！开始每秒扣血！\",\"dump_args\":false,\"type\":\"debug_log\"}]}]"
+  },
+  {
+    "Id": 129,
+    "Kind": "object",
+    "Path": "ability/triggers/gameplay/trigger_900001.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 130,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900001.json",
+    "Pointer": "/id",
+    "ValueJson": "json:900001"
+  },
+  {
+    "Id": 131,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900001.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 132,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900001.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 133,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900001.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"gameplay.tick\""
+  },
+  {
+    "Id": 134,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900001.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"Gameplay Time Limit\""
+  },
+  {
+    "Id": 135,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900001.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 136,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900001.json",
+    "Pointer": "/scope",
+    "ValueJson": "json:\"global\""
+  },
+  {
+    "Id": 137,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900001.json",
+    "Pointer": "/execution",
+    "ValueJson": "json:\"once\""
+  },
+  {
+    "Id": 138,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900001.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[{\"type\":\"arg_gte\",\"arg_name\":\"elapsed_seconds\",\"value\":600}]"
+  },
+  {
+    "Id": 139,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900001.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"end_game\",\"reason_id\":0,\"win_team_id\":0}]"
+  },
+  {
+    "Id": 140,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900001.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:0"
+  },
+  {
+    "Id": 141,
+    "Kind": "object",
+    "Path": "ability/triggers/gameplay/trigger_900002.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 142,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900002.json",
+    "Pointer": "/id",
+    "ValueJson": "json:900002"
+  },
+  {
+    "Id": 143,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900002.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 144,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900002.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 145,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900002.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"gameplay.started\""
+  },
+  {
+    "Id": 146,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900002.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"Gameplay Score Init\""
+  },
+  {
+    "Id": 147,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900002.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 148,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900002.json",
+    "Pointer": "/scope",
+    "ValueJson": "json:\"global\""
+  },
+  {
+    "Id": 149,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900002.json",
+    "Pointer": "/execution",
+    "ValueJson": "json:\"once\""
+  },
+  {
+    "Id": 150,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900002.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 151,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900002.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"set_gameplay_var\",\"key_id\":1001,\"value\":0},{\"type\":\"set_gameplay_var\",\"key_id\":1002,\"value\":0}]"
+  },
+  {
+    "Id": 152,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900002.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:0"
+  },
+  {
+    "Id": 153,
+    "Kind": "object",
+    "Path": "ability/triggers/gameplay/trigger_900003.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 154,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900003.json",
+    "Pointer": "/id",
+    "ValueJson": "json:900003"
+  },
+  {
+    "Id": 155,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900003.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 156,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900003.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 157,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900003.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"unit.die\""
+  },
+  {
+    "Id": 158,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900003.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"Gameplay Kill Score Add\""
+  },
+  {
+    "Id": 159,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900003.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 160,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900003.json",
+    "Pointer": "/scope",
+    "ValueJson": "json:\"global\""
+  },
+  {
+    "Id": 161,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900003.json",
+    "Pointer": "/execution",
+    "ValueJson": "json:\"always\""
+  },
+  {
+    "Id": 162,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900003.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 163,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900003.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"add_gameplay_var\",\"key_id\":1001,\"delta\":1}]"
+  },
+  {
+    "Id": 164,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900003.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:0"
+  },
+  {
+    "Id": 165,
+    "Kind": "object",
+    "Path": "ability/triggers/gameplay/trigger_900004.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 166,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900004.json",
+    "Pointer": "/id",
+    "ValueJson": "json:900004"
+  },
+  {
+    "Id": 167,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900004.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 168,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900004.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 169,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900004.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"unit.die\""
+  },
+  {
+    "Id": 170,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900004.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"Gameplay Kill Score Limit\""
+  },
+  {
+    "Id": 171,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900004.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 172,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900004.json",
+    "Pointer": "/scope",
+    "ValueJson": "json:\"global\""
+  },
+  {
+    "Id": 173,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900004.json",
+    "Pointer": "/execution",
+    "ValueJson": "json:\"once\""
+  },
+  {
+    "Id": 174,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900004.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[{\"type\":\"arg_gte\",\"left_var_domain\":\"gameplay\",\"left_var_key\":\"1001\",\"value\":5}]"
+  },
+  {
+    "Id": 175,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900004.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"end_game\",\"reason_id\":1,\"win_team_id\":0}]"
+  },
+  {
+    "Id": 176,
+    "Kind": "json",
+    "Path": "ability/triggers/gameplay/trigger_900004.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:1"
+  },
+  {
+    "Id": 177,
+    "Kind": "object",
+    "Path": "ability/triggers/passives/trigger_10010000.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 178,
+    "Kind": "json",
+    "Path": "ability/triggers/passives/trigger_10010000.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010000,\"name\":\"廉颇-勇士之魂-释放技能时霸体战意\",\"event\":\"skill.cast.complete\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10010000],\"target_self\":true},{\"type\":\"debug_log\",\"message\":\"廉颇被动触发：添加霸体战意与防御韧性状态\",\"dump_args\":false}]},{\"id\":10010004,\"name\":\"廉颇-勇士之魂-造成伤害获得怒气\",\"event\":\"damage.apply.after\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":45,\"conditions\":[{\"type\":\"owner_matches_payload_source\"},{\"type\":\"arg_gt\",\"arg_name\":\"damage_value\",\"value\":0},{\"type\":\"arg_neq\",\"left\":\"payload:attacker_actor_id\",\"right\":\"payload:target_actor_id\"}],\"actions\":[{\"type\":\"modify_resource\",\"resource_type\":3,\"amount\":10,\"max\":100,\"target_payload_field\":\"attacker_actor_id\"}]},{\"id\":10010002,\"name\":\"廉颇-勇士之魂-承受伤害获得怒气\",\"event\":\"damage.apply.after\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":44,\"conditions\":[{\"type\":\"owner_matches_payload_target\"},{\"type\":\"arg_gt\",\"arg_name\":\"damage_value\",\"value\":0},{\"type\":\"arg_neq\",\"left\":\"payload:attacker_actor_id\",\"right\":\"payload:target_actor_id\"}],\"actions\":[{\"type\":\"modify_resource\",\"resource_type\":3,\"amount\":5,\"max\":100,\"target_payload_field\":\"target_actor_id\"}]},{\"id\":10010003,\"name\":\"廉颇-勇士之魂-脱战怒气转生命\",\"event\":\"\",\"enabled\":true,\"allowExternal\":true,\"phase\":\"immediate\",\"priority\":40,\"conditions\":[],\"actions\":[{\"type\":\"convert_resource_to_heal\",\"resource_type\":3,\"amount\":10,\"heal_ratio\":8,\"out_of_combat_seconds\":5,\"heal_type\":0,\"reason_kind\":2,\"reason_param\":10010000,\"target_self\":true}]}]"
+  },
+  {
+    "Id": 179,
+    "Kind": "object",
+    "Path": "ability/triggers/passives/trigger_10020000.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 180,
+    "Kind": "json",
+    "Path": "ability/triggers/passives/trigger_10020000.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10020000,\"name\":\"小乔-治愈微笑-释放技能后短暂移速\",\"event\":\"skill.cast.complete\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10020001],\"target_self\":true},{\"type\":\"debug_log\",\"message\":\"小乔被动触发：释放技能后添加短暂移速状态\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 181,
+    "Kind": "array",
+    "Path": "ability/triggers/passives/trigger_10030000.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 182,
+    "Kind": "json",
+    "Path": "ability/triggers/passives/trigger_10030000.json",
+    "Pointer": "/0",
+    "ValueJson": "json:{\"id\":10030000,\"name\":\"赵云-龙鸣-低血量免伤配置\",\"event\":\"damage.attack.before_calc\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":65,\"conditions\":[{\"type\":\"owner_matches_payload_target\"}],\"actions\":[{\"type\":\"adjust_damage_number\",\"number_slot\":0,\"op\":1,\"value\":0,\"target_missing_hp_ratio_coefficient\":-0.33,\"source_id\":10030000,\"reason_kind\":0,\"reason_param\":0,\"require_skill_runtime\":false,\"skip_first_hit\":false},{\"type\":\"debug_log\",\"message\":\"赵云被动龙鸣：每损失3%最大生命获得1%免伤，最高33%\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 183,
+    "Kind": "json",
+    "Path": "ability/triggers/passives/trigger_10030000.json",
+    "Pointer": "/1",
+    "ValueJson": "json:{\"id\":10030002,\"name\":\"赵云-龙鸣-配置标记\",\"event\":\"\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":true,\"phase\":\"immediate\",\"priority\":40,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10030000],\"target_self\":true},{\"type\":\"debug_log\",\"message\":\"赵云被动龙鸣：配置声明每损失3%最大生命获得1%免伤，最高33%\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 184,
+    "Kind": "array",
+    "Path": "ability/triggers/passives/trigger_10040000.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 185,
+    "Kind": "json",
+    "Path": "ability/triggers/passives/trigger_10040000.json",
+    "Pointer": "/0",
+    "ValueJson": "json:{\"id\":10040000,\"name\":\"墨子-机关术-释放技能获得护盾\",\"event\":\"skill.cast.complete\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10040000],\"target_self\":true},{\"type\":\"add_shield\",\"shield_id\":10040000,\"shield_value\":300,\"absorb_ratio\":1,\"duration_ms\":3000,\"priority\":20,\"target_self\":true,\"stacking_policy\":1,\"consume_policy\":0},{\"type\":\"debug_log\",\"message\":\"墨子被动机关术：释放技能获得机关护盾\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 186,
+    "Kind": "json",
+    "Path": "ability/triggers/passives/trigger_10040000.json",
+    "Pointer": "/1",
+    "ValueJson": "json:{\"id\":10040001,\"name\":\"墨子-机关术-普攻计数\",\"event\":\"damage.apply.after\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":45,\"conditions\":[{\"type\":\"arg_gt\",\"arg_name\":\"damage_value\",\"value\":0},{\"type\":\"arg_eq\",\"left\":\"payload:reason_kind\",\"right\":\"2\"},{\"type\":\"arg_neq\",\"left\":\"payload:attacker_actor_id\",\"right\":\"payload:target_actor_id\"}],\"actions\":[{\"type\":\"advance_gameplay_counter\",\"key_id\":10040001,\"scope_payload_field_id\":1993035528,\"threshold\":4,\"delta\":1,\"reset_value\":0,\"trigger_id\":10040002}]}"
+  },
+  {
+    "Id": 187,
+    "Kind": "json",
+    "Path": "ability/triggers/passives/trigger_10040000.json",
+    "Pointer": "/2",
+    "ValueJson": "json:{\"id\":10040002,\"name\":\"墨子-机关术-第四次强化近战普攻\",\"event\":\"\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":true,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":260,\"source_attack_ratio\":0.8,\"damage_type\":2,\"reason_param\":10040002,\"target_mode\":2,\"target_max_count\":1},{\"type\":\"pull\",\"speed\":12,\"duration_ms\":300,\"direction_mode\":1,\"target_distance\":3,\"priority\":15,\"motion_group_id\":3,\"target_mode\":2},{\"type\":\"add_buff\",\"buffIds\":[10040000],\"target_self\":true},{\"type\":\"debug_log\",\"message\":\"墨子被动机关术：第四次普攻强化为近战命中，击退目标并刷新护盾\",\"dump_args\":false}]}"
+  },
+  {
+    "Id": 188,
+    "Kind": "object",
+    "Path": "ability/triggers/passives/trigger_10050000.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 189,
+    "Kind": "json",
+    "Path": "ability/triggers/passives/trigger_10050000.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10050000,\"name\":\"妲己-失心-被动入口\",\"event\":\"\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"debug_log\",\"message\":\"妲己被动失心：技能伤害命中时由技能触发器叠加降低法术防御状态\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 190,
+    "Kind": "object",
+    "Path": "ability/triggers/passives/trigger_10060000.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 191,
+    "Kind": "json",
+    "Path": "ability/triggers/passives/trigger_10060000.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10060000,\"name\":\"嬴政-王者审判-被动入口\",\"event\":\"\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[]},{\"id\":10060002,\"name\":\"嬴政-王者审判-普攻命中计数\",\"event\":\"damage.apply.after\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":45,\"conditions\":[{\"type\":\"arg_gt\",\"arg_name\":\"damage_value\",\"value\":0},{\"type\":\"arg_eq\",\"left\":\"payload:reason_kind\",\"right\":\"2\"},{\"type\":\"arg_neq\",\"left\":\"payload:attacker_actor_id\",\"right\":\"payload:target_actor_id\"}],\"actions\":[{\"type\":\"advance_gameplay_counter\",\"key_id\":10060002,\"scope_payload_field_id\":1993035528,\"threshold\":5,\"delta\":1,\"reset_value\":0,\"trigger_id\":10060003}]},{\"id\":10060003,\"name\":\"嬴政-王者审判-第五次普攻强化\",\"event\":\"\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":true,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":180,\"source_attack_ratio\":0.35,\"damage_type\":2,\"reason_param\":10060003,\"target_mode\":2,\"target_max_count\":1}]}]"
+  },
+  {
+    "Id": 192,
+    "Kind": "object",
+    "Path": "ability/triggers/passives/trigger_22001.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 193,
+    "Kind": "json",
+    "Path": "ability/triggers/passives/trigger_22001.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":22001,\"name\":\"Trigger_22001\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"emitterId\":400001,\"type\":\"emit\"}]}]"
+  },
+  {
+    "Id": 194,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10001.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 195,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10001.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10001,\"name\":\"技能1-添加持续掉血buff\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[101],\"targetActorId\":0},{\"message\":\"释放技能1，给自己添加持续掉血buff！\",\"dump_args\":false,\"type\":\"debug_log\"}]}]"
+  },
+  {
+    "Id": 196,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10004.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 197,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10004.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10004"
+  },
+  {
+    "Id": 198,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10004.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"skill_10010401_apply_self_bleed_buff\""
+  },
+  {
+    "Id": 199,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10004.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 200,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10004.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 201,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10004.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 202,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10004.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 203,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10004.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 204,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10004.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 205,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10004.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"debug_log\",\"message\":\"skill_10010401_apply_self_bleed_buff\",\"dump_args\":true},{\"type\":\"add_buff\",\"buff_id\":101,\"target_source\":4}]"
+  },
+  {
+    "Id": 206,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010001.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 207,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010001.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10010001"
+  },
+  {
+    "Id": 208,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010001.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"廉颇-普通攻击\""
+  },
+  {
+    "Id": 209,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010001.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 210,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010001.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 211,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010001.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 212,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010001.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 213,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010001.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 214,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010001.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 215,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010001.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":120,\"source_attack_ratio\":1.0,\"damage_type\":1,\"reason_kind\":2,\"reason_param\":10010001,\"target_mode\":2,\"target_max_count\":1}]"
+  },
+  {
+    "Id": 216,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010101.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 217,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010101.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010101,\"name\":\"廉颇-爆裂冲撞-发起冲锋\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10010000],\"target_self\":true},{\"type\":\"dash\",\"speed\":12.3,\"duration_ms\":650,\"direction_mode\":0,\"apply_to_caster\":true,\"pass_through_walls\":true,\"priority\":20,\"motion_group_id\":2,\"hit_trigger_plan_id\":10010111},{\"type\":\"debug_log\",\"message\":\"廉颇一技能：霸体并向指向方向冲锋，移动过程命中触发判定\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 218,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010111.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 219,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010111.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010111,\"name\":\"廉颇-爆裂冲撞-命中伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"pull\",\"speed\":7.0,\"duration_ms\":300,\"direction_mode\":2,\"target_distance\":0,\"priority\":100,\"motion_group_id\":3,\"continuous_tag_template_id\":10000001},{\"type\":\"give_damage\",\"damage_value\":200,\"source_attack_ratio\":0.8,\"damage_type\":1,\"reason_param\":10010101,\"target_max_count\":1},{\"type\":\"debug_log\",\"message\":\"廉颇一技能：冲撞命中造成物理伤害并击飞目标\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 220,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010201.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 221,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010201.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010201,\"name\":\"廉颇-熔岩重击-生成蓄力区域\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10010000],\"target_self\":true},{\"type\":\"add_shield\",\"shield_id\":10010201,\"shield_value\":350,\"absorb_ratio\":1.0,\"duration_ms\":2500,\"priority\":20,\"target_self\":true,\"stacking_policy\":1,\"consume_policy\":0},{\"type\":\"spawn_area\",\"area_id\":40010201,\"position_mode\":0,\"radius\":3.5,\"duration_ms\":700},{\"type\":\"reset_cooldown\",\"skill_id\":10010101,\"skill_slot\":1,\"target_query_id\":50010201,\"target_max_count\":1},{\"type\":\"debug_log\",\"message\":\"廉颇二技能：获得护盾并生成延迟范围伤害区域，范围内有敌人时刷新一技能\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 222,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010211.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 223,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010211.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010211,\"name\":\"廉颇-熔岩重击-区域伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":150,\"source_attack_ratio\":1.2,\"damage_type\":1,\"reason_param\":10010201,\"target_query_id\":50010201,\"target_max_count\":10},{\"type\":\"add_buff\",\"buffIds\":[10010212],\"target_query_id\":50010201,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"廉颇二技能：蓄力区域造成物理伤害并降低目标移速\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 224,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010301.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 225,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010301.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010301,\"name\":\"廉颇-天崩地裂-第一段区域\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10010000],\"target_self\":true},{\"type\":\"dash\",\"duration_ms\":350,\"move_to_aim_position\":true,\"priority\":1,\"apply_to_caster\":true,\"motion_group_id\":5},{\"type\":\"jump\",\"height\":1.6,\"duration_ms\":350,\"priority\":100,\"apply_to_caster\":true,\"landing_trigger_ids\":[10010302],\"continuous_tag_template_id\":10000001},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：第一段跳向选点，落地后触发区域\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 226,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010302.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 227,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010302.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010302,\"name\":\"廉颇-天崩地裂-第一段落地区域\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40010301,\"position_mode\":0,\"radius\":4.5,\"duration_ms\":650},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：第一段落地触发区域\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 228,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010311.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 229,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010311.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010311,\"name\":\"廉颇-天崩地裂-第二段区域\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"jump\",\"height\":1.6,\"duration_ms\":350,\"priority\":100,\"apply_to_caster\":true,\"landing_trigger_ids\":[10010312],\"continuous_tag_template_id\":10000001},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：第二段在当前位置跳起，落地后触发区域\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 230,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010312.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 231,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010312.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010312,\"name\":\"廉颇-天崩地裂-第二段落地区域\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40010311,\"position_mode\":0,\"radius\":4.5,\"duration_ms\":650},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：第二段落地触发区域\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 232,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010321.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 233,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010321.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010321,\"name\":\"廉颇-天崩地裂-第三段区域\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"jump\",\"height\":1.8,\"duration_ms\":380,\"priority\":100,\"apply_to_caster\":true,\"landing_trigger_ids\":[10010322],\"continuous_tag_template_id\":10000001},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：第三段在当前位置跳起，落地后触发区域和击飞\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 234,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010322.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 235,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010322.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010322,\"name\":\"廉颇-天崩地裂-第三段落地区域\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40010321,\"position_mode\":0,\"radius\":4.5,\"duration_ms\":650},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：第三段落地触发区域\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 236,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010331.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 237,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010331.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010331,\"name\":\"廉颇-天崩地裂-段落伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":160,\"source_attack_ratio\":0.8,\"damage_type\":1,\"reason_param\":10010301,\"target_query_id\":50010301,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：段落范围造成物理伤害\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 238,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10010341.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 239,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10010341.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10010341,\"name\":\"廉颇-天崩地裂-第三段击飞\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"pull\",\"speed\":8.0,\"duration_ms\":500,\"direction_mode\":2,\"target_distance\":0,\"priority\":110,\"motion_group_id\":3,\"continuous_tag_template_id\":10000001,\"target_query_id\":50010301,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"廉颇三技能：第三段命中击飞目标\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 240,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10020001.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 241,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020001.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10020001"
+  },
+  {
+    "Id": 242,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020001.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"小乔-普通攻击-发射\""
+  },
+  {
+    "Id": 243,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020001.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 244,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020001.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 245,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020001.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 246,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020001.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 247,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020001.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 248,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020001.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 249,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020001.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"shoot_projectile\",\"launcher_id\":31020001,\"projectile_id\":30020001}]"
+  },
+  {
+    "Id": 250,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10020011.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 251,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020011.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10020011"
+  },
+  {
+    "Id": 252,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020011.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"小乔-普通攻击-命中伤害\""
+  },
+  {
+    "Id": 253,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020011.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 254,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020011.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 255,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020011.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 256,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020011.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 257,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020011.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 258,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020011.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 259,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020011.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":105,\"source_attack_ratio\":1.0,\"damage_type\":2,\"reason_kind\":2,\"reason_param\":10020001}]"
+  },
+  {
+    "Id": 260,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10020101.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 261,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020101.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10020101,\"name\":\"小乔-绽放之舞-发射扇子\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"shoot_projectile\",\"launcher_id\":31020101,\"projectile_id\":30020101},{\"type\":\"debug_log\",\"message\":\"小乔一技能：发射扇子投射物\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 262,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10020111.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 263,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020111.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10020111,\"name\":\"小乔-绽放之舞-命中伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":500,\"source_attack_ratio\":0.8,\"damage_type\":2,\"reason_param\":10020101},{\"type\":\"debug_log\",\"message\":\"小乔一技能：扇子往返命中造成法术伤害\",\"dump_args\":false}]},{\"id\":10020112,\"name\":\"小乔-绽放之舞-多目标伤害衰减\",\"event\":\"damage.attack.before_calc\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":61,\"conditions\":[],\"actions\":[{\"type\":\"adjust_damage_number\",\"number_slot\":0,\"op\":1,\"reason_kind\":1,\"reason_param\":10020101,\"require_skill_runtime\":true,\"skip_first_hit\":true,\"repeat_target_decay_factor\":0.8,\"target_hit_count_key_base\":1202010}]}]"
+  },
+  {
+    "Id": 264,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10020201.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 265,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020201.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10020201,\"name\":\"小乔-甜蜜恋风-生成区域\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40020201,\"position_mode\":2,\"radius\":4,\"duration_ms\":1000},{\"type\":\"debug_log\",\"message\":\"小乔二技能：生成击飞区域\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 266,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10020211.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 267,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020211.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10020211,\"name\":\"小乔-甜蜜恋风-区域伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":300,\"source_attack_ratio\":0.5,\"damage_type\":2,\"reason_param\":10020201,\"target_query_id\":50020201,\"target_max_count\":10},{\"type\":\"pull\",\"speed\":8.0,\"duration_ms\":500,\"direction_mode\":2,\"target_distance\":0,\"priority\":110,\"motion_group_id\":3,\"continuous_tag_template_id\":10000001,\"target_query_id\":50020201,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"小乔二技能：区域命中造成法术伤害并击飞目标\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 268,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10020301.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 269,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020301.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10020301,\"name\":\"小乔-星华缭乱-添加持续状态\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10020301],\"target_self\":true},{\"type\":\"debug_log\",\"message\":\"小乔三技能：添加持续落星状态\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 270,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10020311.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 271,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020311.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10020311,\"name\":\"小乔-星华缭乱-周期搜敌落星\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40020301,\"position_mode\":1,\"radius\":2.5,\"duration_ms\":700,\"target_query_id\":50020301,\"target_max_count\":1},{\"type\":\"debug_log\",\"message\":\"小乔三技能：周期搜敌并在目标位置生成延迟落星区域\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 272,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10020312.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 273,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020312.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10020312,\"name\":\"小乔-星华缭乱-重复命中伤害衰减\",\"event\":\"damage.attack.before_calc\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":60,\"conditions\":[],\"actions\":[{\"type\":\"adjust_damage_number\",\"number_slot\":0,\"op\":1,\"reason_kind\":1,\"reason_param\":10020301,\"require_skill_runtime\":true,\"skip_first_hit\":true,\"repeat_target_decay_factor\":0.5,\"target_hit_count_key_base\":1200000}]}]"
+  },
+  {
+    "Id": 274,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10020313.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 275,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10020313.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10020313,\"name\":\"小乔-星华缭乱-落星区域延迟伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":80,\"damage_type\":2,\"reason_param\":10020301,\"target_query_id\":50020302,\"target_max_count\":1},{\"type\":\"debug_log\",\"message\":\"小乔三技能：落星区域延迟命中造成法术伤害\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 276,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10030001.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 277,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030001.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10030001"
+  },
+  {
+    "Id": 278,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030001.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"赵云-普通攻击\""
+  },
+  {
+    "Id": 279,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030001.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 280,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030001.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 281,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030001.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 282,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030001.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 283,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030001.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 284,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030001.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 285,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030001.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":115,\"source_attack_ratio\":1.0,\"damage_type\":1,\"reason_kind\":2,\"reason_param\":10030001,\"target_mode\":2,\"target_max_count\":1}]"
+  },
+  {
+    "Id": 286,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10030101.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 287,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030101.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10030101"
+  },
+  {
+    "Id": 288,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030101.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"赵云-惊雷之龙-加速并强化普攻\""
+  },
+  {
+    "Id": 289,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030101.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 290,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030101.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 291,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030101.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 292,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030101.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 293,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030101.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 294,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030101.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 295,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030101.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"add_buff\",\"buffIds\":[10030104],\"target_self\":true},{\"type\":\"add_buff\",\"buffIds\":[10030101],\"target_self\":true},{\"type\":\"debug_log\",\"message\":\"赵云一技能惊雷之龙：获得短时移速提升，并强化下一次普攻附带额外伤害与减速\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 296,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10030102.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 297,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030102.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10030102,\"name\":\"赵云-惊雷之龙-二档追加冲锋段\",\"event\":\"skill.cast.complete\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":45,\"conditions\":[{\"type\":\"arg_eq\",\"left\":\"payload:skill.id\",\"right\":\"10030101\"},{\"type\":\"has_buff\",\"buff_id\":10030001,\"check_stack\":0}],\"actions\":[{\"type\":\"dash\",\"speed\":16.0,\"duration_ms\":350,\"direction_mode\":0,\"apply_to_caster\":true,\"priority\":20,\"motion_group_id\":2,\"hit_trigger_plan_id\":10030111},{\"type\":\"debug_log\",\"message\":\"赵云一技能二档增强：龙鸣二档触发额外一段冲锋突进\",\"dump_args\":false}]},{\"id\":10030103,\"name\":\"赵云-惊雷之龙-三档追加冲锋段\",\"event\":\"skill.cast.complete\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":44,\"conditions\":[{\"type\":\"arg_eq\",\"left\":\"payload:skill.id\",\"right\":\"10030101\"},{\"type\":\"has_buff\",\"buff_id\":10030002,\"check_stack\":0}],\"actions\":[{\"type\":\"dash\",\"speed\":18.0,\"duration_ms\":400,\"direction_mode\":0,\"apply_to_caster\":true,\"priority\":20,\"motion_group_id\":2,\"hit_trigger_plan_id\":10030111},{\"type\":\"debug_log\",\"message\":\"赵云一技能三档增强：龙鸣三档触发更长距离额外冲锋突进\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 298,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10030111.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 299,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030111.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10030111"
+  },
+  {
+    "Id": 300,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030111.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"赵云-惊雷之龙-强化普攻命中\""
+  },
+  {
+    "Id": 301,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030111.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"damage.apply.after\""
+  },
+  {
+    "Id": 302,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030111.json",
+    "Pointer": "/scope",
+    "ValueJson": "json:\"owner\""
+  },
+  {
+    "Id": 303,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030111.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 304,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030111.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 305,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030111.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 306,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030111.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:55"
+  },
+  {
+    "Id": 307,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030111.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[{\"type\":\"owner_matches_payload_source\"},{\"type\":\"arg_gt\",\"arg_name\":\"damage_value\",\"value\":0},{\"type\":\"arg_eq\",\"left\":\"payload:reason_kind\",\"right\":\"2\"},{\"type\":\"has_buff\",\"buff_id\":10030101,\"check_stack\":0,\"target_mode\":1}]"
+  },
+  {
+    "Id": 308,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030111.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":190,\"source_attack_ratio\":1,\"damage_type\":1,\"reason_param\":10030101,\"target_max_count\":1},{\"type\":\"add_buff\",\"buffIds\":[10030102],\"target_max_count\":1},{\"type\":\"remove_buff\",\"buff_id\":10030101,\"target_self\":true},{\"type\":\"debug_log\",\"message\":\"赵云一技能强化普攻：造成额外物理伤害并减速，并消耗强化普攻状态\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 309,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10030201.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 310,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030201.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10030201"
+  },
+  {
+    "Id": 311,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030201.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"赵云-破云之龙-四段枪刺\""
+  },
+  {
+    "Id": 312,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030201.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 313,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030201.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 314,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030201.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 315,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030201.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 316,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030201.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 317,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030201.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 318,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030201.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"spawn_area\",\"area_id\":40030201,\"position_mode\":0,\"radius\":3.5,\"duration_ms\":760},{\"type\":\"debug_log\",\"message\":\"赵云二技能破云之龙：向前连续四次刺击，命中造成物理伤害并回复自身生命\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 319,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10030202.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 320,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030202.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10030202,\"name\":\"赵云-破云之龙-二档范围增强\",\"event\":\"skill.cast.complete\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":45,\"conditions\":[{\"type\":\"arg_eq\",\"left\":\"payload:skill.id\",\"right\":\"10030201\"},{\"type\":\"has_buff\",\"buff_id\":10030001,\"check_stack\":0}],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40030202,\"position_mode\":1,\"radius\":4.5,\"duration_ms\":600},{\"type\":\"debug_log\",\"message\":\"赵云二技能二档增强：龙鸣二档触发更大范围突刺区域\",\"dump_args\":false}]},{\"id\":10030203,\"name\":\"赵云-破云之龙-三档范围增强\",\"event\":\"skill.cast.complete\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":44,\"conditions\":[{\"type\":\"arg_eq\",\"left\":\"payload:skill.id\",\"right\":\"10030201\"},{\"type\":\"has_buff\",\"buff_id\":10030002,\"check_stack\":0}],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40030203,\"position_mode\":1,\"radius\":5.5,\"duration_ms\":600},{\"type\":\"debug_log\",\"message\":\"赵云二技能三档增强：龙鸣三档触发最大范围突刺区域\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 321,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10030211.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 322,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030211.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10030211"
+  },
+  {
+    "Id": 323,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030211.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"赵云-破云之龙-第一段命中\""
+  },
+  {
+    "Id": 324,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030211.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 325,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030211.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 326,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030211.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 327,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030211.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 328,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030211.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 329,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030211.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 330,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030211.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":85,\"source_attack_ratio\":0.35,\"damage_type\":1,\"reason_param\":10030201,\"target_query_id\":50030201,\"target_max_count\":10},{\"type\":\"heal\",\"amount\":35,\"heal_type\":0,\"reason_kind\":1,\"reason_param\":10030201,\"target_self\":true},{\"type\":\"debug_log\",\"message\":\"赵云二技能第一段：命中敌人并回血\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 331,
+    "Kind": "array",
+    "Path": "ability/triggers/skills/trigger_10030212.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 332,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030212.json",
+    "Pointer": "/0",
+    "ValueJson": "json:{\"id\":10030212,\"name\":\"赵云-破云之龙-第二段命中\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":85,\"source_attack_ratio\":0.35,\"damage_type\":1,\"reason_param\":10030201,\"target_query_id\":50030201,\"target_max_count\":10},{\"type\":\"heal\",\"amount\":35,\"heal_type\":0,\"reason_kind\":1,\"reason_param\":10030201,\"target_self\":true}]}"
+  },
+  {
+    "Id": 333,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030212.json",
+    "Pointer": "/1",
+    "ValueJson": "json:{\"id\":10030213,\"name\":\"赵云-破云之龙-第三段命中\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":85,\"source_attack_ratio\":0.35,\"damage_type\":1,\"reason_param\":10030201,\"target_query_id\":50030201,\"target_max_count\":10},{\"type\":\"heal\",\"amount\":35,\"heal_type\":0,\"reason_kind\":1,\"reason_param\":10030201,\"target_self\":true}]}"
+  },
+  {
+    "Id": 334,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030212.json",
+    "Pointer": "/2",
+    "ValueJson": "json:{\"id\":10030214,\"name\":\"赵云-破云之龙-第四段命中\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":85,\"source_attack_ratio\":0.35,\"damage_type\":1,\"reason_param\":10030201,\"target_query_id\":50030201,\"target_max_count\":10},{\"type\":\"heal\",\"amount\":35,\"heal_type\":0,\"reason_kind\":1,\"reason_param\":10030201,\"target_self\":true}]}"
+  },
+  {
+    "Id": 335,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10030301.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 336,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030301.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10030301"
+  },
+  {
+    "Id": 337,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030301.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"赵云-天翔之龙-跃向目标区域\""
+  },
+  {
+    "Id": 338,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030301.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 339,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030301.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 340,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030301.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 341,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030301.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 342,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030301.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 343,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030301.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 344,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030301.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"dash\",\"duration_ms\":500,\"move_to_aim_position\":true,\"priority\":1,\"apply_to_caster\":true,\"motion_group_id\":5},{\"type\":\"jump\",\"height\":2.2,\"duration_ms\":500,\"priority\":100,\"apply_to_caster\":true,\"motion_group_id\":5,\"continuous_tag_template_id\":10000001},{\"type\":\"spawn_area\",\"area_id\":40030301,\"position_mode\":2,\"radius\":4.5,\"duration_ms\":700},{\"type\":\"debug_log\",\"message\":\"赵云三技能天翔之龙：跃向目标区域，落地造成伤害、击飞并施加感电标记\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 345,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10030311.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 346,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030311.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10030311"
+  },
+  {
+    "Id": 347,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030311.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"赵云-天翔之龙-落地伤害与感电\""
+  },
+  {
+    "Id": 348,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030311.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 349,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030311.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 350,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030311.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 351,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030311.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 352,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030311.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 353,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030311.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 354,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030311.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":350,\"source_attack_ratio\":1.3,\"damage_type\":1,\"reason_param\":10030301,\"target_query_id\":50030301,\"target_max_count\":10},{\"type\":\"add_buff\",\"buffIds\":[10030301],\"target_query_id\":50030301,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"赵云三技能：落地命中目标并附加感电标记\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 355,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10030312.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 356,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030312.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10030312"
+  },
+  {
+    "Id": 357,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030312.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"赵云-天翔之龙-感电目标额外伤害\""
+  },
+  {
+    "Id": 358,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030312.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"damage.apply.after\""
+  },
+  {
+    "Id": 359,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030312.json",
+    "Pointer": "/scope",
+    "ValueJson": "json:\"owner\""
+  },
+  {
+    "Id": 360,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030312.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 361,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030312.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 362,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030312.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 363,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030312.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:45"
+  },
+  {
+    "Id": 364,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030312.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[{\"type\":\"arg_gt\",\"arg_name\":\"damage_value\",\"value\":0},{\"type\":\"has_buff\",\"buff_id\":10030301,\"check_stack\":0}]"
+  },
+  {
+    "Id": 365,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030312.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":30,\"source_attack_ratio\":0.13,\"damage_type\":2,\"reason_param\":10030301,\"target_max_count\":1},{\"type\":\"debug_log\",\"message\":\"赵云三技能感电：标记持续期间，后续伤害触发额外法术伤害\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 366,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10030321.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 367,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030321.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10030321"
+  },
+  {
+    "Id": 368,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030321.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"赵云-天翔之龙-落地击飞\""
+  },
+  {
+    "Id": 369,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030321.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 370,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030321.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 371,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030321.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 372,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030321.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 373,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030321.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 374,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030321.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 375,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10030321.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"pull\",\"speed\":8,\"duration_ms\":500,\"direction_mode\":2,\"target_distance\":0,\"priority\":100,\"motion_group_id\":3,\"target_query_id\":50030301,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"赵云三技能：落地区域击飞敌人\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 376,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10040011.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 377,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040011.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10040011"
+  },
+  {
+    "Id": 378,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040011.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"墨子-普通攻击-发射\""
+  },
+  {
+    "Id": 379,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040011.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 380,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040011.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 381,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040011.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 382,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040011.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 383,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040011.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 384,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040011.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 385,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040011.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"shoot_projectile\",\"launcher_id\":31040011,\"projectile_id\":30040011}]"
+  },
+  {
+    "Id": 386,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10040012.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 387,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040012.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10040012"
+  },
+  {
+    "Id": 388,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040012.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"墨子-普通攻击-命中伤害\""
+  },
+  {
+    "Id": 389,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040012.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 390,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040012.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 391,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040012.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 392,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040012.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 393,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040012.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 394,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040012.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 395,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040012.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":110,\"source_attack_ratio\":1.0,\"damage_type\":2,\"reason_kind\":2,\"reason_param\":10040011}]"
+  },
+  {
+    "Id": 396,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10040101.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 397,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040101.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10040101"
+  },
+  {
+    "Id": 398,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040101.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"墨子-和平漫步-突进并强化普攻\""
+  },
+  {
+    "Id": 399,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040101.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 400,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040101.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 401,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040101.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 402,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040101.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 403,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040101.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 404,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040101.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 405,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040101.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"dash\",\"speed\":18,\"duration_ms\":450,\"direction_mode\":0,\"apply_to_caster\":true,\"priority\":20,\"motion_group_id\":2,\"hit_trigger_plan_id\":10040111},{\"type\":\"add_buff\",\"buffIds\":[10040101],\"target_self\":true},{\"type\":\"add_shield\",\"shield_id\":10040101,\"shield_value\":300,\"absorb_ratio\":1,\"duration_ms\":3000,\"priority\":20,\"target_self\":true,\"stacking_policy\":1,\"consume_policy\":0},{\"type\":\"debug_log\",\"message\":\"墨子一技能和平漫步：向前突进，获得强化普攻Buff，普攻技能ID临时替换为强化炮击\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 406,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10040111.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 407,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040111.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10040111"
+  },
+  {
+    "Id": 408,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040111.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"墨子-和平漫步-路径命中\""
+  },
+  {
+    "Id": 409,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040111.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 410,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040111.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 411,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040111.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 412,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040111.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 413,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040111.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 414,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040111.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 415,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040111.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":200,\"source_attack_ratio\":0.6,\"damage_type\":2,\"reason_param\":10040101,\"target_max_count\":1},{\"type\":\"debug_log\",\"message\":\"墨子一技能：突进路径命中造成法术伤害\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 416,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10040112.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 417,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040112.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10040112"
+  },
+  {
+    "Id": 418,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040112.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"墨子-和平漫步-强化近战普攻\""
+  },
+  {
+    "Id": 419,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040112.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 420,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040112.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 421,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040112.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 422,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040112.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 423,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040112.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:55"
+  },
+  {
+    "Id": 424,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040112.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 425,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040112.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":240,\"source_attack_ratio\":0.7,\"damage_type\":2,\"reason_param\":10040112,\"target_mode\":2,\"target_max_count\":1},{\"type\":\"pull\",\"speed\":12,\"duration_ms\":300,\"direction_mode\":1,\"target_distance\":3,\"priority\":15,\"motion_group_id\":3,\"target_mode\":2},{\"type\":\"remove_buff\",\"buff_id\":10040101,\"target_self\":true,\"remove_all\":true},{\"type\":\"debug_log\",\"message\":\"墨子一技能强化普攻：近战命中造成法术伤害、击退目标并消耗强化普攻Buff\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 426,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10040201.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 427,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040201.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10040201"
+  },
+  {
+    "Id": 428,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040201.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"墨子-机关重炮-发射炮弹\""
+  },
+  {
+    "Id": 429,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040201.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 430,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040201.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 431,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040201.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 432,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040201.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 433,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040201.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 434,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040201.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 435,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040201.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"shoot_projectile\",\"launcher_id\":31040201,\"projectile_id\":30040201,\"directionSource\":\"cast_context\"},{\"type\":\"debug_log\",\"message\":\"墨子二技能机关重炮：发射远程炮弹，命中后在目标点爆炸并眩晕\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 436,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10040211.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 437,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040211.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10040211"
+  },
+  {
+    "Id": 438,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040211.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"墨子-机关重炮-命中生成爆炸\""
+  },
+  {
+    "Id": 439,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040211.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 440,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040211.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 441,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040211.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 442,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040211.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 443,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040211.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 444,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040211.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 445,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040211.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"spawn_area\",\"area_id\":40040201,\"position_mode\":2,\"radius\":3.5,\"duration_ms\":2000},{\"type\":\"debug_log\",\"message\":\"墨子二技能：炮弹结束后生成弹坑持续伤害区域\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 446,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10040212.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 447,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040212.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10040212"
+  },
+  {
+    "Id": 448,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040212.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"墨子-机关重炮-爆炸伤害与眩晕\""
+  },
+  {
+    "Id": 449,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040212.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 450,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040212.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 451,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040212.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 452,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040212.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 453,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040212.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 454,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040212.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 455,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040212.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":525,\"source_attack_ratio\":0.45,\"damage_type\":2,\"reason_param\":10040201,\"target_query_id\":50040201,\"target_max_count\":10},{\"type\":\"add_buff\",\"buffIds\":[10040001],\"target_query_id\":50040201,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"墨子二技能：爆炸范围造成法术伤害并眩晕\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 456,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10040301.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 457,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040301.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10040301"
+  },
+  {
+    "Id": 458,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040301.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"墨子-墨守成规-展开机关屏障\""
+  },
+  {
+    "Id": 459,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040301.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 460,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040301.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 461,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040301.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 462,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040301.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 463,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040301.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 464,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040301.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 465,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040301.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"spawn_area\",\"area_id\":40040301,\"position_mode\":0,\"radius\":5,\"duration_ms\":3500},{\"type\":\"add_buff\",\"buffIds\":[10040003],\"target_self\":true},{\"type\":\"add_shield\",\"shield_id\":10040301,\"shield_value\":450,\"absorb_ratio\":1,\"duration_ms\":3500,\"priority\":20,\"target_self\":true,\"stacking_policy\":1,\"consume_policy\":0},{\"type\":\"debug_log\",\"message\":\"墨子三技能墨守成规：展开机关屏障，持续伤害并控制范围敌人\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 466,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10040311.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 467,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040311.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10040311"
+  },
+  {
+    "Id": 468,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040311.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"墨子-墨守成规-持续伤害与控制\""
+  },
+  {
+    "Id": 469,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040311.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 470,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040311.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 471,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040311.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 472,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040311.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 473,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040311.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 474,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040311.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 475,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040311.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":200,\"source_attack_ratio\":0.45,\"damage_type\":2,\"reason_param\":10040301,\"target_query_id\":50040301,\"target_max_count\":10},{\"type\":\"add_buff\",\"buffIds\":[10040002],\"target_query_id\":50040301,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"墨子三技能：屏障内敌人受到持续法术伤害和短暂眩晕\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 476,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10040321.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 477,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040321.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10040321"
+  },
+  {
+    "Id": 478,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040321.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"墨子-墨守成规-进入屏障控制\""
+  },
+  {
+    "Id": 479,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040321.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 480,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040321.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 481,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040321.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 482,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040321.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 483,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040321.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 484,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040321.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[{\"type\":\"not\",\"item\":{\"type\":\"target_is_flying_projectile\"}}]"
+  },
+  {
+    "Id": 485,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040321.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"add_buff\",\"buffIds\":[10040002]},{\"type\":\"debug_log\",\"message\":\"墨子三技能：敌人进入屏障时受到短暂控制\",\"dump_args\":false}]"
+  },
+  {
+    "Id": 486,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10040322.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 487,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040322.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10040322"
+  },
+  {
+    "Id": 488,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040322.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"墨子-墨守成规-进入屏障清除飞行物\""
+  },
+  {
+    "Id": 489,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040322.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 490,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040322.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 491,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040322.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 492,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040322.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 493,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040322.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:60"
+  },
+  {
+    "Id": 494,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040322.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[{\"type\":\"target_is_flying_projectile\"}]"
+  },
+  {
+    "Id": 495,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10040322.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"remove_projectile\"}]"
+  },
+  {
+    "Id": 496,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10050001.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 497,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050001.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10050001"
+  },
+  {
+    "Id": 498,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050001.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"妲己-普通攻击-发射\""
+  },
+  {
+    "Id": 499,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050001.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 500,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050001.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 501,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050001.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 502,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050001.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 503,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050001.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 504,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050001.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 505,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050001.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"shoot_projectile\",\"launcher_id\":31050001,\"projectile_id\":30050001}]"
+  },
+  {
+    "Id": 506,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10050011.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 507,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050011.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10050011"
+  },
+  {
+    "Id": 508,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050011.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"妲己-普通攻击-命中伤害\""
+  },
+  {
+    "Id": 509,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050011.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 510,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050011.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 511,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050011.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 512,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050011.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 513,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050011.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 514,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050011.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 515,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050011.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":105,\"source_attack_ratio\":1.0,\"damage_type\":2,\"reason_kind\":2,\"reason_param\":10050001}]"
+  },
+  {
+    "Id": 516,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10050101.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 517,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050101.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10050101,\"name\":\"妲己-灵魂冲击-发射冲击波\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"shoot_projectile\",\"launcher_id\":31050101,\"projectile_id\":30050101,\"directionSource\":\"cast_context\"},{\"type\":\"debug_log\",\"message\":\"妲己一技能灵魂冲击：发射直线冲击波\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 518,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10050111.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 519,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050111.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10050111,\"name\":\"妲己-灵魂冲击-命中伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":520,\"source_attack_ratio\":0.8,\"damage_type\":2,\"reason_param\":10050101},{\"type\":\"add_buff\",\"buffIds\":[10050000]},{\"type\":\"debug_log\",\"message\":\"妲己一技能灵魂冲击：命中造成法术伤害并叠加失心\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 520,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10050201.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 521,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050201.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10050201,\"name\":\"妲己-偶像魅力-锁定魅惑弹\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"shoot_projectile\",\"launcher_id\":31050201,\"projectile_id\":30050201,\"target_query_id\":50050201,\"target_max_count\":1,\"track_target\":true},{\"type\":\"debug_log\",\"message\":\"妲己二技能偶像魅力：锁定目标并发射追踪魅惑弹\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 522,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10050211.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 523,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050211.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10050211,\"name\":\"妲己-偶像魅力-命中伤害魅惑\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":285,\"source_attack_ratio\":0.66,\"damage_type\":2,\"reason_param\":10050201},{\"type\":\"add_buff\",\"buffIds\":[10050201]},{\"type\":\"add_buff\",\"buffIds\":[10050000]},{\"type\":\"debug_log\",\"message\":\"妲己二技能偶像魅力：命中造成法术伤害、魅惑并叠加失心\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 524,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10050301.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 525,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050301.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10050301,\"name\":\"妲己-女王崇拜-添加狐火状态\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10050301],\"target_self\":true},{\"type\":\"shoot_projectile\",\"launcher_id\":31050301,\"projectile_id\":30050301,\"target_query_id\":50050301,\"target_max_count\":1,\"track_target\":true},{\"type\":\"debug_log\",\"message\":\"妲己三技能女王崇拜：启动五段追踪狐火\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 526,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10050311.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 527,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050311.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10050311,\"name\":\"妲己-女王崇拜-周期搜敌狐火\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"shoot_projectile\",\"launcher_id\":31050301,\"projectile_id\":30050301,\"directionSource\":\"target_query\",\"target_query_id\":50050301,\"target_max_count\":1,\"track_target\":true},{\"type\":\"debug_log\",\"message\":\"妲己三技能女王崇拜：周期搜敌并发射狐火\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 528,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10050313.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 529,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10050313.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10050313,\"name\":\"妲己-女王崇拜-狐火命中伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":325,\"source_attack_ratio\":0.75,\"damage_type\":2,\"reason_param\":10050301},{\"type\":\"add_buff\",\"buffIds\":[10050000]},{\"type\":\"debug_log\",\"message\":\"妲己三技能女王崇拜：狐火命中造成法术伤害并叠加失心\",\"dump_args\":false}]},{\"id\":10050314,\"name\":\"妲己-女王崇拜-重复命中伤害衰减\",\"event\":\"damage.attack.before_calc\",\"scope\":\"owner\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":60,\"conditions\":[],\"actions\":[{\"type\":\"adjust_damage_number\",\"number_slot\":0,\"op\":1,\"reason_kind\":1,\"reason_param\":10050301,\"require_skill_runtime\":true,\"skip_first_hit\":true,\"repeat_target_decay_factor\":0.5,\"target_hit_count_key_base\":1500300}]}]"
+  },
+  {
+    "Id": 530,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10060001.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 531,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060001.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10060001"
+  },
+  {
+    "Id": 532,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060001.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"嬴政-普通攻击-发射\""
+  },
+  {
+    "Id": 533,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060001.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 534,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060001.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 535,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060001.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 536,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060001.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 537,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060001.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 538,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060001.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 539,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060001.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"shoot_projectile\",\"launcher_id\":31060001,\"projectile_id\":30060001}]"
+  },
+  {
+    "Id": 540,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10060011.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 541,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060011.json",
+    "Pointer": "/id",
+    "ValueJson": "json:10060011"
+  },
+  {
+    "Id": 542,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060011.json",
+    "Pointer": "/name",
+    "ValueJson": "json:\"嬴政-普通攻击-命中伤害\""
+  },
+  {
+    "Id": 543,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060011.json",
+    "Pointer": "/event",
+    "ValueJson": "json:\"\""
+  },
+  {
+    "Id": 544,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060011.json",
+    "Pointer": "/enabled",
+    "ValueJson": "json:true"
+  },
+  {
+    "Id": 545,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060011.json",
+    "Pointer": "/allowExternal",
+    "ValueJson": "json:false"
+  },
+  {
+    "Id": 546,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060011.json",
+    "Pointer": "/phase",
+    "ValueJson": "json:\"immediate\""
+  },
+  {
+    "Id": 547,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060011.json",
+    "Pointer": "/priority",
+    "ValueJson": "json:50"
+  },
+  {
+    "Id": 548,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060011.json",
+    "Pointer": "/conditions",
+    "ValueJson": "json:[]"
+  },
+  {
+    "Id": 549,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060011.json",
+    "Pointer": "/actions",
+    "ValueJson": "json:[{\"type\":\"give_damage\",\"damage_value\":110,\"source_attack_ratio\":1.0,\"damage_type\":2,\"reason_kind\":2,\"reason_param\":10060001}]"
+  },
+  {
+    "Id": 550,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10060101.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 551,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060101.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10060101,\"name\":\"嬴政-王者惩戒-生成剑阵\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"spawn_area\",\"area_id\":40060101,\"position_mode\":2,\"radius\":4.0,\"duration_ms\":1400},{\"type\":\"debug_log\",\"message\":\"嬴政一技能王者惩戒：在目标点生成延迟剑阵区域\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 552,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10060111.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 553,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060111.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10060111,\"name\":\"嬴政-王者惩戒-剑阵伤害减速\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":220,\"source_attack_ratio\":0.27,\"damage_type\":2,\"reason_param\":10060101,\"target_query_id\":50060101,\"target_max_count\":10},{\"type\":\"add_buff\",\"buffIds\":[10060101],\"target_query_id\":50060101,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"嬴政一技能王者惩戒：剑阵造成法术伤害并减速区域敌人\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 554,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10060201.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 555,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060201.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10060201,\"name\":\"嬴政-王者守御-净化护盾加速\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"remove_buff\",\"target_mode\":1,\"target_self\":true,\"remove_slow\":true,\"remove_all\":true},{\"type\":\"add_buff\",\"buffIds\":[10060201],\"target_self\":true},{\"type\":\"spawn_area\",\"area_id\":40060201,\"position_mode\":0,\"radius\":4.0,\"duration_ms\":300},{\"type\":\"add_shield\",\"shield_id\":10060201,\"shield_value\":300,\"absorb_ratio\":1,\"duration_ms\":3000,\"priority\":20,\"target_self\":true,\"stacking_policy\":1,\"consume_policy\":0},{\"type\":\"debug_log\",\"message\":\"嬴政二技能王者守御：清除减速，击退近身敌人并获得护盾和移速\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 556,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10060211.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 557,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060211.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10060211,\"name\":\"嬴政-王者守御-近身伤害减速\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"pull\",\"speed\":12.0,\"duration_ms\":300,\"direction_mode\":3,\"target_distance\":3.0,\"priority\":110,\"motion_group_id\":3,\"target_query_id\":50060201,\"target_max_count\":10},{\"type\":\"give_damage\",\"damage_value\":200,\"source_attack_ratio\":0.35,\"damage_type\":2,\"reason_param\":10060201,\"target_query_id\":50060201,\"target_max_count\":10},{\"type\":\"add_buff\",\"buffIds\":[10060211],\"target_query_id\":50060201,\"target_max_count\":10},{\"type\":\"debug_log\",\"message\":\"嬴政二技能王者守御：击退近身敌人并造成法术伤害和减速\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 558,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10060301.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 559,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060301.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10060301,\"name\":\"嬴政-至尊王权-开启飞剑状态\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"add_buff\",\"buffIds\":[10060301],\"target_self\":true},{\"type\":\"shoot_projectile\",\"launcher_id\":31060301,\"projectile_id\":30060301,\"directionSource\":\"cast_context\"},{\"type\":\"debug_log\",\"message\":\"嬴政三技能至尊王权：启动单个持续飞剑发射器，共11波55支飞剑\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 560,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10060311.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 561,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060311.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10060311,\"name\":\"嬴政-至尊王权-周期发射飞剑\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"shoot_projectile\",\"launcher_id\":31060301,\"projectile_id\":30060301,\"directionSource\":\"cast_context\"},{\"type\":\"debug_log\",\"message\":\"嬴政三技能至尊王权：周期发射前方飞剑\",\"dump_args\":false}]}]"
+  },
+  {
+    "Id": 562,
+    "Kind": "object",
+    "Path": "ability/triggers/skills/trigger_10060313.json",
+    "Pointer": "",
+    "ValueJson": ""
+  },
+  {
+    "Id": 563,
+    "Kind": "json",
+    "Path": "ability/triggers/skills/trigger_10060313.json",
+    "Pointer": "/triggers",
+    "ValueJson": "json:[{\"id\":10060313,\"name\":\"嬴政-至尊王权-飞剑命中伤害\",\"event\":\"\",\"enabled\":true,\"allowExternal\":false,\"phase\":\"immediate\",\"priority\":50,\"conditions\":[],\"actions\":[{\"type\":\"give_damage\",\"damage_value\":90,\"source_attack_ratio\":0.08,\"damage_type\":2,\"reason_param\":10060301,\"target_max_count\":1},{\"type\":\"debug_log\",\"message\":\"嬴政三技能至尊王权：飞剑命中造成法术伤害\",\"dump_args\":false}]}]"
+  }
+]

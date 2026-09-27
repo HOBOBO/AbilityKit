@@ -28,6 +28,7 @@ namespace AbilityKit.Game.Flow
         private IDisposable _entityDestroyedSub;
         private int _lastAlignedFrame = int.MinValue;
         private BattlePresentationSessionContext _presentation;
+        private BattleViewResourceProvider _instanceResources;
         private readonly ViewFeatureRuntimeOperations _operations = new ViewFeatureRuntimeOperations();
         private readonly BattlePresentationSessionResolver _presentationSessions = new BattlePresentationSessionResolver();
         private BattleViewHierarchyManager _hierarchy;
@@ -44,7 +45,7 @@ namespace AbilityKit.Game.Flow
         /// <summary>AOE/area VFX pool shared by the area view system.</summary>
         protected BattleAreaVfxPool AreaVfxPool { get; set; }
 
-        protected BattleViewResourceProvider PresentationResources => EnsurePresentationSession().Resources;
+        protected BattleViewResourceProvider PresentationResources => EnsureInstanceResources();
 
         protected abstract BattleContext RuntimeContext { get; }
         protected abstract bool RuntimeIsConfirmed { get; }
@@ -57,12 +58,14 @@ namespace AbilityKit.Game.Flow
         protected void BindPresentationSession(in GamePhaseContext ctx)
         {
             _presentation = _presentationSessions.Resolve(ctx);
+            _instanceResources = _presentation.CreateViewResources();
         }
 
         protected void ClearPresentationSession(in GamePhaseContext ctx)
         {
             _presentationSessions.Release(ctx, _presentation);
             _presentation = null;
+            _instanceResources = null;
         }
 
         IBattleRuntimeContext IViewSharedSubFeatureHost.RuntimeContext => RuntimeContext;
@@ -92,7 +95,7 @@ namespace AbilityKit.Game.Flow
             set => _binder = value;
         }
 
-        BattleViewResourceProvider IViewFeatureRuntime.Resources => EnsurePresentationSession().Resources;
+        BattleViewResourceProvider IViewFeatureRuntime.Resources => EnsureInstanceResources();
 
         BattleViewShellPool IViewFeatureRuntime.ShellPool => ShellPool;
 
@@ -180,9 +183,11 @@ namespace AbilityKit.Game.Flow
 
         void IViewFeatureRuntime.OnEntityDestroyed(EC.EntityDestroyed evt) => _operations.OnEntityDestroyed(this, evt);
 
-        private BattlePresentationSessionContext EnsurePresentationSession()
+        private BattleViewResourceProvider EnsureInstanceResources()
         {
-            return _presentation ?? (_presentation = BattlePresentationSessionContext.CreateFromDefaultResources());
+            if (_instanceResources != null) return _instanceResources;
+            _presentation ??= BattlePresentationSessionContext.CreateFromDefaultResources();
+            return _instanceResources = _presentation.CreateViewResources();
         }
     }
 }

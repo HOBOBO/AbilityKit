@@ -344,7 +344,7 @@ trace 断言用于验证技能配置链路是否执行到了关键节点。
 | `sourceActorId` | trace 中的 sourceActorId |
 | `targetActorId` | trace 中的 targetActorId |
 | `configId` | trace configId |
-| `rootId` | trace rootId |
+| `rootId` | 正式 execution context rootId；Trace 启用时使用同一投影 ID |
 | `childCount` | trace childCount |
 
 ## 11. 推荐测试编写流程
@@ -387,7 +387,7 @@ var batch = MobaAcceptanceRunner.RunExpectationDirectory(options, ExpectationDir
 3. timeline 的 `atMs` 是否足够让技能前摇、弹道、延迟效果完成。
 4. trace 中是否出现 SkillCast / EffectExecution / ProjectileLaunch。
 5. state 断言的 expected/tolerance 是否合理。
-6. context 断言的 kind 是否匹配实际 trace kind。
+6. context 断言的 kind 是否匹配正式 `MobaExecutionKind`；启用 Trace 时再核对投影 kind。
 
 ### 11.4 什么时候用 trace，什么时候用 state
 

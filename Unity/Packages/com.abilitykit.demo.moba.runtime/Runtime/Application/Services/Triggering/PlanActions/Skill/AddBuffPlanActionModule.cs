@@ -64,7 +64,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         {
             if (targetActorId <= 0) return;
 
-            var origin = input.BuildOrigin(sourceActorId, targetActorId, MobaTraceKind.EffectExecution, 0);
+            var origin = input.BuildOrigin(sourceActorId, targetActorId, MobaExecutionKind.EffectExecution, 0);
             for (int i = 0; i < args.BuffIds.Length; i++)
             {
                 var buffId = args.BuffIds[i];

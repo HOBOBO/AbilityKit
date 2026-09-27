@@ -2,18 +2,25 @@ using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba
 {
-    public sealed class AttackInfo : Services.MobaTriggerInvocationContextBase, Services.IMobaActorContextProvider, Services.IMobaContextSourceProvider
+    public sealed class AttackInfo : Services.MobaTriggerInvocationContextBase, Services.IMobaActorContextProvider,
+        Services.IMobaContextSourceProvider, Services.IMobaCombatExecutionContextProvider,
+        Services.IMobaCombatExecutionFactsProvider, Services.IMobaCombatContextSource
     {
-        public int AttackerActorId;
-        public int TargetActorId;
+        private Services.MobaCombatExecutionContext _executionContext;
+
+        public int AttackerActorId
+        {
+            get => SourceActorId;
+            set => SourceActorId = value;
+        }
 
         public object OriginSource;
         public object OriginTarget;
 
-        public MobaTraceKind OriginKind;
+        public MobaExecutionKind OriginKind;
         public int OriginConfigId;
         public long OriginContextId;
-        public Services.MobaGameplayOrigin Origin;
+        public new Services.MobaGameplayOrigin Origin;
 
         public DamageType DamageType;
         public CritType CritType;
@@ -23,6 +30,7 @@ namespace AbilityKit.Demo.Moba
 
         public int FormulaKind;
         public string FormulaId;
+        public Services.MobaCombatExecutionFlags CombatFlags;
 
         public readonly CombatNumberValue BaseDamage;
         public readonly CombatNumberValue DamageRate;
@@ -63,7 +71,7 @@ namespace AbilityKit.Demo.Moba
             var targetActorId = OriginTarget is int target ? target : TargetActorId;
             var lineageContext = new Services.MobaTriggerLineageContext(
                 Services.EffectContextKind.Trigger,
-                OriginKind != Services.MobaTraceKind.None ? OriginKind : Services.MobaTraceKind.DamageAttack,
+                OriginKind != Services.MobaExecutionKind.None ? OriginKind : Services.MobaExecutionKind.DamageAttack,
                 sourceActorId,
                 targetActorId,
                 OriginContextId,
@@ -82,24 +90,18 @@ namespace AbilityKit.Demo.Moba
                 return true;
             }
 
-            lineageContext = new Services.MobaTriggerLineageContext(Services.EffectContextKind.Trigger, Services.MobaTraceKind.DamageAttack, AttackerActorId, TargetActorId, OriginContextId, OriginContextId, 0, OriginConfigId);
+            lineageContext = new Services.MobaTriggerLineageContext(Services.EffectContextKind.Trigger, Services.MobaExecutionKind.DamageAttack, AttackerActorId, TargetActorId, OriginContextId, OriginContextId, 0, OriginConfigId);
             return AttackerActorId > 0 || TargetActorId > 0 || OriginContextId != 0;
-        }
-
-        public override bool TryGetTraceContext(out Services.MobaTriggerTraceContext traceContext)
-        {
-            if (TryGetLineageContext(out var lineageContext))
-            {
-                traceContext = lineageContext.ToTraceContext();
-                return true;
-            }
-
-            traceContext = default;
-            return false;
         }
 
         public bool TryGetContextSource(out Services.MobaContextSourceView source)
         {
+            if (TryGetCombatExecutionContext(out var executionContext)
+                && executionContext.TryGetContextSource(out source))
+            {
+                return true;
+            }
+
             if (TryGetLineageContext(out var lineageContext))
             {
                 source = Services.MobaContextSourceView.FromLineage(
@@ -124,10 +126,68 @@ namespace AbilityKit.Demo.Moba
             OriginConfigId = origin.ImmediateConfigId;
             OriginContextId = origin.EffectiveParentContextId;
         }
+
+        public bool TryGetCombatExecutionContext(out Services.MobaCombatExecutionContext context)
+        {
+            context = _executionContext;
+            if (context.HasExecutionSource) return true;
+            return Services.MobaCombatContextBuilder.TryFromSource(this, out context);
+        }
+
+        public bool TryGetCombatContextSource(out Services.MobaCombatContextSource source)
+        {
+            if (!TryGetOrigin(out var origin) || !origin.HasExecutionSource)
+            {
+                source = default;
+                return false;
+            }
+
+            source = new Services.MobaCombatContextSource(
+                Services.EffectContextKind.Trigger,
+                origin.ImmediateKind != Services.MobaExecutionKind.None
+                    ? origin.ImmediateKind
+                    : Services.MobaExecutionKind.DamageAttack,
+                AttackerActorId,
+                TargetActorId,
+                origin.EffectiveParentContextId,
+                origin.EffectiveRootContextId,
+                origin.OwnerContextId,
+                origin.ImmediateConfigId,
+                triggerId: TriggerId,
+                skillRuntimeHandle: origin.SkillRuntimeHandle,
+                runtimeKind: MobaRuntimeKindNames.DamageAttack,
+                runtimeConfigId: OriginConfigId);
+            return source.HasExecutionSource;
+        }
+
+        public bool TryGetCombatExecutionFacts(out Services.MobaCombatExecutionFacts facts)
+        {
+            facts = _executionContext.IsValid
+                ? _executionContext.CombatFacts
+                : new Services.MobaCombatExecutionFacts(CombatFlags);
+            return true;
+        }
+
+        internal void SetExecutionContext(in Services.MobaCombatExecutionContext context)
+        {
+            _executionContext = context;
+            SourceActorId = context.SourceActorId;
+            TargetActorId = context.TargetActorId;
+            SourceContextId = context.ParentContextId;
+            TriggerId = context.TriggerId;
+            CombatFlags = context.CombatFacts.Flags;
+            var origin = context.Origin;
+            SetOrigin(in origin);
+        }
     }
 
-    public sealed class AttackCalcInfo : Services.MobaTriggerInvocationContextBase, Services.IMobaActorContextProvider, Services.IMobaContextSourceProvider
+    public sealed class AttackCalcInfo : Services.MobaTriggerInvocationContextBase, Services.IMobaActorContextProvider,
+        Services.IMobaContextSourceProvider, Services.IMobaCombatExecutionContextProvider,
+        Services.IMobaCombatExecutionFactsProvider
     {
+        private Services.MobaCombatExecutionContext _executionContext;
+        private readonly Services.MobaCombatExecutionFacts _combatFacts;
+
         public AttackInfo Attack;
 
         public readonly CombatNumberValue RawDamage;
@@ -139,6 +199,11 @@ namespace AbilityKit.Demo.Moba
         public AttackCalcInfo(AttackInfo attack)
         {
             Attack = attack;
+            _combatFacts = Services.MobaCombatExecutionFacts.Resolve(attack);
+            SourceActorId = attack?.AttackerActorId ?? 0;
+            TargetActorId = attack?.TargetActorId ?? 0;
+            SourceContextId = attack?.SourceContextId ?? 0L;
+            TriggerId = attack?.TriggerId ?? 0;
             RawDamage = new CombatNumberValue(CombatNumberValueMode.BaseAddMul);
             MitigatedDamage = new CombatNumberValue(CombatNumberValueMode.BaseAddMul);
             ShieldAbsorb = new CombatNumberValue(CombatNumberValueMode.BaseAddMul);
@@ -163,6 +228,7 @@ namespace AbilityKit.Demo.Moba
 
         public override bool TryGetOrigin(out Services.MobaGameplayOrigin origin)
         {
+            if (_executionContext.TryGetOrigin(out origin)) return true;
             if (Attack != null) return Attack.TryGetOrigin(out origin);
             origin = default;
             return false;
@@ -170,25 +236,20 @@ namespace AbilityKit.Demo.Moba
 
         public override bool TryGetLineageContext(out Services.MobaTriggerLineageContext lineageContext)
         {
+            if (_executionContext.TryGetLineageContext(out lineageContext)) return true;
             if (Attack != null && Attack.TryGetLineageContext(out lineageContext)) return true;
             lineageContext = default;
             return false;
         }
 
-        public override bool TryGetTraceContext(out Services.MobaTriggerTraceContext traceContext)
+        public bool TryGetContextSource(out Services.MobaContextSourceView source)
         {
-            if (TryGetLineageContext(out var lineageContext))
+            if (TryGetCombatExecutionContext(out var executionContext)
+                && executionContext.TryGetContextSource(out source))
             {
-                traceContext = lineageContext.ToTraceContext();
                 return true;
             }
 
-            traceContext = default;
-            return false;
-        }
-
-        public bool TryGetContextSource(out Services.MobaContextSourceView source)
-        {
             if (TryGetLineageContext(out var lineageContext))
             {
                 source = Services.MobaContextSourceView.FromLineage(
@@ -203,26 +264,55 @@ namespace AbilityKit.Demo.Moba
             source = default;
             return false;
         }
+
+        public bool TryGetCombatExecutionContext(out Services.MobaCombatExecutionContext context)
+        {
+            context = _executionContext;
+            return context.HasExecutionSource;
+        }
+
+        public bool TryGetCombatExecutionFacts(out Services.MobaCombatExecutionFacts facts)
+        {
+            facts = _executionContext.IsValid ? _executionContext.CombatFacts : _combatFacts;
+            return true;
+        }
+
+        internal void SetExecutionContext(in Services.MobaCombatExecutionContext context)
+        {
+            _executionContext = context;
+            SourceActorId = context.SourceActorId;
+            TargetActorId = context.TargetActorId;
+            SourceContextId = context.ParentContextId;
+            TriggerId = context.TriggerId;
+        }
     }
 
-    public sealed class DamageResult : Services.MobaTriggerInvocationContextBase, Services.IMobaActorContextProvider, Services.IMobaContextSourceProvider
+    public sealed class DamageResult : Services.MobaTriggerInvocationContextBase, Services.IMobaActorContextProvider,
+        Services.IMobaContextSourceProvider, Services.IMobaCombatExecutionContextProvider,
+        Services.IMobaCombatExecutionFactsProvider
     {
-        public int AttackerActorId;
-        public int TargetActorId;
+        private Services.MobaCombatExecutionContext _executionContext;
+
+        public int AttackerActorId
+        {
+            get => SourceActorId;
+            set => SourceActorId = value;
+        }
 
         public object OriginSource;
         public object OriginTarget;
 
-        public MobaTraceKind OriginKind;
+        public MobaExecutionKind OriginKind;
         public int OriginConfigId;
         public long OriginContextId;
-        public Services.MobaGameplayOrigin Origin;
+        public new Services.MobaGameplayOrigin Origin;
 
         public DamageType DamageType;
         public CritType CritType;
 
         public DamageReasonKind ReasonKind;
         public int ReasonParam;
+        public Services.MobaCombatExecutionFlags CombatFlags;
 
         public float Value;
         public float TargetHp;
@@ -254,7 +344,7 @@ namespace AbilityKit.Demo.Moba
             var targetActorId = OriginTarget is int target ? target : TargetActorId;
             var lineageContext = new Services.MobaTriggerLineageContext(
                 Services.EffectContextKind.Trigger,
-                OriginKind != Services.MobaTraceKind.None ? OriginKind : Services.MobaTraceKind.DamageApply,
+                OriginKind != Services.MobaExecutionKind.None ? OriginKind : Services.MobaExecutionKind.DamageApply,
                 sourceActorId,
                 targetActorId,
                 OriginContextId,
@@ -269,29 +359,23 @@ namespace AbilityKit.Demo.Moba
         {
             if (TryGetOrigin(out var origin) && origin.IsValid)
             {
-                var damageOrigin = origin.WithImmediate(Services.MobaTraceKind.DamageApply, ReasonParam, origin.EffectiveParentContextId);
+                var damageOrigin = origin.WithImmediate(Services.MobaExecutionKind.DamageApply, ReasonParam, origin.EffectiveParentContextId);
                 lineageContext = damageOrigin.ToLineageContext(Services.EffectContextKind.Trigger);
                 return true;
             }
 
-            lineageContext = new Services.MobaTriggerLineageContext(Services.EffectContextKind.Trigger, Services.MobaTraceKind.DamageApply, AttackerActorId, TargetActorId, OriginContextId, OriginContextId, 0, ReasonParam);
+            lineageContext = new Services.MobaTriggerLineageContext(Services.EffectContextKind.Trigger, Services.MobaExecutionKind.DamageApply, AttackerActorId, TargetActorId, OriginContextId, OriginContextId, 0, ReasonParam);
             return AttackerActorId > 0 || TargetActorId > 0 || OriginContextId != 0;
-        }
-
-        public override bool TryGetTraceContext(out Services.MobaTriggerTraceContext traceContext)
-        {
-            if (TryGetLineageContext(out var lineageContext))
-            {
-                traceContext = lineageContext.ToTraceContext();
-                return true;
-            }
-
-            traceContext = default;
-            return false;
         }
 
         public bool TryGetContextSource(out Services.MobaContextSourceView source)
         {
+            if (TryGetCombatExecutionContext(out var executionContext)
+                && executionContext.TryGetContextSource(out source))
+            {
+                return true;
+            }
+
             if (TryGetLineageContext(out var lineageContext))
             {
                 source = Services.MobaContextSourceView.FromLineage(
@@ -315,6 +399,32 @@ namespace AbilityKit.Demo.Moba
             OriginKind = origin.ImmediateKind;
             OriginConfigId = origin.ImmediateConfigId;
             OriginContextId = origin.EffectiveParentContextId;
+        }
+
+        public bool TryGetCombatExecutionContext(out Services.MobaCombatExecutionContext context)
+        {
+            context = _executionContext;
+            return context.HasExecutionSource;
+        }
+
+        public bool TryGetCombatExecutionFacts(out Services.MobaCombatExecutionFacts facts)
+        {
+            facts = _executionContext.IsValid
+                ? _executionContext.CombatFacts
+                : new Services.MobaCombatExecutionFacts(CombatFlags);
+            return true;
+        }
+
+        internal void SetExecutionContext(in Services.MobaCombatExecutionContext context)
+        {
+            _executionContext = context;
+            SourceActorId = context.SourceActorId;
+            TargetActorId = context.TargetActorId;
+            SourceContextId = context.ParentContextId;
+            TriggerId = context.TriggerId;
+            CombatFlags = context.CombatFacts.Flags;
+            var origin = context.Origin;
+            SetOrigin(in origin);
         }
     }
 }

@@ -21,9 +21,9 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var records = new List<MobaAcceptanceTraceRecord>(64);
             var seen = new HashSet<long>();
-            foreach (MobaTraceKind kind in Enum.GetValues(typeof(MobaTraceKind)))
+            foreach (MobaExecutionKind kind in Enum.GetValues(typeof(MobaExecutionKind)))
             {
-                if (kind == MobaTraceKind.None) continue;
+                if (kind == MobaExecutionKind.None) continue;
 
                 foreach (var node in harness.Trace.GetNodesByKind((int)kind))
                 {
@@ -37,7 +37,7 @@ namespace AbilityKit.Game.Test.UnitTest
                         rootId = node.RootId,
                         parentId = node.ParentId,
                         nodeId = node.ContextId,
-                        kind = ((MobaTraceKind)node.Kind).ToString(),
+                        kind = ((MobaExecutionKind)node.Kind).ToString(),
                         kindValue = node.Kind,
                         configId = metadata != null ? metadata.ConfigId : 0,
                         sourceActorId = metadata != null ? metadata.SourceActorId : 0,
@@ -451,7 +451,7 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 var record = records[i];
                 if (record == null) continue;
-                AddDictionaryEntry(entries, "trace-kind", record.kindValue.ToString(), record.kind, record.kind, "MobaTraceKind", sourceVersion);
+                AddDictionaryEntry(entries, "trace-kind", record.kindValue.ToString(), record.kind, record.kind, "MobaExecutionKind", sourceVersion);
                 if (record.configId > 0) AddDictionaryEntry(entries, "config", record.configId.ToString(), record.configLabel, record.configLabel, record.configSource, sourceVersion);
                 if (record.sourceActorId > 0) AddDictionaryEntry(entries, "actor", record.sourceActorId.ToString(), record.sourceActorLabel, record.sourceActorLabel, "scenario/runtime", sourceVersion);
                 if (record.targetActorId > 0) AddDictionaryEntry(entries, "actor", record.targetActorId.ToString(), record.targetActorLabel, record.targetActorLabel, "scenario/runtime", sourceVersion);

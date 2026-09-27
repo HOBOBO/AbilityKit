@@ -1,5 +1,29 @@
 # com.abilitykit.network.room
 
+## Connect without starting a room
+
+Use `RoomGatewayConnectionSession` when authentication is already handled by a
+starter or the player chooses room actions manually:
+
+```csharp
+using var connection = await RoomGatewayConnectionSession.ConnectAsync(
+    host, port, timeout: TimeSpan.FromSeconds(10), cancellationToken: cancellationToken);
+var rooms = connection.RoomClient;
+var flow = new RoomGatewaySessionFlow(rooms);
+```
+
+The session owns the SDK client and Room client, including cleanup after a
+connection failure. It does not log in, create a room, or select a sync mode.
+Use `GatewayMultiplayerSession.CreateAsync` for the existing automatic
+guest-login-to-battle flow.
+
+`NetworkSdkClient` owns generic transport and request dispatch. `RoomGatewayWireSessionClient`
+owns the Room gateway protocol envelope: `GuestLoginAsync`, `AccountLoginAsync`,
+`SubmitBattleInputAsync`, and `StateSyncSnapshotReceived` use typed wire messages.
+Its default opcodes resolve from the generated `abilitykit.room` catalog, whose
+source is `Protocols/Catalogs/room.protocol.yaml`. Gameplay input payloads and
+snapshot interpretation remain with the project.
+
 > AbilityKit 多人联网 SDK 的**房间会话能力包**。在 `NetworkSdkClient` 之上，提供"房间网关"的线协议客户端、8 阶段会话编排与断线恢复，是**玩法无关**（gameplay-agnostic）的通用层 —— shooter 与 moba 两个示例共用同一套。
 
 - **版本**：0.1.0（Beta）
@@ -75,7 +99,7 @@ public Task<RoomGatewayStagedRestoreResult> RestoreAsync(...);
 
 ## 不在本包的内容（各示例自写）
 
-- **战斗数据面**（输入上行 / 快照下行解码 / 预测回滚）—— shooter 与 moba 各自实现，走通用 gateway 的 `SubmitBattleInput` op-code 与各自协议（`protocol.shooter` / `protocol.moba`）。这是后续 `network.battle` 能力包计划收敛的部分。
+- **战斗语义**（输入 payload 编码 / 快照内容解释 / 预测回滚）—— shooter、moba 和 Tiny 各自实现；本包只编解码通用 Room gateway 的输入请求与状态推送外壳。
 - 游戏专属 room DTO（如 shooter 的 `ShooterGatewayCreateRoomRequest`、moba 的英雄/loadout 字段）—— 由各示例在自己的"房间适配器"里映射到本包的通用 `RoomGateway*` 类型。
 
 ## 用法骨架

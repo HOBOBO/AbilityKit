@@ -3,7 +3,9 @@ using AbilityKit.Context;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    public readonly struct MobaTriggerConditionContext : IMobaTriggerStageSnapshotProvider, IMobaRuntimeContextPayload
+    public readonly struct MobaTriggerConditionContext : IMobaTriggerStageSnapshotProvider,
+        IMobaRuntimeContextPayload, IMobaCombatExecutionContextProvider,
+        IMobaCombatExecutionFactsProvider
     {
         private readonly object _payload;
         private readonly MobaSkillCastRuntimeService _skillRuntimes;
@@ -16,7 +18,8 @@ namespace AbilityKit.Demo.Moba.Services
             MobaSkillCastRuntimeHandle skillRuntimeHandle,
             MobaTriggerStageSnapshot stageSnapshot,
             MobaSkillCastRuntimeService skillRuntimes,
-            int frame)
+            int frame,
+            MobaCombatExecutionFacts combatFacts)
         {
             _payload = payload;
             _skillRuntimes = skillRuntimes;
@@ -26,18 +29,19 @@ namespace AbilityKit.Demo.Moba.Services
             StageSnapshot = stageSnapshot;
             SkillRuntimeHandle = skillRuntimeHandle;
             Frame = frame != 0 ? frame : executionSnapshot.Frame;
+            CombatFacts = new MobaCombatExecutionFacts(combatFacts.Flags);
         }
 
         public object Payload => _payload;
         public MobaEffectLineageInput LineageInput { get; }
-        public MobaEffectTraceInput TraceInput => LineageInput.ToTraceInput();
         public MobaGameplayOrigin Origin { get; }
         public MobaTriggerExecutionSnapshot ExecutionSnapshot { get; }
         public MobaTriggerStageSnapshot StageSnapshot { get; }
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
         public int Frame { get; }
+        public MobaCombatExecutionFacts CombatFacts { get; }
         public EffectContextKind ContextKind => LineageInput.ContextKind != EffectContextKind.Unknown ? LineageInput.ContextKind : ExecutionSnapshot.Kind;
-        public MobaTraceKind OriginKind => LineageInput.OriginKind;
+        public MobaExecutionKind OriginKind => LineageInput.OriginKind;
         public int SourceActorId => LineageInput.SourceActorId != 0 ? LineageInput.SourceActorId : Origin.SourceActorId != 0 ? Origin.SourceActorId : ExecutionSnapshot.SourceActorId;
         public int TargetActorId => LineageInput.TargetActorId != 0 ? LineageInput.TargetActorId : Origin.TargetActorId != 0 ? Origin.TargetActorId : ExecutionSnapshot.TargetActorId;
         public long ParentContextId => LineageInput.ParentContextId != 0 ? LineageInput.ParentContextId : Origin.EffectiveParentContextId != 0 ? Origin.EffectiveParentContextId : ExecutionSnapshot.SourceContextId;
@@ -63,6 +67,25 @@ namespace AbilityKit.Demo.Moba.Services
 
             payload = default;
             return false;
+        }
+
+        public bool TryGetCombatExecutionContext(out MobaCombatExecutionContext context)
+        {
+            context = new MobaCombatExecutionContext(
+                _payload,
+                LineageInput,
+                Origin,
+                ExecutionSnapshot,
+                SkillRuntimeHandle,
+                Frame,
+                CombatFacts);
+            return context.HasExecutionSource;
+        }
+
+        public bool TryGetCombatExecutionFacts(out MobaCombatExecutionFacts facts)
+        {
+            facts = CombatFacts;
+            return true;
         }
 
         public bool TryGetRuntimeContext(out MobaRuntimeContextReference reference)
@@ -171,18 +194,8 @@ namespace AbilityKit.Demo.Moba.Services
                 executionContext.SkillRuntimeHandle,
                 stageSnapshot,
                 skillRuntimes,
-                frame != 0 ? frame : executionContext.Frame);
-        }
-
-        public static MobaTriggerConditionContext Create(
-            object payload,
-            in MobaEffectTraceInput traceInput,
-            in MobaTriggerExecutionSnapshot executionSnapshot,
-            MobaSkillCastRuntimeService skillRuntimes,
-            int frame)
-        {
-            var lineageInput = traceInput.ToLineageInput();
-            return Create(payload, in lineageInput, in executionSnapshot, skillRuntimes, frame);
+                frame != 0 ? frame : executionContext.Frame,
+                executionContext.CombatFacts);
         }
 
         public static MobaTriggerConditionContext Create(
@@ -195,14 +208,5 @@ namespace AbilityKit.Demo.Moba.Services
             return Create(payload, in lineageInput, in snapshot, skillRuntimes, frame);
         }
 
-        public static MobaTriggerConditionContext Create(
-            object payload,
-            in MobaEffectTraceInput traceInput,
-            MobaSkillCastRuntimeService skillRuntimes,
-            int frame)
-        {
-            var lineageInput = traceInput.ToLineageInput();
-            return Create(payload, in lineageInput, skillRuntimes, frame);
-        }
     }
 }

@@ -14,7 +14,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaGameplayOrigin(
             int sourceActorId,
             int targetActorId,
-            MobaTraceKind immediateKind,
+            MobaExecutionKind immediateKind,
             int immediateConfigId,
             long immediateContextId,
             long parentContextId,
@@ -38,7 +38,7 @@ namespace AbilityKit.Demo.Moba.Services
         /// <summary>来源事件指向的目标角色。</summary>
         public int TargetActorId { get; }
         /// <summary>产生该来源的即时溯源种类。</summary>
-        public MobaTraceKind ImmediateKind { get; }
+        public MobaExecutionKind ImmediateKind { get; }
         /// <summary>即时来源事件对应的配置 ID。</summary>
         public int ImmediateConfigId { get; }
         /// <summary>事件本身对应的即时溯源节点。</summary>
@@ -64,7 +64,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             return new MobaTriggerLineageContext(
                 contextKind,
-                ImmediateKind != MobaTraceKind.None ? ImmediateKind : MobaTraceKind.EffectExecution,
+                ImmediateKind != MobaExecutionKind.None ? ImmediateKind : MobaExecutionKind.EffectExecution,
                 SourceActorId,
                 TargetActorId,
                 EffectiveParentContextId,
@@ -73,12 +73,7 @@ namespace AbilityKit.Demo.Moba.Services
                 ImmediateConfigId);
         }
 
-        public MobaTriggerTraceContext ToTriggerTraceContext(EffectContextKind contextKind)
-        {
-            return ToLineageContext(contextKind).ToTraceContext();
-        }
-
-        public MobaGameplayOrigin WithImmediate(MobaTraceKind kind, int configId, long contextId, long ownerContextId = 0)
+        public MobaGameplayOrigin WithImmediate(MobaExecutionKind kind, int configId, long contextId, long ownerContextId = 0)
         {
             return MobaGameplayOriginBuilder.Create()
                 .FromOrigin(in this)
@@ -109,12 +104,6 @@ namespace AbilityKit.Demo.Moba.Services
                 .FromLineageContext(in lineageContext)
                 .WithSkillRuntime(in skillRuntimeHandle)
                 .Build();
-        }
-
-        public static MobaGameplayOrigin FromTraceContext(in MobaTriggerTraceContext traceContext, in MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
-        {
-            var lineageContext = traceContext.ToLineageContext();
-            return FromLineageContext(in lineageContext, in skillRuntimeHandle);
         }
 
     }

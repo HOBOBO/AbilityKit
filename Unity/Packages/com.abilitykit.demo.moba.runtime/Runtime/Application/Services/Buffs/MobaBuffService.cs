@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -7,7 +7,6 @@ using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Trace;
 using AbilityKit.Demo.Moba.Diagnostics;
 
 using AbilityKit.Demo.Moba.Services;
@@ -106,13 +105,13 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             return DrainImmediateCommand(_nextCommandSeq, maxCommands: 256);
         }
 
-        public bool RemoveBuffImmediate(global::ActorEntity target, int buffId, int sourceActorId, TraceLifecycleReason reason)
+        public bool RemoveBuffImmediate(global::ActorEntity target, int buffId, int sourceActorId, MobaExecutionEndReason reason)
         {
             if (target == null || !target.hasActorId) return false;
             return RemoveBuffImmediate(target.actorId.Value, buffId, sourceActorId, reason);
         }
 
-        public bool RemoveBuffImmediate(int targetActorId, int buffId, int sourceActorId, TraceLifecycleReason reason)
+        public bool RemoveBuffImmediate(int targetActorId, int buffId, int sourceActorId, MobaExecutionEndReason reason)
         {
             if (_draining > 0) return false;
             if (!EnqueueRemove(targetActorId, buffId, sourceActorId, sourceContextId: 0L, reason: reason))
@@ -123,7 +122,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             return DrainImmediateCommand(_nextCommandSeq, maxCommands: 256);
         }
 
-        public bool RemoveBuffInstanceImmediate(int targetActorId, int buffId, int sourceActorId, long sourceContextId, TraceLifecycleReason reason)
+        public bool RemoveBuffInstanceImmediate(int targetActorId, int buffId, int sourceActorId, long sourceContextId, MobaExecutionEndReason reason)
         {
             if (sourceContextId == 0L || _draining > 0) return false;
             if (!EnqueueRemove(targetActorId, buffId, sourceActorId, sourceContextId, reason))
@@ -134,7 +133,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             return DrainImmediateCommand(_nextCommandSeq, maxCommands: 256);
         }
 
-        public int RemoveBuffsImmediate(int targetActorId, int buffId, int sourceActorId, bool removeAll, TraceLifecycleReason reason)
+        public int RemoveBuffsImmediate(int targetActorId, int buffId, int sourceActorId, bool removeAll, MobaExecutionEndReason reason)
         {
             if (targetActorId <= 0 || _draining > 0) return 0;
 
@@ -163,12 +162,88 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             return DrainImmediateCommands(commandSeqs, Math.Max(256, commandSeqs.Count + 32));
         }
 
-        public int RemoveBuffsWithTagImmediate(int targetActorId, string tagName, int sourceActorId, bool removeAll, TraceLifecycleReason reason)
+        public int EndAllForActor(int targetActorId, MobaExecutionEndReason reason)
+        {
+            if (targetActorId <= 0 || _draining > 0 || _lifecycle == null) return 0;
+
+            var target = TryGetActorEntity(targetActorId);
+            if (target == null || !target.hasBuffs || target.buffs.Active == null)
+            {
+                return 0;
+            }
+
+            var active = target.buffs.Active;
+            var ended = 0;
+            _draining++;
+            try
+            {
+                for (var i = active.Count - 1; i >= 0; i--)
+                {
+                    var runtime = active[i];
+                    if (runtime == null) continue;
+                    var countBefore = active.Count;
+                    try
+                    {
+                        if (_lifecycle.EndRuntime(target, active, i, runtime, runtime.SourceId, reason))
+                        {
+                            ended++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (active.Count < countBefore)
+                        {
+                            ended++;
+                        }
+
+                        ReportEndAllException(ex, targetActorId, runtime);
+                    }
+                }
+
+                if (active.Count == 0)
+                {
+                    BuffRepository.ReleaseList(target);
+                }
+
+                return ended;
+            }
+            finally
+            {
+                _draining--;
+            }
+        }
+
+        private void ReportEndAllException(Exception exception, int targetActorId, BuffRuntime runtime)
+        {
+            var context = new MobaBattleExceptionContext(
+                MobaBattleExceptionDomain.Buff,
+                "lifecycle.endAll",
+                actorId: targetActorId,
+                sourceContextId: runtime?.SourceContextId ?? 0L,
+                detail: $"buffId={runtime?.BuffId ?? 0}");
+
+            try
+            {
+                if (_exceptions != null &&
+                    _exceptions.TryHandle(exception, in context, MobaBattleExceptionSeverity.Recoverable))
+                {
+                    return;
+                }
+            }
+            catch (Exception policyException)
+            {
+                Log.Exception(policyException, "[MobaBuffService] Buff end-all exception policy failed.");
+            }
+
+            Log.Exception(exception, $"[MobaBuffService] End actor buff failed. actorId={targetActorId} buffId={runtime?.BuffId ?? 0}");
+        }
+
+        public int RemoveBuffsWithTagImmediate(int targetActorId, string tagName, int sourceActorId, bool removeAll, MobaExecutionEndReason reason)
         {
             return RemoveBuffsWithTagImmediate(targetActorId, tagName, dispelCategory: 0, sourceActorId, removeAll, reason);
         }
 
-        public int RemoveBuffsWithTagImmediate(int targetActorId, string tagName, int dispelCategory, int sourceActorId, bool removeAll, TraceLifecycleReason reason)
+        public int RemoveBuffsWithTagImmediate(int targetActorId, string tagName, int dispelCategory, int sourceActorId, bool removeAll, MobaExecutionEndReason reason)
         {
             if (targetActorId <= 0 || dispelCategory < 0 || _draining > 0 || !MobaGameplayTagCatalog.TryResolve(tagName, out var tag)) return 0;
 
@@ -271,7 +346,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
 
                 if (!ShouldEndRuntime(runtime, endedByTags)) continue;
 
-                var reason = endedByTags ? TraceLifecycleReason.Interrupted : TraceLifecycleReason.Expired;
+                var reason = endedByTags ? MobaExecutionEndReason.Interrupted : MobaExecutionEndReason.Expired;
                 _lifecycle?.EndRuntime(target, list, i, runtime, runtime.SourceId, reason);
             }
         }
@@ -487,7 +562,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             return true;
         }
 
-        private bool EnqueueRemove(int targetActorId, int buffId, int sourceActorId, long sourceContextId, TraceLifecycleReason reason)
+        private bool EnqueueRemove(int targetActorId, int buffId, int sourceActorId, long sourceContextId, MobaExecutionEndReason reason)
         {
             if (targetActorId <= 0) return false;
             if (buffId <= 0) return false;

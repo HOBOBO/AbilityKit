@@ -8,6 +8,7 @@ using AbilityKit.Ability.Host.Extensions.FrameSync.CatchUp;
 using AbilityKit.Ability.Host.Extensions.FrameSync.Spectator;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Network.Battle;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 
 namespace AbilityKit.Game.Flow
@@ -29,9 +30,12 @@ namespace AbilityKit.Game.Flow
         }
 
         private readonly Func<SpectatorWorldDriver> _driverFactory;
+        private readonly object _operationGate = new object();
+        private readonly SemaphoreSlim _startGate = new SemaphoreSlim(1, 1);
         private StartOperation _operation;
         private SpectatorWorldDriver _driver;
         private int _generation;
+        private Task _pendingStopTask = Task.CompletedTask;
 
         internal SpectatorSessionRuntime(Func<SpectatorWorldDriver> driverFactory = null)
         {
@@ -51,24 +55,43 @@ namespace AbilityKit.Game.Flow
             if (client == null) throw new ArgumentNullException(nameof(client));
             if (worldFactory == null) throw new ArgumentNullException(nameof(worldFactory));
 
-            Stop();
+            return StartReplacingAsync(client, roomId, worldFactory);
+        }
 
-            var cancellation = new CancellationTokenSource();
-            var operation = new StartOperation
+        private async Task StartReplacingAsync(
+            INetworkClient client,
+            ulong roomId,
+            Func<IWorld> worldFactory)
+        {
+            Task startTask;
+            await _startGate.WaitAsync().ConfigureAwait(false);
+            try
             {
-                Generation = ++_generation,
-                Client = client,
-                Cancellation = cancellation,
-                CancellationToken = cancellation.Token,
-            };
-            operation.PushHandler = (opCode, payload) => HandlePush(operation, opCode, payload);
+                await StopCurrentOperationAsync().ConfigureAwait(false);
 
-            _operation = operation;
-            client.OnServerPush += operation.PushHandler;
-            operation.IsSubscribed = true;
+                var cancellation = new CancellationTokenSource();
+                var operation = new StartOperation
+                {
+                    Generation = ++_generation,
+                    Client = client,
+                    Cancellation = cancellation,
+                    CancellationToken = cancellation.Token,
+                };
+                operation.PushHandler = (opCode, payload) => HandlePush(operation, opCode, payload);
 
-            operation.StartTask = StartCoreAsync(operation, roomId, worldFactory);
-            return operation.StartTask;
+                _operation = operation;
+                client.OnServerPush += operation.PushHandler;
+                operation.IsSubscribed = true;
+
+                operation.StartTask = StartCoreAsync(operation, roomId, worldFactory);
+                startTask = operation.StartTask;
+            }
+            finally
+            {
+                _startGate.Release();
+            }
+
+            await startTask.ConfigureAwait(false);
         }
 
         internal void Tick(int stepsBudget)
@@ -84,17 +107,53 @@ namespace AbilityKit.Game.Flow
 
         internal void Stop()
         {
-            StopAsync().GetAwaiter().GetResult();
+            SessionAsyncOperation.RequireCompleted(
+                StopAsync(),
+                "Spectator session stop");
         }
 
-        internal async Task StopAsync()
+        internal Task StopAsync()
+        {
+            lock (_operationGate)
+            {
+                if (!_pendingStopTask.IsCompleted)
+                {
+                    return _pendingStopTask;
+                }
+
+                _pendingStopTask = StopAfterPendingStartAsync();
+                return _pendingStopTask;
+            }
+        }
+
+        private async Task StopAfterPendingStartAsync()
+        {
+            await _startGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                await StopCurrentOperationAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _startGate.Release();
+            }
+        }
+
+        private Task StopCurrentOperationAsync()
         {
             var operation = _operation;
-            if (operation == null) return;
+            if (operation == null) return Task.CompletedTask;
 
             _generation++;
-            var failures = new List<Exception>();
             var cancellationFailure = CancelOperation(operation);
+            return StopCoreAsync(operation, cancellationFailure);
+        }
+
+        private async Task StopCoreAsync(
+            StartOperation operation,
+            Exception cancellationFailure)
+        {
+            var failures = new List<Exception>();
             if (cancellationFailure != null) failures.Add(cancellationFailure);
 
             try
@@ -127,7 +186,9 @@ namespace AbilityKit.Game.Flow
 
         public void Dispose()
         {
-            Stop();
+            SessionAsyncOperation.RequireCompleted(
+                StopAsync(),
+                "Spectator session dispose");
         }
 
         private async Task StartCoreAsync(
@@ -139,10 +200,13 @@ namespace AbilityKit.Game.Flow
             try
             {
                 var subscribePayload = BitConverter.GetBytes(roomId);
-                var response = await operation.Client.SendRequestAsync(
-                    OpCodes.SpectatorSubscribe,
-                    subscribePayload,
-                    operation.CancellationToken);
+                var response = await AwaitWithCancellationAsync(
+                        operation.Client.SendRequestAsync(
+                            OpCodes.SpectatorSubscribe,
+                            subscribePayload,
+                            operation.CancellationToken),
+                        operation.CancellationToken)
+                    .ConfigureAwait(false);
                 ThrowIfStale(operation);
 
                 if (response == null || response.Length == 0)
@@ -150,7 +214,7 @@ namespace AbilityKit.Game.Flow
                     throw new InvalidOperationException("SpectatorSubscribe returned an empty response.");
                 }
 
-                var metrics = WireCustomBinary.DeserializeMetrics(new ArraySegment<byte>(response));
+                var subscription = MobaProtocolDecoderModule.DecodeSpectatorSubscribeResponse(response);
                 var driver = _driverFactory();
                 if (driver == null)
                 {
@@ -158,17 +222,20 @@ namespace AbilityKit.Game.Flow
                 }
 
                 operation.Driver = driver;
-                driver.Initialize(metrics.WorldId, metrics.TickRate, worldFactory);
+                driver.Initialize(subscription.WorldId, subscription.TickRate, worldFactory);
                 ThrowIfStale(operation);
 
-                if (metrics.CurrentFrame > 0)
+                if (subscription.CurrentFrame > 0)
                 {
-                    var request = new WireCatchUpRequest(roomId, metrics.WorldId, -1, metrics.CurrentFrame);
+                    var request = new WireCatchUpRequest(roomId, subscription.WorldId, -1, subscription.CurrentFrame);
                     var payload = WireCustomBinary.Serialize(request);
-                    await operation.Client.SendRequestAsync(
-                        OpCodes.CatchUpRequest,
-                        payload.Array ?? Array.Empty<byte>(),
-                        operation.CancellationToken);
+                    await AwaitWithCancellationAsync(
+                            operation.Client.SendRequestAsync(
+                                OpCodes.CatchUpRequest,
+                                payload.Array ?? Array.Empty<byte>(),
+                                operation.CancellationToken),
+                            operation.CancellationToken)
+                        .ConfigureAwait(false);
                     ThrowIfStale(operation);
                 }
 
@@ -290,6 +357,37 @@ namespace AbilityKit.Game.Flow
             {
                 return ex;
             }
+        }
+
+        private static async Task<T> AwaitWithCancellationAsync<T>(
+            Task<T> operationTask,
+            CancellationToken cancellationToken)
+        {
+            if (operationTask == null)
+            {
+                throw new InvalidOperationException("The spectator network request returned no task.");
+            }
+
+            if (operationTask.IsCompleted || !cancellationToken.CanBeCanceled)
+            {
+                return await operationTask.ConfigureAwait(false);
+            }
+
+            var cancellationTask = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using (cancellationToken.Register(
+                       state => ((TaskCompletionSource<bool>)state).TrySetResult(true),
+                       cancellationTask))
+            {
+                var completed = await Task.WhenAny(operationTask, cancellationTask.Task)
+                    .ConfigureAwait(false);
+                if (!ReferenceEquals(completed, operationTask))
+                {
+                    throw new OperationCanceledException(cancellationToken);
+                }
+            }
+
+            return await operationTask.ConfigureAwait(false);
         }
 
         private Exception CleanupOperation(StartOperation operation)

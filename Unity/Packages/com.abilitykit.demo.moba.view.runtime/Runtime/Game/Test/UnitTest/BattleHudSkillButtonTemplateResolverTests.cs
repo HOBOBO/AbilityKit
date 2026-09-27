@@ -1,9 +1,6 @@
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.View.Lib.Skill;
 using AbilityKit.Game.Flow;
-using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -16,8 +13,8 @@ namespace AbilityKit.Game.Test.UnitTest
         public void ConfiguredLoadout_ResolvesTemplateDrivenSlotsAndAppendedBasicAttack()
         {
             var resolver = new BattleHudSkillButtonTemplateResolver();
-            var loadout = new MobaPlayerLoadout(
-                playerId: new PlayerId("mozi_player"),
+            var loadout = new BattlePlayerLoadout(
+                playerId: "mozi_player",
                 teamId: 1,
                 heroId: 1004,
                 attributeTemplateId: 1004,
@@ -129,9 +126,9 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var lianPo = CreateLoadout("lian_po", 1001, 10010011, 10010101, 10010201, 10010301);
             var xiaoQiao = CreateLoadout("xiao_qiao", 1002, 10020011, 10020101, 10020201, 10020301);
-            var response = new EnterMobaGameRes(
-                new WorldId("test"),
-                new PlayerId("lian_po"),
+            var response = new BattleEnterGameSnapshot(
+                "test",
+                "lian_po",
                 localActorId: 1001,
                 randomSeed: 1,
                 tickRate: 30,
@@ -163,9 +160,9 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var lianPo = CreateLoadout("lian_po", 1001, 10010011, 10010101, 10010201, 10010301);
             var xiaoQiao = CreateLoadout("xiao_qiao", 1002, 10020011, 10020101, 10020201, 10020301);
-            var response = new EnterMobaGameRes(
-                new WorldId("test"),
-                new PlayerId("lian_po"),
+            var response = new BattleEnterGameSnapshot(
+                "test",
+                "lian_po",
                 localActorId: 1001,
                 randomSeed: 1,
                 tickRate: 30,
@@ -184,15 +181,13 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 controller.ApplySkillStates(new[]
                 {
-                    new MobaSkillStateSnapshotEntry
-                    {
-                        ActorId = 1001,
-                        Slot = 2,
-                        SkillId = 10010201,
-                        Level = 1,
-                        Availability = MobaSkillAvailabilityState.Disabled,
-                        DisableReason = 1,
-                    }
+                    new SkillStateData(
+                        actorId: 1001,
+                        slot: 2,
+                        skillId: 10010201,
+                        level: 1,
+                        availability: SkillAvailabilityState.Disabled,
+                        disableReason: 1)
                 }, 1001);
 
                 var lianPoSkill3 = controller.InputUi.SkillViews[2];
@@ -250,9 +245,9 @@ namespace AbilityKit.Game.Test.UnitTest
             var binding = new BattleHudSkillTemplateBindingState();
             var lianPo = CreateLoadout("p1", 1001, 10010011, 10010101, 10010201, 10010301);
             var xiaoQiao = CreateLoadout("p2", 1002, 10020011, 10020101, 10020201, 10020301);
-            var response = new EnterMobaGameRes(
-                new WorldId("test"),
-                new PlayerId("p1"),
+            var response = new BattleEnterGameSnapshot(
+                "test",
+                "p1",
                 localActorId: 1001,
                 randomSeed: 1,
                 tickRate: 30,
@@ -309,14 +304,12 @@ namespace AbilityKit.Game.Test.UnitTest
             var view = controller.InputUi.SkillViews[slot - 1];
             controller.ApplySkillStates(new[]
             {
-                new MobaSkillStateSnapshotEntry
-                {
-                    ActorId = actorId,
-                    Slot = slot,
-                    SkillId = skillId,
-                    Level = 1,
-                    Availability = MobaSkillAvailabilityState.Available,
-                }
+                new SkillStateData(
+                    actorId: actorId,
+                    slot: slot,
+                    skillId: skillId,
+                    level: 1,
+                    availability: SkillAvailabilityState.Available)
             }, actorId);
 
             Assert.IsTrue(view.Config.EnableAim);
@@ -347,14 +340,14 @@ namespace AbilityKit.Game.Test.UnitTest
             });
         }
 
-        private static MobaPlayerLoadout CreateLoadout(
+        private static BattlePlayerLoadout CreateLoadout(
             string playerId,
             int heroId,
             int basicAttackSkillId,
             params int[] skillIds)
         {
-            return new MobaPlayerLoadout(
-                new PlayerId(playerId),
+            return new BattlePlayerLoadout(
+                playerId,
                 teamId: 1,
                 heroId: heroId,
                 attributeTemplateId: heroId,
@@ -366,7 +359,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private static void AssertTargetPointSlot(
             BattleHudSkillButtonTemplateResolver resolver,
-            in MobaPlayerLoadout loadout,
+            in BattlePlayerLoadout loadout,
             int slot,
             int expectedSkillId)
         {
@@ -384,7 +377,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private static void AssertResolvedSlot(
             BattleHudSkillButtonTemplateResolver resolver,
-            in MobaPlayerLoadout loadout,
+            in BattlePlayerLoadout loadout,
             int slot,
             int expectedSkillId,
             BattleHudSkillPreviewShape expectedPreviewShape,

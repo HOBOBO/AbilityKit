@@ -83,6 +83,12 @@ namespace AbilityKit.Trace
 
         public event Action<TraceRegistryEvent> RegistryEvent;
 
+        /// <summary>
+        /// Optional diagnostic callback for failures raised by registry observers.
+        /// Observer failures never alter committed trace state or stop other observers.
+        /// </summary>
+        public Action<TraceRegistryEvent, Exception> ObserverException { get; set; }
+
         protected TraceTreeRegistryBase(
             ITraceContextSource contextSource,
             ITraceLeafDataStore leafDataStore)
@@ -114,6 +120,15 @@ namespace AbilityKit.Trace
             if (_nextId == long.MaxValue)
                 throw new InvalidOperationException("Trace context ID space is exhausted.");
             return _nextId++;
+        }
+
+        protected void ReserveExternalId(long contextId, bool advanceAllocationFloor = true)
+        {
+            if (contextId <= 0L || contextId == long.MaxValue)
+                throw new ArgumentOutOfRangeException(nameof(contextId));
+            if (_contexts.ContainsKey(contextId))
+                throw new InvalidOperationException($"Trace context {contextId} already exists.");
+            if (advanceAllocationFloor && contextId >= _nextId) _nextId = contextId + 1L;
         }
 
         /// <summary>
@@ -239,6 +254,62 @@ namespace AbilityKit.Trace
             return removedCount;
         }
 
+        /// <summary>
+        /// Revokes externally allocated observation nodes without applying this registry's
+        /// allocator boundary. Descendants are included to keep the observation tree valid.
+        /// </summary>
+        protected int RetractExternalNodes(IReadOnlyCollection<long> contextIds, long eventBoundary)
+        {
+            if (contextIds == null) throw new ArgumentNullException(nameof(contextIds));
+            if (contextIds.Count == 0) return 0;
+
+            var removedIds = new HashSet<long>();
+            var pending = new Stack<long>();
+            foreach (var contextId in contextIds)
+                if (_contexts.ContainsKey(contextId) && removedIds.Add(contextId))
+                    pending.Push(contextId);
+
+            while (pending.Count > 0)
+            {
+                var parentId = pending.Pop();
+                if (!_childrenByParent.TryGetValue(parentId, out var children)) continue;
+                for (var i = 0; i < children.Count; i++)
+                {
+                    var childId = children[i];
+                    if (removedIds.Add(childId)) pending.Push(childId);
+                }
+            }
+
+            var affectedParents = new HashSet<long>();
+            foreach (var contextId in removedIds)
+            {
+                if (!_contexts.TryGetValue(contextId, out var record)) continue;
+                if (record.ParentId != 0L) affectedParents.Add(record.ParentId);
+                if (!record.IsEnded && _roots.TryGetValue(record.RootId, out var root))
+                    _roots[record.RootId] = root.WithActiveCount(root.ActiveCount - 1)
+                        .WithLastTouchedFrame(GetCurrentFrame());
+                _contexts.Remove(contextId);
+                _childrenByParent.Remove(contextId);
+                if (record.ContextId == record.RootId) _roots.Remove(contextId);
+                OnPredictionNodeRemoved(contextId);
+                _leafDataStore.Clear(contextId);
+            }
+
+            foreach (var parentId in affectedParents)
+                if (_childrenByParent.TryGetValue(parentId, out var children))
+                    children.RemoveAll(removedIds.Contains);
+
+            if (removedIds.Count > 0)
+                Publish(new TraceRegistryEvent(
+                    TraceRegistryEventKind.PredictionRetracted,
+                    eventBoundary,
+                    0,
+                    0,
+                    0,
+                    GetCurrentFrame()));
+            return removedIds.Count;
+        }
+
         protected virtual void OnPredictionNodeRemoved(long contextId) { }
 
         /// <summary>Validates a local lifecycle restore without rebuilding missing identities or metadata.</summary>
@@ -303,10 +374,12 @@ namespace AbilityKit.Trace
         /// <summary>
         /// 释放资源
         /// </summary>
-        public void Dispose()
+        public virtual void Dispose()
         {
             TraceRegistryDirectory.Unregister(this);
             Clear();
+            RegistryEvent = null;
+            ObserverException = null;
         }
 
         /// <summary>
@@ -364,10 +437,15 @@ namespace AbilityKit.Trace
         /// </summary>
         public bool End(long contextId, int reason = 0)
         {
+            return EndAtFrame(contextId, reason, GetCurrentFrame());
+        }
+
+        /// <summary>Ends a node using the frame supplied by its lifecycle owner.</summary>
+        public bool EndAtFrame(long contextId, int reason, int frame)
+        {
             if (!_contexts.TryGetValue(contextId, out var record) || record.IsEnded)
                 return false;
 
-            var frame = GetCurrentFrame();
             _contexts[contextId] = new TraceContextRecord(
                 contextId: record.ContextId,
                 rootId: record.RootId,
@@ -412,7 +490,27 @@ namespace AbilityKit.Trace
         protected void Publish(in TraceRegistryEvent registryEvent)
         {
             _revision++;
-            RegistryEvent?.Invoke(registryEvent);
+            var observers = RegistryEvent;
+            if (observers == null) return;
+
+            foreach (Action<TraceRegistryEvent> observer in observers.GetInvocationList())
+            {
+                try
+                {
+                    observer(registryEvent);
+                }
+                catch (Exception ex)
+                {
+                    try
+                    {
+                        ObserverException?.Invoke(registryEvent, ex);
+                    }
+                    catch
+                    {
+                        // Observation diagnostics must not alter committed trace state.
+                    }
+                }
+            }
         }
 
         protected virtual object GetMetadataObject(long contextId) => null;
@@ -514,6 +612,36 @@ namespace AbilityKit.Trace
             return contextId;
         }
 
+        /// <summary>Records a root using an identity allocated by the execution-context owner.</summary>
+        public long CreateRootWithId(
+            long contextId,
+            int kind,
+            long sourceActorId = 0,
+            long targetActorId = 0,
+            object originSource = null,
+            object originTarget = null,
+            int configId = 0,
+            int createdFrame = -1,
+            bool advanceAllocationFloor = true)
+        {
+            ReserveExternalId(contextId, advanceAllocationFloor);
+            var (originId, originDisplay) = ExtractOrigin(originSource);
+            var (targetId, targetDisplay) = ExtractOrigin(originTarget);
+            if (createdFrame < 0) createdFrame = Frame;
+            var record = new TraceContextRecord(
+                contextId, contextId, 0L, kind, createdFrame, 0, 0, false);
+
+            _contexts[contextId] = record;
+            _roots[contextId] = new TraceRootRecord(1, 0, createdFrame);
+            _childrenByParent[contextId] = new List<long>();
+            _metadataStore.SetMetadata(contextId, CreateMetadata(
+                contextId, kind, sourceActorId, targetActorId,
+                originId, originDisplay, targetId, targetDisplay, configId));
+            Publish(new TraceRegistryEvent(
+                TraceRegistryEventKind.RootCreated, contextId, contextId, 0, kind, createdFrame));
+            return contextId;
+        }
+
         public long CreateRoot(in TraceOrigin origin)
         {
             return CreateRoot(
@@ -604,6 +732,71 @@ namespace AbilityKit.Trace
             }
  
             Publish(new TraceRegistryEvent(TraceRegistryEventKind.ChildCreated, contextId, rootId, parentContextId, kind, createdFrame));
+            return contextId;
+        }
+
+        /// <summary>Records a child using an identity allocated by the execution-context owner.</summary>
+        public long CreateChildWithId(
+            long contextId,
+            long parentContextId,
+            int kind,
+            long sourceActorId = 0,
+            long targetActorId = 0,
+            object originSource = null,
+            object originTarget = null,
+            int configId = 0,
+            int createdFrame = -1,
+            bool advanceAllocationFloor = true)
+        {
+            if (!_contexts.TryGetValue(parentContextId, out var parentRecord))
+                throw new ArgumentException($"Parent context {parentContextId} not found", nameof(parentContextId));
+            ReserveExternalId(contextId, advanceAllocationFloor);
+
+            var rootId = parentRecord.RootId;
+            long originId;
+            string originDisplay;
+            if (originSource != null)
+                (originId, originDisplay) = ExtractOrigin(originSource);
+            else if (_metadataStore.TryGetMetadata(rootId, out var rootMetadata))
+                (originId, originDisplay) = (GetOriginSourceId(rootMetadata), GetOriginSourceDisplay(rootMetadata));
+            else
+                (originId, originDisplay) = (0L, null);
+
+            long targetId;
+            string targetDisplay;
+            if (originTarget != null)
+                (targetId, targetDisplay) = ExtractOrigin(originTarget);
+            else if (_metadataStore.TryGetMetadata(rootId, out var targetMetadata))
+                (targetId, targetDisplay) = (GetOriginTargetId(targetMetadata), GetOriginTargetDisplay(targetMetadata));
+            else
+                (targetId, targetDisplay) = (0L, null);
+
+            if (sourceActorId == 0L && _metadataStore.TryGetMetadata(rootId, out var sourceMetadata))
+                sourceActorId = GetSourceActorId(sourceMetadata);
+            if (targetActorId == 0L && _metadataStore.TryGetMetadata(rootId, out var actorMetadata))
+                targetActorId = GetTargetActorId(actorMetadata);
+
+            if (createdFrame < 0) createdFrame = Frame;
+            _contexts[contextId] = new TraceContextRecord(
+                contextId, rootId, parentContextId, kind, createdFrame, 0, 0, false);
+            _childrenByParent[contextId] = new List<long>();
+            _metadataStore.SetMetadata(contextId, CreateMetadata(
+                rootId, kind, sourceActorId, targetActorId,
+                originId, originDisplay, targetId, targetDisplay, configId));
+
+            if (!_childrenByParent.TryGetValue(parentContextId, out var children))
+            {
+                children = new List<long>();
+                _childrenByParent[parentContextId] = children;
+            }
+            children.Add(contextId);
+            if (_roots.TryGetValue(rootId, out var root))
+            {
+                _roots[rootId] = root.WithActiveCount(root.ActiveCount + 1)
+                    .WithLastTouchedFrame(createdFrame);
+            }
+            Publish(new TraceRegistryEvent(
+                TraceRegistryEventKind.ChildCreated, contextId, rootId, parentContextId, kind, createdFrame));
             return contextId;
         }
 

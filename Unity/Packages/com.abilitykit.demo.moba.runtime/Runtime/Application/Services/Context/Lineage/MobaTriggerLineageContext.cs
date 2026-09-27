@@ -8,7 +8,7 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public MobaTriggerLineageContext(
             EffectContextKind contextKind,
-            MobaTraceKind originKind,
+            MobaExecutionKind originKind,
             int sourceActorId,
             int targetActorId,
             long sourceContextId,
@@ -27,7 +27,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public EffectContextKind ContextKind { get; }
-        public MobaTraceKind OriginKind { get; }
+        public MobaExecutionKind OriginKind { get; }
         public int SourceActorId { get; }
         public int TargetActorId { get; }
         /// <summary>
@@ -60,17 +60,5 @@ namespace AbilityKit.Demo.Moba.Services
                 SourceConfigId);
         }
 
-        public MobaTriggerTraceContext ToTraceContext()
-        {
-            return new MobaTriggerTraceContext(
-                ContextKind,
-                OriginKind,
-                SourceActorId,
-                TargetActorId,
-                SourceContextId,
-                RootContextId,
-                OwnerContextId,
-                SourceConfigId);
-        }
     }
 }

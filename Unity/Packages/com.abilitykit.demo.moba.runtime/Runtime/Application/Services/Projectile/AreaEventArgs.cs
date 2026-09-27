@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public long RootContextId;
         public long OwnerContextId;
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle;
-        public MobaTraceKind TraceKind;
+        public MobaExecutionKind ExecutionKind;
 
         public Vec3 Center;
         public float Radius;
@@ -40,14 +40,14 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
-            var traceKind = TraceKind != MobaTraceKind.None ? TraceKind : MobaTraceKind.AreaSpawn;
+            var executionKind = ExecutionKind != MobaExecutionKind.None ? ExecutionKind : MobaExecutionKind.AreaSpawn;
             var sourceContextId = SourceContextId;
             var rootContextId = RootContextId != 0 ? RootContextId : sourceContextId;
             var ownerContextId = OwnerContextId != 0 ? OwnerContextId : sourceContextId;
             origin = new MobaGameplayOrigin(
                 OwnerActorId,
                 TargetActorId,
-                traceKind,
+                executionKind,
                 TemplateId,
                 sourceContextId,
                 sourceContextId,
@@ -73,10 +73,10 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 return lineageContext.SourceActorId > 0 && lineageContext.SourceContextId != 0;
             }
 
-            var traceKind = TraceKind != MobaTraceKind.None ? TraceKind : MobaTraceKind.AreaSpawn;
+            var executionKind = ExecutionKind != MobaExecutionKind.None ? ExecutionKind : MobaExecutionKind.AreaSpawn;
             lineageContext = new MobaTriggerLineageContext(
                 EffectContextKind.Area,
-                traceKind,
+                executionKind,
                 OwnerActorId,
                 TargetActorId,
                 SourceContextId,

@@ -27,7 +27,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 contextId: 700L,
                 rootContextId: 500L,
                 parentContextId: 500L,
-                traceKind: 3,
+                executionKind: 3,
                 configId: 501,
                 sourceActorId: 7,
                 targetActorId: 21);
@@ -40,7 +40,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(draft.ConfigId, Is.EqualTo(501));
             Assert.That(draft.RootContextId, Is.EqualTo(500));
             Assert.That(draft.ContextId, Is.EqualTo(700));
-            Assert.That(draft.Summary, Does.Contain("traceKind=3"));
+            Assert.That(draft.Summary, Does.Contain("executionKind=3"));
             Assert.That(draft.Summary, Does.Contain("configId=501"));
             Assert.That(draft.Summary, Does.Contain("contextId=700"));
             Assert.That(draft.Summary, Does.Contain("parentContextId=500"));
@@ -53,7 +53,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 contextId: 700L,
                 rootContextId: 0L,
                 parentContextId: 0L,
-                traceKind: 1,
+                executionKind: 1,
                 configId: 501,
                 sourceActorId: 7,
                 targetActorId: 0);
@@ -71,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 contextId: 700L,
                 rootContextId: 500L,
                 parentContextId: 500L,
-                traceKind: 3,
+                executionKind: 3,
                 configId: 501,
                 sourceActorId: 7,
                 targetActorId: 21,
@@ -85,7 +85,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(draft.ConfigId, Is.EqualTo(501));
             Assert.That(draft.RootContextId, Is.EqualTo(500));
             Assert.That(draft.ContextId, Is.EqualTo(700));
-            Assert.That(draft.Summary, Does.Contain("traceKind=3"));
+            Assert.That(draft.Summary, Does.Contain("executionKind=3"));
             Assert.That(draft.Summary, Does.Contain("reason=2"));
         }
 
@@ -96,7 +96,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 contextId: 700L,
                 rootContextId: 0L,
                 parentContextId: 0L,
-                traceKind: 1,
+                executionKind: 1,
                 configId: 501,
                 sourceActorId: 7,
                 targetActorId: 0,
@@ -116,7 +116,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 contextId: 700L,
                 rootContextId: 500L,
                 parentContextId: 500L,
-                traceKind: 3,
+                executionKind: 3,
                 configId: 501,
                 sourceActorId: 7,
                 targetActorId: 21);
@@ -136,7 +136,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 contextId: 700L,
                 rootContextId: 500L,
                 parentContextId: 500L,
-                traceKind: 3,
+                executionKind: 3,
                 configId: 501,
                 sourceActorId: 7,
                 targetActorId: 21,
@@ -158,7 +158,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 contextId: 700L,
                 rootContextId: 500L,
                 parentContextId: 500L,
-                traceKind: 3,
+                executionKind: 3,
                 configId: 501,
                 sourceActorId: 7,
                 targetActorId: 21);
@@ -166,7 +166,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 contextId: 700L,
                 rootContextId: 500L,
                 parentContextId: 500L,
-                traceKind: 3,
+                executionKind: 3,
                 configId: 501,
                 sourceActorId: 7,
                 targetActorId: 21,
@@ -187,7 +187,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 contextId: 700L,
                 rootContextId: 500L,
                 parentContextId: 500L,
-                traceKind: 3,
+                executionKind: 3,
                 configId: 501,
                 sourceActorId: 7,
                 targetActorId: 21);
@@ -195,7 +195,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 contextId: 700L,
                 rootContextId: 500L,
                 parentContextId: 500L,
-                traceKind: 3,
+                executionKind: 3,
                 configId: 501,
                 sourceActorId: 7,
                 targetActorId: 21,
@@ -225,8 +225,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var collector = new MobaBattleDiagnosticEventCollector(_scope, 16);
             registry.AttachDiagnosticCollector(collector);
 
-            var contextId = registry.CreateRootContext(
-                MobaTraceKind.SkillCast,
+            var contextId = registry.CreateObservationRoot(
+                MobaExecutionKind.SkillCast,
                 501,
                 7,
                 21);
@@ -253,8 +253,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var collector = new MobaBattleDiagnosticEventCollector(_scope, 16);
             registry.AttachDiagnosticCollector(collector);
 
-            var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501, 7, 21);
-            var childId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 502, 7, 21);
+            var rootId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501, 7, 21);
+            var childId = registry.CreateObservationChild(rootId, MobaExecutionKind.SkillPhase, 502, 7, 21);
 
             Assert.That(childId, Is.Not.Zero);
             Assert.That(collector.Store.Count, Is.EqualTo(2));
@@ -272,9 +272,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void ValidateChainDetailed_ValidTree_ReturnsValid()
         {
             var registry = new MobaTraceRegistry();
-            var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501, 7, 21);
-            var childId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 502, 7, 21);
-            registry.CreateChildContext(childId, MobaTraceKind.EffectExecution, 503, 7, 21);
+            var rootId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501, 7, 21);
+            var childId = registry.CreateObservationChild(rootId, MobaExecutionKind.SkillPhase, 502, 7, 21);
+            registry.CreateObservationChild(childId, MobaExecutionKind.EffectExecution, 503, 7, 21);
 
             var result = registry.ValidateChainDetailed(rootId);
 
@@ -299,8 +299,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void ValidateChainDetailed_ChildUsedAsRoot_ReturnsInvalidRoot()
         {
             var registry = new MobaTraceRegistry();
-            var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501, 7, 21);
-            var childId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 502, 7, 21);
+            var rootId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501, 7, 21);
+            var childId = registry.CreateObservationChild(rootId, MobaExecutionKind.SkillPhase, 502, 7, 21);
 
             var result = registry.ValidateChainDetailed(childId);
 
@@ -316,8 +316,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var collector = new MobaBattleDiagnosticEventCollector(_scope, 16);
             registry.AttachDiagnosticCollector(collector);
 
-            var contextId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501, 7, 21);
-            var ended = registry.EndContext(contextId, TraceLifecycleReason.Completed);
+            var contextId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501, 7, 21);
+            var ended = registry.EndContext(contextId, MobaExecutionEndReason.Completed);
 
             Assert.That(ended, Is.True);
             Assert.That(collector.Store.Count, Is.EqualTo(2));
@@ -326,7 +326,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var endedEvt = result.Items[1];
             Assert.That(endedEvt.Kind, Is.EqualTo(BattleDiagnosticEventKind.TraceNodeEnded));
             Assert.That(endedEvt.ContextId, Is.EqualTo(contextId));
-            Assert.That(endedEvt.Summary, Does.Contain("reason=" + (int)TraceLifecycleReason.Completed));
+            Assert.That(endedEvt.Summary, Does.Contain("reason=" + (int)MobaExecutionEndReason.Completed));
         }
 
         [Test]
@@ -336,8 +336,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var collector = new MobaBattleDiagnosticEventCollector(_scope, 16);
             registry.AttachDiagnosticCollector(collector);
 
-            var contextId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501, 7, 21);
-            registry.EndContext(contextId, TraceLifecycleReason.Cancelled);
+            var contextId = registry.CreateObservationRoot(MobaExecutionKind.SkillCast, 501, 7, 21);
+            registry.EndContext(contextId, MobaExecutionEndReason.Cancelled);
 
             Assert.That(collector.Store.Count, Is.EqualTo(2));
 

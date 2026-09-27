@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     /// The BehaviorRuntime instance id is deliberately not serialized: runtime ids are local
     /// allocations, so a rollback rebuilds the controller through MobaBrainService instead.
     /// </summary>
+    [MobaRollbackProvider(DefaultKey)]
     public sealed class MobaBrainRollbackProvider : IRollbackStateProvider
     {
         public const int DefaultKey = 10006;

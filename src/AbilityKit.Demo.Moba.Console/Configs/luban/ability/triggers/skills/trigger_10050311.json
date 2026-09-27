@@ -1,0 +1,30 @@
+{
+  "triggers": [
+    {
+      "id": 10050311,
+      "name": "妲己-女王崇拜-周期搜敌狐火",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "shoot_projectile",
+          "launcher_id": 31050301,
+          "projectile_id": 30050301,
+          "directionSource": "target_query",
+          "target_query_id": 50050301,
+          "target_max_count": 1,
+          "track_target": true
+        },
+        {
+          "type": "debug_log",
+          "message": "妲己三技能女王崇拜：周期搜敌并发射狐火",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

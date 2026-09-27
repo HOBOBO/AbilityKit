@@ -18,7 +18,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleFlow
     [InitializeOnLoad]
     public sealed class MobaAssertionFieldRenderer : IContextualBattleBlockFieldRenderer
     {
-        private static readonly string[] TraceKinds = Enum.GetNames(typeof(MobaTraceKind))
+        private static readonly string[] TraceKinds = Enum.GetNames(typeof(MobaExecutionKind))
             .Where(k => k != "None")
             .ToArray();
 

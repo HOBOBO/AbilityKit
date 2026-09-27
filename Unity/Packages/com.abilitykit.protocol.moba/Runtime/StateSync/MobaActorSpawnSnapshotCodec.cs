@@ -12,7 +12,15 @@ namespace AbilityKit.Protocol.Moba.StateSync
 
     public partial struct MobaActorSpawnSnapshotEntry
     {
-        public MobaActorSpawnSnapshotEntry(int netId, int kind, int code, int ownerNetId, float x, float y, float z)
+        public MobaActorSpawnSnapshotEntry(
+            int netId,
+            int kind,
+            int code,
+            int ownerNetId,
+            float x,
+            float y,
+            float z,
+            int entityVersion = 1)
         {
             NetId = netId;
             Kind = kind;
@@ -21,6 +29,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
             X = x;
             Y = y;
             Z = z;
+            EntityVersion = entityVersion;
         }
     }
 
@@ -38,6 +47,10 @@ namespace AbilityKit.Protocol.Moba.StateSync
         public static byte[] Serialize(MobaActorSpawnSnapshotEntry[] entries)
         {
             entries ??= Array.Empty<MobaActorSpawnSnapshotEntry>();
+            for (int i = 0; i < entries.Length; i++)
+            {
+                if (entries[i].EntityVersion <= 0) entries[i].EntityVersion = 1;
+            }
             var payload = new MobaActorSpawnSnapshotPayload { Entries = entries };
             return MemoryPackSerializer.Serialize(payload);
         }

@@ -1,0 +1,29 @@
+{
+  "triggers": [
+    {
+      "id": 10020313,
+      "name": "小乔-星华缭乱-落星区域延迟伤害",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "give_damage",
+          "damage_value": 80,
+          "damage_type": 2,
+          "reason_param": 10020301,
+          "target_query_id": 50020302,
+          "target_max_count": 1
+        },
+        {
+          "type": "debug_log",
+          "message": "小乔三技能：落星区域延迟命中造成法术伤害",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

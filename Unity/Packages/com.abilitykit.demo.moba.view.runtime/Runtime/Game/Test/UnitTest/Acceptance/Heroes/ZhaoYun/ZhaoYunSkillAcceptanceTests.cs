@@ -110,10 +110,12 @@ namespace AbilityKit.Game.Test.UnitTest
                 var basicAttackResult = HeroSkillHeadlessContract.ExecuteBasicAttackDamage(harness, actorId, targetActorId, baseDamage: 10f);
                 Assert.AreEqual(actorId, basicAttackResult.AttackerActorId, "Zhao Yun basic attack result should retain the caster as its source actor.");
                 Assert.AreEqual(DamageReasonKind.BasicAttack, basicAttackResult.ReasonKind, "Zhao Yun enhanced hit must be evaluated from a basic-attack damage result.");
-                var enhancedTrace = harness.TickUntilTraceNodeAfter(enhancedTraceBaseline, MobaTraceKind.EffectExecution, 10030111, maxTicks: 10, message: "Zhao Yun enhanced basic attack should execute its post-hit trigger.");
-                var enhancedDamageAction = harness.AssertActionExecutedUnderEffect(enhancedTrace.RootId, (int)TriggeringConstants.GiveDamageId.Value, TriggeringConstants.Actions.GiveDamage);
-                harness.AssertTraceLifecycle(enhancedTrace, enhancedDamageAction, "Zhao Yun enhanced basic attack damage action should remain in its effect trace lifecycle.");
-                harness.AssertActionExecutedUnderEffect(enhancedTrace.RootId, (int)TriggeringConstants.RemoveBuffId.Value, TriggeringConstants.Actions.RemoveBuff);
+                var enhancedTrace = harness.TickUntilTraceNodeAfter(enhancedTraceBaseline, MobaExecutionKind.EffectExecution, 10030111, maxTicks: 10, message: "Zhao Yun enhanced basic attack should execute its post-hit trigger.");
+                var enhancedDamage = harness.AssertTraceNodeInRoot(enhancedTrace.RootId, MobaExecutionKind.DamageApply, Skill1.SkillId,
+                    "Zhao Yun enhanced basic attack should commit its extra damage under the triggered effect root.");
+                harness.AssertTraceLifecycle(enhancedTrace, enhancedDamage, "Zhao Yun enhanced basic attack damage should retain the effect's execution lineage.");
+                harness.AssertTraceNodeInRoot(enhancedTrace.RootId, MobaExecutionKind.BuffApply, 10030102,
+                    "Zhao Yun enhanced basic attack should apply the slow under the triggered effect root.");
                 HeroSkillHeadlessContract.AssertFreshBuff(harness, targetActorId, 10030102, 2f, "Zhao Yun enhanced basic attack should slow the hit target.");
                 harness.Tick(1);
                 Assert.IsFalse(harness.HasActorBuff(actorId, 10030101), "Zhao Yun enhanced basic attack state should be consumed by its first valid basic attack hit.");
@@ -123,7 +125,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var recast = skills.TryCastBySlot(actorId, Skill1.Slot, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
                 Assert.IsTrue(recast.Success, $"Zhao Yun skill 1 should cast after its skill-specific cooldown reset. failReason={recast.FailReason}");
-                var recastTrace = harness.TickUntilTraceNodeAfter(recastBaseline, MobaTraceKind.EffectExecution, Skill1.EffectId, maxTicks: 20, message: "Zhao Yun skill 1 recast should create a new effect trace after cooldown reset.");
+                var recastTrace = harness.TickUntilTraceNodeAfter(recastBaseline, MobaExecutionKind.EffectExecution, Skill1.EffectId, maxTicks: 20, message: "Zhao Yun skill 1 recast should create a new effect trace after cooldown reset.");
                 Assert.AreNotEqual(effectTrace.RootId, recastTrace.RootId, "Zhao Yun skill 1 recast should use a new root trace.");
             }
         }
@@ -146,12 +148,12 @@ namespace AbilityKit.Game.Test.UnitTest
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var cast = skills.TryCastBySlot(actorId, Skill2.Slot, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
                 Assert.IsTrue(cast.Success, $"Zhao Yun skill 2 should cast. failReason={cast.FailReason}");
-                var effectTrace = harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, Skill2.EffectId, maxTicks: 20, message: "Zhao Yun skill 2 should execute its area effect.");
+                var effectTrace = harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, Skill2.EffectId, maxTicks: 20, message: "Zhao Yun skill 2 should execute its area effect.");
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.SpawnAreaId.Value, TriggeringConstants.Actions.SpawnArea);
-                harness.TickUntilTraceNodeInRoot(effectTrace.RootId, MobaTraceKind.AreaSpawn, 40030201, maxTicks: 10, message: "Zhao Yun skill 2 should publish its deferred area spawn under the effect root.");
+                harness.TickUntilTraceNodeInRoot(effectTrace.RootId, MobaExecutionKind.AreaSpawn, 40030201, maxTicks: 10, message: "Zhao Yun skill 2 should publish its deferred area spawn under the effect root.");
 
                 harness.TickMilliseconds(900);
-                Assert.GreaterOrEqual(harness.CountTraceNodesInRoot(effectTrace.RootId, MobaTraceKind.DamageApply, 10030201), 4, "Zhao Yun skill 2 should apply all four configured spear strikes to a target in the area.");
+                Assert.GreaterOrEqual(harness.CountTraceNodesInRoot(effectTrace.RootId, MobaExecutionKind.DamageApply, 10030201), 4, "Zhao Yun skill 2 should apply all four configured spear strikes to a target in the area.");
                 Assert.Greater(harness.GetActorHp(actorId), injuredHp, "Zhao Yun skill 2 should heal the caster for successful spear strikes.");
                 harness.TickUntilSkillStops(actorId, Skill2.Slot, maxTicks: 120, message: "Zhao Yun skill 2 should finish after its four delayed spear strikes.");
             }
@@ -173,18 +175,18 @@ namespace AbilityKit.Game.Test.UnitTest
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var cast = skills.TryCastBySlot(actorId, Skill3.Slot, aimPos: new Vec3(5f, 0f, 0f), aimDir: Vec3.Right, targetActorId: 0);
                 Assert.IsTrue(cast.Success, $"Zhao Yun skill 3 should cast toward an aim position. failReason={cast.FailReason}");
-                var effectTrace = harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, Skill3.EffectId, maxTicks: 20, message: "Zhao Yun skill 3 should execute its jump and landing effect.");
+                var effectTrace = harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, Skill3.EffectId, maxTicks: 20, message: "Zhao Yun skill 3 should execute its jump and landing effect.");
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.DashId.Value, TriggeringConstants.Actions.Dash);
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.JumpId.Value, TriggeringConstants.Actions.Jump);
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.SpawnAreaId.Value, TriggeringConstants.Actions.SpawnArea);
-                harness.TickUntilTraceNodeInRoot(effectTrace.RootId, MobaTraceKind.AreaSpawn, 40030301, maxTicks: 10, message: "Zhao Yun skill 3 should publish its deferred landing area spawn under the effect root.");
+                harness.TickUntilTraceNodeInRoot(effectTrace.RootId, MobaExecutionKind.AreaSpawn, 40030301, maxTicks: 10, message: "Zhao Yun skill 3 should publish its deferred landing area spawn under the effect root.");
 
                 harness.TickMilliseconds(700);
                 var end = harness.AssertActorEntity(actorId).transform.Value.Position;
                 Assert.Greater(end.X - start.X, 3f, $"Zhao Yun skill 3 should move the caster toward its aim position. start={start}, end={end}");
-                Assert.GreaterOrEqual(harness.CountTraceNodesInRoot(effectTrace.RootId, MobaTraceKind.DamageApply, 10030301), 1, "Zhao Yun skill 3 landing should damage targets inside the landing area.");
+                Assert.GreaterOrEqual(harness.CountTraceNodesInRoot(effectTrace.RootId, MobaExecutionKind.DamageApply, 10030301), 1, "Zhao Yun skill 3 landing should damage targets inside the landing area.");
                 HeroSkillHeadlessContract.AssertFreshBuff(harness, targetActorId, 10030301, 4f, "Zhao Yun skill 3 should apply the persistent marked-target state after landing.");
-                Assert.GreaterOrEqual(harness.CountTraceNodesInRoot(effectTrace.RootId, MobaTraceKind.EffectAction, (int)TriggeringConstants.PullId.Value), 1, "Zhao Yun skill 3 landing area should execute the configured knock-up pull action.");
+                Assert.GreaterOrEqual(harness.CountTraceNodesInRoot(effectTrace.RootId, MobaExecutionKind.EffectAction, (int)TriggeringConstants.PullId.Value), 1, "Zhao Yun skill 3 landing area should execute the configured knock-up pull action.");
                 harness.TickUntilSkillStops(actorId, Skill3.Slot, maxTicks: 160, message: "Zhao Yun skill 3 should finish after the target-point leap and landing area resolve.");
             }
         }

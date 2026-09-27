@@ -285,7 +285,7 @@ public sealed class MobaPresentationCueRuntimeTests
             SourceContextId = 101,
             RootContextId = 202,
             OwnerContextId = 303,
-            TraceKind = MobaTraceKind.SkillEffect,
+            ExecutionKind = MobaExecutionKind.SkillEffect,
             Scale = 1.5f,
             Radius = 6,
             Color = "#ff8800"

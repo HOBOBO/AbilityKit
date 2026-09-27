@@ -81,7 +81,7 @@ flowchart TB
 |------|------|----------|
 | `ExecuteDirectTrigger<TPayload>` | 技能、阶段事件、投射物命中等一次性触发 | 校验 triggerId，记录 direct stats，调用 effect execution |
 | `ApplyOwnerBoundTriggers` | Buff、被动、光环等绑定到 owner 的触发计划 | 校验 ownerKey，记录 owner apply stats，调用订阅服务调和 |
-| `StopOwnerBoundTriggers` | owner 生命周期结束、Buff 移除、被动失效 | 停止 ownerKey 下全部订阅并统计 stop；不因此获得结束同值 trace context 的权限 |
+| `StopOwnerBoundTriggers` | owner 生命周期结束、Buff 移除、被动失效 | 停止 ownerKey 下全部订阅并统计 stop；不因此获得结束同值 Execution Context 的权限 |
 | `CopyActiveOwnerKeys` | 诊断或校验当前活跃 owner-bound 触发器 | 从订阅服务复制活跃 ownerKey |
 
 执行网关还内建诊断计数：

@@ -1,0 +1,14 @@
+{
+  "name": "AbilityKit.Demo.Tiny.Turn.Logic",
+  "rootNamespace": "AbilityKit.Demo.Tiny.Turn",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

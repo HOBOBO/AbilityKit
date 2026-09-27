@@ -50,7 +50,7 @@ namespace AbilityKit.Demo.Moba.Services
                 : default;
             var rootContextId = context.RootContextId != 0L
                 ? context.RootContextId
-                : (handle.IsValid ? handle.RootTraceContextId : 0L);
+                : (handle.IsValid ? handle.RootContextId : 0L);
 
             return new MobaBattleDiagnosticEventDraft(
                 kind,

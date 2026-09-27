@@ -90,7 +90,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (value <= 0f) return 0;
 
             ResolveFrames(args, ctx, sourceActorId, targetActorId, out var startFrame, out var expireFrame);
-            var origin = input.BuildOrigin(sourceActorId, targetActorId, MobaTraceKind.EffectExecution, args.ShieldId);
+            var origin = input.BuildOrigin(sourceActorId, targetActorId, MobaExecutionKind.EffectExecution, args.ShieldId);
             var layer = new ShieldLayer
             {
                 ShieldId = args.ShieldId,

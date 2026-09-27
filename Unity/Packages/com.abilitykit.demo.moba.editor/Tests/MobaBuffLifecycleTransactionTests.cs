@@ -170,7 +170,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 0,
                 unexpected,
                 SourceActorId,
-                TraceLifecycleReason.Dispelled);
+                MobaExecutionEndReason.Dispelled);
 
             Assert.That(ended, Is.False);
             Assert.That(list, Has.Count.EqualTo(1));
@@ -221,7 +221,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     0,
                     runtime,
                     SourceActorId,
-                    TraceLifecycleReason.Dispelled));
+                    MobaExecutionEndReason.Dispelled));
 
             Assert.That(error.Message, Is.EqualTo("end hook failed"));
             Assert.That(list, Is.Empty);
@@ -298,14 +298,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 0,
                 runtime,
                 SourceActorId,
-                TraceLifecycleReason.None);
+                MobaExecutionEndReason.None);
 
             Assert.That(ended, Is.True);
             Assert.That(list, Is.Empty);
             Assert.That(continuous.EndReasons[0], Is.EqualTo(ContinuousEndReason.Completed));
             Assert.That(recorder.Drafts, Has.Count.EqualTo(1));
             Assert.That(recorder.Drafts[0].Payload.TryGetBuffLifecycle(out var removed), Is.True);
-            Assert.That(removed.RemoveReason, Is.EqualTo((int)TraceLifecycleReason.Expired));
+            Assert.That(removed.RemoveReason, Is.EqualTo((int)MobaExecutionEndReason.Expired));
             Assert.That(lifecycleRecorder.EndedCount, Is.EqualTo(1));
             Assert.That(runtime.BuffId, Is.Zero);
         }
@@ -348,7 +348,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     0,
                     runtime,
                     SourceActorId,
-                    TraceLifecycleReason.Dispelled));
+                    MobaExecutionEndReason.Dispelled));
 
             Assert.That(error.Message, Is.EqualTo("continuous end failed"));
             Assert.That(continuous.EndReasons[0], Is.EqualTo(ContinuousEndReason.Interrupted));
@@ -531,7 +531,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             notifier.AppliedExisting(buff, SourceActorId, ActorId, 9f, runtime, 1, true);
             runtime.StackCount = 2;
             notifier.AppliedExisting(buff, SourceActorId, ActorId, 8f, runtime, 1, true);
-            notifier.Removed(buff, SourceActorId, ActorId, runtime, TraceLifecycleReason.Dispelled);
+            notifier.Removed(buff, SourceActorId, ActorId, runtime, MobaExecutionEndReason.Dispelled);
 
             Assert.That(recorder.Drafts, Has.Count.EqualTo(4));
             Assert.That(recorder.Drafts[0].Kind, Is.EqualTo(BattleDiagnosticEventKind.BuffAdded));
@@ -561,7 +561,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(refreshed.StackCount, Is.EqualTo(1));
             Assert.That(stacked.PreviousStackCount, Is.EqualTo(1));
             Assert.That(stacked.StackCount, Is.EqualTo(2));
-            Assert.That(removed.RemoveReason, Is.EqualTo((int)TraceLifecycleReason.Dispelled));
+            Assert.That(removed.RemoveReason, Is.EqualTo((int)MobaExecutionEndReason.Dispelled));
         }
 
         [Test]
@@ -578,7 +578,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 MobaGameplayTagCatalog.Debuff.Slow,
                 SourceActorId,
                 removeAll: true,
-                TraceLifecycleReason.Dispelled);
+                MobaExecutionEndReason.Dispelled);
 
             Assert.That(removed, Is.EqualTo(1));
             Assert.That(_target.buffs.Active, Is.Empty);
@@ -619,7 +619,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 requestedCategory,
                 sourceActorId: 0,
                 removeAll: true,
-                TraceLifecycleReason.Dispelled);
+                MobaExecutionEndReason.Dispelled);
 
             Assert.That(removed, Is.EqualTo(1));
             Assert.That(active, Has.Count.EqualTo(3));
@@ -654,7 +654,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 requestedCategory,
                 sourceActorId: 0,
                 removeAll: true,
-                TraceLifecycleReason.Dispelled);
+                MobaExecutionEndReason.Dispelled);
 
             Assert.That(removed, Is.Zero);
             Assert.That(active, Has.Count.EqualTo(1));

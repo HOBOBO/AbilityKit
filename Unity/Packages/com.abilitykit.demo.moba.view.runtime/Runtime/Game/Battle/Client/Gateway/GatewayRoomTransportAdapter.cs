@@ -12,6 +12,7 @@ namespace AbilityKit.Game.Battle.Agent
     internal sealed class GatewayRoomTransportAdapter :
         IRoomGatewayRequestTransport,
         IRoomGatewayPushSource,
+        INetworkProtocolTransport,
         IDisposable
     {
         private readonly Func<

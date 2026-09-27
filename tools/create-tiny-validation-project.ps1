@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$OutputPath = '',
-    [switch]$Standalone
+    [switch]$Standalone,
+    [switch]$IncludeTurn
 )
 
 $ErrorActionPreference = 'Stop'
@@ -43,6 +44,7 @@ $dependencies = [ordered]@{}
 $pending = [System.Collections.Generic.Queue[string]]::new()
 if (-not $Standalone) { $pending.Enqueue('com.abilitykit.demo.starter') }
 $pending.Enqueue('com.abilitykit.demo.tiny')
+if ($IncludeTurn) { $pending.Enqueue('com.abilitykit.demo.tiny.turn') }
 while ($pending.Count -gt 0) {
     $name = $pending.Dequeue()
     if ($dependencies.Contains($name)) { continue }
@@ -90,27 +92,37 @@ foreach ($name in $dependencies.Keys) {
 }
 $sampleRoot = Join-Path $projectRoot 'Assets/Samples/Tiny'
 [System.IO.Directory]::CreateDirectory($sampleRoot) | Out-Null
-foreach ($name in @('com.abilitykit.demo.tiny.logic', 'com.abilitykit.demo.tiny')) {
+$samplePackages = @('com.abilitykit.demo.tiny.logic', 'com.abilitykit.demo.tiny')
+if ($IncludeTurn) { $samplePackages += 'com.abilitykit.demo.tiny.turn' }
+foreach ($name in $samplePackages) {
     foreach ($sample in $available[$name].Manifest.samples) {
         $source = Join-Path $available[$name].Directory $sample.path
         if (-not (Test-Path -LiteralPath $source)) { throw "Missing Tiny sample: $source" }
         Copy-Item -LiteralPath $source -Destination $sampleRoot -Recurse
     }
 }
+$testables = @('com.abilitykit.demo.tiny')
+if ($IncludeTurn) { $testables += 'com.abilitykit.demo.tiny.turn' }
 $manifest = [ordered]@{
     scopedRegistries = $sourceManifest.scopedRegistries
     dependencies = $dependencies
-    testables = @('com.abilitykit.demo.tiny')
+    testables = $testables
 }
 $utf8 = [System.Text.UTF8Encoding]::new($false)
 [System.IO.File]::WriteAllText((Join-Path $projectPackages 'manifest.json'),
     ($manifest | ConvertTo-Json -Depth 20), $utf8)
 
 $tinySceneMeta = Join-Path $packagesRoot 'com.abilitykit.demo.tiny/Scenes/TinyDemoGameplayScene.unity.meta'
+$turnSceneMeta = Join-Path $packagesRoot 'com.abilitykit.demo.tiny.turn/Scenes/TinyTurnGameplayScene.unity.meta'
 if ($Standalone) {
     $templateAssets = Join-Path $PSScriptRoot 'tiny-consumer-template/Assets'
     Get-ChildItem -LiteralPath $templateAssets -Force |
         Copy-Item -Destination (Join-Path $projectRoot 'Assets') -Recurse -Force
+    if ($IncludeTurn) {
+        $turnAssets = Join-Path $PSScriptRoot 'tiny-consumer-template/Turn~/Assets'
+        Get-ChildItem -LiteralPath $turnAssets -Force |
+            Copy-Item -Destination (Join-Path $projectRoot 'Assets') -Recurse -Force
+    }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'tiny-consumer-template/README.md') `
         -Destination (Join-Path $projectRoot 'README.md')
     $entryScene = Join-Path $projectScenes 'ConsumerLobby.unity'
@@ -128,6 +140,20 @@ $entryGuid = ([regex]::Match((Get-Content -LiteralPath ($entryScene + '.meta') -
 $tinyGuid = ([regex]::Match((Get-Content -LiteralPath $tinySceneMeta -Raw),
     '(?m)^guid: ([0-9a-f]{32})\r?$')).Groups[1].Value
 if (-not $entryGuid -or -not $tinyGuid) { throw 'Tiny scene GUID metadata is incomplete.' }
+$turnScene = ''
+if ($IncludeTurn) {
+    $turnGuid = ([regex]::Match((Get-Content -LiteralPath $turnSceneMeta -Raw),
+        '(?m)^guid: ([0-9a-f]{32})\r?$')).Groups[1].Value
+    if (-not $turnGuid) { throw 'Tiny Turn scene GUID metadata is incomplete.' }
+    $turnScene = "  - enabled: 1`n    path: Packages/com.abilitykit.demo.tiny.turn/Scenes/TinyTurnGameplayScene.unity`n    guid: $turnGuid`n"
+    if ($Standalone) {
+        $consumerTurnMeta = Join-Path $projectScenes 'ConsumerTurnLobby.unity.meta'
+        $consumerTurnGuid = ([regex]::Match((Get-Content -LiteralPath $consumerTurnMeta -Raw),
+            '(?m)^guid: ([0-9a-f]{32})\r?$')).Groups[1].Value
+        if (-not $consumerTurnGuid) { throw 'Consumer Turn lobby GUID metadata is incomplete.' }
+        $turnScene += "  - enabled: 1`n    path: Assets/Scenes/ConsumerTurnLobby.unity`n    guid: $consumerTurnGuid`n"
+    }
+}
 $buildSettings = @"
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
@@ -142,6 +168,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Packages/com.abilitykit.demo.tiny/Scenes/TinyDemoGameplayScene.unity
     guid: $tinyGuid
+$turnScene
   m_configObjects: {}
 "@
 [System.IO.File]::WriteAllText((Join-Path $projectSettings 'EditorBuildSettings.asset'),

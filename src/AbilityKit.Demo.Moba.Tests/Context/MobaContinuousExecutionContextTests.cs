@@ -11,7 +11,7 @@ public sealed class MobaContinuousExecutionContextTests
     {
         var source = new MobaCombatContextSource(
             EffectContextKind.Buff,
-            MobaTraceKind.BuffTick,
+            MobaExecutionKind.BuffTick,
             sourceActorId: 101,
             targetActorId: 202,
             sourceContextId: 3001,
@@ -28,7 +28,7 @@ public sealed class MobaContinuousExecutionContextTests
 
         Assert.True(context.HasExecutionSource);
         Assert.Equal(EffectContextKind.Buff, context.ContextKind);
-        Assert.Equal(MobaTraceKind.BuffTick, context.OriginKind);
+        Assert.Equal(MobaExecutionKind.BuffTick, context.OriginKind);
         Assert.Equal(101, context.SourceActorId);
         Assert.Equal(202, context.TargetActorId);
         Assert.Equal(3001, context.ParentContextId);
@@ -47,7 +47,7 @@ public sealed class MobaContinuousExecutionContextTests
     {
         var source = new MobaCombatContextSource(
             EffectContextKind.Buff,
-            MobaTraceKind.BuffTick,
+            MobaExecutionKind.BuffTick,
             sourceActorId: 101,
             targetActorId: 202,
             sourceContextId: 3001,
@@ -82,7 +82,7 @@ public sealed class MobaContinuousExecutionContextTests
             MobaContextSourceResolveKind.DirectProvider,
             MobaContextSourceBoundary.LiveRuntime,
             EffectContextKind.Buff,
-            MobaTraceKind.BuffTick,
+            MobaExecutionKind.BuffTick,
             sourceActorId: 101,
             targetActorId: 202,
             sourceContextId: 3001,
@@ -119,11 +119,11 @@ public sealed class MobaContinuousExecutionContextTests
     [Fact]
     public void Origin_to_view_to_snapshot_keeps_context_boundary_and_skill_runtime_handle()
     {
-        var skillHandle = new MobaSkillCastRuntimeHandle(runtimeId: 88, generation: 2, rootTraceContextId: 3001);
+        var skillHandle = new MobaSkillCastRuntimeHandle(runtimeId: 88, generation: 2, rootContextId: 3001);
         var origin = new MobaGameplayOrigin(
             sourceActorId: 101,
             targetActorId: 202,
-            immediateKind: MobaTraceKind.BuffTick,
+            immediateKind: MobaExecutionKind.BuffTick,
             immediateConfigId: 9001,
             immediateContextId: 3001,
             parentContextId: 3001,
@@ -155,7 +155,7 @@ public sealed class MobaContinuousExecutionContextTests
             MobaContextSourceResolveKind.DirectProvider,
             MobaContextSourceBoundary.LiveRuntime,
             EffectContextKind.Buff,
-            MobaTraceKind.BuffTick,
+            MobaExecutionKind.BuffTick,
             sourceActorId: 101,
             targetActorId: 202,
             sourceContextId: 3001,
@@ -173,7 +173,7 @@ public sealed class MobaContinuousExecutionContextTests
 
         Assert.True(MobaSourceQueryResolver.TryResolve(snapshot, out var query));
         Assert.True(query.IsBuff(9001));
-        Assert.True(query.IsTraceKind(MobaTraceKind.BuffTick));
+        Assert.True(query.IsExecutionKind(MobaExecutionKind.BuffTick));
         Assert.True(query.HasContext(3000));
         Assert.False(query.HasLiveRuntime);
         Assert.Equal(MobaContextSourceBoundary.Snapshot, query.Boundary);
@@ -185,7 +185,7 @@ public sealed class MobaContinuousExecutionContextTests
         var origin = new MobaGameplayOrigin(
             sourceActorId: 101,
             targetActorId: 202,
-            immediateKind: MobaTraceKind.BuffTick,
+            immediateKind: MobaExecutionKind.BuffTick,
             immediateConfigId: 9001,
             immediateContextId: 3001,
             parentContextId: 3001,
@@ -204,7 +204,7 @@ public sealed class MobaContinuousExecutionContextTests
         Assert.True(MobaSourceQueryResolver.TryResolve(result, out var query));
         Assert.True(query.IsDamage());
         Assert.False(query.IsBuff(9001));
-        Assert.True(query.IsTraceKind(MobaTraceKind.DamageApply));
+        Assert.True(query.IsExecutionKind(MobaExecutionKind.DamageApply));
         Assert.True(query.HasContext(3000));
         Assert.Equal(9101, query.ConfigId);
         Assert.Equal(MobaRuntimeKindNames.DamageResult, query.RuntimeKind);

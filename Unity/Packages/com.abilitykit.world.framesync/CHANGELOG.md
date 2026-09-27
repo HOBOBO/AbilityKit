@@ -6,6 +6,12 @@ AbilityKit 整体仍处于开发期，0.x 版本不承诺向后兼容；重大�
 ## [Unreleased]
 
 ### 变更
+- **命令式回滚移除闭包 API**：删除 `IRollbackCommand`、`DelegateRollbackCommand`、
+  `Record(FrameIndex, Action)`、`RollbackAfter/From`，改为 `CommandType + PayloadVersion + byte[] Payload`
+  的纯数据 Journal。新增 `RollbackCommandHandlerRegistry`、`IRollbackCommandHandler` 和
+  `CommandJournalCheckpoint`；`CommandRollbackStateProvider` 现在导出 `Epoch + NextOrder` 检查点，
+  并接入 Coordinator 全局 preflight。Coordinator 在预检后先执行 `IRollbackStructureRestoreProvider`，
+  再导入字段状态。旧调用方必须为业务逆操作定义稳定类型、字节 codec 和 Handler。
 - **`FrameTime` 累计时刻定点化**：内部时间以 Q32.32（raw long 整数累加，无精度漂移）维护，
   `Frame` / `DeltaTime` / `Time` 公开语义不变（`Time` 为边界单次换算视图）；
   `FrameToTime` / `TimeToFrame` 改为定点运算。

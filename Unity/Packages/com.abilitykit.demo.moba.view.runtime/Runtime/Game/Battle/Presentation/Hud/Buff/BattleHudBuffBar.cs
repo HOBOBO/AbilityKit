@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -54,7 +54,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
 
         public int IconCount => _icons.Count;
 
-        public void ApplyCue(in MobaPresentationCueSnapshotEntry entry, float totalSecondsHint, BattleHudBuffIconFactory factory)
+        public void ApplyCue(in PresentationCueData entry, float totalSecondsHint, BattleHudBuffIconFactory factory)
         {
             if (string.IsNullOrEmpty(entry.InstanceKey)) return;
             if (!TryGetIcon(entry.InstanceKey, out var icon))

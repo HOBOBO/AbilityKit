@@ -18,6 +18,7 @@
   <!-- 项目引用 -->
   <ItemGroup>
     <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Context/AbilityKit.Context.csproj" />
   </ItemGroup>
 
 </Project>

@@ -25,7 +25,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 var actorId = harness.AssertPlayerActorBound();
                 harness.MoveScenarioActor(actorId, new MobaAcceptanceVector3Expectation { x = 0f, y = 0f, z = 0f });
-                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 6f);
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 6f, z: -4f);
                 var targetHpBefore = harness.GetActorHp(targetActorId);
 
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
@@ -33,7 +33,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsTrue(cast.Success, "Daji skill 2 should enter the formal skill pipeline. failReason=" + cast.FailReason);
 
                 var effectTrace = harness.TickUntilTraceNode(
-                    MobaTraceKind.EffectExecution,
+                    MobaExecutionKind.EffectExecution,
                     configId: 10050201,
                     maxTicks: harness.CalculateWaitTicksForSkillEffect(10050201, 10050201, safetyFrames: 5) + 30,
                     message: "Daji skill 2 effect should execute during the battle journey.");
@@ -95,7 +95,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 }
             }
 
-            Assert.Fail("Daji homing projectile should damage the target and apply its control Buff.");
+            var hits = 0;
+            foreach (var node in harness.Trace.GetNodesByKind((int)MobaExecutionKind.ProjectileHit)) hits++;
+            Assert.Fail($"Daji homing projectile should damage the target and apply its control Buff. hpBefore={hpBefore}, hpAfter={harness.GetActorHp(targetActorId)}, buff={harness.HasActorBuff(targetActorId, buffId)}, projectileHits={hits}");
         }
     }
 }

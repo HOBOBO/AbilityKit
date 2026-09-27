@@ -15,9 +15,23 @@ namespace AbilityKit.Game.Flow
             return Create(frame, playerId, MobaOpCodes.Input.Move, MobaMoveCodec.Serialize(dx, dz));
         }
 
-        public static PlayerInputCommand CreateSkillSlot(int frame, PlayerId playerId, int slot)
+        public static PlayerInputCommand CreateSkillSlot(
+            int frame,
+            PlayerId playerId,
+            int slot,
+            int predictionKey = 0,
+            long inputSequence = 0L,
+            int entityVersion = 0,
+            int interruptEpoch = 0)
         {
-            var evt = new SkillInputEvent(slot: slot, phase: SkillInputPhase.Press);
+            var evt = new SkillInputEvent(
+                slot: slot,
+                phase: SkillInputPhase.Press,
+                predictionKey: predictionKey,
+                targetFrame: frame,
+                inputSequence: inputSequence,
+                entityVersion: entityVersion,
+                interruptEpoch: interruptEpoch);
             return Create(frame, playerId, MobaOpCodes.Input.SkillInput, SkillInputCodec.Serialize(in evt));
         }
 
@@ -54,11 +68,24 @@ namespace AbilityKit.Game.Flow
             float aimPosZ,
             float aimDirX,
             float aimDirY,
-            float aimDirZ)
+            float aimDirZ,
+            int predictionKey = 0,
+            long inputSequence = 0L,
+            int entityVersion = 0,
+            int interruptEpoch = 0)
         {
             var aimPos = new Vec3(aimPosX, aimPosY, aimPosZ);
             var aimDir = new Vec3(aimDirX, aimDirY, aimDirZ);
-            var evt = new SkillInputEvent(slot: slot, phase: SkillInputPhase.Release, aimPos: in aimPos, aimDir: in aimDir);
+            var evt = new SkillInputEvent(
+                slot: slot,
+                phase: SkillInputPhase.Release,
+                aimPos: in aimPos,
+                aimDir: in aimDir,
+                predictionKey: predictionKey,
+                targetFrame: frame,
+                inputSequence: inputSequence,
+                entityVersion: entityVersion,
+                interruptEpoch: interruptEpoch);
             return Create(frame, playerId, MobaOpCodes.Input.SkillInput, SkillInputCodec.Serialize(in evt));
         }
 

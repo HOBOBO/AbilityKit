@@ -3,6 +3,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     /// <summary>
     /// debug_log Action 的强类型参数。
     /// </summary>
+    [GenerateMobaPlanActionSchema(AbilityKit.Demo.Moba.Systems.TriggeringConstants.Actions.DebugLog)]
     public readonly struct DebugLogArgs
     {
         /// <summary>
@@ -16,7 +17,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         /// </summary>
         public readonly bool Dump;
 
-        public DebugLogArgs(int msgId, bool dump)
+        public DebugLogArgs(
+            [MobaPlanActionArg(MobaPlanActionArgKind.Int, 0d, false, "msg_id", "msgid", "message", "msg", "id")] int msgId,
+            [MobaPlanActionArg(MobaPlanActionArgKind.Bool, 0d, false, "dump", "dump_args", "is_dump")] bool dump)
         {
             MsgId = msgId;
             Dump = dump;

@@ -10,6 +10,7 @@ using AbilityKit.Demo.Moba.Services.StateSync;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
+    [MobaRollbackProvider(DefaultKey)]
     public sealed class MobaActorTransformRollbackProvider : IRollbackStateProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10001;

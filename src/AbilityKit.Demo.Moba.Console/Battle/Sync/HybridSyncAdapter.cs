@@ -5,8 +5,10 @@ using AbilityKit.Ability.StateSync.Prediction;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Demo.Moba.Share.Prediction;
 using Pred = AbilityKit.Ability.StateSync.Prediction;
 using PredHandlers = AbilityKit.Demo.Moba.Console.Battle.Prediction.Handlers;
+using PredictionSlots = AbilityKit.Demo.Moba.Share.Prediction.MobaPredictionSlotNames;
 using AK = AbilityKit;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Sync;
@@ -38,6 +40,9 @@ public sealed class HybridSyncAdapter : IBattleSyncAdapter
     public double LogicTimeSeconds => _logicTimeSeconds;
     public double RenderTimeSeconds => _renderTimeSeconds;
     public int LocalActorId => _localActorId;
+    public long TotalServerStateApplications { get; private set; }
+    public long TotalRollbackCorrections { get; private set; }
+    public ConflictLevel LastConflictLevel { get; private set; }
 
     public event Action<bool> OnConnectionChanged;
     public event Action<int, double> OnFrameSync;
@@ -56,6 +61,9 @@ public sealed class HybridSyncAdapter : IBattleSyncAdapter
         _connected = true; // 本地模式
         _currentFrame = 0;
         _logicTimeSeconds = 0;
+        TotalServerStateApplications = 0;
+        TotalRollbackCorrections = 0;
+        LastConflictLevel = ConflictLevel.None;
         _localActorId = config.Players?.Count > 0
             ? DeterministicHash.StringToActorId(config.Players[0].PlayerId)
             : 1;
@@ -66,7 +74,7 @@ public sealed class HybridSyncAdapter : IBattleSyncAdapter
         // 注册预测处理器
         if (config.EnableClientPrediction)
         {
-            _coordinator.Register(new PredHandlers.MovementHandler());
+            _coordinator.Register(new MobaMovementPredictionHandler());
             _coordinator.Register(new PredHandlers.CooldownHandler());
             _coordinator.Register(new PredHandlers.HealthHandler());
 
@@ -102,7 +110,9 @@ public sealed class HybridSyncAdapter : IBattleSyncAdapter
         if (!_initialized || !_connected) return;
 
         // 转换为预测输入
-        var moveInput = PredHandlers.MoveInput.FromBytes(input.Payload);
+        var interruptEpoch = _coordinator.GetCurrentSlots().GetInt(
+            PredictionSlots.ActionInterruptEpoch);
+        var moveInput = MobaMovePredictionInput.FromPayload(input.Payload, interruptEpoch);
 
         // 处理输入
         _coordinator.ProcessInput(moveInput);
@@ -170,27 +180,30 @@ public sealed class HybridSyncAdapter : IBattleSyncAdapter
         var slots = new Pred.StateSlots();
 
         // 位置
-        slots.Set(PredHandlers.SlotNames.Position, 
+        slots.Set(PredictionSlots.Position,
             new AK.Ability.StateSync.Vector3(snapshot.X, snapshot.Y, snapshot.Z));
 
         // 速度
-        slots.Set(PredHandlers.SlotNames.Velocity,
+        slots.Set(PredictionSlots.Velocity,
             new AK.Ability.StateSync.Vector3(snapshot.VelocityX, 0, snapshot.VelocityZ));
 
         // 生命值
-        slots.Set(PredHandlers.SlotNames.Health, snapshot.Hp);
-        slots.Set(PredHandlers.SlotNames.MaxHealth, snapshot.HpMax);
+        slots.Set(PredictionSlots.Health, snapshot.Hp);
+        slots.Set(PredictionSlots.MaxHealth, snapshot.HpMax);
 
         return slots;
     }
 
     private void OnServerStateApplied(Frame frame, StateSlots state)
     {
+        TotalServerStateApplications++;
         Platform.Log.Prediction($"[HybridSync] Server state applied - Frame: {frame}");
     }
 
     private void OnRollbackExecuted(Frame frame, ConflictLevel level)
     {
+        TotalRollbackCorrections++;
+        LastConflictLevel = level;
         Platform.Log.Prediction($"[HybridSync] Rollback executed - Frame: {frame}, Level: {level}");
     }
 
@@ -233,7 +246,10 @@ public sealed class HybridSyncAdapter : IBattleSyncAdapter
                $"Mode: {Mode}\n" +
                $"Connected: {_connected}\n" +
                $"CurrentFrame: {_currentFrame}\n" +
-               $"LocalActorId: {_localActorId}";
+               $"LocalActorId: {_localActorId}\n" +
+               $"ServerStateApplications: {TotalServerStateApplications}\n" +
+               $"RollbackCorrections: {TotalRollbackCorrections}\n" +
+               $"LastConflictLevel: {LastConflictLevel}";
     }
 
     public void Dispose()

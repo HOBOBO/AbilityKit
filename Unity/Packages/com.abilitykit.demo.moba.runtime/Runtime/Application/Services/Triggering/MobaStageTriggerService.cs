@@ -17,14 +17,13 @@ using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Triggering;
 using AbilityKit.Protocol.Moba.StateSync;
-using AbilityKit.Trace;
 using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
 {
     public interface IMobaStageTriggerService
     {
-        void ExecuteAreaStage(string eventId, int areaId, int templateId, object raw, in MobaAreaRuntimeInfo info, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider, int collisionLayerMask, int maxTargets);
+        void ExecuteAreaStage(AreaEventArgs payload);
         void ExecuteProjectileSpawn(in ProjectileSpawnEvent evt);
         void ExecuteProjectileTick(in ProjectileTickEvent evt);
         void ExecuteProjectileExit(in ProjectileExitEvent evt);
@@ -45,88 +44,38 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
         [WorldInject(required: false)] private MobaTriggerExecutionGateway _triggers = null;
         [WorldInject(required: false)] private MobaProjectileLinkService _projectileLinks = null;
         [WorldInject(required: false)] private MobaPresentationCueSnapshotService _presentationCues = null;
-        [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
+        [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
 
-        public void ExecuteAreaStage(string eventId, int areaId, int templateId, object raw, in MobaAreaRuntimeInfo info, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider, int collisionLayerMask, int maxTargets)
+        public void ExecuteAreaStage(AreaEventArgs payload)
         {
+            if (payload == null) return;
+            var eventId = payload.EventId;
+            var templateId = payload.TemplateId;
             if (_triggers == null || _configs == null)
             {
-                Log.Warning($"[MobaStageTriggerService] area.stage skipped missing service eventId={eventId} areaId={areaId} templateId={templateId} hasTriggers={_triggers != null} hasConfigs={_configs != null}");
+                Log.Warning($"[MobaStageTriggerService] area.stage skipped missing service eventId={eventId} areaId={payload.AreaId} templateId={templateId} hasTriggers={_triggers != null} hasConfigs={_configs != null}");
                 return;
             }
 
             if (templateId <= 0 || string.IsNullOrEmpty(eventId))
             {
-                Log.Warning($"[MobaStageTriggerService] area.stage skipped invalid args eventId={eventId} areaId={areaId} templateId={templateId}");
+                Log.Warning($"[MobaStageTriggerService] area.stage skipped invalid args eventId={eventId} areaId={payload.AreaId} templateId={templateId}");
                 return;
             }
 
             if (!_configs.TryGetAoe(templateId, out var aoe) || aoe == null)
             {
-                Log.Warning($"[MobaStageTriggerService] area.stage skipped missing aoe eventId={eventId} areaId={areaId} templateId={templateId}");
+                Log.Warning($"[MobaStageTriggerService] area.stage skipped missing aoe eventId={eventId} areaId={payload.AreaId} templateId={templateId}");
                 return;
             }
 
             var triggerIds = ResolveAreaTriggerIds(eventId, aoe) ?? Array.Empty<int>();
-
-            var traceKind = ResolveAreaTraceKind(eventId);
-            var sourceContextId = info.SourceContextId;
-            var rootContextId = info.RootContextId != 0L ? info.RootContextId : sourceContextId;
-            var ownerContextId = info.OwnerContextId != 0L ? info.OwnerContextId : sourceContextId;
-            var createdContextId = 0L;
-            if (_trace != null && sourceContextId != 0L && traceKind == MobaTraceKind.AreaEnter)
+            for (var i = 0; i < triggerIds.Length; i++)
             {
-                createdContextId = _trace.CreateChildContext(
-                    sourceContextId,
-                    traceKind,
-                    templateId,
-                    ownerActorId,
-                    targetActorId,
-                    TraceEndpoint.Config(MobaRuntimeKindNames.AreaEnter, templateId),
-                    TraceEndpoint.Actor(targetActorId));
-                if (createdContextId != 0L)
-                {
-                    sourceContextId = createdContextId;
-                }
-            }
-
-            try
-            {
-                var payload = new AreaEventArgs
-                {
-                    EventId = eventId,
-                    AreaId = areaId,
-                    TemplateId = templateId,
-                    OwnerActorId = ownerActorId,
-                    TargetActorId = targetActorId,
-                    Frame = frame,
-                    SourceContextId = sourceContextId,
-                    RootContextId = rootContextId,
-                    OwnerContextId = ownerContextId,
-                    SkillRuntimeHandle = info.SkillRuntimeHandle,
-                    TraceKind = traceKind,
-                    Center = center,
-                    Radius = radius,
-                    Collider = collider,
-                    CollisionLayerMask = collisionLayerMask,
-                    MaxTargets = maxTargets,
-                    Raw = raw,
-                };
-
-                for (var i = 0; i < triggerIds.Length; i++)
-                {
-                    var triggerId = triggerIds[i];
-                    if (triggerId <= 0) continue;
-                    var request = MobaTriggerExecutionRequest<AreaEventArgs>.Create(triggerId, payload, eventId);
-                    _triggers.ExecuteDirectTrigger(in request);
-                }
-            }
-            finally
-            {
-                if (createdContextId != 0L)
-                {
-                    _trace.EndContext(createdContextId, TraceLifecycleReason.Completed);
-                }
+                var triggerId = triggerIds[i];
+                if (triggerId <= 0) continue;
+                var request = MobaTriggerExecutionRequest<AreaEventArgs>.Create(triggerId, payload, eventId);
+                _triggers.ExecuteDirectTrigger(in request);
             }
         }
 
@@ -166,33 +115,74 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
 
             var sourceContext = ResolveProjectileSource(evt.Projectile);
             var sourceActorId = ResolveSourceActorId(in sourceContext, evt.OwnerId, evt.LauncherActorId);
-            ReportProjectileCue(MobaPresentationCueStage.Executed, projectile.OnHitVfxId, projectile, evt.Projectile, sourceActorId, hitActorId, evt.Frame, evt.Point, in sourceContext, EventProjectileHit, evt.HitCount);
+            if (!sourceContext.IsValid) return;
 
-            if (_triggers == null || !sourceContext.IsValid) return;
+            var hitContextId = 0L;
+            var rootContextId = sourceContext.RootContextId != 0L
+                ? sourceContext.RootContextId
+                : sourceContext.SourceContextId;
+            var ownerContextId = sourceContext.OwnerContextId != 0L
+                ? sourceContext.OwnerContextId
+                : rootContextId;
+            var executionContexts = _executionContexts ??
+                throw new InvalidOperationException("Projectile hit requires MobaExecutionContextRegistry.");
+            var hit = executionContexts.Create(new MobaExecutionContextCreateRequest(
+                MobaExecutionKind.ProjectileHit,
+                projectile.Id,
+                sourceActorId,
+                hitActorId,
+                sourceContext.SourceContextId,
+                rootContextId,
+                ownerContextId,
+                evt.Frame,
+                originKind: MobaExecutionKind.ProjectileLaunch,
+                originConfigId: projectile.Id));
+            hitContextId = hit.ContextId;
+            sourceContext = WithProjectileEventContext(
+                in sourceContext,
+                hitContextId,
+                rootContextId,
+                ownerContextId,
+                hitActorId,
+                MobaExecutionKind.ProjectileHit);
 
-            var payload = new ProjectileHitArgs
+            try
             {
-                SourceActorId = sourceActorId,
-                TargetActorId = hitActorId,
-                SourceConfigId = projectile.Id,
-                Frame = evt.Frame,
-                Raw = evt,
-                SourceContext = sourceContext,
-                CasterActorId = sourceActorId,
-                ProjectileTemplateId = projectile.Id,
-                ProjectileId = evt.Projectile,
-                Point = evt.Point,
-                Normal = evt.Normal,
-                HitCollider = evt.HitCollider,
-            };
+                ReportProjectileCue(MobaPresentationCueStage.Executed, projectile.OnHitVfxId, projectile, evt.Projectile, sourceActorId, hitActorId, evt.Frame, evt.Point, in sourceContext, EventProjectileHit, evt.HitCount);
 
-            if (projectile.OnHitEffectId > 0)
-            {
-                var effectRequest = MobaTriggerExecutionRequest<ProjectileHitArgs>.Create(projectile.OnHitEffectId, payload, EventProjectileHit);
-                _triggers.ExecuteDirectTrigger(in effectRequest);
+                if (_triggers == null) return;
+
+                var payload = new ProjectileHitArgs
+                {
+                    SourceActorId = sourceActorId,
+                    TargetActorId = hitActorId,
+                    SourceConfigId = projectile.Id,
+                    Frame = evt.Frame,
+                    Raw = evt,
+                    SourceContext = sourceContext,
+                    CasterActorId = sourceActorId,
+                    ProjectileTemplateId = projectile.Id,
+                    ProjectileId = evt.Projectile,
+                    Point = evt.Point,
+                    Normal = evt.Normal,
+                    HitCollider = evt.HitCollider,
+                };
+
+                if (projectile.OnHitEffectId > 0)
+                {
+                    var effectRequest = MobaTriggerExecutionRequest<ProjectileHitArgs>.Create(projectile.OnHitEffectId, payload, EventProjectileHit);
+                    _triggers.ExecuteDirectTrigger(in effectRequest);
+                }
+
+                ExecuteProjectileHitTriggers(projectile.OnHitTriggerIds, payload);
             }
-
-            ExecuteProjectileHitTriggers(projectile.OnHitTriggerIds, payload);
+            finally
+            {
+                if (hitContextId != 0L)
+                {
+                    executionContexts.End(hitContextId, (int)MobaExecutionEndReason.Completed, evt.Frame);
+                }
+            }
         }
 
         public void Dispose()
@@ -288,7 +278,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                 InstanceKey = $"projectile:{projectileId.Value}",
                 LifecycleReason = lifecycleReason,
                 ContextKind = (int)EffectContextKind.Projectile,
-                OriginKind = (int)(eventId == EventProjectileHit ? MobaTraceKind.ProjectileHit : MobaTraceKind.ProjectileLaunch),
+                OriginKind = (int)(eventId == EventProjectileHit ? MobaExecutionKind.ProjectileHit : MobaExecutionKind.ProjectileLaunch),
                 SourceContextId = sourceContext.SourceContextId,
                 RootContextId = sourceContext.RootContextId != 0L ? sourceContext.RootContextId : sourceContext.SourceContextId,
                 OwnerContextId = sourceContext.OwnerContextId != 0L ? sourceContext.OwnerContextId : sourceContext.SourceContextId,
@@ -339,25 +329,31 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
             }
         }
 
-        private static MobaTraceKind ResolveAreaTraceKind(string eventId)
+
+        private static ProjectileSourceContext WithProjectileEventContext(
+            in ProjectileSourceContext source,
+            long contextId,
+            long rootContextId,
+            long ownerContextId,
+            int targetActorId,
+            MobaExecutionKind kind)
         {
-            switch (eventId)
-            {
-                case "area.spawn":
-                case "area.delay":
-                    return MobaTraceKind.AreaSpawn;
-                case "area.enter":
-                    return MobaTraceKind.AreaEnter;
-                case "area.exit":
-                    return MobaTraceKind.AreaExit;
-                case "area.tick":
-                case "area.stay":
-                    return MobaTraceKind.AreaStay;
-                case "area.expire":
-                    return MobaTraceKind.AreaExpire;
-                default:
-                    return MobaTraceKind.None;
-            }
+            source.TryGetOrigin(out var origin);
+            origin = MobaGameplayOriginBuilder.Create()
+                .FromOrigin(in origin)
+                .WithActors(source.SourceActorId, targetActorId)
+                .WithLifecycleNode(kind, source.ProjectileConfigId, contextId)
+                .WithRootContext(rootContextId)
+                .WithOwnerContext(ownerContextId)
+                .Build();
+            return ProjectileSourceContextBuilder.Create()
+                .FromSourceContext(in source)
+                .WithActors(source.SourceActorId, targetActorId)
+                .WithSourceContext(contextId)
+                .WithRootContext(rootContextId)
+                .WithOwnerContext(ownerContextId)
+                .WithOrigin(in origin)
+                .Build();
         }
     }
 }

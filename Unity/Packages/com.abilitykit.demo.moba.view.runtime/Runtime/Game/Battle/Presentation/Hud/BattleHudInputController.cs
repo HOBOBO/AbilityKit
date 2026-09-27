@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -53,7 +52,7 @@ namespace AbilityKit.Game.Flow
         public IReadOnlyDictionary<int, BattleHudSkillPresentationSpec> SkillSpecs => _templateBinder.SkillSpecs;
         internal BattleHudInputUi InputUi => _inputUi;
 
-        public bool ApplySkillButtonTemplates(EnterMobaGameRes res, string playerId)
+        public bool ApplySkillButtonTemplates(BattleEnterGameSnapshot res, string playerId)
         {
             if (!_templateBinder.TryResolveLoadout(res, playerId, out var loadout))
             {
@@ -70,7 +69,7 @@ namespace AbilityKit.Game.Flow
             return true;
         }
 
-        public void ApplySkillStates(MobaSkillStateSnapshotEntry[] entries, int localActorId)
+        public void ApplySkillStates(SkillStateData[] entries, int localActorId)
         {
             if (_inputUi == null) return;
 
@@ -100,13 +99,13 @@ namespace AbilityKit.Game.Flow
             DestroyInputUi();
         }
 
-        private static bool ShouldApplySkillState(in MobaSkillStateSnapshotEntry entry, int localActorId)
+        private static bool ShouldApplySkillState(in SkillStateData entry, int localActorId)
         {
             if (entry.ActorId <= 0) return false;
             return localActorId > 0 && entry.ActorId == localActorId;
         }
 
-        internal bool SkillStateMatchesTemplate(MobaSkillStateSnapshotEntry entry)
+        internal bool SkillStateMatchesTemplate(SkillStateData entry)
         {
             if (entry.Slot <= 0) return false;
             if (!_templateBinder.SkillSpecs.TryGetValue(entry.Slot, out var spec)) return false;

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Core.Logging;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.View.Lib.Skill;
-using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Game.Flow
 {
@@ -27,20 +27,20 @@ namespace AbilityKit.Game.Flow
         }
 
         public bool TryResolveLoadout(
-            EnterMobaGameRes res,
+            BattleEnterGameSnapshot res,
             string playerId,
-            out MobaPlayerLoadout loadout)
+            out BattlePlayerLoadout loadout)
         {
             return _resolver.TryFindLoadout(res, playerId, out loadout);
         }
 
-        public int ResolveSkillButtonCount(in MobaPlayerLoadout loadout)
+        public int ResolveSkillButtonCount(in BattlePlayerLoadout loadout)
         {
             return _resolver.ResolveSkillButtonCount(loadout);
         }
 
         public bool TryApply(
-            in MobaPlayerLoadout loadout,
+            in BattlePlayerLoadout loadout,
             IReadOnlyList<SkillButtonView> skillViews)
         {
             if (skillViews == null || skillViews.Count == 0)
@@ -62,21 +62,21 @@ namespace AbilityKit.Game.Flow
 
                 if (!BattleHudSkillButtonTemplateResolver.TryResolveSkillId(loadout, slot, out var skillId))
                 {
-                    Log.Warning($"[BattleHudSkillButtonTemplateBinder] skip apply: slot={slot} skill id resolve failed. playerId={loadout.PlayerId.Value}, basicAttackSkillId={loadout.BasicAttackSkillId}, skillCount={(loadout.SkillIds != null ? loadout.SkillIds.Length : 0)}");
+                    Log.Warning($"[BattleHudSkillButtonTemplateBinder] skip apply: slot={slot} skill id resolve failed. playerId={loadout.PlayerId}, basicAttackSkillId={loadout.BasicAttackSkillId}, skillCount={(loadout.SkillIds != null ? loadout.SkillIds.Length : 0)}");
                     return false;
                 }
 
                 if (!_resolver.TryResolveSkill(loadout, slot, out var skill, out var template, out var spec))
                 {
                     spec = BattleHudSkillPresentationSpec.Hidden(skillId, string.Empty);
-                    Log.Warning($"[BattleHudSkillButtonTemplateBinder] use hidden fallback: slot={slot}, skillId={skillId}, playerId={loadout.PlayerId.Value}.");
+                    Log.Warning($"[BattleHudSkillButtonTemplateBinder] use hidden fallback: slot={slot}, skillId={skillId}, playerId={loadout.PlayerId}.");
                 }
 
                 pending[i] = new ResolvedSkillButtonTemplate(view, skill, template, spec);
             }
 
             _skillSpecs.Clear();
-            Log.Info($"[BattleHudSkillButtonTemplateBinder] apply loadout. playerId={loadout.PlayerId.Value}, basicAttackSkillId={loadout.BasicAttackSkillId}, skillCount={(loadout.SkillIds != null ? loadout.SkillIds.Length : 0)}, viewCount={skillViews.Count}");
+            Log.Info($"[BattleHudSkillButtonTemplateBinder] apply loadout. playerId={loadout.PlayerId}, basicAttackSkillId={loadout.BasicAttackSkillId}, skillCount={(loadout.SkillIds != null ? loadout.SkillIds.Length : 0)}, viewCount={skillViews.Count}");
 
             for (var i = 0; i < pending.Length; i++)
             {

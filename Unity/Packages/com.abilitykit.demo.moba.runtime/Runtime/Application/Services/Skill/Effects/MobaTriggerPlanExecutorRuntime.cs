@@ -100,7 +100,7 @@ namespace AbilityKit.Demo.Moba.Services
         public bool ShouldRouteRulePlanThroughFormalEffectSession(out MobaEffectExecutionService currentEffects)
         {
             currentEffects = Resolve();
-            return currentEffects != null && !currentEffects.TryGetCurrentTraceScope(out _);
+            return currentEffects != null && !currentEffects.TryGetCurrentExecutionScope(out _);
         }
     }
 

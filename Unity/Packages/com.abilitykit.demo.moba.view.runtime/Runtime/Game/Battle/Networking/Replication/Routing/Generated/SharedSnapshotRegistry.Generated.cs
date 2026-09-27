@@ -18,61 +18,6 @@ namespace AbilityKit.Game.Flow.Snapshot
             if (pipeline == null) throw new ArgumentNullException(nameof(pipeline));
             if (cmd == null) throw new ArgumentNullException(nameof(cmd));
 
-            dispatcherDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.StateHash,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodeStateHash);
-
-            pipelineDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.StateHash,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodeStateHash);
-
-            dispatcherDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotEntry[]>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ActorTransform,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodeActorTransform);
-
-            pipelineDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotEntry[]>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ActorTransform,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodeActorTransform);
-
-            dispatcherDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry[]>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ProjectileEvent,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodeProjectileEvents);
-
-            pipelineDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry[]>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ProjectileEvent,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodeProjectileEvents);
-
-            dispatcherDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaAreaEventSnapshotEntry[]>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.AreaEvent,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodeAreaEvents);
-
-            pipelineDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaAreaEventSnapshotEntry[]>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.AreaEvent,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodeAreaEvents);
-
-            dispatcherDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaDamageEventSnapshotEntry[]>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.DamageEvent,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodeDamageEvents);
-
-            pipelineDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaDamageEventSnapshotEntry[]>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.DamageEvent,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodeDamageEvents);
-
-            dispatcherDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotEntry[]>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.PresentationCue,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodePresentationCues);
-
-            pipelineDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotEntry[]>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.PresentationCue,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodePresentationCues);
-
-            dispatcherDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotEntry[]>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.SkillState,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodeSkillStates);
-
-            pipelineDecoders.RegisterDecoder<AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotEntry[]>(
-                AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.SkillState,
-                AbilityKit.Game.Flow.Snapshot.SharedSnapshotDeclarations.DecodeSkillStates);
         }
     }
 }

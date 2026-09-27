@@ -1,0 +1,405 @@
+[
+  {
+    "Id": 1,
+    "CastFlowId": 1,
+    "Category": 0,
+    "CooldownMs": 800,
+    "IconId": 1,
+    "LevelTableId": 0,
+    "Name": "通用-普通攻击",
+    "PreCastFlowId": 0,
+    "Range": 6,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 1,
+    "Tags": []
+  },
+  {
+    "Id": 10010001,
+    "CastFlowId": 10010001,
+    "Category": 1,
+    "CooldownMs": 800,
+    "IconId": 201,
+    "LevelTableId": 0,
+    "Name": "廉颇-普通攻击",
+    "PreCastFlowId": 0,
+    "Range": 3,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 1,
+    "Tags": []
+  },
+  {
+    "Id": 10010101,
+    "CastFlowId": 10010101,
+    "Category": 1,
+    "CooldownMs": 9000,
+    "IconId": 201,
+    "LevelTableId": 10010101,
+    "Name": "廉颇-爆裂冲撞",
+    "PreCastFlowId": 0,
+    "Range": 8,
+    "SkillButtonTemplateId": 2,
+    "SkillType": 5,
+    "Tags": [
+      101
+    ]
+  },
+  {
+    "Id": 10010201,
+    "CastFlowId": 10010201,
+    "Category": 1,
+    "CooldownMs": 11000,
+    "IconId": 202,
+    "LevelTableId": 10010201,
+    "Name": "廉颇-熔岩重击",
+    "PreCastFlowId": 0,
+    "Range": 5,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 5,
+    "Tags": [
+      102
+    ]
+  },
+  {
+    "Id": 10010301,
+    "CastFlowId": 10010301,
+    "Category": 1,
+    "CooldownMs": 40000,
+    "IconId": 203,
+    "LevelTableId": 10010301,
+    "Name": "廉颇-天崩地裂",
+    "PreCastFlowId": 0,
+    "Range": 10,
+    "SkillButtonTemplateId": 3,
+    "SkillType": 4,
+    "Tags": [
+      103
+    ]
+  },
+  {
+    "Id": 10020001,
+    "CastFlowId": 10020001,
+    "Category": 2,
+    "CooldownMs": 800,
+    "IconId": 101,
+    "LevelTableId": 0,
+    "Name": "小乔-普通攻击",
+    "PreCastFlowId": 0,
+    "Range": 8,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 1,
+    "Tags": []
+  },
+  {
+    "Id": 10020101,
+    "CastFlowId": 10020101,
+    "Category": 2,
+    "CooldownMs": 5000,
+    "IconId": 101,
+    "LevelTableId": 10020101,
+    "Name": "小乔-绽放之舞",
+    "PreCastFlowId": 0,
+    "Range": 12,
+    "SkillButtonTemplateId": 2,
+    "SkillType": 2,
+    "Tags": [
+      201
+    ]
+  },
+  {
+    "Id": 10020201,
+    "CastFlowId": 10020201,
+    "Category": 2,
+    "CooldownMs": 7000,
+    "IconId": 102,
+    "LevelTableId": 10020201,
+    "Name": "小乔-甜蜜恋风",
+    "PreCastFlowId": 0,
+    "Range": 10,
+    "SkillButtonTemplateId": 3,
+    "SkillType": 2,
+    "Tags": [
+      202
+    ]
+  },
+  {
+    "Id": 10020301,
+    "CastFlowId": 10020301,
+    "Category": 2,
+    "CooldownMs": 10000,
+    "IconId": 103,
+    "LevelTableId": 10020301,
+    "Name": "小乔-星华缭乱",
+    "PreCastFlowId": 0,
+    "Range": 20,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 4,
+    "Tags": [
+      203
+    ]
+  },
+  {
+    "Id": 10030001,
+    "CastFlowId": 10030001,
+    "Category": 3,
+    "CooldownMs": 800,
+    "IconId": 301,
+    "LevelTableId": 0,
+    "Name": "赵云-普通攻击",
+    "PreCastFlowId": 0,
+    "Range": 3,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 1,
+    "Tags": []
+  },
+  {
+    "Id": 10030101,
+    "CastFlowId": 10030101,
+    "Category": 3,
+    "CooldownMs": 7000,
+    "IconId": 301,
+    "LevelTableId": 10030101,
+    "Name": "赵云-惊雷之龙",
+    "PreCastFlowId": 0,
+    "Range": 8,
+    "SkillButtonTemplateId": 8,
+    "SkillType": 2,
+    "Tags": [
+      301
+    ]
+  },
+  {
+    "Id": 10030201,
+    "CastFlowId": 10030201,
+    "Category": 3,
+    "CooldownMs": 8000,
+    "IconId": 302,
+    "LevelTableId": 10030201,
+    "Name": "赵云-破云之龙",
+    "PreCastFlowId": 0,
+    "Range": 6,
+    "SkillButtonTemplateId": 9,
+    "SkillType": 2,
+    "Tags": [
+      302
+    ]
+  },
+  {
+    "Id": 10030301,
+    "CastFlowId": 10030301,
+    "Category": 3,
+    "CooldownMs": 18000,
+    "IconId": 303,
+    "LevelTableId": 10030301,
+    "Name": "赵云-天翔之龙",
+    "PreCastFlowId": 0,
+    "Range": 12,
+    "SkillButtonTemplateId": 10,
+    "SkillType": 4,
+    "Tags": [
+      303
+    ]
+  },
+  {
+    "Id": 10040011,
+    "CastFlowId": 10040011,
+    "Category": 4,
+    "CooldownMs": 800,
+    "IconId": 401,
+    "LevelTableId": 0,
+    "Name": "墨子-普通攻击",
+    "PreCastFlowId": 0,
+    "Range": 8,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 1,
+    "Tags": []
+  },
+  {
+    "Id": 10040101,
+    "CastFlowId": 10040101,
+    "Category": 4,
+    "CooldownMs": 10000,
+    "IconId": 401,
+    "LevelTableId": 10040101,
+    "Name": "墨子-和平漫步",
+    "PreCastFlowId": 0,
+    "Range": 8,
+    "SkillButtonTemplateId": 2,
+    "SkillType": 2,
+    "Tags": [
+      401
+    ]
+  },
+  {
+    "Id": 10040112,
+    "CastFlowId": 10040112,
+    "Category": 4,
+    "CooldownMs": 800,
+    "IconId": 401,
+    "LevelTableId": 0,
+    "Name": "墨子-和平漫步-强化近战普攻",
+    "PreCastFlowId": 0,
+    "Range": 6,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 1,
+    "Tags": [
+      401
+    ]
+  },
+  {
+    "Id": 10040201,
+    "CastFlowId": 10040201,
+    "Category": 4,
+    "CooldownMs": 7000,
+    "IconId": 402,
+    "LevelTableId": 10040201,
+    "Name": "墨子-机关重炮",
+    "PreCastFlowId": 0,
+    "Range": 12,
+    "SkillButtonTemplateId": 2,
+    "SkillType": 2,
+    "Tags": [
+      402
+    ]
+  },
+  {
+    "Id": 10040301,
+    "CastFlowId": 10040301,
+    "Category": 4,
+    "CooldownMs": 45000,
+    "IconId": 403,
+    "LevelTableId": 10040301,
+    "Name": "墨子-墨守成规",
+    "PreCastFlowId": 0,
+    "Range": 6,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 4,
+    "Tags": [
+      403
+    ]
+  },
+  {
+    "Id": 10050001,
+    "CastFlowId": 10050001,
+    "Category": 5,
+    "CooldownMs": 800,
+    "IconId": 501,
+    "LevelTableId": 0,
+    "Name": "妲己-普通攻击",
+    "PreCastFlowId": 0,
+    "Range": 8,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 1,
+    "Tags": []
+  },
+  {
+    "Id": 10050101,
+    "CastFlowId": 10050101,
+    "Category": 5,
+    "CooldownMs": 5000,
+    "IconId": 501,
+    "LevelTableId": 10050101,
+    "Name": "妲己-灵魂冲击",
+    "PreCastFlowId": 0,
+    "Range": 12,
+    "SkillButtonTemplateId": 4,
+    "SkillType": 2,
+    "Tags": [
+      501
+    ]
+  },
+  {
+    "Id": 10050201,
+    "CastFlowId": 10050201,
+    "Category": 5,
+    "CooldownMs": 8000,
+    "IconId": 502,
+    "LevelTableId": 10050201,
+    "Name": "妲己-偶像魅力",
+    "PreCastFlowId": 0,
+    "Range": 10,
+    "RequiredTargetQueryId": 50050201,
+    "SkillButtonTemplateId": 3,
+    "SkillType": 2,
+    "Tags": [
+      502
+    ]
+  },
+  {
+    "Id": 10050301,
+    "CastFlowId": 10050301,
+    "Category": 5,
+    "CooldownMs": 18000,
+    "IconId": 503,
+    "LevelTableId": 10050301,
+    "Name": "妲己-女王崇拜",
+    "PreCastFlowId": 0,
+    "Range": 12,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 4,
+    "Tags": [
+      503
+    ]
+  },
+  {
+    "Id": 10060001,
+    "CastFlowId": 10060001,
+    "Category": 6,
+    "CooldownMs": 800,
+    "IconId": 601,
+    "LevelTableId": 0,
+    "Name": "嬴政-普通攻击",
+    "PreCastFlowId": 0,
+    "Range": 8,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 1,
+    "Tags": []
+  },
+  {
+    "Id": 10060101,
+    "CastFlowId": 10060101,
+    "Category": 6,
+    "CooldownMs": 8000,
+    "IconId": 601,
+    "LevelTableId": 10060101,
+    "Name": "嬴政-王者惩戒",
+    "PreCastFlowId": 0,
+    "Range": 11,
+    "SkillButtonTemplateId": 5,
+    "SkillType": 2,
+    "Tags": [
+      601
+    ]
+  },
+  {
+    "Id": 10060201,
+    "CastFlowId": 10060201,
+    "Category": 6,
+    "CooldownMs": 10000,
+    "IconId": 602,
+    "LevelTableId": 10060201,
+    "Name": "嬴政-王者守御",
+    "PreCastFlowId": 0,
+    "Range": 5,
+    "SkillButtonTemplateId": 6,
+    "SkillType": 2,
+    "Tags": [
+      602
+    ]
+  },
+  {
+    "Id": 10060301,
+    "CastFlowId": 10060301,
+    "Category": 6,
+    "CooldownMs": 30000,
+    "IconId": 603,
+    "LevelTableId": 10060301,
+    "Name": "嬴政-至尊王权",
+    "PreCastFlowId": 0,
+    "Range": 14,
+    "SkillButtonTemplateId": 7,
+    "SkillType": 4,
+    "Tags": [
+      603
+    ]
+  }
+]

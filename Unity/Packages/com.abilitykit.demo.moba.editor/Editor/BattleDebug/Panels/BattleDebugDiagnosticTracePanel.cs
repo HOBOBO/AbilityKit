@@ -1225,7 +1225,7 @@ namespace AbilityKit.Game.Editor
 
         private string BuildOriginText(in BattleDiagnosticTraceNodeSummary node)
         {
-            var kind = BattleDebugDisplayText.TraceKind(((MobaTraceKind)node.OriginKind).ToString());
+            var kind = BattleDebugDisplayText.TraceKind(((MobaExecutionKind)node.OriginKind).ToString());
             return kind + " / " + FormatDefinition("来源定义", node.OriginDefinition);
         }
 

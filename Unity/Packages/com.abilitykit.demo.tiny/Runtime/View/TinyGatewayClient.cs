@@ -8,7 +8,7 @@ using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Demo.Tiny.View
 {
-    internal sealed class TinyGatewayClient : ITinyBattleGateway
+    public sealed class TinyGatewayClient : ITinyBattleGateway
     {
         private readonly RoomGatewayConnectionSession _connection;
         private readonly object _snapshotGate = new object();

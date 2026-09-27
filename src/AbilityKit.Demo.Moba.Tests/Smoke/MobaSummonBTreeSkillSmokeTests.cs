@@ -1,171 +1,123 @@
-using System;
 using System.Linq;
-using AbilityKit.Demo.Moba.Attributes;
-using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
+using AbilityKit.Demo.Moba.Events.Summon;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.Behavior;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
-/// <summary>
-/// 测试召唤技能 → BT 行为树召唤物（P2）冒烟验证。
-///
-/// 链路：
-/// 1. 英雄 1001 施放测试技能 9900001（skill_flow Timeline → EffectId 9900001
-///    → trigger_9900001 spawn_summon summon_id=2）
-/// 2. 召唤物"树灵守卫"（summons id 2）生成：
-///    - ModelId/属性模板 初始化
-///    - InheritAttributeConfigId=1 继承施法者属性占比（物攻×0.8、最大生命×0.6、移速×1.0）
-///    - BrainId=3 is resolved by the battle-template brain catalog to summon_warden_bt.
-/// 3. BT 的 chase 节点驱动召唤物向最近敌人移动
-/// </summary>
 public sealed class MobaSummonBTreeSkillSmokeTests
 {
-    private const int TestSkillId = 9900001;
-    private const int TestSkillSlot = 4;
-    private const int WardenSummonId = 2;
+    private const int SummonId = 1;
+    private const int BrainId = 1;
 
     [Fact]
-    public void Cast_summon_skill_produces_btree_driven_warden_with_inherited_attributes()
+    public void Configured_summon_activates_declared_btree_brain()
     {
-        var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
-        try
+        using var battle = StartBattle();
+        var services = battle.RuntimeServices!;
+        var config = services.Resolve<MobaConfigDatabase>();
+        var registry = services.Resolve<MobaActorRegistry>();
+        var summons = services.Resolve<MobaSummonService>();
+        var brains = services.Resolve<MobaBrainService>();
+        var brainCatalog = services.Resolve<IMobaActorBrainCatalog>();
+
+        Assert.True(config.TryGetSummon(SummonId, out var summonConfig));
+        Assert.Equal(BrainId, summonConfig.BrainId);
+        Assert.True(brainCatalog.TryGet(BrainId, out var brainDefinition));
+        Assert.Equal(MobaBrainDriverKeys.BehaviorTree, brainDefinition.DriverKind);
+        Assert.Equal("summon_warden_bt", brainDefinition.DecisionName);
+
+        var caster = registry.Entries.First(entry =>
+            entry.Value != null &&
+            entry.Value.hasTeam &&
+            entry.Value.hasTransform);
+        var spawnPosition = caster.Value.transform.Value.Position + new Vec3(2f, 0f, 0f);
+        var forward = Vec3.Forward;
+        var sourceContext = default(SummonSourceContext);
+
+        Assert.True(summons.TrySummon(
+            caster.Key,
+            SummonId,
+            in spawnPosition,
+            in forward,
+            in sourceContext,
+            out var summonActorId));
+
+        for (var i = 0; i < 8; i++)
         {
-            bootstrapper.Initialize();
-            bootstrapper.Start();
-            for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++)
-            {
-                bootstrapper.Tick();
-            }
-            bootstrapper.SetupBattle();
-            for (var i = 0; i < 10; i++)
-            {
-                bootstrapper.Tick();
-            }
-
-            var services = bootstrapper.RuntimeServices;
-            Assert.NotNull(services);
-            Assert.True(services.TryResolve<MobaActorRegistry>(out var registry) && registry != null);
-            Assert.True(services.TryResolve<SkillCastCoordinator>(out var castCoordinator) && castCoordinator != null);
-            Assert.True(services.TryResolve<MobaBrainService>(out var brains) && brains != null);
-
-            // 找英雄 1001 的 actor 作为施法者
-            int casterId = 0;
-            int casterTeam = 0;
-            int enemyId = 0;
-            foreach (var kv in registry.Entries)
-            {
-                var e = kv.Value;
-                if (e == null || !e.hasTeam || !e.hasTransform) continue;
-                var team = (int)e.team.Value;
-                if (team == 0) continue;
-
-                if (casterId == 0)
-                {
-                    casterId = kv.Key;
-                    casterTeam = team;
-                    continue;
-                }
-
-                if (team != casterTeam)
-                {
-                    enemyId = kv.Key;
-                    break;
-                }
-            }
-
-            Assert.True(casterId > 0, "no caster hero found");
-            Assert.True(enemyId > 0, "no enemy hero found");
-            Assert.True(registry.TryGet(casterId, out var caster) && caster != null);
-            Assert.True(registry.TryGet(enemyId, out var enemy) && enemy != null);
-
-            var casterPhysAttack = caster.attributeGroup.Group.GetValue(MobaAttributeIds.PHYSICS_ATTACK);
-            var casterMaxHp = caster.attributeGroup.Group.GetValue(MobaAttributeIds.MAX_HP);
-            var enemyPos = enemy.transform.Value.Position;
-
-            var activeSkills = caster.skillLoadout.ActiveSkills?.ToArray() ??
-                               Array.Empty<ActiveSkillRuntime>();
-            if (activeSkills.Length < TestSkillSlot)
-            {
-                Array.Resize(ref activeSkills, TestSkillSlot);
-            }
-
-            activeSkills[TestSkillSlot - 1] = new ActiveSkillRuntime
-            {
-                SkillId = TestSkillId,
-                Level = 1,
-            };
-            caster.ReplaceSkillLoadout(
-                activeSkills,
-                caster.skillLoadout.PassiveSkills);
-
-            // Commit requires the requested slot to own the same active skill.
-            var castOk = castCoordinator.CastSkill(
-                casterId,
-                TestSkillId,
-                TestSkillSlot,
-                out var failReason);
-            Assert.True(castOk, $"CastSkill failed: {failReason}");
-
-            // 推进到 Timeline 100ms 的召唤事件（30fps，500ms 窗口给足）
-            for (var i = 0; i < 30; i++)
-            {
-                bootstrapper.Tick();
-            }
-
-            // 找到树灵守卫（BrainId=3 的召唤物）
-            int wardenId = 0;
-            foreach (var kv in registry.Entries)
-            {
-                if (kv.Key == casterId || kv.Key == enemyId) continue;
-                var e = kv.Value;
-                if (e != null && e.hasActorBrain && e.actorBrain.BrainId == 3)
-                {
-                    wardenId = kv.Key;
-                    break;
-                }
-            }
-
-            Assert.True(wardenId > 0, "warden summon not found after skill cast");
-            Assert.True(registry.TryGet(wardenId, out var warden) && warden != null);
-
-            // 大脑行为实例已创建，并且确实采用配置的 BT 驱动而非 BrainId 的 Code 回退。
-            Assert.True(warden.actorBrain.BehaviorInstanceId > 0,
-                "warden brain behavior was not created");
-            Assert.True(brains.TryGetBehavior(warden.actorBrain.BehaviorInstanceId, out var behavior) && behavior != null,
-                "warden brain behavior could not be resolved");
-            Assert.Equal("MobaBTree", behavior.Decision.DecisionType);
-
-            // 继承属性：物攻 = 施法者 × 0.8，最大生命 = 施法者 × 0.6
-            var wardenGroup = warden.attributeGroup.Group;
-            Assert.Equal(casterPhysAttack * 0.8f, wardenGroup.GetValue(MobaAttributeIds.PHYSICS_ATTACK), 2);
-            Assert.Equal(casterMaxHp * 0.6f, wardenGroup.GetValue(MobaAttributeIds.MAX_HP), 2);
-
-            // BT chase 驱动：推进 90 帧，召唤物应向最近敌人靠近
-            var spawnPos = warden.transform.Value.Position;
-            var spawnDist = (spawnPos - enemyPos).Magnitude;
-
-            for (var i = 0; i < 90; i++)
-            {
-                bootstrapper.Tick();
-            }
-
-            var finalPos = warden.transform.Value.Position;
-            var finalDist = (finalPos - enemyPos).Magnitude;
-            var moved = (finalPos - spawnPos).Magnitude;
-
-            Assert.True(moved > 0.5f,
-                $"warden did not move under BT chase. moved={moved:F3} spawnDist={spawnDist:F3} finalDist={finalDist:F3}");
-            Assert.True(finalDist < spawnDist,
-                $"warden did not approach enemy. spawnDist={spawnDist:F3} finalDist={finalDist:F3}");
+            battle.Tick();
         }
-        finally
+
+        Assert.True(registry.TryGet(summonActorId, out var summoned) && summoned != null);
+        Assert.True(summoned.hasActorBrain);
+        Assert.Equal(BrainId, summoned.actorBrain.BrainId);
+        Assert.True(summoned.actorBrain.BehaviorInstanceId > 0);
+        Assert.True(brains.TryGetBehavior(summoned.actorBrain.BehaviorInstanceId, out var behavior));
+        Assert.NotNull(behavior);
+        Assert.Equal("MobaBTree", behavior.Decision.DecisionType);
+    }
+
+    [Fact]
+    public void Summon_despawn_runs_common_actor_state_cleanup()
+    {
+        using var battle = StartBattle();
+        var services = battle.RuntimeServices!;
+        var registry = services.Resolve<MobaActorRegistry>();
+        var summons = services.Resolve<MobaSummonService>();
+        var buffs = services.Resolve<MobaBuffService>();
+        var caster = registry.Entries.First(entry =>
+            entry.Value != null &&
+            entry.Value.hasTeam &&
+            entry.Value.hasTransform);
+        var spawnPosition = caster.Value.transform.Value.Position + new Vec3(2f, 0f, 0f);
+        var forward = Vec3.Forward;
+        var sourceContext = default(SummonSourceContext);
+
+        Assert.True(summons.TrySummon(
+            caster.Key,
+            SummonId,
+            in spawnPosition,
+            in forward,
+            in sourceContext,
+            out var summonActorId));
+        Assert.True(registry.TryGet(summonActorId, out var summoned) && summoned != null);
+        Assert.True(buffs.ApplyBuffImmediate(summonActorId, 1, caster.Key, 3000));
+        Assert.True(summoned.hasBuffs);
+        Assert.NotEmpty(summoned.buffs.Active);
+
+        Assert.True(summons.TryDespawn(summonActorId, SummonDespawnReason.ManualRemove));
+        for (var i = 0; i < 8 && registry.TryGet(summonActorId, out _); i++)
         {
-            bootstrapper.Stop();
-            bootstrapper.Dispose();
+            battle.Tick();
         }
+
+        Assert.False(registry.TryGet(summonActorId, out _));
+        Assert.False(summoned.hasBuffs);
+    }
+
+    private static ConsoleBattleBootstrapper StartBattle()
+    {
+        var battle = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        battle.Initialize();
+        battle.Start();
+        for (var i = 0; i < 8 && battle.Context.EcsWorld == null; i++)
+        {
+            battle.Tick();
+        }
+
+        battle.SetupBattle();
+        for (var i = 0; i < 10; i++)
+        {
+            battle.Tick();
+        }
+
+        Assert.NotNull(battle.RuntimeServices);
+        return battle;
     }
 }

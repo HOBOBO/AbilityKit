@@ -9,6 +9,8 @@ namespace AbilityKit.Game.Flow
     {
         /// <summary>Hierarchy root that owns all categorized view sub-roots.</summary>
         private BattleViewHierarchyRoot _hierarchyRoot;
+        private BattleViewShellPoolStatsProvider _shellStatsProvider;
+        private BattleAreaVfxPoolStatsProvider _areaStatsProvider;
 
         public void OnAttach(in GamePhaseContext ctx)
         {
@@ -16,11 +18,10 @@ namespace AbilityKit.Game.Flow
             SetRuntimeQuery(_ctx?.EntityQuery);
             BindPresentationSession(ctx);
 
-            // Acquire the shared battle-scene hierarchy root. Predicted and confirmed
-            // view features release independent leases during teardown.
+            // The primary feature owns its hierarchy and releases it on detach.
             var hierarchyName = "[Battle:" +
                                 (_ctx != null ? _ctx.RuntimeWorldId.ToString() : "unknown") +
-                                ":Primary]";
+                                ":Primary:" + _instanceKey + "]";
             _hierarchyRoot = BattleViewHierarchyRoot.Acquire(hierarchyName);
             var hierarchy = _hierarchyRoot.Manager;
 
@@ -51,8 +52,10 @@ namespace AbilityKit.Game.Flow
             // Register pool providers with the debug overlay so the inspector
             // shows live reuse counts on the [Battle] root GameObject.
             var overlay = _hierarchyRoot.GetOrAddStatsOverlay();
-            overlay.RegisterProvider(new BattleViewShellPoolStatsProvider(ShellPool));
-            overlay.RegisterProvider(new BattleAreaVfxPoolStatsProvider(AreaVfxPool));
+            _shellStatsProvider = new BattleViewShellPoolStatsProvider(ShellPool);
+            _areaStatsProvider = new BattleAreaVfxPoolStatsProvider(AreaVfxPool);
+            overlay.RegisterProvider(_shellStatsProvider);
+            overlay.RegisterProvider(_areaStatsProvider);
             // VFX pool is owned by the BattleVfxManager (created in sub-features).
             // The overlay is queried later when the manager is constructed.
 
@@ -88,16 +91,16 @@ namespace AbilityKit.Game.Flow
             CameraController?.Reset();
             CameraController = null;
 
-            // Clear the stats overlay's provider list before releasing the hierarchy root,
-            // so no dangling references survive when the overlay's GameObject is destroyed.
             if (_hierarchyRoot != null)
             {
                 var overlay = _hierarchyRoot.GetComponent<BattleViewPoolStatsOverlay>();
-                overlay?.ClearAllProviders();
+                overlay?.UnregisterProvider(_shellStatsProvider);
+                overlay?.UnregisterProvider(_areaStatsProvider);
             }
+            _shellStatsProvider = null;
+            _areaStatsProvider = null;
 
-            // Release this feature's lease. The shared root survives until the last
-            // predicted/confirmed view feature has detached.
+            // Release only this feature's hierarchy.
             if (_hierarchyRoot != null)
             {
                 _hierarchyRoot.Release();

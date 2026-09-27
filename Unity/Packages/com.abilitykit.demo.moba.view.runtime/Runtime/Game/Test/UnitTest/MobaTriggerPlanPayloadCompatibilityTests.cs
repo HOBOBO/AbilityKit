@@ -104,7 +104,7 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void AreaEventArgs_PreservesLifecycleParentAndSkillRuntimeAcrossContextViews()
         {
-            var handle = new MobaSkillCastRuntimeHandle(runtimeId: 41, generation: 2, rootTraceContextId: 1001);
+            var handle = new MobaSkillCastRuntimeHandle(runtimeId: 41, generation: 2, rootContextId: 1001);
             var payload = new AreaEventArgs
             {
                 EventId = "area.delay",
@@ -134,12 +134,12 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void PersistentContextSnapshot_PreservesGenerationCheckedHandleWithoutClaimingLiveRuntime()
         {
-            var handle = new MobaSkillCastRuntimeHandle(runtimeId: 41, generation: 2, rootTraceContextId: 1001);
+            var handle = new MobaSkillCastRuntimeHandle(runtimeId: 41, generation: 2, rootContextId: 1001);
             var liveSource = new MobaContextSourceView(
                 MobaContextSourceResolveKind.DirectProvider,
                 MobaContextSourceBoundary.LiveRuntime,
                 EffectContextKind.Skill,
-                MobaTraceKind.SkillCast,
+                MobaExecutionKind.SkillCast,
                 sourceActorId: 7,
                 targetActorId: 8,
                 sourceContextId: 1002,
@@ -162,7 +162,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(handle, captured.SkillRuntimeHandle);
             Assert.AreEqual(handle.RuntimeId, captured.SkillRuntimeHandle.RuntimeId);
             Assert.AreEqual(handle.Generation, captured.SkillRuntimeHandle.Generation);
-            Assert.AreEqual(handle.RootTraceContextId, captured.SkillRuntimeHandle.RootTraceContextId);
+            Assert.AreEqual(handle.RootContextId, captured.SkillRuntimeHandle.RootContextId);
         }
 
         [Test]
@@ -178,7 +178,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.IsTrue(sourceContext.TryGetLineageContext(out var lineage));
             Assert.AreEqual(EffectContextKind.Summon, lineage.ContextKind);
-            Assert.AreEqual(MobaTraceKind.SummonSpawn, lineage.OriginKind);
+            Assert.AreEqual(MobaExecutionKind.SummonSpawn, lineage.OriginKind);
             Assert.AreEqual(2002L, lineage.SourceContextId);
             Assert.AreEqual(2001L, lineage.RootContextId);
         }
@@ -189,7 +189,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var upstream = new MobaGameplayOrigin(
                 sourceActorId: 7,
                 targetActorId: 8,
-                immediateKind: MobaTraceKind.EffectExecution,
+                immediateKind: MobaExecutionKind.EffectExecution,
                 immediateConfigId: 3001,
                 immediateContextId: 1002,
                 parentContextId: 1001,
@@ -198,10 +198,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var origin = MobaGameplayOriginBuilder.Create()
                 .FromOrigin(in upstream)
-                .WithLifecycleNode(MobaTraceKind.ProjectileLaunch, 4001, 2001)
+                .WithLifecycleNode(MobaExecutionKind.ProjectileLaunch, 4001, 2001)
                 .Build();
 
-            Assert.AreEqual(MobaTraceKind.ProjectileLaunch, origin.ImmediateKind);
+            Assert.AreEqual(MobaExecutionKind.ProjectileLaunch, origin.ImmediateKind);
             Assert.AreEqual(4001, origin.ImmediateConfigId);
             Assert.AreEqual(2001L, origin.ImmediateContextId);
             Assert.AreEqual(2001L, origin.ParentContextId);
@@ -215,7 +215,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             Assert.Throws<ArgumentOutOfRangeException>(() =>
                 MobaGameplayOriginBuilder.Create()
-                    .WithLifecycleNode(MobaTraceKind.ProjectileLaunch, 4001, 0));
+                    .WithLifecycleNode(MobaExecutionKind.ProjectileLaunch, 4001, 0));
         }
 
         [Test]
@@ -223,7 +223,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var origin = MobaGameplayOriginBuilder.Create()
                 .WithActors(sourceActorId: 7, targetActorId: 8)
-                .WithLifecycleNode(MobaTraceKind.SummonSpawn, 5001, 2001)
+                .WithLifecycleNode(MobaExecutionKind.SummonSpawn, 5001, 2001)
                 .Build();
 
             Assert.AreEqual(2001L, origin.EffectiveParentContextId);
@@ -237,7 +237,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var upstream = new MobaGameplayOrigin(
                 sourceActorId: 7,
                 targetActorId: 8,
-                immediateKind: MobaTraceKind.EffectExecution,
+                immediateKind: MobaExecutionKind.EffectExecution,
                 immediateConfigId: 3001,
                 immediateContextId: 1002,
                 parentContextId: 1001,
@@ -254,7 +254,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 .Build();
 
             Assert.IsTrue(sourceContext.TryGetOrigin(out var origin));
-            Assert.AreEqual(MobaTraceKind.ProjectileLaunch, origin.ImmediateKind);
+            Assert.AreEqual(MobaExecutionKind.ProjectileLaunch, origin.ImmediateKind);
             Assert.AreEqual(2001L, origin.ImmediateContextId);
             Assert.AreEqual(2001L, origin.EffectiveParentContextId);
             Assert.AreEqual(901L, origin.EffectiveRootContextId);
@@ -268,11 +268,11 @@ namespace AbilityKit.Game.Test.UnitTest
             var runtimeHandle = new MobaSkillCastRuntimeHandle(
                 runtimeId: 41,
                 generation: 2,
-                rootTraceContextId: 1001);
+                rootContextId: 1001);
             var child = new MobaSkillRuntimeChildRef(
                 MobaSkillRuntimeChildKind.ProjectileLauncher,
                 launcherActorId,
-                traceContextId: 2001,
+                contextId: 2001,
                 configId: 4001);
             var retainHandle = new MobaSkillRuntimeRetainHandle(
                 retainId: 51,
@@ -309,7 +309,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var upstream = new MobaGameplayOrigin(
                 sourceActorId: 7,
                 targetActorId: 8,
-                immediateKind: MobaTraceKind.EffectExecution,
+                immediateKind: MobaExecutionKind.EffectExecution,
                 immediateConfigId: 3001,
                 immediateContextId: 1002,
                 parentContextId: 1001,
@@ -326,7 +326,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 .Build();
 
             Assert.IsTrue(sourceContext.TryGetOrigin(out var origin));
-            Assert.AreEqual(MobaTraceKind.SummonSpawn, origin.ImmediateKind);
+            Assert.AreEqual(MobaExecutionKind.SummonSpawn, origin.ImmediateKind);
             Assert.AreEqual(2001L, origin.ImmediateContextId);
             Assert.AreEqual(2001L, origin.EffectiveParentContextId);
             Assert.AreEqual(901L, origin.EffectiveRootContextId);
@@ -372,7 +372,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 MobaContextSourceResolveKind.DirectProvider,
                 MobaContextSourceBoundary.Execution,
                 EffectContextKind.Trigger,
-                MobaTraceKind.EffectExecution,
+                MobaExecutionKind.EffectExecution,
                 17,
                 23,
                 3002L,
@@ -400,7 +400,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var combatSource = new MobaCombatContextSource(
                 EffectContextKind.Trigger,
-                MobaTraceKind.EffectExecution,
+                MobaExecutionKind.EffectExecution,
                 17,
                 23,
                 3002L,
@@ -413,7 +413,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 MobaContextSourceResolveKind.DirectProvider,
                 MobaContextSourceBoundary.Execution,
                 EffectContextKind.Trigger,
-                MobaTraceKind.EffectExecution,
+                MobaExecutionKind.EffectExecution,
                 17,
                 23,
                 4002L,
@@ -477,7 +477,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var upstreamLineage = new MobaEffectLineageInput(
                 EffectContextKind.Skill,
-                MobaTraceKind.SkillCast,
+                MobaExecutionKind.SkillCast,
                 sourceActorId: 17,
                 targetActorId: 23,
                 parentContextId: 1001L,
@@ -538,14 +538,14 @@ namespace AbilityKit.Game.Test.UnitTest
             var trace = new MobaTraceRegistry();
             try
             {
-                var parentContextId = trace.CreateRootContext(
-                    MobaTraceKind.EffectExecution,
+                var parentContextId = trace.CreateObservationRoot(
+                    MobaExecutionKind.EffectExecution,
                     configId: 7001,
                     sourceActorId: 17,
                     targetActorId: 23);
                 var lineage = new MobaEffectLineageInput(
                     EffectContextKind.Trigger,
-                    MobaTraceKind.EffectExecution,
+                    MobaExecutionKind.EffectExecution,
                     sourceActorId: 17,
                     targetActorId: 23,
                     parentContextId,
@@ -672,7 +672,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 _source = source;
                 _combatSource = new MobaCombatContextSource(
                     source.ContextKind,
-                    source.TraceKind,
+                    source.ExecutionKind,
                     source.SourceActorId,
                     source.TargetActorId,
                     source.SourceContextId,

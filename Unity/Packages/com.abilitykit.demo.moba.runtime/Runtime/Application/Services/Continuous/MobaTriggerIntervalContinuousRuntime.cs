@@ -87,7 +87,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             var combatSource = new MobaCombatContextSource(
                 source.ContextKind != EffectContextKind.Unknown ? source.ContextKind : EffectContextKind.ContinuousPeriodic,
-                source.TraceKind != MobaTraceKind.None ? source.TraceKind : MobaTraceKind.EffectExecution,
+                source.ExecutionKind != MobaExecutionKind.None ? source.ExecutionKind : MobaExecutionKind.EffectExecution,
                 source.SourceActorId != 0 ? source.SourceActorId : SourceActorId,
                 source.TargetActorId != 0 ? source.TargetActorId : TargetActorId,
                 source.SourceContextId != 0 ? source.SourceContextId : SourceContextId,
@@ -112,7 +112,7 @@ namespace AbilityKit.Demo.Moba.Services
                     MobaContextSourceResolveKind.DirectProvider,
                     MobaContextSourceBoundary.LiveRuntime,
                     _source.ContextKind != EffectContextKind.Unknown ? _source.ContextKind : EffectContextKind.ContinuousPeriodic,
-                    _source.TraceKind != MobaTraceKind.None ? _source.TraceKind : MobaTraceKind.EffectExecution,
+                    _source.ExecutionKind != MobaExecutionKind.None ? _source.ExecutionKind : MobaExecutionKind.EffectExecution,
                     _source.SourceActorId != 0 ? _source.SourceActorId : SourceActorId,
                     _source.TargetActorId != 0 ? _source.TargetActorId : TargetActorId,
                     _source.SourceContextId != 0 ? _source.SourceContextId : SourceContextId,
@@ -132,7 +132,7 @@ namespace AbilityKit.Demo.Moba.Services
             var origin = new MobaGameplayOrigin(
                 SourceActorId,
                 TargetActorId,
-                MobaTraceKind.EffectExecution,
+                MobaExecutionKind.EffectExecution,
                 ProcessId,
                 SourceContextId,
                 SourceContextId,
@@ -218,4 +218,3 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 }
-

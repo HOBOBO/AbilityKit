@@ -7,7 +7,6 @@ using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Protocol.Moba.StateSync;
-using AbilityKit.Trace;
 using AbilityKit.Demo.Moba.Services.Observability;
 
 namespace AbilityKit.Demo.Moba.Services.Area
@@ -20,7 +19,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
         [WorldInject(required: false)] private IProjectileService _projectiles = null;
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
-        [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
+        [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
         [WorldInject(required: false)] private IMobaRuntimeObjectLifecycleHook _objectLifecycle = null;
         [WorldInject(required: false)] private IMobaRuntimeObjectBootstrapRegistry _objectBootstrap = null;
@@ -81,9 +80,9 @@ namespace AbilityKit.Demo.Moba.Services.Area
                     MobaRuntimeObjectLifecycleStage.Destroyed,
                     in oldInfo,
                     frame,
-                    (int)TraceLifecycleReason.Replaced);
+                    (int)MobaExecutionEndReason.Replaced);
                 Unindex(oldInfo);
-                EndAreaTrace(in oldInfo, TraceLifecycleReason.Replaced);
+                EndAreaContext(in oldInfo, MobaExecutionEndReason.Replaced, frame);
                 ReleaseSkillRuntime(areaId.Value);
             }
 
@@ -106,14 +105,14 @@ namespace AbilityKit.Demo.Moba.Services.Area
             _delayTriggeredAreas.Remove(areaId.Value);
             Unindex(info);
             _presentationEvents.Add(new MobaAreaEventSnapshotEntry((int)AreaEventKind.Expire, info.AreaId, info.OwnerActorId, info.TemplateId, info.Center.X, info.Center.Y, info.Center.Z, info.Radius));
-            EndAreaTrace(in info, TraceLifecycleReason.Completed);
+            EndAreaContext(in info, MobaExecutionEndReason.Completed, CurrentFrame);
             ReleaseSkillRuntime(areaId.Value);
             _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Area, ActiveCount, CurrentFrame);
             PublishAreaLifecycle(
                 MobaRuntimeObjectLifecycleStage.Destroyed,
                 in info,
                 CurrentFrame,
-                (int)TraceLifecycleReason.Completed);
+                (int)MobaExecutionEndReason.Completed);
             return true;
         }
 
@@ -144,7 +143,9 @@ namespace AbilityKit.Demo.Moba.Services.Area
                     MobaRuntimeObjectLifecycleStage.Destroyed,
                     in info,
                     CurrentFrame,
-                    (int)TraceLifecycleReason.Failed));
+                    (int)MobaExecutionEndReason.Failed));
+            transaction.Enlist("area-context", () =>
+                EndAreaContext(in info, MobaExecutionEndReason.Failed, CurrentFrame));
             transaction.Rollback();
 
             return true;
@@ -245,8 +246,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
                     MobaRuntimeObjectLifecycleStage.Destroyed,
                     in info,
                     diagnosticFrame,
-                    (int)TraceLifecycleReason.Cancelled);
-                EndAreaTrace(in info, TraceLifecycleReason.Cancelled);
+                    (int)MobaExecutionEndReason.Cancelled);
+                EndAreaContext(in info, MobaExecutionEndReason.Cancelled, diagnosticFrame);
             }
 
             ReleaseAllSkillRuntimes();
@@ -368,11 +369,11 @@ namespace AbilityKit.Demo.Moba.Services.Area
             RemoveIndexed(_areasByTemplate, info.TemplateId, info.AreaId);
         }
 
-        private void EndAreaTrace(in MobaAreaRuntimeInfo info, TraceLifecycleReason reason)
+        private void EndAreaContext(in MobaAreaRuntimeInfo info, MobaExecutionEndReason reason, int frame)
         {
-            if (_trace == null) return;
+            if (_executionContexts == null) return;
             if (info.SourceContextId == 0L) return;
-            _trace.EndContext(info.SourceContextId, reason);
+            _executionContexts.End(info.SourceContextId, (int)reason, frame);
         }
 
         private bool RetainSkillRuntime(in MobaAreaRuntimeInfo info)

@@ -341,13 +341,15 @@ sequenceDiagram
     participant ProjectileActor as ActorSpawnService
     participant Projectile as ProjectileService
     participant LinkSvc as MobaProjectileLinkService
-    participant Trace as Trace Context
+    participant Context as MobaExecutionContextRegistry
+    participant Trace as Optional Trace Adapter
 
     Action->>Moba: Launch or Shoot
     Moba->>Moba: validate dependencies and config
     Moba->>ProjectileActor: spawn projectile or launcher actor
     ProjectileActor-->>Moba: actor id and entity
-    Moba->>Trace: create or inherit ProjectileSourceContext
+    Moba->>Context: create or inherit ProjectileSourceContext
+    Context-->>Trace: optional lifecycle projection
     Moba->>Projectile: Spawn or ScheduleEmit
     Projectile-->>Moba: ProjectileId
     Moba->>LinkSvc: Link projectile id to actor id

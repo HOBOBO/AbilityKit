@@ -47,7 +47,7 @@ namespace AbilityKit.Game.Flow
 
     internal interface ISessionTickLoopRuntime
     {
-        TickLoopController TickLoop { get; }
+        SessionTickLoopController TickLoop { get; }
     }
 
     internal interface ISessionLifecycleRuntime
@@ -61,9 +61,9 @@ namespace AbilityKit.Game.Flow
         bool HasGatewayRoomConnection { get; }
         Task GatewayRoomPreparationTask { get; }
         bool ShouldPrepareGatewayRoom();
-        void StartGatewayRoomPreparation();
+        Task StartGatewayRoomPreparation();
         void CompleteGatewayRoomPreparation();
-        void StopGatewayRoomPreparation();
+        Task StopGatewayRoomPreparationAsync();
         void TickGatewayRoomConnection(float deltaTime);
         void OnStartSessionRequested();
         void NotifySessionFailed(Exception exception);

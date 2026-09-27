@@ -9,16 +9,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
     /// 动作执行输入的集中组装器。
-    /// 用于把执行上下文、trace scope、参与者、瞄准、目标和来源等前置数据从各个计划动作模块中剥离出来。
+    /// 用于把执行上下文、execution scope、参与者、瞄准、目标和来源等前置数据从各个计划动作模块中剥离出来。
     /// </summary>
     internal static class MobaPlanActionInputAssembler
     {
         public static MobaPlanActionInput Assemble(object triggerArgs, ExecCtx<IWorldResolver> ctx, in MobaCombatExecutionContext executionContext)
         {
-            if (!MobaPlanActionExecutionContextResolver.TryResolveTraceScope(ctx, out var traceScope))
+            if (!MobaPlanActionExecutionContextResolver.TryResolveExecutionScope(ctx, out var executionScope))
             {
                 var payloadType = triggerArgs != null ? triggerArgs.GetType().FullName : "null";
-                throw new System.InvalidOperationException($"[MobaPlanActionInputAssembler] Missing formal effect trace scope. payloadType={payloadType}. Plan actions must execute inside MobaEffectExecutionService with an active effect trace scope.");
+                throw new System.InvalidOperationException($"[MobaPlanActionInputAssembler] Missing formal effect execution scope. payloadType={payloadType}. Plan actions must execute inside MobaEffectExecutionService with an active effect execution scope.");
             }
 
             var casterActorId = executionContext.SourceActorId;
@@ -51,7 +51,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             return new MobaPlanActionInput(
                 executionContext,
-                traceScope,
+                executionScope,
                 casterActorId,
                 targetActorId,
                 aimPosition,

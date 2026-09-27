@@ -8,7 +8,6 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Trace;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Rollback;
@@ -43,7 +42,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             collectionCheck: false);
 
         private readonly MobaConfigDatabase _configs;
-        private readonly MobaTraceRegistry _trace;
+        private readonly MobaExecutionContextRegistry _executionContexts;
         private readonly IFrameTime _frameTime;
         private readonly MobaTriggerIntervalContinuousService _continuousProcesses;
         private readonly Dictionary<int, HashSet<long>> _ownerKeysByActor = new Dictionary<int, HashSet<long>>();
@@ -51,12 +50,12 @@ namespace AbilityKit.Demo.Moba.Services.Passive
 
         public MobaPassiveSkillLifecycleService(
             MobaConfigDatabase configs,
-            MobaTraceRegistry trace = null,
+            MobaExecutionContextRegistry executionContexts,
             IFrameTime frameTime = null,
             MobaTriggerIntervalContinuousService continuousProcesses = null)
         {
             _configs = configs ?? throw new ArgumentNullException(nameof(configs));
-            _trace = trace;
+            _executionContexts = executionContexts ?? throw new ArgumentNullException(nameof(executionContexts));
             _frameTime = frameTime;
             _continuousProcesses = continuousProcesses;
         }
@@ -77,7 +76,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
         }
 
         /// <summary>
-        /// 卸载指定角色的全部被动运行时，并清理被动创建的 trace context 与触发器计划。
+        /// 卸载指定角色的全部被动运行时，并清理被动创建的 execution context 与触发器计划。
         /// </summary>
         public void UnregisterActor(global::ActorEntity entity, int frame)
         {
@@ -237,7 +236,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
                     EnsurePassiveSkillContext(entity, passiveSkillId, listener, frame);
                     if (listener.SourceContextId == 0)
                     {
-                        Log.Warning($"[MobaPassiveSkillLifecycleService] Passive skill listener registered without source context. actor={entity.actorId.Value} passiveSkillId={passiveSkillId} frame={frame} hasTrace={_trace != null}");
+                        Log.Warning($"[MobaPassiveSkillLifecycleService] Passive skill listener registered without source context. actor={entity.actorId.Value} passiveSkillId={passiveSkillId} frame={frame}");
                     }
 
                     listeners.Add(listener);
@@ -330,7 +329,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
 
                 // This context is a passive root created by EnsurePassiveSkillContext.
                 // Its numeric value is also used as an owner routing key, but owner keys alone
-                // never grant permission to end a trace context.
+                // never grant permission to end an execution context.
                 try
                 {
                     _continuousProcesses?.EndOwnerProcesses(ownedContextId, AbilityKit.Continuous.ContinuousEndReason.CleanedUp);
@@ -343,11 +342,11 @@ namespace AbilityKit.Demo.Moba.Services.Passive
 
                 try
                 {
-                    _trace?.EndContext(ownedContextId, TraceLifecycleReason.Cancelled);
+                    _executionContexts.End(ownedContextId, (int)MobaExecutionEndReason.Cancelled, frame);
                 }
                 catch (Exception ex)
                 {
-                    Log.Exception(ex, $"[MobaPassiveSkillLifecycleService] Trace.EndContext failed. ownedContextId={ownedContextId} frame={frame}");
+                    Log.Exception(ex, $"[MobaPassiveSkillLifecycleService] ExecutionContexts.End failed. ownedContextId={ownedContextId} frame={frame}");
                 }
             }
         }
@@ -358,26 +357,19 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             if (listener.SourceContextId != 0) return;
             if (!entity.hasActorId) return;
 
-            if (_trace == null)
-            {
-                Log.Warning($"[MobaPassiveSkillLifecycleService] Cannot create passive skill source context because trace registry is missing. passiveSkillId={passiveSkillId} frame={frame}");
-                return;
-            }
-
             try
             {
                 var actorId = entity.actorId.Value;
-                listener.SourceContextId = _trace.CreateRootContext(
-                    MobaTraceKind.SkillEffect,
+                listener.SourceContextId = _executionContexts.Create(new MobaExecutionContextCreateRequest(
+                    MobaExecutionKind.PassiveActivation,
                     passiveSkillId,
                     actorId,
                     actorId,
-                    TraceEndpoint.Config(MobaRuntimeKindNames.Skill, passiveSkillId),
-                    TraceEndpoint.Actor(actorId));
+                    frame: frame)).ContextId;
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, $"[MobaPassiveSkillLifecycleService] Trace.CreateRootContext failed. actor={entity.actorId.Value} passiveSkillId={passiveSkillId} frame={frame}");
+                Log.Exception(ex, $"[MobaPassiveSkillLifecycleService] ExecutionContexts.Create failed. actor={entity.actorId.Value} passiveSkillId={passiveSkillId} frame={frame}");
                 listener.SourceContextId = 0;
             }
         }
@@ -505,7 +497,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
                         MobaContextSourceResolveKind.DirectProvider,
                         MobaContextSourceBoundary.LiveRuntime,
                         EffectContextKind.ContinuousPeriodic,
-                        MobaTraceKind.EffectExecution,
+                        MobaExecutionKind.EffectExecution,
                         actorId,
                         actorId,
                         ownerKey,

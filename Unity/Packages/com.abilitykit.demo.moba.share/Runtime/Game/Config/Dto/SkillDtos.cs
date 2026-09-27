@@ -13,6 +13,11 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int Category;
         public int SkillType;
         public int[] Tags;
+        public int CastConflictGroup;
+        public int InterruptPriority;
+        public bool InterruptRunning;
+        public bool Uninterruptible;
+        public int TargetLostPolicy;
 
         public int SkillButtonTemplateId;
         public int RequiredTargetQueryId;
@@ -233,6 +238,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
     public sealed class SkillCommitPointPhaseDTO
     {
         public string CommitId;
+        public bool RequireEconomyReservation;
     }
 
     public enum SkillEconomyOperation
@@ -259,6 +265,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int GlobalCooldownMs;
         public bool IgnoreGlobalCooldown;
         public bool RefundBeforeCommit = true;
+        public bool RequireExplicitCommit;
         public string FailReason;
     }
 
@@ -296,6 +303,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int AtMs;
         public int EffectId;
         public int ExecuteMode;
+        public bool AbortOnFailure;
         public string EventTag;
     }
 }

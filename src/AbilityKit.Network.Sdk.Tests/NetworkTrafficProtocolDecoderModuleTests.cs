@@ -1,6 +1,7 @@
 using AbilityKit.Protocol.Catalog;
 using AbilityKit.Protocol.Generated;
 using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
@@ -72,6 +73,31 @@ public sealed class NetworkTrafficProtocolDecoderModuleTests
         var decoded = Assert.IsType<MobaMovePayload>(result.Value);
         Assert.Equal(1.5f, decoded.X);
         Assert.Equal(-2.25f, decoded.Z);
+    }
+
+    [Fact]
+    public void MobaModule_DecodesFrameSyncPayloads()
+    {
+        var registry = new ProtocolPayloadDecoderRegistry();
+        MobaProtocolDecoderModule.Register(registry);
+        var request = new WireSubmitFrameInputReq(1UL, 2UL, 3U, 4, 5, new byte[] { 6 });
+        var requestBytes = WireCustomBinary.Serialize(in request);
+
+        var decodedRequest = registry.Decode(
+            MobaProtocolDecoderModule.CatalogId,
+            "frame-sync-submit-input.request",
+            requestBytes);
+        Assert.True(decodedRequest.Success, decodedRequest.Error);
+        Assert.Equal(4, Assert.IsType<WireSubmitFrameInputReq>(decodedRequest.Value).Frame);
+
+        var subscriptionBytes = MemoryPack.MemoryPackSerializer.Serialize(
+            new WireSpectatorSubscribeRes(2UL, 30, 12));
+        var decodedSubscription = registry.Decode(
+            MobaProtocolDecoderModule.CatalogId,
+            "frame-sync-spectator-subscribe.response",
+            new ArraySegment<byte>(subscriptionBytes));
+        Assert.True(decodedSubscription.Success, decodedSubscription.Error);
+        Assert.Equal(12, Assert.IsType<WireSpectatorSubscribeRes>(decodedSubscription.Value).CurrentFrame);
     }
 
     [Fact]

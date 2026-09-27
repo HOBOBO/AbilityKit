@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Game.EntityCreation;
 using AbilityKit.World.ECS;
 
@@ -45,6 +46,7 @@ namespace AbilityKit.Game.Flow
         private sealed class EntityFeatureBinder : IFeatureBinder
         {
             private readonly IEntity _entity;
+            private readonly Dictionary<Type, List<object>> _features = new Dictionary<Type, List<object>>();
 
             public EntityFeatureBinder(IEntity entity)
             {
@@ -54,10 +56,28 @@ namespace AbilityKit.Game.Flow
             public void AttachFeature(object feature)
             {
                 if (feature == null) throw new ArgumentNullException(nameof(feature));
-                _entity.WithRef(feature.GetType(), feature);
+                var type = feature.GetType();
+                if (!_features.TryGetValue(type, out var instances))
+                {
+                    instances = new List<object>();
+                    _features.Add(type, instances);
+                }
+                if (instances.Contains(feature)) return;
+                if (instances.Count == 0) _entity.WithRef(type, feature);
+                instances.Add(feature);
             }
 
-            public void DetachFeature(object feature) => _entity.RemoveComponent(feature.GetType());
+            public void DetachFeature(object feature)
+            {
+                if (feature == null || !_features.TryGetValue(feature.GetType(), out var instances)) return;
+                var index = instances.IndexOf(feature);
+                if (index < 0) return;
+                instances.RemoveAt(index);
+                if (index != 0) return;
+                _entity.RemoveComponent(feature.GetType());
+                if (instances.Count > 0) _entity.WithRef(feature.GetType(), instances[0]);
+                else _features.Remove(feature.GetType());
+            }
         }
 
         private sealed class BattleEntityRuntime : IBattleEntityRuntime

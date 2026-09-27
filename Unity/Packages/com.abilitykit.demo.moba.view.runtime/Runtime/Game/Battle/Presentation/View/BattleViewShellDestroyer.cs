@@ -52,9 +52,8 @@ namespace AbilityKit.Game.Flow
                 modelId = BattleShellPoolableTag.ReadModelId(go);
             }
 
-            if (_pool != null && modelId > 0)
+            if (_pool != null && modelId > 0 && _pool.TryReturn(modelId, go))
             {
-                _pool.Return(modelId, go);
                 return;
             }
 

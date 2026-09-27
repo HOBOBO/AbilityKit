@@ -49,7 +49,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
         {
             return new MobaEffectLineageInput(
                 EffectContextKind.Trigger,
-                MobaTraceKind.EffectExecution,
+                MobaExecutionKind.EffectExecution,
                 SourceActorId,
                 TargetActorId > 0 ? TargetActorId : SourceActorId,
                 SourceContextId,

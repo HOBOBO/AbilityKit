@@ -2,9 +2,9 @@ using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Game.Flow
 {
-    public sealed partial class ConfirmedBattleViewFeature
+    public partial class ConfirmedBattleViewFeature
     {
         protected override BattleContext RuntimeContext => _confirmedCtx;
-        protected override bool RuntimeIsConfirmed => true;
+        protected override bool RuntimeIsConfirmed => !_isPredictionView;
     }
 }

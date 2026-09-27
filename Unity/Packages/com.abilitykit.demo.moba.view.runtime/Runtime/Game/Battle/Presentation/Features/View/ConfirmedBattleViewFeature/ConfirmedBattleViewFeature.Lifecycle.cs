@@ -5,20 +5,41 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
-    public sealed partial class ConfirmedBattleViewFeature
+    public partial class ConfirmedBattleViewFeature
     {
         /// <summary>Hierarchy root that owns all categorized view sub-roots.</summary>
         private BattleViewHierarchyRoot _hierarchyRoot;
+        private BattleViewShellPoolStatsProvider _shellStatsProvider;
+        private BattleAreaVfxPoolStatsProvider _areaStatsProvider;
 
         public void OnAttach(in GamePhaseContext ctx)
         {
             BindPresentationSession(ctx);
+            try
+            {
+                AttachCore(ctx);
+            }
+            catch (System.Exception attachFailure)
+            {
+                try
+                {
+                    OnDetach(ctx);
+                }
+                catch (System.Exception cleanupFailure)
+                {
+                    throw new System.AggregateException(
+                        "Side view attach and rollback both failed.", attachFailure, cleanupFailure);
+                }
+                throw;
+            }
+        }
 
-            // Acquire the shared battle-scene hierarchy root. Predicted and confirmed
-            // view features release independent leases during teardown.
+        private void AttachCore(in GamePhaseContext ctx)
+        {
+            // Each feature instance owns its hierarchy and releases it on detach.
             var hierarchyName = "[Battle:" +
                                 (_confirmedCtx != null ? _confirmedCtx.RuntimeWorldId.ToString() : "unknown") +
-                                ":Confirmed]";
+                                ":" + _viewRole + ":" + _instanceKey + "]";
             _hierarchyRoot = BattleViewHierarchyRoot.Acquire(hierarchyName);
             var hierarchy = _hierarchyRoot.Manager;
 
@@ -36,11 +57,22 @@ namespace AbilityKit.Game.Flow
                 maxSize: 16,
                 hierarchy: hierarchy);
 
-            AreaVfxPool = BattleAreaVfxPool.UsingFactory(
-                (templateId, kind) => BattleAreaPoolObjectFactory.Create(resources, templateId, kind),
-                hierarchy: hierarchy,
-                capacityPerKindPerTemplate: 8);
-            CameraController = new BattleViewCameraController(BattleCameraConfig.Default);
+            if ((_capabilities & BattleProjectionViewCapabilities.AreaEffects) != 0)
+                AreaVfxPool = BattleAreaVfxPool.UsingFactory(
+                    (templateId, kind) => BattleAreaPoolObjectFactory.Create(resources, templateId, kind),
+                    hierarchy: hierarchy,
+                    capacityPerKindPerTemplate: 8);
+            if ((_capabilities & BattleProjectionViewCapabilities.Camera) != 0)
+                CameraController = new BattleViewCameraController(BattleCameraConfig.Default);
+
+            var overlay = _hierarchyRoot.GetOrAddStatsOverlay();
+            _shellStatsProvider = new BattleViewShellPoolStatsProvider(ShellPool);
+            overlay.RegisterProvider(_shellStatsProvider);
+            if (AreaVfxPool != null)
+            {
+                _areaStatsProvider = new BattleAreaVfxPoolStatsProvider(AreaVfxPool);
+                overlay.RegisterProvider(_areaStatsProvider);
+            }
 
             EnsureSubFeaturesCreated();
             _subFeatureHost?.Attach(new FeatureModuleContext<ConfirmedBattleViewFeature>(ctx, this));
@@ -51,7 +83,7 @@ namespace AbilityKit.Game.Flow
         {
             if (_confirmedCtx == null) return;
             var worldId = _confirmedCtx.RuntimeWorldId;
-            _confirmedCtx.Hooks?.ViewBinderReady.Invoke(new ViewBinderReadyEvent(isConfirmed: true, worldId: worldId));
+            _confirmedCtx.Hooks?.ViewBinderReady.Invoke(new ViewBinderReadyEvent(isConfirmed: RuntimeIsConfirmed, worldId: worldId));
 
             CameraController?.SetCamera(null);
         }
@@ -63,7 +95,8 @@ namespace AbilityKit.Game.Flow
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            _subFeatureHost?.Detach(new FeatureModuleContext<ConfirmedBattleViewFeature>(ctx, this));
+            if (_subFeatureHost?.IsAttached == true)
+                _subFeatureHost.Detach(new FeatureModuleContext<ConfirmedBattleViewFeature>(ctx, this));
 
             ShellPool?.Clear();
             ShellPool = null;
@@ -74,12 +107,14 @@ namespace AbilityKit.Game.Flow
             CameraController?.Reset();
             CameraController = null;
 
-            // Clear the stats overlay's provider list before releasing the hierarchy root.
             if (_hierarchyRoot != null)
             {
                 var overlay = _hierarchyRoot.GetComponent<BattleViewPoolStatsOverlay>();
-                overlay?.ClearAllProviders();
+                overlay?.UnregisterProvider(_shellStatsProvider);
+                overlay?.UnregisterProvider(_areaStatsProvider);
             }
+            _shellStatsProvider = null;
+            _areaStatsProvider = null;
 
             // Release this feature's lease. The shared root survives until the last
             // predicted/confirmed view feature has detached.
@@ -119,7 +154,7 @@ namespace AbilityKit.Game.Flow
 
             var frame = _confirmedCtx != null ? _confirmedCtx.LastFrame : 0;
             var worldId = _confirmedCtx != null ? _confirmedCtx.RuntimeWorldId : default;
-            _confirmedCtx?.Hooks?.ViewsRebound.Invoke(new ViewsReboundEvent(isConfirmed: true, worldId: worldId, frame: frame));
+            _confirmedCtx?.Hooks?.ViewsRebound.Invoke(new ViewsReboundEvent(isConfirmed: RuntimeIsConfirmed, worldId: worldId, frame: frame));
         }
 
         private void EnsureSubFeaturesCreated()
@@ -127,9 +162,10 @@ namespace AbilityKit.Game.Flow
             if (_subFeatureHost != null && _subFeatures.Count > 0) return;
 
             _subFeatures.Clear();
-            _subFeatureBuilder.AddConfirmedViewSubFeatures(_subFeatures);
+            _subFeatureBuilder.AddConfirmedViewSubFeatures(
+                _subFeatures, _capabilities, includeBuiltInEventAdapters: !_isPredictionView);
 
-            _subFeaturePipeline.AddStandardViewSubFeatures(_subFeatures);
+            _subFeaturePipeline.AddStandardViewSubFeatures(_subFeatures, _capabilities);
 
             _subFeatureHost = _subFeaturePipeline.CreateHost(_subFeatures);
         }

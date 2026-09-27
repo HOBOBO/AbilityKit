@@ -39,12 +39,24 @@ namespace AbilityKit.Game.View.Presentation
         {
             if (shellLoader == null) throw new System.ArgumentNullException(nameof(shellLoader));
 
+            var binder = ViewRenderBackendFactory<TViewBatch>.CreateBinder(
+                shellLoader,
+                backend,
+                CreateBinder,
+                CreateDotsBinder);
+
             ShellLoader = shellLoader;
             Backend = backend;
-            Binder = ViewRenderBackendFactory<TViewBatch>.CreateBinder(shellLoader, backend, CreateBinder);
+            Binder = binder;
         }
 
         protected abstract IViewBinder<TViewBatch> CreateBinder(IViewShellLoader shellLoader);
+
+        protected virtual IViewBinder<TViewBatch> CreateDotsBinder(IViewShellLoader shellLoader)
+        {
+            throw new System.NotSupportedException(
+                GetType().FullName + " does not provide a DOTS view binder.");
+        }
 
         public virtual void Tick(float deltaTime)
         {

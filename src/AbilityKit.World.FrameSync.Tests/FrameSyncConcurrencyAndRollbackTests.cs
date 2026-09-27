@@ -1,6 +1,9 @@
 using System.Collections.Concurrent;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
+using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.DI;
 using Xunit;
 
 namespace AbilityKit.World.FrameSync.Tests;
@@ -185,8 +188,121 @@ public sealed class RollbackSnapshotRingBufferTests
     }
 }
 
+public sealed class ClientPredictionReplayBoundaryTests
+{
+    [Fact]
+    public void Rollback_replay_uses_the_explicit_replay_input_lifecycle()
+    {
+        var world = new TestWorld();
+        var sink = new ReplayAwareInputSink();
+        var registry = new RollbackRegistry();
+        registry.Register(new TestWorldStateProvider(world));
+        var rollback = new RollbackCoordinator(registry, new RollbackSnapshotRingBuffer(8));
+        var hashes = new WorldStateHashRingBuffer(8);
+        var reconciler = new ClientPredictionReconciler(hashes);
+        var runner = new ClientPredictionRunner(
+            world,
+            sink,
+            rollback,
+            new InputHistoryRingBuffer(8),
+            reconciler);
+        rollback.CaptureAndStore(new FrameIndex(0));
+
+        runner.TickPredicted(
+            new FrameIndex(1),
+            1f / 30f,
+            new[] { Command(1) },
+            _ => new WorldStateHash((uint)world.State));
+        runner.TickPredicted(
+            new FrameIndex(2),
+            1f / 30f,
+            new[] { Command(2) },
+            _ => new WorldStateHash((uint)world.State));
+
+        Assert.True(runner.OnAuthoritativeStateHash(new FrameIndex(1), new WorldStateHash(999)));
+
+        Assert.Equal(new[] { 1, 2 }, sink.LiveFrames);
+        Assert.Equal(new[] { 2 }, sink.ReplayFrames);
+        Assert.Equal(new FrameIndex(1).Value, sink.RestoredFrame.Value);
+        Assert.Equal(new FrameIndex(2).Value, sink.ReplayToFrame.Value);
+        Assert.Equal(1, sink.BeginCount);
+        Assert.Equal(1, sink.EndCount);
+    }
+
+    private static PlayerInputCommand Command(int frame) => new PlayerInputCommand(
+        new FrameIndex(frame),
+        new PlayerId("player"),
+        1000 + frame,
+        new byte[] { (byte)frame });
+
+    private sealed class TestWorld : IWorld
+    {
+        public WorldId Id { get; } = new WorldId("prediction-test");
+        public string WorldType => "test";
+        public IWorldResolver Services => null!;
+        public int State { get; set; }
+
+        public void Initialize() { }
+        public void Tick(float deltaTime) => State++;
+        public void Dispose() { }
+    }
+
+    private sealed class TestWorldStateProvider : IRollbackStateProvider
+    {
+        private readonly TestWorld _world;
+
+        public TestWorldStateProvider(TestWorld world) => _world = world;
+
+        public int Key => 1;
+        public byte[] Export(FrameIndex frame) => BitConverter.GetBytes(_world.State);
+        public void Import(FrameIndex frame, byte[] payload) => _world.State = BitConverter.ToInt32(payload, 0);
+    }
+
+    private sealed class ReplayAwareInputSink : IWorldInputReplaySink
+    {
+        public List<int> LiveFrames { get; } = new List<int>();
+        public List<int> ReplayFrames { get; } = new List<int>();
+        public int BeginCount { get; private set; }
+        public int EndCount { get; private set; }
+        public FrameIndex RestoredFrame { get; private set; }
+        public FrameIndex ReplayToFrame { get; private set; }
+
+        public void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs) =>
+            LiveFrames.Add(frame.Value);
+
+        public void BeginReplay(FrameIndex restoredFrame, FrameIndex replayToFrame)
+        {
+            BeginCount++;
+            RestoredFrame = restoredFrame;
+            ReplayToFrame = replayToFrame;
+        }
+
+        public void Replay(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs) =>
+            ReplayFrames.Add(frame.Value);
+
+        public void EndReplay() => EndCount++;
+        public void Dispose() { }
+    }
+}
+
 public sealed class RollbackCoordinatorTests
 {
+    [Fact]
+    public void Structural_providers_import_before_field_state_regardless_of_key_order()
+    {
+        var importOrder = new List<int>();
+        var state = new OrderedProvider(1, importOrder);
+        var structure = new OrderedStructureProvider(9, importOrder);
+        var coordinator = CreateCoordinator(state, structure);
+        var snapshot = Snapshot(
+            new WorldRollbackSnapshotEntry(1, Array.Empty<byte>()),
+            new WorldRollbackSnapshotEntry(9, Array.Empty<byte>()));
+
+        Assert.True(coordinator.TryRestore(snapshot, out var result));
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new[] { 9, 1 }, importOrder);
+    }
+
     [Fact]
     public void Missing_provider_is_rejected_before_any_import()
     {
@@ -278,6 +394,34 @@ public sealed class RollbackCoordinatorTests
         {
             ImportCount++;
             if (ImportException != null) throw ImportException;
+        }
+    }
+
+    private class OrderedProvider : IRollbackStateProvider
+    {
+        private readonly List<int> _importOrder;
+
+        public OrderedProvider(int key, List<int> importOrder)
+        {
+            Key = key;
+            _importOrder = importOrder;
+        }
+
+        public int Key { get; }
+
+        public byte[] Export(FrameIndex frame) => Array.Empty<byte>();
+
+        public void Import(FrameIndex frame, byte[] payload)
+        {
+            _importOrder.Add(Key);
+        }
+    }
+
+    private sealed class OrderedStructureProvider : OrderedProvider, IRollbackStructureRestoreProvider
+    {
+        public OrderedStructureProvider(int key, List<int> importOrder)
+            : base(key, importOrder)
+        {
         }
     }
 }

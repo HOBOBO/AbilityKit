@@ -1,0 +1,28 @@
+[
+  {
+    "Id": 1,
+    "ArcAngleDeg": 360,
+    "GridCols": 0,
+    "GridRows": 0,
+    "GridSpacingX": 0,
+    "GridSpacingZ": 0,
+    "IntervalMs": 0,
+    "Name": "召唤动作-圆形",
+    "OwnerKeyMode": 0,
+    "PatternCount": 3,
+    "PatternMode": 0,
+    "PerPointRotationMode": 0,
+    "PerPointYawOffsetDeg": 0,
+    "PositionMode": 0,
+    "Radius": 0,
+    "RandomRadiusMax": 0,
+    "RandomRadiusMin": 0,
+    "RandomSeed": 0,
+    "RotationMode": 0,
+    "Spacing": 2,
+    "StartAngleDeg": 0,
+    "SummonId": 1,
+    "TargetMode": 0,
+    "YawOffsetDeg": 0
+  }
+]

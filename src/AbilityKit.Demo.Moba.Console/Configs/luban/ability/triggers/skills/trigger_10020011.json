@@ -1,0 +1,20 @@
+{
+  "id": 10020011,
+  "name": "小乔-普通攻击-命中伤害",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 105,
+      "source_attack_ratio": 1.0,
+      "damage_type": 2,
+      "reason_kind": 2,
+      "reason_param": 10020001
+    }
+  ]
+}

@@ -48,7 +48,7 @@ RuntimeContextReference 携带 ID/Version 和可选 ContextEntityReference，不
 
 实时 provider 按 ContextId 保存 BuffRuntime 引用及 target actor、绑定时 lifecycle state/frame。读取数值时从 runtime 投影 StackCount、Remaining、IntervalRemaining 等字段；不需要每帧复制到 Registry。绑定时的 state/frame 不是每次读值时自动刷新，不能将它们当成所有数值的最后修改时间。
 
-`MobaBuffRuntimeContextData` 提供以下字段：BuffId、source/target actor、Trace/RootTrace/OwnerTrace ID、层数、剩余与间隔秒数、生命周期状态、帧、技能 runtime handle。ContextId/Version 由对应 property/snapshot/runtime reference 提供。
+`MobaBuffRuntimeContextData` 提供以下字段：BuffId、source/target actor、SourceContextId/RootContextId/OwnerContextId、层数、剩余与间隔秒数、生命周期状态、帧、技能 runtime handle。Runtime Context 的 ContextId/Version 由对应 property/snapshot/runtime reference 提供。
 
 | 对象 | 保存内容 | 生命周期 |
 |------|----------|----------|
@@ -126,11 +126,11 @@ Failure 包括 MissingContextService、MissingPayload、MissingRuntimeContext、
 | Buff 权威恢复 | 预检后清理旧 Buff、按纯状态重建、显式 RestoreEntity、绑定新 runtime | 需要 actor、父技能 runtime 和可选 Continuous 依赖就绪；不是完整 Trace 历史恢复 |
 | Context entity 回滚 | 保留仍存在的确认实体，撤销预测 provider/快照/实体并回退游标 | 确认实体被销毁则拒绝，不复活、不恢复完整生命周期 |
 | Buff timer 回滚 | 恢复仍存在且成员身份匹配的 Buff 可变字段 | 成员或绑定形态变化拒绝，不重建 Buff |
-| Skill Trace 局部回滚 | 恢复捕获根/子节点结束状态，撤销 Trace 分配边界后的预测节点 | 不恢复完整 Context、不恢复被 Purge 节点或所有未捕获节点的状态 |
+| Skill Execution Context 局部回滚 | 恢复捕获根/子 Context 的结束状态，撤销 Context 分配边界后的预测节点 | 不恢复完整世界；Trace 若安装则通过 `Reconciled` 重建投影 |
 
 Buff 恢复的非零 ID 必须唯一、不与无关实体冲突，当前 runtime 的实际 provider 归属也要通过预检。ID=0/Version=0 的旧状态保持无身份，不自动分配以免严格状态比较失败；其他无效组合拒绝。RestoreEntity 只推进分配游标，清除该 ID 旧快照后绑定新 runtime。
 
-Buff 恢复载荷与哈希当前包含 RuntimeContextId/Version，表明它们是本恢复域身份的一部分；技能的本地 Trace 附加载荷不进入技能权威 hash。不能笼统地说“所有调试 ID 都不参与哈希”。
+Buff 恢复载荷与哈希当前包含 RuntimeContextId/Version，表明它们是本恢复域身份的一部分；技能局部 payload 的 `ExecutionContextNodes` 与 `ExecutionContextNextId` 用于生命周期恢复，但不额外引入 Trace wire section。不能笼统地说“所有调试 ID 都不参与哈希”。
 
 Context 回滚预检在解绑 provider、删除快照和销毁预测实体之前校验游标及确认实体；非法输入不先修改这些映射。确认实体保留本地代次，重放的新实体分配新代次。原载荷版本与权威 hash 不因此变化；预检不是并发业务对象和外部回调的完整事务。
 
@@ -148,7 +148,7 @@ Context 回滚预检在解绑 provider、删除快照和销毁预测实体之前
 
 `MobaEffectExecutionService` 在正式 EffectExecution 节点建立、执行上下文推进后，通过可选 `IMobaEffectExecutionSnapshotHook` 提交入口观察。逻辑层诊断处于 Events/Full、启用 Skill 通道且未冻结时才采集；窗口是否打开不参与判断。只复制现有阶段数值和 runtime 引用，不序列化完整 payload，不调用 Runtime Context 的最新值解析器补齐缺失字段。hook/provider 异常与保存失败不阻断效果执行。
 
-外部 `MobaEffectExecutionSnapshotStore` 复用受管快照机制，类型为 `moba.effect.execution-entry`、SchemaVersion=1、Purpose=Observation、Kind=execution-entry，默认最多 4096 份，每个执行节点一份。此存储的 EntityId 明确属于 TraceContextId 命名空间，和 Runtime Context 服务的快照存储独立；不能拿这个 ID 查询 ContextRegistry。
+可选 Trace Adapter 中的 `MobaEffectExecutionSnapshotStore` 复用受管快照机制，类型为 `moba.effect.execution-entry`、SchemaVersion=1、Purpose=Observation、Kind=execution-entry，默认最多 4096 份，每个执行节点一份。此存储的 EntityId 明确属于 execution context ID 命名空间，和 Runtime Context 服务的快照存储独立；不能拿这个 ID 查询 `ContextRegistry`。
 
 `MobaEffectExecutionEntrySnapshot` 不保存原始 payload 或 BuffRuntime，只保存采集帧、真实效果配置 ID、触发计划 ID、payload 类型名、RuntimeContextId/Version 和阶段的层数/持续/剩余/总时长。阶段是否存在以 provider 的 bool 返回为准，全零阶段仍可存在；未提供不显示成零。Runtime ID/Version 是入口时的引用事实，不代表已冻结其全部实时字段。直接 trigger 的真实 EffectConfigId 可为 0，不把 trigger ID 补成效果配置。
 

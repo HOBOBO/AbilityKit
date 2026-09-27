@@ -35,5 +35,20 @@ namespace AbilityKit.Protocol.Moba
         [MemoryPackOrder(7)]
         public byte[] Payload;
 
+        [MemoryPackOrder(8)]
+        public int PredictionKey;
+
+        [MemoryPackOrder(9)]
+        public int TargetFrame;
+
+        [MemoryPackOrder(10)]
+        public long InputSequence;
+
+        [MemoryPackOrder(11)]
+        public int EntityVersion;
+
+        [MemoryPackOrder(12)]
+        public int InterruptEpoch;
+
     }
 }

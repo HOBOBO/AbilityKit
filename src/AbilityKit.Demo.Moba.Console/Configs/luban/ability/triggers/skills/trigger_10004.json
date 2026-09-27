@@ -1,0 +1,22 @@
+{
+  "id": 10004,
+  "name": "skill_10010401_apply_self_bleed_buff",
+  "enabled": true,
+  "phase": "immediate",
+  "event": "",
+  "allowExternal": false,
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "debug_log",
+      "message": "skill_10010401_apply_self_bleed_buff",
+      "dump_args": true
+    },
+    {
+      "type": "add_buff",
+      "buff_id": 101,
+      "target_source": 4
+    }
+  ]
+}

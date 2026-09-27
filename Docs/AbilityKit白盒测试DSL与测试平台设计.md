@@ -401,7 +401,7 @@ BattleFlow 是平台的一类用例与结果生产者，不是平台服务端的
 |---|---|---|---|---|
 | **#1 判定层** | `BuildSummary` 收 `MobaSkillConfigTestHarness` | 抽 `AcceptanceVerifier(expectation, records)`，harness-free；STJ codec 替 JsonUtility | 低（纯增量，零 Unity 风险） | ✅ 完成 |
 | **#2 trace 契约** | `CaptureTraceRecords(harness,…)` 内联 harness | 定义 `ITraceSource`（dotnet 侧已落地 `FileTraceSource`/`NullTraceSource`）；harness 侧实现待 Seam #4 | 低 | 🟡 dotnet 侧完成；harness 侧待 #4 |
-| **#3 trace 捕获纯化** | capture 里 `harness.Config` 反查名称/label | 抽 `TraceCapture.FromTree(trace, frameTime)` 纯函数，label 富化改为可选后置 | 低（`MobaTraceKind` 在 `moba.runtime` 已 dotnet 可编译） | 待办 |
+| **#3 trace 捕获纯化** | capture 里 `harness.Config` 反查名称/label | 抽 `TraceCapture.FromTree(trace, frameTime)` 纯函数，label 富化改为可选后置 | 低（`MobaExecutionKind` 由 runtime 定义，Trace Adapter 可直接投影） | 待办 |
 | **#4 世界引导（大头）** | `Ability.Host.Extensions.Moba.CreateWorld` + `View.Config` + `EntitasAdapters` + `UnityEngine` | **首选 D1**：验收复用**已 dotnet 可跑的逻辑/console 世界**（`ConsoleBattleBootstrapper`，Entitas+services，无 view），加 trace 发射 + alias 装配；harness 降为逻辑世界的薄适配器。备选 D2：逐项剥离 view harness 的 Unity 依赖 | 高（D1 走通则小；D2 与 view 栈缠斗）。即记忆里的"session 层去 ScriptableObject 墙" | 🟡 D1 可行(架构预接缝)+第一切片已验证 |
 | **#5 setup/timeline 驱动** | `MobaAcceptanceSetupActionExecutor` / `ExecuteTimeline` 调 harness API | 跟 Seam #4 一起搬（自身无 Unity 依赖，只调 harness） | 低 | 待办 |
 | **#6 NUnit 解耦** | runner 用 `Assert.*` | 改为返回 summary/抛异常（dotnet 层已是返回式） | 低 | 待办 |

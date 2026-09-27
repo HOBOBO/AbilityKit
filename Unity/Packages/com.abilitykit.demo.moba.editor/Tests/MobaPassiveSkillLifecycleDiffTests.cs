@@ -5,7 +5,6 @@ using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Passive;
 using AbilityKit.Demo.Moba.Share.Config;
-using AbilityKit.Trace;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -21,6 +20,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         private Contexts _contexts;
         private ActorEntity _entity;
         private MobaPassiveSkillLifecycleService _service;
+        private MobaExecutionContextRegistry _executionContexts;
 
         [SetUp]
         public void SetUp()
@@ -35,7 +35,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     CreatePassiveRuntime(FirstPassiveSkillId),
                     CreatePassiveRuntime(SecondPassiveSkillId),
                 });
-            _service = new MobaPassiveSkillLifecycleService(CreateConfigs(), new MobaTraceRegistry());
+            _executionContexts = new MobaExecutionContextRegistry();
+            _service = new MobaPassiveSkillLifecycleService(CreateConfigs(), _executionContexts);
         }
 
         [TearDown]
@@ -43,6 +44,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             _service?.UnregisterActor(_entity, 99);
             _service?.Dispose();
+            _executionContexts?.Dispose();
             _contexts?.Reset();
         }
 

@@ -1,11 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Triggering;
 using AbilityKit.Protocol.Moba.StateSync;
-using AbilityKit.Trace;
 
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
@@ -34,25 +33,25 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Presentation {
 
         public void Started(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime)
         {
-            Report(MobaPresentationCueStage.Started, buff, sourceActorId, targetActorId, runtime, TraceLifecycleReason.None);
+            Report(MobaPresentationCueStage.Started, buff, sourceActorId, targetActorId, runtime, MobaExecutionEndReason.None);
         }
 
         public void Refreshed(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime)
         {
-            Report(MobaPresentationCueStage.Refreshed, buff, sourceActorId, targetActorId, runtime, TraceLifecycleReason.None);
+            Report(MobaPresentationCueStage.Refreshed, buff, sourceActorId, targetActorId, runtime, MobaExecutionEndReason.None);
         }
 
         public void StackChanged(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime)
         {
-            Report(MobaPresentationCueStage.StackChanged, buff, sourceActorId, targetActorId, runtime, TraceLifecycleReason.None);
+            Report(MobaPresentationCueStage.StackChanged, buff, sourceActorId, targetActorId, runtime, MobaExecutionEndReason.None);
         }
 
         public void Ticked(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime)
         {
-            Report(MobaPresentationCueStage.Ticked, buff, sourceActorId, targetActorId, runtime, TraceLifecycleReason.None);
+            Report(MobaPresentationCueStage.Ticked, buff, sourceActorId, targetActorId, runtime, MobaExecutionEndReason.None);
         }
 
-        public void Ended(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, TraceLifecycleReason reason)
+        public void Ended(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, MobaExecutionEndReason reason)
         {
             Report(ToEndStage(reason), buff, sourceActorId, targetActorId, runtime, reason);
         }
@@ -60,7 +59,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Presentation {
         /// <summary>
         /// 统一上报入口。没有表现模板的 Buff 会静默跳过，逻辑层不依赖表现配置。
         /// </summary>
-        private void Report(MobaPresentationCueStage stage, BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, TraceLifecycleReason reason)
+        private void Report(MobaPresentationCueStage stage, BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, MobaExecutionEndReason reason)
         {
             if (_snapshots == null) return;
             if (buff == null) return;
@@ -79,7 +78,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Presentation {
             int sourceActorId,
             int targetActorId,
             BuffRuntime runtime,
-            TraceLifecycleReason reason)
+            MobaExecutionEndReason reason)
         {
             var remainingSeconds = ResolveRemainingSeconds(runtime);
             var instanceKey = GetInstanceKey(buff.Id, targetActorId, runtime.SourceContextId);
@@ -132,13 +131,13 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Presentation {
             return runtime.Remaining;
         }
 
-        private static MobaPresentationCueStage ToEndStage(TraceLifecycleReason reason)
+        private static MobaPresentationCueStage ToEndStage(MobaExecutionEndReason reason)
         {
             switch (reason)
             {
-                case TraceLifecycleReason.Expired:
+                case MobaExecutionEndReason.Expired:
                     return MobaPresentationCueStage.Expired;
-                case TraceLifecycleReason.Completed:
+                case MobaExecutionEndReason.Completed:
                     return MobaPresentationCueStage.Completed;
                 default:
                     return MobaPresentationCueStage.Removed;

@@ -322,6 +322,11 @@ namespace AbilityKit.Demo.Moba.Console
                 new[] { "AbilityKit" });
 
             builder.AddModule(new Bootstrap.ConsoleConfigModule());
+            foreach (var module in _modules)
+            {
+                if (module is Bootstrap.ConsoleConfigModule) continue;
+                builder.AddModule(module);
+            }
             if (_mobaConfig != null)
             {
                 builder.RegisterInstance(_mobaConfig);

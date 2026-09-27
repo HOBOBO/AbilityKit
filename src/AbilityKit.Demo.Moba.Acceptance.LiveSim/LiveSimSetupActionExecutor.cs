@@ -233,10 +233,10 @@ public sealed class LiveSimSetupActionExecutor : IAcceptanceObservationSource
         var buffs = Services.Resolve<MobaBuffService>();
         if (removeAll)
         {
-            buffs.RemoveBuffsImmediate(targetActorId, buffId, sourceActorId, removeAll: true, TraceLifecycleReason.Dispelled);
+            buffs.RemoveBuffsImmediate(targetActorId, buffId, sourceActorId, removeAll: true, MobaExecutionEndReason.Dispelled);
             return;
         }
-        buffs.RemoveBuffImmediate(targetActorId, buffId, sourceActorId, TraceLifecycleReason.Dispelled);
+        buffs.RemoveBuffImmediate(targetActorId, buffId, sourceActorId, MobaExecutionEndReason.Dispelled);
     }
 
     // —— 状态读取（供断言）——

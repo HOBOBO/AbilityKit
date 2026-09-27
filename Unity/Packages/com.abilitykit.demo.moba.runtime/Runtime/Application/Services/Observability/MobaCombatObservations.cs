@@ -1,4 +1,3 @@
-using AbilityKit.Trace;
 using AbilityKit.Demo.Moba.Diagnostics;
 
 namespace AbilityKit.Demo.Moba.Services.Observability
@@ -25,6 +24,110 @@ namespace AbilityKit.Demo.Moba.Services.Observability
     {
         Started = 1,
         Ended = 2,
+    }
+
+    public enum MobaActionExecutionObservationStage
+    {
+        Started = 1,
+        Ended = 2,
+    }
+
+    /// <summary>Immutable effect-entry facts published by Core for optional observers.</summary>
+    public readonly struct MobaEffectExecutionEntryObservation
+    {
+        public MobaEffectExecutionEntryObservation(
+            long contextId,
+            int effectConfigId,
+            int triggerId,
+            int frame,
+            string payloadTypeName,
+            bool hasRuntimeContext,
+            long runtimeContextId,
+            long runtimeContextVersion,
+            bool hasStageSnapshot,
+            in MobaTriggerStageSnapshot stage)
+        {
+            ContextId = contextId;
+            EffectConfigId = effectConfigId;
+            TriggerId = triggerId;
+            Frame = frame;
+            PayloadTypeName = payloadTypeName ?? string.Empty;
+            HasRuntimeContext = hasRuntimeContext;
+            RuntimeContextId = runtimeContextId;
+            RuntimeContextVersion = runtimeContextVersion;
+            HasStageSnapshot = hasStageSnapshot;
+            Stage = stage;
+        }
+
+        public long ContextId { get; }
+        public int EffectConfigId { get; }
+        public int TriggerId { get; }
+        public int Frame { get; }
+        public string PayloadTypeName { get; }
+        public bool HasRuntimeContext { get; }
+        public long RuntimeContextId { get; }
+        public long RuntimeContextVersion { get; }
+        public bool HasStageSnapshot { get; }
+        public MobaTriggerStageSnapshot Stage { get; }
+
+        public static MobaEffectExecutionEntryObservation Create(
+            long contextId,
+            int effectConfigId,
+            int triggerId,
+            in MobaCombatExecutionContext context)
+        {
+            var hasRuntimeContext = context.TryGetRuntimeContext(out var runtime);
+            var stage = default(MobaTriggerStageSnapshot);
+            var hasStageSnapshot = context.Payload is IMobaTriggerStageSnapshotProvider provider &&
+                                   provider.TryGetStageSnapshot(out stage);
+            return new MobaEffectExecutionEntryObservation(
+                contextId,
+                effectConfigId,
+                triggerId,
+                context.Frame,
+                context.PayloadTypeName,
+                hasRuntimeContext,
+                hasRuntimeContext ? runtime.ContextId : 0,
+                hasRuntimeContext ? runtime.Version : 0,
+                hasStageSnapshot,
+                in stage);
+        }
+    }
+
+    /// <summary>Immutable action lifecycle facts published by Core for optional observers.</summary>
+    public readonly struct MobaActionExecutionObservation
+    {
+        public MobaActionExecutionObservation(
+            MobaActionExecutionObservationStage stage,
+            long contextId,
+            int actionIndex,
+            long actionId,
+            long sourceActorId,
+            long targetActorId,
+            int frame,
+            bool succeeded = false,
+            bool aborted = false)
+        {
+            Stage = stage;
+            ContextId = contextId;
+            ActionIndex = actionIndex;
+            ActionId = actionId;
+            SourceActorId = sourceActorId;
+            TargetActorId = targetActorId;
+            Frame = frame;
+            Succeeded = succeeded;
+            Aborted = aborted;
+        }
+
+        public MobaActionExecutionObservationStage Stage { get; }
+        public long ContextId { get; }
+        public int ActionIndex { get; }
+        public long ActionId { get; }
+        public long SourceActorId { get; }
+        public long TargetActorId { get; }
+        public int Frame { get; }
+        public bool Succeeded { get; }
+        public bool Aborted { get; }
     }
 
     public enum MobaBuffLifecycleStage
@@ -173,7 +276,7 @@ namespace AbilityKit.Demo.Moba.Services.Observability
             int maxStacks,
             int modifierBindingCount,
             int modifierSourceId,
-            TraceLifecycleReason removeReason = TraceLifecycleReason.None)
+            MobaExecutionEndReason removeReason = MobaExecutionEndReason.None)
         {
             Stage = stage;
             BuffId = buffId;
@@ -208,7 +311,7 @@ namespace AbilityKit.Demo.Moba.Services.Observability
         public int MaxStacks { get; }
         public int ModifierBindingCount { get; }
         public int ModifierSourceId { get; }
-        public TraceLifecycleReason RemoveReason { get; }
+        public MobaExecutionEndReason RemoveReason { get; }
     }
 
     public readonly struct MobaRuntimeObjectLifecycleObservation
@@ -273,6 +376,18 @@ namespace AbilityKit.Demo.Moba.Services.Observability
         void OnObserved(in MobaEffectLifecycleObservation observation);
     }
 
+    public interface IMobaEffectExecutionEntryHook
+    {
+        bool IsEnabled { get; }
+        void OnObserved(in MobaEffectExecutionEntryObservation observation);
+    }
+
+    public interface IMobaActionExecutionHook
+    {
+        bool IsEnabled { get; }
+        void OnObserved(in MobaActionExecutionObservation observation);
+    }
+
     public interface IMobaBuffLifecycleHook
     {
         bool IsEnabled { get; }
@@ -313,6 +428,27 @@ namespace AbilityKit.Demo.Moba.Services.Observability
             {
                 // Observation callbacks must not affect gameplay lifecycle commits.
             }
+        }
+    }
+
+    public static class MobaExecutionObservationHookExtensions
+    {
+        public static void TryObserve(
+            this IMobaEffectExecutionEntryHook hook,
+            in MobaEffectExecutionEntryObservation observation)
+        {
+            if (hook == null || !hook.IsEnabled) return;
+            try { hook.OnObserved(in observation); }
+            catch { }
+        }
+
+        public static void TryObserve(
+            this IMobaActionExecutionHook hook,
+            in MobaActionExecutionObservation observation)
+        {
+            if (hook == null || !hook.IsEnabled) return;
+            try { hook.OnObserved(in observation); }
+            catch { }
         }
     }
 }

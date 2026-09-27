@@ -1,9 +1,11 @@
 using System;
+using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Flow.Battle.Replay;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime.Conditioning;
+using AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -128,6 +130,8 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class BattleSessionRuntime
     {
+        private Func<BattleContext> _getContext = () => null;
+
         internal BattleSessionState State { get; }
         internal BattleSessionHandles Handles { get; }
         internal SessionOrchestrator Orchestrator { get; private set; }
@@ -141,10 +145,13 @@ namespace AbilityKit.Game.Flow
         internal BattleInputRuntime Input { get; }
         internal BattlePredictionRuntime Prediction { get; }
         internal BattlePresentationSessionResources Presentation { get; }
+        internal SessionPresentationController PresentationController { get; }
+        internal SessionReplicationController ReplicationController { get; }
         internal BattleAssetLeaseOwner Assets { get; }
         internal BattleReplayRuntime Replay { get; }
         internal SpectatorSessionRuntime Spectator { get; }
         internal BattleSimulationRuntime Simulation { get; private set; }
+        internal SessionSimulationController SimulationController { get; private set; }
 
         internal BattleSessionRuntime()
         {
@@ -157,6 +164,12 @@ namespace AbilityKit.Game.Flow
             Prediction = new BattlePredictionRuntime();
             SnapshotRouting = new BattleSnapshotRoutingRuntime(Handles, Diagnostics);
             Presentation = new BattlePresentationSessionResources();
+            PresentationController = new SessionPresentationController(Presentation);
+            ReplicationController = new SessionReplicationController(
+                () => Recovery,
+                Replication,
+                InputSubmissionDiagnostics,
+                () => _getContext());
             Assets = new BattleAssetLeaseOwner();
             Replay = new BattleReplayRuntime();
             Spectator = new SpectatorSessionRuntime();
@@ -186,13 +199,46 @@ namespace AbilityKit.Game.Flow
                 State,
                 Handles,
                 worldInstaller,
-                Presentation,
+                PresentationController,
                 Diagnostics);
             ReliableEvents = new ReliableBattleEventDeliveryRuntime();
             Recovery = new AuthoritativeStateRecoveryRuntime(
                 Replication,
                 ReliableEvents,
                 new BattleAuthoritativeWorldRecoveryPort(Simulation, Handles));
+        }
+
+        internal void ConfigureSimulationController(
+            Func<BattleStartPlan> getPlan,
+            Func<BattleContext> getContext,
+            Func<GameFlowDomain> getFlow,
+            Func<bool> hasLogicSession,
+            Func<float> getFixedDeltaSeconds,
+            Func<WorldId, int> resolveIdealFrameLimit,
+            Action<IEntity> destroyEntityTree)
+        {
+            if (Simulation == null)
+            {
+                throw new InvalidOperationException(
+                    "Battle session simulation must be configured before its controller.");
+            }
+            if (SimulationController != null)
+            {
+                throw new InvalidOperationException(
+                    "Battle session simulation controller has already been configured.");
+            }
+
+            SimulationController = new SessionSimulationController(
+                Simulation,
+                Diagnostics,
+                getPlan,
+                getContext,
+                getFlow,
+                hasLogicSession,
+                getFixedDeltaSeconds,
+                resolveIdealFrameLimit,
+                destroyEntityTree);
+            _getContext = getContext;
         }
 
         internal void ConfigureGatewayRoom(
@@ -225,11 +271,5 @@ namespace AbilityKit.Game.Flow
             Orchestrator = new SessionOrchestrator(State, Handles, host);
         }
 
-        internal void DisposeReplication()
-        {
-            Recovery?.Dispose();
-            Replication.Dispose();
-            InputSubmissionDiagnostics.Dispose();
-        }
     }
 }

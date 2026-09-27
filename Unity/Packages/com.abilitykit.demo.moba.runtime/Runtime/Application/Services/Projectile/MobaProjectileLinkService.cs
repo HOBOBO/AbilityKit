@@ -8,7 +8,6 @@ using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba.Services.Observability;
-using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
@@ -265,7 +264,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     projectileId,
                     actorId,
                     default,
-                    (int)TraceLifecycleReason.Failed);
+                    (int)MobaExecutionEndReason.Failed);
             }
         }
 
@@ -288,7 +287,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                         pair.Key,
                         pair.Value,
                         in source,
-                        (int)TraceLifecycleReason.Cancelled);
+                        (int)MobaExecutionEndReason.Cancelled);
                 }
             }
             ReleaseAllRetains();

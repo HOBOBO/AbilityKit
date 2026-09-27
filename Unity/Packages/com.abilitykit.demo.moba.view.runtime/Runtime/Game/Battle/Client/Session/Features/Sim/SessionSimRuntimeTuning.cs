@@ -26,12 +26,27 @@ namespace AbilityKit.Game.Flow
             return System.Math.Max(sessionFrame, System.Math.Max(confirmedFrame, predictedFrame));
         }
 
+        public static int ResolveInputObservedFrame(
+            int sessionFrame,
+            int confirmedFrame,
+            int predictedFrame,
+            in BattleStartPlan plan)
+        {
+            if (plan.HostMode != BattleHostMode.GatewayRemote ||
+                !plan.Gateway.UseGatewayTransport)
+            {
+                return sessionFrame;
+            }
+
+            return ResolveInputObservedFrame(sessionFrame, confirmedFrame, predictedFrame);
+        }
+
         public static int ResolveInputSubmitFrame(int lastObservedFrame, in BattleStartPlan plan)
         {
             if (plan.HostMode != BattleHostMode.GatewayRemote ||
                 !plan.Gateway.UseGatewayTransport)
             {
-                return lastObservedFrame + 1;
+                return lastObservedFrame;
             }
 
             var configuredDelay = NormalizeInputDelayFrames(plan.World.InputDelayFrames);

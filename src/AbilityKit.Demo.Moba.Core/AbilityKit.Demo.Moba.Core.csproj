@@ -42,7 +42,6 @@
     <ProjectReference Include="..\AbilityKit.Modifiers\AbilityKit.Modifiers.csproj" />
     <ProjectReference Include="..\AbilityKit.GameplayTags\AbilityKit.GameplayTags.csproj" />
     <ProjectReference Include="..\AbilityKit.Context\AbilityKit.Context.csproj" />
-    <ProjectReference Include="..\AbilityKit.Trace\AbilityKit.Trace.csproj" />
     <ProjectReference Include="..\AbilityKit.Attributes\AbilityKit.Attributes.csproj" />
     <ProjectReference Include="..\AbilityKit.Behavior\AbilityKit.Behavior.csproj" />
     <ProjectReference Include="..\AbilityKit.BehaviorTree\AbilityKit.BehaviorTree.csproj" />

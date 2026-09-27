@@ -44,7 +44,8 @@ namespace AbilityKit.Demo.Moba.Services
                 in originHandle,
                 in snapshotHandle);
 
-            return new MobaCombatExecutionContext(payload, lineageInput, origin, snapshot, handle, frame);
+            var facts = MobaCombatExecutionFacts.Resolve(payload);
+            return new MobaCombatExecutionContext(payload, lineageInput, origin, snapshot, handle, frame, facts);
         }
 
         public static MobaCombatExecutionContext WithSnapshot(
@@ -70,7 +71,8 @@ namespace AbilityKit.Demo.Moba.Services
                 executionContext.Origin,
                 snapshot,
                 handle,
-                frame != 0 ? frame : executionContext.Frame);
+                frame != 0 ? frame : executionContext.Frame,
+                executionContext.CombatFacts);
         }
 
         private static MobaSkillCastRuntimeHandle ResolveSkillRuntimeHandle(

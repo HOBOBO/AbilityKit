@@ -35,8 +35,12 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(runtime.SnapshotRouting, Is.SameAs(runtime.SnapshotRouting));
             Assert.That(runtime.Presentation, Is.Not.Null);
             Assert.That(runtime.Presentation, Is.SameAs(runtime.Presentation));
+            Assert.That(runtime.PresentationController, Is.Not.Null);
+            Assert.That(runtime.PresentationController, Is.SameAs(runtime.PresentationController));
             Assert.That(runtime.Replication, Is.Not.Null);
             Assert.That(runtime.Replication, Is.SameAs(runtime.Replication));
+            Assert.That(runtime.ReplicationController, Is.Not.Null);
+            Assert.That(runtime.ReplicationController, Is.SameAs(runtime.ReplicationController));
             Assert.That(runtime.Diagnostics, Is.Not.Null);
             Assert.That(runtime.Diagnostics, Is.SameAs(runtime.Diagnostics));
             Assert.That(runtime.Simulation, Is.Null);
@@ -190,7 +194,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var snapshot = diagnostics.Snapshot;
             Assert.That(snapshot.Generation, Is.EqualTo(2));
             Assert.That(snapshot.State, Is.EqualTo(SessionLifecycleDiagnosticState.Starting));
-            Assert.That(snapshot.LastStopLatency, Is.Zero);
+            Assert.That(snapshot.LastStopLatency, Is.EqualTo(TimeSpan.Zero));
             Assert.That(snapshot.HasTeardownFailure, Is.False);
         }
 
@@ -281,6 +285,28 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void BattleSessionRuntime_ConfiguresSimulationControllerOnceAfterSimulation()
+        {
+            var runtime = new BattleSessionRuntime();
+            Action configure = () => runtime.ConfigureSimulationController(
+                () => CreatePlan(),
+                () => null,
+                () => null,
+                () => false,
+                () => 1f / 30f,
+                _ => 1,
+                _ => { });
+
+            Assert.Throws<InvalidOperationException>(() => configure());
+
+            runtime.ConfigureSimulation(new TrackingSimulationInstaller());
+            configure();
+
+            Assert.That(runtime.SimulationController, Is.Not.Null);
+            Assert.Throws<InvalidOperationException>(() => configure());
+        }
+
+        [Test]
         public void SessionRuntimeResourcesPort_UsesCurrentAccessorsAndRuntimeHandles()
         {
             var runtime = new BattleSessionRuntime();
@@ -290,8 +316,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var initialContext = new BattleContext();
             var currentContext = new BattleContext();
             var fixedDeltaSeconds = 0.05f;
-            var port = new SessionRuntimeResourcesPort(
-                runtime,
+            runtime.ConfigureSimulationController(
                 () => plan,
                 () => currentContext,
                 () => null,
@@ -299,6 +324,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 () => fixedDeltaSeconds,
                 _ => 17,
                 _ => { });
+            var port = new SessionRuntimeResourcesPort(runtime);
             var world = CreateWorld(new TrackingProjectionProducer(), "remote");
             runtime.Handles.RemoteDriven.BindWorldRuntime(new RemoteDrivenWorldRuntime(
                 world.Id,
@@ -318,6 +344,86 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.That(runtime.Handles.RemoteDriven.World, Is.Null);
             Assert.That(runtime.Handles.RemoteDriven.Capabilities.OwnerWorld, Is.Null);
+        }
+
+        [Test]
+        public void SessionReplicationController_StopRecoveryReturnsOwnedTask()
+        {
+            var completion = new TaskCompletionSource<bool>();
+            var controller = new SessionReplicationController(
+                () => completion.Task,
+                () => { },
+                () => { },
+                () => { });
+
+            var stopTask = controller.StopRecoveryAsync();
+
+            Assert.That(stopTask, Is.SameAs(completion.Task));
+            Assert.That(stopTask.IsCompleted, Is.False);
+            completion.SetResult(true);
+            Assert.That(stopTask.IsCompleted, Is.True);
+        }
+
+        [Test]
+        public void SessionReplicationController_DisposesInOwnershipOrderAndRestoresInput()
+        {
+            var calls = new List<string>();
+            var context = new BattleContext { CanSubmitGameplayInput = false };
+            var controller = new SessionReplicationController(
+                () => Task.CompletedTask,
+                () => calls.Add("recovery"),
+                () => calls.Add("replication"),
+                () => calls.Add("input-diagnostics"),
+                () =>
+                {
+                    calls.Add("context");
+                    return context;
+                });
+
+            controller.Dispose();
+
+            Assert.That(calls, Is.EqualTo(new[]
+            {
+                "recovery",
+                "replication",
+                "input-diagnostics",
+                "context",
+            }));
+            Assert.That(context.CanSubmitGameplayInput, Is.True);
+        }
+
+        [Test]
+        public void SessionReplicationController_FailedStepRemainsRetryable()
+        {
+            var calls = new List<string>();
+            var failRecovery = true;
+            var context = new BattleContext { CanSubmitGameplayInput = false };
+            var controller = new SessionReplicationController(
+                () => Task.CompletedTask,
+                () =>
+                {
+                    calls.Add("recovery");
+                    if (failRecovery) throw new InvalidOperationException("recovery dispose failed");
+                },
+                () => calls.Add("replication"),
+                () => calls.Add("input-diagnostics"),
+                () => context);
+
+            Assert.Throws<InvalidOperationException>(() => controller.Dispose());
+            Assert.That(calls, Is.EqualTo(new[] { "recovery" }));
+            Assert.That(context.CanSubmitGameplayInput, Is.False);
+
+            failRecovery = false;
+            controller.Dispose();
+
+            Assert.That(calls, Is.EqualTo(new[]
+            {
+                "recovery",
+                "recovery",
+                "replication",
+                "input-diagnostics",
+            }));
+            Assert.That(context.CanSubmitGameplayInput, Is.True);
         }
 
         [Test]
@@ -495,22 +601,29 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var owner = new BattlePresentationSessionResources();
             var current = ConfirmedViewSideRuntimeFactory.Create(null, default, null);
+            var world = new AbilityKit.World.ECS.EntityWorld();
+            var root = world.Create("flow-root");
             SetPrivateField(owner, "_confirmedContext", current.Context);
             SetPrivateField(owner, "_confirmedSnapshotRuntime", current.SnapshotRuntime);
             SetPrivateField(owner, "_confirmedFeature", current.Feature);
+            try
+            {
+                owner.EnsureConfirmedViewInstalled(
+                    sourceContext: null,
+                    flow: new GameFlowDomain((IGameHost)null, root),
+                    authWorldId: default,
+                    enabled: true,
+                    destroyEntityTree: null);
 
-            owner.EnsureConfirmedViewInstalled(
-                sourceContext: null,
-                flow: new GameFlowDomain((IGameHost)null),
-                authWorldId: default,
-                enabled: true,
-                destroyEntityTree: null);
-
-            Assert.That(owner.ConfirmedContext, Is.SameAs(current.Context));
-            Assert.That(owner.ConfirmedSnapshots, Is.SameAs(current.SnapshotRuntime.Snapshots));
-            Assert.That(owner.ConfirmedFeature, Is.SameAs(current.Feature));
-
-            owner.DisposeConfirmedView(flow: null, destroyEntityTree: null);
+                Assert.That(owner.ConfirmedContext, Is.SameAs(current.Context));
+                Assert.That(owner.ConfirmedSnapshots, Is.SameAs(current.SnapshotRuntime.Snapshots));
+                Assert.That(owner.ConfirmedFeature, Is.SameAs(current.Feature));
+            }
+            finally
+            {
+                owner.DisposeConfirmedView(flow: null, destroyEntityTree: null);
+                if (root.IsValid) root.Destroy();
+            }
         }
 
         [Test]

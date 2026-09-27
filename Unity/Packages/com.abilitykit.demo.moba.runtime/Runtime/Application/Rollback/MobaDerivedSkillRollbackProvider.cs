@@ -7,6 +7,7 @@ using MemoryPack;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
+    [MobaRollbackProvider(DefaultKey)]
     public sealed class MobaDerivedSkillRollbackProvider : IRollbackStateProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10016;
@@ -36,10 +37,10 @@ namespace AbilityKit.Demo.Moba.Rollback
                     retain.RetainId,
                     retain.Runtime.RuntimeId,
                     retain.Runtime.Generation,
-                    retain.Runtime.RootTraceContextId,
+                    retain.Runtime.RootContextId,
                     (int)retain.Child.Kind,
                     retain.Child.ChildId,
-                    retain.Child.TraceContextId,
+                    retain.Child.ContextId,
                     retain.Child.ConfigId);
             }
             return MemoryPackSerializer.Serialize(new MobaDerivedSkillRollbackPayload(1, entries));
@@ -59,11 +60,11 @@ namespace AbilityKit.Demo.Moba.Rollback
             for (var i = 0; i < source.Length; i++)
             {
                 var value = source[i];
-                var parent = new MobaSkillCastRuntimeHandle(value.ParentRuntimeId, value.ParentGeneration, value.ParentTraceContextId);
+                var parent = new MobaSkillCastRuntimeHandle(value.ParentRuntimeId, value.ParentGeneration, value.ParentContextId);
                 var child = new MobaSkillRuntimeChildRef(
                     (MobaSkillRuntimeChildKind)value.ChildKind,
                     value.ChildRuntimeId,
-                    value.ChildTraceContextId,
+                    value.ChildContextId,
                     value.ChildConfigId);
                 var retain = new MobaSkillRuntimeRetainHandle(value.RetainId, in parent, in child);
                 entries[i] = new MobaDerivedSkillLinkSnapshot(value.ChildRuntimeId, retain, value.Depth);
@@ -98,20 +99,20 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(2)] public readonly long RetainId;
         [MemoryPackOrder(3)] public readonly long ParentRuntimeId;
         [MemoryPackOrder(4)] public readonly int ParentGeneration;
-        [MemoryPackOrder(5)] public readonly long ParentTraceContextId;
+        [MemoryPackOrder(5)] public readonly long ParentContextId;
         [MemoryPackOrder(6)] public readonly int ChildKind;
         [MemoryPackOrder(7)] public readonly long ChildId;
-        [MemoryPackOrder(8)] public readonly long ChildTraceContextId;
+        [MemoryPackOrder(8)] public readonly long ChildContextId;
         [MemoryPackOrder(9)] public readonly int ChildConfigId;
 
         public MobaDerivedSkillRollbackEntry(
             long childRuntimeId, int depth, long retainId,
-            long parentRuntimeId, int parentGeneration, long parentTraceContextId,
-            int childKind, long childId, long childTraceContextId, int childConfigId)
+            long parentRuntimeId, int parentGeneration, long parentContextId,
+            int childKind, long childId, long childContextId, int childConfigId)
         {
             ChildRuntimeId = childRuntimeId; Depth = depth; RetainId = retainId;
-            ParentRuntimeId = parentRuntimeId; ParentGeneration = parentGeneration; ParentTraceContextId = parentTraceContextId;
-            ChildKind = childKind; ChildId = childId; ChildTraceContextId = childTraceContextId; ChildConfigId = childConfigId;
+            ParentRuntimeId = parentRuntimeId; ParentGeneration = parentGeneration; ParentContextId = parentContextId;
+            ChildKind = childKind; ChildId = childId; ChildContextId = childContextId; ChildConfigId = childConfigId;
         }
     }
 }

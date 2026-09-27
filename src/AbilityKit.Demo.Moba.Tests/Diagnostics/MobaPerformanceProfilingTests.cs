@@ -158,24 +158,26 @@ public sealed class MobaPerformanceProfilingTests
         try
         {
             var trace = new MobaTraceRegistry();
+            using var contexts = new MobaExecutionContextRegistry();
             var diagnostics = new MobaBattleDiagnosticsService();
             var service = new MobaEffectExecutionService();
-            SetMember(service, "Trace", trace);
+            SetMember(service, "ExecutionContexts", contexts);
             SetMember(service, "_diagnostics", diagnostics);
+            trace.OnInit(new ContextOnlyResolver(contexts));
 
             var lineage = new MobaEffectLineageInput(
                 EffectContextKind.Skill,
-                MobaTraceKind.SkillEffect,
+                MobaExecutionKind.SkillEffect,
                 7,
                 9,
                 0L,
                 0L,
                 0L,
                 801);
-            InvokePrivate(service, "BeginEffectTraceScope", 801, 802, lineage);
+            InvokePrivate(service, "BeginEffectExecutionScope", 801, 802, lineage);
             service.EnterActionExecution(0, 901L);
             service.ExitActionExecution(0, 901L, true);
-            InvokePrivate(service, "EndCurrentTrace", (int)TraceLifecycleReason.Completed);
+            InvokePrivate(service, "EndCurrentExecutionScope", (int)MobaExecutionEndReason.Completed);
 
             var root = profiler.GetRoot().Roots["moba"];
             var effect = root.Children[MobaBattleDiagnosticMetric.EffectExecuteScope];
@@ -247,6 +249,32 @@ public sealed class MobaPerformanceProfilingTests
         public bool TryResolve<T>(out T instance)
         {
             if (_diagnostics is T resolved)
+            {
+                instance = resolved;
+                return true;
+            }
+
+            instance = default;
+            return false;
+        }
+    }
+
+    private sealed class ContextOnlyResolver : IWorldResolver
+    {
+        private readonly MobaExecutionContextRegistry _contexts;
+
+        public ContextOnlyResolver(MobaExecutionContextRegistry contexts) => _contexts = contexts;
+        public object Resolve(Type serviceType) =>
+            serviceType == typeof(MobaExecutionContextRegistry) ? _contexts : null;
+        public T Resolve<T>() => TryResolve<T>(out var instance) ? instance : default;
+        public bool TryResolve(Type serviceType, out object instance)
+        {
+            instance = Resolve(serviceType);
+            return instance != null;
+        }
+        public bool TryResolve<T>(out T instance)
+        {
+            if (_contexts is T resolved)
             {
                 instance = resolved;
                 return true;

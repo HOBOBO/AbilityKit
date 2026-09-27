@@ -3,6 +3,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Game.Flow;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Testing;
 using AbilityKit.Demo.Moba.View.Config;
@@ -13,6 +14,41 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class MobaProductionConfigReferenceValidationTests
     {
+        [Test]
+        public void LubanBrainBinaryResources_LoadProductionBrainCatalog()
+        {
+            var loader = new ResourcesTextAssetLoader();
+            Assert.That(loader.TryLoadBytes("luban/moba_bytes/brains.bytes", out var bytes), Is.True);
+            Assert.That(bytes, Is.Not.Empty);
+
+            var catalog = new MobaActorBrainCatalog();
+            try
+            {
+                Assert.That(MobaActorBrainCatalogJsonLoader.Load(loader, catalog), Is.EqualTo(3));
+                Assert.That(catalog.TryGet(100, out var brain), Is.True);
+                Assert.That(brain.DecisionName, Is.EqualTo("generic_hero_combat_bt"));
+            }
+            finally
+            {
+                catalog.Dispose();
+            }
+        }
+
+        [Test]
+        public void LubanBinaryResources_LoadAllProductionHeroes()
+        {
+            var loader = new ResourcesTextAssetLoader();
+            Assert.That(loader.TryLoadBytes("luban/moba_bytes/characters.bytes", out var bytes), Is.True);
+            Assert.That(bytes, Is.Not.Empty);
+
+            var database = new MobaConfigDatabase(textAssetLoader: loader);
+            new LubanGroupsMobaConfigLoadProfile(loader).Load(database);
+            for (var heroId = 1001; heroId <= 1006; heroId++)
+            {
+                Assert.That(database.GetCharacter(heroId), Is.Not.Null, $"hero {heroId}");
+            }
+        }
+
         private const string GatewayConfigPath =
             "Packages/com.abilitykit.demo.moba.view.runtime/Configs/BattleStart/BattleGatewayConfig.asset";
         private const string RemotePresetPath =

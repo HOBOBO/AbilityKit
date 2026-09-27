@@ -33,16 +33,21 @@ namespace AbilityKit.Demo.Moba.Services
                 ["skill.active"] = summary.ActiveSkillRuntimes,
                 ["skill.waiting"] = summary.WaitingSkillRuntimes,
                 ["skill.pending_children"] = summary.PendingSkillChildren,
-                ["trace.roots"] = summary.TraceRoots,
-                ["trace.active_roots"] = summary.ActiveTraceRoots,
-                ["trace.retained_roots"] = summary.RetainedTraceRoots,
-                ["trace.retained_ended_roots"] = summary.RetainedEndedTraceRoots,
-                ["trace.stale_retained_roots"] = summary.StaleRetainedTraceRoots,
+                ["optional.available"] = summary.OptionalHealth.IsAvailable ? 1d : 0d,
+                ["optional.warnings"] = summary.OptionalHealth.WarningCount,
+                ["optional.errors"] = summary.OptionalHealth.ErrorCount,
                 ["validation.errors"] = summary.ValidationErrors,
                 ["validation.warnings"] = summary.ValidationWarnings,
                 ["validation.infos"] = summary.ValidationInfos,
                 ["validation.blocks_startup"] = summary.ValidationBlocksStartup ? 1d : 0d,
             };
+
+            var optionalMetrics = summary.OptionalHealth.Metrics;
+            if (optionalMetrics != null)
+            {
+                foreach (var metric in optionalMetrics)
+                    metrics[metric.Key] = metric.Value;
+            }
 
             return new BattleHealthEntry(
                 MobaRuntimeHealthSummaryValidator.SourceName,
@@ -68,7 +73,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (summary.HasRuntimeErrors) return BattleHealthLevel.Unhealthy;
             if (summary.HasRuntimeWarnings) return BattleHealthLevel.Degraded;
-            if (!summary.HasSkillRuntime || !summary.HasTraceRegistry) return BattleHealthLevel.Unknown;
+            if (!summary.HasSkillRuntime) return BattleHealthLevel.Unknown;
             return BattleHealthLevel.Healthy;
         }
     }

@@ -66,27 +66,33 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
                 return;
             }
 
-            var trace = _sys.Trace;
-            if (trace == null)
+            var executionContexts = _sys.ExecutionContexts;
+            if (executionContexts == null)
             {
                 throw new InvalidOperationException(
-                    $"Scheduled projectile requires trace service. projectile={evt.Projectile} templateId={evt.TemplateId} launcherActorId={evt.LauncherActorId}");
+                    $"Scheduled projectile requires execution context service. projectile={evt.Projectile} templateId={evt.TemplateId} launcherActorId={evt.LauncherActorId}");
             }
 
             var sourceActorId = launcherSource.SourceActorId > 0
                 ? launcherSource.SourceActorId
                 : evt.OwnerId;
             var targetActorId = launcherSource.InitialTargetActorId;
-            var projectileContextId = trace.CreateChildContext(
-                launcherSource.SourceContextId,
-                MobaTraceKind.ProjectileLaunch,
+            var projectileNode = executionContexts.Create(new MobaExecutionContextCreateRequest(
+                MobaExecutionKind.ProjectileLaunch,
                 evt.TemplateId,
                 sourceActorId,
-                targetActorId);
+                targetActorId,
+                launcherSource.SourceContextId,
+                launcherSource.RootContextId,
+                launcherSource.OwnerContextId,
+                evt.Frame,
+                originKind: MobaExecutionKind.ProjectileLaunch,
+                originConfigId: launcherSource.ProjectileConfigId));
+            var projectileContextId = projectileNode.ContextId;
             if (projectileContextId == 0L)
             {
                 throw new InvalidOperationException(
-                    $"Scheduled projectile trace creation failed. projectile={evt.Projectile} templateId={evt.TemplateId} launcherActorId={evt.LauncherActorId} launcherContextId={launcherSource.SourceContextId}");
+                    $"Scheduled projectile context creation failed. projectile={evt.Projectile} templateId={evt.TemplateId} launcherActorId={evt.LauncherActorId} launcherContextId={launcherSource.SourceContextId}");
             }
 
             var projectileSource = launcherSource.WithLaunchContext(projectileContextId);
@@ -135,7 +141,8 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
                 OwnerNetId = ownerActorId,
                 X = evt.Position.X,
                 Y = evt.Position.Y,
-                Z = evt.Position.Z
+                Z = evt.Position.Z,
+                EntityVersion = _sys.Registry.GetEntityVersion(projectileActorId)
             });
 
             links.Link(evt.Projectile, projectileActorId);

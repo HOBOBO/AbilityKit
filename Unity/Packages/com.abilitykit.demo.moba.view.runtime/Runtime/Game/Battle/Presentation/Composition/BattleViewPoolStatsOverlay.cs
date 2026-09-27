@@ -1,11 +1,69 @@
 using System.Collections.Generic;
 using System.Text;
+using AbilityKit.Core.Pooling;
 using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Flow;
 using UnityEngine;
 
 namespace AbilityKit.Game.Battle.Hierarchy
 {
+    public readonly struct BattleViewPoolMetrics
+    {
+        public readonly int Active;
+        public readonly int Cached;
+        public readonly int PeakActive;
+        public readonly int Created;
+        public readonly int Destroyed;
+        public readonly int Failed;
+
+        public BattleViewPoolMetrics(int active, int cached, int peakActive, int created, int destroyed, int failed)
+        {
+            Active = active;
+            Cached = cached;
+            PeakActive = peakActive;
+            Created = created;
+            Destroyed = destroyed;
+            Failed = failed;
+        }
+    }
+
+    internal sealed class BattleViewPoolMetricsTracker
+    {
+        private int _created;
+        private int _destroyed;
+        private int _peakActive;
+        private int _failed;
+
+        public void RecordFailure() => _failed++;
+
+        public void ObserveActive(int active)
+        {
+            if (active > _peakActive) _peakActive = active;
+        }
+
+        public void RecordClear(IEnumerable<ObjectPool<GameObject>> pools, int leasedCount)
+        {
+            var snapshot = Capture(pools, leasedCount);
+            _created = snapshot.Created;
+            _destroyed = snapshot.Destroyed + snapshot.Cached + leasedCount;
+        }
+
+        public BattleViewPoolMetrics Capture(IEnumerable<ObjectPool<GameObject>> pools, int leasedCount)
+        {
+            var cached = 0;
+            var created = _created;
+            var destroyed = _destroyed;
+            foreach (var pool in pools)
+            {
+                PoolStats stats = pool.Stats;
+                cached += stats.InactiveCount;
+                created += stats.CreatedTotal;
+                destroyed += stats.CreatedTotal - stats.ActiveCount - stats.InactiveCount - stats.DroppedInactiveCount;
+            }
+            return new BattleViewPoolMetrics(leasedCount, cached, _peakActive, created, destroyed, _failed);
+        }
+    }
+
     /// <summary>
     /// MonoBehaviour that overlays pool usage statistics onto the
     /// <see cref="BattleViewHierarchyRoot"/> GameObject name.
@@ -13,7 +71,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
     /// When attached under <c>[Battle]</c>, this component collects per-pool
     /// counts from registered providers (<see cref="IPoolStatsProvider"/>)
     /// and rewrites the root's GameObject name to:
-    /// <c>[Battle] Pools(S:{shell_in}/{shell_active} V:{vfx_in}/{vfx_active} ...)</c>
+    /// <c>[Battle] S:active/cached^peak+created-destroyed!failed ...</c>
     /// so the inspector and editor view show live reuse statistics without
     /// expanding the tree.
     ///
@@ -69,11 +127,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
 
         private void OnEnable()
         {
-            _root = GetComponentInParent<BattleViewHierarchyRoot>();
-            if (_root != null)
-            {
-                _originalName = _root.gameObject.name;
-            }
+            ResolveRoot();
             // Guard against negative interval values: treat any negative as "refresh once".
             if (_refreshInterval < 0f)
             {
@@ -112,6 +166,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         /// </summary>
         public void RefreshNow()
         {
+            ResolveRoot();
             if (_root == null) return;
 
             var sb = new StringBuilder(128);
@@ -119,6 +174,13 @@ namespace AbilityKit.Game.Battle.Hierarchy
             sb.Append("  ");
             sb.Append(FormatStats());
             _root.gameObject.name = sb.ToString();
+        }
+
+        private void ResolveRoot()
+        {
+            if (_root != null) return;
+            _root = GetComponentInParent<BattleViewHierarchyRoot>();
+            if (_root != null) _originalName = _root.gameObject.name;
         }
 
         private string FormatStats()
@@ -143,14 +205,26 @@ namespace AbilityKit.Game.Battle.Hierarchy
     public interface IPoolStatsProvider
     {
         /// <summary>
-        /// Append a short token like <c>S:3/12</c> (in-pool / active) to the buffer.
+        /// Append one pool family's compact counters to the buffer.
         /// </summary>
         void AppendStats(StringBuilder sb);
     }
 
+    internal static class BattleViewPoolStatsFormatter
+    {
+        // active/cached, peak, created, destroyed, failed
+        public static void Append(StringBuilder sb, char kind, BattleViewPoolMetrics metrics)
+        {
+            sb.Append(kind).Append(':').Append(metrics.Active).Append('/')
+                .Append(metrics.Cached).Append('^').Append(metrics.PeakActive)
+                .Append('+').Append(metrics.Created).Append('-').Append(metrics.Destroyed)
+                .Append('!').Append(metrics.Failed);
+        }
+    }
+
     /// <summary>
     /// Adapter that wraps a <see cref="BattleViewShellPool"/> as an
-    /// <see cref="IPoolStatsProvider"/>. Logs <c>S:in/active</c>.
+    /// <see cref="IPoolStatsProvider"/>.
     /// </summary>
     public sealed class BattleViewShellPoolStatsProvider : IPoolStatsProvider
     {
@@ -159,13 +233,12 @@ namespace AbilityKit.Game.Battle.Hierarchy
         public void AppendStats(StringBuilder sb)
         {
             if (_pool == null) return;
-            var stats = _pool.DebugStats;
-            sb.Append("S:").Append(stats.TotalInPool).Append('/').Append(stats.TotalActive);
+            BattleViewPoolStatsFormatter.Append(sb, 'S', _pool.Metrics);
         }
     }
 
     /// <summary>
-    /// Adapter for <see cref="BattleVfxGameObjectPool"/> — logs <c>V:in/active</c>.
+    /// Adapter for <see cref="BattleVfxGameObjectPool"/>.
     /// </summary>
     public sealed class BattleVfxPoolStatsProvider : IPoolStatsProvider
     {
@@ -174,13 +247,12 @@ namespace AbilityKit.Game.Battle.Hierarchy
         public void AppendStats(StringBuilder sb)
         {
             if (_pool == null) return;
-            var stats = _pool.DebugStats;
-            sb.Append("V:").Append(stats.InPool).Append('/').Append(stats.Active);
+            BattleViewPoolStatsFormatter.Append(sb, 'V', _pool.Metrics);
         }
     }
 
     /// <summary>
-    /// Adapter for <see cref="BattleAreaVfxPool"/> — logs <c>A:in/active</c>.
+    /// Adapter for <see cref="BattleAreaVfxPool"/>.
     /// </summary>
     public sealed class BattleAreaVfxPoolStatsProvider : IPoolStatsProvider
     {
@@ -189,13 +261,12 @@ namespace AbilityKit.Game.Battle.Hierarchy
         public void AppendStats(StringBuilder sb)
         {
             if (_pool == null) return;
-            var stats = _pool.DebugStats;
-            sb.Append("A:").Append(stats.TotalInPool).Append('/').Append(stats.TotalActive);
+            BattleViewPoolStatsFormatter.Append(sb, 'A', _pool.Metrics);
         }
     }
 
     /// <summary>
-    /// Adapter for <see cref="BattleProjectileShellPool"/> — logs <c>P:in/active</c>.
+    /// Adapter for <see cref="BattleProjectileShellPool"/>.
     /// </summary>
     public sealed class BattleProjectilePoolStatsProvider : IPoolStatsProvider
     {
@@ -204,8 +275,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         public void AppendStats(StringBuilder sb)
         {
             if (_pool == null) return;
-            var stats = _pool.DebugStats;
-            sb.Append("P:").Append(stats.TotalInPool).Append('/').Append(stats.TotalActive);
+            BattleViewPoolStatsFormatter.Append(sb, 'P', _pool.Metrics);
         }
     }
 }

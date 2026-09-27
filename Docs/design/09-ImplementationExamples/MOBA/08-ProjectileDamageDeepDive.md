@@ -133,7 +133,7 @@ classDiagram
     MobaProjectileLinkService --> ProjectileActor
 ```
 
-如果 launcher Actor 已创建但 emitter sequence 不存在、启动失败或启动过程抛出异常，事务会回滚 launcher link、trace 和 Actor。正常 despawn cleanup 可以先读取 source、结束 trace、消费 retain 并 `ReleaseChild`；`UnlinkLauncher` 自身也会消费并释放仍未被取走的 retain，作为异常/直接清理的所有权兜底。`TryConsumeLauncherRetain` 只清空 retain 字段，不提前丢弃 source，保证 trace 清理仍有归因数据。调用返回成功只表示序列已启动，不表示所有 projectile 已完成、命中或造成伤害。
+如果 launcher Actor 已创建但 emitter sequence 不存在、启动失败或启动过程抛出异常，事务会回滚 launcher link、正式 Execution Context 和 Actor。正常 despawn cleanup 可以先读取 source、结束正式 Context、消费 retain 并 `ReleaseChild`；`UnlinkLauncher` 自身也会消费并释放仍未被取走的 retain，作为异常/直接清理的所有权兜底。`TryConsumeLauncherRetain` 只清空 retain 字段，不提前丢弃 source，保证 Context 收尾仍有归因数据；Trace Adapter 若安装则跟随 `Ended` 事件清理投影。调用返回成功只表示序列已启动，不表示所有 projectile 已完成、命中或造成伤害。
 
 ## 5. 来源上下文与技能运行时保留
 
@@ -273,7 +273,7 @@ snapshot emitter 只在 `InGame` 阶段工作，同一帧最多导出一次；�
 | 请求或依赖无效 | 返回失败并记录 warning，创建前终止 |
 | launcher spawn 失败 | 返回带 error 的结果 |
 | sequence 创建/启动失败或抛异常 | 请求 launcher despawn |
-| launcher despawn | 结束 trace -> 消费并释放 `ProjectileLauncher` retain -> unlink launcher record |
+| launcher despawn | 结束正式 Execution Context -> 消费并释放 `ProjectileLauncher` retain -> unlink launcher record；Trace observer 可选跟随 |
 | projectile 退出 | 下游系统应 unlink Actor、source 和 `Projectile` retain |
 | damage target 缺失 | pipeline 记录 `moba.damage.targetMissing` |
 | damage 成功或被归零 | 均返回 `DamageResult`，Value 为实际应用值 |

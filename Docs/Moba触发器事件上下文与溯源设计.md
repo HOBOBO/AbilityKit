@@ -6,7 +6,7 @@
 
 - 伤害管线通过 `AttackInfo`、`AttackCalcInfo`、`DamageResult` 作为强类型事件参数派发不同阶段事件。
 - 触发器系统通过事件 payload 执行配置化 Trigger Plan。
-- 效果执行服务会为每次效果执行创建 trace 节点，用于记录效果链路。
+- 效果执行服务会为每次效果执行创建正式 Execution Context；可选 Trace Adapter 用于投影效果链路。
 - 技能释放已经引入 `MobaSkillCastRuntime`，用于管理一次技能释放的聚合生命周期和技能作用域黑板。
 - Buff 等持续对象已经开始保存 `SourceContextId`、`SkillRuntimeHandle` 等运行时来源信息。
 
@@ -41,7 +41,7 @@
 - 完整 trace 树结构。
 - 任意自定义运行时参数。
 
-这些职责应分别交给 trace、技能运行时黑板、派生对象运行时和触发器执行上下文。
+这些职责应分别交给正式 Execution Context、技能运行时黑板、派生对象运行时和触发器执行上下文；Trace 只提供可选诊断投影。
 
 ## 3. 概念分层
 
@@ -91,17 +91,17 @@
 
 职责：
 
-- 为本次效果执行创建 trace 节点。
-- 提供当前 Action 执行时的 trace scope。
+- 为本次效果执行创建正式 Execution Context 节点。
+- 提供当前 Action 执行时的 execution scope。
 - 从 trigger payload 中提取父来源。
 - 将本次效果执行作为后续事件或派生对象的直接来源。
 
 当前 `MobaEffectExecutionService` 已经具备这个方向：
 
-- 能从 payload 提取 trace 输入。
-- 能创建 root 或 child trace context。
-- 能记录 Action 子节点。
-- 能暴露当前 trace scope 给 Action 使用。
+- 能从 payload 提取 lineage 与正式 Context 输入。
+- 能通过 `MobaExecutionContextRegistry` 创建 root 或 child Execution Context。
+- 能记录正式 Action 子节点，并由可选 Trace Adapter 投影。
+- 能暴露当前 execution scope 给 Action 使用。
 
 后续需要补强的是：优先从统一来源模型提取，而不是从多个散落接口和字段推断。
 
@@ -111,8 +111,8 @@
 
 职责：
 
-- 记录技能、效果、Action、Buff、子弹、区域、召唤物、伤害等上下文之间的父子关系。
-- 支持调试、回放、战斗日志、归因、问题定位。
+- 观察正式 Context 已提交的技能、效果、Action、Buff、子弹、区域、召唤物和伤害父子关系。
+- 支持调试、回放、战斗日志、归因、问题定位，但不参与业务执行或恢复决策。
 - 提供完整来源查询能力。
 
 不负责：
@@ -166,7 +166,7 @@
 ```mermaid
 flowchart TD
     A[Skill Cast] --> B[SkillCastRuntime]
-    A --> C[Root Trace]
+    A --> C[Root Execution Context]
     C --> D[Effect Execution]
     D --> E[Action]
     E --> F[AttackInfo Event]
@@ -220,8 +220,8 @@ flowchart TD
 - `TargetActorId`：当前主要目标。
 - `ImmediateKind`：当前事件的直接来源类型。
 - `ImmediateConfigId`：当前直接来源的配置 ID。
-- `ImmediateContextId`：当前直接来源的 trace/runtime context ID。
-- `ParentContextId`：后续创建 trace 子节点时的父 context。
+- `ImmediateContextId`：当前直接来源的 execution context ID。
+- `ParentContextId`：后续创建正式 Context 子节点时的父 context。
 - `RootContextId`：整条来源链的根 context。
 - `OwnerContextId`：当前持续对象或监听器的归属 context。
 - `SkillRuntimeHandle`：所属技能释放聚合句柄。
@@ -232,7 +232,7 @@ flowchart TD
 | 字段                   | 解决的问题            |
 | -------------------- | ---------------- |
 | `ImmediateContextId` | 当前事件直接由谁触发       |
-| `ParentContextId`    | 后续 trace 挂到哪里    |
+| `ParentContextId`    | 后续 Execution Context 挂到哪里 |
 | `RootContextId`      | 最早主线来源是谁         |
 | `OwnerContextId`     | 当前事件属于哪个持续对象或监听器 |
 | `SkillRuntimeHandle` | 如何回到本次技能释放聚合和黑板  |
@@ -242,12 +242,12 @@ flowchart TD
 
 每次从旧事件生成新事件或派生对象时，必须遵守以下规则：
 
-1. 新事件的 `ParentContextId` 应指向当前正在执行的效果 trace context。
+1. 新事件的 `ParentContextId` 应指向当前正在执行的效果 execution context。
 2. 新事件的 `ImmediateContextId` 应指向直接创建它的行为 context。
 3. `RootContextId` 默认从父来源继承。
 4. `SkillRuntimeHandle` 默认从父来源继承。
 5. 如果新事件来自一个持续对象，例如 Buff tick，则 `OwnerContextId` 应指向该 Buff 的 source context。
-6. 如果没有父来源，则创建 root trace，并以当前效果作为 root。
+6. 如果没有父来源，则在 `MobaExecutionContextRegistry` 创建 root Context，并以当前效果作为 root。
 
 ### 5.4 接口设计
 
@@ -260,12 +260,17 @@ public interface IMobaOriginContextProvider
 }
 ```
 
-已有接口继续保留：
+正式链路接口为：
 
 ```csharp
-public interface IMobaTriggerTraceContextProvider
+public interface IMobaTriggerLineageContextProvider
 {
-    bool TryGetTraceContext(out MobaTriggerTraceContext traceContext);
+    bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext);
+}
+
+public interface IMobaContextSourceProvider
+{
+    bool TryGetContextSource(out MobaContextSourceView source);
 }
 
 public interface IMobaTriggerSkillRuntimeContext
@@ -277,9 +282,9 @@ public interface IMobaTriggerSkillRuntimeContext
 推荐关系：
 
 1. `IMobaOriginContextProvider` 是更高层、更统一的来源入口。
-2. `IMobaTriggerTraceContextProvider` 是 trace 输入兼容层。
+2. `IMobaTriggerLineageContextProvider` 与 `IMobaContextSourceProvider` 传播正式 execution context identity，不再经过 Trace 兼容层。
 3. `IMobaTriggerSkillRuntimeContext` 是访问技能运行时的快捷接口。
-4. `MobaGameplayOrigin` 可以派生出 `MobaTriggerTraceContext`。
+4. `MobaGameplayOrigin` 可以派生出 `MobaTriggerLineageContext` 或 `MobaContextSourceView`；Trace Adapter 只观察已提交的 Context 生命周期。
 
 ## 6. AttackInfo 应如何调整
 
@@ -290,7 +295,7 @@ public interface IMobaTriggerSkillRuntimeContext
 ```csharp
 public object OriginSource;
 public object OriginTarget;
-public MobaTraceKind OriginKind;
+public MobaExecutionKind OriginKind;
 public int OriginConfigId;
 public long OriginContextId;
 ```
@@ -331,17 +336,17 @@ public sealed class AttackInfo : IMobaOriginContextProvider
 当某个 Trigger Plan 消费 `AttackInfo` 后执行 `GiveDamage`：
 
 1. 从当前 payload 读取 `MobaGameplayOrigin`。
-2. 从当前 `MobaEffectExecutionService` 读取当前 trace scope。
+2. 从当前 `MobaEffectExecutionService` 读取当前 execution scope。
 3. 构建新的 `MobaGameplayOrigin`。
 4. 新的 `ImmediateKind` 设置为 `EffectExecution` 或具体 Action 类型。
-5. 新的 `ParentContextId` 设置为当前效果 trace context。
+5. 新的 `ParentContextId` 设置为当前正式效果 Execution Context。
 6. `RootContextId` 和 `SkillRuntimeHandle` 从旧 origin 继承。
 7. 创建新的 `AttackInfo` 并派发。
 
 当某个 Trigger Plan 执行 `AddBuff`：
 
 1. 从当前 payload 读取 `MobaGameplayOrigin`。
-2. 从当前效果 trace scope 创建 Buff 来源 context。
+2. 从当前效果 execution scope 创建 Buff 来源 context。
 3. Buff runtime 保存 `SourceContextId`。
 4. Buff runtime 保存 `SkillRuntimeHandle`。
 5. Buff 存活时 retain 技能运行时。
@@ -350,8 +355,8 @@ public sealed class AttackInfo : IMobaOriginContextProvider
 当某个 Buff tick 造成伤害：
 
 1. Buff trigger context 提供 origin。
-2. `MobaEffectExecutionService` 根据 origin 创建 child trace。
-3. `GiveDamage` 根据当前 trace scope 创建新的 `AttackInfo`。
+2. `MobaEffectExecutionService` 根据 origin 创建 child Execution Context。
+3. `GiveDamage` 根据当前 execution scope 创建新的 `AttackInfo`。
 4. 新伤害的直接来源是本次 Buff tick effect。
 5. 新伤害的 owner/root/skill runtime 仍能追溯到原技能。
 
@@ -372,7 +377,7 @@ public sealed class AttackInfo : IMobaOriginContextProvider
 
 - 事件参数保持干净。
 - 循环保护有技能作用域状态。
-- trace 树仍能完整看到反伤链路。
+- 正式 Context 保留反伤来源链；Trace Adapter 启用时能完整投影该链路。
 - 调试时能知道反伤来自哪个 Buff、Buff 来自哪个技能。
 
 ## 9. 当前实现映射
@@ -382,25 +387,25 @@ public sealed class AttackInfo : IMobaOriginContextProvider
 | ---------------------------- | ---------------------------------------- | ------------------------------------------- |
 | `AttackInfo`                 | 伤害事件参数，带散落 origin 字段                     | 改为携带 `MobaGameplayOrigin`                   |
 | `DamageResult`               | 伤害结果事件参数，复制 origin 字段                    | 改为携带 `MobaGameplayOrigin`                   |
-| `GiveDamagePlanActionModule` | 从当前 trace scope 手写 origin                | 改为通过 origin resolver 创建新 origin             |
+| `GiveDamagePlanActionModule` | 从当前 execution scope 手写 origin            | 改为通过 origin resolver 创建新 origin             |
 | `TakeDamagePlanActionModule` | 从旧伤害 payload 手写复制 origin                 | 改为通过 `IMobaOriginContextProvider` 继承 origin |
 | `BuffOriginContext`          | Buff 来源上下文，带 skill runtime handle        | 内含或适配 `MobaGameplayOrigin`                  |
-| `BuffTriggerContext`         | Buff 触发时提供 trace 和 runtime handle        | 增加 `IMobaOriginContextProvider`             |
-| `MobaEffectExecutionService` | 从 payload 提取 trace input 并创建 trace scope | 优先从 `MobaGameplayOrigin` 提取                 |
+| `BuffTriggerContext`         | Buff 触发时提供 execution context identity 和 runtime handle | 增加 `IMobaOriginContextProvider`             |
+| `MobaEffectExecutionService` | 从 payload 提取 lineage 并创建 execution scope | 优先从 `MobaGameplayOrigin` 提取                 |
 | `MobaSkillCastRuntime`       | 技能聚合生命周期和黑板                              | 保持现有方向                                      |
 
 
 ## 10. 推荐落地顺序
 
 1. 新增 `MobaGameplayOrigin` 值对象和 `IMobaOriginContextProvider`。
-2. 新增 `MobaGameplayOriginFactory` 或 `MobaGameplayOriginResolver`，统一从 payload、trace scope、actor id 构建来源。
+2. 新增 `MobaGameplayOriginFactory` 或 `MobaGameplayOriginResolver`，统一从 payload、execution scope、actor id 构建来源。
 3. 让 `AttackInfo`、`AttackCalcInfo`、`DamageResult` 支持 typed origin。
 4. 暂时保留旧 origin 字段作为兼容桥接，但新代码只写 typed origin。
 5. 让 `BuffOriginContext` 内含或转换为 `MobaGameplayOrigin`。
 6. 让 `BuffTriggerContext` 实现 `IMobaOriginContextProvider`。
 7. 改造 `GiveDamagePlanActionModule`。
 8. 改造 `TakeDamagePlanActionModule`。
-9. 改造 `MobaEffectExecutionService.ExtractTraceInputFromPayload`，优先读取 `IMobaOriginContextProvider`。
+9. 由 `MobaCanonicalProvenance` 和 Context resolver 优先读取 `IMobaOriginContextProvider`，拒绝非缺失 identity 冲突。
 10. 扩展 Projectile、Area、Summon、Periodic tick 的 origin 传递。
 11. 增加反伤 loop guard 的黑板使用规范。
 12. 更新现有设计文档并执行构建验证。
@@ -409,7 +414,7 @@ public sealed class AttackInfo : IMobaOriginContextProvider
 
 1. 事件参数只表达事件事实，不承载运行时管理职责。
 2. 来源模型统一，不允许每个 payload 自己发明来源字段。
-3. trace 负责链路，runtime 负责生命周期和黑板。
+3. `MobaExecutionContextRegistry` 负责正式执行链和 Context 生命周期，领域 runtime 负责自身生命周期和黑板，Trace Adapter 负责可选投影。
 4. 派生对象保存来源引用，不复制完整链路。
 5. 触发器 Action 创建新事件或对象时，必须通过统一 origin resolver。
 6. 任何可跨帧存在的对象，都必须有 owner/source context 和 skill runtime handle。
@@ -421,7 +426,7 @@ public sealed class AttackInfo : IMobaOriginContextProvider
 
 ```mermaid
 flowchart TD
-    A[Skill Runtime] --> B[Root Trace]
+    A[Skill Runtime] --> B[Root Execution Context]
     B --> C[Effect A]
     C --> D[AttackInfo A]
     D --> E[Damage Trigger]
@@ -445,6 +450,6 @@ flowchart TD
 - 当前反伤是否来自某条已处理过的链路。
 - 某次技能释放期间命中过哪些目标。
 - 某个派生对象为什么仍然让技能运行时存活。
-- trace 树上每个来源节点如何串联。
+- 正式 Context 上每个来源节点如何串联，以及可选 Trace 是否正确投影。
 
 这才是大型复杂技能系统中比较稳的上下文与溯源规划方式。

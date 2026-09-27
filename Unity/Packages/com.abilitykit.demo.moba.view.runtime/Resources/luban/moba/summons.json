@@ -1,0 +1,19 @@
+[
+  {
+    "Id": 1,
+    "AttrScales": [],
+    "AttributeTemplateId": 1001,
+    "DefaultComponentTemplateIds": [],
+    "DespawnOnOwnerDie": true,
+    "LifetimeMs": 60000,
+    "MaxAlivePerOwner": 10,
+    "ModelId": 1001,
+    "Name": "小兵",
+    "OverflowPolicy": 0,
+    "PassiveSkillIds": [],
+    "SkillIds": [],
+    "StatsMode": 0,
+    "Tags": [],
+    "UnitSubType": 1
+  }
+]

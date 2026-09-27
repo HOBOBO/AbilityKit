@@ -8,6 +8,7 @@
   "referencedMemoryPackTypes": [
     "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomSnapshot",
     "AbilityKit.Protocol.Moba.SkillInputEvent",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotPayload",
@@ -27,6 +28,8 @@
     "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomPlayerSnapshot",
     "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomSnapshot",
     "AbilityKit.Protocol.Moba.SkillInputEvent",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActionAckEntry",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotEntry",
@@ -68,6 +71,8 @@
     {
       "groupId": "state-sync",
       "generatedTypes": [
+        "AbilityKit.Protocol.Moba.StateSync.MobaActionAckEntry",
+        "AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload",
         "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotEntry",
         "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload",
         "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotEntry",
@@ -96,6 +101,8 @@
   ],
   "missingWireSchemaTypes": [],
   "generatedFiles": [
+    "MobaActionAckEntry.MemoryPack.g.cs",
+    "MobaActionAckPayload.MemoryPack.g.cs",
     "MobaActorDespawnSnapshotEntry.MemoryPack.g.cs",
     "MobaActorDespawnSnapshotPayload.MemoryPack.g.cs",
     "MobaActorSpawnSnapshotEntry.MemoryPack.g.cs",

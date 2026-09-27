@@ -3,6 +3,7 @@ using System.Reflection;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Context;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Observability;
 using AbilityKit.Trace;
 using NUnit.Framework;
 
@@ -23,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 service.EnterActionExecution(0, 301);
                 var id = service.CurrentActionChain[0];
                 var entry = Reference(trace, id);
-                if (aborted) Invoke(service, "EndCurrentTrace", (int)TraceLifecycleReason.Failed);
+                if (aborted) Invoke(service, "EndCurrentExecutionScope", (int)MobaExecutionEndReason.Failed);
                 else service.ExitActionExecution(0, 301, succeeded);
                 var facts = store.Read(Reference(trace, id));
                 Assert.That(facts.IsCaptured, Is.True);
@@ -53,7 +54,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 service.EnterActionExecution(1, 302);
                 var inner = service.CurrentActionChain[0];
                 service.ExitActionExecution(1, 302, false);
-                Invoke(service, "EndCurrentTrace", (int)TraceLifecycleReason.Completed);
+                Invoke(service, "EndCurrentExecutionScope", (int)MobaExecutionEndReason.Completed);
                 service.ExitActionExecution(0, 301, true);
                 Assert.That(store.Read(Reference(trace, outer)).Outcome, Is.EqualTo(BattleDiagnosticActionOutcome.Completed));
                 Assert.That(store.Read(Reference(trace, inner)).Outcome, Is.EqualTo(BattleDiagnosticActionOutcome.Failed));
@@ -71,27 +72,31 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 Assert.DoesNotThrow(() => service.EnterActionExecution(0, 301));
                 Assert.DoesNotThrow(() => service.ExitActionExecution(0, 301, true));
                 Assert.DoesNotThrow(() => service.EnterActionExecution(1, 302));
-                Assert.DoesNotThrow(() => Invoke(service, "EndCurrentTrace", (int)TraceLifecycleReason.Failed));
+                Assert.DoesNotThrow(() => Invoke(service, "EndCurrentExecutionScope", (int)MobaExecutionEndReason.Failed));
                 Assert.That(hook.Starts, Is.EqualTo(2));
                 Assert.That(hook.Ends, Is.EqualTo(2));
             }
         }
 
-        private static MobaEffectExecutionService Service(MobaTraceRegistry trace, IMobaActionExecutionSnapshotHook hook)
+        private static MobaEffectExecutionService Service(MobaTraceRegistry trace, IMobaActionExecutionHook hook)
         {
             var service = new MobaEffectExecutionService();
-            typeof(MobaEffectExecutionService).GetProperty("Trace").SetValue(service, trace);
+            var contexts = new MobaExecutionContextRegistry();
+            trace.AttachExecutionContexts(contexts);
+            typeof(MobaEffectExecutionService)
+                .GetProperty("ExecutionContexts", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(service, contexts);
             var time = new FrameTime();
             time.Reset(new FrameIndex(10), 0f, 0.02f);
             typeof(MobaEffectExecutionService).GetField("_frameTime", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(service, time);
-            typeof(MobaEffectExecutionService).GetField("_actionSnapshotHook", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(service, hook);
+            typeof(MobaEffectExecutionService).GetField("_actionExecutionHook", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(service, hook);
             return service;
         }
         private static void BeginEffect(MobaEffectExecutionService service, long parent = 0)
         {
-            var lineage = new MobaEffectLineageInput(EffectContextKind.Skill, MobaTraceKind.SkillEffect,
+            var lineage = new MobaEffectLineageInput(EffectContextKind.Skill, MobaExecutionKind.SkillEffect,
                 7, 9, parent, 0, 0, 101);
-            Invoke(service, "BeginEffectTraceScope", 101, 201, lineage);
+            Invoke(service, "BeginEffectExecutionScope", 101, 201, lineage);
         }
         private static void Invoke(object target, string name, params object[] args) =>
             target.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(target, args);
@@ -100,14 +105,17 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(trace.TryGetNodeSnapshot(id, out var node), Is.True);
             return ((MobaTraceMetadata)node.Metadata).ActionSnapshot;
         }
-        private sealed class ThrowingHook : IMobaActionExecutionSnapshotHook
+        private sealed class ThrowingHook : IMobaActionExecutionHook
         {
             public int Starts;
             public int Ends;
-            public void OnActionStarted(long contextId, int actionIndex, long actionId, long sourceActorId, long targetActorId, int frame)
-            { Starts++; throw new InvalidOperationException("observation failure"); }
-            public void OnActionEnded(long contextId, int actionIndex, long actionId, bool succeeded, bool aborted, int frame)
-            { Ends++; throw new InvalidOperationException("observation failure"); }
+            public bool IsEnabled => true;
+            public void OnObserved(in MobaActionExecutionObservation observation)
+            {
+                if (observation.Stage == MobaActionExecutionObservationStage.Started) Starts++;
+                else Ends++;
+                throw new InvalidOperationException("observation failure");
+            }
         }
     }
 }

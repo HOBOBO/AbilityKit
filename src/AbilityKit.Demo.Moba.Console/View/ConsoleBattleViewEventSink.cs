@@ -48,34 +48,31 @@ namespace AbilityKit.Demo.Moba.Console.View
             _battleView.UpdateActorPosition(actorId, x, y, z);
         }
 
-        protected override void OnProjectileEvent(
-            int projectileId, int ownerId, ProjectileEventKind kind,
-            int targetId, float x, float y, float z,
-            float startX, float startY, float startZ)
+        protected override void OnProjectileEvent(in ProjectileEventData data)
         {
-            switch (kind)
+            switch (data.Kind)
             {
-                case ProjectileEventKind.Spawn:
-                    _battleView.ShowProjectileSpawn(projectileId, 0, x, y, z);
+                case ProjectilePresentationEventKind.Spawn:
+                    _battleView.ShowProjectileSpawn(data.ProjectileActorId, data.TemplateId, data.X, data.Y, data.Z);
                     break;
-                case ProjectileEventKind.Hit:
-                    _battleView.ShowProjectileHit(0, x, y, z);
+                case ProjectilePresentationEventKind.Hit:
+                    _battleView.ShowProjectileHit(data.TemplateId, data.X, data.Y, data.Z);
                     break;
-                case ProjectileEventKind.Destroy:
-                    _battleView.ShowProjectileExpire(projectileId);
+                case ProjectilePresentationEventKind.Exit:
+                    _battleView.ShowProjectileExpire(data.ProjectileActorId);
                     break;
             }
         }
 
-        protected override void OnAreaEvent(int areaId, AreaEventKind kind, float x, float y, float z, float radius)
+        protected override void OnAreaEvent(in AbilityKit.Demo.Moba.Share.AreaEventData data)
         {
-            switch (kind)
+            switch (data.Kind)
             {
-                case AreaEventKind.Appear:
-                    _battleView.ShowAreaEffectStart(areaId, 0, x, z, radius);
+                case AreaPresentationEventKind.Spawn:
+                    _battleView.ShowAreaEffectStart(data.AreaId, data.TemplateId, data.X, data.Z, data.Radius);
                     break;
-                case AreaEventKind.Disappear:
-                    _battleView.ShowAreaEffectEnd(areaId);
+                case AreaPresentationEventKind.Expire:
+                    _battleView.ShowAreaEffectEnd(data.AreaId);
                     break;
             }
         }

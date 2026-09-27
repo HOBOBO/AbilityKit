@@ -24,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         private readonly string _lubanResourcesDir;
         private readonly string _triggerPlansDir;
 
-        public ConsoleConfigModule(string resourcesDir = "moba", string lubanResourcesDir = "luban/moba", string triggerPlansDir = "ability/triggers")
+        public ConsoleConfigModule(string resourcesDir = "luban/moba", string lubanResourcesDir = "luban/moba", string triggerPlansDir = "luban/ability/triggers")
         {
             _resourcesDir = resourcesDir;
             _lubanResourcesDir = lubanResourcesDir;
@@ -68,7 +68,9 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 var db = new AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase(registry, deserializer, null, textAssetLoader);
                 try
                 {
-                    db.LoadFromResources(_resourcesDir, strict: true);
+                    db.LoadFromGroups(MobaLubanConfigGroups.Create(
+                        textAssetLoader,
+                        MobaRuntimeConfigTableRegistry.Tables.Select(table => table.FilePath).ToArray()));
                 }
                 catch (Exception ex)
                 {
@@ -91,7 +93,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 {
                     var adapter = new TextAssetLoaderAdapter(textAssetLoader);
                     var directoryLoader = new TriggerPlanDirectoryLoader(adapter);
-                    var directories = new[] { _triggerPlansDir, "ability/rules" }
+                    var directories = new[] { _triggerPlansDir, "luban/ability/rules" }
                         .Where(d => !string.IsNullOrEmpty(d))
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToArray();

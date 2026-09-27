@@ -34,6 +34,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
         private IMobaBattleDiagnosticsService _diagnostics;
         private IMobaBattleDiagnosticEventSink _eventCollector;
         private IFrameTime _frameTime;
+        private MobaExecutionContextRegistry _executionContexts;
 
         private readonly List<AreaSpawnEvent> _spawns = new List<AreaSpawnEvent>(32);
         private readonly List<AreaEnterEvent> _enters = new List<AreaEnterEvent>(64);
@@ -57,6 +58,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             Services.TryResolve(out _diagnostics);
             Services.TryResolve(out _eventCollector);
             Services.TryResolve(out _frameTime);
+            Services.TryResolve(out _executionContexts);
         }
 
         protected override void OnExecute()
@@ -74,7 +76,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 var evt = _spawns[i];
                 var info = RequireAreaInfo(evt.Area);
                 WarnAreaSync("publish.spawn", $"areaId={evt.Area.Value} templateId={info.TemplateId} owner={evt.OwnerId} frame={evt.Frame} sourceContextId={info.SourceContextId} rootContextId={info.RootContextId}");
-                PublishAreaEvent("area.spawn", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaSpawn, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: evt.Center, radius: evt.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
+                PublishAreaEvent("area.spawn", evt.Area.Value, info.TemplateId, MobaExecutionKind.AreaSpawn, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: evt.Center, radius: evt.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
                 CollectAreaSpawned(in info);
             }
 
@@ -94,7 +96,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 if (hitActorId <= 0 || hitActorId == evt.OwnerId) continue;
                 var info = RequireAreaInfo(evt.Area);
                 WarnAreaSync("publish.enter", $"areaId={evt.Area.Value} templateId={info.TemplateId} owner={evt.OwnerId} target={hitActorId} frame={evt.Frame} sourceContextId={info.SourceContextId}");
-                PublishAreaEvent("area.enter", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaEnter, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
+                PublishAreaEvent("area.enter", evt.Area.Value, info.TemplateId, MobaExecutionKind.AreaEnter, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
 
             _exits.Clear();
@@ -106,7 +108,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
                 if (hitActorId <= 0 || hitActorId == evt.OwnerId) continue;
                 var info = RequireAreaInfo(evt.Area);
-                PublishAreaEvent("area.exit", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaExit, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
+                PublishAreaEvent("area.exit", evt.Area.Value, info.TemplateId, MobaExecutionKind.AreaExit, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
 
             _stays.Clear();
@@ -118,7 +120,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
                 if (hitActorId <= 0 || hitActorId == evt.OwnerId) continue;
                 var info = RequireAreaInfo(evt.Area);
-                PublishAreaEvent("area.tick", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaStay, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
+                PublishAreaEvent("area.tick", evt.Area.Value, info.TemplateId, MobaExecutionKind.AreaStay, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
 
             _expires.Clear();
@@ -128,7 +130,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             {
                 var evt = _expires[i];
                 var info = RequireAreaInfo(evt.Area);
-                PublishAreaEvent("area.expire", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaExpire, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
+                PublishAreaEvent("area.expire", evt.Area.Value, info.TemplateId, MobaExecutionKind.AreaExpire, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
                 CollectAreaEnded(in info);
                 _areaRuntime.Unregister(evt.Area);
             }
@@ -150,50 +152,95 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             {
                 var info = _dueDelayAreas[i];
                 WarnAreaSync("publish.delay", $"areaId={info.AreaId} templateId={info.TemplateId} owner={info.OwnerActorId} frame={frame} sourceContextId={info.SourceContextId} rootContextId={info.RootContextId}");
-                PublishAreaEvent("area.delay", info.AreaId, info.TemplateId, MobaTraceKind.AreaSpawn, info, in info, ownerActorId: info.OwnerActorId, targetActorId: 0, frame: frame, center: info.Center, radius: info.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
+                PublishAreaEvent("area.delay", info.AreaId, info.TemplateId, MobaExecutionKind.AreaSpawn, info, in info, ownerActorId: info.OwnerActorId, targetActorId: 0, frame: frame, center: info.Center, radius: info.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
             }
 
             _dueDelayAreas.Clear();
         }
 
-        private void PublishAreaEvent(string eventId, int areaId, int templateId, MobaTraceKind traceKind, object raw, in MobaAreaRuntimeInfo info, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider, int collisionLayerMask, int maxTargets)
+        private void PublishAreaEvent(string eventId, int areaId, int templateId, MobaExecutionKind executionKind, object raw, in MobaAreaRuntimeInfo info, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider, int collisionLayerMask, int maxTargets)
         {
             if (string.IsNullOrEmpty(eventId)) return;
 
-            if (_eventBus != null)
+            var sourceContextId = info.SourceContextId;
+            var rootContextId = info.RootContextId != 0L ? info.RootContextId : sourceContextId;
+            var ownerContextId = info.OwnerContextId != 0L ? info.OwnerContextId : sourceContextId;
+            var eventContextId = 0L;
+            var normalizedExecutionKind = NormalizeAreaExecutionKind(executionKind);
+            if (normalizedExecutionKind != MobaExecutionKind.None)
             {
-                var eid = TriggeringIdUtil.GetEventEid(eventId);
-                var payload = new AreaEventArgs
-                {
-                    EventId = eventId,
-                    AreaId = areaId,
-                    TemplateId = templateId,
-                    OwnerActorId = ownerActorId,
-                    TargetActorId = targetActorId,
-                    Frame = frame,
-                    TraceKind = traceKind != MobaTraceKind.None ? traceKind : MobaTraceKind.AreaSpawn,
-                    Center = center,
-                    Radius = radius,
-                    Collider = collider,
-                    CollisionLayerMask = collisionLayerMask,
-                    MaxTargets = maxTargets,
-                    SourceContextId = info.SourceContextId,
-                    RootContextId = info.RootContextId,
-                    OwnerContextId = info.OwnerContextId,
-                    SkillRuntimeHandle = info.SkillRuntimeHandle,
-                    Raw = raw,
-                };
-
-                _eventBus.Publish(new EventKey<AreaEventArgs>(eid), in payload);
-                var objectKey = new EventKey<object>(eid);
-                if (_eventBus.HasSubscribers(objectKey))
-                {
-                    object boxed = payload;
-                    _eventBus.Publish(objectKey, in boxed);
-                }
+                if (_executionContexts == null)
+                    throw new InvalidOperationException($"Area event requires MobaExecutionContextRegistry. eventId={eventId} areaId={areaId}");
+                var node = _executionContexts.Create(new MobaExecutionContextCreateRequest(
+                    normalizedExecutionKind,
+                    templateId,
+                    ownerActorId,
+                    targetActorId,
+                    sourceContextId,
+                    rootContextId,
+                    ownerContextId,
+                    frame,
+                    originKind: MobaExecutionKind.AreaSpawn,
+                    originConfigId: templateId));
+                eventContextId = node.ContextId;
+                sourceContextId = eventContextId;
             }
 
-            _stageTriggers?.ExecuteAreaStage(eventId, areaId, templateId, raw, in info, ownerActorId, targetActorId, frame, in center, radius, collider, collisionLayerMask, maxTargets);
+            var payload = new AreaEventArgs
+            {
+                EventId = eventId,
+                AreaId = areaId,
+                TemplateId = templateId,
+                OwnerActorId = ownerActorId,
+                TargetActorId = targetActorId,
+                Frame = frame,
+                ExecutionKind = executionKind != MobaExecutionKind.None ? executionKind : MobaExecutionKind.AreaSpawn,
+                Center = center,
+                Radius = radius,
+                Collider = collider,
+                CollisionLayerMask = collisionLayerMask,
+                MaxTargets = maxTargets,
+                SourceContextId = sourceContextId,
+                RootContextId = rootContextId,
+                OwnerContextId = ownerContextId,
+                SkillRuntimeHandle = info.SkillRuntimeHandle,
+                Raw = raw,
+            };
+
+            try
+            {
+                if (_eventBus != null)
+                {
+                    var eid = TriggeringIdUtil.GetEventEid(eventId);
+                    _eventBus.Publish(new EventKey<AreaEventArgs>(eid), in payload);
+                    var objectKey = new EventKey<object>(eid);
+                    if (_eventBus.HasSubscribers(objectKey))
+                    {
+                        object boxed = payload;
+                        _eventBus.Publish(objectKey, in boxed);
+                    }
+
+                }
+
+                _stageTriggers?.ExecuteAreaStage(payload);
+            }
+            finally
+            {
+                if (eventContextId != 0L)
+                    _executionContexts.End(eventContextId, (int)MobaExecutionEndReason.Completed, frame);
+            }
+        }
+
+        private static MobaExecutionKind NormalizeAreaExecutionKind(MobaExecutionKind executionKind)
+        {
+            switch (executionKind)
+            {
+                case MobaExecutionKind.AreaEnter: return MobaExecutionKind.AreaEnter;
+                case MobaExecutionKind.AreaExit: return MobaExecutionKind.AreaExit;
+                case MobaExecutionKind.AreaStay: return MobaExecutionKind.AreaStay;
+                case MobaExecutionKind.AreaExpire: return MobaExecutionKind.AreaExpire;
+                default: return MobaExecutionKind.None;
+            }
         }
 
         private MobaAreaRuntimeInfo RequireAreaInfo(AreaId areaId)

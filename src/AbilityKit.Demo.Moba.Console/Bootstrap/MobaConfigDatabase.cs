@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         private readonly Dictionary<int, ProjectileConfig> _projectilesById = new();
         private readonly Dictionary<int, EffectConfig> _effectsById = new();
 
-        public const string DefaultResourcesDir = "moba";
+        public const string DefaultResourcesDir = "luban/moba";
 
         public ConsoleMobaConfigDatabase(ITextAssetLoader loader)
         {
@@ -187,6 +187,28 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
 
         private void LoadEffects(string dir)
         {
+            if (dir.Replace('\\', '/') == DefaultResourcesDir &&
+                _loader.TryLoadBytes("luban/moba_bytes/effects.bytes", out var bytes))
+            {
+                var table = new moba_luban.Effects(Luban.ByteBuf.Wrap(bytes));
+                foreach (var row in table.DataList)
+                {
+                    _effectsById.Add(row.Id, new EffectConfig
+                    {
+                        Id = row.Id,
+                        Name = row.Name,
+                        EffectType = row.EffectType,
+                        BaseDamage = row.BaseDamage,
+                        DamageType = row.DamageType,
+                        AttackRatio = row.AttackRatio,
+                        TargetPolicy = row.TargetPolicy,
+                        Radius = row.Radius,
+                    });
+                }
+                Log.System($"Loaded {table.DataList.Count} effect configs from Luban binary");
+                return;
+            }
+
             var loaded = false;
             var path = System.IO.Path.Combine(dir, "effects.json");
 

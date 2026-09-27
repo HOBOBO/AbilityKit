@@ -1,0 +1,30 @@
+{
+  "triggers": [
+    {
+      "id": 10020311,
+      "name": "小乔-星华缭乱-周期搜敌落星",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "spawn_area",
+          "area_id": 40020301,
+          "position_mode": 1,
+          "radius": 2.5,
+          "duration_ms": 700,
+          "target_query_id": 50020301,
+          "target_max_count": 1
+        },
+        {
+          "type": "debug_log",
+          "message": "小乔三技能：周期搜敌并在目标位置生成延迟落星区域",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

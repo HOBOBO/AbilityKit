@@ -6,6 +6,7 @@ using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Protocol.Moba;
@@ -49,10 +50,10 @@ namespace AbilityKit.Game.Test.UnitTest
                     harness.Tick(1);
                 }
 
-                var enhancedTrace = harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, 10060003, maxTicks: 10, message: "Ying Zheng fifth basic attack should execute its enhanced magic-damage trigger.");
+                var enhancedTrace = harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, 10060003, maxTicks: 10, message: "Ying Zheng fifth basic attack should execute its enhanced magic-damage trigger.");
                 harness.AssertActionExecutedUnderEffect(enhancedTrace.RootId, (int)TriggeringConstants.GiveDamageId.Value, TriggeringConstants.Actions.GiveDamage);
                 Assert.GreaterOrEqual(
-                    harness.CountTraceNodesInRoot(enhancedTrace.RootId, MobaTraceKind.DamageApply, 10060003),
+                    harness.CountTraceNodesInRoot(enhancedTrace.RootId, MobaExecutionKind.DamageApply, 10060003),
                     1,
                     "Ying Zheng fifth basic attack should apply enhanced damage to the original hit target.");
             }
@@ -77,11 +78,11 @@ namespace AbilityKit.Game.Test.UnitTest
                 var cast = skills.TryCastBySlot(actorId, Skill1.Slot, aimPos: new Vec3(3f, 0f, 0f), aimDir: Vec3.Right, targetActorId: 0);
                 Assert.IsTrue(cast.Success, "Ying Zheng skill 1 should cast at the selected target position. failReason=" + cast.FailReason);
 
-                var effectTrace = harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, Skill1.EffectId, maxTicks: 30, message: "Ying Zheng skill 1 should execute its target-area effect.");
+                var effectTrace = harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, Skill1.EffectId, maxTicks: 30, message: "Ying Zheng skill 1 should execute its target-area effect.");
                 harness.AssertAreaSpawnedUnderEffect(effectTrace.RootId, 40060101);
                 harness.TickMilliseconds(850);
                 Assert.Less(harness.GetActorHp(targetActorId), hpBefore, "Ying Zheng skill 1 sword array should damage a target inside the area.");
-                Assert.GreaterOrEqual(harness.CountTraceNodesInRoot(effectTrace.RootId, MobaTraceKind.DamageApply, 10060101), 2, "Ying Zheng skill 1 should apply both initial and periodic sword-array damage.");
+                Assert.GreaterOrEqual(harness.CountTraceNodesInRoot(effectTrace.RootId, MobaExecutionKind.DamageApply, 10060101), 2, "Ying Zheng skill 1 should apply both initial and periodic sword-array damage.");
                 Assert.IsTrue(harness.HasActorBuff(targetActorId, 10060101), "Ying Zheng skill 1 sword array should apply its slow to targets in the area.");
             }
         }
@@ -123,14 +124,14 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsTrue(slowBuff.Tags.HasTag(slowTag), "Ying Zheng skill 1 slow Buff should carry the Debuff.Slow tag at runtime.");
                 Assert.IsTrue(buffs.ApplyBuffImmediate(actorId, 10060101, actorId, durationOverrideMs: 0), "Ying Zheng slow setup buff should apply before guard cleanse.");
                 Assert.Less(harness.GetActorMoveSpeed(actorId), baseMoveSpeed, "The tagged slow setup should reduce movement speed before skill 2.");
-                Assert.AreEqual(1, buffs.RemoveBuffsWithTagImmediate(actorId, "Debuff.Slow", sourceActorId: 0, removeAll: true, TraceLifecycleReason.Dispelled), "Tag-based buff removal should find the active slow regardless of source.");
+                Assert.AreEqual(1, buffs.RemoveBuffsWithTagImmediate(actorId, "Debuff.Slow", sourceActorId: 0, removeAll: true, MobaExecutionEndReason.Dispelled), "Tag-based buff removal should find the active slow regardless of source.");
                 Assert.IsFalse(harness.HasActorBuff(actorId, 10060101), "Direct tag-based removal should clear the active slow.");
                 Assert.IsTrue(buffs.ApplyBuffImmediate(actorId, 10060101, actorId, durationOverrideMs: 0), "Ying Zheng slow setup buff should reapply before skill 2 cleanse.");
 
                 var effectTrace = HeroSkillHeadlessContract.CastSlotAndAssertEffect(harness, Skill2, "ying zheng skill 2 guard cleanse contract");
                 harness.AssertAreaSpawnedUnderEffect(effectTrace.RootId, 40060201);
                 var nearbyEffectTrace = harness.TickUntilTraceNode(
-                    MobaTraceKind.EffectExecution,
+                    MobaExecutionKind.EffectExecution,
                     10060211,
                     maxTicks: 15,
                     message: "Ying Zheng skill 2 close-range area should execute its delayed nearby-enemy effect.");
@@ -179,7 +180,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var cast = skills.TryCastBySlot(actorId, Skill3.Slot, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
                 Assert.IsTrue(cast.Success, "Ying Zheng skill 3 should cast toward its selected direction. failReason=" + cast.FailReason);
 
-                var effectTrace = harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, Skill3.EffectId, maxTicks: 30, message: "Ying Zheng skill 3 should execute its locked-direction launcher effect.");
+                var effectTrace = harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, Skill3.EffectId, maxTicks: 30, message: "Ying Zheng skill 3 should execute its locked-direction launcher effect.");
                 harness.AssertProjectileLaunchedUnderEffect(effectTrace.RootId, 31060301, 30060301);
                 var spawn = TickUntilProjectileSpawnSnapshot(harness, 30060301, maxTicks: 30);
                 Assert.Greater(spawn.ProjectileActorId, 0, "Ying Zheng ultimate spawn snapshot should expose a projectile actor for VFX follow binding.");
@@ -220,7 +221,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.Greater(transformEntry.X, rearPosition.X + 0.05f, "Ying Zheng ultimate transform snapshot should carry its attack-state position for the view layer.");
 
                 var resolver = new BattleProjectileVfxResolver();
-                Assert.AreEqual(90006003, resolver.ResolveSnapshotVfxId(spawn.TemplateId, spawn.Kind), "Ying Zheng ultimate should resolve its configured flying-sword VFX.");
+                Assert.AreEqual(90006003, resolver.ResolveSnapshotVfxId(spawn.TemplateId, (ProjectilePresentationEventKind)spawn.Kind), "Ying Zheng ultimate should resolve its configured flying-sword VFX.");
             }
         }
 

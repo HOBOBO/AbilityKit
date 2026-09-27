@@ -1,4 +1,4 @@
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -80,7 +80,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             SetVisible(false);
         }
 
-        public void Apply(in MobaPresentationCueSnapshotEntry entry, float totalSecondsHint)
+        public void Apply(in PresentationCueData entry, float totalSecondsHint)
         {
             InstanceKey = entry.InstanceKey;
             _templateId = entry.TemplateId;

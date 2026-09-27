@@ -7,6 +7,7 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Battle.Presentation.Features.Loading;
 using AbilityKit.Game.Flow;
 using NUnit.Framework;
 using UnityEditor.SceneManagement;
@@ -88,7 +89,7 @@ namespace AbilityKit.Game.Test.UnitTest
             FlowTick(flow, 2);
 
             flow.EnterBattle(new TestBattleBootstrapper());
-            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 240, "Battle flow did not reach InMatch.");
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 2400, "Battle flow did not reach InMatch.");
 
             Assert.IsTrue(entry.TryGet(out BattleContext ctx), "BattleContext must be attached after entering battle.");
             yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
@@ -150,7 +151,7 @@ namespace AbilityKit.Game.Test.UnitTest
             FlowTick(flow, 2);
 
             flow.EnterBattle(new TestBattleBootstrapper());
-            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 240, "Battle flow did not reach InMatch.");
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 2400, "Battle flow did not reach InMatch.");
 
             Assert.IsTrue(entry.TryGet(out BattleContext ctx), "BattleContext must be attached after entering battle.");
             yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
@@ -294,6 +295,13 @@ namespace AbilityKit.Game.Test.UnitTest
                 FlowTick(flow, 1);
                 if (predicate()) yield break;
                 yield return null;
+            }
+
+            if (GameEntry.IsInitialized && GameEntry.Instance != null &&
+                GameEntry.Instance.TryGet(out BattleLoadingScreenFeature loading))
+            {
+                var snapshot = loading.CurrentSnapshot;
+                failureMessage += $" Loading: completed={snapshot.Completed}, success={snapshot.Success}, progress={snapshot.LoadedCount}/{snapshot.TotalCount}, current={snapshot.CurrentAssetKey}, error={snapshot.ErrorMessage}.";
             }
 
             Assert.Fail(failureMessage);

@@ -1,4 +1,5 @@
 using AbilityKit.Network.Room;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Room;
@@ -97,6 +98,65 @@ public sealed class RoomGatewayNetworkSyncSessionBindingTests
 
         Assert.True(options.RemoteCapabilities.HasValue);
         Assert.Equal(NetworkSyncRemoteCapabilityPolicy.NegotiateWhenAvailable, options.RemoteCapabilityPolicy);
+    }
+
+    [Fact]
+    public void Negotiate_UsesRoomCapabilitiesWithoutMutatingCallerOptions()
+    {
+        var profile = NetworkSyncProfiles.AuthoritativeInterpolation;
+        var capabilities = NetworkSyncCapabilities.FromProfile(in profile, 1, 1);
+        var binding = RoomGatewayNetworkSyncSessionBinding.Create(
+            RoomGatewayNetworkSyncCapabilitiesConverter.FromWire(new WireNetworkSyncCapabilities
+            {
+                MetadataVersion = 1,
+                ProfileName = nameof(NetworkSyncModel.AuthoritativeInterpolation),
+                MinimumSchemaVersion = capabilities.MinimumSchemaVersion,
+                MaximumSchemaVersion = capabilities.MaximumSchemaVersion,
+                ClientPlayback = (int)capabilities.ClientPlayback,
+                Input = (int)capabilities.Input,
+                Snapshot = (int)capabilities.Snapshot,
+                Interest = (int)capabilities.Interest,
+                Recovery = (int)capabilities.Recovery,
+                ServerValidation = (int)capabilities.ServerValidation,
+                ReliableEvent = (int)capabilities.ReliableEvent
+            }),
+            nameof(NetworkSyncModel.AuthoritativeInterpolation),
+            NetworkSyncRemoteCapabilityPolicy.Require);
+        var options = new NetworkSyncSessionOptions
+        {
+            RequiredProfile = profile,
+            RequiredMinimumSchemaVersion = 1,
+            RequiredMaximumSchemaVersion = 1,
+            AvailableCapabilities = NetworkSyncCapabilities.FromProfile(in profile, 1, 1),
+            RemoteCapabilityPolicy = NetworkSyncRemoteCapabilityPolicy.Ignore
+        };
+
+        var descriptor = binding.Negotiate(options);
+
+        Assert.True(descriptor.IsRemoteNegotiated);
+        Assert.Equal(1, descriptor.MinimumSchemaVersion);
+        Assert.Null(options.RemoteCapabilities);
+        Assert.Equal(NetworkSyncRemoteCapabilityPolicy.Ignore, options.RemoteCapabilityPolicy);
+    }
+
+    [Fact]
+    public void Negotiate_RequiredRoomCapabilitiesMissing_RejectsSession()
+    {
+        var binding = RoomGatewayNetworkSyncSessionBinding.Create(
+            null, nameof(NetworkSyncModel.AuthoritativeInterpolation),
+            NetworkSyncRemoteCapabilityPolicy.Require);
+        var profile = NetworkSyncProfiles.AuthoritativeInterpolation;
+        var options = new NetworkSyncSessionOptions
+        {
+            RequiredProfile = profile,
+            RequiredMinimumSchemaVersion = 1,
+            RequiredMaximumSchemaVersion = 1,
+            AvailableCapabilities = NetworkSyncCapabilities.FromProfile(in profile, 1, 1)
+        };
+
+        var error = Assert.Throws<NetworkSyncSessionBuildException>(() => binding.Negotiate(options));
+
+        Assert.Equal(NetworkSyncSessionBuildFailureReason.MissingRemoteCapabilities, error.Reason);
     }
 
     private static RoomGatewayNetworkSyncCapabilities CreateDeclaration(string profileName)

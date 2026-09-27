@@ -51,6 +51,7 @@ namespace AbilityKit.Game.Battle.Vfx
             entity = default;
             if (world == null) return false;
             if (!parent.IsValid) return false;
+            if (!ReferenceEquals(parent.World, world)) return false;
             if (vfxId <= 0) return false;
 
             var durationMs = 650;
@@ -72,16 +73,23 @@ namespace AbilityKit.Game.Battle.Vfx
                 durationMs = durationMsOverride;
             }
 
-            go.transform.SetPositionAndRotation(position, rotation);
-
-            // Parent active VFX GameObject under categorized active root for visibility.
-            if (_hierarchy != null && go != null)
+            try
             {
-                _hierarchy.ParentActive(BattleViewCategory.ActiveVfx, vfxId, go);
-            }
+                go.transform.SetPositionAndRotation(position, rotation);
 
-            entity = _entities.Create(world, parent, vfxId, followTarget, followTargetActorId, go, durationMs);
-            return true;
+                if (_hierarchy != null)
+                {
+                    _hierarchy.ParentActive(BattleViewCategory.ActiveVfx, vfxId, go);
+                }
+
+                entity = _entities.Create(world, parent, vfxId, followTarget, followTargetActorId, go, durationMs);
+                return true;
+            }
+            catch
+            {
+                _gameObjects.ReturnOrDestroy(vfxId, go);
+                throw;
+            }
         }
     }
 
@@ -104,13 +112,21 @@ namespace AbilityKit.Game.Battle.Vfx
             int durationMs)
         {
             var vfxEntity = world.CreateChild(parent);
-            vfxEntity.SetName($"Vfx_{vfxId}");
-            vfxEntity.WithRef(new BattleVfxComponent { VfxId = vfxId });
-            vfxEntity.WithRef(new BattleViewGameObjectComponent { GameObject = go });
-            vfxEntity.WithRef(new BattleViewFollowComponent { Target = followTarget, TargetActorId = followTargetActorId, Offset = Vector3.zero });
+            try
+            {
+                vfxEntity.SetName($"Vfx_{vfxId}");
+                vfxEntity.WithRef(new BattleVfxComponent { VfxId = vfxId });
+                vfxEntity.WithRef(new BattleViewGameObjectComponent { GameObject = go });
+                vfxEntity.WithRef(new BattleViewFollowComponent { Target = followTarget, TargetActorId = followTargetActorId, Offset = Vector3.zero });
 
-            _lifetime.AttachIfNeeded(vfxEntity, durationMs);
-            return vfxEntity;
+                _lifetime.AttachIfNeeded(vfxEntity, durationMs);
+                return vfxEntity;
+            }
+            catch
+            {
+                if (vfxEntity.IsValid) vfxEntity.Destroy();
+                throw;
+            }
         }
     }
 }

@@ -3,7 +3,6 @@ using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
@@ -19,27 +18,27 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             return $"ProjectileHit: projectile={evt.Projectile.Value}, template={evt.TemplateId}";
         }
 
-        public string FormatEnterGame(in EnterMobaGameRes res)
+        public string FormatEnterGame(in BattleEnterGameSnapshot res)
         {
             return $"EnterGame: tickRate={res.TickRate}";
         }
 
-        public string FormatActorTransforms(MobaActorTransformSnapshotEntry[] entries)
+        public string FormatActorTransforms(ActorTransformData[] entries)
         {
             return entries != null ? $"Transform: n={entries.Length}" : null;
         }
 
-        public string FormatProjectiles(MobaProjectileEventSnapshotEntry[] entries)
+        public string FormatProjectiles(ProjectileEventData[] entries)
         {
             return entries != null ? $"Projectile: n={entries.Length}" : null;
         }
 
-        public string FormatAreas(MobaAreaEventSnapshotEntry[] entries)
+        public string FormatAreas(AreaEventData[] entries)
         {
             return entries != null ? $"Area: n={entries.Length}" : null;
         }
 
-        public string FormatDamages(MobaDamageEventSnapshotEntry[] entries)
+        public string FormatDamages(DamageEventData[] entries)
         {
             return entries != null ? $"Damage: n={entries.Length}" : null;
         }

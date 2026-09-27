@@ -21,18 +21,20 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaEntityManager Entities { get; }
         public SkillCastCoordinator Skills { get; }
         public IWorldResolver Services { get; }
+        public bool IsReplay { get; }
         public long DiagnosticCommandId { get; internal set; }
 
         /// <summary>
         /// 创建输入命令处理上下文。
         /// </summary>
-        public MobaInputCommandContext(MobaLogicWorldRunGateService phase, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, SkillCastCoordinator skills, IWorldResolver services)
+        public MobaInputCommandContext(MobaLogicWorldRunGateService phase, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, SkillCastCoordinator skills, IWorldResolver services, bool isReplay = false)
         {
             Phase = phase;
             PlayerActorMap = playerActorMap;
             Entities = entities;
             Skills = skills;
             Services = services;
+            IsReplay = isReplay;
         }
 
         /// <summary>

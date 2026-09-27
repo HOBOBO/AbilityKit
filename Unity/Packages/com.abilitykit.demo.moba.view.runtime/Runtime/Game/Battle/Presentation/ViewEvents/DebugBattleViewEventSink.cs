@@ -4,7 +4,6 @@ using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
@@ -46,27 +45,27 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _lines.Push($"[Summon] {eventId}: summonActorId={payload.SummonActorId}, summonId={payload.SummonId}, owner={payload.OwnerActorId}, reason={payload.Reason}");
         }
 
-        public void OnEnterGameSnapshot(ISnapshotEnvelope packet, EnterMobaGameRes res)
+        public void OnEnterGameSnapshot(ISnapshotEnvelope packet, BattleEnterGameSnapshot res)
         {
             _lines.Push(_formatter.FormatEnterGame(in res));
         }
 
-        public void OnActorTransformSnapshot(ISnapshotEnvelope packet, MobaActorTransformSnapshotEntry[] entries)
+        public void OnActorTransformSnapshot(ISnapshotEnvelope packet, ActorTransformData[] entries)
         {
             _lines.Push(_formatter.FormatActorTransforms(entries));
         }
 
-        public void OnProjectileEventSnapshot(ISnapshotEnvelope packet, MobaProjectileEventSnapshotEntry[] entries)
+        public void OnProjectileEventSnapshot(ISnapshotEnvelope packet, ProjectileEventData[] entries)
         {
             _lines.Push(_formatter.FormatProjectiles(entries));
         }
 
-        public void OnAreaEventSnapshot(ISnapshotEnvelope packet, MobaAreaEventSnapshotEntry[] entries)
+        public void OnAreaEventSnapshot(ISnapshotEnvelope packet, AreaEventData[] entries)
         {
             _lines.Push(_formatter.FormatAreas(entries));
         }
 
-        public void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries)
+        public void OnDamageEventSnapshot(ISnapshotEnvelope packet, DamageEventData[] entries)
         {
             _lines.Push(_formatter.FormatDamages(entries));
         }

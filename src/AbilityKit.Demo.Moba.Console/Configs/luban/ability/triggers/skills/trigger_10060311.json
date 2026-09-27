@@ -1,0 +1,27 @@
+{
+  "triggers": [
+    {
+      "id": 10060311,
+      "name": "嬴政-至尊王权-周期发射飞剑",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "shoot_projectile",
+          "launcher_id": 31060301,
+          "projectile_id": 30060301,
+          "directionSource": "cast_context"
+        },
+        {
+          "type": "debug_log",
+          "message": "嬴政三技能至尊王权：周期发射前方飞剑",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

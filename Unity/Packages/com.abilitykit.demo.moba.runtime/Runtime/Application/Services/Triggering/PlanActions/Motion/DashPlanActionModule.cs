@@ -137,13 +137,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             Log.Info($"[DashPlanActionModule] activate request actorId={actorId}, caster={input.CasterActorId}, directionMode={args.DirectionMode}, moveToAimPosition={args.MoveToAimPosition}, fallbackToForward={fallbackToForward}, dir=({dir.X:F3},{dir.Y:F3},{dir.Z:F3}), aimDelta=({aimDelta.X:F3},{aimDelta.Y:F3},{aimDelta.Z:F3}), speed={args.Speed:F3}, velocity=({velocity.X:F3},{velocity.Y:F3},{velocity.Z:F3}), duration={duration:F3}, groupId={group.GroupId}, priority={group.Priority}, stacking={group.Stacking}, hitTrigger={args.HitTriggerPlanId}");
 
             var hitTriggerRuntime = default(MobaMotionHitTriggerRuntime);
-            if (args.HitTriggerPlanId > 0 && input.ActionInput.HasTraceScope)
+            if (args.HitTriggerPlanId > 0 && input.ActionInput.HasExecutionScope)
             {
                 hitTriggerRuntime = new MobaMotionHitTriggerRuntime(
                     args.HitTriggerPlanId,
                     actorId,
-                    input.ActionInput.TraceScope.EffectConfigId,
-                    input.ActionInput.TraceScope);
+                    input.ActionInput.ExecutionScope.EffectConfigId,
+                    input.ActionInput.ExecutionScope);
             }
 
             if (!MobaMotionContinuousActionRuntime.TryActivate(

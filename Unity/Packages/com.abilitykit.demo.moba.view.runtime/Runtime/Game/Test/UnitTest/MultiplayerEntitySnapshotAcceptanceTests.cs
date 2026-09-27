@@ -10,6 +10,9 @@ using AbilityKit.Protocol.Room;
 using AbilityKit.World.ECS;
 using NUnit.Framework;
 using UnityEngine;
+using ActorDespawnData = AbilityKit.Demo.Moba.Share.ActorDespawnData;
+using ActorDespawnReason = AbilityKit.Demo.Moba.Share.ActorDespawnReason;
+using ActorSpawnSnapshotMapper = AbilityKit.Demo.Moba.Share.ActorSpawnSnapshotMapper;
 
 namespace AbilityKit.Game.Test.UnitTest
 {
@@ -328,7 +331,7 @@ namespace AbilityKit.Game.Test.UnitTest
             };
 
             // Act
-            BattleSnapshotEntityApplier.ApplySpawn(ctx, entries);
+            BattleSnapshotEntityApplier.ApplySpawn(ctx, ActorSpawnSnapshotMapper.Map(entries));
 
             // Assert — 两个实体都被创建
             Assert.AreEqual(2, world.AliveCount,
@@ -368,17 +371,17 @@ namespace AbilityKit.Game.Test.UnitTest
             };
 
             // 先创建实体在初始位置
-            BattleSnapshotEntityApplier.ApplySpawn(ctx, new MobaActorSpawnSnapshotEntry[]
+            BattleSnapshotEntityApplier.ApplySpawn(ctx, ActorSpawnSnapshotMapper.Map(new MobaActorSpawnSnapshotEntry[]
             {
                 new MobaActorSpawnSnapshotEntry(5001, (int)SpawnEntityKind.Character, 1001, 1, 0f, 0f, 0f),
-            });
+            }));
             Assert.AreEqual(1, world.AliveCount);
 
             // 再次 ApplySpawn 同 netId 但不同位置（模拟远端英雄移动后的新快照）
-            BattleSnapshotEntityApplier.ApplySpawn(ctx, new MobaActorSpawnSnapshotEntry[]
+            BattleSnapshotEntityApplier.ApplySpawn(ctx, ActorSpawnSnapshotMapper.Map(new MobaActorSpawnSnapshotEntry[]
             {
                 new MobaActorSpawnSnapshotEntry(5001, (int)SpawnEntityKind.Character, 1001, 1, 50f, 0f, 50f),
-            });
+            }));
 
             // 不应该创建新实体
             Assert.AreEqual(1, world.AliveCount,
@@ -407,7 +410,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 EntityLookup = lookup,
                 EntityFactory = factory
             };
-            BattleSnapshotEntityApplier.ApplySpawn(ctx, new[]
+            BattleSnapshotEntityApplier.ApplySpawn(ctx, ActorSpawnSnapshotMapper.Map(new[]
             {
                 new MobaActorSpawnSnapshotEntry(
                     localActorId,
@@ -417,7 +420,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     0f,
                     0f,
                     0f)
-            });
+            }));
             var snapshot = new GatewayStateSyncSnapshot(
                 1UL,
                 10,
@@ -614,6 +617,87 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void RemoteInterpolation_DeltaSnapshot_RemovesExplicitActor()
+        {
+            var world = new EntityWorld(initialCapacity: 4);
+            var lookup = new BattleEntityLookup();
+            var factory = new BattleEntityFactory(world, lookup);
+            var ctx = new BattleContext
+            {
+                EntityWorld = world,
+                EntityLookup = lookup,
+                EntityFactory = factory
+            };
+            factory.CreateCharacter(new BattleNetId(1001), 1001);
+            factory.CreateCharacter(new BattleNetId(2002), 1002);
+            var delta = new GatewayStateSyncSnapshot(
+                1UL, 12, 0.1d, false,
+                new[] { new GatewayStateSyncActorSnapshot(1001, 10f, 0f, 0f, 0f, 0f, 0f, 100f, 100f, 1) },
+                removedActorIds: new[] { 2002 });
+
+            BattleRemoteInterpolationApplier.Apply(ctx, in delta, localActorId: 0);
+
+            Assert.AreEqual(1, world.AliveCount);
+            Assert.IsFalse(lookup.TryResolve(world, new BattleNetId(2002), out _));
+            Assert.IsTrue(lookup.TryResolve(world, new BattleNetId(1001), out _));
+        }
+
+        [Test]
+        public void RemoteInterpolation_FullSnapshot_RemovesUnboundStaleActor()
+        {
+            var world = new EntityWorld(initialCapacity: 2);
+            var lookup = new BattleEntityLookup();
+            var factory = new BattleEntityFactory(world, lookup);
+            var ctx = new BattleContext
+            {
+                EntityWorld = world,
+                EntityLookup = lookup,
+                EntityFactory = factory
+            };
+            factory.CreateCharacter(new BattleNetId(3003), 1003);
+            lookup.Unbind(new BattleNetId(3003));
+            var full = new GatewayStateSyncSnapshot(
+                1UL, 13, 0.15d, true,
+                System.Array.Empty<GatewayStateSyncActorSnapshot>());
+
+            BattleRemoteInterpolationApplier.Apply(ctx, in full, localActorId: 0);
+
+            Assert.AreEqual(0, world.AliveCount);
+        }
+
+        [Test]
+        public void RemoteInterpolationSession_RebindsWhenEntityWorldChanges()
+        {
+            var firstWorld = new EntityWorld(initialCapacity: 2);
+            var firstLookup = new BattleEntityLookup();
+            var firstContext = new BattleContext
+            {
+                EntityWorld = firstWorld,
+                EntityLookup = firstLookup,
+                EntityFactory = new BattleEntityFactory(firstWorld, firstLookup)
+            };
+            var secondWorld = new EntityWorld(initialCapacity: 2);
+            var secondLookup = new BattleEntityLookup();
+            var secondContext = new BattleContext
+            {
+                EntityWorld = secondWorld,
+                EntityLookup = secondLookup,
+                EntityFactory = new BattleEntityFactory(secondWorld, secondLookup)
+            };
+            var session = new BattleRemoteInterpolationApplier.Session();
+            var snapshot = new GatewayStateSyncSnapshot(
+                1UL, 1, 0d, true,
+                new[] { new GatewayStateSyncActorSnapshot(1001, 3f, 0f, 0f, 0f, 0f, 0f, 100f, 100f, 1) });
+
+            session.Apply(firstContext, in snapshot, localActorId: 0);
+            session.Apply(secondContext, in snapshot, localActorId: 0);
+
+            Assert.AreEqual(1, firstWorld.AliveCount);
+            Assert.AreEqual(1, secondWorld.AliveCount);
+            Assert.IsTrue(secondLookup.TryResolve(secondWorld, new BattleNetId(1001), out _));
+        }
+
+        [Test]
         public void SharedDirtySync_Tick_ForwardsPendingEntitiesWithoutClearingThemFirst()
         {
             var dirty = new List<IEntityId> { new IEntityId(3, 1) };
@@ -648,15 +732,66 @@ namespace AbilityKit.Game.Test.UnitTest
                 EntityFactory = factory
             };
 
-            BattleSnapshotEntityApplier.ApplySpawn(ctx, new MobaActorSpawnSnapshotEntry[]
+            BattleSnapshotEntityApplier.ApplySpawn(ctx, ActorSpawnSnapshotMapper.Map(new MobaActorSpawnSnapshotEntry[]
             {
                 new MobaActorSpawnSnapshotEntry(0, (int)SpawnEntityKind.Character, 1, 1, 0f, 0f, 0f),   // NetId=0 无效
                 new MobaActorSpawnSnapshotEntry(-1, (int)SpawnEntityKind.Character, 2, 2, 0f, 0f, 0f),  // NetId=-1 无效
                 new MobaActorSpawnSnapshotEntry(1001, (int)SpawnEntityKind.Character, 1001, 1, 1f, 2f, 3f), // 有效
-            });
+            }));
 
             Assert.AreEqual(1, world.AliveCount,
                 "Only the valid entry (NetId=1001) should create an entity.");
+        }
+
+        [Test]
+        public void ApplyDespawn_ExistingActor_RemovesEntityAndLookupBinding()
+        {
+            var world = new EntityWorld(initialCapacity: 4);
+            var lookup = new BattleEntityLookup();
+            var factory = new BattleEntityFactory(world, lookup);
+            var ctx = new BattleContext
+            {
+                EntityWorld = world,
+                EntityLookup = lookup,
+                EntityFactory = factory
+            };
+            factory.CreateCharacter(new BattleNetId(1001), entityCode: 1001);
+
+            BattleSnapshotEntityApplier.ApplyDespawn(ctx, new[]
+            {
+                new ActorDespawnData(1001, ActorDespawnReason.HeroReplaced),
+            });
+
+            Assert.AreEqual(0, world.AliveCount);
+            Assert.AreEqual(0, lookup.Count);
+            Assert.IsFalse(lookup.TryResolve(world, new BattleNetId(1001), out _));
+        }
+
+        [Test]
+        public void ApplyDespawn_InvalidMissingAndDuplicateActors_IsIdempotent()
+        {
+            var world = new EntityWorld(initialCapacity: 4);
+            var lookup = new BattleEntityLookup();
+            var factory = new BattleEntityFactory(world, lookup);
+            var ctx = new BattleContext
+            {
+                EntityWorld = world,
+                EntityLookup = lookup,
+                EntityFactory = factory
+            };
+            factory.CreateCharacter(new BattleNetId(2002), entityCode: 1002);
+
+            Assert.DoesNotThrow(() => BattleSnapshotEntityApplier.ApplyDespawn(ctx, new[]
+            {
+                new ActorDespawnData(0),
+                new ActorDespawnData(-1),
+                new ActorDespawnData(9999),
+                new ActorDespawnData(2002),
+                new ActorDespawnData(2002),
+            }));
+
+            Assert.AreEqual(0, world.AliveCount);
+            Assert.AreEqual(0, lookup.Count);
         }
 
         private sealed class DirtySyncTestHost : IViewSharedSubFeatureHost

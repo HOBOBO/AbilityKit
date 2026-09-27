@@ -55,7 +55,9 @@ namespace AbilityKit.Demo.Moba.Config.Core
             if (!CanHandle(dtoType))
                 throw CreateNotSupportedException(dtoType, nameof(LegacyJsonConfigGroupDeserializer));
 
-            if (dtoType == typeof(SkillFlowDTO))
+            if (dtoType == typeof(SkillFlowDTO) ||
+                dtoType == typeof(ContinuousTagTemplateDTO) ||
+                dtoType == typeof(TagTemplateDTO))
             {
                 return LubanConfigGroupDeserializer.Instance.DeserializeFromText(text, dtoType);
             }

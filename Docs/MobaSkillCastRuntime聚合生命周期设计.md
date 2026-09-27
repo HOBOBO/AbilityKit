@@ -93,7 +93,7 @@ trace 不适合承担：
 
 - `RuntimeId`
 - `Generation`
-- `RootTraceContextId`
+- `RootContextId`
 
 关键点是 `Generation`，用于防止老引用误命中新一轮复用的 runtime id。
 
@@ -107,10 +107,10 @@ trace 不适合承担：
 
 - `Kind`
 - `ChildId`
-- `TraceContextId`
+- `ContextId`
 - `ConfigId`
 
-对于 Buff 来说，child 语义是 `MobaSkillRuntimeChildKind.Buff`。对于 Projectile 来说，child 语义是 `MobaSkillRuntimeChildKind.Projectile`，并且 `ChildId` 必须使用实际 `ProjectileId`，`TraceContextId` 才保存投射物来源 trace context。这样连发子弹可以共享来源上下文，但仍然作为多个独立子对象 retain/release。
+对于 Buff 来说，child 语义是 `MobaSkillRuntimeChildKind.Buff`。对于 Projectile 来说，child 语义是 `MobaSkillRuntimeChildKind.Projectile`，并且 `ChildId` 必须使用实际 `ProjectileId`，`ContextId` 保存投射物来源 execution context。这样连发子弹可以共享来源上下文，但仍然作为多个独立子对象 retain/release。
 
 ### 4.4 retain token
 
@@ -192,7 +192,7 @@ Buff 结束时会：
 
 1. 停止持续逻辑
 2. 清理 continuous 绑定
-3. 结束 trace / context
+3. 结束正式 Execution Context；Trace Adapter 可选跟随
 4. 发布 remove 事件
 5. release skill runtime
 6. 清空 runtime 绑定
@@ -223,7 +223,7 @@ Buff 结束时会：
 
 [`MobaProjectileExitSyncHandler`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileExitSyncHandler.cs:16) 在投射物退出时：
 
-1. 结束 `ProjectileLaunch` trace context。
+1. 结束 `ProjectileLaunch` 正式 Execution Context。
 2. release skill runtime child retain。
 3. 注销 actor 和 link sidecar。
 
@@ -385,7 +385,7 @@ key 包含：
 - [`MobaTriggerPayloadResolverRegistry`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerPayloadResolverRegistry.cs:1) 提供 payload 到条件上下文的可插拔解析入口。
 - [`MobaTriggerConditionRegistry`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerConditionRegistry.cs:1) 提供 MOBA trigger condition 注册、triggerId 绑定和执行入口。
 - [`MobaTriggerExecutionBudget`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaTriggerExecutionBudget.cs:1) 提供深度、帧级、root 级执行预算。
-- [`MobaEffectExecutionService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs:22) 在创建 trace scope 前执行预算检查，并在执行 Trigger Plan 前执行 MOBA 业务条件。
+- [`MobaEffectExecutionService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs:22) 在创建 execution scope 前执行预算检查，并在执行 Trigger Plan 前执行 MOBA 业务条件。
 
 ---
 

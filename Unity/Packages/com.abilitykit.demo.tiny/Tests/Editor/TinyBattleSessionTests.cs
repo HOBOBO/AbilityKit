@@ -293,10 +293,12 @@ namespace AbilityKit.Demo.Tiny.Tests
                 }
             };
 
-        private static RoomGatewaySnapshot BattleSnapshot(string battleId, ulong worldId)
+        private static RoomGatewaySnapshot BattleSnapshot(string battleId, ulong worldId,
+            int schemaVersion = 1)
         {
             var profile = NetworkSyncProfiles.AuthoritativeInterpolation;
-            var capabilities = NetworkSyncCapabilities.FromProfile(in profile, 1, 1);
+            var capabilities = NetworkSyncCapabilities.FromProfile(in profile,
+                schemaVersion, schemaVersion);
             return new RoomGatewaySnapshot
             {
                 RoomId = "room-1", BattleId = battleId, WorldId = worldId,
@@ -319,6 +321,34 @@ namespace AbilityKit.Demo.Tiny.Tests
                     })
             };
         }
+
+        [Test]
+        public void IncompatibleSchemaStopsBeforeSubscriptionAndInput() => RunAsync(async () =>
+        {
+            var rooms = new RoomClientStub();
+            var gateway = new GatewayStub(rooms);
+            using (var session = NewSession(gateway))
+            {
+                await session.RestoreAsync(CancellationToken.None);
+                rooms.NextSnapshot = BattleSnapshot("battle-incompatible", 7, schemaVersion: 2);
+                InvalidOperationException error = null;
+                try
+                {
+                    await session.PollAsync(CancellationToken.None);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    error = exception;
+                }
+                Assert.That(error, Is.Not.Null);
+                Assert.That(error.Message,
+                    Does.Contain(nameof(NetworkSyncModel.AuthoritativeInterpolation)));
+                Assert.That(rooms.SubscribeCalls, Is.Zero);
+                Assert.That(gateway.Requests, Is.Zero);
+                Assert.That(session.BattleId, Is.Empty);
+                Assert.That(session.CanSubmitInput, Is.False);
+            }
+        });
 
         [Test]
         public void OldRestoreCannotCompleteNewConnectionGeneration() => RunAsync(async () =>
@@ -957,6 +987,7 @@ namespace AbilityKit.Demo.Tiny.Tests
             public TaskCompletionSource<RoomGatewayRestoreRoomResult> PendingRestore;
             public TaskCompletionSource<RoomGatewayGetSnapshotResult> PendingSnapshot;
             public TaskCompletionSource<RoomGatewayStateSyncSubscriptionResult> PendingSubscription;
+            public int SubscribeCalls;
             public TaskCompletionSource<RoomGatewayCreateResult> PendingCreate;
             public TaskCompletionSource<RoomGatewayJoinResult> PendingJoin;
             public TaskCompletionSource<RoomGatewayReadyResult> PendingReady;
@@ -1060,8 +1091,12 @@ namespace AbilityKit.Demo.Tiny.Tests
                 TimeSpan? timeout = null, CancellationToken cancellationToken = default) => throw new NotImplementedException();
             public Task<RoomGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(
                 RoomGatewayStateSyncSubscriptionRequest request, TimeSpan? timeout = null,
-                CancellationToken cancellationToken = default) => PendingSubscription?.Task ?? Task.FromResult(
+                CancellationToken cancellationToken = default)
+            {
+                SubscribeCalls++;
+                return PendingSubscription?.Task ?? Task.FromResult(
                     new RoomGatewayStateSyncSubscriptionResult(true, string.Empty));
+            }
         }
     }
 }

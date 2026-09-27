@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Logging;
@@ -10,7 +11,6 @@ using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.ECS;
-using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -54,7 +54,6 @@ namespace AbilityKit.Demo.Moba.Services
             var finalAimPos = input.HasAim ? input.AimPos : casterPos;
             var finalAimDir = input.HasAim ? input.AimDir : casterForward;
             if (finalAimDir.Equals(Vec3.Zero)) finalAimDir = casterForward;
-            if (finalAimPos.Equals(Vec3.Zero)) finalAimPos = casterPos;
 
             var finalTargetActorId = input.TargetActorId > 0 ? input.TargetActorId : 0;
             IUnitFacade targetUnit = null;
@@ -174,33 +173,38 @@ namespace AbilityKit.Demo.Moba.Services
             context.ResolvedConfiguration = resolvedConfiguration;
             context.DiagnosticCommandId = input.DiagnosticCommandId;
 
-            var trace = _services.Resolve<MobaTraceRegistry>();
-            if (trace == null)
+            if (!_services.TryResolve<MobaExecutionContextRegistry>(out var executionContexts) || executionContexts == null)
             {
-                return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TraceRegistryMissing, "MobaTraceRegistry is required for formal skill cast tracing.");
+                return SkillCastPreparationResult.Failed(
+                    SkillFailureCodes.Cast.ExecutionContextRegistryMissing,
+                    "MobaExecutionContextRegistry is required for formal skill cast identity.");
             }
 
-            context.SourceContextId = trace.CreateRootContext(
-                MobaTraceKind.SkillCast,
+            var frame = _services.TryResolve<IFrameTime>(out var frameTime) && frameTime != null
+                ? frameTime.Frame.Value
+                : 0;
+            var executionNode = executionContexts.Create(new MobaExecutionContextCreateRequest(
+                MobaExecutionKind.SkillCast,
                 skillId,
                 actorId,
                 finalTargetActorId,
-                TraceEndpoint.Actor(actorId),
-                finalTargetActorId > 0 ? TraceEndpoint.Actor(finalTargetActorId) : default);
+                frame: frame,
+                castFlowId: castFlowId));
+            context.SourceContextId = executionNode.ContextId;
             if (context.SourceContextId == 0)
             {
-                return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TraceRootCreateFailed, "Skill cast trace root creation failed.");
+                return SkillCastPreparationResult.Failed(
+                    SkillFailureCodes.Cast.ExecutionContextCreateFailed,
+                    "Skill cast execution context creation failed.");
             }
 
             MobaSkillCastRuntimeService runtimes = null;
             try
             {
-                trace.TrySetSkillPhaseLocation(context.SourceContextId, skillId, castFlowId, string.Empty);
-
                 runtimes = _services.Resolve<MobaSkillCastRuntimeService>();
                 if (runtimes == null)
                 {
-                    trace.EndContext(context.SourceContextId, TraceLifecycleReason.Cancelled);
+                    executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
                     return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.RuntimeServiceMissing, "MobaSkillCastRuntimeService is required for formal skill cast runtime tracking.");
                 }
 
@@ -212,7 +216,7 @@ namespace AbilityKit.Demo.Moba.Services
                 context.RuntimeId = runtime.RuntimeId;
                 if (!context.RuntimeHandle.IsValid)
                 {
-                    trace.EndContext(context.SourceContextId, TraceLifecycleReason.Cancelled);
+                    executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
                     return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.RuntimeHandleInvalid, "Skill cast runtime creation returned an invalid handle.");
                 }
 
@@ -226,7 +230,7 @@ namespace AbilityKit.Demo.Moba.Services
                 }
                 else
                 {
-                    trace.EndContext(context.SourceContextId, TraceLifecycleReason.Cancelled);
+                    executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
                 }
 
                 throw;

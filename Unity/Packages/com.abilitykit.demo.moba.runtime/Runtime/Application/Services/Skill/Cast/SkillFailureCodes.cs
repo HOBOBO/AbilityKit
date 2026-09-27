@@ -22,8 +22,9 @@ namespace AbilityKit.Demo.Moba.Services
             public const string TargetMissing = "skill.cast.targetMissing";
             public const string ConfigurationInvalid = "skill.cast.configurationInvalid";
             public const string PipelineMissing = "skill.cast.pipelineMissing";
-            public const string TraceRegistryMissing = "skill.cast.traceRegistryMissing";
-            public const string TraceRootCreateFailed = "skill.cast.traceRootCreateFailed";
+            public const string ExecutionContextRegistryMissing = "skill.cast.executionContextRegistryMissing";
+            public const string ExecutionContextCreateFailed = "skill.cast.executionContextCreateFailed";
+            public const string ContextRootCreateFailed = "skill.cast.contextRootCreateFailed";
             public const string RuntimeServiceMissing = "skill.cast.runtimeServiceMissing";
             public const string RuntimeHandleInvalid = "skill.cast.runtimeHandleInvalid";
             public const string Failed = "skill.cast.failed";

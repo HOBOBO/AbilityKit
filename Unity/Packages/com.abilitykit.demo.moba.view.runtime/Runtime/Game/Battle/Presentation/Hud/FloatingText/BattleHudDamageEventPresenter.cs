@@ -1,5 +1,4 @@
-using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 
 namespace AbilityKit.Game.Flow
 {
@@ -17,7 +16,7 @@ namespace AbilityKit.Game.Flow
             _formatter = formatter ?? new BattleHudDamageTextFormatter();
         }
 
-        public void Present(MobaDamageEventSnapshotEntry[] entries)
+        public void Present(DamageEventData[] entries)
         {
             if (entries == null) return;
 
@@ -27,15 +26,14 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private void Present(in MobaDamageEventSnapshotEntry entry)
+        private void Present(in DamageEventData entry)
         {
-            if (entry.TargetActorId <= 0) return;
+            if (entry.TargetId <= 0) return;
 
-            var isHeal = entry.Kind == (int)DamageEventKind.Heal;
-            if (!_formatter.TryFormat(entry.Value, isHeal, out var text)) return;
+            if (!_formatter.TryFormat(entry.Value, entry.IsHeal, out var text)) return;
 
-            _hpBars.Ensure(entry.TargetActorId);
-            _hpBars.UpdateHp(entry.TargetActorId, entry.TargetHp, entry.TargetMaxHp);
+            _hpBars.Ensure(entry.TargetId);
+            _hpBars.UpdateHp(entry.TargetId, entry.TargetHp, entry.TargetMaxHp);
         }
     }
 }

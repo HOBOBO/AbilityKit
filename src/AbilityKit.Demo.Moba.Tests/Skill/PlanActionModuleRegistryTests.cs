@@ -1,4 +1,6 @@
 using AbilityKit.Demo.Moba.Services.Triggering.PlanActions;
+using AbilityKit.Triggering.Runtime.Plan;
+using System.Reflection;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Skill;
@@ -13,9 +15,19 @@ public sealed class PlanActionModuleRegistryTests
         {
             var registry = PlanActionModuleRegistry.CreateDefault();
 
-            Assert.Equal(31, registry.Descriptors.Length);
-            Assert.Equal(31, registry.Modules.Length);
-            Assert.Equal(31, registry.Descriptors.Select(item => item.ActionName).Distinct(StringComparer.Ordinal).Count());
+            var declaredModuleCount = typeof(PlanActionModuleRegistry).Assembly
+                .GetTypes()
+                .Count(type =>
+                    !type.IsAbstract &&
+                    !type.IsInterface &&
+                    typeof(IPlanActionModule).IsAssignableFrom(type) &&
+                    type.GetCustomAttribute<PlanActionModuleAttribute>() != null &&
+                    type.GetConstructor(Type.EmptyTypes) != null);
+
+            Assert.NotEqual(0, declaredModuleCount);
+            Assert.Equal(declaredModuleCount, registry.Descriptors.Length);
+            Assert.Equal(declaredModuleCount, registry.Modules.Length);
+            Assert.Equal(declaredModuleCount, registry.Descriptors.Select(item => item.ActionName).Distinct(StringComparer.Ordinal).Count());
 
             for (var index = 1; index < registry.Descriptors.Length; index++)
             {

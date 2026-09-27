@@ -35,6 +35,10 @@ namespace AbilityKit.Game.Flow
             SyncControllerRegistry = CreateSyncControllerRegistry();
 
         private readonly object _inputSubmissionStatsGate = new object();
+#if UNITY_5_3_OR_NEWER
+        private readonly BattleRemoteInterpolationApplier.Session _actorView =
+            new BattleRemoteInterpolationApplier.Session();
+#endif
         private readonly Action _beforeInputSubmissionStatsBind;
         private int _generation;
         private Action<object> _snapshotPushed;
@@ -266,12 +270,15 @@ namespace AbilityKit.Game.Flow
             var localActorId = BattleRemoteInterpolationApplier.ResolveExcludedLocalActorId(
                 enableClientPrediction,
                 context.LocalActorId);
-            BattleRemoteInterpolationApplier.Apply(context, in projected, localActorId);
+            _actorView.Apply(context, in projected, localActorId);
         }
 #endif
 
         public void Dispose()
         {
+#if UNITY_5_3_OR_NEWER
+            _actorView.Reset();
+#endif
             _generation++;
             var transport = Transport;
             Transport = null;

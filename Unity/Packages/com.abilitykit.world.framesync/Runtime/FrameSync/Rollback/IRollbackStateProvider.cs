@@ -19,4 +19,12 @@ namespace AbilityKit.Ability.FrameSync.Rollback
     {
         void ValidateImport(FrameIndex frame, byte[] payload);
     }
+
+    /// <summary>
+    /// Marker for providers that restore object existence and structural relationships. After all
+    /// providers pass preflight, the coordinator imports these providers before field-state providers.
+    /// </summary>
+    public interface IRollbackStructureRestoreProvider : IRollbackStateProvider
+    {
+    }
 }

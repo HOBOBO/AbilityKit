@@ -30,12 +30,13 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (skill == null) return fallback;
 
-            if (skill.SkillType == SkillType.ParallelActive)
-            {
-                return fallback.WithAllowParallel(true);
-            }
-
-            return fallback;
+            return new SkillCastPolicy(
+                fallback.AllowParallel || skill.SkillType == SkillType.ParallelActive,
+                fallback.InterruptRunning || skill.InterruptRunning,
+                skill.CastConflictGroup > 0 ? skill.CastConflictGroup : fallback.ConflictGroup,
+                skill.InterruptPriority > 0 ? skill.InterruptPriority : fallback.InterruptPriority,
+                fallback.Uninterruptible || skill.Uninterruptible,
+                skill.TargetLostPolicy != 0 ? (SkillTargetLostPolicy)skill.TargetLostPolicy : fallback.TargetLostPolicy);
         }
 
         private MobaConfigDatabase ResolveConfigs()

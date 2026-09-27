@@ -1,36 +1,12 @@
-using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Game.Battle.Entity;
-using AbilityKit.Protocol.Moba.StateSync;
-using EC = AbilityKit.World.ECS;
+using AbilityKit.Demo.Moba.Share;
 
 namespace AbilityKit.Game.Flow.Battle.Snapshot
 {
     public static class BattleActorDespawnApplier
     {
-        public static void Apply(BattleContext ctx, MobaActorDespawnSnapshotEntry[] entries)
+        public static void Apply(BattleContext ctx, ActorDespawnData[] entries)
         {
-            if (ctx == null) return;
-            if (ctx.EntityWorld == null || ctx.EntityLookup == null) return;
-            if (entries == null || entries.Length == 0) return;
-
-            var world = ctx.EntityWorld;
-            var lookup = ctx.EntityLookup;
-
-            for (int i = 0; i < entries.Length; i++)
-            {
-                var e = entries[i];
-                if (e.ActorId <= 0) continue;
-
-                ctx.ViewVfxManager?.DestroyVfxByFollowTargetActorId(ctx.ViewVfxNode, e.ActorId);
-
-                var netId = new BattleNetId(e.ActorId);
-                if (lookup.TryResolve(world, netId, out var entity))
-                {
-                    if (entity.IsValid) entity.Destroy();
-                }
-
-                lookup.Unbind(netId);
-            }
+            BattleSnapshotEntityApplier.ApplyDespawn(ctx, entries);
         }
     }
 }

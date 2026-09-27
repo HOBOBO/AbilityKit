@@ -52,7 +52,8 @@ namespace AbilityKit.Game.Flow.Battle.View
         {
             if (GameObject != null)
             {
-                Object.Destroy(GameObject);
+                if (Application.isPlaying) Object.Destroy(GameObject);
+                else Object.DestroyImmediate(GameObject);
                 GameObject = null;
             }
  

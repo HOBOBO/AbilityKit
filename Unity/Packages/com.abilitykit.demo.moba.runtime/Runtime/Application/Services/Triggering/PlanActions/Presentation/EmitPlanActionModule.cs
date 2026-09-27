@@ -70,8 +70,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 Positions = new[] { new Vec3(emitter.OffsetX, emitter.OffsetY, emitter.OffsetZ) },
                 SourceActorId = casterActorId,
                 TargetActorId = targetActorId,
-                SourceContextId = input.TraceScope.EffectContextId,
-                TraceKind = MobaTraceKind.PresentationPlay
+                SourceContextId = input.ExecutionScope.EffectContextId,
+                ExecutionKind = MobaExecutionKind.PresentationPlay
             };
 
             bus.Publish(new EventKey<PresentationEventArgs>(eventId), in payload);

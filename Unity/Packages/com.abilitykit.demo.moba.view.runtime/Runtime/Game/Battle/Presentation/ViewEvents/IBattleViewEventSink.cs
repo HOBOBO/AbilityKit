@@ -1,10 +1,8 @@
 ﻿using AbilityKit.Ability.Host;
-using AbilityKit.Protocol.Moba;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share;
-using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
@@ -16,15 +14,15 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         void OnSummonEvent(string eventId, in DemoMobaSummonEventPayload payload);
 
-        void OnEnterGameSnapshot(ISnapshotEnvelope packet, EnterMobaGameRes res);
+        void OnEnterGameSnapshot(ISnapshotEnvelope packet, BattleEnterGameSnapshot res);
 
-        void OnActorTransformSnapshot(ISnapshotEnvelope packet, MobaActorTransformSnapshotEntry[] entries);
+        void OnActorTransformSnapshot(ISnapshotEnvelope packet, ActorTransformData[] entries);
 
-        void OnProjectileEventSnapshot(ISnapshotEnvelope packet, MobaProjectileEventSnapshotEntry[] entries);
+        void OnProjectileEventSnapshot(ISnapshotEnvelope packet, ProjectileEventData[] entries);
 
-        void OnAreaEventSnapshot(ISnapshotEnvelope packet, MobaAreaEventSnapshotEntry[] entries);
+        void OnAreaEventSnapshot(ISnapshotEnvelope packet, AreaEventData[] entries);
 
-        void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries);
+        void OnDamageEventSnapshot(ISnapshotEnvelope packet, DamageEventData[] entries);
 
         void OnPresentationCueSnapshot(ISnapshotEnvelope packet, PresentationCueData[] entries);
 

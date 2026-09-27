@@ -148,6 +148,22 @@ namespace AbilityKit.Demo.Moba.Share
         }
 
         /// <summary>
+        /// Dispatches actor removal events.
+        /// </summary>
+        public void DispatchActorDespawn(int frameIndex, in ActorDespawnData[] data)
+        {
+            Dispatch(frameIndex, MobaOpCodes.Snapshot.ActorDespawn, data);
+        }
+
+        /// <summary>
+        /// Dispatches skill presentation states.
+        /// </summary>
+        public void DispatchSkillState(int frameIndex, in SkillStateData[] data)
+        {
+            Dispatch(frameIndex, MobaOpCodes.Snapshot.SkillState, data);
+        }
+
+        /// <summary>
         /// 分发快照数据
         /// </summary>
         /// <typeparam name="T">数据类型</typeparam>

@@ -76,29 +76,45 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             }
 
             var end = PredictedFrame;
-            for (int f = rollbackFrame.Value + 1; f <= end.Value; f++)
+            var replaySink = _inputSink as IWorldInputReplaySink;
+            replaySink?.BeginReplay(rollbackFrame, end);
+            try
             {
-                var frame = new FrameIndex(f);
-                if (!_inputs.TryGet(frame, out var inputs))
+                for (int f = rollbackFrame.Value + 1; f <= end.Value; f++)
                 {
-                    inputs = Array.Empty<PlayerInputCommand>();
-                }
+                    var frame = new FrameIndex(f);
+                    if (!_inputs.TryGet(frame, out var inputs))
+                    {
+                        inputs = Array.Empty<PlayerInputCommand>();
+                    }
 
-                _inputSink.Submit(frame, inputs);
+                    if (replaySink != null)
+                    {
+                        replaySink.Replay(frame, inputs);
+                    }
+                    else
+                    {
+                        _inputSink.Submit(frame, inputs);
+                    }
 
-                var dt = _fixedDelta;
-                if (dt <= 0f)
-                {
-                    throw new InvalidOperationException("ClientPredictionRunner fixedDelta is not set. Call TickPredicted at least once before rollback.");
-                }
-                _world.Tick(dt);
-                _rollback.CaptureAndStore(frame);
+                    var dt = _fixedDelta;
+                    if (dt <= 0f)
+                    {
+                        throw new InvalidOperationException("ClientPredictionRunner fixedDelta is not set. Call TickPredicted at least once before rollback.");
+                    }
+                    _world.Tick(dt);
+                    _rollback.CaptureAndStore(frame);
 
-                if (_computeHash != null)
-                {
-                    var hash = _computeHash(frame);
-                    _reconciler.RecordPredictedHash(frame, hash);
+                    if (_computeHash != null)
+                    {
+                        var hash = _computeHash(frame);
+                        _reconciler.RecordPredictedHash(frame, hash);
+                    }
                 }
+            }
+            finally
+            {
+                replaySink?.EndReplay();
             }
 
             Log?.Invoke($"Rollback replay finished. toFrame={end.Value}");

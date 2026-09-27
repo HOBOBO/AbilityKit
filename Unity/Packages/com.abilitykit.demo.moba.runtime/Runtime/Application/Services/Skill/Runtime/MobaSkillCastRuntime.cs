@@ -98,10 +98,20 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void Notify(in MobaSkillRuntimeLifecycleEvent lifecycleEvent)
         {
+            Exception firstFailure = null;
             for (var i = 0; i < _hooks.Count; i++)
             {
-                _hooks[i]?.OnSkillRuntimeLifecycle(in lifecycleEvent);
+                try
+                {
+                    _hooks[i]?.OnSkillRuntimeLifecycle(in lifecycleEvent);
+                }
+                catch (Exception ex)
+                {
+                    if (firstFailure == null) firstFailure = ex;
+                    else AbilityKit.Core.Logging.Log.Exception(ex, "Additional skill runtime lifecycle hook failed.");
+                }
             }
+            if (firstFailure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstFailure).Throw();
         }
     }
 
@@ -774,38 +784,38 @@ namespace AbilityKit.Demo.Moba.Services
 
     public readonly struct MobaSkillRuntimeChildRef : IEquatable<MobaSkillRuntimeChildRef>
     {
-        public MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind kind, long childId, long traceContextId = 0L, int configId = 0)
+        public MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind kind, long childId, long contextId = 0L, int configId = 0)
         {
             Kind = kind;
             ChildId = childId;
-            TraceContextId = traceContextId;
+            ContextId = contextId;
             ConfigId = configId;
         }
 
         public MobaSkillRuntimeChildKind Kind { get; }
         public long ChildId { get; }
-        public long TraceContextId { get; }
+        public long ContextId { get; }
         public int ConfigId { get; }
         public bool IsValid => Kind != MobaSkillRuntimeChildKind.Unknown && ChildId != 0L;
 
         public bool Equals(MobaSkillRuntimeChildRef other) => Kind == other.Kind && ChildId == other.ChildId;
         public override bool Equals(object obj) => obj is MobaSkillRuntimeChildRef other && Equals(other);
         public override int GetHashCode() => ((int)Kind * 397) ^ ChildId.GetHashCode();
-        public override string ToString() => IsValid ? Kind + ":" + ChildId + "@" + TraceContextId + "#" + ConfigId : "Invalid";
+        public override string ToString() => IsValid ? Kind + ":" + ChildId + "@" + ContextId + "#" + ConfigId : "Invalid";
     }
 
     public readonly struct MobaSkillCastRuntimeHandle : IEquatable<MobaSkillCastRuntimeHandle>
     {
-        public MobaSkillCastRuntimeHandle(long runtimeId, int generation, long rootTraceContextId)
+        public MobaSkillCastRuntimeHandle(long runtimeId, int generation, long rootContextId)
         {
             RuntimeId = runtimeId;
             Generation = generation;
-            RootTraceContextId = rootTraceContextId;
+            RootContextId = rootContextId;
         }
 
         public long RuntimeId { get; }
         public int Generation { get; }
-        public long RootTraceContextId { get; }
+        public long RootContextId { get; }
         public bool IsValid => RuntimeId != 0L && Generation > 0;
 
         public bool Equals(MobaSkillCastRuntimeHandle other) => RuntimeId == other.RuntimeId && Generation == other.Generation;
@@ -843,7 +853,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             RuntimeId = runtimeId;
             Generation = generation;
-            RootTraceContextId = request.RootTraceContextId;
+            RootContextId = request.RootContextId;
             SkillId = request.SkillId;
             SkillSlot = request.SkillSlot;
             SkillLevel = request.SkillLevel;
@@ -858,8 +868,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         public long RuntimeId { get; }
         public int Generation { get; }
-        public long RootTraceContextId { get; internal set; }
-        public MobaSkillCastRuntimeHandle Handle => new MobaSkillCastRuntimeHandle(RuntimeId, Generation, RootTraceContextId);
+        public long RootContextId { get; internal set; }
+        public MobaSkillCastRuntimeHandle Handle => new MobaSkillCastRuntimeHandle(RuntimeId, Generation, RootContextId);
         public int SkillId { get; }
         public int SkillSlot { get; }
         public int SkillLevel { get; }
@@ -880,24 +890,31 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void UpdateInput(in Vec3 aimPos, in Vec3 aimDir, int targetActorId)
         {
-            if (!aimPos.Equals(Vec3.Zero)) AimPos = aimPos;
-            if (!aimDir.Equals(Vec3.Zero)) AimDir = aimDir;
-            if (targetActorId > 0) TargetActorId = targetActorId;
+            UpdateInput(in aimPos, in aimDir, targetActorId,
+                !aimPos.Equals(Vec3.Zero), !aimDir.Equals(Vec3.Zero), targetActorId > 0);
+        }
+
+        public void UpdateInput(in Vec3 aimPos, in Vec3 aimDir, int targetActorId,
+            bool hasAimPos, bool hasAimDir, bool hasTarget)
+        {
+            if (hasAimPos) AimPos = aimPos;
+            if (hasAimDir && !aimDir.Equals(Vec3.Zero)) AimDir = aimDir;
+            if (hasTarget) TargetActorId = targetActorId > 0 ? targetActorId : 0;
         }
 
         public bool TryGetContextSource(out MobaContextSourceView source)
         {
-            var sourceContextId = RootTraceContextId != 0 ? RootTraceContextId : RuntimeId;
+            var sourceContextId = RootContextId != 0 ? RootContextId : RuntimeId;
             source = new MobaContextSourceView(
                 MobaContextSourceResolveKind.DirectProvider,
                 MobaContextSourceBoundary.LiveRuntime,
                 EffectContextKind.Skill,
-                MobaTraceKind.SkillCast,
+                MobaExecutionKind.SkillCast,
                 CasterActorId,
                 TargetActorId,
                 sourceContextId,
                 sourceContextId,
-                RootTraceContextId != 0 ? RootTraceContextId : sourceContextId,
+                RootContextId != 0 ? RootContextId : sourceContextId,
                 RuntimeId,
                 SkillId,
                 0,
@@ -1005,7 +1022,7 @@ namespace AbilityKit.Demo.Moba.Services
             return new MobaSkillCastRuntimeSnapshot(
                 RuntimeId,
                 Generation,
-                RootTraceContextId,
+                RootContextId,
                 SkillId,
                 SkillSlot,
                 SkillLevel,
@@ -1027,7 +1044,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (snapshot.RuntimeId != RuntimeId || snapshot.Generation != Generation)
                 throw new InvalidOperationException($"Skill runtime identity mismatch. expected={RuntimeId}:{Generation} actual={snapshot.RuntimeId}:{snapshot.Generation}");
-            RootTraceContextId = snapshot.RootTraceContextId;
+            RootContextId = snapshot.RootContextId;
             TargetActorId = snapshot.TargetActorId;
             AimPos = snapshot.AimPos;
             AimDir = snapshot.AimDir;
@@ -1043,22 +1060,32 @@ namespace AbilityKit.Demo.Moba.Services
 
         internal void NotifyEnding(MobaSkillRuntimeEndReason reason)
         {
+            Exception firstFailure = null;
             foreach (var slot in _stateSlots.Values)
             {
-                slot?.OnRuntimeEnding(this, reason);
+                try
+                {
+                    slot?.OnRuntimeEnding(this, reason);
+                }
+                catch (Exception ex)
+                {
+                    if (firstFailure == null) firstFailure = ex;
+                    else AbilityKit.Core.Logging.Log.Exception(ex, "Additional skill runtime state slot cleanup failed.");
+                }
             }
+            if (firstFailure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstFailure).Throw();
         }
     }
 
     internal readonly struct MobaSkillCastRuntimeSnapshot
     {
         public MobaSkillCastRuntimeSnapshot(
-            long runtimeId, int generation, long rootTraceContextId, int skillId, int skillSlot, int skillLevel,
+            long runtimeId, int generation, long rootContextId, int skillId, int skillSlot, int skillLevel,
             int sequence, int casterActorId, int targetActorId, Vec3 aimPos, Vec3 aimDir, SkillCastStage stage,
             bool pipelineEnded, bool isEnding, bool isEnded, MobaSkillRuntimeEndReason endReason,
             MobaSkillRuntimeChildRef[] children, MobaSkillRuntimeBlackboardSnapshotEntry[] blackboardEntries)
         {
-            RuntimeId = runtimeId; Generation = generation; RootTraceContextId = rootTraceContextId;
+            RuntimeId = runtimeId; Generation = generation; RootContextId = rootContextId;
             SkillId = skillId; SkillSlot = skillSlot; SkillLevel = skillLevel; Sequence = sequence;
             CasterActorId = casterActorId; TargetActorId = targetActorId; AimPos = aimPos; AimDir = aimDir;
             Stage = stage; PipelineEnded = pipelineEnded; IsEnding = isEnding; IsEnded = isEnded; EndReason = endReason;
@@ -1068,7 +1095,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public long RuntimeId { get; }
         public int Generation { get; }
-        public long RootTraceContextId { get; }
+        public long RootContextId { get; }
         public int SkillId { get; }
         public int SkillSlot { get; }
         public int SkillLevel { get; }
@@ -1097,7 +1124,7 @@ namespace AbilityKit.Demo.Moba.Services
             int targetActorId,
             in Vec3 aimPos,
             in Vec3 aimDir,
-            long rootTraceContextId,
+            long rootContextId,
             long diagnosticCommandId = 0L)
         {
             SkillId = skillId;
@@ -1108,7 +1135,7 @@ namespace AbilityKit.Demo.Moba.Services
             TargetActorId = targetActorId;
             AimPos = aimPos;
             AimDir = aimDir;
-            RootTraceContextId = rootTraceContextId;
+            RootContextId = rootContextId;
             DiagnosticCommandId = diagnosticCommandId;
         }
 
@@ -1120,7 +1147,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int TargetActorId { get; }
         public Vec3 AimPos { get; }
         public Vec3 AimDir { get; }
-        public long RootTraceContextId { get; }
+        public long RootContextId { get; }
         public long DiagnosticCommandId { get; }
     }
 }

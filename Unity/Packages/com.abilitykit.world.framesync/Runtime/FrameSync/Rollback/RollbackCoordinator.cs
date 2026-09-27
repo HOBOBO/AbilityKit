@@ -272,27 +272,27 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                     }
                 }
 
-                for (int i = 0; i < entries.Length; i++)
+                var importedCount = 0;
+                if (!TryImportProviders(
+                        snapshot,
+                        entries,
+                        providers,
+                        structuralPhase: true,
+                        ref importedCount,
+                        out result))
                 {
-                    var entry = entries[i];
-                    try
-                    {
-                        providers[i].Import(snapshot.Frame, entry.Payload);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(ex, $"Rollback Import failed. key={entry.Key} frame={snapshot.Frame.Value} payloadLen={(entry.Payload != null ? entry.Payload.Length : 0)}");
-                        result = new RollbackOperationResult(
-                            RollbackOperationKind.Restore,
-                            RollbackOperationStatus.ProviderFailed,
-                            snapshot.Frame,
-                            providerKey: entry.Key,
-                            providerCount: i,
-                            payloadBytes: CountPayloadBytes(entries),
-                            message: $"Rollback provider import failed after {i} provider(s). The world may be partially restored. {ex.Message}",
-                            exception: ex);
-                        return false;
-                    }
+                    return false;
+                }
+
+                if (!TryImportProviders(
+                        snapshot,
+                        entries,
+                        providers,
+                        structuralPhase: false,
+                        ref importedCount,
+                        out result))
+                {
+                    return false;
                 }
             }
             finally
@@ -305,6 +305,46 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                 snapshot.Frame,
                 entries.Length,
                 CountPayloadBytes(entries));
+            return true;
+        }
+
+        private static bool TryImportProviders(
+            in WorldRollbackSnapshot snapshot,
+            WorldRollbackSnapshotEntry[] entries,
+            IRollbackStateProvider[] providers,
+            bool structuralPhase,
+            ref int importedCount,
+            out RollbackOperationResult result)
+        {
+            for (var i = 0; i < entries.Length; i++)
+            {
+                var provider = providers[i];
+                var isStructural = provider is IRollbackStructureRestoreProvider;
+                if (isStructural != structuralPhase) continue;
+
+                var entry = entries[i];
+                try
+                {
+                    provider.Import(snapshot.Frame, entry.Payload);
+                    importedCount++;
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, $"Rollback Import failed. key={entry.Key} frame={snapshot.Frame.Value} payloadLen={(entry.Payload != null ? entry.Payload.Length : 0)}");
+                    result = new RollbackOperationResult(
+                        RollbackOperationKind.Restore,
+                        RollbackOperationStatus.ProviderFailed,
+                        snapshot.Frame,
+                        providerKey: entry.Key,
+                        providerCount: importedCount,
+                        payloadBytes: CountPayloadBytes(entries),
+                        message: $"Rollback provider import failed after {importedCount} provider(s). The world may be partially restored. {ex.Message}",
+                        exception: ex);
+                    return false;
+                }
+            }
+
+            result = default;
             return true;
         }
 

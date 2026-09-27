@@ -343,7 +343,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                 && a.RuntimeContextVersion == b.RuntimeContextVersion
                 && a.OriginSourceActorId == b.OriginSourceActorId
                 && a.OriginTargetActorId == b.OriginTargetActorId
-                && a.OriginTraceKind == b.OriginTraceKind
+                && a.OriginExecutionKind == b.OriginExecutionKind
                 && a.OriginConfigId == b.OriginConfigId
                 && a.OriginImmediateContextId == b.OriginImmediateContextId
                 && a.OriginParentContextId == b.OriginParentContextId
@@ -351,7 +351,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                 && a.OriginOwnerContextId == b.OriginOwnerContextId
                 && a.SkillRuntimeId == b.SkillRuntimeId
                 && a.SkillRuntimeGeneration == b.SkillRuntimeGeneration
-                && a.SkillRuntimeRootTraceContextId == b.SkillRuntimeRootTraceContextId
+                && a.SkillRuntimeRootContextId == b.SkillRuntimeRootContextId
                 && a.HasContinuous == b.HasContinuous;
         }
 
@@ -368,7 +368,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             hash.AddLong(entry.RuntimeContextVersion);
             hash.AddInt(entry.OriginSourceActorId);
             hash.AddInt(entry.OriginTargetActorId);
-            hash.AddInt(entry.OriginTraceKind);
+            hash.AddInt(entry.OriginExecutionKind);
             hash.AddInt(entry.OriginConfigId);
             hash.AddLong(entry.OriginImmediateContextId);
             hash.AddLong(entry.OriginParentContextId);
@@ -376,7 +376,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             hash.AddLong(entry.OriginOwnerContextId);
             hash.AddLong(entry.SkillRuntimeId);
             hash.AddInt(entry.SkillRuntimeGeneration);
-            hash.AddLong(entry.SkillRuntimeRootTraceContextId);
+            hash.AddLong(entry.SkillRuntimeRootContextId);
             hash.AddInt(entry.HasContinuous ? 1 : 0);
         }
 
@@ -413,7 +413,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
         [MemoryPackOrder(8)] public readonly long RuntimeContextVersion;
         [MemoryPackOrder(9)] public readonly int OriginSourceActorId;
         [MemoryPackOrder(10)] public readonly int OriginTargetActorId;
-        [MemoryPackOrder(11)] public readonly int OriginTraceKind;
+        [MemoryPackOrder(11)] public readonly int OriginExecutionKind;
         [MemoryPackOrder(12)] public readonly int OriginConfigId;
         [MemoryPackOrder(13)] public readonly long OriginImmediateContextId;
         [MemoryPackOrder(14)] public readonly long OriginParentContextId;
@@ -421,12 +421,12 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
         [MemoryPackOrder(16)] public readonly long OriginOwnerContextId;
         [MemoryPackOrder(17)] public readonly long SkillRuntimeId;
         [MemoryPackOrder(18)] public readonly int SkillRuntimeGeneration;
-        [MemoryPackOrder(19)] public readonly long SkillRuntimeRootTraceContextId;
+        [MemoryPackOrder(19)] public readonly long SkillRuntimeRootContextId;
         [MemoryPackOrder(20)] public readonly bool HasContinuous;
 
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle =>
             SkillRuntimeId != 0L && SkillRuntimeGeneration > 0
-                ? new MobaSkillCastRuntimeHandle(SkillRuntimeId, SkillRuntimeGeneration, SkillRuntimeRootTraceContextId)
+                ? new MobaSkillCastRuntimeHandle(SkillRuntimeId, SkillRuntimeGeneration, SkillRuntimeRootContextId)
                 : default;
 
         public MobaBuffStateRecoveryEntry(
@@ -441,7 +441,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             long runtimeContextVersion,
             int originSourceActorId,
             int originTargetActorId,
-            int originTraceKind,
+            int originExecutionKind,
             int originConfigId,
             long originImmediateContextId,
             long originParentContextId,
@@ -449,7 +449,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             long originOwnerContextId,
             long skillRuntimeId,
             int skillRuntimeGeneration,
-            long skillRuntimeRootTraceContextId,
+            long skillRuntimeRootContextId,
             bool hasContinuous = false)
         {
             TargetActorId = targetActorId;
@@ -463,7 +463,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             RuntimeContextVersion = runtimeContextVersion;
             OriginSourceActorId = originSourceActorId;
             OriginTargetActorId = originTargetActorId;
-            OriginTraceKind = originTraceKind;
+            OriginExecutionKind = originExecutionKind;
             OriginConfigId = originConfigId;
             OriginImmediateContextId = originImmediateContextId;
             OriginParentContextId = originParentContextId;
@@ -471,7 +471,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             OriginOwnerContextId = originOwnerContextId;
             SkillRuntimeId = skillRuntimeId;
             SkillRuntimeGeneration = skillRuntimeGeneration;
-            SkillRuntimeRootTraceContextId = skillRuntimeRootTraceContextId;
+            SkillRuntimeRootContextId = skillRuntimeRootContextId;
             HasContinuous = hasContinuous;
         }
 
@@ -499,7 +499,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                 origin.OwnerContextId,
                 skill.RuntimeId,
                 skill.Generation,
-                skill.RootTraceContextId,
+                skill.RootContextId,
                 runtime.Continuous != null && !runtime.Continuous.IsTerminated);
         }
 
@@ -521,7 +521,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             runtime.Origin = new MobaGameplayOrigin(
                 OriginSourceActorId,
                 OriginTargetActorId,
-                (MobaTraceKind)OriginTraceKind,
+                (MobaExecutionKind)OriginExecutionKind,
                 OriginConfigId,
                 OriginImmediateContextId,
                 OriginParentContextId,

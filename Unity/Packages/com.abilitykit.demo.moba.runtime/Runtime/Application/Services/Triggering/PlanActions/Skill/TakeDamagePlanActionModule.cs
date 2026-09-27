@@ -24,6 +24,18 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         protected override void Execute(object triggerArgs, TakeDamageArgs args, ExecCtx<IWorldResolver> ctx)
         {
+            if (!triggerArgs.TryResolveCombatExecutionContext(out var executionContext))
+            {
+                LogRejected(ctx, "requires an authoritative combat execution context.");
+                return;
+            }
+
+            if (!MobaDamageExecutionConditions.CanTriggerReflection(in executionContext))
+            {
+                LogRejected(ctx, "damage context suppresses reflection.");
+                return;
+            }
+
             if (!ctx.Context.TryResolve<MobaCombatEffectService>(out var combat) || combat == null)
             {
                 LogRejected(ctx, "cannot resolve MobaCombatEffectService.");
@@ -57,6 +69,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 ReasonKind = DamageReasonKind.Buff,
                 ReasonParam = reasonParam,
                 FormulaKind = (int)DamageFormulaKind.Standard,
+                CombatFlags = MobaDamageExecutionConditions
+                    .CreateReflectionFacts(in executionContext)
+                    .Flags,
             };
 
             if (MobaPlanActionInputResolver.TryResolveEffect(
@@ -121,7 +136,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             IMobaOriginContextProvider originProvider,
             int sourceActorId,
             int targetActorId,
-            MobaTraceKind originKind,
+            MobaExecutionKind originKind,
             int originConfigId,
             long originContextId,
             out MobaGameplayOrigin origin)
@@ -133,7 +148,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var lineageContext = new MobaTriggerLineageContext(
                 EffectContextKind.Trigger,
-                originKind != MobaTraceKind.None ? originKind : MobaTraceKind.DamageAttack,
+                originKind != MobaExecutionKind.None ? originKind : MobaExecutionKind.DamageAttack,
                 sourceActorId,
                 targetActorId,
                 originContextId,

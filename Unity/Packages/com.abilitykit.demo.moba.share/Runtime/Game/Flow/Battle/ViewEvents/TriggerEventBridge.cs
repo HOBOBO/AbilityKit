@@ -94,12 +94,19 @@ namespace AbilityKit.Demo.Moba.Share
             if (!_isEnabled || _sink == null) return;
 
             var projectileData = new ProjectileEventData(
-                projectileId: projectileId,
-                ownerId: ownerId,
-                kind: ProjectileEventKind.Hit,
+                kind: ProjectilePresentationEventKind.Hit,
+                projectileActorId: projectileId,
+                ownerActorId: ownerId,
+                templateId: 0,
+                launcherActorId: ownerId,
+                rootActorId: ownerId,
                 x: x, y: y, z: z,
-                targetId: targetId,
-                startX: 0, startY: 0, startZ: 0
+                hitCollider: targetId,
+                exitReason: 0,
+                projectileId: projectileId,
+                forwardX: 0,
+                forwardY: 0,
+                forwardZ: 0
             );
 
             var snapshot = new FrameSnapshotData(

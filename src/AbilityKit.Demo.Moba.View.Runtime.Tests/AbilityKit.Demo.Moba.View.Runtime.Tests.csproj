@@ -10,6 +10,8 @@
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Game.View.Runtime/AbilityKit.Game.View.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.View.Runtime\AbilityKit.Demo.Moba.View.Runtime.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Presentation.Contracts\AbilityKit.Demo.Moba.Presentation.Contracts.csproj" />
+    <ProjectReference Include="../AbilityKit.Demo.Moba.Presentation.Core/AbilityKit.Demo.Moba.Presentation.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
     <ProjectReference Include="../AbilityKit.Demo.Common/AbilityKit.Demo.Common.csproj" />
     <ProjectReference Include="..\AbilityKit.Network.Room\AbilityKit.Network.Room.csproj" />

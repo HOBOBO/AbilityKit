@@ -51,4 +51,5 @@ namespace AbilityKit.Demo.Moba.Services
             return state.LastMax;
         }
     }
+
 }

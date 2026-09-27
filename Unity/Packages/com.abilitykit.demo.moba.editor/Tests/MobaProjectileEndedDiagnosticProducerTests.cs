@@ -104,7 +104,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var origin = new MobaGameplayOrigin(
                 7,
                 11,
-                MobaTraceKind.ProjectileLaunch,
+                MobaExecutionKind.ProjectileLaunch,
                 301,
                 500L,
                 500L,

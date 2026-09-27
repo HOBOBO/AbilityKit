@@ -63,7 +63,8 @@ namespace AbilityKit.Game.Battle.Agent
                 snapshot.EventWatermark,
                 snapshot.EventEpoch,
                 snapshot.PayloadOpCode,
-                snapshot.Payload);
+                snapshot.Payload,
+                snapshot.ServerTicks);
         }
 
         public void Reset()

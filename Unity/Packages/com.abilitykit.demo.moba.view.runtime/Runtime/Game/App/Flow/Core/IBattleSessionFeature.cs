@@ -1,8 +1,9 @@
 using System;
+using AbilityKit.Game.View.Flow;
 
 namespace AbilityKit.Game.Flow
 {
-    public interface IBattleSessionFeature : IGamePhaseFeature
+    public interface IBattleSessionFeature : IGamePhaseFeature, IAsyncPhaseFeature<GamePhaseContext>
     {
         event Action SessionStarted;
         // 会话所需世界资源已建立。Lockstep 在远端驱动世界安装完成后触发；

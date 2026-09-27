@@ -4,9 +4,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Demo.Common.Rooms;
+using AbilityKit.Network.Room;
 
 namespace AbilityKit.Game.Flow
 {
+    public interface IGatewayRoomSessionClientProvider
+    {
+        IRoomGatewaySessionClient RoomSessionClient { get; }
+    }
+
     public interface IGatewayAuthenticationCapability
     {
         Task<string> GuestLoginAsync(

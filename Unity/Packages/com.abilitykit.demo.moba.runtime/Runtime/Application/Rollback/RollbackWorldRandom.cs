@@ -8,6 +8,7 @@ using AbilityKit.Triggering.Runtime;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
+    [MobaRollbackProvider(DefaultKey, autoResolve: true)]
     public sealed class RollbackWorldRandom : IWorldRandom, ITriggerRandomSource, IRollbackStateProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10010;

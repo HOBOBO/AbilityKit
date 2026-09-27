@@ -99,6 +99,27 @@ namespace ET.Logic
             }
         }
 
+        public void OnActorDespawnSnapshot(in FrameSnapshotData snapshot)
+        {
+            if (snapshot.ActorDespawns == null || snapshot.ActorDespawns.Count == 0)
+            {
+                return;
+            }
+
+            var unitComponent = _battleComponent.Scene()?.GetComponent<ETUnitComponent>();
+            foreach (var despawn in snapshot.ActorDespawns)
+            {
+                if (despawn.ActorId <= 0) continue;
+
+                unitComponent?.RemoveUnit(despawn.ActorId);
+                _cacheComponent?.RemoveEntity(despawn.ActorId);
+            }
+        }
+
+        public virtual void OnSkillStateSnapshot(in FrameSnapshotData snapshot)
+        {
+        }
+
         public void OnDamageEventSnapshot(in FrameSnapshotData snapshot)
         {
             var scene = _battleComponent.Scene();

@@ -2,6 +2,7 @@ using System.Reflection;
 using AbilityKit.Context;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Observability;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Diagnostics;
@@ -18,7 +19,7 @@ public sealed class MobaEffectExecutionSnapshotTests
         var id = CreateEffect(trace);
         var payload = new StagePayload { Throws = true };
         var context = Context(payload);
-        store.OnExecutionStarted(id, 101, 201, context);
+        Observe(store, id, 101, 201, context);
         Assert.False(Reference(trace, id).IsValid);
         Assert.Equal(0, payload.ReadCount);
         Assert.Equal(0, store.Revision);
@@ -38,30 +39,30 @@ public sealed class MobaEffectExecutionSnapshotTests
         collector.SetFrozen(true);
         Assert.False(store.IsEnabled);
         var id = CreateEffect(trace);
-        store.OnExecutionStarted(id, 101, 201, Context(new StagePayload()));
+        Observe(store, id, 101, 201, Context(new StagePayload()));
         Assert.False(Reference(trace, id).IsValid);
         collector.SetFrozen(false);
         collector.EnabledChannels = BattleDiagnosticEventChannel.None;
         Assert.False(store.IsEnabled);
         collector.EnabledChannels = BattleDiagnosticEventChannel.Skill;
-        store.OnExecutionStarted(id, 101, 201, Context(new StagePayload()));
+        Observe(store, id, 101, 201, Context(new StagePayload()));
         Assert.True(Reference(trace, id).IsValid);
     }
 
     [Fact]
-    public void Entry_facts_are_detached_read_once_and_never_overwritten()
+    public void Entry_facts_are_detached_and_never_overwritten_by_duplicate_observations()
     {
         using var trace = new MobaTraceRegistry();
         using var store = new MobaEffectExecutionSnapshotStore(trace, 8, () => true);
         var id = CreateEffect(trace);
         var payload = new StagePayload { StackCount = 3, Remaining = 4 };
         var context = Context(payload);
-        store.OnExecutionStarted(id, 101, 201, context);
+        Observe(store, id, 101, 201, context);
         var reference = Reference(trace, id);
         Assert.True(reference.IsValid);
         payload.StackCount = 99;
         payload.Remaining = 99;
-        store.OnExecutionStarted(id, 102, 202, context);
+        Observe(store, id, 102, 202, context);
         var facts = store.Read(reference);
         Assert.True(facts.IsCaptured);
         Assert.True(facts.HasStageSnapshot);
@@ -75,7 +76,7 @@ public sealed class MobaEffectExecutionSnapshotTests
         Assert.Equal(7, facts.RuntimeContextVersion);
         Assert.Equal("moba.effect.execution-entry", facts.TypeId);
         Assert.Equal(1, facts.SchemaVersion);
-        Assert.Equal(1, payload.ReadCount);
+        Assert.Equal(2, payload.ReadCount);
         Assert.Equal(1, store.Revision);
     }
 
@@ -85,13 +86,13 @@ public sealed class MobaEffectExecutionSnapshotTests
         using var trace = new MobaTraceRegistry();
         using var store = new MobaEffectExecutionSnapshotStore(trace, 8, () => true);
         var zero = CreateEffect(trace);
-        store.OnExecutionStarted(zero, 0, 201, Context(new StagePayload()));
+        Observe(store, zero, 0, 201, Context(new StagePayload()));
         var facts = store.Read(Reference(trace, zero));
         Assert.True(facts.HasStageSnapshot);
         Assert.Equal(0, facts.StackCount);
         Assert.Equal(0, facts.EffectConfigId); // Direct trigger IDs are not invented effect config IDs.
         var absent = CreateEffect(trace);
-        store.OnExecutionStarted(absent, 101, 201, Context(new object()));
+        Observe(store, absent, 101, 201, Context(new object()));
         Assert.False(store.Read(Reference(trace, absent)).HasStageSnapshot);
         Assert.False(store.Read(Reference(trace, absent)).HasRuntimeContext);
     }
@@ -103,14 +104,14 @@ public sealed class MobaEffectExecutionSnapshotTests
         using var store = new MobaEffectExecutionSnapshotStore(trace, 8, () => true);
         var id = CreateEffect(trace);
         var context = Context(new StagePayload { Throws = true });
-        Assert.Null(Record.Exception(() => store.OnExecutionStarted(id, 101, 201, context)));
+        Assert.Null(Record.Exception(() => Observe(store, id, 101, 201, context)));
         Assert.False(Reference(trace, id).IsValid);
         Assert.True(trace.TryGetNodeSnapshot(id, out var node));
         Assert.False(node.IsEnded);
         trace.EndContext(id);
-        Assert.False(store.TryCapture(id, 101, 201, Context(new StagePayload())));
-        var action = trace.CreateRootContext(MobaTraceKind.EffectAction, 301);
-        Assert.False(store.TryCapture(action, 101, 201, Context(new StagePayload())));
+        Assert.False(Capture(store, id, 101, 201, Context(new StagePayload())));
+        var action = trace.CreateObservationRoot(MobaExecutionKind.EffectAction, 301);
+        Assert.False(Capture(store, action, 101, 201, Context(new StagePayload())));
     }
 
     [Fact]
@@ -119,10 +120,10 @@ public sealed class MobaEffectExecutionSnapshotTests
         using var trace = new MobaTraceRegistry();
         using var store = new MobaEffectExecutionSnapshotStore(trace, 1, () => true);
         var first = CreateEffect(trace);
-        store.OnExecutionStarted(first, 101, 201, Context(new StagePayload { StackCount = 1 }));
+        Observe(store, first, 101, 201, Context(new StagePayload { StackCount = 1 }));
         var old = Reference(trace, first);
         var second = CreateEffect(trace);
-        store.OnExecutionStarted(second, 101, 201, Context(new StagePayload { StackCount = 2 }));
+        Observe(store, second, 101, 201, Context(new StagePayload { StackCount = 2 }));
         Assert.Equal(BattleDiagnosticDataAvailability.Evicted, store.Read(old).Availability);
         Assert.Equal(2, store.Read(Reference(trace, second)).StackCount);
         Assert.True(trace.Contains(first));
@@ -134,11 +135,11 @@ public sealed class MobaEffectExecutionSnapshotTests
         using var trace = new MobaTraceRegistry();
         using var store = new MobaEffectExecutionSnapshotStore(trace, 8, () => true);
         var confirmed = CreateEffect(trace);
-        store.OnExecutionStarted(confirmed, 101, 201, Context(new StagePayload()));
+        Observe(store, confirmed, 101, 201, Context(new StagePayload()));
         var kept = Reference(trace, confirmed);
         var boundary = trace.NextContextId;
-        var predicted = trace.CreateChildContext(confirmed, MobaTraceKind.EffectExecution, 101);
-        store.OnExecutionStarted(predicted, 101, 201, Context(new StagePayload()));
+        var predicted = trace.CreateObservationChild(confirmed, MobaExecutionKind.EffectExecution, 101);
+        Observe(store, predicted, 101, 201, Context(new StagePayload()));
         var removed = Reference(trace, predicted);
         trace.RetractPrediction(boundary);
         Assert.True(store.Read(kept).IsCaptured);
@@ -147,11 +148,11 @@ public sealed class MobaEffectExecutionSnapshotTests
         Assert.Equal(BattleDiagnosticDataAvailability.Evicted, store.Read(kept).Availability);
 
         var beforeClear = CreateEffect(trace);
-        store.OnExecutionStarted(beforeClear, 101, 201, Context(new StagePayload()));
+        Observe(store, beforeClear, 101, 201, Context(new StagePayload()));
         var stale = Reference(trace, beforeClear);
         trace.Clear();
         var replay = CreateEffect(trace);
-        store.OnExecutionStarted(replay, 101, 201, Context(new StagePayload()));
+        Observe(store, replay, 101, 201, Context(new StagePayload()));
         var fresh = Reference(trace, replay);
         Assert.True(fresh.SnapshotId > stale.SnapshotId);
         Assert.True(fresh.Generation > stale.Generation);
@@ -159,7 +160,7 @@ public sealed class MobaEffectExecutionSnapshotTests
         store.Dispose();
         Assert.False(store.IsEnabled);
         Assert.Equal(BattleDiagnosticDataAvailability.Evicted, store.Read(fresh).Availability);
-        Assert.False(store.TryCapture(replay, 101, 201, Context(new StagePayload())));
+        Assert.False(Capture(store, replay, 101, 201, Context(new StagePayload())));
     }
 
     [Fact]
@@ -173,7 +174,7 @@ public sealed class MobaEffectExecutionSnapshotTests
             .SetValue(reader, store);
         var id = CreateEffect(trace);
         var revision = reader.Revision;
-        store.OnExecutionStarted(id, 101, 201, Context(new StagePayload { StackCount = 3 }));
+        Observe(store, id, 101, 201, Context(new StagePayload { StackCount = 3 }));
         Assert.True(reader.Revision > revision);
         var snapshot = reader.CaptureTraceSnapshot();
         var node = Assert.Single(snapshot.Nodes);
@@ -189,7 +190,47 @@ public sealed class MobaEffectExecutionSnapshotTests
         Assert.Equal(BattleDiagnosticDataAvailability.NotCaptured, Assert.Single(legacy.Trace.Nodes).ExecutionFacts.Availability);
     }
 
-    private static long CreateEffect(MobaTraceRegistry trace) => trace.CreateRootContext(MobaTraceKind.EffectExecution, 101);
+    private static long CreateEffect(MobaTraceRegistry trace) => trace.CreateObservationRoot(MobaExecutionKind.EffectExecution, 101);
+    private static void Observe(
+        MobaEffectExecutionSnapshotStore store,
+        long contextId,
+        int effectConfigId,
+        int triggerId,
+        MobaCombatExecutionContext context)
+    {
+        if (!store.IsEnabled) return;
+        try
+        {
+            var observation = MobaEffectExecutionEntryObservation.Create(
+                contextId, effectConfigId, triggerId, in context);
+            store.OnObserved(in observation);
+        }
+        catch
+        {
+            // Mirrors the Core observation boundary.
+        }
+    }
+
+    private static bool Capture(
+        MobaEffectExecutionSnapshotStore store,
+        long contextId,
+        int effectConfigId,
+        int triggerId,
+        MobaCombatExecutionContext context)
+    {
+        if (!store.IsEnabled) return false;
+        try
+        {
+            var observation = MobaEffectExecutionEntryObservation.Create(
+                contextId, effectConfigId, triggerId, in context);
+            return store.TryCapture(in observation);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static ContextSnapshotReference Reference(MobaTraceRegistry trace, long id)
     {
         Assert.True(trace.TryGetNodeSnapshot(id, out var node));

@@ -1,3 +1,5 @@
+using System;
+
 namespace AbilityKit.Demo.Moba.Services
 {
     public enum MobaModifierOwnerScope
@@ -76,53 +78,51 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaModifierOwnerRef Projectile => MobaModifierOwnerRef.Projectile(ProjectileActorId);
         public MobaModifierOwnerRef Summon => MobaModifierOwnerRef.Summon(SummonActorId);
 
-        public MobaModifierOwnerRef[] ActorChain()
+        public int WriteActorChain(Span<MobaModifierOwnerRef> destination)
         {
-            return BuildChain(Actor);
+            return WriteChain(destination, Actor, default, default);
         }
 
-        public MobaModifierOwnerRef[] LauncherThenActorChain()
+        public int WriteLauncherThenActorChain(Span<MobaModifierOwnerRef> destination)
         {
-            return BuildChain(Launcher, Actor);
+            return WriteChain(destination, Launcher, Actor, default);
         }
 
-        public MobaModifierOwnerRef[] ProjectileThenLauncherThenActorChain()
+        public int WriteProjectileThenLauncherThenActorChain(Span<MobaModifierOwnerRef> destination)
         {
-            return BuildChain(Projectile, Launcher, Actor);
+            return WriteChain(destination, Projectile, Launcher, Actor);
         }
 
-        public MobaModifierOwnerRef[] SummonThenActorChain()
+        public int WriteSummonThenActorChain(Span<MobaModifierOwnerRef> destination)
         {
-            return BuildChain(Summon, Actor);
+            return WriteChain(destination, Summon, Actor, default);
         }
 
-        private static MobaModifierOwnerRef[] BuildChain(params MobaModifierOwnerRef[] candidates)
+        private static int WriteChain(
+            Span<MobaModifierOwnerRef> destination,
+            MobaModifierOwnerRef first,
+            MobaModifierOwnerRef second,
+            MobaModifierOwnerRef third)
         {
             var count = 0;
-            for (int i = 0; i < candidates.Length; i++)
+            WriteOwner(destination, ref count, first);
+            WriteOwner(destination, ref count, second);
+            WriteOwner(destination, ref count, third);
+            return count;
+        }
+
+        private static void WriteOwner(
+            Span<MobaModifierOwnerRef> destination,
+            ref int count,
+            MobaModifierOwnerRef owner)
+        {
+            if (!owner.IsValid) return;
+            if ((uint)count >= (uint)destination.Length)
             {
-                if (candidates[i].IsValid)
-                {
-                    count++;
-                }
+                throw new ArgumentException("Modifier owner chain destination is too small.", nameof(destination));
             }
 
-            if (count == candidates.Length)
-            {
-                return candidates;
-            }
-
-            var chain = new MobaModifierOwnerRef[count];
-            var index = 0;
-            for (int i = 0; i < candidates.Length; i++)
-            {
-                if (candidates[i].IsValid)
-                {
-                    chain[index++] = candidates[i];
-                }
-            }
-
-            return chain;
+            destination[count++] = owner;
         }
     }
 }

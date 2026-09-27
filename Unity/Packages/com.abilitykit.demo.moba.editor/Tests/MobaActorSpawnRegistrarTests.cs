@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Mathematics;
@@ -72,6 +73,48 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(registry.Contains(ActorId), Is.False);
             Assert.That(entities.TryGetActorEntity(ActorId, out _), Is.False);
             Assert.That(entities.Index.Registry.Contains(ActorId), Is.False);
+        }
+
+        [Test]
+        public void SpawnService_MissingRequestedActorRegistryRejectsBeforeEntityCreation()
+        {
+            var contexts = new Contexts();
+            var service = new MobaActorSpawnService();
+            SetPrivateField(service, "_contexts", contexts);
+            var spec = CreateSpec(ActorId);
+            var request = MobaActorSpawnRequest.FromSpec(in spec);
+            request.RegisterEntityManager = false;
+
+            var succeeded = service.TrySpawn(in request, out var result);
+
+            Assert.That(succeeded, Is.False);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(
+                "MobaActorRegistry is required when actor registration is enabled"));
+            Assert.That(contexts.actor.GetEntities(), Is.Empty);
+            contexts.Reset();
+        }
+
+        [Test]
+        public void SpawnService_MissingRequestedEntityManagerRejectsBeforeEntityCreation()
+        {
+            var contexts = new Contexts();
+            using var registry = new MobaActorRegistry();
+            var service = new MobaActorSpawnService();
+            SetPrivateField(service, "_contexts", contexts);
+            SetPrivateField(service, "_registry", registry);
+            var spec = CreateSpec(ActorId);
+            var request = MobaActorSpawnRequest.FromSpec(in spec);
+            request.RegisterActor = false;
+
+            var succeeded = service.TrySpawn(in request, out var result);
+
+            Assert.That(succeeded, Is.False);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Is.EqualTo(
+                "MobaEntityManager is required when entity-manager registration is enabled"));
+            Assert.That(contexts.actor.GetEntities(), Is.Empty);
+            contexts.Reset();
         }
 
         [Test]
@@ -249,6 +292,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         private static EventKey<UnitEventPayload> CreateUnitEventKey(string eventId)
         {
             return new EventKey<UnitEventPayload>(TriggeringIdUtil.GetEventEid(eventId));
+        }
+
+        private static void SetPrivateField<T>(object target, string fieldName, T value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, fieldName);
+            field.SetValue(target, value);
         }
 
         private static MobaActorBuildSpec CreateSpec(int actorId)

@@ -27,5 +27,14 @@ namespace AbilityKit.Demo.Moba.CodeGen
         public const string InvalidSnapshotEmitterRuleId = "AKSG8001";
         public const string InvalidConfigTableRuleId = "AKSG1001";
         public const string DuplicateConfigTableRuleId = "AKSG1002";
+        public const string InvalidWorldServiceRuleId = "AKSG7001";
+        public const string ConflictingWorldServiceLifetimeRuleId = "AKSG7002";
+        public const string DuplicateWorldServiceBindingRuleId = "AKSG7003";
+        public const string InvalidWorldSystemRuleId = "AKSG7004";
+        public const string DuplicateWorldSystemOrderRuleId = "AKSG7005";
+        public const string InvalidPlanActionSchemaRuleId = "AKSG2101";
+        public const string InvalidPlanActionArgRuleId = "AKSG2102";
+        public const string InvalidRegistrationManifestRuleId = "AKSG7101";
+        public const string DuplicateRegistrationManifestKeyRuleId = "AKSG7102";
     }
 }

@@ -11,18 +11,40 @@ public sealed class TinyRoomGameplayAdapter : IRoomGameplayAdapter
 {
     private const string Format = "tiny.room.v1";
 
-    public string RoomType => TinyGameplay.RoomType;
+    private readonly string _roomType;
+    private readonly string _worldType;
+    private readonly int _tickRate;
+    private readonly string _format;
+    private readonly string _assetKey;
+    private readonly string _rulesKey;
+
+    public TinyRoomGameplayAdapter() : this(TinyGameplay.RoomType,
+        TinyGameplay.WorldType, TinyGameplay.TickRate, Format, "tiny:arena",
+        "tiny:rules.v1") { }
+
+    internal TinyRoomGameplayAdapter(string roomType, string worldType, int tickRate,
+        string format, string assetKey, string rulesKey)
+    {
+        _roomType = roomType;
+        _worldType = worldType;
+        _tickRate = tickRate;
+        _format = format;
+        _assetKey = assetKey;
+        _rulesKey = rulesKey;
+    }
+
+    public string RoomType => _roomType;
 
     public object CreateState(RoomSummary summary) => new State();
 
     public RoomGameplayPersistentState ExportPersistentState(object state)
     {
-        return new RoomGameplayPersistentState(Format, 1, JsonSerializer.SerializeToUtf8Bytes(Require(state)));
+        return new RoomGameplayPersistentState(_format, 1, JsonSerializer.SerializeToUtf8Bytes(Require(state)));
     }
 
     public object RestorePersistentState(RoomSummary summary, RoomGameplayPersistentState persistentState)
     {
-        if (persistentState.Format != Format || persistentState.Version != 1)
+        if (persistentState.Format != _format || persistentState.Version != 1)
         {
             throw new InvalidOperationException("Unsupported Tiny room state format.");
         }
@@ -62,7 +84,7 @@ public sealed class TinyRoomGameplayAdapter : IRoomGameplayAdapter
     {
         return RoomLaunchManifestBuilder.Build(
             RoomLaunchManifestBuilder.CurrentManifestVersion,
-            new[] { "tiny:arena", "tiny:rules.v1" },
+            new[] { _assetKey, _rulesKey },
             new Dictionary<string, string> { ["players"] = Require(state).Players.Count.ToString() });
     }
 
@@ -80,10 +102,10 @@ public sealed class TinyRoomGameplayAdapter : IRoomGameplayAdapter
         return new BattleInitParams
         {
             WorldId = StableWorldId(summary.RoomId),
-            TickRate = TinyGameplay.TickRate,
+            TickRate = _tickRate,
             Players = OrderedPlayers(Require(state)).Select(pair => CreatePlayer(pair.Key, pair.Value.PlayerId)).ToList(),
-            WorldType = TinyGameplay.WorldType,
-            RoomType = TinyGameplay.RoomType,
+            WorldType = _worldType,
+            RoomType = _roomType,
             SyncOptions = RoomBattleSyncOptionsMapper.Resolve(summary, request)
         };
     }

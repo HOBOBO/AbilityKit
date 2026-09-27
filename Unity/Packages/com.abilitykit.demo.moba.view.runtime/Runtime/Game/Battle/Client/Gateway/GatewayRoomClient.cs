@@ -11,6 +11,7 @@ namespace AbilityKit.Game.Battle.Agent
 {
     public sealed partial class GatewayRoomClient :
         IGatewayRoomClient,
+        IGatewayRoomSessionClientProvider,
         IDemoRoomDirectoryClient,
         IRoomGatewayRequestTransport,
         IRoomGatewayPushSource,
@@ -21,6 +22,8 @@ namespace AbilityKit.Game.Battle.Agent
         private readonly GatewayRoomOpCodes _opCodes;
         private readonly RoomGatewayWireSessionClient _roomSessionClient;
         private bool _disposed;
+
+        IRoomGatewaySessionClient IGatewayRoomSessionClientProvider.RoomSessionClient => _roomSessionClient;
 
         public GatewayRoomClient(IConnection connection, GatewayRoomOpCodes opCodes)
             : this(new GatewayRoomTransportAdapter(connection), opCodes)
@@ -134,6 +137,7 @@ namespace AbilityKit.Game.Battle.Agent
         {
             if (_disposed) return;
             _disposed = true;
+            _wireClient.Dispose();
             _roomSessionClient.Dispose();
             _transport.Dispose();
         }

@@ -37,6 +37,17 @@
   - 在 `Export/Import` 中吞异常。
   - 依赖外部时钟/随机源而不做固定化（除非你把随机数种子/状态也纳入回滚状态）。
 
+### 3) 字节命令 Journal
+
+- `CommandRollbackLog` 的记录是纯数据：`Frame + Order + CommandType + PayloadVersion + Payload`。记录时复制 payload，不能保存委托、闭包或实体实例引用。
+- `CommandRollbackStateProvider.Export` 只编码固定小端序的 `Version + Epoch + NextOrder` 检查点；未来命令的撤销参数仍保留在当前 Journal 中。
+- `RollbackCommandHandlerRegistry` 负责 `CommandType` 的唯一映射并在运行前密封。每个 Handler 必须先声明支持的 payload 版本，再无副作用地校验 payload，最后执行逆操作。
+- `RollbackTo` 以 `NextOrder` 为精确边界并严格逆序执行，因此同一帧内的捕获也不会退错命令。
+- `CommandRollbackStateProvider` 实现 `IRollbackStructureRestoreProvider`。Coordinator 在全量 preflight 后先导入全部结构 Provider，再导入字段状态 Provider，确保被销毁对象已恢复为可寻址状态。
+- `TrimBefore` 会推进可回滚下界，跨越已裁剪记录的旧 checkpoint 必须失败；`Clear` 会推进 Epoch，使上一局或上一 World 的 checkpoint 失效。
+- Handler 必须通过 payload 中的稳定 ID/Generation 重新解析对象。`RollbackCommandContext.Services` 只提供业务服务入口，不能重新引入按条命令捕获对象的闭包。
+- 预检失败时不执行命令；如果 Handler 执行后抛异常，Journal 标记为 faulted，必须完整重建世界并清理 Journal。
+
 ---
 
 ## Reconcile（对账）逻辑细节

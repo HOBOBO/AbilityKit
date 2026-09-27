@@ -72,7 +72,7 @@ namespace AbilityKit.Demo.Moba.Services
             var childRef = new MobaSkillRuntimeChildRef(
                 MobaSkillRuntimeChildKind.SkillRuntime,
                 child.RuntimeId,
-                child.RootTraceContextId);
+                child.RootContextId);
             if (!_runtimes.RetainChild(in parent, in childRef, out var retain))
             {
                 failure = "Failed to retain derived skill runtime on its parent.";

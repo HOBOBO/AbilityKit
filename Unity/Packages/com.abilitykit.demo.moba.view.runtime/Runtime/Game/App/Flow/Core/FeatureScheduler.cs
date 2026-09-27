@@ -2,6 +2,7 @@ using AbilityKit.Game.View.Flow;
 using System;
 using System.Collections.Generic;
 using System.Runtime.ExceptionServices;
+using System.Threading.Tasks;
 using AbilityKit.Ability.Flow;
 using AbilityKit.Core.Logging;
 
@@ -67,7 +68,8 @@ namespace AbilityKit.Game.Flow
                 initialCapacity: featureCapacity,
                 attachFeature: AttachFeatureCore,
                 detachFeature: DetachFeatureCore,
-                tickFeature: TickFeatureCore);
+                tickFeature: TickFeatureCore,
+                detachFeatureAsync: DetachFeatureCoreAsync);
             Features.AttachAll(in _ctx);
 
             BootFeaturePlan = bootFeaturePlan ?? throw new ArgumentNullException(nameof(bootFeaturePlan));
@@ -109,6 +111,50 @@ namespace AbilityKit.Game.Flow
             try
             {
                 feature.OnDetach(ctx);
+            }
+            catch (Exception exception)
+            {
+                featureException = exception;
+            }
+
+            try
+            {
+                _callbacks.FeatureBinderDetach(feature);
+            }
+            catch (Exception binderException)
+            {
+                if (featureException != null)
+                {
+                    throw new AggregateException(
+                        "Feature and binder detach both failed.",
+                        featureException,
+                        binderException);
+                }
+
+                throw;
+            }
+
+            if (featureException != null)
+            {
+                ExceptionDispatchInfo.Capture(featureException).Throw();
+            }
+        }
+
+        private async Task DetachFeatureCoreAsync(
+            IGamePhaseFeature feature,
+            GamePhaseContext ctx)
+        {
+            Exception featureException = null;
+            try
+            {
+                if (feature is IAsyncPhaseFeature<GamePhaseContext> asyncFeature)
+                {
+                    await (asyncFeature.DetachAsync(ctx) ?? Task.CompletedTask).ConfigureAwait(false);
+                }
+                else
+                {
+                    feature.OnDetach(ctx);
+                }
             }
             catch (Exception exception)
             {
@@ -188,12 +234,30 @@ namespace AbilityKit.Game.Flow
             Features.Remove(feature, in _ctx);
         }
 
+        public Task DetachFeatureAsync(IGamePhaseFeature feature)
+        {
+            return Features.RemoveAsync(feature, _ctx);
+        }
+
         public void ClearFeatures()
         {
             Features.Clear(in _ctx);
             Features.AttachAll(in _ctx);
 
             _callbacks.ClearBattleSessionEvents();
+        }
+
+        public async Task ClearFeaturesAsync()
+        {
+            try
+            {
+                await Features.ClearAsync(_ctx).ConfigureAwait(false);
+                Features.AttachAll(in _ctx);
+            }
+            finally
+            {
+                _callbacks.ClearBattleSessionEvents();
+            }
         }
 
         // --- State Binding 构建 ---

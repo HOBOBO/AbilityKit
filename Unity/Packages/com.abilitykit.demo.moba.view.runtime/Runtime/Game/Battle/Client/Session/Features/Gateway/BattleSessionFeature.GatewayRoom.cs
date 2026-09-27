@@ -1,9 +1,14 @@
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleSessionFeature
     {
+        private readonly object _gatewayStopGate = new object();
+        private readonly SemaphoreSlim _gatewayStartGate = new SemaphoreSlim(1, 1);
+        private Task _pendingGatewayStopTask = Task.CompletedTask;
+
         private bool HasGatewayRoomConnection => _runtime.GatewayRoom.IsBuilt;
 
         private void TickGatewayRoomConnection(float deltaTime) => _runtime.GatewayRoom.Tick(deltaTime);
@@ -12,15 +17,23 @@ namespace AbilityKit.Game.Flow
 
         private bool ShouldPrepareGatewayRoom() => GatewayRoomPreparationHelper.ShouldPrepareGatewayRoom(_plan);
 
-        private void StartGatewayRoomPreparation()
+        private async Task StartGatewayRoomPreparation()
         {
-            StopGatewayRoomPreparation();
-            _runtime.GatewayRoom.Build(_plan, _unityDispatcher, _networkIoDispatcher);
-            _runtime.GatewayRoom.StartPreparation(
-                _plan,
-                plan => _plan = plan,
-                PublishGatewayClockSample,
-                exception => _eventsCtrl.NotifySessionFailed(this, exception));
+            await _gatewayStartGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                await StopGatewayRoomPreparationCoreAsync().ConfigureAwait(false);
+                _runtime.GatewayRoom.Build(_plan, _unityDispatcher, _networkIoDispatcher);
+                _runtime.GatewayRoom.StartPreparation(
+                    _plan,
+                    plan => _plan = plan,
+                    PublishGatewayClockSample,
+                    exception => _eventsCtrl.NotifySessionFailed(this, exception));
+            }
+            finally
+            {
+                _gatewayStartGate.Release();
+            }
         }
 
         private void CompleteGatewayRoomPreparation()
@@ -28,12 +41,37 @@ namespace AbilityKit.Game.Flow
             _runtime.GatewayRoom.CompletePreparation();
         }
 
-        private void StopGatewayRoomPreparation()
+        private Task StopGatewayRoomPreparation() =>
+            StopGatewayRoomPreparationAsync();
+
+        private Task StopGatewayRoomPreparationAsync()
         {
-            StopGatewayRoomPreparationAsync().GetAwaiter().GetResult();
+            lock (_gatewayStopGate)
+            {
+                if (!_pendingGatewayStopTask.IsCompleted)
+                {
+                    return _pendingGatewayStopTask;
+                }
+
+                _pendingGatewayStopTask = StopGatewayRoomPreparationAfterStartAsync();
+                return _pendingGatewayStopTask;
+            }
         }
 
-        private async Task StopGatewayRoomPreparationAsync()
+        private async Task StopGatewayRoomPreparationAfterStartAsync()
+        {
+            await _gatewayStartGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                await StopGatewayRoomPreparationCoreAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _gatewayStartGate.Release();
+            }
+        }
+
+        private async Task StopGatewayRoomPreparationCoreAsync()
         {
             try
             {

@@ -121,22 +121,59 @@ namespace AbilityKit.Demo.Moba.Services
             MobaDamageService commitPort,
             AbilityKit.Triggering.Eventing.IEventBus eventBus,
             MobaCombatTransactionPipeline transactions,
-            in MobaHealRequest request)
+            in MobaHealRequest request,
+            Action onCommitted = null)
         {
             if (commitPort == null) throw new ArgumentNullException(nameof(commitPort));
             if (!IsValid(in request)) return default;
+            var contexts = commitPort.HealExecutionContexts;
+            if (contexts == null)
+                throw new InvalidOperationException("Heal execution requires MobaExecutionContextRegistry.");
             var transaction = new MobaHealTransaction(in request);
             PublishBefore(eventBus, in request, transaction);
             MobaHealthChangeResult result = default;
-            var committed = transactions == null
-                ? IsValid(transaction) && Commit(transaction)
-                : transactions.TryExecute(transaction, IsValid, Commit);
-            if (!committed) return default;
-            if (result.Succeeded) PublishAfter(eventBus, in result);
-            return result;
+            var nodeId = 0L;
+            var createdFrame = 0;
+            var hpCommitted = false;
+            try
+            {
+                var committed = transactions == null
+                    ? IsValid(transaction) && Commit(transaction)
+                    : transactions.TryExecute(transaction, IsValid, Commit);
+                if (!committed) return default;
+                if (result.Succeeded) PublishAfter(eventBus, in result);
+                return result;
+            }
+            finally
+            {
+                if (nodeId != 0L)
+                    contexts.End(nodeId, (int)(hpCommitted ? MobaExecutionEndReason.Completed : MobaExecutionEndReason.Failed),
+                        commitPort.HealExecutionFrame != 0 ? commitPort.HealExecutionFrame : createdFrame);
+            }
 
             bool Commit(MobaHealTransaction current)
             {
+                var parent = current.Origin;
+                createdFrame = commitPort.HealExecutionFrame;
+                var node = contexts.Create(new MobaExecutionContextCreateRequest(
+                    MobaExecutionKind.HealApply,
+                    current.ReasonParam != 0 ? current.ReasonParam : parent.ImmediateConfigId,
+                    current.HealerActorId,
+                    current.TargetActorId,
+                    parentContextId: parent.EffectiveParentContextId,
+                    rootContextId: parent.EffectiveRootContextId,
+                    ownerContextId: parent.OwnerContextId,
+                    frame: createdFrame,
+                    originKind: parent.ImmediateKind,
+                    originConfigId: parent.ImmediateConfigId));
+                nodeId = node.ContextId;
+                var origin = MobaGameplayOriginBuilder.Create()
+                    .FromOrigin(in parent)
+                    .WithActors(current.HealerActorId, current.TargetActorId)
+                    .WithRootContext(node.RootContextId)
+                    .WithOwnerContext(node.OwnerContextId)
+                    .WithLifecycleNode(MobaExecutionKind.HealApply, node.ConfigId, node.ContextId)
+                    .Build();
                 result = commitPort.CommitHealCore(
                     current.HealerActorId,
                     current.TargetActorId,
@@ -144,8 +181,13 @@ namespace AbilityKit.Demo.Moba.Services
                     current.Value,
                     current.ReasonKind,
                     current.ReasonParam,
-                    current.Origin,
-                    current.AllowDeadTarget);
+                    origin,
+                    current.AllowDeadTarget,
+                    () =>
+                    {
+                        hpCommitted = true;
+                        onCommitted?.Invoke();
+                    });
                 return result.Succeeded;
             }
         }

@@ -2,7 +2,8 @@
     "name": "AbilityKit.Trace",
     "rootNamespace": "AbilityKit",
     "references": [
-        "AbilityKit.Core"
+        "AbilityKit.Core",
+        "AbilityKit.Context"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

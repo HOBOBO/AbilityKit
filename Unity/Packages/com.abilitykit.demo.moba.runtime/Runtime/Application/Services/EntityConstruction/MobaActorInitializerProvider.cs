@@ -4,6 +4,45 @@ using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 {
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    public sealed class MobaActorInitializerAttribute : Attribute
+    {
+        public string Id { get; }
+        public int Order { get; }
+
+        public MobaActorInitializerAttribute(string id, int order)
+        {
+            Id = id;
+            Order = order;
+        }
+    }
+
+    public readonly struct MobaGeneratedRegistrationDescriptor
+    {
+        public readonly string Id;
+        public readonly int Order;
+        public readonly string TypeName;
+
+        public MobaGeneratedRegistrationDescriptor(string id, int order, string typeName)
+        {
+            Id = id;
+            Order = order;
+            TypeName = typeName;
+        }
+    }
+
+    internal static partial class MobaGeneratedActorInitializerManifest
+    {
+        public static MobaGeneratedRegistrationDescriptor[] CreateDescriptors()
+        {
+            var descriptors = new List<MobaGeneratedRegistrationDescriptor>();
+            AddGenerated(descriptors);
+            return descriptors.ToArray();
+        }
+
+        static partial void AddGenerated(List<MobaGeneratedRegistrationDescriptor> descriptors);
+    }
+
     public readonly struct MobaActorInitializationContext
     {
         public readonly global::ActorEntity Entity;

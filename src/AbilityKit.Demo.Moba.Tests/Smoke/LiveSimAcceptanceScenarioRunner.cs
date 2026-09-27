@@ -222,9 +222,9 @@ public sealed class LiveSimAcceptanceScenarioRunner
 
         var records = new List<MobaAcceptanceTraceRecord>(64);
         var seen = new HashSet<long>();
-        foreach (MobaTraceKind kind in Enum.GetValues(typeof(MobaTraceKind)))
+        foreach (MobaExecutionKind kind in Enum.GetValues(typeof(MobaExecutionKind)))
         {
-            if (kind == MobaTraceKind.None) continue;
+            if (kind == MobaExecutionKind.None) continue;
             foreach (var node in trace!.GetNodesByKind((int)kind))
             {
                 if (!node.IsValid || !seen.Add(node.ContextId)) continue;
@@ -264,7 +264,9 @@ public sealed class LiveSimAcceptanceScenarioRunner
 
     private static ConsoleBattleBootstrapper Boot()
     {
-        var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        var bootstrapper = new ConsoleBattleBootstrapper(
+            BattleStartConfig.CreateDefault(),
+            additionalModules: new[] { new MobaTraceAdapterModule() });
         bootstrapper.Initialize();
         bootstrapper.Start();
         for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();

@@ -2,10 +2,13 @@
     "name": "AbilityKit.Demo.Moba.Share",
     "rootNamespace": "AbilityKit.Demo.Moba.Share",
     "references": [
+        "AbilityKit.Demo.Moba.Presentation.Contracts",
+        "AbilityKit.Demo.Moba.Presentation.ProtocolAdapter",
         "Unity.Mathematics",
         "AbilityKit.Core",
         "AbilityKit.Host",
         "AbilityKit.World.FrameSync",
+        "AbilityKit.World.StateSync",
         "AbilityKit.Protocol.Moba"
     ],
     "includePlatforms": [],

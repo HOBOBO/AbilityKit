@@ -13,6 +13,52 @@ using AbilityKit.Demo.Moba.Services.EntityManager;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    public sealed class MobaRollbackProviderAttribute : System.Attribute
+    {
+        public int Key { get; }
+        public bool AutoResolve { get; }
+
+        public MobaRollbackProviderAttribute(int key, bool autoResolve = false)
+        {
+            Key = key;
+            AutoResolve = autoResolve;
+        }
+    }
+
+    public readonly struct MobaGeneratedRollbackProviderDescriptor
+    {
+        public readonly int Key;
+        public readonly string TypeName;
+        public readonly bool AutoResolve;
+
+        public MobaGeneratedRollbackProviderDescriptor(int key, string typeName, bool autoResolve)
+        {
+            Key = key;
+            TypeName = typeName;
+            AutoResolve = autoResolve;
+        }
+    }
+
+    internal static partial class MobaGeneratedRollbackProviderManifest
+    {
+        public static MobaGeneratedRollbackProviderDescriptor[] CreateDescriptors()
+        {
+            var descriptors = new List<MobaGeneratedRollbackProviderDescriptor>();
+            AddGeneratedDescriptors(descriptors);
+            return descriptors.ToArray();
+        }
+
+        public static void RegisterResolved(IWorld world, RollbackRegistry registry)
+        {
+            if (world?.Services == null || registry == null) return;
+            AddGeneratedResolved(world.Services, registry);
+        }
+
+        static partial void AddGeneratedDescriptors(List<MobaGeneratedRollbackProviderDescriptor> descriptors);
+        static partial void AddGeneratedResolved(AbilityKit.Ability.World.DI.IWorldResolver services, RollbackRegistry registry);
+    }
+
     /// <summary>
     /// Defines the complete rollback state owned by the MOBA simulation.
     /// All prediction and server rollback sessions must build their registry through this entry point.
@@ -30,8 +76,29 @@ namespace AbilityKit.Demo.Moba.Rollback
             {
                 world.Services.TryResolve<MobaEntityManager>(out var entityManager);
                 world.Services.TryResolve<MobaSummonService>(out var summons);
-                registry.Register(new MobaEntitasEntityRollbackProvider(contexts.actor, actorIds, actors, entityManager, summons));
-                registry.Register(new MobaEntitasComponentRollbackProvider(contexts.actor));
+                MobaActorRollbackCommandRuntime actorCommands = null;
+                if (entityManager != null &&
+                    world.Services.TryResolve<IFrameTime>(out var commandFrameTime) &&
+                    commandFrameTime != null)
+                {
+                    actorCommands = entityManager.GetOrCreateActorRollbackCommands(
+                        contexts.actor,
+                        actors,
+                        commandFrameTime);
+                }
+
+                var restoresMissingActors = actorCommands != null;
+                registry.Register(new MobaEntitasEntityRollbackProvider(
+                    contexts.actor,
+                    actorIds,
+                    actors,
+                    entityManager,
+                    summons,
+                    restoresMissingActors));
+                registry.Register(new MobaEntitasComponentRollbackProvider(
+                    contexts.actor,
+                    restoresMissingActors));
+                if (actorCommands != null) registry.Register(actorCommands.StateProvider);
             }
 
             if (world.Services.TryResolve<IOwnerBlackboardStore>(out var ownerBlackboards) &&
@@ -83,17 +150,6 @@ namespace AbilityKit.Demo.Moba.Rollback
                 }
             }
 
-            if (world.Services.TryResolve<PassiveSkillTriggerEventRollbackLog>(out var passiveLog) &&
-                passiveLog != null)
-            {
-                registry.Register(passiveLog);
-            }
-
-            if (world.Services.TryResolve<RollbackWorldRandom>(out var random) && random != null)
-            {
-                registry.Register(random);
-            }
-
             if (world.Services.TryResolve<MobaRuntimeContextService>(out var runtimeContexts) && runtimeContexts != null)
                 registry.Register(new MobaContextEntityRollbackProvider(runtimeContexts));
 
@@ -121,6 +177,8 @@ namespace AbilityKit.Demo.Moba.Rollback
             {
                 registry.Register(new MobaDerivedSkillRollbackProvider(derivedSkills));
             }
+
+            MobaGeneratedRollbackProviderManifest.RegisterResolved(world, registry);
 
             return registry;
         }

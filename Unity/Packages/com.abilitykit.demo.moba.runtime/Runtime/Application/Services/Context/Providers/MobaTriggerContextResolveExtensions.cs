@@ -80,15 +80,6 @@ namespace AbilityKit.Demo.Moba.Services
                 ConsiderCandidate(payload, in candidate, ref source, ref selectedKind);
             }
 
-            if (payload is IMobaTriggerTraceContextProvider traceProvider
-                && traceProvider.TryGetTraceContext(out var traceContext))
-            {
-                var candidate = MobaContextSourceView.FromTrace(
-                    in traceContext,
-                    skillRuntimeHandle);
-                ConsiderCandidate(payload, in candidate, ref source, ref selectedKind);
-            }
-
             if (payload is IMobaTriggerExecutionSnapshotProvider snapshotProvider
                 && snapshotProvider.TryGetExecutionSnapshot(out var executionSnapshot)
                 && executionSnapshot.IsValid)
@@ -187,9 +178,9 @@ namespace AbilityKit.Demo.Moba.Services
                 selected.ResolveKind,
                 selected.Boundary,
                 contextKind,
-                selected.TraceKind != MobaTraceKind.None
-                    ? selected.TraceKind
-                    : candidate.TraceKind,
+                selected.ExecutionKind != MobaExecutionKind.None
+                    ? selected.ExecutionKind
+                    : candidate.ExecutionKind,
                 selected.SourceActorId,
                 selected.TargetActorId,
                 selected.SourceContextId,
@@ -245,12 +236,6 @@ namespace AbilityKit.Demo.Moba.Services
             lineageContext = default;
             if (payload is IMobaTriggerLineageContextProvider lineageProvider && lineageProvider.TryGetLineageContext(out lineageContext))
                 return true;
-
-            if (payload is IMobaTriggerTraceContextProvider traceProvider && traceProvider.TryGetTraceContext(out var traceContext))
-            {
-                lineageContext = traceContext.ToLineageContext();
-                return true;
-            }
 
             return false;
         }
@@ -415,7 +400,7 @@ namespace AbilityKit.Demo.Moba.Services
                 source.ResolveKind,
                 source.Boundary,
                 source.ContextKind,
-                source.TraceKind,
+                source.ExecutionKind,
                 SourceActorId,
                 TargetActorId,
                 SourceContextId,

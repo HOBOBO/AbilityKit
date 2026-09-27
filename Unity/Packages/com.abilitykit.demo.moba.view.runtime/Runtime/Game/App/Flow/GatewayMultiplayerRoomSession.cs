@@ -23,7 +23,7 @@ namespace AbilityKit.Game.Flow
     {
         private readonly IGatewayRoomClient _client;
         private readonly RoomGatewaySessionFlow _flow;
-        private readonly IDisposable _sessionClient;
+        private readonly IDisposable? _sessionClient;
         private readonly ClientRoomStore _store;
         private readonly GatewayRoomMembership _membership = new GatewayRoomMembership();
         private readonly MobaReliableBattleEventCheckpointStore _checkpointStore;
@@ -69,7 +69,12 @@ namespace AbilityKit.Game.Flow
                 reliableEventCheckpointLifecycleOptions);
 
             IRoomGatewaySessionClientBase sessionClient;
-            if (client is IRoomGatewayRequestTransport requestTransport)
+            if (client is IGatewayRoomSessionClientProvider provider)
+            {
+                sessionClient = provider.RoomSessionClient;
+                _sessionClient = null;
+            }
+            else if (client is IRoomGatewayRequestTransport requestTransport)
             {
                 var wireClient = new RoomGatewayWireSessionClient(
                     requestTransport,
@@ -563,7 +568,7 @@ namespace AbilityKit.Game.Flow
             }
             finally
             {
-                _sessionClient.Dispose();
+                _sessionClient?.Dispose();
             }
         }
 

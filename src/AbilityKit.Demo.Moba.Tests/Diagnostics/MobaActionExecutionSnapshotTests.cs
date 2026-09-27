@@ -98,14 +98,14 @@ public sealed class MobaActionExecutionSnapshotTests
         using var store = Store(trace, bus: bus);
         var outer = Action(trace);
         store.OnActionStarted(outer, 0, 301, 1, 2, 10);
-        var effect = trace.CreateChildContext(outer, MobaTraceKind.EffectExecution, 101);
-        var inner = trace.CreateChildContext(effect, MobaTraceKind.EffectAction, 302);
+        var effect = trace.CreateObservationChild(outer, MobaExecutionKind.EffectExecution, 101);
+        var inner = trace.CreateObservationChild(effect, MobaExecutionKind.EffectAction, 302);
         store.OnActionStarted(inner, 1, 302, 1, 3, 10);
-        var apply = trace.CreateChildContext(inner, MobaTraceKind.DamageApply, 0);
+        var apply = trace.CreateObservationChild(inner, MobaExecutionKind.DamageApply, 0);
         var result = Commit(trace, apply, target: 3);
         bus.Publish(Key, in result);
         store.OnActionEnded(inner, 1, 302, false, false, 10);
-        var unsampled = trace.CreateChildContext(effect, MobaTraceKind.EffectAction, 303);
+        var unsampled = trace.CreateObservationChild(effect, MobaExecutionKind.EffectAction, 303);
         var ignored = Commit(trace, unsampled);
         bus.Publish(Key, in ignored);
         var missing = Commit(trace, 99999);
@@ -260,14 +260,14 @@ public sealed class MobaActionExecutionSnapshotTests
         store.OnActionEnded(first, 0, 301, true, false, 10);
         var old = Reference(trace, first);
         var boundary = trace.NextContextId;
-        var second = trace.CreateChildContext(first, MobaTraceKind.EffectAction, 301);
+        var second = trace.CreateObservationChild(first, MobaExecutionKind.EffectAction, 301);
         store.OnActionStarted(second, 0, 301, 1, 2, 10);
         store.OnActionEnded(second, 0, 301, true, false, 10);
         var removed = Reference(trace, second);
         Assert.Equal(BattleDiagnosticDataAvailability.Evicted, store.Read(old).Availability);
         trace.RetractPrediction(boundary);
         Assert.Equal(BattleDiagnosticDataAvailability.Evicted, store.Read(removed).Availability);
-        var third = trace.CreateChildContext(first, MobaTraceKind.EffectAction, 301);
+        var third = trace.CreateObservationChild(first, MobaExecutionKind.EffectAction, 301);
         store.OnActionStarted(third, 0, 301, 1, 2, 10);
         var purged = Reference(trace, third);
         trace.PurgeRoot(first);
@@ -403,11 +403,11 @@ public sealed class MobaActionExecutionSnapshotTests
         var collector = new MobaBattleDiagnosticEventCollector(Scope, frameProvider: () => 10);
         using var store = new MobaActionExecutionSnapshotStore(trace, null, collector);
         var outer = Action(trace);
-        var inner = trace.CreateChildContext(outer, MobaTraceKind.EffectAction, 302);
+        var inner = trace.CreateObservationChild(outer, MobaExecutionKind.EffectAction, 302);
         store.OnActionStarted(outer, 0, 301, 1, 2, 10);
         Assert.True(collector.TryCollect(DamageDraft(trace, inner, BattleDiagnosticDamageStage.TargetMissing)));
         store.OnActionStarted(inner, 1, 302, 1, 2, 10);
-        var child = trace.CreateChildContext(inner, MobaTraceKind.DamageApply, 0);
+        var child = trace.CreateObservationChild(inner, MobaExecutionKind.DamageApply, 0);
         Assert.True(collector.TryCollect(DamageDraft(trace, child, BattleDiagnosticDamageStage.HealthCommitRejected)));
         var wrong = DamageDraft(trace, outer, BattleDiagnosticDamageStage.TargetMissing, root: outer + 9000);
         Assert.True(collector.TryCollect(wrong));
@@ -485,7 +485,7 @@ public sealed class MobaActionExecutionSnapshotTests
 
     private static MobaActionExecutionSnapshotStore Store(MobaTraceRegistry trace, MobaActorRegistry? actors = null,
         EventBus? bus = null, int capacity = 16) => new(trace, actors, null, bus, capacity, () => true);
-    private static long Action(MobaTraceRegistry trace) => trace.CreateRootContext(MobaTraceKind.EffectAction, 301);
+    private static long Action(MobaTraceRegistry trace) => trace.CreateObservationRoot(MobaExecutionKind.EffectAction, 301);
     private static ContextSnapshotReference Reference(MobaTraceRegistry trace, long id)
     {
         Assert.True(trace.TryGetNodeSnapshot(id, out var node));
@@ -494,7 +494,7 @@ public sealed class MobaActionExecutionSnapshotTests
     private static MobaHealthChangeResult Commit(MobaTraceRegistry trace, long context, int target = 2, long root = 0)
     {
         if (root == 0 && trace.TryGetNodeSnapshot(context, out var node)) root = node.RootId;
-        var origin = new MobaGameplayOrigin(1, target, MobaTraceKind.EffectAction, 301, context, context, root, context);
+        var origin = new MobaGameplayOrigin(1, target, MobaExecutionKind.EffectAction, 301, context, context, root, context);
         return new MobaHealthChangeResult(MobaHealthChangeKind.Damage, 1, target, 0, 1, 2, 100, 4, 10, 6, 20, origin);
     }
     private static MobaBattleDiagnosticEventCollector Collector()

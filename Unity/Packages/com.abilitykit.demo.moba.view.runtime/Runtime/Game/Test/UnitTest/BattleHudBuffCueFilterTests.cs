@@ -1,32 +1,57 @@
 using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Flow.Battle.Hud;
-using AbilityKit.Protocol.Moba.StateSync;
 using NUnit.Framework;
 
 namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class BattleHudBuffCueFilterTests
     {
-        private static MobaPresentationCueSnapshotEntry Cue(
+        private static PresentationCueData Cue(
             string ownerKind,
             string instanceKey,
             int targetActorId,
             PresentationCueStage stage)
         {
-            return new MobaPresentationCueSnapshotEntry
-            {
-                Stage = (int)stage,
-                OwnerKind = ownerKind,
-                InstanceKey = instanceKey,
-                TargetActorId = targetActorId,
-                SourceActorId = 1,
-                TemplateId = 7,
-                StackCount = 1,
-                MaxStackCount = 1,
-                ElapsedSeconds = 1f,
-                RemainingSeconds = 5f,
-                DurationMsOverride = 6000
-            };
+            return new PresentationCueData(
+                stage: stage,
+                cueKind: ownerKind,
+                cueVfxId: null,
+                cueSfxId: null,
+                templateId: 7,
+                vfxId: 0,
+                sfxId: 0,
+                requestKey: instanceKey,
+                sourceActorId: 1,
+                targetActorId: targetActorId,
+                triggerEventId: 0,
+                triggerEventName: null,
+                triggerId: 0,
+                phase: 0,
+                priority: 0,
+                order: 0,
+                actionIndex: 0,
+                interruptReason: 0,
+                interruptSourceName: null,
+                interruptTriggerId: 0,
+                interruptConditionPassed: false,
+                targets: null,
+                positions: null,
+                offsetX: 0f,
+                offsetY: 0f,
+                offsetZ: 0f,
+                durationMsOverride: 6000,
+                scale: 1f,
+                colorR: 1f,
+                colorG: 1f,
+                colorB: 1f,
+                colorA: 1f,
+                ownerKind: ownerKind,
+                instanceKey: instanceKey,
+                stackCount: 1,
+                maxStackCount: 1,
+                elapsedSeconds: 1f,
+                remainingSeconds: 5f);
         }
 
         [Test]
@@ -92,14 +117,14 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void CollectBuffCues_KeepsOnlyBuffCues()
         {
-            var entries = new List<MobaPresentationCueSnapshotEntry>
+            var entries = new List<PresentationCueData>
             {
                 Cue("Buff", "buff:1:42:99", 1, PresentationCueStage.Started),
                 Cue("Skill", "skill:1:1:1", 1, PresentationCueStage.Executed),
                 Cue("Buff", "buff:2:43:99", 2, PresentationCueStage.Refreshed),
                 Cue("Buff", null, 1, PresentationCueStage.Started) // dropped (no key)
             };
-            var buffer = new List<MobaPresentationCueSnapshotEntry>();
+            var buffer = new List<PresentationCueData>();
 
             BattleHudBuffCueFilter.CollectBuffCues(entries, buffer);
 
@@ -111,7 +136,7 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void CollectBuffCues_NullSource_ProducesEmptyBuffer()
         {
-            var buffer = new List<MobaPresentationCueSnapshotEntry>();
+            var buffer = new List<PresentationCueData>();
             BattleHudBuffCueFilter.CollectBuffCues(null, buffer);
             Assert.AreEqual(0, buffer.Count);
         }

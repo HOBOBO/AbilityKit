@@ -18,6 +18,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleViewConfigLookup _configLookup;
         private readonly BattleViewModelFactory _models;
         private readonly BattleViewVfxFactory _vfx;
+        private readonly IBattleAssetLookup _assets;
 
         internal static BattleViewResourceProvider OrDefault(BattleViewResourceProvider resources)
         {
@@ -56,6 +57,7 @@ namespace AbilityKit.Game.Flow
 
             _configs = configs;
             _vfxDb = vfxDb;
+            _assets = assets;
             _cache = cache ?? components.CreateCache(assets);
             _configLookup = configLookup ?? components.CreateConfigLookup();
 
@@ -85,6 +87,8 @@ namespace AbilityKit.Game.Flow
             get => _vfxDb;
             set => _vfxDb = value;
         }
+
+        internal IBattleAssetLookup AssetLookup => _assets;
 
         public MobaConfigDatabase GetOrLoadConfigs()
         {

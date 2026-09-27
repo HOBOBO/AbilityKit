@@ -36,7 +36,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
                 TriggerId = runtime.TriggerId,
                 SourceActorId = sourceActorId,
                 TargetActorId = targetActorId,
-                SourceContextId = runtime.TraceScope.EffectContextId,
+                SourceContextId = runtime.ExecutionScope.EffectContextId,
                 SourceConfigId = runtime.SourceConfigId,
                 Frame = _frameTime != null ? _frameTime.Frame.Value : 0,
                 MotionTargetId = hit.TargetId,

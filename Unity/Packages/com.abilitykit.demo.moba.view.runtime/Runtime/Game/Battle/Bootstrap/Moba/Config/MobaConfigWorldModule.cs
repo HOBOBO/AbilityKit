@@ -26,7 +26,8 @@ namespace AbilityKit.Game.Battle.Moba.Config
             builder.TryRegister<IMobaConfigDtoDeserializer>(WorldLifetime.Singleton, _ => JsonNetMobaConfigDtoDeserializer.Instance);
             builder.TryRegister<IMobaConfigDtoBytesDeserializer>(WorldLifetime.Singleton, _ => new LubanMobaConfigDtoBytesDeserializer());
             builder.TryRegister<IMobaConfigDtoProvider>(WorldLifetime.Singleton, _ => EmptyMobaConfigDtoProvider.Instance);
-            builder.TryRegister<IMobaConfigLoadProfile>(WorldLifetime.Singleton, _ => ResourcesJsonMobaConfigLoadProfile.Default);
+            builder.TryRegister<IMobaConfigLoadProfile>(WorldLifetime.Singleton, _ =>
+                new LubanGroupsMobaConfigLoadProfile(_.Resolve<ITextAssetLoader>()));
             builder.TryRegister<CharacterPresentationActionCatalog>(WorldLifetime.Singleton, _ =>
                 CharacterPresentationActionCatalog.Load(_.Resolve<ITextAssetLoader>()));
             builder.TryRegister<IMobaConfigLoadPipeline>(WorldLifetime.Singleton, _ =>
@@ -50,7 +51,7 @@ namespace AbilityKit.Game.Battle.Moba.Config
 
                 try
                 {
-                    loadProfile ??= ResourcesJsonMobaConfigLoadProfile.Default;
+                    loadProfile ??= new LubanGroupsMobaConfigLoadProfile(textAssetLoader);
                     loadProfile.Load(db, loadPipeline);
                     return db;
                 }

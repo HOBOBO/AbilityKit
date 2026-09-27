@@ -85,19 +85,35 @@ namespace AbilityKit.Ability.Host.Extensions.Rollback
                 return false;
             }
 
-            for (int f = rollbackFrame.Value + 1; f <= replayToFrame.Value; f++)
+            var replaySink = ctx.InputSink as IWorldInputReplaySink;
+            replaySink?.BeginReplay(rollbackFrame, replayToFrame);
+            try
             {
-                var frame = new FrameIndex(f);
-
-                if (!ctx.InputHistory.TryGet(frame, out var inputs))
+                for (int f = rollbackFrame.Value + 1; f <= replayToFrame.Value; f++)
                 {
-                    inputs = Array.Empty<PlayerInputCommand>();
+                    var frame = new FrameIndex(f);
+
+                    if (!ctx.InputHistory.TryGet(frame, out var inputs))
+                    {
+                        inputs = Array.Empty<PlayerInputCommand>();
+                    }
+
+                    if (replaySink != null)
+                    {
+                        replaySink.Replay(frame, inputs);
+                    }
+                    else
+                    {
+                        ctx.InputSink?.Submit(frame, inputs);
+                    }
+                    ctx.World.Tick(deltaTimePerFrame);
+
+                    ctx.Coordinator.CaptureAndStore(frame);
                 }
-
-                ctx.InputSink?.Submit(frame, inputs);
-                ctx.World.Tick(deltaTimePerFrame);
-
-                ctx.Coordinator.CaptureAndStore(frame);
+            }
+            finally
+            {
+                replaySink?.EndReplay();
             }
 
             return true;

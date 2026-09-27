@@ -16,9 +16,10 @@ namespace AbilityKit.Demo.Moba.Services
     /// MOBA 逻辑世界输入协调器：负责玩法侧上下文构建和命令处理器分发。
     /// </summary>
     [WorldService(typeof(IWorldInputSink))]
+    [WorldService(typeof(IWorldInputReplaySink))]
     [WorldService(typeof(IMobaInputCoordinator))]
     [WorldService(typeof(MobaInputCoordinator))]
-    public sealed class MobaInputCoordinator : LogicWorldInputCoordinatorBase<MobaInputCommandContext>, IMobaInputCoordinator, IWorldInputSink
+    public sealed class MobaInputCoordinator : LogicWorldInputCoordinatorBase<MobaInputCommandContext>, IMobaInputCoordinator, IWorldInputReplaySink
     {
         private readonly MobaLogicWorldRunGateService _phase;
         private readonly MobaPlayerActorMapService _playerActorMap;
@@ -27,8 +28,11 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaInputCommandHandlerRegistry _handlers;
 
         private SkillCastCoordinator _skills;
+        private MobaActionAckSnapshotService _actionAcks;
         private IMobaBattleDiagnosticEventSink _inputEventSink;
+        private IMobaBattleExceptionPolicy _exceptionPolicy;
         private long _nextDiagnosticCommandId;
+        private bool _replayActive;
 
         public MobaInputCoordinator(MobaLogicWorldRunGateService phase, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, MobaInputCommandContractRegistry contracts)
         {
@@ -44,7 +48,9 @@ namespace AbilityKit.Demo.Moba.Services
             if (services == null) return;
 
             _handlers.BindHandlers(services);
+            services.TryResolve(out _actionAcks);
             services.TryResolve(out _inputEventSink);
+            services.TryResolve(out _exceptionPolicy);
             if (_skills != null) return;
 
             ResolveSkillExecutor(services);
@@ -52,7 +58,39 @@ namespace AbilityKit.Demo.Moba.Services
 
         protected override MobaInputCommandContext CreateContext(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
         {
-            return new MobaInputCommandContext(_phase, _playerActorMap, _entities, _skills, Services);
+            return new MobaInputCommandContext(_phase, _playerActorMap, _entities, _skills, Services, _replayActive);
+        }
+
+        public void BeginReplay(FrameIndex restoredFrame, FrameIndex replayToFrame)
+        {
+            if (_replayActive)
+                throw new InvalidOperationException("An input replay is already active.");
+            if (replayToFrame.Value < restoredFrame.Value)
+                throw new ArgumentOutOfRangeException(nameof(replayToFrame));
+
+            _actionAcks?.BeginReplay(restoredFrame, replayToFrame);
+            _replayActive = true;
+        }
+
+        public void Replay(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
+        {
+            if (!_replayActive)
+                throw new InvalidOperationException("BeginReplay must be called before replaying input.");
+            if (inputs == null || inputs.Count == 0) return;
+
+            var submit = TrySubmit(frame, inputs);
+            if (!submit.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    $"Input replay failed at frame {frame.Value}: {submit}");
+            }
+        }
+
+        public void EndReplay()
+        {
+            if (!_replayActive) return;
+            _replayActive = false;
+            _actionAcks?.EndReplay();
         }
 
         protected override bool Dispatch(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command, out MobaInputCommandResult result)
@@ -93,7 +131,7 @@ namespace AbilityKit.Demo.Moba.Services
                 var runtime = runtimeHandle.IsValid
                     ? new BattleDiagnosticRuntimeHandle(runtimeHandle.RuntimeId, runtimeHandle.Generation)
                     : default;
-                var rootContextId = runtimeHandle.IsValid ? runtimeHandle.RootTraceContextId : 0L;
+                var rootContextId = runtimeHandle.IsValid ? runtimeHandle.RootContextId : 0L;
                 var draft = new MobaBattleDiagnosticEventDraft(
                     BattleDiagnosticEventKind.InputCommand, BattleDiagnosticEventChannel.Input,
                     result.Succeeded ? BattleDiagnosticEventOutcome.Succeeded : BattleDiagnosticEventOutcome.Failed,
@@ -108,7 +146,47 @@ namespace AbilityKit.Demo.Moba.Services
                     payload: payload);
                 sink.TryCollect(in draft);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ReportDiagnosticCollectionException(ex, frame, in result);
+            }
+        }
+
+        private void ReportDiagnosticCollectionException(
+            Exception exception,
+            FrameIndex frame,
+            in MobaInputCommandResult result)
+        {
+            var context = new MobaBattleExceptionContext(
+                MobaBattleExceptionDomain.Input,
+                "input.diagnostics.collect",
+                actorId: result.ActorId,
+                detail: $"frame={frame.Value} command={result.DiagnosticCommandId} op={result.OpCode}");
+
+            try
+            {
+                if (_exceptionPolicy != null &&
+                    _exceptionPolicy.TryHandle(exception, in context, MobaBattleExceptionSeverity.Recoverable))
+                {
+                    return;
+                }
+            }
+            catch (Exception policyException)
+            {
+                MobaRuntimeLog.Exception(
+                    policyException,
+                    MobaRuntimeLogModule.Input,
+                    MobaRuntimeLogPurpose.Exception,
+                    nameof(MobaInputCoordinator),
+                    "Input diagnostic exception policy failed.");
+            }
+
+            MobaRuntimeLog.Exception(
+                exception,
+                MobaRuntimeLogModule.Input,
+                MobaRuntimeLogPurpose.Exception,
+                nameof(MobaInputCoordinator),
+                context.BuildMessage(MobaBattleExceptionSeverity.Recoverable));
         }
 
         private void ResolveSkillExecutor(IWorldResolver services)
@@ -130,10 +208,19 @@ namespace AbilityKit.Demo.Moba.Services
 
         public override void Dispose()
         {
-            _inputEventSink = null;
-            _skills = null;
-            _nextDiagnosticCommandId = 0L;
-            base.Dispose();
+            try
+            {
+                EndReplay();
+            }
+            finally
+            {
+                _actionAcks = null;
+                _inputEventSink = null;
+                _exceptionPolicy = null;
+                _skills = null;
+                _nextDiagnosticCommandId = 0L;
+                base.Dispose();
+            }
         }
 
     }

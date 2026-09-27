@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 
 namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
@@ -32,7 +33,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
                 }
                 else
                 {
-                    CleanupUnlinkedProjectile(evt.Projectile);
+                    CleanupUnlinkedProjectile(evt.Projectile, evt.Frame);
                 }
             }
 
@@ -57,26 +58,27 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             _sys.CleanupProjectileActorOnExit(evt.Projectile, projectileEntity, ActorDespawnReason.ProjectileHitOrExit, sourceActorId, sourceContextId);
         }
 
-        private void CleanupUnlinkedProjectile(ProjectileId projectileId)
+        private void CleanupUnlinkedProjectile(ProjectileId projectileId, int frame)
         {
             var links = _sys.Links;
             if (links == null) return;
 
             if (links.TryGetSource(projectileId, out var source)
                 && source.SourceContextId != 0L
-                && _sys.Trace != null)
+                && _sys.ExecutionContexts != null)
             {
                 try
                 {
-                    _sys.Trace.EndContext(
+                    _sys.ExecutionContexts.End(
                         source.SourceContextId,
-                        AbilityKit.Trace.TraceLifecycleReason.Completed);
+                        (int)MobaExecutionEndReason.Completed,
+                        frame);
                 }
                 catch (Exception ex)
                 {
                     AbilityKit.Core.Logging.Log.Exception(
                         ex,
-                        $"[MobaProjectileExitSyncHandler] end unlinked projectile trace failed (projectileId={projectileId.Value}, sourceContextId={source.SourceContextId})");
+                        $"[MobaProjectileExitSyncHandler] end unlinked projectile context failed (projectileId={projectileId.Value}, sourceContextId={source.SourceContextId})");
                 }
             }
 

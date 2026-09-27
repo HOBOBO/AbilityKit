@@ -18,7 +18,7 @@
 - `MobaCombatExecutionContext`：统一承载 payload、lineage、origin、execution snapshot、skill runtime handle、frame。
 - `MobaGameplayOrigin` / `MobaContextSourceView`：描述来源事件、父节点、根节点、所有权节点和诊断边界。
 - `MobaEffectExecutionService`：负责 effect scope、trigger 条件、budget 限流、action child nodes。
-- `MobaTraceRegistry` / `MobaTraceKind`：负责 root/child/action tracing。
+- `MobaExecutionContextRegistry` / `MobaExecutionKind`：负责 root/child/action 的正式身份与生命周期；`MobaTraceRegistry` 仅作可选投影。
 - `Buff` / `Projectile` / `Damage` / `Presentation` payload：都已具备统一的上下文入口。
 
 ## 3. 可视化字段分组
@@ -47,7 +47,7 @@
 - `ownerContextId`
 - `originKind`
 - `contextKind`
-- `traceKind`
+- `executionKind`
 - `runtimeHandle`
 - `runtimeKind`
 - `runtimeConfigId`
@@ -171,7 +171,7 @@
 
 - 接入 effect action 和 buff / projectile / damage 事件
 - 加入时间轴泳道
-- 支持按 `skillId` / `actorId` / `traceKind` 过滤
+- 支持按 `skillId` / `actorId` / `executionKind` 过滤
 
 ### Phase 3
 

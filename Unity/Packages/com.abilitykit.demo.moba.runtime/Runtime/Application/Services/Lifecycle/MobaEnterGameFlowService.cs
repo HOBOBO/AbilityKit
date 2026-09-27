@@ -399,7 +399,8 @@ namespace AbilityKit.Demo.Moba.Services
                         OwnerNetId = 0,
                         X = loadout.SpawnX,
                         Y = loadout.SpawnY,
-                        Z = loadout.SpawnZ
+                        Z = loadout.SpawnZ,
+                        EntityVersion = ResolveEntityVersion(actorId)
                     });
 
                     if (localActorId == 0 && loadout.PlayerId.Equals(effectiveReq.PlayerId))
@@ -725,6 +726,15 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void Dispose()
         {
+        }
+
+        private int ResolveEntityVersion(int actorId)
+        {
+            return _services != null &&
+                   _services.TryResolve<MobaActorRegistry>(out var actors) &&
+                   actors != null
+                ? actors.GetEntityVersion(actorId)
+                : 1;
         }
     }
 }

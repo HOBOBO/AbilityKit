@@ -1,13 +1,12 @@
 ﻿using AbilityKit.Ability.Host;
-using AbilityKit.Protocol.Moba.CreateWorld;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Share;
 
 namespace AbilityKit.Game.Flow.Snapshot
 {
     public sealed class MobaFrameSnapshotDeserializer : IFrameSnapshotDeserializer
     {
-        public bool TryDeserializeEnterGame(in WorldStateSnapshot snap, out EnterMobaGameRes enterGame)
+        public bool TryDeserializeEnterGame(in WorldStateSnapshot snap, out BattleEnterGameSnapshot enterGame)
         {
             if (snap.OpCode != MobaOpCodes.Snapshot.EnterGame || snap.Payload == null || snap.Payload.Length == 0)
             {
@@ -15,32 +14,30 @@ namespace AbilityKit.Game.Flow.Snapshot
                 return false;
             }
 
-            enterGame = EnterMobaGameCodec.DeserializeRes(snap.Payload);
+            enterGame = BattleEnterGameSnapshotDecoder.Decode(snap.Payload);
             return true;
         }
 
-        public bool TryDeserializeActorTransform(in WorldStateSnapshot snap, out MobaActorTransformSnapshotEntry[] entries)
+        public bool TryDeserializeActorTransform(in WorldStateSnapshot snap, out ActorTransformData[] entries)
         {
-            if (snap.OpCode != MobaOpCodes.Snapshot.ActorTransform || snap.Payload == null || snap.Payload.Length == 0)
+            if (snap.OpCode != ActorTransformSnapshotRoute.OpCode)
             {
-                entries = null;
+                entries = System.Array.Empty<ActorTransformData>();
                 return false;
             }
 
-            entries = MobaActorTransformSnapshotCodec.Deserialize(snap.Payload);
-            return true;
+            return ActorTransformSnapshotRoute.TryDecode(in snap, out entries);
         }
 
-        public bool TryDeserializeStateHash(in WorldStateSnapshot snap, out MobaStateHashSnapshotPayload payload)
+        public bool TryDeserializeStateHash(in WorldStateSnapshot snap, out StateHashData payload)
         {
-            if (snap.OpCode != MobaOpCodes.Snapshot.StateHash || snap.Payload == null || snap.Payload.Length == 0)
+            if (snap.OpCode != StateHashSnapshotRoute.OpCode)
             {
                 payload = default;
                 return false;
             }
 
-            payload = MobaStateHashSnapshotCodec.Deserialize(snap.Payload);
-            return true;
+            return StateHashSnapshotRoute.TryDecode(in snap, out payload);
         }
     }
 }

@@ -1,0 +1,21 @@
+{
+  "name": "AbilityKit.Demo.Tiny.Turn.View",
+  "rootNamespace": "AbilityKit.Demo.Tiny.Turn.View",
+  "references": [
+    "AbilityKit.Demo.Tiny.Turn.Logic",
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Network.Room",
+    "AbilityKit.Network.Runtime",
+    "AbilityKit.Network.Sdk",
+    "AbilityKit.Protocol.Room"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

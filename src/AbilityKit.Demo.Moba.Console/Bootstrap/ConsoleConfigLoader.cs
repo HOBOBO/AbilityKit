@@ -11,7 +11,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
     public static class ConsoleConfigLoader
     {
         public const string ConfigDirName = "Configs";
-        public const string MobaConfigDir = "moba";
+        public const string MobaConfigDir = "luban/moba";
 
         public static BattleStartConfig LoadBattleStartConfig(ITextAssetLoader? loader = null)
         {

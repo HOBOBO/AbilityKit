@@ -79,7 +79,13 @@ namespace AbilityKit.Demo.Moba.Services
                         throw new InvalidOperationException($"Skill timeline requires MobaEffectInvokerService. phase={PhaseId.Value}, eventIndex={nextIndex}, effectId={e.EffectId}, skillId={context?.SkillId ?? 0}");
                     }
 
-                    effects.Execute(e.EffectId, context);
+                    var outcome = effects.ExecuteWithResult(e.EffectId, context);
+                    if (outcome == MobaEffectExecutionOutcome.Failed && e.AbortOnFailure)
+                    {
+                        context.FailReason = $"Skill timeline effect failed: {e.EffectId}.";
+                        context.IsAborted = true;
+                        return;
+                    }
 
                     nextIndex++;
                     _nextEventIndex = nextIndex;

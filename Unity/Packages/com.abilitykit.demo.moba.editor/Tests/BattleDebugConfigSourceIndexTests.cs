@@ -229,7 +229,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void TraceMapper_OriginUsesItsOwnKindAndConfigId()
         {
             var node = TraceNode("EffectExecution", 801,
-                originKind: (int)MobaTraceKind.AreaStay, originConfigId: 601);
+                originKind: (int)MobaExecutionKind.AreaStay, originConfigId: 601);
             Assert.That(BattleDebugConfigReferenceMapper.TryFromTraceOrigin(in node, out var reference), Is.True);
             Assert.That(reference.Kind, Is.EqualTo(BattleDebugConfigKind.Area));
             Assert.That(reference.Id, Is.EqualTo(601));
@@ -241,7 +241,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void TraceMapper_InvalidOriginKind_DoesNotWrapIntoKnownByteEnum()
         {
             var node = TraceNode("EffectExecution", 801,
-                originKind: 256 + (int)MobaTraceKind.AreaStay, originConfigId: 601);
+                originKind: 256 + (int)MobaExecutionKind.AreaStay, originConfigId: 601);
             Assert.That(BattleDebugConfigReferenceMapper.TryFromTraceOrigin(in node, out _), Is.False);
         }
 

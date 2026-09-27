@@ -132,12 +132,24 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Transactions
             }
             finally
             {
-                if (!succeeded)
+                try
                 {
-                    if (transaction is IMobaRevertibleCombatTransaction revertible) revertible.Rollback();
-                    Invoke(transaction, MobaCombatTransactionStage.Rollback, in context);
+                    if (!succeeded)
+                    {
+                        try
+                        {
+                            if (transaction is IMobaRevertibleCombatTransaction revertible) revertible.Rollback();
+                        }
+                        finally
+                        {
+                            Invoke(transaction, MobaCombatTransactionStage.Rollback, in context);
+                        }
+                    }
                 }
-                _roots.Pop();
+                finally
+                {
+                    _roots.Pop();
+                }
             }
         }
 

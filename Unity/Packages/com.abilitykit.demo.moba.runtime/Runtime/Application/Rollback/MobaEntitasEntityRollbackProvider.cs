@@ -9,7 +9,8 @@ using MemoryPack;
 namespace AbilityKit.Demo.Moba.Rollback
 {
     // Restore before component and service providers: predicted spawns must not remain indexed.
-    public sealed class MobaEntitasEntityRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider
+    [MobaRollbackProvider(DefaultKey)]
+    public sealed class MobaEntitasEntityRollbackProvider : IRollbackStructureRestoreProvider, IRollbackStatePreflightProvider
     {
         public const int DefaultKey = 10000;
         private readonly global::ActorContext _context;
@@ -17,15 +18,18 @@ namespace AbilityKit.Demo.Moba.Rollback
         private readonly MobaActorRegistry _actors;
         private readonly MobaEntityManager _entities;
         private readonly MobaSummonService _summons;
+        private readonly bool _allowMissingActorsRestoredByCommands;
 
         public MobaEntitasEntityRollbackProvider(global::ActorContext context, ActorIdAllocator ids,
-            MobaActorRegistry actors, MobaEntityManager entities, MobaSummonService summons = null)
+            MobaActorRegistry actors, MobaEntityManager entities, MobaSummonService summons = null,
+            bool allowMissingActorsRestoredByCommands = false)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _ids = ids ?? throw new ArgumentNullException(nameof(ids));
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _entities = entities;
             _summons = summons;
+            _allowMissingActorsRestoredByCommands = allowMissingActorsRestoredByCommands;
         }
 
         public int Key => DefaultKey;
@@ -56,7 +60,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                 if (entity.hasSkillCastInstanceId) casts.Add(entity.skillCastInstanceId.Value);
             }
             foreach (var id in snapshot.ActorIds ?? Array.Empty<int>())
-                if (!actors.Contains(id)) throw new InvalidOperationException($"Confirmed actor {id} was destroyed before rollback.");
+                if (!_allowMissingActorsRestoredByCommands && !actors.Contains(id))
+                    throw new InvalidOperationException($"Confirmed actor {id} was destroyed before rollback.");
             foreach (var id in snapshot.CastIds ?? Array.Empty<long>())
                 if (!casts.Contains(id)) throw new InvalidOperationException($"Confirmed skill cast {id} was destroyed before rollback.");
         }
@@ -80,9 +85,10 @@ namespace AbilityKit.Demo.Moba.Rollback
                 {
                     var id = entity.actorId.Value;
                     if (_entities != null && _entities.TryGetActorEntity(id, out var indexed) && ReferenceEquals(indexed, entity))
-                        _entities.UnregisterSilently(id, out _);
+                        _entities.UnregisterSilently(id, out _, publishObjectLifecycle: false);
                     if (_actors.TryGetRegistered(id, out var registered) && ReferenceEquals(registered, entity))
                         _actors.Unregister(id);
+                    _actors.ForgetEntityIdentity(id);
                 }
                 if (entity.isEnabled) entity.Destroy();
             }

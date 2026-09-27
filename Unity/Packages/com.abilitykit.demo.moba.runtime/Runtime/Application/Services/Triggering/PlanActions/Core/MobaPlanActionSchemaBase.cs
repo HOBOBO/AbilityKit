@@ -8,6 +8,51 @@ using AbilityKit.Triggering.Variables.Numeric;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
+    public enum MobaPlanActionArgKind
+    {
+        Int = 0,
+        Float = 1,
+        Bool = 2,
+        BoolNonZero = 3,
+        Enum = 4,
+    }
+
+    [AttributeUsage(AttributeTargets.Struct, AllowMultiple = false, Inherited = false)]
+    public sealed class GenerateMobaPlanActionSchemaAttribute : Attribute
+    {
+        public string ActionName { get; }
+
+        public GenerateMobaPlanActionSchemaAttribute(string actionName)
+        {
+            ActionName = actionName;
+        }
+    }
+
+    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
+    public sealed class MobaPlanActionArgAttribute : Attribute
+    {
+        public MobaPlanActionArgKind Kind { get; }
+        public double DefaultValue { get; }
+        public bool Required { get; }
+        public string[] Aliases { get; }
+        public string DisplayName { get; set; }
+        public double Min { get; set; } = double.NaN;
+        public double Max { get; set; } = double.NaN;
+        public bool ValidateEnum { get; set; } = true;
+
+        public MobaPlanActionArgAttribute(
+            MobaPlanActionArgKind kind,
+            double defaultValue,
+            bool required,
+            params string[] aliases)
+        {
+            Kind = kind;
+            DefaultValue = defaultValue;
+            Required = required;
+            Aliases = aliases ?? Array.Empty<string>();
+        }
+    }
+
     /// <summary>
     /// Demo MOBA 强类型动作结构描述基类。
     /// 新结构描述只需要提供配置中的动作名称以及参数解析规则。
@@ -202,6 +247,65 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             error = $"{ActionName} is missing required parameter '{displayName}'";
             return false;
+        }
+
+        protected bool ValidateNumericRange(
+            ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args,
+            string displayName,
+            double min,
+            double max,
+            out string error,
+            params string[] aliases)
+        {
+            foreach (var pair in args)
+            {
+                if (!IsAlias(pair.Key, aliases)) continue;
+                if (pair.Value.Kind != ActionArgKind.NumericValue)
+                {
+                    error = $"{ActionName} parameter '{displayName}' must be numeric";
+                    return false;
+                }
+
+                if (pair.Value.Ref.Kind != ENumericValueRefKind.Const) continue;
+                var value = pair.Value.Ref.ConstValue;
+                if ((!double.IsNaN(min) && value < min) || (!double.IsNaN(max) && value > max))
+                {
+                    error = $"{ActionName} parameter '{displayName}' is outside range [{min}, {max}]";
+                    return false;
+                }
+            }
+
+            error = null;
+            return true;
+        }
+
+        protected bool ValidateEnumValue<TEnum>(
+            ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args,
+            string displayName,
+            out string error,
+            params string[] aliases)
+            where TEnum : struct, Enum
+        {
+            foreach (var pair in args)
+            {
+                if (!IsAlias(pair.Key, aliases)) continue;
+                if (pair.Value.Kind != ActionArgKind.NumericValue)
+                {
+                    error = $"{ActionName} parameter '{displayName}' must be numeric";
+                    return false;
+                }
+
+                if (pair.Value.Ref.Kind != ENumericValueRefKind.Const) continue;
+                var value = (int)Math.Round(pair.Value.Ref.ConstValue);
+                if (!Enum.IsDefined(typeof(TEnum), value))
+                {
+                    error = $"{ActionName} parameter '{displayName}' has undefined {typeof(TEnum).Name} value {value}";
+                    return false;
+                }
+            }
+
+            error = null;
+            return true;
         }
 
         private static double ResolveNumber(ActionArgValue arg, ExecCtx<IWorldResolver> ctx)

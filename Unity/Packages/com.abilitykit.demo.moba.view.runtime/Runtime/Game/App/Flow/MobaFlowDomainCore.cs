@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using AbilityKit.Ability.Flow;
 using AbilityKit.Demo.Moba.View.Settings;
 using AbilityKit.Core.Logging;
@@ -226,6 +227,27 @@ namespace AbilityKit.Game.Flow
             }
         }
 
+        public async Task ShutdownAsync()
+        {
+            if (_isShutdown)
+                return;
+
+            _isShutdown = true;
+            try
+            {
+                await _featureScheduler.ClearFeaturesAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _log.Exception(ex, "[MobaFlowDomainCore] Feature shutdown failed");
+                throw;
+            }
+            finally
+            {
+                _battleScopeManager.EndBattleScope();
+            }
+        }
+
         public void SwitchTo(IGamePhase next)
         {
             if (next == null) throw new ArgumentNullException(nameof(next));
@@ -241,6 +263,7 @@ namespace AbilityKit.Game.Flow
 
         public void Attach(IGamePhaseFeature feature) => _featureScheduler.AttachFeature(feature);
         public void Detach(IGamePhaseFeature feature) => _featureScheduler.DetachFeature(feature);
+        public Task DetachAsync(IGamePhaseFeature feature) => _featureScheduler.DetachFeatureAsync(feature);
         public int AttachBootFeatures() => _featureScheduler.AttachBootFeatures();
         public int AttachBattleFeatures(IReadOnlyList<string> featureIds = null) => AttachBattleFeatures(featureIds, gatewayConnectionFactory: null);
 

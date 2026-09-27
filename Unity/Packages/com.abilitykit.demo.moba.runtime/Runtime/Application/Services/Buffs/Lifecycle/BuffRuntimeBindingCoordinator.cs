@@ -7,7 +7,6 @@ using AbilityKit.GameplayTags;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
-using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
 {
@@ -73,7 +72,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             return _continuousBindings != null && _continuousBindings.EnsureActive(runtime, buff, sourceActorId, targetActorId, remainingSeconds, requirements);
         }
 
-        public void EndContinuous(BuffRuntime runtime, TraceLifecycleReason reason)
+        public void EndContinuous(BuffRuntime runtime, MobaExecutionEndReason reason)
         {
             if (runtime == null) return;
             var continuousReason = BuffContinuousBindingService.ToContinuousEndReason(reason);

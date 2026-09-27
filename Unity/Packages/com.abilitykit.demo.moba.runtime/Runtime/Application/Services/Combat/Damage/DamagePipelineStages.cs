@@ -10,6 +10,7 @@ namespace AbilityKit.Demo.Moba.Services
         void Execute(AttackCalcInfo calc);
     }
 
+    [MobaDamageStage(MobaDamageStageRegistry.BaseStageId, MobaDamageStageOrders.Base, DamagePipelineEvents.AfterBase, true)]
     public sealed class MobaBaseDamagePipelineStage : IMobaDamagePipelineStage
     {
         public string EventId => DamagePipelineEvents.AfterBase;
@@ -25,6 +26,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
+    [MobaDamageStage(MobaDamageStageRegistry.MitigationStageId, MobaDamageStageOrders.Mitigation, DamagePipelineEvents.AfterMitigate, true)]
     public sealed class MobaDamageMitigationPipelineStage : IMobaDamagePipelineStage
     {
         private readonly MobaDamageMitigationService _mitigation;
@@ -47,6 +49,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
+    [MobaDamageStage(MobaDamageStageRegistry.ShieldStageId, MobaDamageStageOrders.Shield, DamagePipelineEvents.AfterShield, true)]
     public sealed class MobaShieldAbsorbPipelineStage : IMobaDamagePipelineStage
     {
         private readonly MobaShieldService _shields;
@@ -69,6 +72,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
+    [MobaDamageStage(MobaDamageStageRegistry.FinalStageId, MobaDamageStageOrders.Final, DamagePipelineEvents.CalcFinal, true)]
     public sealed class MobaFinalDamagePipelineStage : IMobaDamagePipelineStage
     {
         public string EventId => DamagePipelineEvents.CalcFinal;

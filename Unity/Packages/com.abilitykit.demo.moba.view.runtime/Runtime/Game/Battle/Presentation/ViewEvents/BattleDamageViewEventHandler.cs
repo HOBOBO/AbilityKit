@@ -1,7 +1,7 @@
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow.Battle.View;
-using AbilityKit.Protocol.Moba.StateSync;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
@@ -50,7 +50,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _floatingTexts.Spawn(result.TargetActorId, result.Value, result.Value < 0f);
         }
 
-        public void HandleSnapshot(MobaDamageEventSnapshotEntry[] entries)
+        public void HandleSnapshot(DamageEventData[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             if (!_floatingTexts.CanSpawn) return;
@@ -58,7 +58,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             for (int i = 0; i < entries.Length; i++)
             {
                 var entry = entries[i];
-                _floatingTexts.Spawn(entry.TargetActorId, entry.Value, entry.Kind == (int)DamageEventKind.Heal);
+                _floatingTexts.Spawn(entry.TargetId, entry.Value, entry.IsHeal);
             }
         }
     }

@@ -17,10 +17,12 @@ namespace AbilityKit.Game.Flow
         private readonly BattleSessionState _state;
         private readonly BattleSessionHandles _handles;
         private readonly ISessionOrchestratorHost _host;
-        private readonly object _stopGate = new object();
+        private readonly object _operationGate = new object();
         private CleanupStep _completedCleanupSteps;
         private bool _cleanupRequired;
         private bool _sessionStartingPipelineEntered;
+        private bool _stopFollowsPendingStart;
+        private Task _pendingStartTask = Task.CompletedTask;
         private Task _pendingStopTask = Task.CompletedTask;
 
         [Flags]
@@ -40,6 +42,7 @@ namespace AbilityKit.Game.Flow
             FrameSubscription = 1 << 10,
             LogicSession = 1 << 11,
             SessionHandles = 1 << 12,
+            ProjectionViews = 1 << 13,
         }
 
         public SessionOrchestrator(BattleSessionState state, BattleSessionHandles handles, ISessionOrchestratorHost host)
@@ -57,7 +60,40 @@ namespace AbilityKit.Game.Flow
 
         public void StartSession()
         {
-            StopSession();
+            SessionAsyncOperation.RequireCompleted(
+                StartSessionAsync(),
+                "Battle session start");
+        }
+
+        internal Task StartSessionAsync()
+        {
+            lock (_operationGate)
+            {
+                if (!_pendingStartTask.IsCompleted)
+                {
+                    if (_stopFollowsPendingStart && !_pendingStopTask.IsCompleted)
+                    {
+                        _stopFollowsPendingStart = false;
+                        _pendingStartTask = StartSessionAfterStopAsync(_pendingStopTask);
+                    }
+
+                    return _pendingStartTask;
+                }
+
+                if (_pendingStopTask.IsCompleted)
+                {
+                    _pendingStopTask = StopSessionCoreAsync();
+                }
+
+                _stopFollowsPendingStart = false;
+                _pendingStartTask = StartSessionAfterStopAsync(_pendingStopTask);
+                return _pendingStartTask;
+            }
+        }
+
+        private async Task StartSessionAfterStopAsync(Task precedingStop)
+        {
+            await (precedingStop ?? Task.CompletedTask).ConfigureAwait(false);
             _state.BeginStart();
             _cleanupRequired = true;
             _completedCleanupSteps = CleanupStep.None;
@@ -79,7 +115,7 @@ namespace AbilityKit.Game.Flow
             {
                 try
                 {
-                    DisposeSessionResources();
+                    await DisposeSessionResourcesAsync().ConfigureAwait(false);
                 }
                 catch (Exception cleanupEx)
                 {
@@ -98,21 +134,50 @@ namespace AbilityKit.Game.Flow
 
         public void StopSession()
         {
-            StopSessionAsync().GetAwaiter().GetResult();
+            SessionAsyncOperation.RequireCompleted(
+                StopSessionAsync(),
+                "Battle session stop");
         }
 
         internal Task StopSessionAsync()
         {
-            lock (_stopGate)
+            lock (_operationGate)
             {
+                if (!_pendingStartTask.IsCompleted)
+                {
+                    if (!_stopFollowsPendingStart || _pendingStopTask.IsCompleted)
+                    {
+                        _pendingStopTask = StopAfterStartAsync(_pendingStartTask);
+                        _stopFollowsPendingStart = true;
+                    }
+
+                    return _pendingStopTask;
+                }
+
                 if (!_pendingStopTask.IsCompleted)
                 {
                     return _pendingStopTask;
                 }
 
+                _stopFollowsPendingStart = false;
                 _pendingStopTask = StopSessionCoreAsync();
                 return _pendingStopTask;
             }
+        }
+
+        private async Task StopAfterStartAsync(Task pendingStart)
+        {
+            try
+            {
+                await (pendingStart ?? Task.CompletedTask).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Startup performs its own rollback. A concurrent stop still gets a chance to
+                // retry any cleanup step that failed during that rollback.
+            }
+
+            await StopSessionCoreAsync().ConfigureAwait(false);
         }
 
         private async Task StopSessionCoreAsync()
@@ -223,11 +288,6 @@ namespace AbilityKit.Game.Flow
             SessionContextBinder.BindRuntimeSession(_host.Context, _state, _handles);
         }
 
-        private void DisposeSessionResources()
-        {
-            DisposeSessionResourcesAsync().GetAwaiter().GetResult();
-        }
-
         private async Task DisposeSessionResourcesAsync()
         {
             if (!_cleanupRequired) return;
@@ -279,6 +339,7 @@ namespace AbilityKit.Game.Flow
             await DisposeStepAsync(CleanupStep.Recovery, _host.StopRecoveryAsync, "authoritative recovery").ConfigureAwait(false);
             await DisposeSyncStepAsync(CleanupStep.SnapshotRouting, _host.DisposeSnapshotRouting, "snapshot routing").ConfigureAwait(false);
             await DisposeSyncStepAsync(CleanupStep.ConfirmedView, _host.DisposeConfirmedView, "confirmed view").ConfigureAwait(false);
+            await DisposeSyncStepAsync(CleanupStep.ProjectionViews, _host.DisposeProjectionViews, "projected views").ConfigureAwait(false);
             await DisposeSyncStepAsync(CleanupStep.BattleWorlds, _host.TryDestroyBattleWorlds, "battle worlds").ConfigureAwait(false);
             await DisposeSyncStepAsync(CleanupStep.ConfirmedWorld, _host.DisposeConfirmedWorld, "confirmed world").ConfigureAwait(false);
             await DisposeSyncStepAsync(CleanupStep.RemoteDrivenWorld, _host.DisposeRemoteDrivenWorld, "remote-driven world").ConfigureAwait(false);

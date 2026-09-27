@@ -5,6 +5,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Continuous;
+using AbilityKit.Context;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
@@ -18,10 +19,41 @@ namespace AbilityKit.Demo.Moba.Tests.Passive;
 public sealed class MobaPassiveSkillLifecycleServiceTests
 {
     [Fact]
+    public void Passive_identity_and_lifecycle_are_context_owned_without_trace()
+    {
+        using var contexts = new MobaExecutionContextRegistry();
+        var observerFailures = 0;
+        contexts.ObserverException = (_, _) => observerFailures++;
+        using var subscription = contexts.Observe(
+            (in ContextLifecycleEvent<MobaExecutionContextNode> _) =>
+                throw new InvalidOperationException("optional observer"),
+            replayExisting: false);
+        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), contexts);
+        var actor = CreateActor(new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 });
+
+        service.SyncActorPassives(actor, frame: 7);
+
+        var ownerKey = Assert.Single(actor.ongoingTriggerPlans.Active).OwnerKey;
+        Assert.True(contexts.TryGet(ownerKey, out var active));
+        Assert.Equal(MobaExecutionKind.PassiveActivation, active.Kind);
+        Assert.Equal(7, active.CreatedFrame);
+        Assert.False(active.IsEnded);
+        Assert.Equal(1, observerFailures);
+
+        service.UnregisterActor(actor, frame: 9);
+
+        Assert.True(contexts.TryGet(ownerKey, out var ended));
+        Assert.True(ended.IsEnded);
+        Assert.Equal(9, ended.EndedFrame);
+        Assert.Equal((int)MobaExecutionEndReason.Cancelled, ended.EndReason);
+        Assert.Equal(2, observerFailures);
+    }
+
+    [Fact]
     public void Sync_actor_passives_keeps_multiple_passives_independent_and_dedupes_duplicate_ids()
     {
-        using var trace = new MobaTraceRegistry();
-        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), trace);
+        using var contexts = new MobaExecutionContextRegistry();
+        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), contexts);
         var actor = CreateActor(
             new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 },
             new PassiveSkillRuntime { PassiveSkillId = 102, Level = 1 },
@@ -41,8 +73,8 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
     [Fact]
     public void Repeated_sync_keeps_plan_list_entries_trigger_arrays_and_revision_stable()
     {
-        using var trace = new MobaTraceRegistry();
-        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), trace);
+        using var contexts = new MobaExecutionContextRegistry();
+        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), contexts);
         var actor = CreateActor(
             new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 },
             new PassiveSkillRuntime { PassiveSkillId = 102, Level = 1 });
@@ -70,8 +102,8 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
     public void Complete_owner_bound_trigger_starts_cooldown_and_blocks_until_time_passes()
     {
         var time = new TestFrameTime { TimeSeconds = 1.5f };
-        using var trace = new MobaTraceRegistry();
-        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), trace, frameTime: time);
+        using var contexts = new MobaExecutionContextRegistry();
+        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), contexts, frameTime: time);
         var runtime = new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 };
         var actor = CreateActor(runtime);
 
@@ -93,8 +125,8 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
     [Fact]
     public void Removing_one_passive_keeps_other_passive_owner_binding_active()
     {
-        using var trace = new MobaTraceRegistry();
-        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), trace);
+        using var contexts = new MobaExecutionContextRegistry();
+        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), contexts);
         var first = new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 };
         var second = new PassiveSkillRuntime { PassiveSkillId = 102, Level = 1 };
         var actor = CreateActor(first, second);
@@ -124,8 +156,10 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
     [Fact]
     public void Unregister_actor_releases_listener_plan_owner_binding_and_trace_root()
     {
+        using var contexts = new MobaExecutionContextRegistry();
         using var trace = new MobaTraceRegistry();
-        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), trace);
+        trace.OnInit(new TestWorldResolver(contexts));
+        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), contexts);
         var actor = CreateActor(new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 });
 
         service.SyncActorPassives(actor, frame: 1);
@@ -140,7 +174,8 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
         Assert.False(service.IsPassiveOwnerKey(ownerKey));
         Assert.True(trace.TryGetNodeSnapshot(ownerKey, out var endedTrace));
         Assert.True(endedTrace.IsEnded);
-        Assert.Equal((int)TraceLifecycleReason.Cancelled, endedTrace.EndReason);
+        Assert.Equal((int)MobaExecutionEndReason.Cancelled, endedTrace.EndReason);
+        trace.OnDeinit(null!);
     }
 
     [Fact]
@@ -149,8 +184,8 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
         var configs = CreateConfigDatabase();
         var continuous = new DefaultContinuousManager();
         var processService = CreateProcessService(configs, continuous, new TestWorldClock());
-        using var trace = new MobaTraceRegistry();
-        var service = new MobaPassiveSkillLifecycleService(configs, trace, continuousProcesses: processService);
+        using var contexts = new MobaExecutionContextRegistry();
+        var service = new MobaPassiveSkillLifecycleService(configs, contexts, continuousProcesses: processService);
         var actor = CreateActor(new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 });
 
         service.SyncActorPassives(actor, frame: 10);
@@ -171,8 +206,8 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
         var combat = new MobaCombatActivityService(clock);
         var continuous = new DefaultContinuousManager();
         var processService = CreateProcessService(configs, continuous, clock, combat);
-        using var trace = new MobaTraceRegistry();
-        var service = new MobaPassiveSkillLifecycleService(configs, trace, continuousProcesses: processService);
+        using var contexts = new MobaExecutionContextRegistry();
+        var service = new MobaPassiveSkillLifecycleService(configs, contexts, continuousProcesses: processService);
         var actor = CreateActor(new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 });
 
         service.SyncActorPassives(actor, frame: 10);
@@ -264,6 +299,11 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
     private sealed class TestWorldResolver : IWorldResolver
     {
         private readonly Dictionary<Type, object> _services = new();
+
+        public TestWorldResolver(MobaExecutionContextRegistry executionContexts)
+        {
+            _services[typeof(MobaExecutionContextRegistry)] = executionContexts;
+        }
 
         public TestWorldResolver(MobaConfigDatabase configs, IContinuousManager continuous, MobaCombatActivityService combat)
         {

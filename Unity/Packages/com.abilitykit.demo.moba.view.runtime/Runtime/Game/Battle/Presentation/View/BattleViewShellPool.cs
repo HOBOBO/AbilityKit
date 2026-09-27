@@ -21,6 +21,10 @@ namespace AbilityKit.Game.Flow
         private readonly int _maxSize;
         private readonly Dictionary<int, ObjectPool<GameObject>> _pools = new Dictionary<int, ObjectPool<GameObject>>(32);
         private readonly HashSet<int> _failedModelIds = new HashSet<int>();
+        private readonly HashSet<GameObject> _leased = new HashSet<GameObject>();
+        private readonly BattleViewPoolMetricsTracker _metrics = new BattleViewPoolMetricsTracker();
+
+        public BattleViewPoolMetrics Metrics => _metrics.Capture(_pools.Values, _leased.Count);
 
         /// <summary>
         /// Optional hierarchy manager. When set, pool bucket instances are parented
@@ -61,20 +65,35 @@ namespace AbilityKit.Game.Flow
         public bool TryRent(int modelId, out GameObject instance)
         {
             instance = null;
-            if (modelId <= 0) return false;
-            if (_failedModelIds.Contains(modelId)) return false;
+            if (modelId <= 0 || _failedModelIds.Contains(modelId))
+            {
+                _metrics.RecordFailure();
+                return false;
+            }
 
             try
             {
                 var pool = GetOrCreateBucket(modelId);
                 instance = pool.Get();
+                if (instance != null)
+                {
+                    _leased.Add(instance);
+                    _metrics.ObserveActive(_leased.Count);
+                }
+                else _metrics.RecordFailure();
                 return instance != null;
             }
             catch (InvalidOperationException ex)
             {
                 _failedModelIds.Add(modelId);
+                _metrics.RecordFailure();
                 Debug.LogException(ex);
                 return false;
+            }
+            catch (Exception)
+            {
+                _metrics.RecordFailure();
+                throw;
             }
         }
 
@@ -94,15 +113,21 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         public void Return(int modelId, GameObject instance)
         {
-            if (instance == null || modelId <= 0) return;
+            TryReturn(modelId, instance);
+        }
 
-            if (!_pools.TryGetValue(modelId, out var pool))
+        public bool TryReturn(int modelId, GameObject instance)
+        {
+            if (instance == null || modelId <= 0 ||
+                BattleShellPoolableTag.ReadModelId(instance) != modelId || !_leased.Contains(instance) ||
+                !_pools.TryGetValue(modelId, out var pool))
             {
-                pool = CreateBucket(modelId);
-                _pools[modelId] = pool;
+                _metrics.RecordFailure();
+                return false;
             }
-
             pool.Release(instance);
+            _leased.Remove(instance);
+            return true;
         }
 
         /// <summary>
@@ -119,10 +144,13 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         public void Clear()
         {
+            _metrics.RecordClear(_pools.Values, _leased.Count);
             foreach (var kvp in _pools)
             {
                 kvp.Value.Clear(destroy: true);
             }
+            foreach (var instance in _leased) DestroySafely(instance);
+            _leased.Clear();
             _pools.Clear();
             _failedModelIds.Clear();
         }

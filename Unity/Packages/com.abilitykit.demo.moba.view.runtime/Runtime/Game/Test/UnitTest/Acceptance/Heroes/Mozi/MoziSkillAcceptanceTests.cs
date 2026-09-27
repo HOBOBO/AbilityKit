@@ -7,6 +7,7 @@ using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Projectile;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Protocol.Moba;
@@ -69,12 +70,12 @@ namespace AbilityKit.Game.Test.UnitTest
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var cast = skills.TryCastSkill(actorId, normalBasicAttackSkillId, slot: basicAttackSlot, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: targetActorId);
                 Assert.IsTrue(cast.Success, $"Mozi enhanced basic attack should cast through ResolveSkillId. failReason={cast.FailReason}");
-                harness.TickUntilTraceNode(MobaTraceKind.SkillCast, 10040112, maxTicks: 10, message: "Mozi normal basic attack should be replaced by skill 10040112 while the skill 1 buff is active.");
-                var enhancedTrace = harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, 10040112, maxTicks: harness.CalculateWaitTicksForSkillEffect(10040112, 10040112, safetyFrames: 5) + 30, message: "Mozi enhanced basic attack should execute effect 10040112 after skill id replacement.");
+                harness.TickUntilTraceNode(MobaExecutionKind.SkillCast, 10040112, maxTicks: 10, message: "Mozi normal basic attack should be replaced by skill 10040112 while the skill 1 buff is active.");
+                var enhancedTrace = harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, 10040112, maxTicks: harness.CalculateWaitTicksForSkillEffect(10040112, 10040112, safetyFrames: 5) + 30, message: "Mozi enhanced basic attack should execute effect 10040112 after skill id replacement.");
                 harness.AssertActionExecutedUnderEffect(enhancedTrace.RootId, (int)TriggeringConstants.GiveDamageId.Value, TriggeringConstants.Actions.GiveDamage);
                 harness.AssertActionExecutedUnderEffect(enhancedTrace.RootId, (int)TriggeringConstants.PullId.Value, TriggeringConstants.Actions.Pull);
                 harness.AssertActionExecutedUnderEffect(enhancedTrace.RootId, (int)TriggeringConstants.RemoveBuffId.Value, TriggeringConstants.Actions.RemoveBuff);
-                Assert.GreaterOrEqual(CountTraceNodesInRoot(harness, enhancedTrace.RootId, MobaTraceKind.DamageApply, 10040112), 1, "Mozi enhanced melee basic attack should apply direct damage instead of launching the skill 2 cannon projectile.");
+                Assert.GreaterOrEqual(CountTraceNodesInRoot(harness, enhancedTrace.RootId, MobaExecutionKind.DamageApply, 10040112), 1, "Mozi enhanced melee basic attack should apply direct damage instead of launching the skill 2 cannon projectile.");
 
                 harness.Tick(1);
                 Assert.IsFalse(harness.HasActorBuff(actorId, 10040101), "Mozi enhanced basic attack should consume the skill 1 modifier buff.");
@@ -119,7 +120,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var cast = skills.TryCastBySlot(actorId, Skill2.Slot, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
                 Assert.IsTrue(cast.Success, $"Mozi skill 2 should cast toward the enemy and allow the cannon to hit early. failReason={cast.FailReason}");
 
-                var effectTrace = harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, Skill2.EffectId, maxTicks: 20, message: "Mozi skill 2 should execute its cannon effect.");
+                var effectTrace = harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, Skill2.EffectId, maxTicks: 20, message: "Mozi skill 2 should execute its cannon effect.");
                 harness.AssertProjectileLaunchedUnderEffect(effectTrace.RootId, 31040201, 30040201);
                 var spawn = TickUntilProjectileSpawnSnapshot(harness, 30040201, maxTicks: 30);
                 var projectileActorId = spawn.ProjectileActorId;
@@ -132,7 +133,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 AssertMoziSkill2HitCraterPosition(harness, effectTrace.RootId, targetActorId, exit);
 
                 harness.TickMilliseconds(550);
-                var damageCount = CountTraceNodesInRoot(harness, effectTrace.RootId, MobaTraceKind.DamageApply, 10040201);
+                var damageCount = CountTraceNodesInRoot(harness, effectTrace.RootId, MobaExecutionKind.DamageApply, 10040201);
                 Assert.GreaterOrEqual(damageCount, 2, $"Mozi skill 2 crater should deal initial damage and at least one 0.5s interval damage tick. actual={damageCount}");
             }
         }
@@ -288,8 +289,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 var cast = skills.TryCastBySlot(actorId, Skill1.Slot, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
                 Assert.IsTrue(cast.Success, $"Mozi skill 1 should cast successfully. failReason={cast.FailReason}");
 
-                harness.TickUntilTraceNode(MobaTraceKind.SkillCast, Skill1.SkillId, maxTicks: 10, message: "Mozi skill 1 should publish its cast trace.");
-                var passiveTrace = harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, 10040000, maxTicks: 120, message: "Mozi cast-complete passive should execute through the formal owner-bound effect gateway.");
+                harness.TickUntilTraceNode(MobaExecutionKind.SkillCast, Skill1.SkillId, maxTicks: 10, message: "Mozi skill 1 should publish its cast trace.");
+                var passiveTrace = harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, 10040000, maxTicks: 120, message: "Mozi cast-complete passive should execute through the formal owner-bound effect gateway.");
                 harness.AssertActionExecutedUnderEffect(passiveTrace.RootId, (int)TriggeringConstants.AddBuffId.Value, TriggeringConstants.Actions.AddBuff);
                 harness.AssertActionExecutedUnderEffect(passiveTrace.RootId, (int)TriggeringConstants.AddShieldId.Value, TriggeringConstants.Actions.AddShield);
                 Assert.IsTrue(harness.HasActorBuff(actorId, 10040000), "Mozi cast-complete passive should apply its shield buff without an unscoped plan-action exception.");
@@ -325,11 +326,11 @@ namespace AbilityKit.Game.Test.UnitTest
                     harness.Tick(1);
                 }
 
-                var passiveTrace = harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, 10040002, maxTicks: 10, message: "Mozi passive fourth basic attack should execute the enhanced melee hit trigger.");
+                var passiveTrace = harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, 10040002, maxTicks: 10, message: "Mozi passive fourth basic attack should execute the enhanced melee hit trigger.");
                 harness.AssertActionExecutedUnderEffect(passiveTrace.RootId, (int)TriggeringConstants.GiveDamageId.Value, TriggeringConstants.Actions.GiveDamage);
                 harness.AssertActionExecutedUnderEffect(passiveTrace.RootId, (int)TriggeringConstants.PullId.Value, TriggeringConstants.Actions.Pull);
                 harness.AssertActionExecutedUnderEffect(passiveTrace.RootId, (int)TriggeringConstants.AddBuffId.Value, TriggeringConstants.Actions.AddBuff);
-                Assert.GreaterOrEqual(CountTraceNodesInRoot(harness, passiveTrace.RootId, MobaTraceKind.DamageApply, 10040002), 1, "Mozi passive fourth basic attack should apply melee damage instead of launching the skill 2 cannon projectile.");
+                Assert.GreaterOrEqual(CountTraceNodesInRoot(harness, passiveTrace.RootId, MobaExecutionKind.DamageApply, 10040002), 1, "Mozi passive fourth basic attack should apply melee damage instead of launching the skill 2 cannon projectile.");
                 HeroSkillHeadlessContract.AssertFreshBuff(harness, actorId, 10040000, 2.0f, "Mozi passive fourth basic attack should refresh the passive shield buff.");
             }
         }
@@ -376,7 +377,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             for (var i = 0; i <= maxTicks; i++)
             {
-                foreach (var node in harness.Trace.GetNodesByKind((int)MobaTraceKind.EffectExecution))
+                foreach (var node in harness.Trace.GetNodesByKind((int)MobaExecutionKind.EffectExecution))
                 {
                     if (node.RootId <= afterRootId) continue;
                     if (node.Metadata == null || node.Metadata.ConfigId != effectId) continue;
@@ -575,7 +576,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.Greater(transformEntry.X, initialPosition.X + 0.05f, $"Mozi skill 2 projectile transform snapshot should carry the moved projectile position. initialX={initialPosition.X:F3}, snapshotX={transformEntry.X:F3}");
 
             var resolver = new BattleProjectileVfxResolver();
-            Assert.AreEqual(90004002, resolver.ResolveSnapshotVfxId(spawn.TemplateId, spawn.Kind), "Mozi skill 2 projectile spawn snapshot should resolve to the configured cannon VFX instead of a placeholder.");
+            Assert.AreEqual(90004002, resolver.ResolveSnapshotVfxId(spawn.TemplateId, (ProjectilePresentationEventKind)spawn.Kind), "Mozi skill 2 projectile spawn snapshot should resolve to the configured cannon VFX instead of a placeholder.");
         }
 
         private static bool TryCollectActorTransformSnapshot(MobaSkillConfigTestHarness harness, int actorId, out MobaActorTransformSnapshotEntry entry)
@@ -627,7 +628,7 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 foreach (var node in harness.Trace.GetNodesByRoot(rootId))
                 {
-                    if (node.Kind == (int)MobaTraceKind.AreaSpawn && node.Metadata != null && node.Metadata.ConfigId == 40040201)
+                    if (node.Kind == (int)MobaExecutionKind.AreaSpawn && node.Metadata != null && node.Metadata.ConfigId == 40040201)
                     {
                         return node;
                     }
@@ -677,7 +678,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 $"Mozi skill 2 hit target should be inside the crater. target=({targetPosition.X:0.###},{targetPosition.Z:0.###}), center=({crater.Center.X:0.###},{crater.Center.Z:0.###}), radius={crater.Radius:0.###}");
         }
 
-        private static int CountTraceNodesInRoot(MobaSkillConfigTestHarness harness, long rootId, MobaTraceKind kind, int configId)
+        private static int CountTraceNodesInRoot(MobaSkillConfigTestHarness harness, long rootId, MobaExecutionKind kind, int configId)
         {
             var count = 0;
             foreach (var node in harness.Trace.GetNodesByRoot(rootId))
@@ -695,14 +696,14 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var sb = new StringBuilder(512);
             sb.Append("expectedRoot=").Append(expectedRootId);
-            AppendTraceNodes(sb, harness, MobaTraceKind.EffectExecution, 10040211, "craterTriggerEffects");
-            AppendTraceNodes(sb, harness, MobaTraceKind.AreaSpawn, 40040201, "craterAreaSpawns");
-            AppendTraceNodes(sb, harness, MobaTraceKind.ProjectileLaunch, 30040201, "projectileLaunches");
-            AppendTraceNodes(sb, harness, MobaTraceKind.EffectAction, (int)TriggeringConstants.SpawnAreaId.Value, "spawnAreaActions");
+            AppendTraceNodes(sb, harness, MobaExecutionKind.EffectExecution, 10040211, "craterTriggerEffects");
+            AppendTraceNodes(sb, harness, MobaExecutionKind.AreaSpawn, 40040201, "craterAreaSpawns");
+            AppendTraceNodes(sb, harness, MobaExecutionKind.ProjectileLaunch, 30040201, "projectileLaunches");
+            AppendTraceNodes(sb, harness, MobaExecutionKind.EffectAction, (int)TriggeringConstants.SpawnAreaId.Value, "spawnAreaActions");
             return sb.ToString();
         }
 
-        private static void AppendTraceNodes(StringBuilder sb, MobaSkillConfigTestHarness harness, MobaTraceKind kind, int configId, string label)
+        private static void AppendTraceNodes(StringBuilder sb, MobaSkillConfigTestHarness harness, MobaExecutionKind kind, int configId, string label)
         {
             sb.Append("; ").Append(label).Append("=");
             var count = 0;

@@ -7,15 +7,6 @@ using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Game.Flow
 {
-    internal interface ITickLoopHost
-    {
-        float GetFixedDeltaSeconds();
-
-        void TickRemoteDrivenLocalSim(float deltaTime);
-        void TickConfirmedAuthorityWorldSim(float deltaTime);
-        void TickRemoteInterpolation(float deltaTime);
-    }
-
     internal interface ISessionLogicPort
     {
         BattleStartPlan Plan { get; }
@@ -42,6 +33,7 @@ namespace AbilityKit.Game.Flow
         void TryDestroyBattleWorlds();
         void DisposeSnapshotRouting();
         void DisposeConfirmedView();
+        void DisposeProjectionViews();
         void DisposeRemoteDrivenWorld();
         void DisposeConfirmedWorld();
         void DisposeRemoteInterpolation();
@@ -70,6 +62,7 @@ namespace AbilityKit.Game.Flow
         void TryDestroyBattleWorlds();
         void DisposeSnapshotRouting();
         void DisposeConfirmedView();
+        void DisposeProjectionViews();
         void DisposeRemoteDrivenWorld();
         void DisposeConfirmedWorld();
         void DisposeRemoteInterpolation();

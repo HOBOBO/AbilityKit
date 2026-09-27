@@ -1,0 +1,137 @@
+[
+  {
+    "Id": 1,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "普攻发射器"
+  },
+  {
+    "Id": 2,
+    "CountPerShot": 5,
+    "DurationMs": 1000,
+    "EmitterType": 1,
+    "FanAngleDeg": 90,
+    "IntervalMs": 500,
+    "Name": "技能发射器-扇形"
+  },
+  {
+    "Id": 31010101,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "廉颇-爆裂冲撞-直线冲锋发射器"
+  },
+  {
+    "Id": 31020101,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "小乔-绽放之舞-单扇线性发射器"
+  },
+  {
+    "Id": 31030101,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "赵云-惊雷之龙-直线冲锋发射器"
+  },
+  {
+    "Id": 31040101,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "墨子-和平漫步-直线突进发射器"
+  },
+  {
+    "Id": 31040201,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "墨子-机关重炮-单发炮弹发射器"
+  },
+  {
+    "Id": 31050101,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "妲己-灵魂冲击-单发冲击波发射器"
+  },
+  {
+    "Id": 31050201,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "妲己-偶像魅力-单发追踪魅惑弹发射器"
+  },
+  {
+    "Id": 31050301,
+    "CountPerShot": 1,
+    "DurationMs": 1600,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 400,
+    "Name": "妲己-女王崇拜-狐火发射器"
+  },
+  {
+    "Id": 31060301,
+    "CountPerShot": 5,
+    "DurationMs": 2500,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 250,
+    "Name": "嬴政-至尊王权-飞剑发射器"
+  },
+  {
+    "Id": 31020001,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "小乔-普通攻击-单发发射器"
+  },
+  {
+    "Id": 31040011,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "墨子-普通攻击-单发发射器"
+  },
+  {
+    "Id": 31050001,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "妲己-普通攻击-单发发射器"
+  },
+  {
+    "Id": 31060001,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "嬴政-普通攻击-单发飞剑发射器"
+  }
+]

@@ -1,6 +1,7 @@
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.AutoTest;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Testing;
 using Xunit;
 
@@ -81,7 +82,9 @@ public abstract class ConsoleMobaSmokeTestBase
 
     protected static ConsoleBattleBootstrapper CreateBootstrapper()
     {
-        return new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        return new ConsoleBattleBootstrapper(
+            BattleStartConfig.CreateDefault(),
+            additionalModules: new[] { new MobaTraceAdapterModule() });
     }
 
     private static void TickUntilPrepared(ConsoleBattleBootstrapper bootstrapper)

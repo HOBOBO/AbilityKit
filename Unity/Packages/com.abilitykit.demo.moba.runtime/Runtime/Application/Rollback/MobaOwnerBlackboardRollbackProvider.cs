@@ -23,6 +23,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     /// Owner creation/destruction is deliberately not inferred here; a mismatched active
     /// owner set fails the provider import instead of silently creating or releasing owners.
     /// </summary>
+    [MobaRollbackProvider(DefaultKey)]
     public sealed class MobaOwnerBlackboardRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider
     {
         public const int DefaultKey = 10008;

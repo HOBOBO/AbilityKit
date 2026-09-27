@@ -49,7 +49,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(restored.Trace.Nodes, Is.EqualTo(source.Trace.Nodes));
             Assert.That(restored.Trace.Nodes[0].TargetActorId, Is.EqualTo(2));
             Assert.That(restored.Trace.Nodes[0].TriggerId, Is.EqualTo(701));
-            Assert.That(restored.Trace.Nodes[0].OriginKind, Is.EqualTo((int)MobaTraceKind.AreaStay));
+            Assert.That(restored.Trace.Nodes[0].OriginKind, Is.EqualTo((int)MobaExecutionKind.AreaStay));
             Assert.That(restored.Trace.Nodes[0].OriginDefinition,
                 Is.EqualTo(BattleDiagnosticDefinitionReference.Create(BattleDiagnosticDefinitionKind.Area, 601)));
             Assert.That(restored.Trace.Nodes[0].SourceObject.Kind,
@@ -500,7 +500,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             var json = Export(CreateSnapshot()).Replace(
                 AnalysisBattleDiagnosticSchema.Version,
-                "abilitykit-battle-diagnostics.v2");
+                "abilitykit-battle-diagnostics.v1");
 
             var exception = Assert.Throws<MobaBattleDiagnosticArtifactException>(
                 () => MobaBattleDiagnosticArtifactCodec.ImportSnapshot(json));
@@ -949,7 +949,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             };
             var traces = new[]
             {
-                new BattleDiagnosticTraceNodeSummary(_scope, 900, 900, 0, Frame - 2, Frame, BattleDiagnosticTraceNodeState.Ended, 1, 101, "SkillPhase", "Completed", 101, 7001, "cast.release", 2, 701, 3, 5, BattleDiagnosticDefinitionKind.Skill, (int)MobaTraceKind.AreaStay, 601, BattleDiagnosticDefinitionKind.Area),
+                new BattleDiagnosticTraceNodeSummary(_scope, 900, 900, 0, Frame - 2, Frame, BattleDiagnosticTraceNodeState.Ended, 1, 101, "SkillPhase", "Completed", 101, 7001, "cast.release", 2, 701, 3, 5, BattleDiagnosticDefinitionKind.Skill, (int)MobaExecutionKind.AreaStay, 601, BattleDiagnosticDefinitionKind.Area),
                 new BattleDiagnosticTraceNodeSummary(_scope, 900, 901, 900, Frame - 1, Frame, BattleDiagnosticTraceNodeState.Ended, 2, 201, "Damage", "Failed")
             };
             var attributes = new[]

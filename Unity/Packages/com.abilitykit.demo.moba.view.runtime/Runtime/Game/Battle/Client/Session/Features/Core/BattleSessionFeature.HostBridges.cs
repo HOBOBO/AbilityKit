@@ -1,12 +1,12 @@
-using System;
+using System.Threading.Tasks;
 
 namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleSessionFeature
     {
-        void ISessionPlanHost.StartSession() => StartSession();
+        Task ISessionPlanHost.StartSessionAsync() => StartSessionAsync();
 
-        void ISessionPlanHost.StopSession() => StopSession();
+        Task ISessionPlanHost.StopSessionAsync() => StopSessionAsync();
 
         void ISessionPlanHost.ApplyAutoPlanActions() => ApplyAutoPlanActions();
 
@@ -16,34 +16,31 @@ namespace AbilityKit.Game.Flow
 
         void ISessionPlanHost.NotifySessionFailed(System.Exception exception) => _eventsCtrl.NotifySessionFailed(this, exception);
 
-    }
+        bool ISessionTickLoopPort.HasSession => _session != null;
 
-    internal sealed class TickLoopHost : ITickLoopHost
-    {
-        private readonly Func<float> _getFixedDeltaSeconds;
-        private readonly Action<float> _tickRemoteDrivenLocalSim;
-        private readonly Action<float> _tickConfirmedAuthorityWorldSim;
-        private readonly Action<float> _tickRemoteInterpolation;
+        float ISessionTickLoopPort.FixedDeltaSeconds =>
+            GetFixedDeltaSeconds();
 
-        public TickLoopHost(
-            Func<float> getFixedDeltaSeconds,
-            Action<float> tickRemoteDrivenLocalSim,
-            Action<float> tickConfirmedAuthorityWorldSim,
-            Action<float> tickRemoteInterpolation)
+        void ISessionTickLoopPort.TickTransport(float elapsedSeconds) =>
+            _session?.NetworkTransport?.Tick(elapsedSeconds);
+
+        void ISessionTickLoopPort.TickSimulationFrame(
+            float fixedDeltaSeconds) =>
+            _session.Tick(fixedDeltaSeconds);
+
+        void ISessionTickLoopPort.TickRemoteDrivenSimulation(
+            float deltaTime) =>
+            TickRemoteDrivenLocalSim(deltaTime);
+
+        void ISessionTickLoopPort.TickConfirmedSimulation(
+            float deltaTime) =>
+            TickConfirmedAuthorityWorldSim(deltaTime);
+
+        void ISessionTickLoopPort.TickPresentation(float deltaTime)
         {
-            _getFixedDeltaSeconds = getFixedDeltaSeconds;
-            _tickRemoteDrivenLocalSim = tickRemoteDrivenLocalSim;
-            _tickConfirmedAuthorityWorldSim = tickConfirmedAuthorityWorldSim;
-            _tickRemoteInterpolation = tickRemoteInterpolation;
+            TickRemoteInterpolation(deltaTime);
+            _runtime.Presentation.SyncProjectionViews();
         }
-
-        public float GetFixedDeltaSeconds() => _getFixedDeltaSeconds();
-
-        public void TickRemoteDrivenLocalSim(float deltaTime) => _tickRemoteDrivenLocalSim(deltaTime);
-
-        public void TickConfirmedAuthorityWorldSim(float deltaTime) => _tickConfirmedAuthorityWorldSim(deltaTime);
-
-        public void TickRemoteInterpolation(float deltaTime) => _tickRemoteInterpolation(deltaTime);
     }
 
 }

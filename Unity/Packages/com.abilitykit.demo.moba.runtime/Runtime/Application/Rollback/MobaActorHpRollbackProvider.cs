@@ -22,6 +22,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     /// - 2026-08-15 v2：伤害/治疗实际落地在 ResourceContainer（定点 Q32.32），BaseValue 快照覆盖不到真实血量，
     ///   因此 v2 同时回滚 ResourceState.Current（raw long 存储）。BaseHp 字段保留 float（attribute 系统仍为 float 存储）。
     /// </summary>
+    [MobaRollbackProvider(DefaultKey)]
     public sealed class MobaActorHpRollbackProvider : IRollbackStateProvider
     {
         public const int DefaultKey = 10002;

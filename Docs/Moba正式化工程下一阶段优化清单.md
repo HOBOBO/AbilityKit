@@ -79,23 +79,23 @@
 **风险**
 
 - 被动技能、Buff、装备、光环等会引起频繁增删监听，若仍以重建列表为主，人数/单位数量上升后会成为 GC 热点。
-- 监听注册、ownerKey、trace context、ongoing plan component 多处维护，容易出现泄漏、重复注册或清理顺序不一致。
+- 监听注册、ownerKey、正式 execution context、ongoing plan component 多处维护，容易出现泄漏、重复注册或清理顺序不一致；Trace 只应是可选投影。
 
 **建议落地**
 
 1. 将 ongoing trigger plan 更新改成 diff apply：复用组件内列表，按 ownerKey / triggerId 增删，不在常规更新时重建整表。
-2. 把 ownerKey 计算、监听注册、trace context 创建/结束封装到单一生命周期协调器。
+2. 把 ownerKey 计算、监听注册与领域 Execution Context ownership 明确分层：订阅协调器只管理 owner 路由，Context 创建者负责创建/结束，Trace Adapter 只观察。
 3. 对被动技能、Buff 持有的触发计划统一接入同一套 owner-bound subscription contract。
 4. 增加“重复注册、缺失释放、ownerKey 泄漏”的 runtime validator。
 
 **验收标准**
 
 - 被动技能刷新不会在无变化时替换 ongoing plan list。
-- actor 销毁、Buff 结束、被动技能移除后，对应订阅与 trace context 全部释放并可测试验证。
+- actor 销毁、Buff 结束、被动技能移除后，对应订阅与正式 execution context 全部释放并可测试验证；安装 Trace Adapter 时投影同步收尾。
 
 **实施结果与保留边界（2026-08-15）**
 
-- `MobaPassiveSkillLifecycleService` 已集中维护被动 listener、owner binding、ongoing plan、continuous runtime、action 与 passive root trace 的生命周期；actor 注销和被动移除通过同一 ownerKey 清理链路收口。
+- `MobaPassiveSkillLifecycleService` 已集中维护被动 listener、owner binding、ongoing plan、continuous runtime、action 与 passive root Execution Context 的生命周期；actor 注销和被动移除通过显式 ownership 清理链路收口，Trace Adapter 可选观察。
 - ongoing plan 已改为按 ownerKey 原地差量同步。配置无变化时保持 plan list、entry、trigger array 与 revision 的对象和值稳定；单项移除时复用原列表及未变化 entry/array，只有新增 owner 或 trigger 配置实际变化时才创建对应对象。
 - listener desired id、临时 context owner set、actor owner-key snapshot 已接入集合池或 actor 生命周期内复用；`MobaOngoingTriggerPlansReconcileSystem` 使用字段级聚合列表，避免逐帧创建 reconcile 缓冲。
 - trigger gateway 的订阅 apply/stop 仍由 `MobaTriggerPlanReconcileService` 与 `MobaTriggerPlanSubscriptionService` 负责。lifecycle service 只维护计划数据与 revision，不新增对 gateway 的强耦合；公开 `OngoingTriggerPlanEntry.TriggerIds` 数组契约保持不变。
@@ -132,7 +132,7 @@
 
 **现状**
 
-- `MobaSkillCastRuntimeService` 已存在 runtime aggregate、retain/release、children、trace context 等概念。
+- `MobaSkillCastRuntimeService` 已存在 runtime aggregate、retain/release、children、root execution context 等概念；Trace 不再是业务依赖。
 - `SkillExecutor.StartPreparedCast` 在 runner 启动失败时会 `ForceTerminate` runtime handle。
 - Buff/projectile/summon 侧已有 retain/release 记录，但清理日志和异常处理仍分散。
 
@@ -150,7 +150,7 @@
 
 **验收标准**
 
-- 任意技能施放实例都能从 runtime id 追踪到根 trace、children、结束原因和最终状态。
+- 任意技能施放实例都能从 runtime id 追踪到根 Execution Context、children、结束原因和最终状态；Trace 启用时可查询同 ID 投影。
 - 单测覆盖 pipeline 启动失败、child 等待、Buff/Projectile release 后 finalize。
 
 ### P1-3 View/ET 表现层快照消费正式化

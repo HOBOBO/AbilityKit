@@ -16,19 +16,19 @@ internal static class GatewaySkillAnalysisModelProvider
             "cast-pipeline",
             "技能释放管线",
             "SkillPipelineContext / SkillPipelineRunner",
-            "summary.result + trace kind SkillCast",
+            "summary.result + executionKind SkillCast",
             new[] { "skillId", "casterActorId", "targetActorId", "frame", "castSequence", "runtimeId", "sourceContextId", "pipelineState", "failReason" }),
         new(
             "trigger-lineage",
             "触发链路溯源",
-            "MobaTriggerLineageContext / MobaTraceRuntimeServices",
-            "trace rootId + parentId + nodeId",
+            "MobaExecutionContextRegistry / MobaTriggerLineageContext",
+            "execution context rootId + parentId + nodeId; optional Trace projection",
             new[] { "nodeId", "rootId", "parentId", "kind", "configId", "frame", "timeMs", "isEnded", "childCount" }),
         new(
             "effect-execution",
             "效果执行",
-            "EffectExecutionTraceScope / MobaEffectTraceScopeSnapshot / MobaEffectInvokerService",
-            "trace kind EffectExecution + result.effectExecutionTraceFound",
+            "EffectExecutionScope / MobaEffectExecutionScopeSnapshot / MobaEffectInvokerService",
+            "executionKind EffectExecution + optional trace acceptance result",
             new[] { "effectId", "contextId", "actionContextIds", "targetActorId", "value", "endedFrame" }),
         new(
             "assertion-result",
@@ -43,9 +43,9 @@ internal static class GatewaySkillAnalysisModelProvider
         new("battleId", "运行态战斗实例标识；用于把后台实时诊断和 artifact case 关联到同一场战斗。", true),
         new("worldId", "逻辑世界标识；用于隔离多房间、多环境、多批次结果。", true),
         new("caseId", "Scenario artifact 稳定复现入口；真实运行态可为空。", false),
-        new("rootId", "Trace chain 根节点；用于从技能释放追踪到触发、效果、动作。", true),
-        new("nodeId", "Trace 节点唯一标识；用于构建树和定位异常节点。", true),
-        new("parentId", "父 Trace 节点；用于构建 tree/DAG lineage。", true),
+        new("rootId", "Execution Context chain 根节点；用于从技能释放追踪到触发、效果、动作。", true),
+        new("nodeId", "Execution Context 节点唯一标识；Trace Adapter 可用同一身份构建观察树。", true),
+        new("parentId", "父 Execution Context 节点；用于构建 tree/DAG lineage。", true),
         new("frame", "逻辑帧；用于对齐运行时事件、Scenario timeline 和最终断言。", true),
         new("actorId", "技能释放者、目标或上下文所属 Actor。", true),
         new("skillId", "技能配置标识；用于聚合技能维度指标。", true)
@@ -82,7 +82,7 @@ internal static class GatewaySkillAnalysisModelProvider
 
     private static readonly string[] Notes =
     {
-        "运行态技能诊断当前提供房间、战斗帧、参与者和事件入口；完整技能链路以 Scenario artifact trace 为主数据源。",
+        "运行态技能诊断以 Execution Context 为正式身份来源；Scenario artifact trace 是可选的分析投影。",
         "高密度战斗分析优先使用筛选条件缩小范围：failure、entityKind、actorId、configId、rootId、contextId。",
         "实体关联视图会按 source/root/owner context 聚合主 Actor、Projectile、AOE、Buff、Damage、表现事件和 EffectAction。"
     };

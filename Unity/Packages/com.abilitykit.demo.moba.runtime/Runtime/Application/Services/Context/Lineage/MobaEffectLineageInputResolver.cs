@@ -12,7 +12,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 return new MobaEffectLineageInput(
                     source.ContextKind,
-                    source.TraceKind,
+                    source.ExecutionKind,
                     source.SourceActorId,
                     source.TargetActorId,
                     source.SourceContextId,
@@ -34,7 +34,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 var lineageInput = new MobaEffectLineageInput(
                     effectCtx.Kind,
-                    MobaTraceKind.EffectExecution,
+                    MobaExecutionKind.EffectExecution,
                     effectCtx.SourceActorId,
                     effectCtx.TargetActorId,
                     effectCtx.SourceContextId,
@@ -47,8 +47,8 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
 
-            // Actor IDs and trace context IDs use different namespaces. An actor-only payload
-            // may start a new effect root, but it must never be promoted to a fake trace parent.
+            // Actor IDs and execution context IDs use different namespaces. An actor-only payload
+            // may start a new effect root, but it must never be promoted to a fake context parent.
             if (payload is IMobaActorContextProvider actorProvider
                 && actorProvider.TryGetSourceActorId(out var fallbackSource)
                 && fallbackSource > 0)
@@ -59,7 +59,7 @@ namespace AbilityKit.Demo.Moba.Services
                     : EffectContextKind.Trigger;
                 return new MobaEffectLineageInput(
                     fallbackKind,
-                    MobaTraceKind.EffectExecution,
+                    MobaExecutionKind.EffectExecution,
                     fallbackSource,
                     fallbackTarget,
                     0L,

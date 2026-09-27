@@ -6,6 +6,7 @@
   "description": "AbilityKit trace tree runtime. Provides generic tree-building, lifecycle tracking, and query capabilities for effect source tracing.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
-    "com.abilitykit.core": "0.1.0"
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.context": "0.1.0"
   }
 }

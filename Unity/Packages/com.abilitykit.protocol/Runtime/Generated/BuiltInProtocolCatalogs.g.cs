@@ -14,7 +14,7 @@ namespace AbilityKit.Protocol.Generated
                 "abilitykit.moba.battle",
                 "abilitykit.moba",
                 "battle",
-                3,
+                4,
                 "memorypack",
                 new ProtocolMessageDefinition[]
                 {
@@ -390,6 +390,21 @@ namespace AbilityKit.Protocol.Generated
                         1,
                         1,
                         524288,
+                        1d,
+                        null
+                    ),
+                    new ProtocolMessageDefinition(
+                        "action-ack.push",
+                        4013u,
+                        ProtocolDirection.ServerToClient,
+                        ProtocolPacketKind.Push,
+                        "AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload",
+                        "memorypack",
+                        ProtocolReliability.Reliable,
+                        null,
+                        1,
+                        1,
+                        262144,
                         1d,
                         null
                     ),

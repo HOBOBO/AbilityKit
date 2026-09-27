@@ -36,7 +36,6 @@
     "AbilityKit.Deterministic",
     "AbilityKit.Triggering",
     "AbilityKit.Pipeline",
-    "AbilityKit.Trace",
     "AbilityKit.Context",
     "AbilityKit.Diagnostics",
     "AbilityKit.Demo.Moba.Diagnostics.Core",

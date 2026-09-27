@@ -1,21 +1,29 @@
-using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba.Share;
-using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Vfx;
-using UnityEngine;
 using EC = AbilityKit.World.ECS;
-using EntityBattleNetId = AbilityKit.Game.Battle.Entity.BattleNetId;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
     internal sealed class BattlePresentationCueViewEventHandler
     {
-        private readonly IBattleEntityQuery _query;
-        private readonly BattlePresentationCueVfxSpawner _spawner;
         private readonly BattlePresentationCueResolver _resolver;
-        private readonly Dictionary<BattlePresentationCueRequestKey, EC.IEntityId> _activeByRequestKey = new();
+        private readonly PresentationCueReconciliationController<
+            BattlePresentationCueRequestKey,
+            BattlePresentationCueSpawnRequest> _reconciliation = new();
+        private readonly PresentationCueViewRegistry<
+            BattlePresentationCueRequestKey,
+            BattlePresentationCueSpawnRequest,
+            EC.IEntityId> _views;
+
+        public long ConfirmedPredictionCount => _reconciliation.ConfirmedCount;
+        public long CorrectedPredictionCount => _reconciliation.CorrectedCount;
+        public long RejectedPredictionCount => _reconciliation.RejectedCount;
+        public long StalePredictionUpdateCount => _reconciliation.StaleUpdateCount;
+        public long DuplicatePredictionUpdateCount => _reconciliation.DuplicateUpdateCount;
+        public long PredictionGenerationMismatchCount => _reconciliation.GenerationMismatchCount;
+        internal long ReconciliationGeneration => _reconciliation.CurrentGeneration;
 
         public BattlePresentationCueViewEventHandler(
             EC.IECWorld world,
@@ -33,16 +41,18 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             in EC.IEntity vfxNode,
             BattlePresentationCueViewEventHandlerFactory handlers)
         {
-            _query = query;
             handlers ??= new BattlePresentationCueViewEventHandlerFactory();
-            _spawner = handlers.CreateSpawner(world, vfx, in vfxNode);
             _resolver = handlers.CreateResolver();
+            _views = new PresentationCueViewRegistry<
+                BattlePresentationCueRequestKey,
+                BattlePresentationCueSpawnRequest,
+                EC.IEntityId>(
+                handlers.CreateViewPort(world, query, vfx, in vfxNode));
         }
 
         public void HandleSnapshot(PresentationCueData[] entries)
         {
             if (entries == null || entries.Length == 0) return;
-            if (!_spawner.CanSpawn) return;
 
             for (int i = 0; i < entries.Length; i++)
             {
@@ -53,86 +63,32 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private void HandleSnapshotEntry(in PresentationCueData data)
         {
             var decision = _resolver.Resolve(in data);
-            if (decision.IsNone) return;
-
-            if (decision.Kind == BattlePresentationCueDecisionKind.Play)
-            {
-                Play(in decision, in data);
-                return;
-            }
-
-            if (decision.Kind == BattlePresentationCueDecisionKind.Stop)
-            {
-                Stop(decision.RequestKey);
-            }
+            var update = BattlePresentationCueReconciliationMapper.CreateUpdate(
+                in data,
+                in decision,
+                _reconciliation.CurrentGeneration);
+            var reconciliation = _reconciliation.Process(in update);
+            _views.Apply(in reconciliation);
         }
 
-        private void Play(in BattlePresentationCueDecision decision, in PresentationCueData data)
+        internal bool BeginReconciliationGeneration(long generation)
         {
-            var spawnRequest = decision.SpawnRequest;
-            var position = ResolvePosition(in spawnRequest);
-            var followTarget = ResolveFollowTarget(in spawnRequest);
+            if (generation <= _reconciliation.CurrentGeneration) return false;
 
-            if (_activeByRequestKey.TryGetValue(decision.RequestKey, out var existingId))
-            {
-                // Refresh: update existing VFX parameters instead of ignoring.
-                _spawner.Update(existingId, spawnRequest.Scale, spawnRequest.Radius, spawnRequest.DurationMsOverride);
-                return;
-            }
-
-            if (_spawner.TrySpawn(spawnRequest.VfxId, in position, followTarget, spawnRequest.DurationMsOverride, spawnRequest.Scale, spawnRequest.Radius, out var entity))
-            {
-                _activeByRequestKey[decision.RequestKey] = entity.Id;
-            }
+            _views.Clear();
+            return _reconciliation.BeginGeneration(generation).Applied;
         }
 
-        private void Stop(BattlePresentationCueRequestKey requestKey)
+        public void Clear()
         {
-            if (!_activeByRequestKey.TryGetValue(requestKey, out var entityId)) return;
-
-            _activeByRequestKey.Remove(requestKey);
-            _spawner.Destroy(entityId);
+            BeginReconciliationGeneration(_reconciliation.CurrentGeneration + 1);
         }
 
-        private Vector3 ResolvePosition(in BattlePresentationCueSpawnRequest request)
+        internal bool TryGetActiveEntityId(
+            BattlePresentationCueRequestKey requestKey,
+            out EC.IEntityId entityId)
         {
-            var offset = ToVector3(request.Offset);
-            if (request.HasExplicitPosition) return ToVector3(request.ExplicitPosition) + offset;
-            if (TryResolveActorPosition(request.TargetActorId, out var targetPosition)) return targetPosition + offset;
-            if (TryResolveActorPosition(request.FirstTargetActorId, out var firstTargetPosition)) return firstTargetPosition + offset;
-            if (TryResolveActorPosition(request.SourceActorId, out var sourcePosition)) return sourcePosition + offset;
-            return offset;
-        }
-
-        private EC.IEntityId ResolveFollowTarget(in BattlePresentationCueSpawnRequest request)
-        {
-            if (TryResolveActorEntity(request.TargetActorId, out var target)) return target.Id;
-            if (TryResolveActorEntity(request.FirstTargetActorId, out var firstTarget)) return firstTarget.Id;
-            if (TryResolveActorEntity(request.SourceActorId, out var source)) return source.Id;
-            return default;
-        }
-
-        private static Vector3 ToVector3(SnapshotVec3 value)
-        {
-            return new Vector3(value.X, value.Y, value.Z);
-        }
-
-        private bool TryResolveActorPosition(int actorId, out Vector3 position)
-        {
-            position = default;
-            if (!TryResolveActorEntity(actorId, out var entity)) return false;
-            if (!entity.TryGetRef(out BattleTransformComponent transform) || transform == null) return false;
-
-            position = transform.Position;
-            return true;
-        }
-
-        private bool TryResolveActorEntity(int actorId, out EC.IEntity entity)
-        {
-            entity = default;
-            if (actorId <= 0 || _query == null) return false;
-
-            return _query.TryResolve(new EntityBattleNetId(actorId), out entity);
+            return _views.TryGetHandle(requestKey, out entityId);
         }
     }
 
@@ -150,110 +106,16 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             return new BattlePresentationCueVfxSpawner(world, vfx, in vfxNode);
         }
-    }
 
-    internal sealed class BattlePresentationCueVfxSpawner
-    {
-        private readonly EC.IECWorld _world;
-        private readonly BattleVfxManager _vfx;
-        private readonly EC.IEntity _vfxNode;
-
-        public BattlePresentationCueVfxSpawner(EC.IECWorld world, BattleVfxManager vfx, in EC.IEntity vfxNode)
+        public BattlePresentationCueUnityPort CreateViewPort(
+            EC.IECWorld world,
+            IBattleEntityQuery query,
+            BattleVfxManager vfx,
+            in EC.IEntity vfxNode)
         {
-            _world = world;
-            _vfx = vfx;
-            _vfxNode = vfxNode;
-        }
-
-        public bool CanSpawn
-        {
-            get
-            {
-                if (_world == null) return false;
-                if (_vfx == null) return false;
-                if (!_vfxNode.IsValid) return false;
-                return true;
-            }
-        }
-
-        public bool TrySpawn(int vfxId, in Vector3 position, EC.IEntityId followTarget, int durationMsOverride, float scale, float radius, out EC.IEntity entity)
-        {
-            entity = default;
-            if (!CanSpawn) return false;
-            if (vfxId <= 0) return false;
-
-            if (!_vfx.TryCreateVfxEntity(
-                    _world,
-                    _vfxNode,
-                    vfxId,
-                    followTarget,
-                    0,
-                    in position,
-                    Quaternion.identity,
-                    durationMsOverride,
-                    out entity))
-            {
-                return false;
-            }
-
-            ApplyPresentationScale(entity, scale, radius);
-            return true;
-        }
-
-        private static void ApplyPresentationScale(EC.IEntity entity, float scale, float radius)
-        {
-            if (!entity.IsValid) return;
-            if (!entity.TryGetRef(out BattleViewGameObjectComponent goComp) || goComp == null || goComp.GameObject == null) return;
-
-            var resolvedScale = scale > 0f ? scale : 1f;
-            var radiusScale = radius > 0f ? radius : 1f;
-            goComp.GameObject.transform.localScale = Vector3.one * resolvedScale * radiusScale;
-        }
-
-        public void Destroy(EC.IEntityId id)
-        {
-            if (_world == null) return;
-            if (id == default) return;
-
-            _vfx.DestroyVfxEntity(_world, id);
-        }
-
-        /// <summary>
-        /// Updates an active VFX instance for a Cue refresh. A positive duration override
-        /// restarts the remaining visual lifetime; zero or negative values preserve it.
-        /// </summary>
-        public void Update(EC.IEntityId id, float scale, float radius, int durationMsOverride)
-        {
-            if (!id.IsValid) return;
-
-            ApplyPresentationScale(id, scale, radius);
-            RefreshLifetime(id, durationMsOverride);
-        }
-
-        private void RefreshLifetime(EC.IEntityId id, int durationMsOverride)
-        {
-            if (durationMsOverride <= 0) return;
-
-            var world = _world;
-            if (world == null || !world.IsAlive(id)) return;
-
-            var entity = world.Wrap(id);
-            if (!entity.TryGetRef(out BattleVfxLifetimeComponent lifetime) || lifetime == null) return;
-
-            lifetime.ExpireAtTime = Time.time + (durationMsOverride / 1000f);
-        }
-
-        private void ApplyPresentationScale(EC.IEntityId id, float scale, float radius)
-        {
-            if (!id.IsValid) return;
-            var world = _world;
-            if (world == null || !world.IsAlive(id)) return;
-            var entity = world.Wrap(id);
-            if (!entity.TryGetRef(out BattleViewGameObjectComponent goComp) || goComp == null || goComp.GameObject == null) return;
-
-            var resolvedScale = scale > 0f ? scale : 1f;
-            var radiusScale = radius > 0f ? radius : 1f;
-            goComp.GameObject.transform.localScale = Vector3.one * resolvedScale * radiusScale;
+            return new BattlePresentationCueUnityPort(
+                query,
+                CreateSpawner(world, vfx, in vfxNode));
         }
     }
 }

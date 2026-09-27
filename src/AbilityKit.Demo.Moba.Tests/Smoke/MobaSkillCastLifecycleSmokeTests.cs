@@ -13,8 +13,8 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
 public sealed class MobaSkillCastLifecycleSmokeTests
 {
-    private const int TestSkillId = 9900001;
-    private const int TestSkillSlot = 4;
+    private const int TestSkillId = 10010301;
+    private const int TestSkillSlot = 3;
 
     [Fact]
     public void Dead_actor_cast_rejection_does_not_allocate_runtime_or_root_trace()
@@ -57,8 +57,6 @@ public sealed class MobaSkillCastLifecycleSmokeTests
         var damage = services.Resolve<DamagePipelineService>();
         var (casterId, enemyId) = FindTestCasterAndEnemy(registry);
         Assert.True(registry.TryGet(casterId, out var caster) && caster != null);
-        InstallTestSkill(caster);
-
         var cast = casts.TryCastSkill(casterId, TestSkillId, TestSkillSlot);
         Assert.True(cast.Success, cast.FailReason);
         var runtimeHandle = cast.RuntimeHandle;
@@ -66,7 +64,7 @@ public sealed class MobaSkillCastLifecycleSmokeTests
         Assert.True(runtimes.TryGet(in runtimeHandle, out _));
         Assert.True(casts.TryGetRunningByInstanceId(
             casterId,
-            runtimeHandle.RootTraceContextId,
+            runtimeHandle.RootContextId,
             out _));
 
         ExecuteLethalDamage(
@@ -79,13 +77,13 @@ public sealed class MobaSkillCastLifecycleSmokeTests
         Assert.False(runtimes.TryGet(in runtimeHandle, out _));
         Assert.False(casts.TryGetRunningByInstanceId(
             casterId,
-            runtimeHandle.RootTraceContextId,
+            runtimeHandle.RootContextId,
             out _));
         Assert.True(trace.TryGetNodeSnapshot(
-            runtimeHandle.RootTraceContextId,
+            runtimeHandle.RootContextId,
             out var root));
         Assert.True(root.IsEnded);
-        Assert.Equal((int)TraceLifecycleReason.Cancelled, root.EndReason);
+        Assert.Equal((int)MobaExecutionEndReason.Cancelled, root.EndReason);
     }
 
     [Fact]
@@ -100,8 +98,6 @@ public sealed class MobaSkillCastLifecycleSmokeTests
         var authority = services.Resolve<MobaAuthorityFrameService>();
         var (casterId, _) = FindTestCasterAndEnemy(registry);
         Assert.True(registry.TryGet(casterId, out var caster) && caster != null);
-        InstallTestSkill(caster);
-
         var cast = casts.TryCastSkill(casterId, TestSkillId, TestSkillSlot);
         Assert.True(cast.Success, cast.FailReason);
         var runtimeHandle = cast.RuntimeHandle;
@@ -113,7 +109,7 @@ public sealed class MobaSkillCastLifecycleSmokeTests
             confirmedFrame,
             ActorDespawnReason.SceneCleanup,
             0,
-            runtimeHandle.RootTraceContextId);
+            runtimeHandle.RootContextId);
         for (var i = 0; i < 8 && registry.TryGet(casterId, out _); i++)
         {
             battle.Tick();
@@ -129,15 +125,17 @@ public sealed class MobaSkillCastLifecycleSmokeTests
         Assert.Empty(snapshots);
 
         Assert.True(trace.TryGetNodeSnapshot(
-            runtimeHandle.RootTraceContextId,
+            runtimeHandle.RootContextId,
             out var root));
         Assert.True(root.IsEnded);
-        Assert.Equal((int)TraceLifecycleReason.Dead, root.EndReason);
+        Assert.Equal((int)MobaExecutionEndReason.Dead, root.EndReason);
     }
 
     private static ConsoleBattleBootstrapper StartBattle()
     {
-        var battle = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        var battle = new ConsoleBattleBootstrapper(
+            BattleStartConfig.CreateDefault(),
+            additionalModules: new[] { new MobaTraceAdapterModule() });
         battle.Initialize();
         battle.Start();
         for (var i = 0; i < 8 && battle.Context.EcsWorld == null; i++)
@@ -173,28 +171,9 @@ public sealed class MobaSkillCastLifecycleSmokeTests
         return (caster.Key, enemy.Key);
     }
 
-    private static void InstallTestSkill(ActorEntity caster)
-    {
-        var activeSkills = caster.skillLoadout.ActiveSkills?.ToArray() ??
-                           System.Array.Empty<ActiveSkillRuntime>();
-        if (activeSkills.Length < TestSkillSlot)
-        {
-            System.Array.Resize(ref activeSkills, TestSkillSlot);
-        }
-
-        activeSkills[TestSkillSlot - 1] = new ActiveSkillRuntime
-        {
-            SkillId = TestSkillId,
-            Level = 1,
-        };
-        caster.ReplaceSkillLoadout(
-            activeSkills,
-            caster.skillLoadout.PassiveSkills);
-    }
-
     private static int CountSkillCastRoots(MobaTraceRegistry trace, int actorId)
     {
-        return trace.GetNodesByKind((int)MobaTraceKind.SkillCast).Count(node =>
+        return trace.GetNodesByKind((int)MobaExecutionKind.SkillCast).Count(node =>
             node.IsRoot &&
             node.Metadata != null &&
             node.Metadata.SourceActorId == actorId);

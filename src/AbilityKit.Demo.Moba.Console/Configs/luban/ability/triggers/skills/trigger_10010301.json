@@ -1,0 +1,47 @@
+{
+  "triggers": [
+    {
+      "id": 10010301,
+      "name": "廉颇-天崩地裂-第一段区域",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "add_buff",
+          "buffIds": [
+            10010000
+          ],
+          "target_self": true
+        },
+        {
+          "type": "dash",
+          "duration_ms": 350,
+          "move_to_aim_position": true,
+          "priority": 1,
+          "apply_to_caster": true,
+          "motion_group_id": 5
+        },
+        {
+          "type": "jump",
+          "height": 1.6,
+          "duration_ms": 350,
+          "priority": 100,
+          "apply_to_caster": true,
+          "landing_trigger_ids": [
+            10010302
+          ],
+          "continuous_tag_template_id": 10000001
+        },
+        {
+          "type": "debug_log",
+          "message": "廉颇三技能：第一段跳向选点，落地后触发区域",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

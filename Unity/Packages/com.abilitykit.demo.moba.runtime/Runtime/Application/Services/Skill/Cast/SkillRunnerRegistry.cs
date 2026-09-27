@@ -69,6 +69,14 @@ namespace AbilityKit.Demo.Moba.Services
             return _runners.TryGetValue(actorId, out var runner) && runner != null && runner.UpdateInputBySlot(slot, in aimPos, in aimDir, ToActorId(targetActorId));
         }
 
+        public bool TryUpdateRunningInput(int actorId, int slot, in Vec3 aimPos, in Vec3 aimDir,
+            int targetActorId, bool hasAimPos, bool hasAimDir, bool hasTarget)
+        {
+            if (actorId <= 0 || slot <= 0 || targetActorId < 0) return false;
+            return _runners.TryGetValue(actorId, out var runner) && runner != null &&
+                runner.UpdateInputBySlot(slot, in aimPos, in aimDir, targetActorId, hasAimPos, hasAimDir, hasTarget);
+        }
+
         public bool TrySignalRecast(int actorId, int slot)
         {
             if (actorId <= 0 || slot <= 0) return false;
@@ -108,13 +116,14 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        public void CancelAll(int actorId)
+        public bool CancelAll(int actorId)
         {
-            if (actorId <= 0) return;
-            if (_runners.TryGetValue(actorId, out var runner) && runner != null)
-            {
-                runner.CancelAll();
-            }
+            if (actorId <= 0) return false;
+            if (!_runners.TryGetValue(actorId, out var runner) || runner == null || !runner.HasRunning)
+                return false;
+
+            runner.CancelAll();
+            return true;
         }
 
         public bool CancelAndRemove(int actorId, MobaSkillRuntimeEndReason reason)

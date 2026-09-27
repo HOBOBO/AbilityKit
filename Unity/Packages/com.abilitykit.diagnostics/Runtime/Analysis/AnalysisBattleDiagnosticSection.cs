@@ -4,7 +4,7 @@ namespace AbilityKit.Diagnostics.Analysis
 {
     public static class AnalysisBattleDiagnosticSchema
     {
-        public const string Version = "abilitykit-battle-diagnostics.v1";
+        public const string Version = "abilitykit-battle-diagnostics.v2";
     }
 
     public sealed class AnalysisBattleDiagnosticSection
@@ -202,7 +202,7 @@ namespace AbilityKit.Diagnostics.Analysis
         public long MonotonicTimestamp { get; set; }
         public int ActorCount { get; set; }
         public int ActiveSkillRuntimeCount { get; set; }
-        public int ActiveTraceRootCount { get; set; }
+        public int ActiveExecutionRootCount { get; set; }
         public string StateHash { get; set; } = string.Empty;
     }
 
@@ -234,9 +234,9 @@ namespace AbilityKit.Diagnostics.Analysis
     {
         public AnalysisBattleDiagnosticEffectExecutionFacts ExecutionFacts { get; set; }
         public AnalysisBattleDiagnosticActionExecutionFacts ActionFacts { get; set; }
-        public AnalysisBattleDiagnosticTraceContextReference RootContext { get; set; }
-        public AnalysisBattleDiagnosticTraceContextReference Context { get; set; }
-        public AnalysisBattleDiagnosticTraceContextReference ParentContext { get; set; }
+        public AnalysisBattleDiagnosticExecutionContextReference RootContext { get; set; }
+        public AnalysisBattleDiagnosticExecutionContextReference Context { get; set; }
+        public AnalysisBattleDiagnosticExecutionContextReference ParentContext { get; set; }
         public AnalysisBattleDiagnosticRuntimeObjectReference SourceObject { get; set; }
         public AnalysisBattleDiagnosticRuntimeObjectReference TargetObject { get; set; }
         public AnalysisBattleDiagnosticDefinitionReference Definition { get; set; }
@@ -264,7 +264,7 @@ namespace AbilityKit.Diagnostics.Analysis
         public string PhaseId { get; set; } = string.Empty;
     }
 
-    public sealed class AnalysisBattleDiagnosticTraceContextReference
+    public sealed class AnalysisBattleDiagnosticExecutionContextReference
     {
         public long ContextId { get; set; }
     }

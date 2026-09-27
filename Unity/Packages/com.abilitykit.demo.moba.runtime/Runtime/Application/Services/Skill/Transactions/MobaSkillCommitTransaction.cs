@@ -29,7 +29,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (context == null || context.WorldServices == null ||
                 !context.WorldServices.TryResolve<MobaActorLookupService>(out var actors) || actors == null)
-                return new MobaSkillCommitTransaction(context?.RuntimeHandle.RootTraceContextId ?? 0L, null, null);
+                return new MobaSkillCommitTransaction(context?.RuntimeHandle.RootContextId ?? 0L, null, null);
 
             ResourceState resource = null;
             if (actors.TryGetActorEntity(context.CasterActorId, out var actor) && actor != null &&
@@ -42,7 +42,7 @@ namespace AbilityKit.Demo.Moba.Services
                 context.SkillSlot,
                 context.SkillId,
                 out var skill);
-            return new MobaSkillCommitTransaction(context.RuntimeHandle.RootTraceContextId, resource, skill);
+            return new MobaSkillCommitTransaction(context.RuntimeHandle.RootContextId, resource, skill);
         }
 
         public void Rollback()

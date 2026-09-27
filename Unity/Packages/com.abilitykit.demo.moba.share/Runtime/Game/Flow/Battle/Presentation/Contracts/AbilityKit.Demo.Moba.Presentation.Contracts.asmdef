@@ -1,0 +1,14 @@
+{
+  "name": "AbilityKit.Demo.Moba.Presentation.Contracts",
+  "rootNamespace": "AbilityKit.Demo.Moba.Share",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

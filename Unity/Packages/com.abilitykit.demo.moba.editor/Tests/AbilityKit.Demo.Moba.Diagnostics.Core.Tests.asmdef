@@ -5,6 +5,7 @@
     "AbilityKit.Demo.Moba.Diagnostics.Core",
     "AbilityKit.Modifiers",
     "AbilityKit.Demo.Moba.Runtime",
+    "AbilityKit.Demo.Moba.Trace.Adapter",
     "AbilityKit.Protocol.Moba",
     "AbilityKit.Diagnostics",
     "AbilityKit.Demo.Moba.Editor",

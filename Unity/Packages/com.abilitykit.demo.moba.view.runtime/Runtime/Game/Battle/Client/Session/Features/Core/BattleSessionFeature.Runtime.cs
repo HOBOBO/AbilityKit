@@ -15,6 +15,7 @@ namespace AbilityKit.Game.Flow
         ISessionLifecycleRuntime,
         ISessionGatewayRuntime,
         ISessionSnapshotRoutingRuntime,
+        ISessionTickLoopPort,
 #if UNITY_EDITOR
         ISessionEditorHooksRuntime,
 #endif
@@ -44,7 +45,7 @@ namespace AbilityKit.Game.Flow
         BattleSessionNetAdapter ISessionNetAdapterRuntime.NetAdapter => _netAdapter;
         SessionNetAdapterController ISessionNetAdapterRuntime.Net => _net;
 
-        TickLoopController ISessionTickLoopRuntime.TickLoop => _tickLoop;
+        SessionTickLoopController ISessionTickLoopRuntime.TickLoop => _tickLoop;
 
         BattleSessionHooks ISessionLifecycleRuntime.Hooks => Hooks;
 
@@ -52,9 +53,9 @@ namespace AbilityKit.Game.Flow
         bool ISessionGatewayRuntime.HasGatewayRoomConnection => HasGatewayRoomConnection;
         Task ISessionGatewayRuntime.GatewayRoomPreparationTask => GatewayRoomPreparationTask;
         bool ISessionGatewayRuntime.ShouldPrepareGatewayRoom() => ShouldPrepareGatewayRoom();
-        void ISessionGatewayRuntime.StartGatewayRoomPreparation() => StartGatewayRoomPreparation();
+        Task ISessionGatewayRuntime.StartGatewayRoomPreparation() => StartGatewayRoomPreparation();
         void ISessionGatewayRuntime.CompleteGatewayRoomPreparation() => CompleteGatewayRoomPreparation();
-        void ISessionGatewayRuntime.StopGatewayRoomPreparation() => StopGatewayRoomPreparation();
+        Task ISessionGatewayRuntime.StopGatewayRoomPreparationAsync() => StopGatewayRoomPreparationAsync();
         void ISessionGatewayRuntime.TickGatewayRoomConnection(float deltaTime) => TickGatewayRoomConnection(deltaTime);
         void ISessionGatewayRuntime.OnStartSessionRequested() => OnStartSessionRequested();
         void ISessionGatewayRuntime.NotifySessionFailed(System.Exception exception) => _eventsCtrl.NotifySessionFailed(this, exception);
