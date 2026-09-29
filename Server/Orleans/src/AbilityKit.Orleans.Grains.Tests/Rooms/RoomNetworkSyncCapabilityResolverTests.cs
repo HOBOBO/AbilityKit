@@ -18,14 +18,18 @@ public sealed class RoomNetworkSyncCapabilityResolverTests
     {
         const string roomType = "tiny";
         const string templateId = "tiny-state-authority";
+        // 用装配外玩法唯一可用的声明入口构造第三方玩法，声明 schema 2..2。
         var tiny = new ServerGameplayModule(
             new GameplayRoomDescriptor(roomType, "Tiny", 2, false, roomType, 30, templateId),
-            ServerBattleSyncProfile.StateSync(templateId),
+            ServerSyncCapabilityDeclaration.FromTemplates(
+                templateId,
+                new ServerSyncTemplateDeclaration(
+                    templateId, ServerBattleSyncMode.StateSync,
+                    ServerBattleRuntimeMode.BattleWorld, 1, 1,
+                    NetworkSyncProfiles.AuthoritativeInterpolation, 2, 2)),
             static () => throw new NotImplementedException(),
             static _ => throw new NotImplementedException(),
-            new Func<IWorldBlueprint>[] { static () => throw new NotImplementedException() },
-            static (_, _) => new ServerSyncCapabilityDefinition(
-                "TinyState", NetworkSyncProfiles.AuthoritativeInterpolation, 2, 2));
+            new Func<IWorldBlueprint>[] { static () => throw new NotImplementedException() });
         var modules = new ServerGameplayModuleCatalog(new[]
         {
             ServerGameplayModuleCatalog.Default.ResolveModule(GameplayRoomTypes.Moba), tiny
@@ -35,7 +39,7 @@ public sealed class RoomNetworkSyncCapabilityResolverTests
 
         var metadata = RoomNetworkSyncCapabilityResolver.Resolve(summary, initParams, templateId, modules);
 
-        Assert.Equal("TinyState", metadata.ProfileName);
+        Assert.Equal(nameof(NetworkSyncModel.AuthoritativeInterpolation), metadata.ProfileName);
         Assert.Equal(2, metadata.MinimumSchemaVersion);
         Assert.Equal(2, metadata.MaximumSchemaVersion);
         Assert.Equal((int)ClientPlaybackPolicy.AuthoritativeInterpolation, metadata.ClientPlayback);

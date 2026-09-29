@@ -63,6 +63,35 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
+            LaunchLocalDemo();
+        }
+
+        [MenuItem(MenuRoot + "Play Existing Demo Scene", priority = 13)]
+        private static void PlayExistingDemoScene()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode ||
+                !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            {
+                return;
+            }
+
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(GameplayScenePath) == null)
+            {
+                Debug.LogError($"MOBA gameplay scene is missing: {GameplayScenePath}");
+                return;
+            }
+
+            var scene = EditorSceneManager.OpenScene(GameplayScenePath, OpenSceneMode.Single);
+            if (!scene.IsValid())
+            {
+                throw new InvalidOperationException($"Unable to open MOBA gameplay scene '{GameplayScenePath}'.");
+            }
+
+            LaunchLocalDemo();
+        }
+
+        private static void LaunchLocalDemo()
+        {
             SessionState.SetBool(PendingLaunchKey, true);
             IssueLocalMobaRequest();
             EditorApplication.EnterPlaymode();

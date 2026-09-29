@@ -3,9 +3,13 @@ param(
     [switch]$SkipUnity,
     [switch]$FocusTurnRecord,
     [switch]$VerifyCrossProcess,
+    [ValidateSet('Hybrid', 'Frame', 'State', 'Turn')]
+    [string[]]$CrossProcessModes = @('Hybrid', 'Frame', 'State', 'Turn'),
     [ValidateSet('', '01', '02', '03', '04', '05', '06', '09', '10')]
     [string]$FocusChapter = '',
     [string]$UnityExe = 'C:\Software\Unity 2022.3.62f3\Editor\Unity.exe',
+    [string]$ServerBundlePath = '',
+    [switch]$UseCompositionHost,
     [int]$SiloPort = 11170,
     [int]$OrleansGatewayPort = 30070,
     [int]$TcpPort = 4058,
@@ -28,6 +32,9 @@ $outputRoot = Join-Path $repositoryRoot "local/Logs/tiny-acceptance-$runId"
 $env:ArtifactsPath = Join-Path $outputRoot 'artifacts'
 $env:UseArtifactsOutput = 'true'
 $phaseResults = [ordered]@{}
+if ($UseCompositionHost -and -not $ServerBundlePath) {
+    throw '-UseCompositionHost requires -ServerBundlePath.'
+}
 
 function Write-Phase([string]$Name, [string]$Status, [string]$Detail = '') {
     $phaseResults[$Name] = [ordered]@{
@@ -280,8 +287,32 @@ function Invoke-UnityBatch([string[]]$Arguments) {
     return $unity.ExitCode
 }
 
-function Invoke-TinyCrossProcessUnity([string]$Mode) {
-    $directory = Join-Path $outputRoot "unity-cross-$Mode"
+function Test-TinyUnityImportFailure([string]$LogText) {
+    return $LogText.Contains('MovedFromExtractor') -and $LogText.Contains('-1073741757')
+}
+
+function Invoke-TinyUnityBatchWithRetry(
+    [string[]]$Arguments, [string]$Results, [string]$Log,
+    [string]$ArchivePrefix, [string]$FailureMessage) {
+    for ($attempt = 1; $attempt -le 4; $attempt++) {
+        $exitCode = Invoke-UnityBatch $Arguments
+        if ($exitCode -eq 0 -and (Test-Path -LiteralPath $Results)) { return }
+        $logText = if (Test-Path -LiteralPath $Log) {
+            Get-Content -LiteralPath $Log -Raw -Encoding UTF8
+        } else { '' }
+        if ($attempt -lt 4 -and (Test-TinyUnityImportFailure $logText)) {
+            Copy-Item -LiteralPath $Log -Destination `
+                (Join-Path $outputRoot "$ArchivePrefix-import-attempt-$attempt.log")
+            Write-Warning "Unity import helper failed for $ArchivePrefix on attempt $attempt; retrying."
+            continue
+        }
+        throw "$FailureMessage Log: $Log"
+    }
+}
+
+function Invoke-TinyCrossProcessUnity([string]$Mode, [int]$Attempt = 1) {
+    $suffix = if ($Attempt -eq 1) { '' } else { "-retry-$Attempt" }
+    $directory = Join-Path $outputRoot "unity-cross-$Mode$suffix"
     [System.IO.Directory]::CreateDirectory($directory) | Out-Null
     $roomFile = Join-Path $directory 'room-id.txt'
     $previousPort = $env:ABILITYKIT_TINY_UNITY_PORT
@@ -296,6 +327,22 @@ function Invoke-TinyCrossProcessUnity([string]$Mode) {
             & (Join-Path $PSScriptRoot 'create-tiny-validation-project.ps1') `
                 -OutputPath $crossProject -Standalone -IncludeTurn
             Assert-TinyPackageDistribution $crossProject
+            $imported = $false
+            for ($importAttempt = 1; $importAttempt -le 4; $importAttempt++) {
+                $importLog = Join-Path $directory "$role-import-$importAttempt.log"
+                $importExit = Invoke-UnityBatch @(
+                    '-batchmode', '-nographics', '-quit', '-projectPath', $crossProject,
+                    '-logFile', $importLog)
+                if ($importExit -eq 0) { $imported = $true; break }
+                $importText = if (Test-Path -LiteralPath $importLog) {
+                    Get-Content -LiteralPath $importLog -Raw -Encoding UTF8
+                } else { '' }
+                if ($importAttempt -eq 4 -or -not (Test-TinyUnityImportFailure $importText)) {
+                    throw "Tiny $Mode $role Unity import failed: $importLog"
+                }
+                Write-Warning "Tiny $Mode $role Unity import helper failed; retrying the same project."
+            }
+            if (-not $imported) { throw "Tiny $Mode $role Unity import did not finish." }
         }
         $env:ABILITYKIT_TINY_UNITY_PORT = [string]$TcpPort
         $env:ABILITYKIT_TINY_UNITY_PREFIX = "tiny-$runId-cross-$Mode"
@@ -318,6 +365,12 @@ function Invoke-TinyCrossProcessUnity([string]$Mode) {
         $deadline = [DateTime]::UtcNow.AddMinutes(5)
         while (@($children | Where-Object { -not $_.Process.HasExited }).Count -gt 0 -and
             [DateTime]::UtcNow -lt $deadline) {
+            $failedChild = $children | Where-Object {
+                $_.Process.HasExited -and $_.Process.ExitCode -ne 0
+            } | Select-Object -First 1
+            if ($failedChild) {
+                throw "Tiny $Mode $($failedChild.Role) Unity process failed: $($failedChild.Log)"
+            }
             Start-Sleep -Seconds 1
         }
         foreach ($child in $children) {
@@ -340,6 +393,9 @@ function Invoke-TinyCrossProcessUnity([string]$Mode) {
             $owner.processId -eq $guest.processId -or
             -not $owner.sceneRootReady -or -not $guest.sceneRootReady -or
             -not $owner.authoritativeResult -or -not $guest.authoritativeResult -or
+            ($Mode -eq 'Hybrid' -and -not $owner.predictedBeforeConfirmation) -or
+            ($Mode -ne 'Hybrid' -and $owner.predictedBeforeConfirmation) -or
+            ($Mode -in @('Frame', 'Hybrid') -and -not $guest.guestRestored) -or
             -not $owner.returnedToLobby -or -not $guest.returnedToLobby -or
             [string]::IsNullOrWhiteSpace($owner.roomId) -or
             [string]::IsNullOrWhiteSpace($owner.battleId) -or
@@ -361,6 +417,26 @@ function Invoke-TinyCrossProcessUnity([string]$Mode) {
         $env:ABILITYKIT_TINY_CROSS_MODE = $previousMode
         $env:ABILITYKIT_TINY_CROSS_ROOM_FILE = $previousRoomFile
         $env:ABILITYKIT_TINY_CROSS_EVIDENCE_DIR = $previousEvidenceDir
+    }
+}
+
+function Invoke-TinyCrossProcessUnityWithRetry([string]$Mode) {
+    for ($attempt = 1; $attempt -le 4; $attempt++) {
+        try {
+            Invoke-TinyCrossProcessUnity $Mode $attempt
+            return
+        }
+        catch {
+            $failure = $_
+            $suffix = if ($attempt -eq 1) { '' } else { "-retry-$attempt" }
+            $directory = Join-Path $outputRoot "unity-cross-$Mode$suffix"
+            $logs = Get-ChildItem -LiteralPath $directory -Filter '*-unity.log' -ErrorAction SilentlyContinue
+            $importFailure = @($logs | Where-Object {
+                Test-TinyUnityImportFailure (Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8)
+            }).Count -gt 0
+            if ($attempt -eq 4 -or -not $importFailure) { throw $failure }
+            Write-Warning "Tiny $Mode Unity import helper failed on attempt $attempt; retrying both processes."
+        }
     }
 }
 
@@ -511,17 +587,58 @@ try {
         foreach ($port in @($SiloPort, $OrleansGatewayPort, $TcpPort, $HttpPort)) {
             Assert-PortAvailable $port
         }
-        $siloOutput = Join-Path $outputRoot 'host'
-        $gatewayOutput = Join-Path $outputRoot 'gateway'
-        Invoke-Dotnet @('build', 'Server/Orleans/src/AbilityKit.Orleans.Host/AbilityKit.Orleans.Host.csproj',
-            '-c:Debug', "-p:OutDir=$siloOutput\", '--nologo', '-clp:ErrorsOnly')
-        Invoke-Dotnet @('build', 'Server/Orleans/src/AbilityKit.Orleans.Gateway/AbilityKit.Orleans.Gateway.csproj',
-            '-c:Debug', "-p:OutDir=$gatewayOutput\", '--nologo', '-clp:ErrorsOnly')
+        if ($ServerBundlePath) {
+            $bundle = [System.IO.Path]::GetFullPath($ServerBundlePath)
+            $hostBundleOutput = Join-Path $bundle 'host'
+            $siloOutput = if ($UseCompositionHost) {
+                Join-Path $bundle 'composition/bin/Debug/net10.0'
+            } else { $hostBundleOutput }
+            $siloAssembly = if ($UseCompositionHost) {
+                'TinyCustomHost.dll'
+            } else { 'AbilityKit.Orleans.Host.dll' }
+            $gatewayOutput = Join-Path $bundle 'gateway'
+            foreach ($artifact in @(
+                (Join-Path $siloOutput $siloAssembly),
+                (Join-Path $gatewayOutput 'AbilityKit.Orleans.Gateway.dll')
+            )) {
+                if (-not (Test-Path -LiteralPath $artifact)) {
+                    throw "Tiny server bundle is incomplete: $artifact"
+                }
+            }
+            $manifestPath = Join-Path $bundle 'bundle.json'
+            if (-not (Test-Path -LiteralPath $manifestPath)) {
+                throw "Tiny server bundle manifest is missing: $manifestPath"
+            }
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($manifest.schemaVersion -ne 1) { throw "Unknown Tiny server bundle schema: $manifestPath" }
+            foreach ($assembly in @(
+                @{ File = (Join-Path $siloOutput 'AbilityKit.Protocol.Room.dll'); Hash = $manifest.assemblies.roomProtocol },
+                @{ File = (Join-Path $gatewayOutput 'AbilityKit.Protocol.Room.dll'); Hash = $manifest.assemblies.roomProtocol },
+                @{ File = (Join-Path $siloOutput 'AbilityKit.Demo.Tiny.Core.dll'); Hash = $manifest.assemblies.tinyRules },
+                @{ File = (Join-Path $siloOutput 'AbilityKit.Demo.Tiny.Turn.Core.dll'); Hash = $manifest.assemblies.turnRules }
+            )) {
+                if (-not (Test-Path -LiteralPath $assembly.File) -or
+                    (Get-FileHash -LiteralPath $assembly.File -Algorithm SHA256).Hash -ne $assembly.Hash) {
+                    throw "Tiny server bundle assembly mismatch: $($assembly.File)"
+                }
+            }
+            Write-Phase 'server-bundle' 'passed' $bundle
+        }
+        else {
+            $siloOutput = Join-Path $outputRoot 'host'
+            $siloAssembly = 'AbilityKit.Orleans.Host.dll'
+            $gatewayOutput = Join-Path $outputRoot 'gateway'
+            Invoke-Dotnet @('build', 'Server/Orleans/src/AbilityKit.Orleans.Host/AbilityKit.Orleans.Host.csproj',
+                '-c:Debug', "-p:OutDir=$siloOutput\", '--nologo', '-clp:ErrorsOnly')
+            Invoke-Dotnet @('build', 'Server/Orleans/src/AbilityKit.Orleans.Gateway/AbilityKit.Orleans.Gateway.csproj',
+                '-c:Debug', "-p:OutDir=$gatewayOutput\", '--nologo', '-clp:ErrorsOnly')
+            Write-Phase 'server-bundle' 'skipped'
+        }
 
         $env:DOTNET_ENVIRONMENT = 'Development'
         $siloProcess = Start-Process -FilePath 'dotnet' -WindowStyle Hidden -PassThru `
-            -WorkingDirectory (Join-Path $repositoryRoot 'Server/Orleans/src/AbilityKit.Orleans.Host') `
-            -ArgumentList @((Join-Path $siloOutput 'AbilityKit.Orleans.Host.dll'),
+            -WorkingDirectory $siloOutput `
+            -ArgumentList @((Join-Path $siloOutput $siloAssembly),
                 '--AbilityKit:Orleans:SiloPort', $SiloPort,
                 '--AbilityKit:Orleans:PrimarySiloPort', $SiloPort,
                 '--AbilityKit:Orleans:GatewayPort', $OrleansGatewayPort) `
@@ -530,7 +647,7 @@ try {
         Wait-Port $OrleansGatewayPort $siloProcess
 
         $gatewayProcess = Start-Process -FilePath 'dotnet' -WindowStyle Hidden -PassThru `
-            -WorkingDirectory (Join-Path $repositoryRoot 'Server/Orleans/src/AbilityKit.Orleans.Gateway') `
+            -WorkingDirectory $gatewayOutput `
             -ArgumentList @((Join-Path $gatewayOutput 'AbilityKit.Orleans.Gateway.dll'),
                 '--AbilityKit:Orleans:GatewayPort', $OrleansGatewayPort,
                 '--AbilityKit:Gateway:Tcp:Port', $TcpPort,
@@ -615,21 +732,8 @@ try {
                     '-assemblyNames', 'AbilityKit.Demo.Tiny.Network.PlayMode.Tests',
                     '-testResults', $networkResults,
                     '-logFile', $networkLog)
-                for ($attempt = 1; $attempt -le 4; $attempt++) {
-                    $networkExitCode = Invoke-UnityBatch $networkArguments
-                    if ($networkExitCode -eq 0 -and (Test-Path -LiteralPath $networkResults)) { break }
-                    $logText = if (Test-Path -LiteralPath $networkLog) {
-                        Get-Content -LiteralPath $networkLog -Raw -Encoding UTF8
-                    } else { '' }
-                    if ($attempt -lt 4 -and $logText.Contains('MovedFromExtractor') -and
-                        $logText.Contains('-1073741757')) {
-                        Copy-Item -LiteralPath $networkLog -Destination `
-                            (Join-Path $outputRoot "tiny-network-import-attempt-$attempt.log")
-                        Write-Warning "Tiny Unity import helper failed on attempt $attempt; retrying."
-                        continue
-                    }
-                    throw "Tiny Unity network PlayMode failed. Log: $networkLog"
-                }
+                Invoke-TinyUnityBatchWithRetry $networkArguments $networkResults $networkLog `
+                    'tiny-network' 'Tiny Unity network PlayMode failed.'
             }
             finally {
                 $env:ABILITYKIT_TINY_UNITY_PORT = $previousUnityPort
@@ -672,21 +776,8 @@ try {
                     '-assemblyNames', 'AbilityKit.Demo.Tiny.Turn.Network.PlayMode.Tests',
                     '-testResults', $turnResults,
                     '-logFile', $turnLog)
-                for ($attempt = 1; $attempt -le 4; $attempt++) {
-                    $turnExitCode = Invoke-UnityBatch $turnArguments
-                    if ($turnExitCode -eq 0 -and (Test-Path -LiteralPath $turnResults)) { break }
-                    $logText = if (Test-Path -LiteralPath $turnLog) {
-                        Get-Content -LiteralPath $turnLog -Raw -Encoding UTF8
-                    } else { '' }
-                    if ($attempt -lt 4 -and $logText.Contains('MovedFromExtractor') -and
-                        $logText.Contains('-1073741757')) {
-                        Copy-Item -LiteralPath $turnLog -Destination `
-                            (Join-Path $outputRoot "tiny-turn-import-attempt-$attempt.log")
-                        Write-Warning "Tiny Turn import helper failed on attempt $attempt; retrying."
-                        continue
-                    }
-                    throw "Tiny Turn Unity network PlayMode failed. Log: $turnLog"
-                }
+                Invoke-TinyUnityBatchWithRetry $turnArguments $turnResults $turnLog `
+                    'tiny-turn' 'Tiny Turn Unity network PlayMode failed.'
             }
             finally {
                 $env:ABILITYKIT_TINY_UNITY_PORT = $previousUnityPort
@@ -695,8 +786,8 @@ try {
             }
             [xml]$turnXml = Get-Content -LiteralPath $turnResults -Raw -Encoding UTF8
             $turnRun = $turnXml.'test-run'
-            if ($null -eq $turnRun -or [int]$turnRun.total -ne 2 -or
-                [int]$turnRun.passed -ne 2 -or [int]$turnRun.failed -ne 0 -or
+            if ($null -eq $turnRun -or [int]$turnRun.total -ne 3 -or
+                [int]$turnRun.passed -ne 3 -or [int]$turnRun.failed -ne 0 -or
                 -not (Test-Path -LiteralPath $turnEvidencePath)) {
                 throw "Tiny Turn Unity network evidence is incomplete: $turnResults"
             }
@@ -728,22 +819,8 @@ try {
                     '-assemblyNames', 'TinyConsumer.Network.PlayMode.Tests',
                     '-testResults', $consumerNetworkResults,
                     '-logFile', $consumerNetworkLog)
-                for ($attempt = 1; $attempt -le 4; $attempt++) {
-                    $consumerNetworkExitCode = Invoke-UnityBatch $consumerNetworkArguments
-                    if ($consumerNetworkExitCode -eq 0 -and
-                        (Test-Path -LiteralPath $consumerNetworkResults)) { break }
-                    $logText = if (Test-Path -LiteralPath $consumerNetworkLog) {
-                        Get-Content -LiteralPath $consumerNetworkLog -Raw -Encoding UTF8
-                    } else { '' }
-                    if ($attempt -lt 4 -and $logText.Contains('MovedFromExtractor') -and
-                        $logText.Contains('-1073741757')) {
-                        Copy-Item -LiteralPath $consumerNetworkLog -Destination `
-                            (Join-Path $outputRoot "tiny-consumer-network-import-attempt-$attempt.log")
-                        Write-Warning "Tiny consumer network import helper failed on attempt $attempt; retrying."
-                        continue
-                    }
-                    throw "Tiny consumer network PlayMode failed. Log: $consumerNetworkLog"
-                }
+                Invoke-TinyUnityBatchWithRetry $consumerNetworkArguments $consumerNetworkResults `
+                    $consumerNetworkLog 'tiny-consumer-network' 'Tiny consumer network PlayMode failed.'
             }
             finally {
                 $env:ABILITYKIT_TINY_UNITY_PORT = $previousUnityPort
@@ -792,22 +869,8 @@ try {
                     '-assemblyNames', 'TinyConsumer.Turn.Network.PlayMode.Tests',
                     '-testResults', $consumerTurnResults,
                     '-logFile', $consumerTurnLog)
-                for ($attempt = 1; $attempt -le 4; $attempt++) {
-                    $consumerTurnExitCode = Invoke-UnityBatch $consumerTurnArguments
-                    if ($consumerTurnExitCode -eq 0 -and
-                        (Test-Path -LiteralPath $consumerTurnResults)) { break }
-                    $logText = if (Test-Path -LiteralPath $consumerTurnLog) {
-                        Get-Content -LiteralPath $consumerTurnLog -Raw -Encoding UTF8
-                    } else { '' }
-                    if ($attempt -lt 4 -and $logText.Contains('MovedFromExtractor') -and
-                        $logText.Contains('-1073741757')) {
-                        Copy-Item -LiteralPath $consumerTurnLog -Destination `
-                            (Join-Path $outputRoot "tiny-consumer-turn-import-attempt-$attempt.log")
-                        Write-Warning "Tiny consumer Turn import helper failed on attempt $attempt; retrying."
-                        continue
-                    }
-                    throw "Tiny consumer Turn PlayMode failed. Log: $consumerTurnLog"
-                }
+                Invoke-TinyUnityBatchWithRetry $consumerTurnArguments $consumerTurnResults `
+                    $consumerTurnLog 'tiny-consumer-turn' 'Tiny consumer Turn PlayMode failed.'
             }
             finally {
                 $env:ABILITYKIT_TINY_UNITY_PORT = $previousUnityPort
@@ -832,8 +895,8 @@ try {
             Write-Phase 'unity-consumer-turn-network-playmode' 'passed'
             if (-not $FocusTurnRecord -or $VerifyCrossProcess) {
                 Write-Phase 'unity-cross-process' 'running'
-                foreach ($mode in @('State', 'Turn')) {
-                    Invoke-TinyCrossProcessUnity $mode
+                foreach ($mode in $CrossProcessModes) {
+                    Invoke-TinyCrossProcessUnityWithRetry $mode
                 }
                 Write-Phase 'unity-cross-process' 'passed'
             } else {
@@ -875,20 +938,8 @@ if (-not $SkipUnity -and -not $FocusTurnRecord -and -not $FocusChapter) {
         '-assemblyNames', 'AbilityKit.Demo.Tiny.Editor.Tests',
         '-testResults', $resultPath,
         '-logFile', $unityLog)
-    for ($attempt = 1; $attempt -le 4; $attempt++) {
-        $unityExitCode = Invoke-UnityBatch $unityArguments
-        if ($unityExitCode -eq 0 -and (Test-Path -LiteralPath $resultPath)) { break }
-        $logText = if (Test-Path -LiteralPath $unityLog) {
-            Get-Content -LiteralPath $unityLog -Raw -Encoding UTF8
-        } else { '' }
-        if ($attempt -lt 4 -and $logText.Contains('MovedFromExtractorCombine') -and
-            $logText.Contains('-1073741757')) {
-            Copy-Item -LiteralPath $unityLog -Destination (Join-Path $outputRoot "unity-import-attempt-$attempt.log")
-            Write-Warning "Unity import helper failed on attempt $attempt; retrying the same project."
-            continue
-        }
-        throw "Tiny Unity EditMode verification failed. Log: $unityLog"
-    }
+    Invoke-TinyUnityBatchWithRetry $unityArguments $resultPath $unityLog `
+        'unity' 'Tiny Unity EditMode verification failed.'
     [xml]$testResults = Get-Content -LiteralPath $resultPath -Raw -Encoding UTF8
     $run = $testResults.'test-run'
     if ($null -eq $run -or [int]$run.total -lt 1 -or [int]$run.failed -ne 0 -or
@@ -907,10 +958,8 @@ if (-not $SkipUnity -and -not $FocusTurnRecord -and -not $FocusChapter) {
         '-assemblyNames', 'AbilityKit.Demo.Tiny.PlayMode.Tests',
         '-testResults', $playModeResults,
         '-logFile', $playModeLog)
-    $playModeExitCode = Invoke-UnityBatch $playModeArguments
-    if ($playModeExitCode -ne 0 -or -not (Test-Path -LiteralPath $playModeResults)) {
-        throw "Tiny Unity PlayMode verification failed. Log: $playModeLog"
-    }
+    Invoke-TinyUnityBatchWithRetry $playModeArguments $playModeResults $playModeLog `
+        'tiny-playmode' 'Tiny Unity PlayMode verification failed.'
     [xml]$playModeXml = Get-Content -LiteralPath $playModeResults -Raw -Encoding UTF8
     $playModeSummary = $playModeXml.'test-run'
     if ($null -eq $playModeSummary -or [int]$playModeSummary.total -lt 1 -or
@@ -939,20 +988,8 @@ if (-not $SkipUnity -and -not $FocusTurnRecord -and -not $FocusChapter) {
         '-assemblyNames', 'TinyConsumer.PlayMode.Tests',
         '-testResults', $consumerResults,
         '-logFile', $consumerLog)
-    for ($attempt = 1; $attempt -le 4; $attempt++) {
-        $consumerExitCode = Invoke-UnityBatch $consumerArguments
-        if ($consumerExitCode -eq 0 -and (Test-Path -LiteralPath $consumerResults)) { break }
-        $logText = if (Test-Path -LiteralPath $consumerLog) {
-            Get-Content -LiteralPath $consumerLog -Raw -Encoding UTF8
-        } else { '' }
-        if ($attempt -lt 4 -and $logText.Contains('MovedFromExtractor') -and
-            $logText.Contains('-1073741757')) {
-            Copy-Item -LiteralPath $consumerLog -Destination (Join-Path $outputRoot "tiny-consumer-import-attempt-$attempt.log")
-            Write-Warning "Tiny consumer Unity import helper failed on attempt $attempt; retrying the same project."
-            continue
-        }
-        throw "Tiny consumer Unity PlayMode verification failed. Log: $consumerLog"
-    }
+    Invoke-TinyUnityBatchWithRetry $consumerArguments $consumerResults $consumerLog `
+        'tiny-consumer' 'Tiny consumer Unity PlayMode verification failed.'
     [xml]$consumerXml = Get-Content -LiteralPath $consumerResults -Raw -Encoding UTF8
     $consumerRun = $consumerXml.'test-run'
     if ($null -eq $consumerRun -or [int]$consumerRun.total -lt 1 -or
@@ -978,20 +1015,8 @@ if (-not $SkipUnity -and -not $FocusTurnRecord -and -not $FocusChapter) {
         '-assemblyNames', 'AbilityKit.Demo.Tiny.Logic.Editor.Tests',
         '-testResults', $logicResults,
         '-logFile', $logicLog)
-    for ($attempt = 1; $attempt -le 4; $attempt++) {
-        $unityExitCode = Invoke-UnityBatch $logicArguments
-        if ($unityExitCode -eq 0 -and (Test-Path -LiteralPath $logicResults)) { break }
-        $logText = if (Test-Path -LiteralPath $logicLog) {
-            Get-Content -LiteralPath $logicLog -Raw -Encoding UTF8
-        } else { '' }
-        if ($attempt -lt 4 -and $logText.Contains('MovedFromExtractor') -and
-            $logText.Contains('-1073741757')) {
-            Copy-Item -LiteralPath $logicLog -Destination (Join-Path $outputRoot "tiny-logic-import-attempt-$attempt.log")
-            Write-Warning "Tiny Logic Unity import helper failed on attempt $attempt; retrying the same project."
-            continue
-        }
-        throw "Tiny Logic Unity EditMode verification failed. Log: $logicLog"
-    }
+    Invoke-TinyUnityBatchWithRetry $logicArguments $logicResults $logicLog `
+        'tiny-logic' 'Tiny Logic Unity EditMode verification failed.'
     [xml]$logicTestResults = Get-Content -LiteralPath $logicResults -Raw -Encoding UTF8
     $logicRun = $logicTestResults.'test-run'
     if ($null -eq $logicRun -or [int]$logicRun.total -lt 1 -or [int]$logicRun.failed -ne 0 -or

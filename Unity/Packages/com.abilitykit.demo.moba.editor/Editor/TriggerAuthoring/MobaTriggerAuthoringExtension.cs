@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Utilities;
-using AbilityKit.Demo.Moba.Editor.BattleFlow;
+using AbilityKit.Demo.Moba.Editor.BattleScenario;
 using UnityEditor;
 using UnityEngine;
 
@@ -50,35 +50,35 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
         {
             context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
                 BuffSemanticId,
-                () => MobaBattleFlowConfigCatalog.Buffs,
+                () => MobaBattleScenarioConfigCatalog.Buffs,
                 "buffs"));
             context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
                 SkillSemanticId,
-                () => MobaBattleFlowConfigCatalog.Skills,
+                () => MobaBattleScenarioConfigCatalog.Skills,
                 "skills"));
             context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
                 EffectSemanticId,
-                () => MobaBattleFlowConfigCatalog.Effects,
+                () => MobaBattleScenarioConfigCatalog.Effects,
                 "effects"));
             context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
                 ProjectileLauncherSemanticId,
-                () => MobaBattleFlowConfigCatalog.ProjectileLaunchers,
+                () => MobaBattleScenarioConfigCatalog.ProjectileLaunchers,
                 "projectile_launchers"));
             context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
                 ProjectileSemanticId,
-                () => MobaBattleFlowConfigCatalog.Projectiles,
+                () => MobaBattleScenarioConfigCatalog.Projectiles,
                 "projectiles"));
             context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
                 AreaSemanticId,
-                () => MobaBattleFlowConfigCatalog.Aoes,
+                () => MobaBattleScenarioConfigCatalog.Aoes,
                 "aoes"));
             context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
                 SummonSemanticId,
-                () => MobaBattleFlowConfigCatalog.Summons,
+                () => MobaBattleScenarioConfigCatalog.Summons,
                 "summons"));
             context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
                 SearchQuerySemanticId,
-                () => MobaBattleFlowConfigCatalog.SearchQueries,
+                () => MobaBattleScenarioConfigCatalog.SearchQueries,
                 "search_query_templates"));
         }
 
@@ -646,9 +646,9 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
         {
             private const string ResourceRoot =
                 "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/";
-            private readonly Func<IReadOnlyList<MobaBattleFlowConfigEntry>> _getEntries;
+            private readonly Func<IReadOnlyList<MobaBattleScenarioConfigEntry>> _getEntries;
             private readonly string _resourceName;
-            private IReadOnlyList<MobaBattleFlowConfigEntry> _cachedEntries;
+            private IReadOnlyList<MobaBattleScenarioConfigEntry> _cachedEntries;
             private IReadOnlyList<TriggerAuthoringReferenceOption> _cachedOptions =
                 Array.Empty<TriggerAuthoringReferenceOption>();
             private readonly Dictionary<int, TriggerAuthoringReferenceOption> _byId =
@@ -656,7 +656,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
 
             public MobaConfigReferenceProvider(
                 string semanticId,
-                Func<IReadOnlyList<MobaBattleFlowConfigEntry>> getEntries,
+                Func<IReadOnlyList<MobaBattleScenarioConfigEntry>> getEntries,
                 string resourceName)
             {
                 SemanticId = semanticId;
@@ -725,7 +725,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 _cachedOptions = options;
             }
 
-            private static TriggerAuthoringReferenceOption ToOption(MobaBattleFlowConfigEntry entry)
+            private static TriggerAuthoringReferenceOption ToOption(MobaBattleScenarioConfigEntry entry)
             {
                 return new TriggerAuthoringReferenceOption(
                     entry.Id,

@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.BattleFlow;
+using AbilityKit.BattleScenario;
 
 namespace AbilityKit.Demo.Moba.EnvironmentModel
 {
@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Moba.EnvironmentModel
     {
         public string BackendId { get; set; } = MobaPredictionBackendIds.Headless;
 
-        protected override void Apply(MobaBattleFlowAssertions assertions)
+        protected override void Apply(MobaBattleScenarioAssertions assertions)
             => assertions.PredictionBackend = MobaPredictionBackendIds.Normalize(BackendId);
     }
 }

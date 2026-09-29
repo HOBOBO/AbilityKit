@@ -9,21 +9,47 @@ namespace NBC.ActionEditor
 {
     public static class LogicJsonExporter
     {
-        private const string XiaoQiaoAssetPath =
-            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_10020101.json";
+        private const string MobaTimelineFolder =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline";
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/ActionEditor/Export XiaoQiao Skill 1")]
-        public static void ExportXiaoQiaoSkillOne()
+        [MenuItem("Tools/AbilityKit/Demos/Moba/ActionEditor/Export Selected Timeline")]
+        public static void ExportSelectedTimeline()
         {
-            var textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(XiaoQiaoAssetPath);
-            if (textAsset == null) throw new FileNotFoundException("ActionEditor skill asset is missing", XiaoQiaoAssetPath);
+            if (!(Selection.activeObject is TextAsset textAsset))
+                throw new InvalidOperationException("Select an ActionEditor timeline JSON asset first.");
+            ExportMobaTimeline(textAsset);
+            AssetDatabase.Refresh();
+        }
+
+        [MenuItem("Tools/AbilityKit/Demos/Moba/ActionEditor/Export All MOBA Timelines")]
+        public static void ExportAllMobaTimelines()
+        {
+            var count = 0;
+            foreach (var guid in AssetDatabase.FindAssets("t:TextAsset", new[] { MobaTimelineFolder }))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (!path.EndsWith(".json", StringComparison.Ordinal) ||
+                    path.EndsWith(".logic.json", StringComparison.Ordinal) ||
+                    path.EndsWith(".presentation.json", StringComparison.Ordinal)) continue;
+                var textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+                if (textAsset == null) continue;
+                var asset = Json.Deserialize(typeof(Asset), textAsset.text) as Asset;
+                if (!(asset is IActionTimelineRuntimeAsset marked) || !marked.ExportMobaRuntime) continue;
+                ExportMobaTimeline(textAsset);
+                count++;
+            }
+            AssetDatabase.Refresh();
+            Debug.Log($"[ActionEditor] Exported {count} MOBA logic and presentation timelines.");
+        }
+
+        private static void ExportMobaTimeline(TextAsset textAsset)
+        {
+            var assetPath = AssetDatabase.GetAssetPath(textAsset);
             var asset = Json.Deserialize(typeof(Asset), textAsset.text) as Asset;
             if (!(asset is IActionTimelineRuntimeAsset marked) || !marked.ExportMobaRuntime)
-                throw new InvalidDataException("XiaoQiao skill asset must opt in to MOBA runtime export.");
+                throw new InvalidDataException("MOBA timeline must opt in to runtime export: " + assetPath);
             asset.Init();
-            ExportLogicJson(asset, Path.GetFullPath(Path.Combine(Application.dataPath, "..", XiaoQiaoAssetPath)));
-            AssetDatabase.Refresh();
-            Debug.Log("[ActionEditor] Exported XiaoQiao skill 1 logic and presentation timelines.");
+            ExportLogicJson(asset, Path.GetFullPath(Path.Combine(Application.dataPath, "..", assetPath)));
         }
 
         public static void ExportLogicJson(Asset assetData, string editorJsonPath)
@@ -45,15 +71,16 @@ namespace NBC.ActionEditor
                 presentation = ActionTimelinePartition.Create(dto, ActionTimelineRuntimeTypes.Presentation);
             }
 
-            var json = Json.Serialize(dto);
-            File.WriteAllText(logicPath, json);
-
             if (logic != null && presentation != null)
             {
                 var mobaLogicPath = Path.Combine(dir ?? string.Empty, name + ".moba.logic.json");
                 var mobaPresentationPath = Path.Combine(dir ?? string.Empty, name + ".moba.presentation.json");
                 File.WriteAllText(mobaLogicPath, Json.Serialize(logic));
                 File.WriteAllText(mobaPresentationPath, Json.Serialize(presentation));
+            }
+            else
+            {
+                File.WriteAllText(logicPath, Json.Serialize(dto));
             }
         }
 

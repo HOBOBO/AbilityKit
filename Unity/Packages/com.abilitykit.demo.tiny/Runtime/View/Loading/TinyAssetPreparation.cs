@@ -1,8 +1,10 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using AbilityKit.Demo.Tiny;
 using AbilityKit.Game.View.Loading;
 using AbilityKit.Network.Room;
 
@@ -26,9 +28,13 @@ namespace AbilityKit.Demo.Tiny.View
 
         public static Task PrepareAsync(RoomGatewaySnapshot room, CancellationToken cancellationToken)
         {
-            if (room.LaunchManifestVersion <= 0 || string.IsNullOrWhiteSpace(room.LaunchManifestHash))
-                throw new InvalidOperationException("Tiny launch manifest is incomplete.");
+            Validate(room);
             return Pipeline.ExecuteAsync(cancellationToken: cancellationToken);
         }
+
+        public static void Validate(RoomGatewaySnapshot room) =>
+            RoomGatewayLaunchManifestCompatibility.Require(room, 1,
+                new[] { TinyBattle.AssetKey, TinyBattle.RulesKey },
+                new Dictionary<string, string> { ["players"] = room.Players.Count.ToString() });
     }
 }

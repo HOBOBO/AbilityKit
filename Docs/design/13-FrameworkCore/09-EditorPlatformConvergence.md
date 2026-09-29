@@ -7,7 +7,7 @@
 
 本文是 `com.abilitykit.base.editor` 的 **Editor Platform 跨模块收敛策略**。它回答两个问题：
 
-1. pipeline、HFSM、行为树、BattleFlow、Trigger Authoring、Protocol、Trace 等编辑器的导出、加载、界面、基础功能、运行时调试、校验、项目管理里，**哪些该下沉到 Editor Platform、哪些必须留在各模块**；
+1. pipeline、HFSM、行为树、BattleScenario、Trigger Authoring、Protocol、Trace 等编辑器的导出、加载、界面、基础功能、运行时调试、校验、项目管理里，**哪些该下沉到 Editor Platform、哪些必须留在各模块**；
 2. 各窗口 `[MenuItem]` 目前散在 `Window/AbilityKit/*`、`Tools/AbilityKit/Framework/*`、`Tools/AbilityKit/Demos/*`、`Assets/AbilityKit/*` 四处，**统一入口如何补上**。
 
 它不重复 `com.abilitykit.base.editor/Document/BaseEditor基础编辑器工具模块开发设计文档.md`（那是 Platform 的 API 面 + Legacy 兼容边界的包内 canonical），只做跨模块的边界判定、采纳地图、重复证据与收敛顺序。
@@ -41,7 +41,7 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 | **Ability（Trigger Authoring 新子系统）** | Platform（部分） | `EditorAtomicFileWriter`、`EditorSourceSync`、`EditorDiagnostic` 适配、`EditorCommandRegistry`、本地化 | **旧导出链完全自造**（见 §4）；不用 `EditorExport` 报告模型、不用 `EditorDocumentSession` |
 | **Trace** | 无（独立窗口） | — | 2026-09-07 已从 `PlugableWindow` 迁为独立 `EditorWindow`，不再依赖 base.editor |
 | **Pipeline** | 无 | — | 全套自造；`PipelineRuntimeDebuggerWindow`（~1794 行 IMGUI）+ 自造 registry/ring buffer |
-| **BattleFlow** | 无 | — | 全套自造；`BattleFlowCodec` 裸写 JSON、`Stack<string>` 重造 undo |
+| **BattleScenario** | 无 | — | 全套自造；`BattleScenarioCodec` 裸写 JSON、`Stack<string>` 重造 undo |
 | **Protocol Editor** | 无 | — | 全套自造；`_dirty` + `DisplayDialogComplex` 重造文档切换 |
 | **Diagnostics / Network SDK / Excel-Sync / demo.*.editor** | 无 | — | 各自独立窗口 |
 
@@ -65,7 +65,7 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 
 这不是潜在重复，而是已存在的、可定位的重复：
 
-1. **三个包完全没接底座**：`pipeline`/`battleflow`/`protocol.editor` 的 Editor asmdef 都不引用 `AbilityKit.Editor.Platform`，导出/加载/窗口/调试/校验全套自造。三处典型：`BattleFlowCodec.Save` 在 runtime 里 `File.WriteAllText` 写 JSON（本应走 `EditorAtomicFileWriter`）；`BattleFlowWindow` 用 `Stack<string>` 快照重造 undo（`BattleFlowWindow.cs:31,248-266`，本应走 `EditorDocumentSession`）；`ProtocolEditorWindow` 用单个 `_dirty` + `DisplayDialogComplex` 重造文档切换（`ProtocolEditorWindow.cs:932-952`）。
+1. **三个包完全没接底座**：`pipeline`/`battlescenario`/`protocol.editor` 的 Editor asmdef 都不引用 `AbilityKit.Editor.Platform`，导出/加载/窗口/调试/校验全套自造。三处典型：`BattleScenarioCodec.Save` 在 runtime 里 `File.WriteAllText` 写 JSON（本应走 `EditorAtomicFileWriter`）；`BattleScenarioWindow` 用 `Stack<string>` 快照重造 undo（`BattleScenarioWindow.cs:31,248-266`，本应走 `EditorDocumentSession`）；`ProtocolEditorWindow` 用单个 `_dirty` + `DisplayDialogComplex` 重造文档切换（`ProtocolEditorWindow.cs:932-952`）。
 
 2. **Ability 包两代人并存**：旧 Trigger 导出链约 7 个手写 `File.WriteAllText`/`JsonConvert` 的 writer（`AbilityTriggerJsonExporter`、`ReadableTriggerPlanExporter`、`TriggerPlanJsonSplitter`、`SourceJsonExporter`、`AbilityTriggerJsonImporter` 等），把同一份 trigger plan 图序列化成 **5 种 JSON 表示**、写进同一目录 `Resources/ability/`；新 Trigger Authoring 子系统才改用 `EditorAtomicFileWriter` + `EditorSourceSync`。这是全库单点重复最重的地方。
 
@@ -110,7 +110,7 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 
 1. **做统一入口（Hub）**——消费已有注册表 + 反射发现散落窗口。零新概念，直接解决"乱"，并立下"新窗口必须注册"的规约。
 2. **BT 收尾 + 导出报告模型进 HFSM/Ability**——HFSM 已接入统一入口、导出报告和运行时调试导航；后续在 golden/roundtrip 测试保护下删除 Legacy Archive 平行 exporter 抽象，并收敛 Ability 旧导出链。BT 清掉重复 `[MenuItem]` 和绕过 `EditorDiagnostic` 的 Validate All。
-3. **Pipeline/BattleFlow/Protocol 接基础件**——至少接 `EditorAtomicFileWriter` + `EditorDocumentSession`（替换 `BattleFlowCodec` 裸写、`_undoStack`、`_dirty` 对话框）+ `EditorDiagnostic`。纯减重复，不动各自画布和 IR。
+3. **Pipeline/BattleScenario/Protocol 接基础件**——至少接 `EditorAtomicFileWriter` + `EditorDocumentSession`（替换 `BattleScenarioCodec` 裸写、`_undoStack`、`_dirty` 对话框）+ `EditorDiagnostic`。纯减重复，不动各自画布和 IR。
 4. **下沉运行时调试骨架**——✅ 分析完成（2026-09-07），**决定不下沉**。四个 debugger 的运行时桥接机制、快照模型、订阅方式各不相同：hfsm `LiveRegistry`+`IVisualizationProvider`（注册表+provider 抽象）、BT `DebugRegistry`（薄 id 注册表、纯轮询）、pipeline `PipelineDebugHooks`（事件总线 push）、trace `TraceRegistryDirectory`（目录+事件）。共享部分只剩「观察运行时实例」这一抽象概念，无稳定契约；按「能力下沉五条」判定（语义不稳、无交叉验证）不下沉。四个 debugger 保持各自实现，已由 Hub 在导航层统一。落地动作仅是删除 pipeline 死代码 `EditorPipelineTraceRecorder`（未使用单例 + 重复 ring buffer，保留被 registry 使用的 `EditorPipelineRunTrace`）。
 5. **退役 Framework 层**——✅ 已完成（2026-09-07）：`trace` 迁为独立 `EditorWindow`（`TreeVisualizationPlugin`/`NodeDetailPlugin` 去 `BaseWindowPlugin` 基类），删除 `Editor/Framework/`（`PlugableWindow`/`WindowBuilder`/`WindowExamples`）与 `Tests/Framework/` 兼容测试。
 
@@ -124,14 +124,14 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 | BT 接入样例（最完整） | `com.abilitykit.behaviortree/Editor/Bootstrap/EditorModule.cs`、`Authoring/Documents/`、`Export/`、`Synchronization/` |
 | HFSM 平行导出抽象（待收敛） | `com.abilitykit.hfsm/Editor/Export/` |
 | Ability 新旧两代（待收敛） | `com.abilitykit.ability/Editor/Utilities/`（旧导出链）vs `TriggerAuthoring*`（新子系统） |
-| 未接底座样例 | `com.abilitykit.pipeline/Editor/Debug/`、`com.abilitykit.battleflow/Editor/`、`com.abilitykit.protocol.editor/Editor/` |
+| 未接底座样例 | `com.abilitykit.pipeline/Editor/Debug/`、`com.abilitykit.battlescenario/Editor/`、`com.abilitykit.protocol.editor/Editor/` |
 | 包内 canonical | `com.abilitykit.base.editor/Document/BaseEditor基础编辑器工具模块开发设计文档.md` |
 | 领域边界既有定义 | `Docs/design/13-FrameworkCore/07-BehaviorTreePackageDesign.md` §10.1、`08-HfsmDeterministicRuntimeEvolution.md` "Editor Platform 渐进接入" |
 
 ## 八、事实状态与证据等级
 
 - **规范约束**：依赖方向 `领域 Editor -> Platform`、`Platform -X-> 领域`；导出/校验/同步/会话/命令/本地化的共享边界见 §三。
-- **当前实现**：Platform Hub 统一入口已实现；BT 与 HFSM 已注册 Module/Menu/Panel，Ability 部分接入，Pipeline/BattleFlow/Protocol/Trace 仍主要通过散落窗口发现进入（§2.2、§5）。
+- **当前实现**：Platform Hub 统一入口已实现；BT 与 HFSM 已注册 Module/Menu/Panel，Ability 部分接入，Pipeline/BattleScenario/Protocol/Trace 仍主要通过散落窗口发现进入（§2.2、§5）。
 - **示例策略**：HFSM 的 `ExtensionRegistry` 导出抽象、Ability 旧导出链，都是"尚未收敛"的领域自造实现，不是底座能力。
 - **已知限制**：`dotnet build` 只证明可编译，不等于 Unity Test Runner 已执行；Domain Reload、语言切换、布局恢复、诊断定位、真实 AssetDatabase 导入仍需 Unity 侧验收。
 
@@ -139,7 +139,7 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 |---|---|---|
 | E0 | 已具备 | Platform/Legacy 源码、asmdef、包内 canonical 存在 |
 | E1 | 已具备 | Platform 服务/命令/诊断/状态/会话/同步/导出 API 可被调用 |
-| E2 | 部分具备 | Hub 与 BT/HFSM 正式入口已接；Ability 部分接入，Pipeline/BattleFlow/Protocol/Trace 未接 |
+| E2 | 部分具备 | Hub 与 BT/HFSM 正式入口已接；Ability 部分接入，Pipeline/BattleScenario/Protocol/Trace 未接 |
 | E3 | 部分具备 | Platform/领域 Editor 测试源码 + 定向编译存在；本轮未跑 Unity Test Runner |
 | E4 | 待建立 | Hub 与各领域导出/同步/诊断的 Unity 侧验收矩阵未建立 |
 | E5 | 待建立 | 统一入口与迁移门禁未挂 CI |

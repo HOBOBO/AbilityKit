@@ -1,0 +1,96 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46333e9469ecbde4eaa3aa26725aa978, type: 3}
+  m_Name: MOBA P2 Derived Capture Showcase
+  m_EditorClassIdentifier: 
+  dataList:
+  - Id: 99200020
+    Name: P2 Derived Skill And Event Capture Showcase
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 5850278497915502592
+    - rid: 5850278497915502593
+    - rid: 5850278497915502594
+    - rid: 5850278497915502595
+  legacyDataList: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 5850278497915502592
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: p2.parameters.apply
+        TriggerIds: 0485e905
+        AbortOnFailure: 1
+        FailReason: p2_parameter_setup_failed
+    - rid: 5850278497915502593
+      type: {class: SkillParallelPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: p2.derived-and-capture
+        Children:
+        - rid: 5850278497915502596
+        - rid: 5850278497915502597
+    - rid: 5850278497915502594
+      type: {class: SkillRepeatPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: p2.bounded-post-delay
+        RepeatCount: 2
+        IntervalMs: 50
+        Phase:
+          rid: 5850278497915502598
+    - rid: 5850278497915502595
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: p2.parameters.clear
+        TriggerIds: 0585e905
+        AbortOnFailure: 0
+        FailReason: p2_parameter_cleanup_failed
+    - rid: 5850278497915502596
+      type: {class: SkillAwaitEventPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: p2.capture-derived-damage
+        EventId: damage.apply.after
+        TimeoutMs: 2500
+        CompleteOnTimeout: 0
+        Filters:
+        - FieldId: 1993035528
+          ExpectedValue: 0
+          UseCasterActorId: 1
+          UseTargetActorId: 0
+          UseSkillId: 0
+        Captures:
+        - FieldId: 247416154
+          Key: p2.hit_target_actor_id
+          Scope: 0
+          ValueType: 0
+          Required: 1
+        - FieldId: 931929450
+          Key: p2.last_damage
+          Scope: 1
+          ValueType: 1
+          Required: 1
+    - rid: 5850278497915502597
+      type: {class: SkillDerivedSkillPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: p2.launch-derived-skill
+        SkillId: 10010101
+        InheritAim: 1
+        InheritTarget: 1
+        WaitForCompletion: 1
+        AbortOnFailure: 1
+        MaxDepth: 4
+        FailReason: p2_derived_skill_failed
+    - rid: 5850278497915502598
+      type: {class: SkillDelayPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: p2.post-delay-tick
+        DelayMs: 50

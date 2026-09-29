@@ -4,9 +4,6 @@
   "attr_types": {},
   "skills": {},
   "passive_skills": {},
-  "skill_flows": {
-    "Phases": "array"
-  },
   "skill_level_tables": {
     "Levels": "array"
   },

@@ -6,12 +6,40 @@ using System.Linq;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Utilities;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Editor.Tests
 {
     public sealed class TriggerAuthoringMobaMigrationTests
     {
+        [Test]
+        public void ProductionAuthoringAssets_ResolveFromMobaViewPackage()
+        {
+            var project = AssetDatabase.LoadAssetAtPath<TriggerAuthoringProjectAsset>(
+                TriggerAuthoringMobaMigration.ProjectAssetPath);
+            Assert.That(project, Is.Not.Null);
+            Assert.That(project.RuntimeOutputRoot,
+                Is.EqualTo(TriggerAuthoringMobaMigration.OutputRoot + "/RuntimePreview"));
+
+            foreach (var name in new[]
+                     {
+                         "ability_moba_skills", "buff_moba_buffs",
+                         "passive_moba_passives", "gameplay_moba_rules"
+                     })
+            {
+                var path = TriggerAuthoringMobaMigration.OutputRoot + "/Packages/" + name + ".Module.asset";
+                var module = AssetDatabase.LoadAssetAtPath<TriggerAuthoringModuleAsset>(path);
+                Assert.That(module, Is.Not.Null, path);
+                Assert.That(module.SourceJsonPath,
+                    Does.StartWith(TriggerAuthoringMobaMigration.OutputRoot + "/"), path);
+                var sourcePath = Path.Combine(
+                    Directory.GetParent(Application.dataPath)?.FullName ?? Directory.GetCurrentDirectory(),
+                    module.SourceJsonPath);
+                Assert.That(File.Exists(sourcePath), Is.True, sourcePath);
+            }
+        }
+
         [Test]
         public void ConvertFiles_MapsLegacyAliasesConditionsAndExecutionControl()
         {
@@ -32,6 +60,7 @@ namespace AbilityKit.Ability.Editor.Tests
                 var trigger = module.Triggers.Single();
 
                 Assert.That(trigger.EntryMode, Is.EqualTo(TriggerEntryMode.Event));
+                Assert.That(trigger.Scope, Is.EqualTo("global"));
                 Assert.That(trigger.ExecutionControl.Mode, Is.EqualTo("once"));
                 Assert.That(trigger.Condition.Arguments[0].Value.Source, Is.EqualTo(TriggerValueSource.Context));
                 Assert.That(trigger.Condition.Arguments[0].Value.Path, Is.EqualTo("gameplay:1001"));
@@ -180,6 +209,12 @@ namespace AbilityKit.Ability.Editor.Tests
                     SearchOption.TopDirectoryOnly);
                 sourceCount += files.Length;
                 var module = TriggerAuthoringMobaMigration.ConvertFiles(definition, legacyRoot, files);
+                if (definition.LegacyDirectory == "passives")
+                {
+                    var emptyEntry = module.Triggers.Single(trigger => trigger.Id == 10060000);
+                    Assert.That(emptyEntry.Enabled, Is.True);
+                    Assert.That(emptyEntry.Actions.Type, Is.EqualTo("debug_log"));
+                }
                 var diagnostics = TriggerAuthoringValidator.Validate(module, context);
                 var compile = TriggerAuthoringRuntimeExporter.Build(module, context);
                 Assert.That(TriggerAuthoringValidator.HasErrors(diagnostics), Is.False,

@@ -1,5 +1,15 @@
 # Tiny 项目接入指南
 
+## 独立服务端与验收
+
+运行 `tools/publish-tiny-server.ps1 -OutputPath <目录>` 可生成可移动的 .NET 10 服务端包，包含 `host/`、`gateway/`、可编译的 `composition/` Host 组合工程和启动说明。发布产物使用同一次构建的 Tiny 规则与 Room 协议程序集；移动后不依赖源码目录。Host 默认注册 Tiny 实时玩法与 Turn；设置 `AbilityKit__Tiny__EnableTurn=false` 可以关闭 Turn。直接使用内置 Host 时先从 `host/` 启动，再从 `gateway/` 启动；需要注册项目玩法时，修改并运行 `composition/`，由它代替内置 Host。
+
+`tools/create-tiny-validation-project.ps1 -Standalone -IncludeTurn` 生成独立 Unity 消费工程。服务端包与客户端消费工程是两个交付边界；服务端规则只有 Unity Logic 包中的一份源码，由 .NET 工程编译后随服务端发布。
+
+仓库验收可运行 `tools/verify-tiny-starter.ps1 -FocusChapter 10 -SkipUnity -ServerBundlePath <目录>`，用发布包运行真实 TCP Turn 样例。完整验收在隔离工程中使用 `-batchmode -nographics`；Hybrid、Frame、State、Turn 分别启动两个独立 Unity 进程联机，证据保存在 `local/Logs/tiny-acceptance-*/unity-cross-{Mode}`。`phases.json` 汇总各阶段，XML 与 JSON 保留具体测试和联机结果。客户端在 Loading 和战斗订阅前验证启动清单与本地规则标识；更新玩法规则时应同步更新规则标识和服务端发布包。
+
+只检查回合制与录制时使用 `-FocusTurnRecord`；再加 `-VerifyCrossProcess` 才运行 Hybrid、Frame、State、Turn 双 Unity 进程。`-FocusChapter 01` 至 `06`、`09`、`10` 用于逐章验证。所有 Unity 验证均为隔离工程的无头进程，不需要打开编辑器窗口或截图。
+
 Tiny 是两名玩家、整数坐标移动和一次带冷却攻击的最小联机项目。它展示新项目如何接入 AbilityKit 的规则、Room、三种同步模式、恢复与 Unity 表现。技能、Buff 和复杂战斗治理属于更高阶示例。
 
 ## 依赖与边界

@@ -523,7 +523,7 @@ namespace AbilityKit.Ability.Editor.Tests
             var action = result.Database.Triggers[0].Actions[0];
             var args = action.Args;
             Assert.That(action.Arity, Is.EqualTo(2));
-            Assert.That(args["buff_ids0"].ConstValue, Is.EqualTo(11));
+            Assert.That(args["buff_ids"].ConstValue, Is.EqualTo(11));
             Assert.That(args["buff_ids1"].ConstValue, Is.EqualTo(22));
             Assert.That(args["target_actor_id"].Kind, Is.EqualTo("PayloadField"));
             Assert.That(args["target_query_id"].Kind, Is.EqualTo("Var"));
@@ -574,7 +574,7 @@ namespace AbilityKit.Ability.Editor.Tests
 
             Assert.That(result.Success, Is.True, result.BuildMessage());
             var args = result.Database.Triggers[0].Actions[0].Args;
-            Assert.That(args["buff_ids0"].ConstValue, Is.EqualTo(11));
+            Assert.That(args["buff_ids"].ConstValue, Is.EqualTo(11));
             Assert.That(args["target_actor_id"].Kind, Is.EqualTo("PayloadField"));
             Assert.That(args["target_radius"].Kind, Is.EqualTo("Expr"));
             Assert.That(args["target_self"].ConstValue, Is.EqualTo(1d));

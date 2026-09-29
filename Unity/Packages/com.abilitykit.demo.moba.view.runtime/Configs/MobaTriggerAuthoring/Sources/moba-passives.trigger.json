@@ -1,0 +1,2882 @@
+{
+  "schema": "abilitykit-trigger-authoring",
+  "version": "2.2",
+  "metadata": {
+    "author": "AbilityKit MOBA",
+    "description": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives. Edit in the Trigger Authoring workspace."
+  },
+  "module": {
+    "moduleId": "passive.moba.passives",
+    "displayName": "MOBA 被动触发器",
+    "kind": "Passive",
+    "blackboard": [],
+    "conditionGroups": [],
+    "actionGroups": [],
+    "triggers": [
+      {
+        "id": 22001,
+        "name": "Trigger_22001",
+        "groupPath": "trigger_22001",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l5a9ae7570e8fe233",
+          "enabled": true,
+          "kind": "Action",
+          "type": "emit",
+          "arguments": [
+            {
+              "name": "emitter_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 400001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_22001.json"
+      },
+      {
+        "id": 10010000,
+        "name": "廉颇-勇士之魂-释放技能时霸体战意",
+        "groupPath": "trigger_10010000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "skill.cast.complete",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_lea46db045eeead43",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_led329e30a23940e8",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10010000
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_led360430a23c2411",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "廉颇被动触发：添加霸体战意与防御韧性状态",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10010000.json"
+      },
+      {
+        "id": 10010002,
+        "name": "廉颇-勇士之魂-承受伤害获得怒气",
+        "groupPath": "trigger_10010000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 44,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_l860979082ae7bee4",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_lc3eed8645cfbd767",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "owner_matches_payload_target",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_lc3eb72645cf8f43e",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_lc3e80c645cf61115",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_neq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "attacker_actor_id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "target_actor_id"
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_l0b3ad0ec3053de2a",
+          "enabled": true,
+          "kind": "Action",
+          "type": "modify_resource",
+          "arguments": [
+            {
+              "name": "resource_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 3,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "amount",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 5.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "max",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 100.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "target_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 247416154,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10010000.json"
+      },
+      {
+        "id": 10010003,
+        "name": "廉颇-勇士之魂-脱战怒气转生命",
+        "groupPath": "trigger_10010000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 40,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": true,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_lc8f6225f1352c7ea",
+          "enabled": true,
+          "kind": "Action",
+          "type": "convert_resource_to_heal",
+          "arguments": [
+            {
+              "name": "resource_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 3,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "amount",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 10.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "heal_ratio",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 8.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "out_of_combat_seconds",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 5.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "heal_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_kind",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10010000,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "target_self",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": true,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10010000.json"
+      },
+      {
+        "id": 10010004,
+        "name": "廉颇-勇士之魂-造成伤害获得怒气",
+        "groupPath": "trigger_10010000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 45,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_l835a0bfc78883484",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_lbce1bb792423f447",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "owner_matches_payload_source",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_lbcde55792421111e",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_lbcdaef79241e2df5",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_neq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "attacker_actor_id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "target_actor_id"
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_la061d735415c31ca",
+          "enabled": true,
+          "kind": "Action",
+          "type": "modify_resource",
+          "arguments": [
+            {
+              "name": "resource_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 3,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "amount",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 10.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "max",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 100.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "target_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1993035528,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10010000.json"
+      },
+      {
+        "id": 10020000,
+        "name": "小乔-治愈微笑-释放技能后短暂移速",
+        "groupPath": "trigger_10020000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "skill.cast.complete",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_lca39e4fdf615341c",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l19ecc4aa91623bff",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10020001
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l19e95eaa915f58d6",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "小乔被动触发：释放技能后添加短暂移速状态",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10020000.json"
+      },
+      {
+        "id": 10030000,
+        "name": "赵云-龙鸣-低血量免伤配置",
+        "groupPath": "trigger_10030000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.attack.before_calc",
+        "phase": "immediate",
+        "priority": 65,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_lfff61c849320b8c0",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "owner_matches_payload_target",
+          "arguments": [],
+          "children": [],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_l7d253a9b6fb2d28e",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l26cbc64feadafedd",
+              "enabled": true,
+              "kind": "Action",
+              "type": "adjust_damage_number",
+              "arguments": [
+                {
+                  "name": "number_slot",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "op",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_missing_hp_ratio_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": -0.33,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "source_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10030000,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_kind",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "require_skill_runtime",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "skip_first_hit",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l26c8604fead81bb4",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "赵云被动龙鸣：每损失3%最大生命获得1%免伤，最高33%",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10030000.json"
+      },
+      {
+        "id": 10030002,
+        "name": "赵云-龙鸣-配置标记",
+        "groupPath": "trigger_10030000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 40,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": true,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1767295468309655",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l3dc63b63a97d546e",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10030000
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l3dc9a163a9803797",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "赵云被动龙鸣：配置声明每损失3%最大生命获得1%免伤，最高33%",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10030000.json"
+      },
+      {
+        "id": 10040000,
+        "name": "墨子-机关术-释放技能获得护盾",
+        "groupPath": "trigger_10040000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "skill.cast.complete",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_lcfb542c9425c44bf",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_la6e277c576711c44",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10040000
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_la6e5ddc57673ff6d",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_shield",
+              "arguments": [
+                {
+                  "name": "shield_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10040000,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "shield_value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 300.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "absorb_ratio",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 1.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "duration_ms",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 3000,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "priority",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 20,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "stacking_policy",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "consume_policy",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_la6e943c57676e296",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "墨子被动机关术：释放技能获得机关护盾",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10040000.json"
+      },
+      {
+        "id": 10040001,
+        "name": "墨子-机关术-普攻计数",
+        "groupPath": "trigger_10040000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 45,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_l7a0b63fc25ad63b1",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l28a27013a054766a",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l28a5d613a0575993",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_kind"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l289ba413a04eb018",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_neq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "attacker_actor_id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "target_actor_id"
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_l8163e7f21d24c47f",
+          "enabled": true,
+          "kind": "Action",
+          "type": "advance_gameplay_counter",
+          "arguments": [
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10040001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "scope_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1993035528,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 4.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "delta",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 1.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reset_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "trigger_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10040002,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10040000.json"
+      },
+      {
+        "id": 10040002,
+        "name": "墨子-机关术-第四次强化近战普攻",
+        "groupPath": "trigger_10040000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": true,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_le7793f2c8d2ca764",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l22debc9ff643bbe7",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 260.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "source_attack_ratio",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.8,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10040002,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l22db569ff640d8be",
+              "enabled": true,
+              "kind": "Action",
+              "type": "pull",
+              "arguments": [
+                {
+                  "name": "speed",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 12.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "duration_ms",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 300.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "direction_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_distance",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 3.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "priority",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 15,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "motion_group_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 3,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l22d7f09ff63df595",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10040000
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l22d48a9ff63b126c",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "墨子被动机关术：第四次普攻强化为近战命中，击退目标并刷新护盾",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10040000.json"
+      },
+      {
+        "id": 10050000,
+        "name": "妲己-失心-被动入口",
+        "groupPath": "trigger_10050000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l68daa6b838134c3e",
+          "enabled": true,
+          "kind": "Action",
+          "type": "debug_log",
+          "arguments": [
+            {
+              "name": "message",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "妲己被动失心：技能伤害命中时由技能触发器叠加降低法术防御状态",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "dump_args",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10050000.json"
+      },
+      {
+        "id": 10060000,
+        "name": "嬴政-王者审判-被动入口",
+        "groupPath": "trigger_10060000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l5cc1bea7ec281936",
+          "enabled": true,
+          "kind": "Action",
+          "type": "debug_log",
+          "arguments": [
+            {
+              "name": "message",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "Mozi passive entry",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10060000.json"
+      },
+      {
+        "id": 10060002,
+        "name": "嬴政-王者审判-普攻命中计数",
+        "groupPath": "trigger_10060000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 45,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_la1950d614d8b9b83",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l7519252d4c9b1e28",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l751c8b2d4c9e0151",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_kind"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l751ff12d4ca0e47a",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_neq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "attacker_actor_id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "target_actor_id"
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_l30c546612c9062ed",
+          "enabled": true,
+          "kind": "Action",
+          "type": "advance_gameplay_counter",
+          "arguments": [
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10060002,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "scope_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1993035528,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 5.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "delta",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 1.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reset_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "trigger_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10060003,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10060000.json"
+      },
+      {
+        "id": 10060003,
+        "name": "嬴政-王者审判-第五次普攻强化",
+        "groupPath": "trigger_10060000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": true,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l3d6c419092f3dff3",
+          "enabled": true,
+          "kind": "Action",
+          "type": "give_damage",
+          "arguments": [
+            {
+              "name": "damage_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 180.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "source_attack_ratio",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.35,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "damage_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10060003,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "target_mode",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "target_max_count",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10060000.json"
+      }
+    ]
+  }
+}

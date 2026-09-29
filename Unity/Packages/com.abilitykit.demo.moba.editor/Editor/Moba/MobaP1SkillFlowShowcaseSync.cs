@@ -11,8 +11,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     public static class MobaP1SkillFlowShowcaseSync
     {
         public const int FlowId = 80120001;
-        public const string SourceAssetPath = "Assets/AbilityKit/MobaSkillFlowAuthoring/Showcases/moba-p1-skill-economy-flow.json";
-        public const string TargetAssetPath = "Assets/AbilityKit/MobaSkillFlowAuthoring/Showcases/MobaP1SkillEconomyShowcase.asset";
+        public const string SourceAssetPath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/moba-p1-skill-economy-flow.json";
+        public const string TargetAssetPath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/MobaP1SkillEconomyShowcase.asset";
 
         [MenuItem("AbilityKit/Moba/Skill Flow/Sync P1 Economy Showcase")]
         public static void Sync()

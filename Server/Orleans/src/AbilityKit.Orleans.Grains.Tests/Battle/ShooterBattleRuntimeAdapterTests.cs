@@ -535,7 +535,7 @@ public sealed class ShooterBattleRuntimeAdapterTests
             var observerSession = Assert.IsAssignableFrom<IObserverAwareBattleRuntimeSession>(session);
             var observer = new BattleStateSyncObserverContext("observer-1", "account-1", "room-1")
             {
-                AcknowledgedCommands = new[] { new ShooterCommandAcknowledgement(1, 77ul) }
+                AcknowledgedCommands = new[] { new BattleCommandAcknowledgement(1, 77ul) }
             };
             var push = observerSession.CreateStateSyncPush(
                 initParams.WorldId,

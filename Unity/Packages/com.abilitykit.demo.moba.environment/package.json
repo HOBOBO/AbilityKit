@@ -15,6 +15,6 @@
   },
   "dependencies": {
     "com.abilitykit.environment": "0.1.0",
-    "com.abilitykit.battleflow": "0.1.0"
+    "com.abilitykit.battlescenario": "0.1.0"
   }
 }

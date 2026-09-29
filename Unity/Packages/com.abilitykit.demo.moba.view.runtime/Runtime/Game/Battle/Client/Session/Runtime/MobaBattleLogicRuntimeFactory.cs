@@ -9,6 +9,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
+using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Game.Battle
 {
@@ -52,6 +53,7 @@ namespace AbilityKit.Game.Battle
                     true,
                     prefixes);
                 RegisterRequiredMobaServices(builder);
+                builder.AddModule(new MobaTraceAdapterModule());
                 return builder;
             }
 
@@ -70,6 +72,7 @@ namespace AbilityKit.Game.Battle
                 scanAssemblies,
                 prefixes);
             RegisterRequiredMobaServices(builder);
+            builder.AddModule(new MobaTraceAdapterModule());
             return builder;
         }
 

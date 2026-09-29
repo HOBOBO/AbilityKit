@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AbilityKit.Demo.Tiny;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Persistence;
@@ -19,8 +20,8 @@ public sealed class TinyRoomGameplayAdapter : IRoomGameplayAdapter
     private readonly string _rulesKey;
 
     public TinyRoomGameplayAdapter() : this(TinyGameplay.RoomType,
-        TinyGameplay.WorldType, TinyGameplay.TickRate, Format, "tiny:arena",
-        "tiny:rules.v1") { }
+        TinyGameplay.WorldType, TinyGameplay.TickRate, Format, TinyBattle.AssetKey,
+        TinyBattle.RulesKey) { }
 
     internal TinyRoomGameplayAdapter(string roomType, string worldType, int tickRate,
         string format, string assetKey, string rulesKey)

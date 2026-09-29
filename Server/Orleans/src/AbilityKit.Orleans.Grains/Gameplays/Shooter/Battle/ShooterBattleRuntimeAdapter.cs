@@ -56,6 +56,8 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
         private readonly Dictionary<string, ShooterObserverPureStateSyncState> _observerPureStateSyncStates = new(StringComparer.Ordinal);
         private readonly Dictionary<string, int> _playerIdsByAccountId = new(StringComparer.Ordinal);
         private readonly ShooterPureStateFrameSampleRing _pureStateFrameSamples = new();
+        private BattleCommandAcknowledgement[]? _convertedAcknowledgementSource;
+        private ShooterCommandAcknowledgement[] _convertedAcknowledgements = Array.Empty<ShooterCommandAcknowledgement>();
 
         public ShooterBattleRuntimeSession(
             string battleId,
@@ -632,7 +634,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                     worldId,
                     frame,
                     isFullSnapshot,
-                    observerContext.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>());
+                    ToShooterAcknowledgements(observerContext.AcknowledgedCommands));
             }
 
             var resolvedWorldId = worldId == 0 ? _worldId : worldId;
@@ -644,7 +646,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                     resolvedWorldId,
                     frame,
                     syncState,
-                    observerContext.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>());
+                    ToShooterAcknowledgements(observerContext.AcknowledgedCommands));
             }
 
             var requiresFullSnapshot = isFullSnapshot || syncState.RequiresFullSnapshot;
@@ -654,7 +656,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 requiresFullSnapshot,
                 interestScope,
                 syncState,
-                observerContext.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>());
+                ToShooterAcknowledgements(observerContext.AcknowledgedCommands));
         }
 
         private StateSyncPush CreatePureStateSyncPush(
@@ -786,6 +788,33 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 PayloadOpCode = isFullSnapshot ? ShooterOpCodes.Snapshot.PureState : ShooterOpCodes.Snapshot.PureStateDelta,
                 Payload = ShooterPureStateSyncCodec.Serialize(in snapshot)
             };
+        }
+
+        /// <summary>
+        /// 把契约层的玩法无关回执投影成本玩法的线格式类型。<c>BattleLogicHostGrain</c> 按版本缓存
+        /// 同一个数组实例，因此按引用缓存转换结果即可让热路径在回执未变化时零分配。
+        /// </summary>
+        private ShooterCommandAcknowledgement[] ToShooterAcknowledgements(BattleCommandAcknowledgement[]? acknowledgements)
+        {
+            if (acknowledgements is null || acknowledgements.Length == 0)
+            {
+                return Array.Empty<ShooterCommandAcknowledgement>();
+            }
+
+            if (ReferenceEquals(_convertedAcknowledgementSource, acknowledgements))
+            {
+                return _convertedAcknowledgements;
+            }
+
+            var converted = new ShooterCommandAcknowledgement[acknowledgements.Length];
+            for (var i = 0; i < acknowledgements.Length; i++)
+            {
+                converted[i] = new ShooterCommandAcknowledgement(acknowledgements[i].Frame, acknowledgements[i].CommandId);
+            }
+
+            _convertedAcknowledgementSource = acknowledgements;
+            _convertedAcknowledgements = converted;
+            return converted;
         }
 
         private static string ResolveObserverKey(in BattleStateSyncObserverContext observerContext)

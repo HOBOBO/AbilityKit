@@ -41,6 +41,27 @@ namespace AbilityKit.Demo.Moba.Services
             IBattleDiagnosticReadOnlySession session,
             IBattleDiagnosticEventSnapshotSource events,
             IBattleDiagnosticStateSnapshotSource state,
+            IBattleDiagnosticAttributeSnapshotSource attributes,
+            IBattleDiagnosticBuffSnapshotSource buffs,
+            IBattleDiagnosticTagSnapshotSource tags,
+            IBattleDiagnosticEffectSnapshotSource effects)
+            : this(
+                session,
+                events,
+                state,
+                null,
+                attributes,
+                buffs,
+                tags,
+                effects,
+                Stopwatch.GetTimestamp)
+        {
+        }
+
+        public MobaBattleDiagnosticSnapshotCapture(
+            IBattleDiagnosticReadOnlySession session,
+            IBattleDiagnosticEventSnapshotSource events,
+            IBattleDiagnosticStateSnapshotSource state,
             IBattleDiagnosticTraceSnapshotSource trace,
             IBattleDiagnosticAttributeSnapshotSource attributes,
             IBattleDiagnosticBuffSnapshotSource buffs,
@@ -73,7 +94,7 @@ namespace AbilityKit.Demo.Moba.Services
             _session = session ?? throw new ArgumentNullException(nameof(session));
             _events = events ?? throw new ArgumentNullException(nameof(events));
             _state = state ?? throw new ArgumentNullException(nameof(state));
-            _trace = trace ?? throw new ArgumentNullException(nameof(trace));
+            _trace = trace;
             _attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
             _buffs = buffs ?? throw new ArgumentNullException(nameof(buffs));
             _tags = tags ?? throw new ArgumentNullException(nameof(tags));
@@ -83,7 +104,7 @@ namespace AbilityKit.Demo.Moba.Services
             var scope = _session.SessionInfo.Scope;
             EnsureScope(scope, _events.Scope, nameof(events));
             EnsureScope(scope, _state.Scope, nameof(state));
-            EnsureScope(scope, _trace.Scope, nameof(trace));
+            if (_trace != null) EnsureScope(scope, _trace.Scope, nameof(trace));
             EnsureScope(scope, _attributes.Scope, nameof(attributes));
             EnsureScope(scope, _buffs.Scope, nameof(buffs));
             EnsureScope(scope, _tags.Scope, nameof(tags));
@@ -95,7 +116,12 @@ namespace AbilityKit.Demo.Moba.Services
             var capturedAtTimestamp = _timestampProvider();
             var events = _events.CaptureEventSnapshot();
             var state = _state.CaptureStateSnapshot();
-            var trace = _trace.CaptureTraceSnapshot();
+            var trace = _trace != null
+                ? _trace.CaptureTraceSnapshot()
+                : new BattleDiagnosticTraceTrackSnapshot(
+                    0L,
+                    Array.Empty<BattleDiagnosticTraceNodeSummary>(),
+                    false);
             var attributes = _attributes.CaptureAttributeSnapshot();
             var buffs = _buffs.CaptureBuffSnapshot();
             var tags = _tags.CaptureTagSnapshot();

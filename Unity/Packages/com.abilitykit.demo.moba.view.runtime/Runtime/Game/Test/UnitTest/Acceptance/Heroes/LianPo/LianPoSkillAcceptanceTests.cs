@@ -304,6 +304,64 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void Skill10010301_ShouldCrossWallAndJumpWhileCasterHasSuperArmor()
+        {
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1001, attributeTemplateId: 1001))
+            {
+                harness.EnterGameAndWarmup(reason: "lian po skill 3 wall and self jump contract");
+                var actorId = harness.AssertPlayerActorBound();
+                var start = harness.AssertActorEntity(actorId).transform.Value.Position;
+                var collisionWorld = harness.World.Services.Resolve<ICollisionService>().World;
+                var wallCenter = new Vec3(start.X + 2.5f, start.Y, start.Z);
+                var wallHalfExtents = new Vec3(0.5f, 2f, 3f);
+                var wallTransform = new Transform3(wallCenter, Quat.Identity, Vec3.One);
+                var wallShape = ColliderShape.CreateAabb(-wallHalfExtents, wallHalfExtents);
+                collisionWorld.Add(in wallTransform, in wallShape, MobaCollisionLayers.WorldId);
+
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                var cast = skills.TryCastBySlot(actorId, slot: 3, aimPos: new Vec3(start.X + 6f, start.Y, start.Z), aimDir: Vec3.Right, targetActorId: 0);
+                Assert.IsTrue(cast.Success, $"Lian Po skill 3 should cast toward the far side of the wall. failReason={cast.FailReason}");
+
+                var maximumHeight = start.Y;
+                for (var i = 0; i < 24; i++)
+                {
+                    harness.Tick(1);
+                    var position = harness.AssertActorEntity(actorId).transform.Value.Position;
+                    if (position.Y > maximumHeight) maximumHeight = position.Y;
+                }
+
+                var end = harness.AssertActorEntity(actorId).transform.Value.Position;
+                Assert.Greater(end.X, wallCenter.X + wallHalfExtents.X + 0.5f, $"Lian Po skill 3 dash should cross the wall. start={start}, end={end}");
+                Assert.Greater(maximumHeight - start.Y, 0.5f, $"Lian Po skill 3 should activate its self jump despite caster super armor. peakY={maximumHeight}, start={start}");
+            }
+        }
+
+        [Test]
+        public void Skill10010301_ThirdStageShouldLiftTargetWithoutSuperArmor()
+        {
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1001, attributeTemplateId: 1001))
+            {
+                harness.EnterGameAndWarmup(reason: "lian po skill 3 target knockup contract");
+                var actorId = harness.AssertPlayerActorBound();
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f);
+                var targetStart = harness.AssertActorEntity(targetActorId).transform.Value.Position;
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                var cast = skills.TryCastBySlot(actorId, slot: 3, aimPos: targetStart, aimDir: Vec3.Right, targetActorId: 0);
+                Assert.IsTrue(cast.Success, $"Lian Po skill 3 should cast toward the target. failReason={cast.FailReason}");
+
+                var maximumHeight = targetStart.Y;
+                for (var i = 0; i < 72; i++)
+                {
+                    harness.Tick(1);
+                    var position = harness.AssertActorEntity(targetActorId).transform.Value.Position;
+                    if (position.Y > maximumHeight) maximumHeight = position.Y;
+                }
+
+                Assert.Greater(maximumHeight - targetStart.Y, 0.5f, $"The third stage should lift an unprotected target. peakY={maximumHeight}, start={targetStart}");
+            }
+        }
+
+        [Test]
         public void Skill10010000_PassiveRage_ShouldScaleStatsAndHealOutOfCombat()
         {
             using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1001, attributeTemplateId: 1001))

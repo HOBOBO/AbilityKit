@@ -12,7 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Acceptance\AbilityKit.Demo.Moba.Acceptance.csproj" />
     <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
-    <ProjectReference Include="..\AbilityKit.BattleFlow\AbilityKit.BattleFlow.csproj" />
+    <ProjectReference Include="..\AbilityKit.BattleScenario\AbilityKit.BattleScenario.csproj" />
   </ItemGroup>
 
   <ItemGroup>

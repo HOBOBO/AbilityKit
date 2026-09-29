@@ -5,6 +5,7 @@ using AbilityKit.Demo.Shooter;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Battle;
+using AbilityKit.Orleans.Grains.Battle.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplays.Tiny;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -198,6 +199,50 @@ public sealed class TinyBattleIntegrationTests
         Assert.Equal(2, push.Actors.Count);
         Assert.Equal(90, push.Actors.Single(actor => actor.ActorId == 2).Hp);
         Assert.Equal(42UL, push.WorldId);
+    }
+
+    /// <summary>
+    /// Tiny 的 adapter 在独立装配（无 InternalsVisibleTo）中实现可选能力接口，
+    /// 由 BattleLogicHostGrain 按接口模式匹配消费；该用例同时守住「装配外可实现」这条契约。
+    /// </summary>
+    [Fact]
+    public void OutOfTreeGameplaySession_ReportsInputDiagnostics()
+    {
+        var modules = ServerGameplayModuleCatalog.Default.WithModule(TinyServerGameplayModule.Create());
+        using var manager = new ServerBattleWorldManager(NullLogger.Instance, modules);
+        using var session = new TinyBattleRuntimeAdapter(manager).CreateSession("tiny-test");
+        var init = new BattleInitParams
+        {
+            WorldId = 7,
+            TickRate = 30,
+            Players = new List<PlayerInitInfo>
+            {
+                new() { PlayerId = 1, PosX = -1 },
+                new() { PlayerId = 2, PosX = 1 }
+            }
+        };
+        Assert.True(session.Start(init).Succeeded);
+
+        var diagnostics = Assert.IsAssignableFrom<IBattleRuntimeInputDiagnostics>(session);
+        var valid = new BattleInputItem
+        {
+            PlayerId = 1,
+            OpCode = TinyBattle.InputOpCode,
+            Payload = new TinyInput(0, 0, true).Encode()
+        };
+        var malformed = new BattleInputItem
+        {
+            PlayerId = 1,
+            OpCode = TinyBattle.InputOpCode,
+            Payload = new byte[] { 9, 9, 9 }
+        };
+
+        Assert.Equal(1, session.SubmitInputs(1, new[] { valid, malformed }));
+        Assert.Contains("accepted=1", diagnostics.LastInputSubmitDiagnostic, StringComparison.Ordinal);
+        Assert.Contains("rejected=1", diagnostics.LastInputSubmitDiagnostic, StringComparison.Ordinal);
+
+        Assert.Equal(1, session.SubmitInputs(2, new[] { valid }));
+        Assert.Equal(string.Empty, diagnostics.LastInputSubmitDiagnostic);
     }
 
     private static RoomSummary Summary() => new(

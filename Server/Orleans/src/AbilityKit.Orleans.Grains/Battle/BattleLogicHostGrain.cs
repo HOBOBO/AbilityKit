@@ -39,7 +39,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     // Cache the method-group once. Installing the stage sink is a lifecycle operation;
     // recreating it from every tick would add avoidable delegate churn to the hot path.
     private readonly Action<string, double> _shooterStageTimingSink;
-    private ShooterCommandAcknowledgement[] _cachedCommandAcknowledgements = Array.Empty<ShooterCommandAcknowledgement>();
+    private BattleCommandAcknowledgement[] _cachedCommandAcknowledgements = Array.Empty<BattleCommandAcknowledgement>();
     private long _consumedCommandSequenceVersion;
     private long _cachedCommandAcknowledgementVersion = -1;
 
@@ -985,8 +985,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return NormalizeStateSyncPush(
                 observerAwareSession.CreateStateSyncPush(_worldId, frame, isFullSnapshot, in observerContext),
                 frame,
-                isFullSnapshot,
-                attachCommandAcknowledgements: false);
+                isFullSnapshot);
         }
 
         return BuildStateSyncPush(frame, isFullSnapshot);
@@ -1008,8 +1007,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private StateSyncPush NormalizeStateSyncPush(
         StateSyncPush push,
         int frame,
-        bool isFullSnapshot,
-        bool attachCommandAcknowledgements = true)
+        bool isFullSnapshot)
     {
         if (push == null)
         {
@@ -1030,18 +1028,14 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             push.Timestamp = serverTicks;
         }
 
-        if (attachCommandAcknowledgements)
-        {
-            AttachConsumedCommandAcknowledgements(push);
-        }
         return push;
     }
 
-    private ShooterCommandAcknowledgement[] GetConsumedCommandAcknowledgements()
+    private BattleCommandAcknowledgement[] GetConsumedCommandAcknowledgements()
     {
         if (_consumedCommandSequences.Count == 0)
         {
-            return Array.Empty<ShooterCommandAcknowledgement>();
+            return Array.Empty<BattleCommandAcknowledgement>();
         }
 
         if (_cachedCommandAcknowledgementVersion == _consumedCommandSequenceVersion)
@@ -1049,48 +1043,16 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return _cachedCommandAcknowledgements;
         }
 
-        var acknowledgements = new ShooterCommandAcknowledgement[_consumedCommandSequences.Count];
+        var acknowledgements = new BattleCommandAcknowledgement[_consumedCommandSequences.Count];
         var index = 0;
         foreach (var pair in _consumedCommandSequences)
         {
-            acknowledgements[index++] = new ShooterCommandAcknowledgement((int)pair.Key, pair.Value);
+            acknowledgements[index++] = new BattleCommandAcknowledgement((int)pair.Key, pair.Value);
         }
 
         _cachedCommandAcknowledgements = acknowledgements;
         _cachedCommandAcknowledgementVersion = _consumedCommandSequenceVersion;
         return acknowledgements;
-    }
-
-    private void AttachConsumedCommandAcknowledgements(StateSyncPush push)
-    {
-        if (_consumedCommandSequences.Count == 0 || push.Payload == null || push.Payload.Length == 0)
-        {
-            return;
-        }
-
-        var acknowledgements = new ShooterCommandAcknowledgement[_consumedCommandSequences.Count];
-        var index = 0;
-        foreach (var pair in _consumedCommandSequences)
-        {
-            acknowledgements[index++] = new ShooterCommandAcknowledgement((int)pair.Key, pair.Value);
-        }
-
-        if (push.PayloadOpCode == ShooterOpCodes.Snapshot.PackedState
-            || push.PayloadOpCode == ShooterOpCodes.Snapshot.PackedStateDelta)
-        {
-            var snapshot = ShooterPackedSnapshotCodec.Deserialize(push.Payload);
-            snapshot.AcknowledgedCommands = acknowledgements;
-            push.Payload = ShooterPackedSnapshotCodec.Serialize(in snapshot);
-            return;
-        }
-
-        if (push.PayloadOpCode == ShooterOpCodes.Snapshot.PureState
-            || push.PayloadOpCode == ShooterOpCodes.Snapshot.PureStateDelta)
-        {
-            var snapshot = ShooterPureStateSyncCodec.Deserialize(push.Payload);
-            snapshot.AcknowledgedCommands = acknowledgements;
-            push.Payload = ShooterPureStateSyncCodec.Serialize(in snapshot);
-        }
     }
 
     private void SendStateSyncPush(IStateSyncObserverGrain observer, StateSyncPush push)
@@ -1283,7 +1245,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _inputBuffer.Clear();
         _inputAdmissionGuard.Clear();
         _consumedCommandSequences.Clear();
-        _cachedCommandAcknowledgements = Array.Empty<ShooterCommandAcknowledgement>();
+        _cachedCommandAcknowledgements = Array.Empty<BattleCommandAcknowledgement>();
         _consumedCommandSequenceVersion = 0;
         _cachedCommandAcknowledgementVersion = -1;
         _performanceDiagnostics.Clear();

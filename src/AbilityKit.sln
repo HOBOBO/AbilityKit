@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.3.11527.330
@@ -251,11 +251,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Scenario", "Abil
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Scenario.Tests", "AbilityKit.Scenario.Tests\AbilityKit.Scenario.Tests.csproj", "{5A2BFD59-B653-4049-AD92-D3ED70C239EF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.BattleFlow", "AbilityKit.BattleFlow\AbilityKit.BattleFlow.csproj", "{25439612-C2FC-4EFD-BF7F-CC579478DEC1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.BattleScenario", "AbilityKit.BattleScenario\AbilityKit.BattleScenario.csproj", "{25439612-C2FC-4EFD-BF7F-CC579478DEC1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.BattleFlow.Tests", "AbilityKit.BattleFlow.Tests\AbilityKit.BattleFlow.Tests.csproj", "{7218E402-1E25-45DD-B7AF-8AB1E0E33487}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.BattleScenario.Tests", "AbilityKit.BattleScenario.Tests\AbilityKit.BattleScenario.Tests.csproj", "{7218E402-1E25-45DD-B7AF-8AB1E0E33487}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Demo.Moba.BattleFlow.Runner", "AbilityKit.Demo.Moba.BattleFlow.Runner\AbilityKit.Demo.Moba.BattleFlow.Runner.csproj", "{66E574E1-2E49-48AE-826F-F953C595DA8A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Demo.Moba.BattleScenario.Runner", "AbilityKit.Demo.Moba.BattleScenario.Runner\AbilityKit.Demo.Moba.BattleScenario.Runner.csproj", "{66E574E1-2E49-48AE-826F-F953C595DA8A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Demo.Moba.Acceptance.LiveSim", "AbilityKit.Demo.Moba.Acceptance.LiveSim\AbilityKit.Demo.Moba.Acceptance.LiveSim.csproj", "{6954BE00-54CD-45A6-AA70-FE458371069B}"
 EndProject

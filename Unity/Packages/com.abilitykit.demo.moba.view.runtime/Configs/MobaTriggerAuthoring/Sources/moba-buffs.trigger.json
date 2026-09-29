@@ -1,0 +1,829 @@
+{
+  "schema": "abilitykit-trigger-authoring",
+  "version": "2.2",
+  "metadata": {
+    "author": "AbilityKit MOBA",
+    "description": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/buffs. Edit in the Trigger Authoring workspace."
+  },
+  "module": {
+    "moduleId": "buff.moba.buffs",
+    "displayName": "MOBA Buff 触发器",
+    "kind": "Buff",
+    "blackboard": [],
+    "conditionGroups": [],
+    "actionGroups": [],
+    "triggers": [
+      {
+        "id": 101,
+        "name": "Buff101-添加时日志",
+        "groupPath": "trigger_buff101_add",
+        "tags": [
+          "moba",
+          "buffs"
+        ],
+        "enabled": false,
+        "entryMode": "Event",
+        "event": "on_buff_added",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_lb8b95376dc861c3a",
+          "enabled": true,
+          "kind": "Action",
+          "type": "debug_log",
+          "arguments": [
+            {
+              "name": "message",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "Buff101 已添加！开始每秒扣血！",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "dump_args",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/buffs/trigger_buff101_add.json"
+      },
+      {
+        "id": 10101,
+        "name": "持续掉血触发器",
+        "groupPath": "trigger_10101",
+        "tags": [
+          "moba",
+          "buffs"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l2ba48c16a34c9e0a",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_ld2ac83d9a23ba0b9",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "触发器执行：持续扣血10点！",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_ld2a91dd9a238bd90",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "damage_value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 10.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "source_attack_ratio",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "formulaType",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "attrTypeId",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/buffs/trigger_10101.json"
+      },
+      {
+        "id": 20001,
+        "name": "Trigger_20001",
+        "groupPath": "trigger_20001",
+        "tags": [
+          "moba",
+          "buffs"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "skill.cast.complete",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l0f23b4912d8d4273",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_lcd810ca7e846d798",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "释放技能完成日志输出11111",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_lcd8472a7e849bac1",
+              "enabled": true,
+              "kind": "Action",
+              "type": "emit",
+              "arguments": [
+                {
+                  "name": "emitter_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 400001,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/buffs/trigger_20001.json"
+      },
+      {
+        "id": 20002,
+        "name": "Trigger_20002",
+        "groupPath": "trigger_20002",
+        "tags": [
+          "moba",
+          "buffs"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "skill.cast.complete",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": true,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_la26bd58aef0bad41",
+          "enabled": true,
+          "kind": "Action",
+          "type": "debug_log",
+          "arguments": [
+            {
+              "name": "message",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "监听别人释放技能完成日志输出22222",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "dump_args",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/buffs/trigger_20002.json"
+      },
+      {
+        "id": 20003,
+        "name": "Trigger_20003",
+        "groupPath": "trigger_20003",
+        "tags": [
+          "moba",
+          "buffs"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_ld7bfec460bdc9577",
+          "enabled": true,
+          "kind": "Action",
+          "type": "add_buff",
+          "arguments": [
+            {
+              "name": "buff_ids",
+              "value": {
+                "source": "Constant",
+                "type": "IntegerList",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [
+                  1
+                ],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/buffs/trigger_20003.json"
+      },
+      {
+        "id": 20004,
+        "name": "Trigger_20004",
+        "groupPath": "trigger_20004",
+        "tags": [
+          "moba",
+          "buffs"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l93bb3a4186074ea1",
+          "enabled": true,
+          "kind": "Action",
+          "type": "debug_log",
+          "arguments": [
+            {
+              "name": "message",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "被动日志输出11111",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "dump_args",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/buffs/trigger_20004.json"
+      },
+      {
+        "id": 20005,
+        "name": "Trigger_20005",
+        "groupPath": "trigger_20005",
+        "tags": [
+          "moba",
+          "buffs"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l4377a748a2aa71f3",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l709e80f47c7c4b18",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "碰撞回调日志",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l70a1e6f47c7f2e41",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "query_template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "damage_value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 50.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "log",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "crit",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_kind",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/buffs/trigger_20005.json"
+      }
+    ]
+  }
+}

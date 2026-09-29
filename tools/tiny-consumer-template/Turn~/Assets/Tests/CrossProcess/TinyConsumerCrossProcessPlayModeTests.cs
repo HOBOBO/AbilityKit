@@ -30,6 +30,9 @@ namespace TinyConsumer.Tests
             public int processId;
             public bool sceneRootReady;
             public bool authoritativeResult;
+            public bool predictedBeforeConfirmation;
+            public bool guestRestored;
+            public int authoritativeFrame;
             public bool returnedToLobby;
         }
 
@@ -49,7 +52,8 @@ namespace TinyConsumer.Tests
             var prefix = Environment.GetEnvironmentVariable("ABILITYKIT_TINY_UNITY_PREFIX");
             Assert.That(int.TryParse(Environment.GetEnvironmentVariable("ABILITYKIT_TINY_UNITY_PORT"),
                 out var port) && port > 0, Is.True);
-            Assert.That(mode, Is.EqualTo("State").Or.EqualTo("Turn"));
+            Assert.That(mode, Is.EqualTo("State").Or.EqualTo("Frame")
+                .Or.EqualTo("Hybrid").Or.EqualTo("Turn"));
             Assert.That(roomFile, Is.Not.Empty);
             Assert.That(evidenceDirectory, Is.Not.Empty);
             Assert.That(prefix, Is.Not.Empty);
@@ -65,12 +69,12 @@ namespace TinyConsumer.Tests
             if (mode == "Turn")
                 yield return RunTurn(role!, roomFile!, login, port, deadline.Token, evidence);
             else
-                yield return RunState(role!, roomFile!, login, port, deadline.Token, evidence);
+                yield return RunRealtime(role!, mode!, roomFile!, login, port, deadline.Token, evidence);
             File.WriteAllText(Path.Combine(evidenceDirectory!, role + ".json"),
                 JsonUtility.ToJson(evidence, true));
         }
 
-        private static IEnumerator RunState(string role, string roomFile, Login login,
+        private static IEnumerator RunRealtime(string role, string mode, string roomFile, Login login,
             int port, CancellationToken token, Evidence evidence)
         {
             SceneManager.LoadScene("ConsumerLobby", LoadSceneMode.Single);
@@ -92,7 +96,8 @@ namespace TinyConsumer.Tests
             var session = root!.Session!;
             if (role == "owner")
             {
-                yield return Await(session.CreateRoomAsync(TinySyncMode.State, token));
+                yield return Await(session.CreateRoomAsync(
+                    (TinySyncMode)Enum.Parse(typeof(TinySyncMode), mode), token));
                 PublishRoom(roomFile, session.RoomId);
             }
             else
@@ -111,7 +116,13 @@ namespace TinyConsumer.Tests
             evidence.battleId = session.BattleId;
             yield return ReadyBarrier(roomFile, role, token);
             if (role == "owner")
-                yield return Await(session.SubmitInputAsync(new TinyInput(1, 0, true), token));
+            {
+                var submission = session.SubmitInputAsync(new TinyInput(1, 0, true), token);
+                evidence.predictedBeforeConfirmation = session.Telemetry.LocalPredictions > 0;
+                Assert.That(evidence.predictedBeforeConfirmation,
+                    Is.EqualTo(mode == "Hybrid"));
+                yield return Await(submission);
+            }
             yield return WaitUntil(() =>
             {
                 var guestId = role == "guest" ? session.PlayerId :
@@ -120,6 +131,34 @@ namespace TinyConsumer.Tests
                 return actor != null && Mathf.Abs(actor.localScale.y - 0.9f) < 0.0001f;
             }, () => root.LastError, token);
             evidence.authoritativeResult = true;
+            evidence.authoritativeFrame = session.Telemetry.AuthoritativeFrame;
+            yield return ReadyBarrier(roomFile + ".converged", role, token);
+            if (role == "guest" && mode != "State")
+            {
+                SceneManager.LoadScene("ConsumerLobby", LoadSceneMode.Single);
+                yield return null;
+                lobby = UnityEngine.Object.FindObjectOfType<TinyConsumerLobby>();
+                Assert.That(lobby, Is.Not.Null);
+                lobby!.Enter(Launch(login, port));
+                root = null;
+                until = Time.realtimeSinceStartup + 20f;
+                while (Time.realtimeSinceStartup < until)
+                {
+                    root = UnityEngine.Object.FindObjectOfType<TinyGameplayRoot>();
+                    if (root != null && root.IsReady && root.Session?.BattleId == evidence.battleId &&
+                        root.Session.CanSubmitInput) break;
+                    if (root != null && root.LastError.Length != 0) Assert.Fail(root.LastError);
+                    yield return null;
+                }
+                Assert.That(root?.Session?.RoomId, Is.EqualTo(evidence.roomId));
+                Assert.That(root?.Session?.BattleId, Is.EqualTo(evidence.battleId));
+                Assert.That(root?.Session?.CanSubmitInput, Is.True);
+                var actor = root!.transform.Find("Tiny Actor " + session.PlayerId);
+                Assert.That(actor, Is.Not.Null);
+                Assert.That(Mathf.Abs(actor!.localScale.y - 0.9f), Is.LessThan(0.0001f));
+                evidence.guestRestored = true;
+            }
+            yield return ReadyBarrier(roomFile + ".restored", role, token);
             root.SendMessage("ReturnToLobbyAsync");
             yield return WaitUntil(() => SceneManager.GetActiveScene().name == "ConsumerLobby",
                 () => root.LastError, token);

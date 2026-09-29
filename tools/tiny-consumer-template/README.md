@@ -11,6 +11,9 @@ The fixture does not perform authentication. A real project obtains a valid
 `DemoMultiplayerLaunchRequest` from its own login flow, then passes it to `Enter`.
 The server must register `TinyServerGameplayModule.Create()` and expose the Room
 Gateway operations used by Tiny.
+For a movable local server, generate `host/` and `gateway/` with
+`tools/publish-tiny-server.ps1 -OutputPath <directory>`. The published Host
+registers Tiny Turn by default; `AbilityKit__Tiny__EnableTurn=false` disables it.
 The package's `Documentation~/IntegrationGuide.md` describes the install and
 project handoff steps without requiring this repository's scripts.
 
@@ -31,7 +34,9 @@ checks the real Gateway battle and return path. The default Standalone
 project does not include this lobby or depend on Turn.
 
 The full verification gate also launches independent owner and guest headless
-Unity processes for State and Turn, each with its own generated project and
-`Library`. Their `unity-cross-State` and `unity-cross-Turn` directories contain
+Unity processes for Hybrid, Frame, State and Turn, each with its own generated
+project and `Library`. Their `unity-cross-{Mode}` directories contain
 per-process XML, logs, and JSON proving the shared room, authoritative result,
-and return to each lobby. This does not evaluate rendered image quality.
+and return to each lobby. Hybrid checks prediction before confirmation; Frame
+and Hybrid guests restore their baseline after reentering the scene. This does
+not evaluate rendered image quality.

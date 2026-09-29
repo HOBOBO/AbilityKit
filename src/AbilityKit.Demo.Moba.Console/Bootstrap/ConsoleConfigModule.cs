@@ -22,13 +22,13 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
     {
         private readonly string _resourcesDir;
         private readonly string _lubanResourcesDir;
-        private readonly string _triggerPlansDir;
+        private readonly string _triggerPlansPath;
 
-        public ConsoleConfigModule(string resourcesDir = "luban/moba", string lubanResourcesDir = "luban/moba", string triggerPlansDir = "luban/ability/triggers")
+        public ConsoleConfigModule(string resourcesDir = "luban/moba", string lubanResourcesDir = "luban/moba", string triggerPlansPath = "luban/ability/ability_trigger_plans.json")
         {
             _resourcesDir = resourcesDir;
             _lubanResourcesDir = lubanResourcesDir;
-            _triggerPlansDir = triggerPlansDir;
+            _triggerPlansPath = triggerPlansPath;
         }
 
         public void Configure(WorldContainerBuilder builder)
@@ -93,23 +93,21 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 {
                     var adapter = new TextAssetLoaderAdapter(textAssetLoader);
                     var directoryLoader = new TriggerPlanDirectoryLoader(adapter);
-                    var directories = new[] { _triggerPlansDir, "luban/ability/rules" }
-                        .Where(d => !string.IsNullOrEmpty(d))
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .ToArray();
+                    db.Load(adapter, _triggerPlansPath);
 
                     var options = new TriggerPlanDirectoryLoadOptions { CueFactory = db.CueFactory };
-                    var loadedDb = directoryLoader.LoadDirectories(directories, "**/*.json", options);
+                    var loadedDb = directoryLoader.LoadDirectories(new[] { "luban/ability/rules" }, "**/*.json", options);
                     if (loadedDb?.Records != null)
                     {
                         db.MergeFrom(loadedDb, replaceExisting: true);
                     }
 
-                    Platform.Log.System($"[ConsoleConfigModule] Loaded {db.Records?.Count ?? 0} trigger plans from configured directories");
+                    Platform.Log.System($"[ConsoleConfigModule] Loaded {db.Records?.Count ?? 0} trigger plans from editor aggregate and rules");
                 }
                 catch (Exception ex)
                 {
                     Platform.Log.Error($"[ConsoleConfigModule] Failed to load TriggerPlanJsonDatabase: {ex.Message}");
+                    throw;
                 }
 
                 return db;

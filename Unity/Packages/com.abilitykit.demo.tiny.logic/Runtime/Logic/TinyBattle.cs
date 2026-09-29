@@ -36,6 +36,8 @@ namespace AbilityKit.Demo.Tiny
 
     public sealed class TinyBattle
     {
+        public const string AssetKey = "tiny:arena";
+        public const string RulesKey = "tiny:rules.v1";
         public const int InputOpCode = 1;
         public const int MaxHp = 100;
         public const int AttackDamage = 10;

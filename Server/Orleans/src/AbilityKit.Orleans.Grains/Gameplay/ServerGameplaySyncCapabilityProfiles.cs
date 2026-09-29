@@ -8,12 +8,6 @@ namespace AbilityKit.Orleans.Grains.Gameplay;
 
 internal static class ServerGameplaySyncCapabilityProfiles
 {
-    public static ServerSyncCapabilityDefinition ForMoba(BattleSyncStartOptions? _, string __)
-    {
-        return new ServerSyncCapabilityDefinition(
-            nameof(NetworkSyncModel.Lockstep), NetworkSyncProfiles.Lockstep, 0, 1);
-    }
-
     public static ServerSyncCapabilityDefinition ForShooter(
         BattleSyncStartOptions? syncOptions,
         string templateId)

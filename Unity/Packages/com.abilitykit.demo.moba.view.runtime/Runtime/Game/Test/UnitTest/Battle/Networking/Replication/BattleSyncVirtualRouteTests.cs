@@ -14,7 +14,7 @@ using AbilityKit.Game.Flow;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
-using AbilityKit.BattleFlow;
+using AbilityKit.BattleScenario;
 using AbilityKit.Demo.Moba.EnvironmentModel;
 using NUnit.Framework;
 
@@ -46,16 +46,16 @@ assert-sync wasReplaying eq true
 assert-sync replaying eq false
 assert-sync finalHash eq 6
 ";
-            var headlessScenario = BattleFlowCompiler.Compile("shared-dsl",
-                MobaBattleFlowDslParser.Parse("sync-backend headless\n" + dsl));
-            var unityScenario = BattleFlowCompiler.Compile("shared-dsl",
-                MobaBattleFlowDslParser.Parse("sync-backend unity-route\n" + dsl));
-            var headless = MobaBattleFlowPredictionScenarioRunner.Run(headlessScenario);
+            var headlessScenario = BattleScenarioCompiler.Compile("shared-dsl",
+                MobaBattleScenarioDslParser.Parse("sync-backend headless\n" + dsl));
+            var unityScenario = BattleScenarioCompiler.Compile("shared-dsl",
+                MobaBattleScenarioDslParser.Parse("sync-backend unity-route\n" + dsl));
+            var headless = MobaBattleScenarioPredictionRunner.Run(headlessScenario);
             var backend = new UnityRouteMobaPredictionScenarioBackend();
-            var first = MobaBattleFlowPredictionScenarioRunner.Run(unityScenario, backend);
-            var second = MobaBattleFlowPredictionScenarioRunner.Run(unityScenario, backend);
-            var verdict = MobaBattleFlowPredictionScenarioRunner.Verify(
-                ((MobaBattleFlowAssertions)unityScenario.Expectations).Prediction, first);
+            var first = MobaBattleScenarioPredictionRunner.Run(unityScenario, backend);
+            var second = MobaBattleScenarioPredictionRunner.Run(unityScenario, backend);
+            var verdict = MobaBattleScenarioPredictionRunner.Verify(
+                ((MobaBattleScenarioAssertions)unityScenario.Expectations).Prediction, first);
 
             Assert.That(verdict.Passed, Is.True, string.Join("\n", verdict.Failures));
             CollectionAssert.AreEqual(headless.StateTrace, first.StateTrace);

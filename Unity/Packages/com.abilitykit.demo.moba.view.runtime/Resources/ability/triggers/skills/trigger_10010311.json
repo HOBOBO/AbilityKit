@@ -18,7 +18,8 @@
           "apply_to_caster": true,
           "landing_trigger_ids": [
             10010312
-          ]
+          ],
+          "continuous_tag_template_id": 10000001
         },
         {
           "type": "debug_log",

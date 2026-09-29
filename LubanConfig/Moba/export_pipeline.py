@@ -196,23 +196,15 @@ def build_ability_documents():
     return documents
 
 
-def compile_trigger_aggregate(documents):
-    trigger_dir = STAGE / "ability/triggers"
-    if trigger_dir.exists():
-        shutil.rmtree(trigger_dir)
-    trigger_dir.mkdir(parents=True)
-    triggers = {name: content for name, content in documents.items()
-                if name.startswith("ability/triggers/")}
-    if not triggers:
-        raise ValueError("ability_nodes: no trigger plan sources")
-    for name, content in triggers.items():
-        path = STAGE / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
-    output = STAGE / AGGREGATE
-    subprocess.run(["dotnet", "run", "--project", str(ROOT / "tools/MobaTriggerAggregate"),
-                    "--", str(trigger_dir), str(output)], cwd=ROOT, check=True)
-    documents[AGGREGATE] = output.read_text(encoding="utf-8")
+def verify_editor_trigger_publication():
+    published = [root / AGGREGATE for root in (RESOURCES, CONSOLE)]
+    plans = [json.loads(path.read_text(encoding="utf-8-sig")) for path in published]
+    if plans[0] != plans[1]:
+        raise ValueError("editor trigger aggregate differs between Unity and Console")
+    triggers = plans[0].get("Triggers", [])
+    ids = [trigger["TriggerId"] for trigger in triggers]
+    if not ids or len(ids) != len(set(ids)):
+        raise ValueError("editor trigger aggregate is empty or contains duplicate IDs")
 
 
 def verify_documents(documents):
@@ -232,7 +224,10 @@ def validate_references():
     characters = rows("characters")
     skills = {row["Id"]: row for row in rows("skills")}
     passives = {row["Id"] for row in rows("passive_skills")}
-    flows = {row["Id"] for row in rows("skill_flows")}
+    flow_path = RESOURCES / "moba/skill_flows.json"
+    flows = {row["Id"] for row in json.loads(flow_path.read_text(encoding="utf-8-sig"))}
+    if len(flows) == 0:
+        raise ValueError("Pipeline skill_flows.json is empty")
     attributes = {row["Id"] for row in rows("attribute_templates")}
     models = {row["Id"] for row in rows("models")}
     for hero in characters:
@@ -306,6 +301,15 @@ def obsolete_document_artifacts():
     return files
 
 
+def obsolete_flow_artifacts():
+    files = [root / "moba/skill_flows.json" for root in (UNITY, CONSOLE)]
+    files += [root / "moba_bytes/skill_flows.bytes" for root in (UNITY, CONSOLE)]
+    files += [UNITY / "moba/skill_flows.json.meta", UNITY / "moba_bytes/skill_flows.bytes.meta"]
+    files += [CODE / name for name in ("DRSkillFlows.cs", "SkillFlows.cs")]
+    files += [CODE / name for name in ("DRSkillFlows.cs.meta", "SkillFlows.cs.meta")]
+    return files
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
@@ -331,17 +335,22 @@ def main():
     validate_references()
     if "ability_nodes" in tables:
         documents = build_ability_documents()
+        documents = {name: content for name, content in documents.items()
+                     if not name.startswith("ability/triggers/")}
         for name in roots:
             rows = json.loads((STAGE / "normalized-json" / f"{name}.json").read_text(encoding="utf-8"))
             documents[f"moba/{name}.json"] = json.dumps(
                 restored_table(name, rows, roots), ensure_ascii=False, indent=2) + "\n"
-        compile_trigger_aggregate(documents)
     else:
         documents = build_resource_documents()
     if args.check_baseline:
         verify_documents(documents)
     if args.check_published:
         check_published(tables, documents)
+        verify_editor_trigger_publication()
+        for path in obsolete_flow_artifacts():
+            if path.exists():
+                raise ValueError(f"obsolete Luban skill flow artifact remains: {path}")
         if "ability_nodes" in tables:
             for path in obsolete_document_artifacts():
                 if path.exists():
@@ -367,6 +376,8 @@ def main():
         if "ability_nodes" in tables:
             for path in obsolete_document_artifacts():
                 path.unlink(missing_ok=True)
+        for path in obsolete_flow_artifacts():
+            path.unlink(missing_ok=True)
         print("published Unity and Console Luban artifacts")
     else:
         print(f"validated in {STAGE}; pass --apply to publish")

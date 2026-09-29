@@ -219,6 +219,6 @@ public sealed class LiveSimVirtualNetworkTimelineRunner
     {
         if (_simulationAtMs > timeoutMs + 1e-6d)
             throw new TimeoutException(
-                $"BattleFlow simulation exceeded maxDurationMs={timeoutMs} at t={_simulationAtMs:F3}ms.");
+                $"BattleScenario simulation exceeded maxDurationMs={timeoutMs} at t={_simulationAtMs:F3}ms.");
     }
 }

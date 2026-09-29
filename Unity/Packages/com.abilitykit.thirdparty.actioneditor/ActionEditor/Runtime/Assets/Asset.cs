@@ -85,7 +85,9 @@ namespace NBC.ActionEditor
                 }
             }
 
-            Length = t;
+            Length = this is IActionTimelineRuntimeAsset runtimeAsset && runtimeAsset.ExportMobaRuntime
+                ? Mathf.Max(Length, t)
+                : t;
         }
 
         public void DeleteGroup(Group group)

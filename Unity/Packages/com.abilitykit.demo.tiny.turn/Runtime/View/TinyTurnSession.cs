@@ -7,92 +7,106 @@ using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Network.Room;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Sync;
-using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Demo.Tiny.Turn.View
 {
-    public sealed class TinyTurnSession : IDisposable
+    public interface ITinyTurnGateway : IRoomGatewayBattleConnection
     {
-        private readonly DemoMultiplayerLaunchRequest _launch;
+        event Action<WireStateSyncSnapshotPush> SnapshotReceived;
+        Task<WireSubmitBattleInputRes> SubmitActionAsync(WireSubmitBattleInputReq request,
+            TimeSpan timeout, CancellationToken token);
+        Task<WireRequestFullStateSyncRes> RequestFullSnapshotAsync(WireRequestFullStateSyncReq request,
+            TimeSpan timeout, CancellationToken token);
+    }
+
+    internal sealed class TinyTurnGateway : ITinyTurnGateway
+    {
         private readonly RoomGatewayConnectionSession _connection;
-        private readonly RoomGatewaySessionFlow _flow;
-        private readonly RoomGatewayCommandIdLedger _commands = new RoomGatewayCommandIdLedger();
-        private readonly RoomGatewayFullSnapshotCursor _cursor = new RoomGatewayFullSnapshotCursor();
-        private readonly RoomGatewayLoadingStage _loading;
+
+        public TinyTurnGateway(RoomGatewayConnectionSession connection) => _connection = connection;
+        public IRoomGatewaySessionClient Rooms => _connection.RoomClient;
+        public RoomGatewayConnectionState ConnectionState => _connection.Recovery.State;
+        public long ConnectionGeneration => _connection.Recovery.Generation;
+        public event Action<WireStateSyncSnapshotPush> SnapshotReceived
+        {
+            add => _connection.RoomClient.StateSyncSnapshotReceived += value;
+            remove => _connection.RoomClient.StateSyncSnapshotReceived -= value;
+        }
+        public void Tick(float deltaTime) => _connection.Tick(deltaTime);
+        public bool CompleteRestore(long generation) => _connection.Recovery.CompleteRestore(generation);
+        public Task<WireSubmitBattleInputRes> SubmitActionAsync(WireSubmitBattleInputReq request,
+            TimeSpan timeout, CancellationToken token) =>
+            _connection.RoomClient.SubmitBattleInputAsync(request, timeout, token);
+        public Task<WireRequestFullStateSyncRes> RequestFullSnapshotAsync(WireRequestFullStateSyncReq request,
+            TimeSpan timeout, CancellationToken token) =>
+            _connection.RoomClient.RequestFullStateSyncAsync(request, timeout, token);
+        public void Dispose() => _connection.Dispose();
+    }
+
+    /// <summary>
+    /// Tiny 回合制会话：房间生命周期与恢复纪律由 <see cref="RoomGatewayBattleSessionBase"/> 提供，
+    /// 本类只保留回合所有权（行动确认、序号续号）与权威快照到 <see cref="TinyTurnState"/> 的投影。
+    /// </summary>
+    public sealed class TinyTurnSession : RoomGatewayBattleSessionBase
+    {
+        private const int CommandSequenceResumeAttempts = 3;
+        private const float ActionStatusUnknownSeconds = 5f;
+        private readonly ITinyTurnGateway _connection;
         private readonly object _snapshotGate = new object();
         private WireStateSyncSnapshotPush? _latest;
-        private string _roomId = string.Empty;
-        private string _battleId = string.Empty;
-        private ulong _worldId;
-        private uint _playerId;
         private ulong _commandSequence;
-        private long _connectionGeneration;
-        private long _bindingRevision;
-        private bool _awaitingBaseline;
         private bool _connectionUnavailable;
-        private bool _disposed;
         private int _pendingTurn = -1;
         private ulong _pendingSequence;
         private float _pendingElapsed;
 
-        private TinyTurnSession(DemoMultiplayerLaunchRequest launch,
-            RoomGatewayConnectionSession connection)
+        public TinyTurnSession(DemoMultiplayerLaunchRequest launch, ITinyTurnGateway connection)
+            : base(ToIdentity(launch), connection, PrepareAssetsAsync)
         {
-            _launch = launch;
             _connection = connection;
-            _flow = new RoomGatewaySessionFlow(connection.RoomClient);
-            _loading = new RoomGatewayLoadingStage(_flow, _commands, PrepareAssetsAsync);
-            connection.RoomClient.StateSyncSnapshotReceived += OnSnapshot;
+            connection.SnapshotReceived += OnSnapshot;
         }
 
-        public string RoomId => _roomId;
-        public string BattleId => _battleId;
-        public uint PlayerId => _playerId;
-        public RoomGatewaySnapshot? Room { get; private set; }
         public TinyTurnState? State { get; private set; }
-        public string Status { get; private set; } = "Connected";
-        public bool CanStart => Room?.CanStart == true && Room.OwnerAccountId == _launch.AccountId;
-        public bool CanAct => State.HasValue && !_awaitingBaseline &&
-            State.Value.WinnerId == 0 && State.Value.CurrentPlayerId == _playerId &&
+
+        public bool CanAct => State.HasValue && !WaitingForBaseline &&
+            State.Value.WinnerId == 0 && State.Value.CurrentPlayerId == PlayerId &&
             _pendingTurn < 0 &&
-            _connection.Recovery.State == RoomGatewayConnectionState.Connected;
+            _connection.ConnectionState == RoomGatewayConnectionState.Connected;
+
         public bool ActionPending => _pendingTurn >= 0;
-        public int SnapshotRequestCount { get; private set; }
-        public bool NeedsFullSnapshot => _battleId.Length != 0 &&
-            (_awaitingBaseline || ActionPending && _pendingElapsed >= 2f) &&
+
+        public int SnapshotRequestCount => FullSnapshotRequestCount;
+
+        public bool NeedsFullSnapshot => BattleId.Length != 0 &&
+            (WaitingForBaseline || ActionPending && _pendingElapsed >= 2f) &&
             !ConnectionUnavailable;
-        public bool NeedsConnectionRestore =>
-            _connection.Recovery.State == RoomGatewayConnectionState.RestoreRequired &&
-            _connection.Recovery.Generation != _connectionGeneration;
-        public bool ConnectionUnavailable =>
-            _connection.Recovery.State != RoomGatewayConnectionState.Connected;
 
         public static async Task<TinyTurnSession> ConnectAsync(
             DemoMultiplayerLaunchRequest launch, CancellationToken token)
         {
             var connection = await RoomGatewayConnectionSession.ConnectAsync(
                 launch.Host, launch.Port, timeout: launch.Timeout, cancellationToken: token);
-            return new TinyTurnSession(launch, connection);
+            return new TinyTurnSession(launch, new TinyTurnGateway(connection));
         }
 
-        public void Tick(float deltaTime)
+        protected override void OnTick(float deltaTime)
         {
-            _connection.Tick(deltaTime);
             if (ConnectionUnavailable)
             {
-                if (!_connectionUnavailable) _bindingRevision++;
+                if (!_connectionUnavailable) InvalidatePendingCommands();
                 _connectionUnavailable = true;
                 lock (_snapshotGate) _latest = null;
                 State = null;
-                _awaitingBaseline = true;
+                BeginBaselineWaiting();
                 return;
             }
             _connectionUnavailable = false;
             if (ActionPending)
             {
                 _pendingElapsed += Math.Max(0f, deltaTime);
-                if (_pendingElapsed >= 5f) Status = "Action status unknown - retry or wait";
+                if (_pendingElapsed >= ActionStatusUnknownSeconds) Status = "Action status unknown - retry or wait";
             }
             WireStateSyncSnapshotPush snapshot;
             lock (_snapshotGate)
@@ -101,16 +115,16 @@ namespace AbilityKit.Demo.Tiny.Turn.View
                 snapshot = _latest.Value;
                 _latest = null;
             }
-            if (_battleId.Length == 0 || snapshot.WorldId != _worldId ||
+            if (BattleId.Length == 0 || snapshot.WorldId != BattleWorldId ||
                 snapshot.PayloadOpCode != TinyTurnBattle.SnapshotOpCode ||
                 !snapshot.IsFullSnapshot || snapshot.Payload == null ||
-                !_cursor.TryAccept(in snapshot)) return;
+                !SnapshotCursor.TryAccept(in snapshot)) return;
             var state = TinyTurnStateCodec.Decode(snapshot.Payload);
             if (state.Frame != snapshot.Frame) throw new InvalidOperationException("Tiny Turn snapshot frame mismatch.");
             State = state;
-            _awaitingBaseline = false;
+            ClearBaselineWaiting();
             if (_pendingTurn >= 0 && (state.Turn > _pendingTurn ||
-                state.CurrentPlayerId != _playerId || state.WinnerId != 0))
+                state.CurrentPlayerId != PlayerId || state.WinnerId != 0))
             {
                 _pendingTurn = -1;
                 _pendingSequence = 0;
@@ -120,106 +134,7 @@ namespace AbilityKit.Demo.Tiny.Turn.View
                 ActionPending ? PendingStatus() : "Battle";
         }
 
-        public async Task RestoreAsync(CancellationToken token) =>
-            await RestoreCoreAsync(token);
-
-        private async Task<bool> RestoreCoreAsync(CancellationToken token)
-        {
-            var generation = _connection.Recovery.Generation;
-            var revision = _bindingRevision;
-            var restored = await _flow.RestoreWithoutPlayerIdAsync(
-                _launch.SessionToken, _launch.Region, _launch.ServerId,
-                timeout: _launch.Timeout, cancellationToken: token);
-            if (!IsCurrent(generation, revision)) return false;
-            if (restored.RestoreStatus == RoomGatewaySessionRestoreStatus.InvalidSession)
-                throw new UnauthorizedAccessException(restored.Message);
-            if (restored.CanRetry) throw new TimeoutException(restored.Message);
-            if (restored.RestoreStatus == RoomGatewaySessionRestoreStatus.Failed)
-                throw new InvalidOperationException(restored.Message);
-            if (string.IsNullOrEmpty(restored.RoomId) || restored.Snapshot == null)
-            {
-                BindRoom(string.Empty);
-                Status = "Connected";
-                return true;
-            }
-            if (_roomId != restored.RoomId) BindRoom(restored.RoomId);
-            revision = _bindingRevision;
-            Room = restored.Snapshot;
-            Status = ActionPending ? PendingStatus() : Room.Phase.ToString();
-            if (Room.Phase == RoomGatewaySessionPhase.InBattle)
-                await SubscribeAsync(Room, token);
-            return IsCurrent(generation, revision);
-        }
-
-        public async Task RecoverConnectionAsync(CancellationToken token)
-        {
-            if (!NeedsConnectionRestore) return;
-            var generation = _connection.Recovery.Generation;
-            if (await RestoreCoreAsync(token) &&
-                _connection.Recovery.CompleteRestore(generation))
-                _connectionGeneration = generation;
-        }
-
-        public async Task CreateRoomAsync(CancellationToken token)
-        {
-            if (_roomId.Length != 0) throw new InvalidOperationException("Leave the current room first.");
-            var result = await _connection.RoomClient.CreateRoomAsync(new RoomGatewayCreateRequest(
-                _launch.SessionToken, _launch.Region, _launch.ServerId,
-                TinyTurnBattle.RoomType, "Tiny Turn", false, 2,
-                commandId: _commands.GetOrCreate("create-room")), cancellationToken: token);
-            if (!result.Success) throw new InvalidOperationException(result.Message);
-            _commands.Complete("create-room");
-            await JoinRoomAsync(result.RoomId, token);
-        }
-
-        public async Task JoinRoomAsync(string roomId, CancellationToken token)
-        {
-            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("Room ID is required.", nameof(roomId));
-            var result = await _connection.RoomClient.JoinRoomAsync(new RoomGatewayJoinRequest(
-                _launch.SessionToken, _launch.Region, _launch.ServerId, roomId.Trim()),
-                cancellationToken: token);
-            if (!result.Success) throw new InvalidOperationException(result.Message);
-            BindRoom(result.RoomId ?? roomId.Trim());
-            Status = "Joined";
-        }
-
-        public async Task SetReadyAsync(CancellationToken token)
-        {
-            var result = await _connection.RoomClient.SetReadyAsync(new RoomGatewayReadyRequest(
-                _launch.SessionToken, _roomId, true), cancellationToken: token);
-            if (!result.Success) throw new InvalidOperationException(result.Message);
-            Status = "Ready";
-        }
-
-        public async Task BeginLoadingAsync(CancellationToken token)
-        {
-            var result = await _flow.BeginLoadingAsync(new RoomGatewayBeginLoadingRequest(
-                _launch.SessionToken, _roomId, null, _commands.GetOrCreate("begin-loading")),
-                cancellationToken: token);
-            if (!result.Success) throw new InvalidOperationException(result.Message);
-            _commands.Complete("begin-loading");
-            Status = "Loading";
-        }
-
-        public async Task PollAsync(CancellationToken token)
-        {
-            if (_roomId.Length == 0) return;
-            var roomId = _roomId;
-            var generation = _connection.Recovery.Generation;
-            var revision = _bindingRevision;
-            var result = await _flow.GetSnapshotAsync(_launch.SessionToken, roomId,
-                cancellationToken: token);
-            if (!IsCurrent(generation, revision) || roomId != _roomId) return;
-            if (!result.Success || result.Snapshot == null)
-                throw new InvalidOperationException(result.Message);
-            Room = result.Snapshot;
-            Status = ActionPending ? PendingStatus() : Room.Phase.ToString();
-            await _loading.AdvanceAsync(_launch.SessionToken, Room, token);
-            if (!IsCurrent(generation, revision) || roomId != _roomId) return;
-            if (Room.Phase == RoomGatewaySessionPhase.InBattle &&
-                (_battleId != Room.BattleId || _worldId != Room.WorldId))
-                await SubscribeAsync(Room, token);
-        }
+        public Task CreateRoomAsync(CancellationToken token) => CreateRoomCoreAsync(token);
 
         public async Task SubmitActionAsync(CancellationToken token)
         {
@@ -228,10 +143,17 @@ namespace AbilityKit.Demo.Tiny.Turn.View
             _pendingElapsed = 0f;
             try
             {
-                for (var attempt = 0; attempt <= TinyTurnBattle.MaxHp; attempt++)
+                var generation = _connection.ConnectionGeneration;
+                var revision = CurrentBindingRevision;
+                var roomId = RoomId;
+                var battleId = BattleId;
+                for (var attempt = 0; attempt < CommandSequenceResumeAttempts; attempt++)
                 {
                     _pendingSequence = ++_commandSequence;
                     var result = await SendActionAsync(_pendingSequence, token);
+                    token.ThrowIfCancellationRequested();
+                    if (!IsCurrentCommand(generation, revision, roomId) || battleId != BattleId)
+                        return;
                     if (result.Success && result.Status == "Deduplicated") continue;
                     if (!result.Success)
                     {
@@ -248,7 +170,7 @@ namespace AbilityKit.Demo.Tiny.Turn.View
             }
             catch
             {
-                if (_pendingTurn >= 0) Status = "Action status unknown";
+                if (_pendingTurn >= 0 && !IsDisposed) Status = "Action status unknown";
                 throw;
             }
         }
@@ -257,101 +179,101 @@ namespace AbilityKit.Demo.Tiny.Turn.View
         {
             if (!ActionPending || ConnectionUnavailable || _pendingSequence == 0)
                 throw new InvalidOperationException("No pending action can be retried.");
+            var generation = _connection.ConnectionGeneration;
+            var revision = CurrentBindingRevision;
+            var roomId = RoomId;
+            var battleId = BattleId;
             var result = await SendActionAsync(_pendingSequence, token);
+            token.ThrowIfCancellationRequested();
+            if (!IsCurrentCommand(generation, revision, roomId) || battleId != BattleId) return;
             if (!result.Success) throw new InvalidOperationException(result.Message);
             Status = PendingStatus();
         }
 
-        public async Task RequestFullSnapshotAsync(string reason, CancellationToken token)
+        public Task RequestFullSnapshotAsync(string reason, CancellationToken token)
         {
-            if (_battleId.Length == 0 || _disposed ||
-                _connection.Recovery.State == RoomGatewayConnectionState.Reconnecting ||
-                _connection.Recovery.State == RoomGatewayConnectionState.Exhausted)
-                throw new InvalidOperationException("Tiny Turn battle is not ready for a snapshot.");
-            var generation = _connection.Recovery.Generation;
-            var revision = _bindingRevision;
-            var roomId = _roomId;
-            SnapshotRequestCount++;
-            var response = await _connection.RoomClient.RequestFullStateSyncAsync(
-                new WireRequestFullStateSyncReq
-                {
-                    SessionToken = _launch.SessionToken, BattleId = _battleId,
-                    RoomId = roomId, WorldId = _worldId, Reason = reason
-                }, _launch.Timeout, token);
-            if (!IsCurrent(generation, revision) || roomId != _roomId) return;
-            if (!response.Success || !response.Accepted)
-                throw new InvalidOperationException(response.Message);
+            if (_connection.ConnectionState == RoomGatewayConnectionState.Reconnecting ||
+                _connection.ConnectionState == RoomGatewayConnectionState.Exhausted)
+                throw new InvalidOperationException(BattleNotSubscribedMessage);
+            return RequestFullSnapshotCoreAsync(reason, token);
         }
 
-        private string PendingStatus() => _pendingElapsed >= 5f ?
+        private string PendingStatus() => _pendingElapsed >= ActionStatusUnknownSeconds ?
             "Action status unknown - retry or wait" : "Waiting for authoritative turn";
 
         private Task<WireSubmitBattleInputRes> SendActionAsync(ulong sequence, CancellationToken token) =>
-            _connection.RoomClient.SubmitBattleInputAsync(new WireSubmitBattleInputReq
+            _connection.SubmitActionAsync(new WireSubmitBattleInputReq
             {
-                SessionToken = _launch.SessionToken, BattleId = _battleId,
-                WorldId = _worldId, Frame = 0, PlayerId = _playerId,
+                SessionToken = Identity.SessionToken, BattleId = BattleId,
+                WorldId = BattleWorldId, Frame = 0, PlayerId = PlayerId,
                 InputOpCode = TinyTurnBattle.InputOpCode,
                 Payload = new byte[] { 1 }, CommandSequence = sequence
-            }, _launch.Timeout, token);
+            }, RequestTimeout, token);
 
-        public async Task LeaveLobbyAsync(CancellationToken token)
-        {
-            if (_roomId.Length == 0 || _battleId.Length != 0) return;
-            var result = await _flow.LeaveRoomAsync(new RoomGatewayLeaveRequest(
-                _launch.SessionToken, _roomId, null, _commands.GetOrCreate("leave-room")),
-                cancellationToken: token);
-            if (!result.Success) throw new InvalidOperationException(result.Message);
-            BindRoom(string.Empty);
-        }
+        protected override RoomGatewayCreateRequest CreateRoomRequest(string commandId) => new(
+            Identity.SessionToken, Identity.Region, Identity.ServerId,
+            TinyTurnBattle.RoomType, "Tiny Turn", false, 2, commandId: commandId);
 
-        private async Task SubscribeAsync(RoomGatewaySnapshot room, CancellationToken token)
+        protected override void ValidateLaunchManifest(RoomGatewaySnapshot room) =>
+            RoomGatewayLaunchManifestCompatibility.Require(room, 1,
+                new[] { TinyTurnBattle.AssetKey, TinyTurnBattle.RulesKey },
+                new System.Collections.Generic.Dictionary<string, string>
+                { ["players"] = room.Players.Count.ToString() });
+
+        protected override string ResolveSubscriptionModelName(RoomGatewaySnapshot room) =>
+            nameof(NetworkSyncModel.AuthoritativeInterpolation);
+
+        protected override NetworkSyncProfile ResolveSubscriptionProfile(RoomGatewaySnapshot room) =>
+            NetworkSyncProfiles.AuthoritativeInterpolation;
+
+        protected override void OnBattleBound(RoomGatewaySnapshot room, uint playerId,
+            string previousBattleId, ulong previousWorldId) => State = null;
+
+        protected override void OnRoomUnbound()
         {
-            var generation = _connection.Recovery.Generation;
-            var revision = _bindingRevision;
-            var roomId = _roomId;
-            var profile = NetworkSyncProfiles.AuthoritativeInterpolation;
-            var binding = RoomGatewayNetworkSyncSessionBinding.Create(
-                room.SyncCapabilities, nameof(NetworkSyncModel.AuthoritativeInterpolation),
-                NetworkSyncRemoteCapabilityPolicy.Require);
-            var options = new NetworkSyncSessionOptions
-            {
-                RequiredProfile = profile,
-                RequiredMinimumSchemaVersion = 1,
-                RequiredMaximumSchemaVersion = 1,
-                AvailableCapabilities = NetworkSyncCapabilities.FromProfile(in profile, 1, 1)
-            };
-            if (!binding.Negotiate(options).IsRemoteNegotiated)
-                throw new InvalidOperationException("Tiny Turn State capabilities were not negotiated.");
-            var playerId = 0u;
-            foreach (var player in room.Players)
-                if (player.AccountId == _launch.AccountId) playerId = player.PlayerId;
-            if (playerId == 0) throw new InvalidOperationException("Tiny Turn player slot is missing.");
-            var result = await _connection.RoomClient.SubscribeStateSyncAsync(
-                new RoomGatewayStateSyncSubscriptionRequest(
-                    _launch.SessionToken, room.BattleId, room.RoomId), cancellationToken: token);
-            if (!IsCurrent(generation, revision) || roomId != _roomId) return;
-            if (!result.Success) throw new InvalidOperationException(result.Message);
-            _battleId = room.BattleId;
-            _worldId = room.WorldId;
-            _playerId = playerId;
-            _cursor.Reset(_worldId);
+            _commandSequence = 0;
+            _pendingTurn = -1;
+            _pendingSequence = 0;
+            _pendingElapsed = 0f;
             State = null;
-            _awaitingBaseline = true;
-            await RequestFullSnapshotAsync("Tiny Turn subscription baseline", token);
+            lock (_snapshotGate) _latest = null;
         }
 
-        private bool IsCurrent(long generation, long revision) =>
-            !_disposed && generation == _connection.Recovery.Generation &&
-            revision == _bindingRevision &&
-            _connection.Recovery.State != RoomGatewayConnectionState.Reconnecting &&
-            _connection.Recovery.State != RoomGatewayConnectionState.Exhausted;
+        protected override void OnDisposing() =>
+            _connection.SnapshotReceived -= OnSnapshot;
+
+        protected override Task<WireRequestFullStateSyncRes> SendFullSnapshotRequestAsync(
+            WireRequestFullStateSyncReq request, CancellationToken cancellationToken) =>
+            _connection.RequestFullSnapshotAsync(request, RequestTimeout, cancellationToken);
+
+        protected override string CreatePendingRoomMessage => "Leave the current room first.";
+
+        protected override string SyncNotNegotiatedMessage => "Tiny Turn State capabilities were not negotiated.";
+
+        protected override string PlayerSlotMissingMessage => "Tiny Turn player slot is missing.";
+
+        protected override string BattleNotSubscribedMessage => "Tiny Turn battle is not ready for a snapshot.";
+
+        protected override string FullSnapshotTimeoutMessage => "Tiny Turn snapshot request timed out.";
+
+        protected override string BaselineRequestReason => "Tiny Turn subscription baseline";
+
+        protected override string DescribeRoomStatus(RoomGatewaySnapshot? room, RoomGatewaySessionPhase phase) =>
+            ActionPending ? PendingStatus() : phase.ToString();
+
+        protected override string DescribeRestoreStatus(RoomGatewaySessionRestoreStatus restoreStatus) =>
+            "Connected";
+
+        private static RoomGatewaySessionIdentity ToIdentity(DemoMultiplayerLaunchRequest launch) =>
+            new(launch.SessionToken, launch.Region, launch.ServerId, launch.AccountId, launch.Timeout);
 
         private static Task PrepareAssetsAsync(RoomGatewaySnapshot room, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
-            if (room.LaunchManifestVersion <= 0 || string.IsNullOrEmpty(room.LaunchManifestHash))
-                throw new InvalidOperationException("Tiny Turn launch manifest is incomplete.");
+            RoomGatewayLaunchManifestCompatibility.Require(room, 1,
+                new[] { TinyTurnBattle.AssetKey, TinyTurnBattle.RulesKey },
+                new System.Collections.Generic.Dictionary<string, string>
+                { ["players"] = room.Players.Count.ToString() });
             return Task.CompletedTask;
         }
 
@@ -363,35 +285,6 @@ namespace AbilityKit.Demo.Tiny.Turn.View
                     snapshot.Frame > _latest.Value.Frame)
                     _latest = snapshot;
             }
-        }
-
-        private void BindRoom(string roomId)
-        {
-            _bindingRevision++;
-            _roomId = roomId;
-            _battleId = string.Empty;
-            _worldId = 0;
-            _playerId = 0;
-            _commandSequence = 0;
-            _pendingTurn = -1;
-            _pendingSequence = 0;
-            _pendingElapsed = 0f;
-            Room = null;
-            State = null;
-            _awaitingBaseline = false;
-            _loading.Reset();
-            _commands.Clear();
-            _cursor.Reset(0);
-            lock (_snapshotGate) _latest = null;
-        }
-
-        public void Dispose()
-        {
-            if (_disposed) return;
-            _disposed = true;
-            _bindingRevision++;
-            _connection.RoomClient.StateSyncSnapshotReceived -= OnSnapshot;
-            _connection.Dispose();
         }
     }
 }

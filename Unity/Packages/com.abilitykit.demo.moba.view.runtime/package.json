@@ -39,6 +39,7 @@
     "com.abilitykit.world.snapshot": "0.1.0",
     "com.abilitykit.demo.common": "0.0.1",
     "com.abilitykit.demo.moba.runtime": "0.0.1",
+    "com.abilitykit.demo.moba.trace.adapter": "0.0.1",
     "com.abilitykit.demo.moba.share": "0.0.1",
     "com.abilitykit.demo.moba.view.abstractions": "0.1.0"
   }

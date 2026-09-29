@@ -1,0 +1,93 @@
+[
+  {
+    "Id": 99200020,
+    "Name": "P2 Derived Skill And Event Capture Showcase",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "p2.parameters.apply",
+        "RulePlan": {
+          "TriggerIds": [99190020],
+          "AbortOnFailure": true,
+          "FailReason": "p2_parameter_setup_failed"
+        }
+      },
+      {
+        "Type": 11,
+        "PhaseId": "p2.derived-and-capture",
+        "Children": [
+          {
+            "Type": 16,
+            "PhaseId": "p2.capture-derived-damage",
+            "AwaitEvent": {
+              "EventId": "damage.apply.after",
+              "TimeoutMs": 2500,
+              "CompleteOnTimeout": false,
+              "Filters": [
+                {
+                  "FieldId": 1993035528,
+                  "ExpectedValue": 0,
+                  "UseCasterActorId": true,
+                  "UseTargetActorId": false,
+                  "UseSkillId": false
+                }
+              ],
+              "Captures": [
+                {
+                  "FieldId": 247416154,
+                  "Key": "p2.hit_target_actor_id",
+                  "Scope": 0,
+                  "ValueType": 0,
+                  "Required": true
+                },
+                {
+                  "FieldId": 931929450,
+                  "Key": "p2.last_damage",
+                  "Scope": 1,
+                  "ValueType": 1,
+                  "Required": true
+                }
+              ]
+            }
+          },
+          {
+            "Type": 20,
+            "PhaseId": "p2.launch-derived-skill",
+            "DerivedSkill": {
+              "SkillId": 10010101,
+              "InheritAim": true,
+              "InheritTarget": true,
+              "WaitForCompletion": true,
+              "AbortOnFailure": true,
+              "MaxDepth": 4,
+              "FailReason": "p2_derived_skill_failed"
+            }
+          }
+        ]
+      },
+      {
+        "Type": 12,
+        "PhaseId": "p2.bounded-post-delay",
+        "Repeat": {
+          "RepeatCount": 2,
+          "IntervalMs": 50,
+          "Phase": {
+            "Type": 13,
+            "PhaseId": "p2.post-delay-tick",
+            "Delay": { "DelayMs": 50 }
+          }
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "p2.parameters.clear",
+        "RulePlan": {
+          "TriggerIds": [99190021],
+          "AbortOnFailure": false,
+          "FailReason": "p2_parameter_cleanup_failed"
+        }
+      }
+    ]
+  }
+]

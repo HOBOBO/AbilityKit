@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11097525d8e24aad93d7e72f725a2d3c, type: 3}
+  m_Name: MobaTriggerAuthoringProject
+  m_EditorClassIdentifier: 
+  _eventCatalog: {fileID: 11400000, guid: 0a9d71e59f125c54b800963efb11d7d1, type: 2}
+  _globalBlackboardCatalog: {fileID: 11400000, guid: 2130a4533685ecc4a8b58f561403972b, type: 2}
+  _templateCatalog: {fileID: 11400000, guid: 763d23999de6dd14f8cf4947669b7385, type: 2}
+  _modules:
+  - {fileID: 11400000, guid: 126ff569c3bd44740a2cc544045b9532, type: 2}
+  - {fileID: 11400000, guid: 8c29c94190a4b0947aa23a2d62046947, type: 2}
+  - {fileID: 11400000, guid: efb35a1372f32e048b5d32e6ec72b285, type: 2}
+  - {fileID: 11400000, guid: c378d61cd9acef54e96de14d86312a9a, type: 2}
+  - {fileID: 11400000, guid: af6d0eb68f5ff5a4f8988e58f9a6baa2, type: 2}
+  - {fileID: 11400000, guid: eb381143645ad1f4698f1039070d64f2, type: 2}
+  _runtimeOutputRoot: Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/RuntimePreview
+  _extensionIds:
+  - abilitykit.demo.moba

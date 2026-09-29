@@ -38,16 +38,28 @@ namespace UnityEngine
         public Color(float r, float g, float b, float a) { this.r = r; this.g = g; this.b = b; this.a = a; }
     }
 
-    public class Object { }
+    public class Object
+    {
+        public static void Destroy(Object obj) { }
+        public static void Destroy(Object obj, float delay) { }
+        public static void DestroyImmediate(Object obj) { }
+        public static T FindObjectOfType<T>() where T : Object => null;
+        public static T[] FindObjectsOfType<T>() where T : Object => System.Array.Empty<T>();
+        public static T Instantiate<T>(T original) where T : Object => original;
+        public string name { get; set; }
+    }
     public class ScriptableObject : Object { }
     public class TextAsset : Object { public string text => string.Empty; }
     public class MonoScript : Object { }
-    public static class Application { public static string dataPath => string.Empty; }
+    public static class Application { public static string dataPath => string.Empty; public static bool isPlaying => false; }
+    public static class Screen { public static int width => 0; public static int height => 0; }
     public static class Debug
     {
         public static void Log(object message) { }
         public static void LogWarning(object message) { }
         public static void LogError(object message) { }
+        public static void LogException(System.Exception exception) { }
+        public static void LogError(object message, Object context) { }
     }
 
     [System.AttributeUsage(System.AttributeTargets.Field)]
@@ -65,6 +77,9 @@ namespace UnityEngine
     public class GUISkin
     {
         public GUIStyle box => null;
+        public GUIStyle window => null;
+        public GUIStyle textField => null;
+        public GUIStyle button => null;
         public GUIStyle horizontalSlider => null;
         public GUIStyle label => null;
         public GUIStyle miniLabel => null;
@@ -84,7 +99,16 @@ namespace UnityEngine
         public static void Space(float px) { }
         public static void Label(string text) { }
         public static void Label(string text, GUIStyle style) { }
+        public static string TextField(string text, params GUILayoutOption[] options) => text;
+        public static string PasswordField(string text, char maskChar, params GUILayoutOption[] options) => text;
+        public static int Toolbar(int selected, string[] texts, params GUILayoutOption[] options) => selected;
+        public static void BeginScrollView(Rect position, params GUILayoutOption[] options) { }
+        public static Vector2 BeginScrollView(Vector2 scrollPosition, params GUILayoutOption[] options) => scrollPosition;
+        public static void EndScrollView() { }
         public static void BeginArea(Rect screenRect) { }
+        public static void BeginArea(Rect screenRect, string text) { }
+        public static void BeginArea(Rect screenRect, GUIContent content) { }
+        public static void BeginArea(Rect screenRect, GUIStyle style) { }
         public static void EndArea() { }
         public static void BeginHorizontal(params GUILayoutOption[] options) { }
         public static void EndHorizontal() { }
@@ -231,6 +255,19 @@ namespace UnityEditor
         public static void BeginVertical(params GUILayoutOption[] options) { }
         public static void BeginVertical(GUIStyle style, params GUILayoutOption[] options) { }
         public static void EndVertical() { }
+    }
+
+    public static class EditorBuildSettings
+    {
+        public class SceneList : System.Collections.Generic.List<EditorBuildSettingsScene> { }
+        public static EditorBuildSettingsScene[] scenes { get; set; } = new EditorBuildSettingsScene[0];
+    }
+
+    public class EditorBuildSettingsScene
+    {
+        public EditorBuildSettingsScene(string path, bool enabled) { }
+        public string path { get; set; }
+        public bool enabled { get; set; }
     }
 
     public static class AssetDatabase

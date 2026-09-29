@@ -2,11 +2,14 @@ using System;
 using System.Linq;
 using System.IO;
 using AbilityKit.Ability.Config;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Console.Bootstrap;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Services.Behavior;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Triggering.Runtime.Plan.Json;
 using Newtonsoft.Json.Linq;
 using Xunit;
 
@@ -55,7 +58,7 @@ public sealed class MobaLubanConfigPipelineTests
     }
 
     [Fact]
-    public void All_registered_tables_can_load_from_Luban_binary()
+    public void Luban_binary_and_skill_pipeline_JSON_load_together()
     {
         var assets = new ConsoleTextAssetLoader();
         var database = new MobaConfigDatabase(textAssetLoader: assets);
@@ -65,10 +68,55 @@ public sealed class MobaLubanConfigPipelineTests
         AssertHeroes(database);
         Assert.NotNull(database.GetSkill(10020101));
         Assert.NotNull(database.GetSkillFlow(10020101));
+        Assert.NotNull(database.GetSkillFlow(10010301));
     }
 
     [Fact]
-    public void Binary_DTOs_match_the_current_JSON_baseline()
+    public void Console_trigger_module_resolves_editor_aggregate()
+    {
+        var builder = new WorldContainerBuilder();
+        new ConsoleConfigModule().Configure(builder);
+        builder.RegisterInstance(new MobaPresentationCueSnapshotService(new MobaLogicWorldRunGateService()));
+        var services = builder.Build();
+        using var scope = services.CreateScope();
+        var triggers = scope.Resolve<TriggerPlanJsonDatabase>();
+        Assert.Equal(100, triggers.Records.Count);
+        Assert.True(triggers.TryGetRecordByTriggerId(10010301, out _));
+    }
+
+    [Fact]
+    public void Editor_trigger_publication_is_identical_and_loadable_for_both_runtimes()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !Directory.Exists(Path.Combine(root.FullName, "Unity", "Packages")))
+            root = root.Parent;
+        Assert.NotNull(root);
+
+        var unityPath = Path.Combine(root!.FullName, "Unity", "Packages",
+            "com.abilitykit.demo.moba.view.runtime", "Resources", "ability", "ability_trigger_plans.json");
+        var consolePath = Path.Combine(root.FullName, "src", "AbilityKit.Demo.Moba.Console",
+            "Configs", "luban", "ability", "ability_trigger_plans.json");
+        var unity = JObject.Parse(File.ReadAllText(unityPath));
+        var console = JObject.Parse(File.ReadAllText(consolePath));
+        Assert.True(JToken.DeepEquals(unity, console));
+
+        var triggers = (JArray)unity["Triggers"]!;
+        Assert.Equal(98, triggers.Count);
+        foreach (var id in new[] { 10010301, 10010311, 10010321 })
+        {
+            var trigger = triggers.Single(row => row.Value<int>("TriggerId") == id);
+            Assert.Contains(trigger["Actions"]!.Children(), action =>
+                action.Value<int>("ActionId") == 1872489131 && action["Args"]?["landing_trigger_ids"] != null);
+        }
+
+        var database = new TriggerPlanJsonDatabase();
+        database.LoadFromJson(unity.ToString(), "moba-editor-trigger-aggregate");
+        Assert.Equal(98, database.Records.Count);
+        Assert.True(database.TryGetRecordByTriggerId(10010301, out _));
+    }
+
+    [Fact]
+    public void Mixed_pipeline_DTOs_match_the_current_JSON_baseline()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root != null && !Directory.Exists(Path.Combine(root.FullName, "Unity", "Packages")))

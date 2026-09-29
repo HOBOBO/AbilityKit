@@ -15,7 +15,9 @@ namespace AbilityKit.Demo.Tiny.Turn.View
     {
         private TinyTurnSession? _session;
         private CancellationTokenSource? _lifetime;
+        private CancellationTokenSource? _activeRequest;
         private Task? _active;
+        private bool _recovering;
         private string _returnScene = string.Empty;
         private string _roomToJoin = string.Empty;
         private string _error = string.Empty;
@@ -59,11 +61,13 @@ namespace AbilityKit.Demo.Tiny.Turn.View
                 _observedSnapshotRequests = _session.SnapshotRequestCount;
                 _nextSnapshotRequest = Time.unscaledTime + 2f;
             }
+            if (_session.ConnectionUnavailable && !_recovering && _activeRequest != null)
+                CancelActiveRequest();
             if (_active != null && !_active.IsCompleted) return;
             if (_session.NeedsConnectionRestore && Time.unscaledTime >= _nextRecovery)
             {
                 _nextRecovery = Time.unscaledTime + 2f;
-                Run(_session.RecoverConnectionAsync);
+                Run(_session.RecoverConnectionAsync, recovering: true);
             }
             else if (_session.NeedsFullSnapshot && Time.unscaledTime >= _nextSnapshotRequest)
             {
@@ -131,18 +135,53 @@ namespace AbilityKit.Demo.Tiny.Turn.View
         }
 
         private void Run(Func<CancellationToken, Task> action)
+            => Run(action, recovering: false);
+
+        private void Run(Func<CancellationToken, Task> action, bool recovering)
         {
             if (_lifetime == null || (_active != null && !_active.IsCompleted)) return;
             _error = string.Empty;
-            _active = ExecuteAsync(action, _lifetime.Token);
+            var request = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+            _activeRequest = request;
+            _recovering = recovering;
+            _active = ExecuteAsync(action, request);
         }
 
-        private async Task ExecuteAsync(Func<CancellationToken, Task> action, CancellationToken token)
+        private async Task ExecuteAsync(Func<CancellationToken, Task> action,
+            CancellationTokenSource request)
         {
-            try { await action(token); }
-            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-            catch (Exception exception) { if (!_destroyed) _error = exception.Message; }
-            finally { _active = null; }
+            try
+            {
+                await action(request.Token);
+                if (ReferenceEquals(_activeRequest, request) && _recovering)
+                    _error = string.Empty;
+            }
+            catch (OperationCanceledException) when (request.IsCancellationRequested) { }
+            catch (Exception exception)
+            {
+                if (!_destroyed && ReferenceEquals(_activeRequest, request))
+                    _error = exception.Message;
+            }
+            finally
+            {
+                if (ReferenceEquals(_activeRequest, request))
+                {
+                    _activeRequest = null;
+                    _active = null;
+                    _recovering = false;
+                }
+                request.Dispose();
+            }
+        }
+
+        private void CancelActiveRequest()
+        {
+            var request = _activeRequest;
+            if (request == null) return;
+            _activeRequest = null;
+            _active = null;
+            _recovering = false;
+            request.Cancel();
         }
 
         private async void ReturnToLobby()
@@ -161,6 +200,7 @@ namespace AbilityKit.Demo.Tiny.Turn.View
         {
             _destroyed = true;
             _lifetime?.Cancel();
+            CancelActiveRequest();
             _session?.Dispose();
             _lifetime?.Dispose();
         }

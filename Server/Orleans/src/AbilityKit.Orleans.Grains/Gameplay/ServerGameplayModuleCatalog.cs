@@ -91,27 +91,10 @@ public sealed class ServerBattleSyncTemplate
 
 public sealed class ServerBattleSyncProfile
 {
-    public static ServerBattleSyncProfile StateSync(string defaultTemplateId, params string[] supportedTemplateIds)
-    {
-        return new ServerBattleSyncProfile(
-            new ServerBattleSyncTemplate(defaultTemplateId, ServerBattleSyncMode.StateSync),
-            CreateTemplates(ServerBattleSyncMode.StateSync, supportedTemplateIds));
-    }
-
-    public static ServerBattleSyncProfile FrameSync(string defaultTemplateId, params string[] stateSyncTemplateIds)
-    {
-        return new ServerBattleSyncProfile(
-            new ServerBattleSyncTemplate(defaultTemplateId, ServerBattleSyncMode.FrameSync, ServerBattleRuntimeMode.FrameRelayOnly),
-            CreateTemplates(ServerBattleSyncMode.StateSync, stateSyncTemplateIds));
-    }
-
-    public static ServerBattleSyncProfile FrameSync(string defaultTemplateId, string[] stateSyncTemplateIds, ServerBattleRuntimeMode runtimeMode)
-    {
-        return new ServerBattleSyncProfile(
-            new ServerBattleSyncTemplate(defaultTemplateId, ServerBattleSyncMode.FrameSync, runtimeMode),
-            CreateTemplates(ServerBattleSyncMode.StateSync, stateSyncTemplateIds));
-    }
-
+    /// <summary>
+    /// 唯一的构造入口。玩法不应直接拼 profile——同步模板集合与能力协商由
+    /// <see cref="ServerSyncCapabilityDeclaration"/> 一次声明，避免两者漂移。
+    /// </summary>
     public static ServerBattleSyncProfile FromTemplates(
         ServerBattleSyncTemplate defaultTemplate,
         params ServerBattleSyncTemplate[] additionalTemplates)
@@ -181,20 +164,6 @@ public sealed class ServerBattleSyncProfile
         return false;
     }
 
-    private static IReadOnlyList<ServerBattleSyncTemplate> CreateTemplates(ServerBattleSyncMode mode, IReadOnlyList<string> templateIds)
-    {
-        var templates = new List<ServerBattleSyncTemplate>();
-        for (var i = 0; i < templateIds.Count; i++)
-        {
-            if (!string.IsNullOrWhiteSpace(templateIds[i]))
-            {
-                templates.Add(new ServerBattleSyncTemplate(templateIds[i], mode));
-            }
-        }
-
-        return templates;
-    }
-
     private static IReadOnlyList<ServerBattleSyncTemplate> NormalizeTemplates(ServerBattleSyncTemplate defaultTemplate, IReadOnlyList<ServerBattleSyncTemplate> additionalTemplates)
     {
         var templates = new List<ServerBattleSyncTemplate> { defaultTemplate };
@@ -235,27 +204,136 @@ public sealed class ServerBattleSyncProfile
     }
 }
 
+/// <summary>
+/// 玩法同步的<b>单一声明来源</b>：一次声明同时产出模板集合（<see cref="ServerBattleSyncProfile"/>）
+/// 与能力解析器，因此「声明了哪些模板」和「每个模板协商出什么能力」在结构上不可能漂移。
+/// 这是 MOBA、Shooter 以及装配外玩法共用的一套声明入口。
+/// </summary>
+public sealed class ServerSyncCapabilityDeclaration
+{
+    private readonly Func<BattleSyncStartOptions?, string, ServerSyncCapabilityDefinition> _resolve;
+
+    private ServerSyncCapabilityDeclaration(
+        ServerBattleSyncProfile syncProfile,
+        Func<BattleSyncStartOptions?, string, ServerSyncCapabilityDefinition> resolve)
+    {
+        SyncProfile = syncProfile ?? throw new ArgumentNullException(nameof(syncProfile));
+        _resolve = resolve ?? throw new ArgumentNullException(nameof(resolve));
+    }
+
+    public ServerBattleSyncProfile SyncProfile { get; }
+
+    public string DefaultTemplateId => SyncProfile.DefaultTemplateId;
+
+    /// <summary>静态场景：模板集合与每个模板的能力一次写完。</summary>
+    public static ServerSyncCapabilityDeclaration FromTemplates(
+        string defaultTemplateId,
+        params ServerSyncTemplateDeclaration[] templates)
+    {
+        if (string.IsNullOrWhiteSpace(defaultTemplateId))
+        {
+            throw new ArgumentException("Default sync template id is required.", nameof(defaultTemplateId));
+        }
+
+        if (templates is null || templates.Length == 0)
+        {
+            throw new ArgumentException("At least one sync template must be declared.", nameof(templates));
+        }
+
+        var defaultIndex = -1;
+        var byTemplateId = new Dictionary<string, ServerSyncTemplateDeclaration>(StringComparer.OrdinalIgnoreCase);
+        var declared = new ServerBattleSyncTemplate[templates.Length];
+        for (var i = 0; i < templates.Length; i++)
+        {
+            var declaration = templates[i];
+            if (string.IsNullOrWhiteSpace(declaration.TemplateId))
+            {
+                throw new ArgumentException("Sync template id is required.", nameof(templates));
+            }
+
+            if (!byTemplateId.TryAdd(declaration.TemplateId, declaration))
+            {
+                throw new ArgumentException($"Duplicate sync template id '{declaration.TemplateId}'.", nameof(templates));
+            }
+
+            declared[i] = declaration.ToTemplate();
+            if (string.Equals(declaration.TemplateId, defaultTemplateId, StringComparison.OrdinalIgnoreCase))
+            {
+                defaultIndex = i;
+            }
+        }
+
+        if (defaultIndex < 0)
+        {
+            throw new ArgumentException($"Default sync template '{defaultTemplateId}' is not declared.", nameof(defaultTemplateId));
+        }
+
+        var additional = new ServerBattleSyncTemplate[templates.Length - 1];
+        var cursor = 0;
+        for (var i = 0; i < templates.Length; i++)
+        {
+            if (i != defaultIndex)
+            {
+                additional[cursor++] = declared[i];
+            }
+        }
+
+        var profile = ServerBattleSyncProfile.FromTemplates(declared[defaultIndex], additional);
+        return new ServerSyncCapabilityDeclaration(profile, (_, templateId) =>
+        {
+            var resolved = profile.ResolveTemplate(templateId);
+            var declaration = byTemplateId[resolved.TemplateId];
+            return new ServerSyncCapabilityDefinition(
+                NetworkSyncProfileRegistry.GetName(declaration.Profile.CompatibilityModel),
+                declaration.Profile,
+                declaration.MinimumSchemaVersion,
+                declaration.MaximumSchemaVersion);
+        });
+    }
+
+    /// <summary>动态场景：模板集合已给定，能力解析需要看启动选项（例如按请求的 SyncModel 覆盖档案）。</summary>
+    public static ServerSyncCapabilityDeclaration FromResolver(
+        ServerBattleSyncProfile syncProfile,
+        Func<BattleSyncStartOptions?, string, ServerSyncCapabilityDefinition> resolve) =>
+        new(syncProfile, resolve);
+
+    public ServerSyncCapabilityDefinition Resolve(BattleSyncStartOptions? options, string templateId) =>
+        _resolve(options, templateId);
+}
+
+/// <summary>单个同步模板的声明：模板形状 + 协商档案 + schema 版本区间。</summary>
+public readonly record struct ServerSyncTemplateDeclaration(
+    string TemplateId,
+    ServerBattleSyncMode Mode,
+    ServerBattleRuntimeMode RuntimeMode,
+    int SnapshotIntervalFrames,
+    int FullSnapshotIntervalFrames,
+    NetworkSyncProfile Profile,
+    int MinimumSchemaVersion,
+    int MaximumSchemaVersion)
+{
+    public ServerBattleSyncTemplate ToTemplate() =>
+        new(TemplateId, Mode, RuntimeMode, SnapshotIntervalFrames, FullSnapshotIntervalFrames);
+}
+
 public sealed class ServerGameplayModule
 {
     private readonly Func<IRoomGameplayAdapter> _roomAdapterFactory;
     private readonly Func<ServerBattleWorldManager, IBattleRuntimeAdapter> _battleRuntimeAdapterFactory;
     private readonly IReadOnlyList<Func<IWorldBlueprint>> _worldBlueprintFactories;
-    private readonly Func<BattleSyncStartOptions?, string, ServerSyncCapabilityDefinition> _syncCapabilities;
 
     public ServerGameplayModule(
         GameplayRoomDescriptor descriptor,
-        ServerBattleSyncProfile syncProfile,
+        ServerSyncCapabilityDeclaration syncDeclaration,
         Func<IRoomGameplayAdapter> roomAdapterFactory,
         Func<ServerBattleWorldManager, IBattleRuntimeAdapter> battleRuntimeAdapterFactory,
-        IReadOnlyList<Func<IWorldBlueprint>> worldBlueprintFactories,
-        Func<BattleSyncStartOptions?, string, ServerSyncCapabilityDefinition> syncCapabilities)
+        IReadOnlyList<Func<IWorldBlueprint>> worldBlueprintFactories)
     {
         Descriptor = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
-        SyncProfile = syncProfile ?? throw new ArgumentNullException(nameof(syncProfile));
+        SyncDeclaration = syncDeclaration ?? throw new ArgumentNullException(nameof(syncDeclaration));
         _roomAdapterFactory = roomAdapterFactory ?? throw new ArgumentNullException(nameof(roomAdapterFactory));
         _battleRuntimeAdapterFactory = battleRuntimeAdapterFactory ?? throw new ArgumentNullException(nameof(battleRuntimeAdapterFactory));
         _worldBlueprintFactories = worldBlueprintFactories ?? throw new ArgumentNullException(nameof(worldBlueprintFactories));
-        _syncCapabilities = syncCapabilities ?? throw new ArgumentNullException(nameof(syncCapabilities));
         if (_worldBlueprintFactories.Count == 0)
         {
             throw new ArgumentException("At least one world blueprint must be registered for a server gameplay module.", nameof(worldBlueprintFactories));
@@ -264,7 +342,9 @@ public sealed class ServerGameplayModule
 
     public GameplayRoomDescriptor Descriptor { get; }
 
-    public ServerBattleSyncProfile SyncProfile { get; }
+    public ServerSyncCapabilityDeclaration SyncDeclaration { get; }
+
+    public ServerBattleSyncProfile SyncProfile => SyncDeclaration.SyncProfile;
 
     public string RoomType => Descriptor.RoomType;
 
@@ -275,7 +355,7 @@ public sealed class ServerGameplayModule
             throw new InvalidOperationException($"Unsupported sync template. RoomType={RoomType}, TemplateId={templateId}");
         }
 
-        return _syncCapabilities(options, templateId);
+        return SyncDeclaration.Resolve(options, templateId);
     }
 
     public IRoomGameplayAdapter CreateRoomAdapter()
@@ -333,29 +413,43 @@ public sealed class ServerGameplayModuleCatalog
 {
     private readonly IReadOnlyList<ServerGameplayModule> _modules;
 
+    // 模板 id 直接取自 MOBA 的 room descriptor，避免"默认模板"在两处各写一份字面量。
+    private static readonly ServerSyncCapabilityDeclaration MobaSyncDeclaration =
+        ServerSyncCapabilityDeclaration.FromTemplates(
+            ServerGameplayDescriptors.Moba.DefaultSyncTemplateId,
+            new ServerSyncTemplateDeclaration(
+                ServerGameplayDescriptors.Moba.DefaultSyncTemplateId,
+                ServerBattleSyncMode.FrameSync,
+                ServerBattleRuntimeMode.BattleWorldWithFrameSync,
+                1,
+                30,
+                NetworkSyncProfiles.Lockstep,
+                0,
+                1));
+
     public static ServerGameplayModuleCatalog Default { get; } = new(new[]
     {
         new ServerGameplayModule(
             ServerGameplayDescriptors.Moba,
-            ServerBattleSyncProfile.FrameSync("frame-sync-authority", [], ServerBattleRuntimeMode.BattleWorldWithFrameSync),
+            MobaSyncDeclaration,
             static () => new MobaRoomGameplayAdapter(),
             static worldManager => new MobaBattleRuntimeAdapter(worldManager, DefaultOrleansBattleProtocolMapper.Instance),
             new Func<IWorldBlueprint>[]
             {
                 static () => new MobaLobbyWorldBlueprint(),
                 static () => new MobaBattleWorldBlueprint()
-            },
-            ServerGameplaySyncCapabilityProfiles.ForMoba),
+            }),
         new ServerGameplayModule(
             ServerGameplayDescriptors.Shooter,
-            ShooterServerSyncTemplateCatalog.CreateSyncProfile(),
+            ServerSyncCapabilityDeclaration.FromResolver(
+                ShooterServerSyncTemplateCatalog.CreateSyncProfile(),
+                ServerGameplaySyncCapabilityProfiles.ForShooter),
             static () => new ShooterRoomGameplayAdapter(),
             static worldManager => new ShooterBattleRuntimeAdapter(worldManager),
             new Func<IWorldBlueprint>[]
             {
                 static () => new ShooterBattleWorldBlueprint()
-            },
-            ServerGameplaySyncCapabilityProfiles.ForShooter)
+            })
     });
 
     public ServerGameplayModuleCatalog WithModule(ServerGameplayModule module)

@@ -27,6 +27,8 @@ public readonly struct TinyTurnState
 
 public sealed class TinyTurnBattle
 {
+    public const string AssetKey = "tiny:turn";
+    public const string RulesKey = "tiny:turn.rules.v1";
     public const string RoomType = "tiny-turn";
     public const string WorldType = "tiny-turn-battle";
     public const string StateTemplate = "tiny-turn-state-authority";

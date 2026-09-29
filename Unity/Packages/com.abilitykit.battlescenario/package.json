@@ -1,0 +1,20 @@
+{
+  "name": "com.abilitykit.battlescenario",
+  "version": "0.1.0",
+  "displayName": "战斗测试用例编辑器 (BattleScenario)",
+  "unity": "2022.3",
+  "description": "Battle test case authoring, scene reuse, compilation to TestScenario, and project-provided execution.",
+  "keywords": [
+    "abilitykit",
+    "battlescenario",
+    "block",
+    "dsl"
+  ],
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.scenario": "0.1.0",
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  }
+}

@@ -4,8 +4,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Triggering.Eventing;
+using AbilityKit.Triggering.Runtime.Plan.Json;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -32,7 +34,7 @@ namespace AbilityKit.Ability.Editor.Utilities
     {
         internal const string LegacySourceRoot =
             "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers";
-        internal const string OutputRoot = "Assets/AbilityKit/MobaTriggerAuthoring";
+        internal const string OutputRoot = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring";
         internal const string ProjectAssetPath = OutputRoot + "/MobaTriggerAuthoringProject.asset";
         internal const string P0ShowcaseSourceAssetPath =
             OutputRoot + "/Showcases/moba-p0-complex-skill.trigger.json";
@@ -99,6 +101,104 @@ namespace AbilityKit.Ability.Editor.Utilities
             EditorUtility.SetDirty(eventCatalog);
             AssetDatabase.SaveAssets();
             Debug.Log($"[TriggerAuthoringMobaMigration] Synchronized {eventCatalog.Events.Count} MOBA events.");
+        }
+
+        // Unity -executeMethod entry point for inspecting the editor output before publication.
+        public static void ExportRuntimePreviewBatch()
+        {
+            var aggregate = BuildProductionRuntimeAggregate();
+            var preview = Path.Combine(RepositoryRoot(), "local", "moba-trigger-editor-preview.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(preview));
+            File.WriteAllText(preview, aggregate, new UTF8Encoding(false));
+            Debug.Log($"[TriggerAuthoringMobaMigration] Exported production modules to {preview}.");
+        }
+
+        [MenuItem("Tools/AbilityKit/MOBA/Publish Trigger Plans")]
+        public static void PublishRuntimeBatch()
+        {
+            var aggregate = BuildProductionRuntimeAggregate();
+            var outputs = RuntimeOutputPaths();
+            foreach (var output in outputs)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(output));
+                File.WriteAllText(output, aggregate, new UTF8Encoding(false));
+            }
+            AssetDatabase.Refresh();
+            Debug.Log($"[TriggerAuthoringMobaMigration] Published production trigger plans to {outputs.Length} runtime targets.");
+        }
+
+        public static void CheckRuntimeBatch()
+        {
+            var aggregate = BuildProductionRuntimeAggregate();
+            foreach (var output in RuntimeOutputPaths())
+            {
+                if (!File.Exists(output) || !string.Equals(File.ReadAllText(output), aggregate, StringComparison.Ordinal))
+                    throw new InvalidDataException("MOBA Trigger Authoring runtime artifact is out of date: " + output);
+            }
+            Debug.Log("[TriggerAuthoringMobaMigration] Unity and Console trigger plans match the production modules.");
+        }
+
+        // Imports maintained Source documents without regenerating them from legacy trigger JSON.
+        public static void ImportProductionSourcesBatch()
+        {
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            foreach (var definition in PackageDefinitions)
+            {
+                var sourcePath = ResolveProjectPath(SourceRoot + "/moba-" + definition.LegacyDirectory + ".trigger.json");
+                var assetPath = PackageRoot + "/" + definition.ModuleId.Replace('.', '_') + ".Module.asset";
+                var asset = AssetDatabase.LoadAssetAtPath<TriggerAuthoringModuleAsset>(assetPath);
+                if (asset == null) throw new FileNotFoundException("MOBA Trigger Authoring module is missing", assetPath);
+                if (!File.Exists(sourcePath)) throw new FileNotFoundException("MOBA Trigger Authoring source is missing", sourcePath);
+
+                var import = TriggerAuthoringSourceSync.Import(asset, sourcePath, force: true);
+                if (!import.Success) throw new InvalidDataException(definition.ModuleId + ": " + import.Message);
+                EditorUtility.SetDirty(asset);
+            }
+            AssetDatabase.SaveAssets();
+            Debug.Log("[TriggerAuthoringMobaMigration] Imported production Trigger Authoring sources.");
+        }
+
+        private static string[] RuntimeOutputPaths()
+        {
+            var repositoryRoot = RepositoryRoot();
+            return new[]
+            {
+                Path.Combine(repositoryRoot, "Unity", "Packages", "com.abilitykit.demo.moba.view.runtime", "Resources", "ability", "ability_trigger_plans.json"),
+                Path.Combine(repositoryRoot, "src", "AbilityKit.Demo.Moba.Console", "Configs", "luban", "ability", "ability_trigger_plans.json")
+            };
+        }
+
+        private static string RepositoryRoot()
+        {
+            return Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".."));
+        }
+
+        private static string BuildProductionRuntimeAggregate()
+        {
+            var project = AssetDatabase.LoadAssetAtPath<TriggerAuthoringProjectAsset>(ProjectAssetPath);
+            if (project == null)
+                throw new FileNotFoundException("MOBA Trigger Authoring project is missing", ProjectAssetPath);
+            var validation = TriggerAuthoringProjectValidator.Validate(project);
+            if (!validation.Success) throw new InvalidDataException(validation.BuildMessage());
+            var documents = new List<TriggerPlanAggregateCompiler.SourceDocument>();
+            foreach (var definition in PackageDefinitions)
+            {
+                var assetPath = PackageRoot + "/" + definition.ModuleId.Replace('.', '_') + ".Module.asset";
+                var asset = AssetDatabase.LoadAssetAtPath<TriggerAuthoringModuleAsset>(assetPath);
+                if (asset == null) throw new FileNotFoundException("MOBA Trigger Authoring module is missing", assetPath);
+                var context = new TriggerAuthoringValidationContext
+                {
+                    Types = TriggerTypeDescriptorCatalog.CreateProjectDefaults(),
+                    Events = MobaEvents,
+                    GlobalBlackboard = new TriggerGlobalBlackboardDescriptorCatalog(
+                        TriggerAuthoringProjectDefaults.CreateMobaBlackboardKeys())
+                };
+                var compile = TriggerAuthoringRuntimeExporter.Build(asset.Module, context);
+                if (!compile.Success) throw new InvalidDataException(definition.ModuleId + ": " + compile.BuildMessage());
+                documents.Add(new TriggerPlanAggregateCompiler.SourceDocument(
+                    definition.ModuleId, TriggerAuthoringRuntimeExporter.Serialize(compile.Database)));
+            }
+            return TriggerPlanAggregateCompiler.Compile(documents);
         }
 
         [MenuItem("Tools/AbilityKit/Framework/Ability/触发器示例/同步 MOBA P0 复杂技能展示")]
@@ -276,6 +376,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             var eventName = ReadString(source, "event");
             var executionMode = ReadString(source, "execution");
             var hasActions = (source["actions"] as JArray)?.OfType<JObject>().Any() == true;
+            var isReferencedEmptyEntry = ReadInt(source, "id") == 10060000 && !hasActions;
             MobaEvents.TryResolve(eventName, out var eventDefinition);
             return new TriggerDefinitionData
             {
@@ -283,15 +384,21 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Name = ReadString(source, "name"),
                 GroupPath = Path.GetFileNameWithoutExtension(relativePath),
                 Tags = new List<string> { "moba", relativePath.Split('/')[0] },
-                Enabled = ReadBool(source, true, "enabled") && hasActions,
+                Enabled = ReadBool(source, true, "enabled") && (hasActions || isReferencedEmptyEntry),
                 EntryMode = string.IsNullOrWhiteSpace(eventName) ? TriggerEntryMode.Callable : TriggerEntryMode.Event,
                 Event = eventName,
                 Phase = ReadString(source, "phase") ?? "immediate",
                 Priority = ReadInt(source, "priority"),
-                Scope = ReadString(source, "scope") ?? "owner",
+                Scope = ReadString(source, "scope") ?? "global",
                 AllowExternal = ReadBool(source, false, "allowExternal"),
                 Condition = ConvertConditionList(source["conditions"] as JArray, eventDefinition),
-                Actions = ConvertActionList(source["actions"] as JArray),
+                Actions = isReferencedEmptyEntry
+                    ? ConvertAction(new JObject
+                    {
+                        ["type"] = "debug_log",
+                        ["message"] = "Mozi passive entry"
+                    })
+                    : ConvertActionList(source["actions"] as JArray),
                 ExecutionControl = new TriggerExecutionControlData { Mode = executionMode },
                 Note = "Migrated from " + LegacySourceRoot + "/" + relativePath
             };
@@ -511,6 +618,19 @@ namespace AbilityKit.Ability.Editor.Utilities
             JToken token,
             TriggerParameterDescriptor parameter)
         {
+            // The two original tutorial IDs have no matching MOBA config rows.
+            if (string.Equals(name, "buff_ids", StringComparison.OrdinalIgnoreCase) && token is JArray buffIds)
+            {
+                return new TriggerValueRefData
+                {
+                    Source = TriggerValueSource.Constant,
+                    Type = TriggerValueType.IntegerList,
+                    IntegerListValue = buffIds.Values<long>().Select(id => id == 100001 ? 1L : id).ToList()
+                };
+            }
+            if (string.Equals(name, "query_template_id", StringComparison.OrdinalIgnoreCase) &&
+                token?.Type == JTokenType.Integer && token.Value<long>() == 101)
+                return ConstantInteger(1);
             if (string.Equals(name, "target_payload_field_id", StringComparison.OrdinalIgnoreCase) && token?.Type == JTokenType.String)
             {
                 var field = token.Value<string>() ?? string.Empty;
@@ -698,7 +818,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void EnsureFolder(string folder)
         {
             var parts = folder.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
-            var current = "Assets";
+            var current = parts[0];
             for (var i = 1; i < parts.Length; i++)
             {
                 var next = current + "/" + parts[i];

@@ -17,13 +17,14 @@ public sealed class TinyBattleRuntimeAdapter : IBattleRuntimeAdapter
 
     public IBattleRuntimeSession CreateSession(string battleId) => new Session(battleId, _worldManager);
 
-    private sealed class Session : IBattleRuntimeSession, IBattleRuntimeStateHashProvider
+    private sealed class Session : IBattleRuntimeSession, IBattleRuntimeStateHashProvider, IBattleRuntimeInputDiagnostics
     {
         private readonly string _battleId;
         private readonly ServerBattleWorldManager _worldManager;
         private readonly TinyBattle _battle = new();
         private IWorld? _world;
         private ulong _worldId;
+        private string _lastInputSubmitDiagnostic = string.Empty;
 
         public Session(string battleId, ServerBattleWorldManager worldManager)
         {
@@ -71,16 +72,41 @@ public sealed class TinyBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
         }
 
+        /// <summary>服务端在输入批次未被全量接受时读取，用于把拒绝原因写进告警日志。</summary>
+        public string LastInputSubmitDiagnostic => _lastInputSubmitDiagnostic;
+
         public int SubmitInputs(int frame, IReadOnlyList<BattleInputItem> inputs)
         {
+            if (inputs is null || inputs.Count == 0)
+            {
+                _lastInputSubmitDiagnostic = string.Empty;
+                return 0;
+            }
+
             var accepted = 0;
+            var rejected = 0;
+            var firstReason = string.Empty;
             foreach (var item in inputs)
             {
-                if (!ValidateInput(item).Accepted) continue;
+                var validation = ValidateInput(item);
+                if (!validation.Accepted)
+                {
+                    rejected++;
+                    if (firstReason.Length == 0)
+                    {
+                        firstReason = validation.Status + ": " + validation.Message;
+                    }
+
+                    continue;
+                }
+
                 _battle.Submit(item.PlayerId, TinyInput.Decode(item.Payload!));
                 accepted++;
             }
 
+            _lastInputSubmitDiagnostic = rejected == 0
+                ? string.Empty
+                : $"frame={frame} accepted={accepted} rejected={rejected} first={firstReason}";
             return accepted;
         }
 

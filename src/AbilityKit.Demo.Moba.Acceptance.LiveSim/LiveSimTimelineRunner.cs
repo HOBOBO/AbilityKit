@@ -78,7 +78,7 @@ public sealed class LiveSimTimelineRunner
     {
         if (atMs > maxDurationMs + 1e-6d)
             throw new TimeoutException(
-                $"BattleFlow simulation exceeded maxDurationMs={maxDurationMs} at t={atMs:F3}ms.");
+                $"BattleScenario simulation exceeded maxDurationMs={maxDurationMs} at t={atMs:F3}ms.");
     }
 
     private void SubmitSkillInputAndGetResult(

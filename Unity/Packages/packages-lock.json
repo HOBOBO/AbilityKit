@@ -86,8 +86,8 @@
         "com.abilitykit.gameplaytags": "0.1.0"
       }
     },
-    "com.abilitykit.battleflow": {
-      "version": "file:com.abilitykit.battleflow",
+    "com.abilitykit.battlescenario": {
+      "version": "file:com.abilitykit.battlescenario",
       "depth": 0,
       "source": "embedded",
       "dependencies": {
@@ -293,7 +293,7 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.environment": "0.1.0",
-        "com.abilitykit.battleflow": "0.1.0"
+        "com.abilitykit.battlescenario": "0.1.0"
       }
     },
     "com.abilitykit.demo.moba.host": {
@@ -438,6 +438,7 @@
         "com.abilitykit.world.snapshot": "0.1.0",
         "com.abilitykit.demo.common": "0.0.1",
         "com.abilitykit.demo.moba.runtime": "0.0.1",
+        "com.abilitykit.demo.moba.trace.adapter": "0.0.1",
         "com.abilitykit.demo.moba.share": "0.0.1",
         "com.abilitykit.demo.moba.view.abstractions": "0.1.0"
       }

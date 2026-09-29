@@ -227,10 +227,7 @@ namespace AbilityKit.Demo.Tiny.Tests
 
                 SetPrivate(session, "_battleId", "battle-2");
                 SetPrivate(session, "_worldId", WorldId + 1);
-                var cursor = (RoomGatewayFullSnapshotCursor)typeof(TinyBattleSession)
-                    .GetField("_snapshotCursor", BindingFlags.Instance | BindingFlags.NonPublic)
-                    .GetValue(session);
-                cursor.Reset(WorldId + 1);
+                session.SnapshotCursor.Reset(WorldId + 1);
                 module.Tick(in context, 0.02f);
                 Assert.That(root.transform.Find("Tiny Actor 1"), Is.Null);
                 gateway.Push(new WireStateSyncSnapshotPush
@@ -261,10 +258,7 @@ namespace AbilityKit.Demo.Tiny.Tests
             SetPrivate(session, "_worldId", WorldId);
             SetPrivate(session, "_playerId", 1u);
             SetPrivate(session, "_syncMode", mode);
-            var cursor = (RoomGatewayFullSnapshotCursor)typeof(TinyBattleSession)
-                .GetField("_snapshotCursor", BindingFlags.Instance | BindingFlags.NonPublic)
-                .GetValue(session);
-            cursor.Reset(WorldId);
+            session.SnapshotCursor.Reset(WorldId);
             if (mode != TinySyncMode.State)
                 SetPrivate(session, "_frameReplication", new TinyFrameReplication());
             return session;
@@ -272,10 +266,16 @@ namespace AbilityKit.Demo.Tiny.Tests
 
         private static void SetPrivate(TinyBattleSession session, string field, object value)
         {
-            var member = typeof(TinyBattleSession).GetField(field,
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(member, Is.Not.Null, field);
-            member.SetValue(session, value);
+            // 会话的房间侧字段如今在 RoomGatewayBattleSessionBase 里，沿继承链查找。
+            for (var type = typeof(TinyBattleSession); type != null; type = type.BaseType)
+            {
+                var member = type.GetField(field,
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                if (member == null) continue;
+                member.SetValue(session, value);
+                return;
+            }
+            Assert.Fail("Unknown session field: " + field);
         }
 
         private static GameObject Actor(GameObject root, int id)

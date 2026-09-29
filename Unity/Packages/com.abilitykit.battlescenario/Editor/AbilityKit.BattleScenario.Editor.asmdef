@@ -1,0 +1,20 @@
+{
+  "name": "AbilityKit.BattleScenario.Editor",
+  "rootNamespace": "AbilityKit.BattleScenario.Editor",
+  "references": [
+    "AbilityKit.BattleScenario",
+    "AbilityKit.Scenario",
+    "AbilityKit.Editor.Platform"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

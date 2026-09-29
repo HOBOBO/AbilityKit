@@ -1504,7 +1504,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                         AddRuntimeActionArgument(
                             diagnostics,
                             action.Args,
-                            argument.Name + valueIndex.ToString(CultureInfo.InvariantCulture),
+                            valueIndex == 0 ? argument.Name : argument.Name + valueIndex.ToString(CultureInfo.InvariantCulture),
                             Const(values[valueIndex]),
                             argumentPath);
                     continue;
@@ -1586,7 +1586,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                         AddRuntimeActionArgument(
                             diagnostics,
                             output,
-                            runtimeName + valueIndex.ToString(CultureInfo.InvariantCulture),
+                            valueIndex == 0 ? runtimeName : runtimeName + valueIndex.ToString(CultureInfo.InvariantCulture),
                             Const(values[valueIndex]),
                             fieldPath);
                     continue;

@@ -26,10 +26,14 @@ namespace AbilityKit.Demo.Moba.Config.Core
             {
                 if (!known.Contains(name)) throw new ArgumentException($"Unknown MOBA config table: {name}");
             }
+            selected.Remove(MobaConfigPaths.SkillFlowsFile);
 
             var binary = MobaRuntimeConfigTableRegistry.Tables.Where(t => selected.Contains(t.FilePath)).Cast<ConfigTableDefinition>().ToArray();
-            var remaining = MobaRuntimeConfigTableRegistry.Tables.Where(t => !selected.Contains(t.FilePath)).Cast<ConfigTableDefinition>().ToArray();
-            var groups = new List<IConfigGroup>(2);
+            var remaining = MobaRuntimeConfigTableRegistry.Tables.Where(t => !selected.Contains(t.FilePath) &&
+                t.FilePath != MobaConfigPaths.SkillFlowsFile).Cast<ConfigTableDefinition>().ToArray();
+            var flows = MobaRuntimeConfigTableRegistry.Tables.Where(t => t.FilePath == MobaConfigPaths.SkillFlowsFile)
+                .Cast<ConfigTableDefinition>().ToArray();
+            var groups = new List<IConfigGroup>(3);
             if (binary.Length > 0)
             {
                 groups.Add(new ConfigGroup(ConfigGroupNames.LubanBinary,
@@ -42,6 +46,9 @@ namespace AbilityKit.Demo.Moba.Config.Core
                     new MobaLubanAssetGroupLoader(assets, useLubanJsonForRemaining ? JsonDirectory : MobaConfigPaths.DefaultResourcesDir, binary: false),
                     MobaLubanJsonGroupDeserializer.Instance, remaining));
             }
+            groups.Add(new ConfigGroup("SkillPipeline",
+                new MobaLubanAssetGroupLoader(assets, MobaConfigPaths.DefaultResourcesDir, binary: false),
+                MobaLubanJsonGroupDeserializer.Instance, flows));
             return groups;
         }
     }
@@ -55,7 +62,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
         {
             _assets = assets ?? throw new ArgumentNullException(nameof(assets));
             _binaryTables = binaryTables?.ToArray() ??
-                MobaRuntimeConfigTableRegistry.Tables.Select(table => table.FilePath).ToArray();
+                MobaRuntimeConfigTableRegistry.Tables.Where(table => table.FilePath != MobaConfigPaths.SkillFlowsFile)
+                    .Select(table => table.FilePath).ToArray();
         }
 
         public string Name => "LubanGroups";

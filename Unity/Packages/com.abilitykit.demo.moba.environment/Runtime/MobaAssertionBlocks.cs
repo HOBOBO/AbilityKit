@@ -1,4 +1,4 @@
-using AbilityKit.BattleFlow;
+using AbilityKit.BattleScenario;
 
 namespace AbilityKit.Demo.Moba.EnvironmentModel
 {
@@ -219,19 +219,19 @@ namespace AbilityKit.Demo.Moba.EnvironmentModel
         };
     }
 
-    /// <summary>MOBA 断言积木基类：多个断言积木累积到一个 <see cref="MobaBattleFlowAssertions"/>（opaque），塞进 TestScenario.Expectations。纯 C#，.NET 与 Unity 共用。</summary>
+    /// <summary>MOBA 断言积木基类：多个断言积木累积到一个 <see cref="MobaBattleScenarioAssertions"/>（opaque），塞进 TestScenario.Expectations。纯 C#，.NET 与 Unity 共用。</summary>
     public abstract class MobaAssertionBlock : BattleAtomicBlock
     {
         public override BattleBlockSection Section => BattleBlockSection.Assertion;
 
-        public override void Compile(BattleFlowBuilder builder)
+        public override void Compile(BattleScenarioBuilder builder)
         {
-            var assertions = builder.Expectations as MobaBattleFlowAssertions ?? new MobaBattleFlowAssertions();
+            var assertions = builder.Expectations as MobaBattleScenarioAssertions ?? new MobaBattleScenarioAssertions();
             Apply(assertions);
             builder.SetExpectations(assertions);
         }
 
-        protected abstract void Apply(MobaBattleFlowAssertions assertions);
+        protected abstract void Apply(MobaBattleScenarioAssertions assertions);
     }
 
     /// <summary>断言：trace 必须出现（mustContain）。</summary>
@@ -243,7 +243,7 @@ namespace AbilityKit.Demo.Moba.EnvironmentModel
         public int MaxCount { get; set; }
         public int UnderEffectId { get; set; }
 
-        protected override void Apply(MobaBattleFlowAssertions assertions)
+        protected override void Apply(MobaBattleScenarioAssertions assertions)
         {
             assertions.MustContain.Add(new MobaTraceAssertion
             {
@@ -259,7 +259,7 @@ namespace AbilityKit.Demo.Moba.EnvironmentModel
         public int ConfigId { get; set; }
         public int UnderEffectId { get; set; }
 
-        protected override void Apply(MobaBattleFlowAssertions assertions)
+        protected override void Apply(MobaBattleScenarioAssertions assertions)
         {
             assertions.MustNotContain.Add(new MobaTraceAssertion
             {
@@ -276,7 +276,7 @@ namespace AbilityKit.Demo.Moba.EnvironmentModel
         public string Comparator { get; set; } = "eq";
         public string? ExpectedValue { get; set; }
 
-        protected override void Apply(MobaBattleFlowAssertions assertions)
+        protected override void Apply(MobaBattleScenarioAssertions assertions)
         {
             assertions.State.Add(new MobaStateAssertion
             {
@@ -294,7 +294,7 @@ namespace AbilityKit.Demo.Moba.EnvironmentModel
         public string Comparator { get; set; } = "eq";
         public string? ExpectedValue { get; set; }
 
-        protected override void Apply(MobaBattleFlowAssertions assertions)
+        protected override void Apply(MobaBattleScenarioAssertions assertions)
         {
             assertions.Context.Add(new MobaContextAssertion
             {
@@ -311,7 +311,7 @@ namespace AbilityKit.Demo.Moba.EnvironmentModel
         public string ChildKind { get; set; } = string.Empty;
         public int ChildConfigId { get; set; }
 
-        protected override void Apply(MobaBattleFlowAssertions assertions)
+        protected override void Apply(MobaBattleScenarioAssertions assertions)
         {
             assertions.Relationships.Add(new MobaRelationshipAssertion
             {
@@ -327,7 +327,7 @@ namespace AbilityKit.Demo.Moba.EnvironmentModel
         public string Comparator { get; set; } = "eq";
         public string ExpectedValue { get; set; } = string.Empty;
 
-        protected override void Apply(MobaBattleFlowAssertions assertions)
+        protected override void Apply(MobaBattleScenarioAssertions assertions)
         {
             assertions.Prediction.Add(new MobaPredictionAssertion
             {

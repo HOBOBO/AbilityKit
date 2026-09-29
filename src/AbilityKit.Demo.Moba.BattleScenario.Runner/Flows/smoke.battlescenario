@@ -1,0 +1,8 @@
+{
+  "caseId": "smoke",
+  "blocks": [
+    { "$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 1001, "playerId": "player_1" },
+    { "$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 1001, "teamId": 2 },
+    { "$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 100, "action": "cast_skill", "actorAlias": "caster", "targetAlias": "target", "slot": 1 }
+  ]
+}

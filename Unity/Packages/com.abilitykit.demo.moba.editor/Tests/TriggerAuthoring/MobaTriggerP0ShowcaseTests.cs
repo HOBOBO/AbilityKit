@@ -16,11 +16,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
     public sealed class MobaTriggerP0ShowcaseTests
     {
         private const string ProjectPath =
-            "Assets/AbilityKit/MobaTriggerAuthoring/MobaTriggerAuthoringProject.asset";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/MobaTriggerAuthoringProject.asset";
         private const string ModulePath =
-            "Assets/AbilityKit/MobaTriggerAuthoring/Packages/ability_moba_tests_p0_showcase.Module.asset";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/Packages/ability_moba_tests_p0_showcase.Module.asset";
         private const string SourcePath =
-            "Assets/AbilityKit/MobaTriggerAuthoring/Showcases/moba-p0-complex-skill.trigger.json";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/Showcases/moba-p0-complex-skill.trigger.json";
 
         [Test]
         public void ShowcaseSource_RoundTripsAndExportsAllP0AuthoringCapabilities()

@@ -1,0 +1,16 @@
+{
+  "name": "AbilityKit.BattleScenario",
+  "rootNamespace": "AbilityKit.BattleScenario",
+  "references": [
+    "AbilityKit.Scenario"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

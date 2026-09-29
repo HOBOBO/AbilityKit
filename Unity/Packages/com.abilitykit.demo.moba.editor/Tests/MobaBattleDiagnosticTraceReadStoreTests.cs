@@ -357,6 +357,18 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(result.Items[0].ContextId, Is.EqualTo(rootId));
         }
 
+        [Test]
+        public void LocalBattleRuntimeFactory_RegistersTraceSnapshotSource()
+        {
+            var builder = new AbilityKit.Game.Battle.MobaBattleLogicRuntimeFactory()
+                .CreateWorldServices(new AbilityKit.Game.Battle.BattleLogicSessionOptions());
+
+            using var container = builder.Build();
+
+            Assert.That(container.IsRegistered(typeof(IBattleDiagnosticTraceSnapshotSource)), Is.True);
+            Assert.That(container.IsRegistered(typeof(MobaTraceRegistry)), Is.True);
+        }
+
         private MobaBattleDiagnosticEventCollector MakeCollector()
         {
             return new MobaBattleDiagnosticEventCollector(

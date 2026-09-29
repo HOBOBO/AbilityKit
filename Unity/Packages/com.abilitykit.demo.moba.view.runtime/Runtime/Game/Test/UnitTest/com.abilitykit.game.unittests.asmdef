@@ -11,7 +11,7 @@
         "AbilityKit.Demo.Moba.Presentation.ProtocolAdapter",
         "AbilityKit.Demo.Moba.Presentation.Adapter",
         "AbilityKit.Demo.Moba.Environment",
-        "AbilityKit.BattleFlow",
+        "AbilityKit.BattleScenario",
         "AbilityKit.Scenario",
         "AbilityKit.Demo.Moba.Runtime",
         "AbilityKit.Demo.Moba.Trace.Adapter",

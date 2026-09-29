@@ -1,9 +1,13 @@
 using AbilityKit.Orleans.Contracts.Battle;
-using AbilityKit.Protocol.Shooter;
 using System;
 
 namespace AbilityKit.Orleans.Grains.Battle.Gameplay;
 
+/// <summary>
+/// 玩法战斗运行时适配器。整个 adapter 契约（含全部可选能力接口）都是 public，
+/// 以便 Grains 装配之外的玩法模块（例如 <c>AbilityKit.Demo.Tiny.Server</c>）实现；
+/// 可选能力由 <c>BattleLogicHostGrain</c> 按接口模式匹配自动启用。
+/// </summary>
 public interface IBattleRuntimeAdapter
 {
     string RoomType { get; }
@@ -11,12 +15,18 @@ public interface IBattleRuntimeAdapter
     IBattleRuntimeSession CreateSession(string battleId);
 }
 
-internal readonly record struct BattleStateSyncObserverContext(
+/// <summary>
+/// 玩法无关的已消费房间命令回执。玩法在构建按观察者推送的载荷时把它嵌进自己的协议类型，
+/// 因此契约层不引用任何具体玩法协议。
+/// </summary>
+public readonly record struct BattleCommandAcknowledgement(int Frame, ulong CommandId);
+
+public readonly record struct BattleStateSyncObserverContext(
     string ObserverKey,
     string AccountId,
     string RoomId)
 {
-    public ShooterCommandAcknowledgement[]? AcknowledgedCommands { get; init; }
+    public BattleCommandAcknowledgement[]? AcknowledgedCommands { get; init; }
 }
 
 public interface IBattleRuntimeSession : IDisposable
@@ -53,27 +63,34 @@ public interface IBattleRuntimeStateHashProvider
     uint ComputeStateHash();
 }
 
-internal interface IBattleRuntimeStageDiagnostics
+/// <summary>可选：阶段耗时诊断，供服务端性能观测消费。</summary>
+public interface IBattleRuntimeStageDiagnostics
 {
     void SetStageTimingSink(Action<string, double>? sink);
 }
 
-internal interface IBattleRuntimeInputDiagnostics
+/// <summary>可选：最后一次输入提交诊断，用于定位被拒绝/丢弃输入的原因。</summary>
+public interface IBattleRuntimeInputDiagnostics
 {
     string LastInputSubmitDiagnostic { get; }
 }
 
-internal interface IObserverAwareBattleRuntimeSession
+/// <summary>
+/// 可选：按观察者构建推送。实现后由 <c>BattleLogicHostGrain</c> 走 per-observer 推送路径
+/// （AOI/旁观者兴趣裁剪的前提）；未实现则退回广播路径。
+/// </summary>
+public interface IObserverAwareBattleRuntimeSession
 {
     StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot, in BattleStateSyncObserverContext observerContext);
 }
 
-internal interface IReliableBattleEventProducer
+/// <summary>可选：可靠事件源，供服务端可靠事件投递消费。</summary>
+public interface IReliableBattleEventProducer
 {
     IReadOnlyList<ReliableBattleEventSource> CaptureReliableEvents(int frame);
 }
 
-internal readonly record struct ReliableBattleEventSource(
+public readonly record struct ReliableBattleEventSource(
     int SourceFrame,
     int EventType,
     byte[]? Payload);

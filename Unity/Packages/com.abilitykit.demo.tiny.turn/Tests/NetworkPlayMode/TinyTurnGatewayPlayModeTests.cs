@@ -3,6 +3,7 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Common.Rooms;
@@ -17,6 +18,52 @@ namespace AbilityKit.Demo.Tiny.Turn.Tests
 {
     public sealed class TinyTurnGatewayPlayModeTests
     {
+        [UnityTest]
+        public IEnumerator CancelledOperationCannotClearReplacement()
+        {
+            var gameObject = new GameObject("Turn operation test");
+            gameObject.SetActive(false);
+            var root = gameObject.AddComponent<TinyTurnGameplayRoot>();
+            var lifetime = new CancellationTokenSource();
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(TinyTurnGameplayRoot).GetField("_lifetime", flags)!.SetValue(root, lifetime);
+            var run = typeof(TinyTurnGameplayRoot).GetMethod("Run", flags, null,
+                new[] { typeof(Func<CancellationToken, Task>), typeof(bool) }, null)!;
+            var cancel = typeof(TinyTurnGameplayRoot).GetMethod("CancelActiveRequest", flags)!;
+            var old = new TaskCompletionSource<bool>();
+            var replacement = new TaskCompletionSource<bool>();
+            var started = 0;
+            try
+            {
+                run.Invoke(root, new object[] { (Func<CancellationToken, Task>)(_ => old.Task), false });
+                cancel.Invoke(root, null);
+                run.Invoke(root, new object[]
+                {
+                    (Func<CancellationToken, Task>)(_ => replacement.Task), true
+                });
+                old.SetException(new InvalidOperationException("stale response"));
+                yield return null;
+                Assert.That(root.LastError, Is.Empty);
+                run.Invoke(root, new object[]
+                {
+                    (Func<CancellationToken, Task>)(_ => { started++; return Task.CompletedTask; }), false
+                });
+                Assert.That(started, Is.Zero, "Old completion cleared the replacement operation.");
+                replacement.SetResult(true);
+                yield return null;
+                run.Invoke(root, new object[]
+                {
+                    (Func<CancellationToken, Task>)(_ => { started++; return Task.CompletedTask; }), false
+                });
+                Assert.That(started, Is.EqualTo(1));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+                lifetime.Dispose();
+            }
+        }
+
         [Serializable]
         private sealed class Evidence
         {

@@ -3,6 +3,7 @@ using AbilityKit.Orleans.Grains.Persistence;
 using AbilityKit.Orleans.Grains.Gameplay;
 using AbilityKit.Demo.Tiny.Server;
 using AbilityKit.Orleans.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -24,9 +25,12 @@ builder.Services.AddAbilityKitGrainStateStorage(
     storageOptions.AllowInMemoryFallbackForUnsupportedProviders);
 
 builder.Services.AddSingleton(_ =>
-    ServerGameplayModuleCatalog.Default
-        .WithModule(TinyServerGameplayModule.Create())
-        .WithModule(TinyTurnGameplayModule.Create()));
+{
+    var catalog = ServerGameplayModuleCatalog.Default
+        .WithModule(TinyServerGameplayModule.Create());
+    return builder.Configuration.GetValue("AbilityKit:Tiny:EnableTurn", true)
+        ? catalog.WithModule(TinyTurnGameplayModule.Create()) : catalog;
+});
 builder.Services.AddSingleton<ServerBattleWorldManager>(sp =>
     new ServerBattleWorldManager(sp.GetRequiredService<ILogger<ServerBattleWorldManager>>(),
         sp.GetRequiredService<ServerGameplayModuleCatalog>()));

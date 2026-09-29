@@ -1,0 +1,571 @@
+{
+  "schema": "abilitykit-trigger-authoring",
+  "version": "2.2",
+  "metadata": {
+    "author": "AbilityKit MOBA Tests",
+    "description": "Editable P0 showcase: target collections, scoped skill-runtime Blackboard values, formulas, deterministic weighted random, scheduled execution, Magnitude sources, snapshots, and existing MOBA combat systems."
+  },
+  "module": {
+    "moduleId": "ability.moba.tests.p0_showcase",
+    "displayName": "MOBA P0 复杂技能展示",
+    "kind": "Ability",
+    "blackboard": [
+      {
+        "key": "target_collection",
+        "type": "Integer",
+        "readOnly": false,
+        "description": "目标查找系统返回的集合句柄。",
+        "defaultValue": { "source": "Constant", "type": "Integer", "integerValue": 0 }
+      },
+      {
+        "key": "current_target",
+        "type": "Integer",
+        "readOnly": false,
+        "description": "for_each 当前目标。",
+        "defaultValue": { "source": "Constant", "type": "Integer", "integerValue": 0 }
+      },
+      {
+        "key": "hit_count",
+        "type": "Number",
+        "readOnly": false,
+        "description": "本次触发器执行的命中计数。",
+        "defaultValue": { "source": "Constant", "type": "Number", "numberValue": 0.0 }
+      }
+    ],
+    "conditionGroups": [],
+    "actionGroups": [],
+    "triggers": [
+      {
+        "id": 99190010,
+        "name": "P0复杂技能-多目标雷暴领域",
+        "groupPath": "tests/P0/复杂技能展示",
+        "tags": ["moba", "test", "p0", "blackboard", "magnitude", "random", "scheduled"],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "set_num_var",
+              "note": "Cast Scope 在一次技能释放管线内共享，并由回滚快照管理。",
+              "arguments": [
+                {
+                  "name": "target",
+                  "value": { "source": "Context", "type": "Number", "path": "skill_runtime:cast.showcase_combo" }
+                },
+                {
+                  "name": "value",
+                  "value": { "source": "Constant", "type": "Number", "numberValue": 0.0 }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "set_num_var",
+              "arguments": [
+                {
+                  "name": "target",
+                  "value": { "source": "LocalBlackboard", "type": "Number", "path": "module:hit_count" }
+                },
+                {
+                  "name": "value",
+                  "value": { "source": "Constant", "type": "Number", "numberValue": 0.0 }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "query_target_collection",
+              "note": "复用 MOBA 目标查找系统：最多查询 4 个最近敌人。",
+              "arguments": [
+                {
+                  "name": "result",
+                  "value": { "source": "LocalBlackboard", "type": "Integer", "path": "module:target_collection" }
+                },
+                {
+                  "name": "target_source",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 6 }
+                },
+                {
+                  "name": "target_order",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 8196 }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 4 }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "for_each",
+              "note": "集合遍历有显式上限，避免配置错误导致无界执行。",
+              "arguments": [
+                {
+                  "name": "collection",
+                  "value": { "source": "LocalBlackboard", "type": "Integer", "path": "module:target_collection" }
+                },
+                {
+                  "name": "item",
+                  "value": { "source": "LocalBlackboard", "type": "Integer", "path": "module:current_target" }
+                },
+                {
+                  "name": "max_iterations",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 4 }
+                }
+              ],
+              "children": [
+                {
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "give_damage",
+                  "note": "伤害 = 40 + 0.65 * 技能施法者物攻；逐目标快照写入 Target Scope。",
+                  "arguments": [
+                    {
+                      "name": "magnitude_type",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 2 }
+                    },
+                    {
+                      "name": "magnitude_value",
+                      "value": { "source": "Constant", "type": "Number", "numberValue": 0.0 }
+                    },
+                    {
+                      "name": "magnitude_attribute",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 4 }
+                    },
+                    {
+                      "name": "magnitude_coefficient",
+                      "value": { "source": "Constant", "type": "Number", "numberValue": 0.65 }
+                    },
+                    {
+                      "name": "magnitude_secondary_type",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 0 }
+                    },
+                    {
+                      "name": "magnitude_secondary_value",
+                      "value": { "source": "Constant", "type": "Number", "numberValue": 40.0 }
+                    },
+                    {
+                      "name": "magnitude_combine",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 0 }
+                    },
+                    {
+                      "name": "magnitude_source_role",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 1 }
+                    },
+                    {
+                      "name": "magnitude_evaluation",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 1 }
+                    },
+                    {
+                      "name": "magnitude_capture",
+                      "value": { "source": "Context", "type": "Number", "path": "skill_runtime:target.showcase_snapshot_damage" }
+                    },
+                    {
+                      "name": "damage_type",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 1 }
+                    },
+                    {
+                      "name": "reason_kind",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 1 }
+                    },
+                    {
+                      "name": "reason_param",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 99190010 }
+                    },
+                    {
+                      "name": "target_actor_id",
+                      "value": { "source": "LocalBlackboard", "type": "Integer", "path": "module:current_target" }
+                    },
+                    {
+                      "name": "target_source",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 2 }
+                    },
+                    {
+                      "name": "target_max_count",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 1 }
+                    }
+                  ],
+                  "children": [],
+                  "elseChildren": []
+                },
+                {
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "add_num_var",
+                  "arguments": [
+                    {
+                      "name": "target",
+                      "value": { "source": "LocalBlackboard", "type": "Number", "path": "module:hit_count" }
+                    },
+                    {
+                      "name": "value",
+                      "value": { "source": "Constant", "type": "Number", "numberValue": 1.0 }
+                    }
+                  ],
+                  "children": [],
+                  "elseChildren": []
+                },
+                {
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "add_buff",
+                  "note": "Buff 时长只由 Buff 表定义，Action 不配置 duration。",
+                  "arguments": [
+                    {
+                      "name": "buff_ids",
+                      "value": { "source": "Constant", "type": "IntegerList", "integerListValue": [10020001] }
+                    },
+                    {
+                      "name": "target_actor_id",
+                      "value": { "source": "LocalBlackboard", "type": "Integer", "path": "module:current_target" }
+                    },
+                    {
+                      "name": "target_source",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 2 }
+                    },
+                    {
+                      "name": "target_max_count",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 1 }
+                    }
+                  ],
+                  "children": [],
+                  "elseChildren": []
+                }
+              ],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "conditional",
+              "note": "组合条件决定生成领域还是发射已有投射物。",
+              "arguments": [],
+              "condition": {
+                "enabled": true,
+                "kind": "Condition",
+                "type": "all",
+                "arguments": [],
+                "children": [
+                  {
+                    "enabled": true,
+                    "kind": "Condition",
+                    "type": "arg_gte",
+                    "arguments": [
+                      {
+                        "name": "left",
+                        "value": { "source": "LocalBlackboard", "type": "Number", "path": "module:hit_count" }
+                      },
+                      {
+                        "name": "right",
+                        "value": { "source": "Constant", "type": "Number", "numberValue": 2.0 }
+                      }
+                    ],
+                    "children": []
+                  },
+                  {
+                    "enabled": true,
+                    "kind": "Condition",
+                    "type": "not",
+                    "arguments": [],
+                    "children": [
+                      {
+                        "enabled": true,
+                        "kind": "Condition",
+                        "type": "always_false",
+                        "arguments": [],
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "spawn_area",
+                  "arguments": [
+                    {
+                      "name": "area_id",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 40060101 }
+                    },
+                    {
+                      "name": "position_mode",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 0 }
+                    },
+                    {
+                      "name": "target_source",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 4 }
+                    },
+                    {
+                      "name": "result",
+                      "value": { "source": "Context", "type": "Integer", "path": "skill_runtime:child.showcase_runtime_id" }
+                    },
+                    {
+                      "name": "result_count",
+                      "value": { "source": "Context", "type": "Integer", "path": "skill_runtime:child.showcase_result_count" }
+                    }
+                  ],
+                  "children": [],
+                  "elseChildren": []
+                }
+              ],
+              "elseChildren": [
+                {
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "shoot_projectile",
+                  "arguments": [
+                    {
+                      "name": "launcher_id",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 31020101 }
+                    },
+                    {
+                      "name": "projectile_id",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 30020101 }
+                    },
+                    {
+                      "name": "track_target",
+                      "value": { "source": "Constant", "type": "Boolean", "booleanValue": true }
+                    },
+                    {
+                      "name": "target_source",
+                      "value": { "source": "Constant", "type": "Integer", "integerValue": 3 }
+                    },
+                    {
+                      "name": "result",
+                      "value": { "source": "Context", "type": "Integer", "path": "skill_runtime:child.showcase_runtime_id" }
+                    },
+                    {
+                      "name": "result_count",
+                      "value": { "source": "Context", "type": "Integer", "path": "skill_runtime:child.showcase_result_count" }
+                    }
+                  ],
+                  "children": [],
+                  "elseChildren": []
+                }
+              ]
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "random",
+              "note": "由注入的确定性随机源按权重选择一个分支。",
+              "arguments": [],
+              "children": [
+                {
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "weighted",
+                  "arguments": [
+                    {
+                      "name": "weight",
+                      "value": { "source": "Constant", "type": "Number", "numberValue": 3.0 }
+                    }
+                  ],
+                  "children": [
+                    {
+                      "enabled": true,
+                      "kind": "Action",
+                      "type": "add_shield",
+                      "note": "护盾数值随效果上下文时间衰减，护盾生命周期仍由 Shield 系统管理。",
+                      "arguments": [
+                        {
+                          "name": "shield_id",
+                          "value": { "source": "Constant", "type": "Integer", "integerValue": 99190010 }
+                        },
+                        {
+                          "name": "magnitude_type",
+                          "value": { "source": "Constant", "type": "Integer", "integerValue": 3 }
+                        },
+                        {
+                          "name": "magnitude_value",
+                          "value": { "source": "Constant", "type": "Number", "numberValue": 180.0 }
+                        },
+                        {
+                          "name": "magnitude_duration",
+                          "value": { "source": "Constant", "type": "Number", "numberValue": 5.0 }
+                        },
+                        {
+                          "name": "magnitude_coefficient",
+                          "value": { "source": "Constant", "type": "Number", "numberValue": 1.0 }
+                        },
+                        {
+                          "name": "magnitude_decay",
+                          "value": { "source": "Constant", "type": "Integer", "integerValue": 3 }
+                        },
+                        {
+                          "name": "magnitude_source_role",
+                          "value": { "source": "Constant", "type": "Integer", "integerValue": 1 }
+                        },
+                        {
+                          "name": "target_source",
+                          "value": { "source": "Constant", "type": "Integer", "integerValue": 4 }
+                        },
+                        {
+                          "name": "result",
+                          "value": { "source": "Context", "type": "Integer", "path": "skill_runtime:child.showcase_runtime_id" }
+                        },
+                        {
+                          "name": "result_count",
+                          "value": { "source": "Context", "type": "Integer", "path": "skill_runtime:child.showcase_result_count" }
+                        }
+                      ],
+                      "children": [],
+                      "elseChildren": []
+                    }
+                  ],
+                  "elseChildren": []
+                },
+                {
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "weighted",
+                  "arguments": [
+                    {
+                      "name": "weight",
+                      "value": { "source": "Constant", "type": "Number", "numberValue": 1.0 }
+                    }
+                  ],
+                  "children": [
+                    {
+                      "enabled": true,
+                      "kind": "Action",
+                      "type": "heal",
+                      "note": "治疗读取 Cast Scope 连击计数作为 ContextFloat Magnitude。",
+                      "arguments": [
+                        {
+                          "name": "magnitude_type",
+                          "value": { "source": "Constant", "type": "Integer", "integerValue": 5 }
+                        },
+                        {
+                          "name": "magnitude_value",
+                          "value": { "source": "Constant", "type": "Number", "numberValue": 45.0 }
+                        },
+                        {
+                          "name": "magnitude_context_key",
+                          "value": { "source": "Constant", "type": "String", "stringValue": "skill_runtime:cast.showcase_combo" }
+                        },
+                        {
+                          "name": "magnitude_coefficient",
+                          "value": { "source": "Constant", "type": "Number", "numberValue": 10.0 }
+                        },
+                        {
+                          "name": "target_source",
+                          "value": { "source": "Constant", "type": "Integer", "integerValue": 4 }
+                        }
+                      ],
+                      "children": [],
+                      "elseChildren": []
+                    }
+                  ],
+                  "elseChildren": []
+                }
+              ],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "scheduled",
+              "note": "每 250ms 增加 Cast Scope 连击计数，最多执行 3 次，可被技能生命周期中断。",
+              "arguments": [
+                {
+                  "name": "schedule_mode",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 2 }
+                },
+                {
+                  "name": "interval_ms",
+                  "value": { "source": "Constant", "type": "Number", "numberValue": 250.0 }
+                },
+                {
+                  "name": "max_executions",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 3 }
+                },
+                {
+                  "name": "can_be_interrupted",
+                  "value": { "source": "Constant", "type": "Boolean", "booleanValue": true }
+                }
+              ],
+              "children": [
+                {
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "set_num_var",
+                  "arguments": [
+                    {
+                      "name": "target",
+                      "value": { "source": "Context", "type": "Number", "path": "skill_runtime:cast.showcase_combo" }
+                    },
+                    {
+                      "name": "value",
+                      "value": { "source": "Expression", "type": "Number", "expression": "skill_runtime.cast.showcase_combo + 1" }
+                    }
+                  ],
+                  "children": [],
+                  "elseChildren": []
+                }
+              ],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": { "source": "Constant", "type": "String", "stringValue": "P0 showcase execution registered" }
+                },
+                {
+                  "name": "dump_args",
+                  "value": { "source": "Constant", "type": "Boolean", "booleanValue": true }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "测试 ID 位于 99,190,000-99,199,999 复合能力保留段；本配置只展示触发器组合，不占用正式技能 ID。"
+      }
+    ]
+  }
+}

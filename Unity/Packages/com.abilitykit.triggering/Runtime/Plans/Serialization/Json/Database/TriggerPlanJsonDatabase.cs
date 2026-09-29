@@ -509,6 +509,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             dto = TriggerPlanModuleExpander.Expand(dto);
 
             var next = new List<Record>();
+            var recordsByTriggerId = new Dictionary<int, Record>();
             var byTriggerId = new Dictionary<int, TriggerPlan<object>>();
             var executionRootsByTriggerId = new Dictionary<int, ITriggerPlanExecutable>();
             var strings = dto?.Strings != null ? new Dictionary<int, string>(dto.Strings) : new Dictionary<int, string>();
@@ -533,7 +534,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     var cue = CueFactory.Create(in cueDescriptor) ?? NullTriggerCue.Instance;
                     var plan = _converter.Convert(t, cue);
                     var executionRoot = _converter.ConvertExecutionRoot(t, dto);
-                    next.Add(new Record(t.TriggerId, t.EventName, eid, NormalizeScope(t.Scope), in plan, executionRoot));
+                    var record = new Record(t.TriggerId, t.EventName, eid, NormalizeScope(t.Scope), in plan, executionRoot);
+                    next.Add(record);
+                    recordsByTriggerId[t.TriggerId] = record;
                     byTriggerId[t.TriggerId] = plan;
                     if (executionRoot != null)
                     {
@@ -543,6 +546,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             }
 
             _records = next;
+            _recordsByTriggerId = recordsByTriggerId;
             _byTriggerId = byTriggerId;
             _executionRootsByTriggerId = executionRootsByTriggerId;
             _strings = strings;

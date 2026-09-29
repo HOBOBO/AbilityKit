@@ -220,10 +220,7 @@ namespace AbilityKit.Demo.Tiny.Tests
             {
                 SetPrivate(session, "_frameReplication", new TinyFrameReplication());
                 SetPrivate(session, "_awaitingBaseline", true);
-                var cursor = (RoomGatewayFullSnapshotCursor)typeof(TinyBattleSession)
-                    .GetField("_snapshotCursor", BindingFlags.Instance | BindingFlags.NonPublic)
-                    .GetValue(session);
-                cursor.Reset(7);
+                session.SnapshotCursor.Reset(7);
                 Assert.That(session.CanSubmitInput, Is.False);
                 Assert.That(session.NeedsFullSnapshot, Is.True);
 
@@ -415,10 +412,7 @@ namespace AbilityKit.Demo.Tiny.Tests
                 SetPrivate(session, "_worldId", worldId);
                 SetPrivate(session, "_playerId", 1u);
                 SetPrivate(session, "_frameReplication", new TinyFrameReplication());
-                var cursor = (RoomGatewayFullSnapshotCursor)typeof(TinyBattleSession)
-                    .GetField("_snapshotCursor", BindingFlags.Instance | BindingFlags.NonPublic)
-                    .GetValue(session);
-                cursor.Reset(worldId);
+                session.SnapshotCursor.Reset(worldId);
 
                 var authority = new TinyBattle();
                 authority.AddPlayer(1, -1, 0);
@@ -445,7 +439,7 @@ namespace AbilityKit.Demo.Tiny.Tests
                 var stale = Snapshot(authority, worldId);
                 gateway.Latest = stale;
                 session.Tick(0.02f);
-                Assert.That(cursor.LastFrame, Is.EqualTo(0));
+                Assert.That(session.SnapshotCursor.LastFrame, Is.EqualTo(0));
                 Assert.That(session.CanSubmitInput, Is.False);
 
                 authority.Tick();
@@ -453,12 +447,12 @@ namespace AbilityKit.Demo.Tiny.Tests
                 invalid.Payload = new byte[] { 1 };
                 gateway.Latest = invalid;
                 session.Tick(0.02f);
-                Assert.That(cursor.LastFrame, Is.EqualTo(0));
+                Assert.That(session.SnapshotCursor.LastFrame, Is.EqualTo(0));
                 Assert.That(session.CanSubmitInput, Is.False);
 
                 gateway.Latest = Snapshot(authority, worldId);
                 session.Tick(0.02f);
-                Assert.That(cursor.LastFrame, Is.EqualTo(3));
+                Assert.That(session.SnapshotCursor.LastFrame, Is.EqualTo(3));
                 Assert.That(session.CanSubmitInput, Is.True);
                 Assert.That(gateway.ResumeCalls, Is.EqualTo(2));
                 session.SubmitInputAsync(new TinyInput(1, 0, false), CancellationToken.None)
@@ -477,9 +471,19 @@ namespace AbilityKit.Demo.Tiny.Tests
                 Payload = TinyBattleStateCodec.Encode(battle.CaptureState())
             };
 
-        private static void SetPrivate(TinyBattleSession session, string name, object value) =>
-            typeof(TinyBattleSession).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)
-                .SetValue(session, value);
+        private static void SetPrivate(TinyBattleSession session, string name, object value)
+        {
+            // 会话的房间侧字段如今在 RoomGatewayBattleSessionBase 里，沿继承链查找；
+            // 找不到时显式失败，而不是让 GetField 的 null 静默炸成 NullReferenceException。
+            for (var type = typeof(TinyBattleSession); type != null; type = type.BaseType)
+            {
+                var field = type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+                if (field == null) continue;
+                field.SetValue(session, value);
+                return;
+            }
+            Assert.Fail("Unknown session field: " + name);
+        }
 
         [Test]
         public void BeginLoadingRetryKeepsCommandId()
@@ -643,7 +647,9 @@ namespace AbilityKit.Demo.Tiny.Tests
                 {
                     RoomId = "room-1", Phase = RoomGatewaySessionPhase.Loading,
                     LaunchGeneration = 1, LaunchManifestVersion = 1,
-                    LaunchManifestHash = "test-manifest"
+                    LaunchManifestHash = RoomGatewayLaunchManifestCompatibility.ComputeHash(
+                        new[] { TinyBattle.AssetKey, TinyBattle.RulesKey },
+                        new System.Collections.Generic.Dictionary<string, string> { ["players"] = "0" })
                 };
                 session.PollAsync(CancellationToken.None).GetAwaiter().GetResult();
                 session.LeaveLobbyAsync(CancellationToken.None).GetAwaiter().GetResult();

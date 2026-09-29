@@ -1,0 +1,107 @@
+[
+  {
+    "Id": 80120001,
+    "Name": "P1 Economy Charge Channel Showcase",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "economy.reserve",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 12,
+          "UseResolvedResourceCost": false,
+          "ChargeCost": 1,
+          "MaxCharges": 3,
+          "ChargeRecoveryMs": 6000,
+          "StartSkillCooldown": false,
+          "UseResolvedSkillCooldown": false,
+          "CooldownGroup": "mobility",
+          "SharedCooldownMs": 800,
+          "GlobalCooldownMs": 350,
+          "IgnoreGlobalCooldown": false,
+          "RefundBeforeCommit": true,
+          "FailReason": "skill_economy_reserve_failed"
+        }
+      },
+      {
+        "Type": 15,
+        "PhaseId": "charge.release_or_interrupt",
+        "Children": [
+          {
+            "Type": 17,
+            "PhaseId": "charge.window",
+            "Window": {
+              "WindowId": "p1.charge.primary",
+              "Kind": 2,
+              "DurationMs": 1500,
+              "CompleteOnTimeout": true,
+              "ChargeTierThresholdMs": [300, 750, 1200],
+              "AbortOnTriggerFailure": true
+            }
+          },
+          {
+            "Type": 16,
+            "PhaseId": "charge.interrupt_event",
+            "AwaitEvent": {
+              "EventId": "skill.charge.interrupted",
+              "TimeoutMs": 1500,
+              "CompleteOnTimeout": true,
+              "Filters": [
+                { "FieldId": 1, "ExpectedValue": 0, "UseCasterActorId": true }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "Type": 18,
+        "PhaseId": "economy.commit",
+        "CommitPoint": { "CommitId": "p1.release" }
+      },
+      {
+        "Type": 11,
+        "PhaseId": "channel.parallel",
+        "Children": [
+          {
+            "Type": 17,
+            "PhaseId": "channel.window",
+            "Window": {
+              "WindowId": "p1.channel.primary",
+              "Kind": 3,
+              "DurationMs": 1200,
+              "CompleteOnTimeout": true,
+              "ChannelIntervalMs": 300,
+              "AbortOnTriggerFailure": true
+            }
+          },
+          {
+            "Type": 12,
+            "PhaseId": "channel.resource_ticks",
+            "Repeat": {
+              "RepeatCount": 4,
+              "IntervalMs": 300,
+              "Phase": {
+                "Type": 19,
+                "PhaseId": "channel.consume_tick",
+                "Economy": {
+                  "Operation": 1,
+                  "ResourceType": 2,
+                  "ResourceAmount": 2,
+                  "UseResolvedResourceCost": false,
+                  "ChargeCost": 0,
+                  "MaxCharges": 1,
+                  "StartSkillCooldown": false,
+                  "UseResolvedSkillCooldown": false,
+                  "RefundBeforeCommit": false,
+                  "FailReason": "channel_resource_exhausted"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

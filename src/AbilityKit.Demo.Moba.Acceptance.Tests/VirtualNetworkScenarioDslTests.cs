@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using AbilityKit.BattleFlow;
+using AbilityKit.BattleScenario;
 using AbilityKit.Demo.Moba.Acceptance;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime.Conditioning;
@@ -50,10 +50,10 @@ public sealed class VirtualNetworkScenarioDslTests
     }
 
     [Fact]
-    public void BattleFlowDslCompilesToTheSameVirtualNetworkTrace()
+    public void BattleScenarioDslCompilesToTheSameVirtualNetworkTrace()
     {
         var jsonScenario = TestScenarioCodec.Parse(Script);
-        var blocks = BattleFlowDslParser.Parse("""
+        var blocks = BattleScenarioDslParser.Parse("""
             network packet inbound opcode=7 seq=1 at=0
             network packet inbound opcode=7 seq=2 at=30
             network disconnect at=40
@@ -64,7 +64,7 @@ public sealed class VirtualNetworkScenarioDslTests
             network packet inbound opcode=7 seq=4 at=170
             network phase at=120 until=170 direction=inbound opcode=7 loss=1
             """);
-        var battleFlowScenario = BattleFlowCompiler.Compile("battle-recovery-virtual", blocks);
+        var battleFlowScenario = BattleScenarioCompiler.Compile("battle-recovery-virtual", blocks);
 
         Assert.Equal(Run(jsonScenario, seed: 47), Run(battleFlowScenario, seed: 47));
     }

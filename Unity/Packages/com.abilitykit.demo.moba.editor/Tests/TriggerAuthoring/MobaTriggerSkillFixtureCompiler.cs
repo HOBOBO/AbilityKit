@@ -16,7 +16,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
     internal static class MobaTriggerSkillFixtureCompiler
     {
         private const string ProjectAssetPath =
-            "Assets/AbilityKit/MobaTriggerAuthoring/MobaTriggerAuthoringProject.asset";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/MobaTriggerAuthoringProject.asset";
         private const string FixtureDirectory =
             "Packages/com.abilitykit.demo.moba.editor/Tests/Fixtures/TriggerAuthoring";
 

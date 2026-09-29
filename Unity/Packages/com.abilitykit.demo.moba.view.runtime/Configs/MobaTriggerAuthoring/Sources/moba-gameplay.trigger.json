@@ -1,0 +1,474 @@
+{
+  "schema": "abilitykit-trigger-authoring",
+  "version": "2.2",
+  "metadata": {
+    "author": "AbilityKit MOBA",
+    "description": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/gameplay. Edit in the Trigger Authoring workspace."
+  },
+  "module": {
+    "moduleId": "gameplay.moba.rules",
+    "displayName": "MOBA 玩法规则",
+    "kind": "Custom",
+    "blackboard": [],
+    "conditionGroups": [],
+    "actionGroups": [],
+    "triggers": [
+      {
+        "id": 900001,
+        "name": "Gameplay Time Limit",
+        "groupPath": "trigger_900001",
+        "tags": [
+          "moba",
+          "gameplay"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "gameplay.tick",
+        "phase": "immediate",
+        "priority": 0,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "mode": "once",
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_l8904c56e00ecd750",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "arg_gte",
+          "arguments": [
+            {
+              "name": "left",
+              "value": {
+                "source": "Payload",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": [],
+                "path": "elapsed_seconds"
+              }
+            },
+            {
+              "name": "right",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 600.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_l9463a52e980525be",
+          "enabled": true,
+          "kind": "Action",
+          "type": "end_game",
+          "arguments": [
+            {
+              "name": "reason_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "win_team_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/gameplay/trigger_900001.json"
+      },
+      {
+        "id": 900002,
+        "name": "Gameplay Score Init",
+        "groupPath": "trigger_900002",
+        "tags": [
+          "moba",
+          "gameplay"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "gameplay.started",
+        "phase": "immediate",
+        "priority": 0,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "mode": "once",
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_la45b081f06c2b4cc",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l8dddc37122f6a7ef",
+              "enabled": true,
+              "kind": "Action",
+              "type": "set_gameplay_var",
+              "arguments": [
+                {
+                  "name": "key_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1001,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l8dda5d7122f3c4c6",
+              "enabled": true,
+              "kind": "Action",
+              "type": "set_gameplay_var",
+              "arguments": [
+                {
+                  "name": "key_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1002,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/gameplay/trigger_900002.json"
+      },
+      {
+        "id": 900003,
+        "name": "Gameplay Kill Score Add",
+        "groupPath": "trigger_900003",
+        "tags": [
+          "moba",
+          "gameplay"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "unit.die",
+        "phase": "immediate",
+        "priority": 0,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "mode": "always",
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l27c552bda2e0b61e",
+          "enabled": true,
+          "kind": "Action",
+          "type": "add_gameplay_var",
+          "arguments": [
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "delta",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 1.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/gameplay/trigger_900003.json"
+      },
+      {
+        "id": 900004,
+        "name": "Gameplay Kill Score Limit",
+        "groupPath": "trigger_900004",
+        "tags": [
+          "moba",
+          "gameplay"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "unit.die",
+        "phase": "immediate",
+        "priority": 1,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "mode": "once",
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_l5faed0964a1d89c6",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "arg_gte",
+          "arguments": [
+            {
+              "name": "left",
+              "value": {
+                "source": "Context",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": [],
+                "path": "gameplay:1001"
+              }
+            },
+            {
+              "name": "right",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 5.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_l67603c066f04b308",
+          "enabled": true,
+          "kind": "Action",
+          "type": "end_game",
+          "arguments": [
+            {
+              "name": "reason_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "win_team_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/gameplay/trigger_900004.json"
+      }
+    ]
+  }
+}

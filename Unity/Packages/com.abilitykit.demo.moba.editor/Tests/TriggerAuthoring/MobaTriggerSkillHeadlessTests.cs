@@ -88,7 +88,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
         {
             var sourceDirectory = Path.Combine(
                 UnityEngine.Application.dataPath,
-                "AbilityKit",
+                "..",
+                "Packages",
+                "com.abilitykit.demo.moba.view.runtime",
+                "Configs",
                 "MobaTriggerAuthoring",
                 "Sources");
             Assert.That(Directory.Exists(sourceDirectory), Is.True,
@@ -109,7 +112,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
         {
             var sourceDirectory = Path.Combine(
                 UnityEngine.Application.dataPath,
-                "AbilityKit",
+                "..",
+                "Packages",
+                "com.abilitykit.demo.moba.view.runtime",
+                "Configs",
                 "MobaTriggerAuthoring",
                 "Sources");
             var violations = new List<string>();

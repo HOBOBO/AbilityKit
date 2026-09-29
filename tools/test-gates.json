@@ -252,7 +252,7 @@
           "name": "Battle flow regression",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
-          "filter": "Gate=BattleFlow"
+          "filter": "Gate=BattleScenario"
         }
       ]
     },
@@ -539,7 +539,7 @@
         "protocol",
         "environment",
         "scenario",
-        "battleflow",
+        "battlescenario",
         "samples"
       ],
       "requiredBefore": [
@@ -590,9 +590,9 @@
           "project": "src/AbilityKit.Scenario.Tests/AbilityKit.Scenario.Tests.csproj"
         },
         {
-          "name": "BattleFlow block model tests",
+          "name": "BattleScenario block model tests",
           "kind": "dotnet-test",
-          "project": "src/AbilityKit.BattleFlow.Tests/AbilityKit.BattleFlow.Tests.csproj"
+          "project": "src/AbilityKit.BattleScenario.Tests/AbilityKit.BattleScenario.Tests.csproj"
         },
         {
           "name": "Build sample catalog host",

@@ -35,8 +35,8 @@
     "AbilityKit.ExcelSync.Editor",
     "AbilityKit.Ability.Explain",
     "AbilityKit.Ability.Explain.Editor",
-    "AbilityKit.BattleFlow",
-    "AbilityKit.BattleFlow.Editor",
+    "AbilityKit.BattleScenario",
+    "AbilityKit.BattleScenario.Editor",
     "AbilityKit.Scenario",
     "AbilityKit.Demo.Moba.Environment"
   ],

@@ -8,7 +8,6 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             new[]
             {
                 TriggerPlanLoadEntry.File("Main trigger plans", "ability/ability_trigger_plans.json"),
-                TriggerPlanLoadEntry.Directory("Directory trigger plans", "ability/triggers", "**/*.json"),
                 TriggerPlanLoadEntry.Directory("Ability rules", "ability/rules", "**/*.json"),
                 TriggerPlanLoadEntry.File("Moba effect plans", "moba/effect_plans.json"),
             },

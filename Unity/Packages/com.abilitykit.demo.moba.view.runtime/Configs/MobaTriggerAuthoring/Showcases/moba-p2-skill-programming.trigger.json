@@ -1,0 +1,188 @@
+{
+  "schema": "abilitykit-trigger-authoring",
+  "version": "2.2",
+  "metadata": {
+    "author": "AbilityKit MOBA Tests",
+    "description": "Editable P2 showcase for actor-scoped skill parameter modifiers consumed by the existing skill, projectile, economy, cooldown, and target-search systems."
+  },
+  "module": {
+    "moduleId": "ability.moba.tests.p2_showcase",
+    "displayName": "MOBA P2 Skill Programming Showcase",
+    "kind": "Ability",
+    "blackboard": [],
+    "conditionGroups": [],
+    "actionGroups": [],
+    "triggers": [
+      {
+        "id": 99190020,
+        "name": "Apply P2 Derived Skill Parameters",
+        "groupPath": "tests/P2/skill-programming",
+        "tags": ["moba", "test", "p2", "modifier", "derived-skill"],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_skill_param_modifier",
+              "note": "The existing projectile launcher reads the resolved projectile count.",
+              "arguments": [
+                { "name": "parameter_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 3 } },
+                { "name": "operation", "value": { "source": "Constant", "type": "Integer", "integerValue": 2 } },
+                { "name": "value", "value": { "source": "Constant", "type": "Number", "numberValue": 5.0 } },
+                { "name": "source_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 99190020 } },
+                { "name": "priority", "value": { "source": "Constant", "type": "Integer", "integerValue": 40 } },
+                { "name": "target_source", "value": { "source": "Constant", "type": "Integer", "integerValue": 4 } }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_skill_param_modifier",
+              "arguments": [
+                { "name": "parameter_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 4 } },
+                { "name": "operation", "value": { "source": "Constant", "type": "Integer", "integerValue": 0 } },
+                { "name": "value", "value": { "source": "Constant", "type": "Number", "numberValue": 20.0 } },
+                { "name": "source_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 99190020 } },
+                { "name": "priority", "value": { "source": "Constant", "type": "Integer", "integerValue": 40 } },
+                { "name": "target_source", "value": { "source": "Constant", "type": "Integer", "integerValue": 4 } }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_skill_param_modifier",
+              "arguments": [
+                { "name": "parameter_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 5 } },
+                { "name": "operation", "value": { "source": "Constant", "type": "Integer", "integerValue": 1 } },
+                { "name": "value", "value": { "source": "Constant", "type": "Number", "numberValue": 1.25 } },
+                { "name": "source_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 99190020 } },
+                { "name": "priority", "value": { "source": "Constant", "type": "Integer", "integerValue": 40 } },
+                { "name": "target_source", "value": { "source": "Constant", "type": "Integer", "integerValue": 4 } }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_skill_param_modifier",
+              "note": "Economy reservation consumes the resolved resource cost.",
+              "arguments": [
+                { "name": "parameter_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 8 } },
+                { "name": "operation", "value": { "source": "Constant", "type": "Integer", "integerValue": 3 } },
+                { "name": "value", "value": { "source": "Constant", "type": "Number", "numberValue": -0.2 } },
+                { "name": "source_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 99190020 } },
+                { "name": "priority", "value": { "source": "Constant", "type": "Integer", "integerValue": 40 } },
+                { "name": "target_source", "value": { "source": "Constant", "type": "Integer", "integerValue": 4 } }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_skill_param_modifier",
+              "note": "The formal cooldown path consumes the resolved cooldown value.",
+              "arguments": [
+                { "name": "parameter_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 9 } },
+                { "name": "operation", "value": { "source": "Constant", "type": "Integer", "integerValue": 3 } },
+                { "name": "value", "value": { "source": "Constant", "type": "Number", "numberValue": -0.15 } },
+                { "name": "source_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 99190020 } },
+                { "name": "priority", "value": { "source": "Constant", "type": "Integer", "integerValue": 40 } },
+                { "name": "target_source", "value": { "source": "Constant", "type": "Integer", "integerValue": 4 } }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_skill_param_modifier",
+              "note": "The existing target-search preparation path consumes the resolved cast range.",
+              "arguments": [
+                { "name": "parameter_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 10 } },
+                { "name": "operation", "value": { "source": "Constant", "type": "Integer", "integerValue": 0 } },
+                { "name": "value", "value": { "source": "Constant", "type": "Number", "numberValue": 2.0 } },
+                { "name": "source_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 99190020 } },
+                { "name": "priority", "value": { "source": "Constant", "type": "Integer", "integerValue": 40 } },
+                { "name": "target_source", "value": { "source": "Constant", "type": "Integer", "integerValue": 4 } }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        }
+      },
+      {
+        "id": 99190021,
+        "name": "Clear P2 Derived Skill Parameters",
+        "groupPath": "tests/P2/skill-programming",
+        "tags": ["moba", "test", "p2", "modifier", "cleanup"],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "remove_skill_param_modifiers",
+          "arguments": [
+            { "name": "source_id", "value": { "source": "Constant", "type": "Integer", "integerValue": 99190020 } },
+            { "name": "target_source", "value": { "source": "Constant", "type": "Integer", "integerValue": 4 } }
+          ],
+          "children": [],
+          "elseChildren": []
+        }
+      }
+    ]
+  }
+}

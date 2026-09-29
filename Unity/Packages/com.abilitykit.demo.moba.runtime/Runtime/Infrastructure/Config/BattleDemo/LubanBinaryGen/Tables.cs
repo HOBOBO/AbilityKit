@@ -18,7 +18,6 @@ public partial class Tables
     public AttrTypes AttrTypes {get; }
     public Skills Skills {get; }
     public PassiveSkills PassiveSkills {get; }
-    public SkillFlows SkillFlows {get; }
     public SkillLevelTables SkillLevelTables {get; }
     public Models Models {get; }
     public Buffs Buffs {get; }
@@ -59,7 +58,6 @@ public partial class Tables
         AttrTypes = new AttrTypes(loader("attr_types"));
         Skills = new Skills(loader("skills"));
         PassiveSkills = new PassiveSkills(loader("passive_skills"));
-        SkillFlows = new SkillFlows(loader("skill_flows"));
         SkillLevelTables = new SkillLevelTables(loader("skill_level_tables"));
         Models = new Models(loader("models"));
         Buffs = new Buffs(loader("buffs"));
@@ -102,7 +100,6 @@ public partial class Tables
         AttrTypes.ResolveRef(this);
         Skills.ResolveRef(this);
         PassiveSkills.ResolveRef(this);
-        SkillFlows.ResolveRef(this);
         SkillLevelTables.ResolveRef(this);
         Models.ResolveRef(this);
         Buffs.ResolveRef(this);

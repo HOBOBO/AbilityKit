@@ -17,15 +17,15 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         public const int FlowId = 99_200_020;
         public const string TriggerModuleId = "ability.moba.tests.p2_showcase";
         public const string ProjectAssetPath =
-            "Assets/AbilityKit/MobaTriggerAuthoring/MobaTriggerAuthoringProject.asset";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/MobaTriggerAuthoringProject.asset";
         public const string TriggerSourceAssetPath =
-            "Assets/AbilityKit/MobaTriggerAuthoring/Showcases/moba-p2-skill-programming.trigger.json";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/Showcases/moba-p2-skill-programming.trigger.json";
         public const string TriggerModuleAssetPath =
-            "Assets/AbilityKit/MobaTriggerAuthoring/Packages/ability_moba_tests_p2_showcase.Module.asset";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/Packages/ability_moba_tests_p2_showcase.Module.asset";
         public const string FlowSourceAssetPath =
-            "Assets/AbilityKit/MobaSkillFlowAuthoring/Showcases/moba-p2-derived-capture-flow.json";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/moba-p2-derived-capture-flow.json";
         public const string FlowAssetPath =
-            "Assets/AbilityKit/MobaSkillFlowAuthoring/Showcases/MobaP2DerivedCaptureShowcase.asset";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/MobaP2DerivedCaptureShowcase.asset";
 
         [MenuItem("AbilityKit/Moba/Skill Flow/Sync P2 Skill Programming Showcase")]
         public static void Sync()
