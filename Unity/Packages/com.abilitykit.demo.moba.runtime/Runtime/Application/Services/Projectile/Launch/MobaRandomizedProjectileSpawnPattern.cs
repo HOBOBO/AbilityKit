@@ -11,12 +11,20 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         private readonly IProjectileSpawnPattern _inner;
         private readonly ProjectileMO _projectile;
         private readonly IWorldRandom _random;
+        private readonly float _speed;
+        private readonly int _lifetimeFrames;
+        private readonly int _pierceHits;
 
-        public MobaRandomizedProjectileSpawnPattern(IProjectileSpawnPattern inner, ProjectileMO projectile, IWorldRandom random)
+        public MobaRandomizedProjectileSpawnPattern(IProjectileSpawnPattern inner, ProjectileMO projectile,
+            IWorldRandom random, float speed, int lifetimeFrames = -1,
+            int pierceHits = int.MinValue)
         {
             _inner = inner;
             _projectile = projectile;
             _random = random;
+            _speed = speed;
+            _lifetimeFrames = lifetimeFrames;
+            _pierceHits = pierceHits;
         }
 
         public void Build(in ProjectileSpawnParams baseSpawn, List<ProjectileSpawnParams> results)
@@ -24,20 +32,27 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             if (results == null) return;
             if (_inner == null)
             {
-                results.Add(baseSpawn);
+                var single = baseSpawn.WithSpeed(_speed);
+                if (_lifetimeFrames >= 0) single = single.WithLifetimeFrames(_lifetimeFrames);
+                results.Add(_pierceHits != int.MinValue ? single.WithHitPolicyParam(_pierceHits) : single);
                 return;
             }
 
             var start = results.Count;
             _inner.Build(in baseSpawn, results);
-            if (_projectile == null || _random == null) return;
-            if (!HasRandomOffset(_projectile)) return;
-
             for (var i = start; i < results.Count; i++)
             {
                 var spawn = results[i];
-                var position = spawn.Position + ResolveLocalRandomOffset(in spawn.Direction, _projectile.SpawnRandomOffsetX, _projectile.SpawnRandomOffsetY, _projectile.SpawnRandomOffsetZ, _random);
-                results[i] = spawn.WithPosition(in position);
+                if (_projectile != null && _random != null && HasRandomOffset(_projectile))
+                {
+                    var position = spawn.Position + ResolveLocalRandomOffset(in spawn.Direction,
+                        _projectile.SpawnRandomOffsetX, _projectile.SpawnRandomOffsetY,
+                        _projectile.SpawnRandomOffsetZ, _random);
+                    spawn = spawn.WithPosition(in position);
+                }
+                spawn = spawn.WithSpeed(_speed);
+                if (_lifetimeFrames >= 0) spawn = spawn.WithLifetimeFrames(_lifetimeFrames);
+                results[i] = _pierceHits != int.MinValue ? spawn.WithHitPolicyParam(_pierceHits) : spawn;
             }
         }
 

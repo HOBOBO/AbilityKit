@@ -50,6 +50,9 @@ namespace AbilityKit.Demo.Moba.Services
         private IBattleDiagnosticActorAttributeStore _attributeStore = null;
 
         [WorldInject(required: false)]
+        private IMobaBattleDiagnosticAttributeHistory _attributeHistory = null;
+
+        [WorldInject(required: false)]
         private IMobaContinuousModifierQueryService _modifierQuery = null;
 
         [WorldInject(required: false)]
@@ -98,6 +101,26 @@ namespace AbilityKit.Demo.Moba.Services
         /// 最近一次采样异常的简短消息；成功采样后清空。
         /// </summary>
         public string LastSampleError => _lastSampleError;
+
+        public void SampleTrackedAttribute()
+        {
+            if (_attributeHistory == null || _stateStore.IsFrozen ||
+                (_attributeStore != null && _attributeStore.IsFrozen) ||
+                !_attributeHistory.TryGetTrack(out var actorId, out var attributeId, out _) ||
+                actorId > int.MaxValue || !_registry.TryGet((int)actorId, out var entity) ||
+                entity == null || !entity.isEnabled || !entity.hasAttributeGroup ||
+                entity.attributeGroup.Group == null ||
+                !entity.attributeGroup.Group.Attributes.TryGetValue(attributeId, out var instance) ||
+                instance == null)
+                return;
+
+            var frame = ResolveFrame();
+            var activeModifiers = instance.GetActiveModifierData();
+            _attributeHistory.Record(new BattleDiagnosticActorAttribute(
+                _stateStore.Scope, frame, actorId, attributeId,
+                instance.BaseValue, instance.Value, activeModifiers.Length,
+                instance.Id.Name));
+        }
 
         /// <summary>
         /// 执行一次完整的世界 + 角色状态采样。
@@ -508,7 +531,7 @@ namespace AbilityKit.Demo.Moba.Services
                             modifier.Magnitude.BaseValue,
                             modifier.Priority,
                             modifier.SourceId,
-                            (int)modifier.Magnitude.Type,
+                            (int)explanation.DeclaredMagnitude.Type,
                             explanation.DeclaredMagnitude.CalculatedValue,
                             explanation.StackedMagnitude.CalculatedValue,
                             explanation.ProjectedMagnitude.CalculatedValue,

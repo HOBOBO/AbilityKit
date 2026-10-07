@@ -31,7 +31,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             IntervalTriggerIds = dto.IntervalTriggerIds ?? Array.Empty<int>();
             TriggerIds = dto.TriggerIds ?? Array.Empty<int>();
             ContinuousTagTemplateId = dto.ContinuousTagTemplateId;
-            Tags = MobaGameplayTagCatalog.ToContainer(dto.TagNames);
+            Tags = MobaGameplayTagCatalog.ToConfigContainer(dto.TagNames);
             Modifiers = CreateModifiers(dto.Modifiers);
             RequireOutOfCombat = dto.RequireOutOfCombat;
             OutOfCombatSeconds = dto.OutOfCombatSeconds;

@@ -51,7 +51,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
                 for (int i = 0; i < targets.Count; i++)
                 {
-                    ApplyBuffs(buffSvc, args, effectInput, sourceActorId, targets[i]);
+                    ApplyBuffs(buffSvc, args, effectInput, sourceActorId, targets[i],
+                        coreInput.ExecutionContext.ProjectileTemplateId);
                 }
             }
             finally
@@ -60,7 +61,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
         }
 
-        private static void ApplyBuffs(MobaBuffService buffSvc, AddBuffArgs args, MobaEffectActionInput input, int sourceActorId, int targetActorId)
+        private static void ApplyBuffs(MobaBuffService buffSvc, AddBuffArgs args, MobaEffectActionInput input,
+            int sourceActorId, int targetActorId, int projectileTemplateId)
         {
             if (targetActorId <= 0) return;
 
@@ -69,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 var buffId = args.BuffIds[i];
                 if (buffId <= 0) continue;
-                var buffOrigin = BuffOriginContext.FromOrigin(in origin);
+                var buffOrigin = BuffOriginContext.FromOrigin(in origin, projectileTemplateId);
                 buffSvc.ApplyBuffImmediate(targetActorId, buffId, sourceActorId, durationOverrideMs: 0, buffOrigin);
             }
         }

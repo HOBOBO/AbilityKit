@@ -1,8 +1,10 @@
+using System;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.GameplayTags;
+using moba_luban;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -46,11 +48,17 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly MobaActorLookupService _actors;
         private readonly IMobaEffectiveTagQueryService _effectiveTags;
+        private readonly IMobaTagResultQueryService _tagResults;
+        private readonly IMobaTagBehaviorGateQueryService _behaviorGates;
 
         public MobaCombatRulesService(MobaActorLookupService actors, IMobaEffectiveTagQueryService effectiveTags = null)
         {
             _actors = actors;
             _effectiveTags = effectiveTags;
+            _tagResults = effectiveTags as IMobaTagResultQueryService;
+            _behaviorGates = effectiveTags as IMobaTagBehaviorGateQueryService;
+            if (effectiveTags != null && (_tagResults == null || _behaviorGates == null))
+                throw new ArgumentException("MOBA effective tags must provide cached results and behavior gates.", nameof(effectiveTags));
         }
 
         public bool TryGetActor(int actorId, out global::ActorEntity actor)
@@ -104,12 +112,9 @@ namespace AbilityKit.Demo.Moba.Services
             if (actorId <= 0 || query == null || query.Count == 0) return false;
             if (_effectiveTags == null) return false;
 
-            var tags = _effectiveTags.GetEffectiveTags(actorId);
-            if (tags == null || tags.Count == 0) return false;
-
             foreach (var tag in query)
             {
-                if (tags.HasTag(tag))
+                if (_effectiveTags.HasTag(actorId, tag))
                 {
                     matchedTag = tag;
                     return true;
@@ -121,37 +126,50 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool IsUntargetable(int actorId)
         {
-            return HasAnyTag(actorId, MobaGameplayTagCatalog.UntargetableTags);
+            return IsBlocked(actorId, MobaTagBehaviorGate.Targetable);
         }
 
         public bool IsInvulnerable(int actorId)
         {
-            return HasAnyTag(actorId, MobaGameplayTagCatalog.InvulnerableTags);
+            return IsBlocked(actorId, MobaTagBehaviorGate.Damageable);
         }
 
         public bool IsSilenced(int actorId)
         {
-            return HasAnyTag(actorId, MobaGameplayTagCatalog.CastBlockedTags);
+            return IsBlocked(actorId, MobaTagBehaviorGate.Cast);
         }
 
         public bool IsStunned(int actorId)
         {
-            return HasAnyTag(actorId, MobaGameplayTagCatalog.StunnedTags)
-                || HasAnyTag(actorId, MobaGameplayTagCatalog.DisabledTags)
-                || HasAnyTag(actorId, MobaGameplayTagCatalog.SuppressedTags);
+            return IsBlocked(actorId, MobaTagBehaviorGate.Stunned);
         }
 
         public bool CanMove(int actorId)
         {
-            return IsAlive(actorId) && !HasAnyTag(actorId, MobaGameplayTagCatalog.MoveBlockedTags);
+            return IsAlive(actorId) && !IsBlocked(actorId, MobaTagBehaviorGate.Move);
+        }
+
+        public bool CanAttack(int actorId)
+        {
+            return IsAlive(actorId) && !IsBlocked(actorId, MobaTagBehaviorGate.Attack);
         }
 
         public bool CanBeControlled(int actorId)
         {
             return IsAlive(actorId)
-                && !HasAnyTag(actorId, MobaGameplayTagCatalog.ControlImmuneTags)
-                && !HasAnyTag(actorId, MobaGameplayTagCatalog.ControlBlockedTags);
+                && !IsBlocked(actorId, MobaTagBehaviorGate.Controlled);
         }
+
+        private bool IsBlocked(int actorId, MobaTagBehaviorGate gateId)
+        {
+            if (actorId <= 0 || _behaviorGates == null) return false;
+            if (!_behaviorGates.TryIsBlocked(actorId, gateId, out var blocked))
+                throw new InvalidOperationException($"Missing MOBA tag behavior gate: {gateId}");
+            return blocked;
+        }
+
+        public bool HasAnyTagResult(int actorId) =>
+            (_tagResults?.GetResultFlags(actorId) ?? MobaTagResultFlags.None) != MobaTagResultFlags.None;
 
         public MobaCombatRuleResult CanBeSearchedTarget(int casterActorId, int targetActorId)
         {
@@ -163,18 +181,19 @@ namespace AbilityKit.Demo.Moba.Services
 
         public MobaCombatRuleResult CanReceiveDamage(int attackerActorId, int targetActorId)
         {
-            var targetable = CanBeSearchedTarget(attackerActorId, targetActorId);
-            if (!targetable.Passed) return targetable;
+            if (!TryGetActor(targetActorId, out _)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.InvalidActor, "target_not_found");
+            if (!IsAlive(targetActorId)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Dead, "target_dead");
             if (IsInvulnerable(targetActorId)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Invulnerable, "target_invulnerable");
             return MobaCombatRuleResult.Pass;
         }
 
-        public MobaCombatRuleResult CanCastSkill(int casterActorId)
+        public MobaCombatRuleResult CanCastSkill(int casterActorId, ulong executionBlockedResultMask)
         {
             if (!TryGetActor(casterActorId, out _)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.InvalidActor, "caster_not_found");
             if (!IsAlive(casterActorId)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Dead, "caster_dead");
-            if (IsStunned(casterActorId)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Stunned, "caster_stunned");
-            if (IsSilenced(casterActorId)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Silenced, "caster_silenced");
+            if (executionBlockedResultMask != 0UL &&
+                (_tagResults == null || ((ulong)_tagResults.GetResultFlags(casterActorId) & executionBlockedResultMask) != 0UL))
+                return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Disabled, "caster_execution_blocked");
             return MobaCombatRuleResult.Pass;
         }
 

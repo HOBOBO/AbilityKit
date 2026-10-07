@@ -23,7 +23,6 @@ using SummonMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SummonMO;
 using SummonAttrInheritMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SummonAttrInheritMO;
 using ComponentTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ComponentTemplateMO;
 using SkillButtonTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SkillButtonTemplateMO;
-using TagTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.TagTemplateMO;
 using ContinuousTagTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ContinuousTagTemplateMO;
 using SearchQueryTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SearchQueryTemplateMO;
 using BattleMapMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.BattleMapMO;
@@ -462,11 +461,6 @@ using MotionGroupMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.MotionGroupMO;
             return GetTable<SkillButtonTemplateMO>().Get(id);
         }
 
-        public TagTemplateMO GetTagTemplate(int id)
-        {
-            return GetTable<TagTemplateMO>().Get(id);
-        }
-
         public ContinuousTagTemplateMO GetContinuousTagTemplate(int id)
         {
             return GetTable<ContinuousTagTemplateMO>().Get(id);
@@ -487,23 +481,7 @@ using MotionGroupMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.MotionGroupMO;
         public bool TryGetSummonAttrInherit(int id, out SummonAttrInheritMO mo) => GetTable<SummonAttrInheritMO>().TryGet(id, out mo);
         public bool TryGetComponentTemplate(int id, out ComponentTemplateMO mo) => GetTable<ComponentTemplateMO>().TryGet(id, out mo);
         public bool TryGetSkillButtonTemplate(int id, out SkillButtonTemplateMO mo) => GetTable<SkillButtonTemplateMO>().TryGet(id, out mo);
-        public bool TryGetTagTemplate(int id, out TagTemplateMO mo) => GetTable<TagTemplateMO>().TryGet(id, out mo);
         public bool TryGetContinuousTagTemplate(int id, out ContinuousTagTemplateMO mo) => GetTable<ContinuousTagTemplateMO>().TryGet(id, out mo);
-        public bool TryGetTagTemplateByName(string name, out TagTemplateMO mo)
-        {
-            mo = null;
-            if (string.IsNullOrEmpty(name)) return false;
-            foreach (var entry in GetTable<TagTemplateMO>().All())
-            {
-                if (entry != null && name == entry.Name)
-                {
-                    mo = entry;
-                    return true;
-                }
-            }
-            return false;
-        }
-
         public bool TryGetContinuousTagTemplateByName(string name, out ContinuousTagTemplateMO mo)
         {
             mo = null;

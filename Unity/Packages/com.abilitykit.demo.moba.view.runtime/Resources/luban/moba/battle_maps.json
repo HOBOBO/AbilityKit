@@ -3,14 +3,14 @@
     "Id": 1,
     "Bounds": {
       "Center": {
-        "X": 0.0,
-        "Y": 0.0,
-        "Z": 0.0
+        "X": 0,
+        "Y": 0,
+        "Z": 0
       },
       "Size": {
-        "X": 36.0,
-        "Y": 4.0,
-        "Z": 24.0
+        "X": 36,
+        "Y": 4,
+        "Z": 24
       }
     },
     "CollisionObjects": [
@@ -20,22 +20,22 @@
         "ObjectType": "Boundary",
         "ShapeType": "Box",
         "Position": {
-          "X": 0.0,
-          "Y": 1.0,
-          "Z": 12.0
+          "X": 0,
+          "Y": 1,
+          "Z": 12
         },
         "RotationEuler": {
-          "X": 0.0,
-          "Y": 0.0,
-          "Z": 0.0
+          "X": 0,
+          "Y": 0,
+          "Z": 0
         },
         "Size": {
-          "X": 36.0,
-          "Y": 2.0,
-          "Z": 1.0
+          "X": 36,
+          "Y": 2,
+          "Z": 1
         },
-        "Radius": 0.0,
-        "Height": 0.0,
+        "Radius": 0,
+        "Height": 0,
         "CollisionLayer": 2,
         "BlocksMovement": true,
         "ProjectileResponse": "Default",
@@ -47,22 +47,22 @@
         "ObjectType": "Boundary",
         "ShapeType": "Box",
         "Position": {
-          "X": 0.0,
-          "Y": 1.0,
-          "Z": -12.0
+          "X": 0,
+          "Y": 1,
+          "Z": -12
         },
         "RotationEuler": {
-          "X": 0.0,
-          "Y": 0.0,
-          "Z": 0.0
+          "X": 0,
+          "Y": 0,
+          "Z": 0
         },
         "Size": {
-          "X": 36.0,
-          "Y": 2.0,
-          "Z": 1.0
+          "X": 36,
+          "Y": 2,
+          "Z": 1
         },
-        "Radius": 0.0,
-        "Height": 0.0,
+        "Radius": 0,
+        "Height": 0,
         "CollisionLayer": 2,
         "BlocksMovement": true,
         "ProjectileResponse": "Default",
@@ -74,22 +74,22 @@
         "ObjectType": "Boundary",
         "ShapeType": "Box",
         "Position": {
-          "X": -18.0,
-          "Y": 1.0,
-          "Z": 0.0
+          "X": -18,
+          "Y": 1,
+          "Z": 0
         },
         "RotationEuler": {
-          "X": 0.0,
-          "Y": 0.0,
-          "Z": 0.0
+          "X": 0,
+          "Y": 0,
+          "Z": 0
         },
         "Size": {
-          "X": 1.0,
-          "Y": 2.0,
-          "Z": 24.0
+          "X": 1,
+          "Y": 2,
+          "Z": 24
         },
-        "Radius": 0.0,
-        "Height": 0.0,
+        "Radius": 0,
+        "Height": 0,
         "CollisionLayer": 2,
         "BlocksMovement": true,
         "ProjectileResponse": "Default",
@@ -101,22 +101,22 @@
         "ObjectType": "Boundary",
         "ShapeType": "Box",
         "Position": {
-          "X": 18.0,
-          "Y": 1.0,
-          "Z": 0.0
+          "X": 18,
+          "Y": 1,
+          "Z": 0
         },
         "RotationEuler": {
-          "X": 0.0,
-          "Y": 0.0,
-          "Z": 0.0
+          "X": 0,
+          "Y": 0,
+          "Z": 0
         },
         "Size": {
-          "X": 1.0,
-          "Y": 2.0,
-          "Z": 24.0
+          "X": 1,
+          "Y": 2,
+          "Z": 24
         },
-        "Radius": 0.0,
-        "Height": 0.0,
+        "Radius": 0,
+        "Height": 0,
         "CollisionLayer": 2,
         "BlocksMovement": true,
         "ProjectileResponse": "Default",
@@ -128,22 +128,22 @@
         "ObjectType": "StaticObstacle",
         "ShapeType": "Box",
         "Position": {
-          "X": 5.0,
-          "Y": 1.0,
-          "Z": 2.0
+          "X": 5,
+          "Y": 1,
+          "Z": 2
         },
         "RotationEuler": {
-          "X": 0.0,
-          "Y": 30.0,
-          "Z": 0.0
+          "X": 0,
+          "Y": 30,
+          "Z": 0
         },
         "Size": {
-          "X": 3.0,
-          "Y": 2.0,
-          "Z": 6.0
+          "X": 3,
+          "Y": 2,
+          "Z": 6
         },
-        "Radius": 0.0,
-        "Height": 0.0,
+        "Radius": 0,
+        "Height": 0,
         "CollisionLayer": 2,
         "BlocksMovement": true,
         "ProjectileResponse": "Block",
@@ -155,22 +155,22 @@
         "ObjectType": "StaticObstacle",
         "ShapeType": "Capsule",
         "Position": {
-          "X": -5.0,
+          "X": -5,
           "Y": 1.5,
-          "Z": -2.0
+          "Z": -2
         },
         "RotationEuler": {
-          "X": 0.0,
-          "Y": 0.0,
-          "Z": 0.0
+          "X": 0,
+          "Y": 0,
+          "Z": 0
         },
         "Size": {
-          "X": 0.0,
-          "Y": 0.0,
-          "Z": 0.0
+          "X": 0,
+          "Y": 0,
+          "Z": 0
         },
-        "Radius": 1.0,
-        "Height": 3.0,
+        "Radius": 1,
+        "Height": 3,
         "CollisionLayer": 2,
         "BlocksMovement": true,
         "ProjectileResponse": "Ignore",
@@ -183,21 +183,21 @@
         "Id": 101,
         "TeamId": 1,
         "Position": {
-          "X": -12.0,
-          "Y": 0.0,
-          "Z": 0.0
+          "X": -12,
+          "Y": 0,
+          "Z": 0
         },
-        "YawDegrees": 90.0
+        "YawDegrees": 90
       },
       {
         "Id": 201,
         "TeamId": 2,
         "Position": {
-          "X": 12.0,
-          "Y": 0.0,
-          "Z": 0.0
+          "X": 12,
+          "Y": 0,
+          "Z": 0
         },
-        "YawDegrees": -90.0
+        "YawDegrees": -90
       }
     ],
     "WalkableAreas": [
@@ -205,14 +205,14 @@
         "Id": 1,
         "Name": "Main Arena",
         "Center": {
-          "X": 0.0,
-          "Y": 0.0,
-          "Z": 0.0
+          "X": 0,
+          "Y": 0,
+          "Z": 0
         },
         "Size": {
-          "X": 35.0,
-          "Y": 0.0,
-          "Z": 23.0
+          "X": 35,
+          "Y": 0,
+          "Z": 23
         }
       }
     ]

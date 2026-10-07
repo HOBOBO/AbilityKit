@@ -1,0 +1,52 @@
+[
+  {
+    "Id": 1,
+    "Name": "可被选取",
+    "BlockedFlagIds": [
+      1
+    ]
+  },
+  {
+    "Id": 2,
+    "Name": "可受伤害",
+    "BlockedFlagIds": [
+      2
+    ]
+  },
+  {
+    "Id": 3,
+    "Name": "施法",
+    "BlockedFlagIds": [
+      3
+    ]
+  },
+  {
+    "Id": 4,
+    "Name": "眩晕状态",
+    "BlockedFlagIds": [
+      4
+    ]
+  },
+  {
+    "Id": 5,
+    "Name": "自主移动",
+    "BlockedFlagIds": [
+      5
+    ]
+  },
+  {
+    "Id": 6,
+    "Name": "普攻",
+    "BlockedFlagIds": [
+      8
+    ]
+  },
+  {
+    "Id": 7,
+    "Name": "可受控制",
+    "BlockedFlagIds": [
+      6,
+      7
+    ]
+  }
+]

@@ -27,11 +27,14 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             var patternProvider = new MobaModifierProjectileSpawnPatternProvider(
                 context.SkillParamModifiers,
                 context.Projectile,
+                context.Launcher.Id,
                 context.Random,
-                context.Launcher.CountPerShot,
-                context.Launcher.FanAngleDeg,
                 context.BulletsPerShot,
-                context.RequestFanAngleDeg);
+                context.RequestFanAngleDeg,
+                context.SkillRecord.Slot,
+                context.SkillRecord.EffectiveSkillId,
+                context.FrameDurationMs,
+                context.SkillRecord.BaseSkillId);
 
             // 发射请求会在当前逻辑帧内创建，此时 projectile tick 可能已经执行过。
             // 因此将首次发射排到下一帧，避免一次性发射错过唯一的生成窗口。

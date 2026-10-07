@@ -188,4 +188,76 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 Is.EqualTo(BattleDiagnosticDataAvailability.Unsupported));
         }
     }
+
+    public sealed class MobaBattleDiagnosticAttributeHistoryTests
+    {
+        private BattleDiagnosticSessionScope _scope;
+        private MobaBattleDiagnosticActorAttributeStore _store;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _scope = new BattleDiagnosticSessionScope("attribute-history", "world", 1);
+            _store = new MobaBattleDiagnosticActorAttributeStore(
+                new MobaBattleDiagnosticEventCollector(_scope));
+        }
+
+        [Test]
+        public void Track_RecordsAtConfiguredFrameIntervalAndReplacesSameFrame()
+        {
+            _store.Configure(10, 1, 3, true);
+            for (var frame = 1; frame <= 7; frame++)
+                _store.Record(Sample(frame, frame));
+            _store.Record(Sample(7, 70));
+
+            var samples = _store.GetSamples();
+            Assert.That(samples.Count, Is.EqualTo(3));
+            Assert.That(samples[0].Frame, Is.EqualTo(1));
+            Assert.That(samples[1].Frame, Is.EqualTo(4));
+            Assert.That(samples[2].Frame, Is.EqualTo(7));
+            Assert.That(samples[2].FinalValue, Is.EqualTo(70));
+        }
+
+        [Test]
+        public void Track_PauseSelectionChangeAndRewindResetHistory()
+        {
+            _store.Configure(10, 1, 2, true);
+            _store.Record(Sample(10, 10));
+            _store.Configure(10, 1, 2, false);
+            _store.Record(Sample(12, 12));
+            Assert.That(_store.GetSamples().Count, Is.EqualTo(1));
+
+            _store.Configure(10, 1, 2, true);
+            _store.Record(Sample(12, 12));
+            _store.Record(Sample(2, 2));
+            Assert.That(_store.GetSamples().Count, Is.EqualTo(1));
+            Assert.That(_store.GetSamples()[0].Frame, Is.EqualTo(2));
+
+            _store.Configure(10, 2, 2, true);
+            Assert.That(_store.GetSamples(), Is.Empty);
+            _store.Stop();
+            Assert.That(_store.TryGetTrack(out _, out _, out _), Is.False);
+        }
+
+        [Test]
+        public void Track_IgnoresOtherScopeAndKeepsBoundedHistory()
+        {
+            _store.Configure(10, 1, 1, true);
+            _store.Record(new BattleDiagnosticActorAttribute(
+                new BattleDiagnosticSessionScope("other", "world", 1),
+                1, 10, 1, 0, 1, 0));
+            for (var frame = 1; frame <= 300; frame++)
+                _store.Record(Sample(frame, frame));
+
+            var samples = _store.GetSamples();
+            Assert.That(samples.Count, Is.EqualTo(240));
+            Assert.That(samples[0].Frame, Is.EqualTo(61));
+            Assert.That(samples[239].Frame, Is.EqualTo(300));
+            _store.Clear();
+            Assert.That(_store.GetSamples(), Is.Empty);
+        }
+
+        private BattleDiagnosticActorAttribute Sample(int frame, float value) =>
+            new BattleDiagnosticActorAttribute(_scope, frame, 10, 1, 100, value, 1);
+    }
 }

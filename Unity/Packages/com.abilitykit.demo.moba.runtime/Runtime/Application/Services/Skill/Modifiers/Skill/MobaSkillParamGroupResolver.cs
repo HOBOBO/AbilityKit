@@ -11,24 +11,31 @@ namespace AbilityKit.Demo.Moba.Services
             _service = service;
         }
 
-        public int ResolveSkillId(int actorId, int skillId, IModifierContext context = null)
+        public int ResolveResourceCost(int actorId, int resourceCost, in MobaParameterRecord record)
         {
-            return _service.ResolveInt(actorId, MobaSkillParamModifierKeys.Skill.SkillId, skillId, context);
+            RequireCastPrepare(in record);
+            return _service.ResolveInt(MobaModifierOwnerRef.Actor(actorId),
+                MobaSkillParamModifierKeys.Skill.ResourceCost, resourceCost, in record);
         }
 
-        public int ResolveResourceCost(int actorId, int resourceCost, IModifierContext context = null)
+        public int ResolveCooldownMs(int actorId, int cooldownMs, in MobaParameterRecord record)
         {
-            return _service.ResolveInt(actorId, MobaSkillParamModifierKeys.Skill.ResourceCost, resourceCost, context);
+            RequireCastPrepare(in record);
+            return _service.ResolveInt(MobaModifierOwnerRef.Actor(actorId),
+                MobaSkillParamModifierKeys.Skill.CooldownMs, cooldownMs, in record);
         }
 
-        public int ResolveCooldownMs(int actorId, int cooldownMs, IModifierContext context = null)
+        public float ResolveCastRange(int actorId, float range, in MobaParameterRecord record)
         {
-            return _service.ResolveInt(actorId, MobaSkillParamModifierKeys.Skill.CooldownMs, cooldownMs, context);
+            RequireCastPrepare(in record);
+            return _service.ResolveFloat(MobaModifierOwnerRef.Actor(actorId),
+                MobaSkillParamModifierKeys.Skill.CastRange, range, in record);
         }
 
-        public float ResolveCastRange(int actorId, float range, IModifierContext context = null)
+        private static void RequireCastPrepare(in MobaParameterRecord record)
         {
-            return _service.ResolveFloat(actorId, MobaSkillParamModifierKeys.Skill.CastRange, range, context);
+            if (record.Stage != MobaParameterStage.CastPrepare)
+                throw new System.ArgumentException("Skill parameters require CastPrepare stage.", nameof(record));
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
@@ -152,10 +153,9 @@ namespace AbilityKit.Demo.Moba.Services
                 if (spec == null) continue;
 
                 var entry = new MobaContinuousModifierEntry(continuous, projection, spec, normalizedStack);
-                if (!_modifiers.TryExplainModifier(entry, out var explanation)) continue;
-
                 result ??= new List<MobaContinuousModifierExplainResult>(modifiers.Count);
-                result.Add(explanation);
+                result.Add(_modifiers.TryExplainModifier(entry, out var explanation)
+                    ? explanation : default);
             }
 
             return result ?? (IReadOnlyList<MobaContinuousModifierExplainResult>)Array.Empty<MobaContinuousModifierExplainResult>();
@@ -184,10 +184,42 @@ namespace AbilityKit.Demo.Moba.Services
                     spec.EvaluationPolicy,
                     spec.Priority,
                     stack < 1 ? 1 : stack,
-                    sourceId));
+                    sourceId,
+                    spec is IMobaContinuousParameterSelectorSpec selected ? selected.Selector : default,
+                    spec is IMobaContinuousSkillCandidateSpec skill ? skill.CandidateSkillId : 0,
+                    spec is IMobaContinuousReferenceCandidateSpec reference ? reference.CandidateReferenceId : 0,
+                    spec is IMobaContinuousFormulaSpec formula && formula.HasFormula,
+                    DescribeFormula(spec as IMobaContinuousFormulaSpec)));
             }
 
             return result;
+        }
+
+        private static string DescribeFormula(IMobaContinuousFormulaSpec formula)
+        {
+            if (formula == null || !formula.HasFormula) return null;
+            var text = new StringBuilder();
+            text.Append("常数 ").Append(formula.FormulaConstant.ToString("0.#####"));
+            if (formula.FormulaLevelCoefficient != 0f)
+                text.Append(formula.FormulaLevelCoefficient < 0f ? " - " : " + ")
+                    .Append(System.Math.Abs(formula.FormulaLevelCoefficient).ToString("0.#####"))
+                    .Append(" × 持有者等级");
+            var terms = formula.FormulaTerms;
+            if (terms == null) return text.ToString();
+            for (var i = 0; i < terms.Count; i++)
+            {
+                var term = terms[i];
+                if (term == null) continue;
+                var role = term.ActorRole == MobaModifierAttributeSourceRole.Owner ? "持有者" :
+                    term.ActorRole == MobaModifierAttributeSourceRole.Source ? "施加者" :
+                    term.ActorRole == MobaModifierAttributeSourceRole.Target ? "目标" :
+                    $"角色 {term.ActorRole}";
+                text.Append(term.Coefficient < 0f ? " - " : " + ")
+                    .Append(System.Math.Abs(term.Coefficient).ToString("0.#####"))
+                    .Append(" × ").Append(role).Append(" 属性类型 #")
+                    .Append(term.AttributeTypeId).Append(" 基础值");
+            }
+            return text.ToString();
         }
     }
 }

@@ -68,6 +68,39 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void SkillSnapshot_UsesEffectiveSkillIdWhileKeepingSlotEconomy()
+        {
+            using var scope = new EconomyTestScope();
+            using var candidates = new MobaSkillSlotCandidateService();
+            using var container = new WorldContainerBuilder()
+                .RegisterExternalInstance(candidates)
+                .Build();
+            using var worldScope = container.CreateScope();
+            var phase = new MobaLogicWorldRunGateService();
+            phase.SetInGame();
+            var snapshots = new MobaSkillStateSnapshotService(
+                phase, scope.Registry, scope.Time, scope.Economy);
+            snapshots.OnInit(worldScope);
+            scope.SkillOne.Level = 3;
+            scope.SkillOne.CooldownEndTimeMs = 1000;
+            scope.SkillOne.CooldownDurationMs = 1000;
+
+            candidates.Add(EconomyTestScope.ActorId, 42, 1, 801299, 20, 0);
+            Assert.That(snapshots.TryGetSnapshot(new FrameIndex(1), out var active), Is.True);
+            var selected = MobaSkillStateSnapshotCodec.Deserialize(active.Payload);
+            Assert.That(selected[0].SkillId, Is.EqualTo(801299));
+            Assert.That(selected[0].Level, Is.EqualTo(3));
+            Assert.That(selected[0].CooldownRemainingMs, Is.EqualTo(1000));
+
+            candidates.ClearSource(EconomyTestScope.ActorId, 42);
+            Assert.That(snapshots.TryGetSnapshot(new FrameIndex(2), out var reverted), Is.True);
+            var restored = MobaSkillStateSnapshotCodec.Deserialize(reverted.Payload);
+            Assert.That(restored[0].SkillId, Is.EqualTo(EconomyTestScope.SkillOneId));
+            Assert.That(restored[0].Level, Is.EqualTo(3));
+            Assert.That(restored[0].CooldownRemainingMs, Is.EqualTo(1000));
+        }
+
+        [Test]
         public void CancelBeforeCommit_RefundsResourceAndChargeExactlyOnce()
         {
             using var scope = new EconomyTestScope();

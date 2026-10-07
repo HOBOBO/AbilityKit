@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.GameplayTags;
@@ -8,18 +9,31 @@ using AbilityKit.Modifiers;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 {
-    public sealed class ContinuousModifierMO : IMobaContinuousModifierSpec
+    public sealed class ContinuousModifierMO : IMobaContinuousModifierSpec,
+        IMobaContinuousParameterSelectorSpec, IMobaContinuousSkillCandidateSpec,
+        IMobaContinuousReferenceCandidateSpec, IMobaContinuousFormulaSpec
     {
         public ContinuousModifierMO(ContinuousModifierDTO dto)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
-            TargetKind = dto.TargetKind != 0 ? dto.TargetKind : MobaContinuousModifierTargetKind.Attribute;
-            TargetId = dto.TargetId != 0 ? dto.TargetId : dto.AttrTypeId;
+            TargetKind = dto.TargetKind;
+            TargetId = dto.TargetId;
             Op = dto.Op;
             Value = dto.Value;
             Magnitude = CreateMagnitude(dto);
             EvaluationPolicy = dto.EvaluationPolicy;
+            AttributeSourceRole = dto.AttributeSourceRole;
             Priority = dto.Priority;
+            CandidateSkillId = dto.CandidateSkillId;
+            CandidateReferenceId = dto.CandidateReferenceId;
+            HasFormula = dto.MagnitudeSourceType == 6;
+            FormulaConstant = dto.FormulaConstant;
+            FormulaLevelCoefficient = dto.FormulaLevelCoefficient;
+            FormulaTerms = dto.FormulaTerms ?? Array.Empty<ModifierFormulaTermDTO>();
+            Selector = new MobaParameterSelector(dto.SelectorSlot, dto.SelectorBaseSkillId,
+                dto.SelectorEffectiveSkillId, dto.SelectorLauncherTemplateId,
+                dto.SelectorProjectileTemplateId, dto.SelectorAreaTemplateId,
+                dto.SelectorSummonTemplateId, dto.SelectorBuffTemplateId);
         }
 
         public int TargetKind { get; }
@@ -28,7 +42,15 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public float Value { get; }
         public MagnitudeSource Magnitude { get; }
         public int EvaluationPolicy { get; }
+        public int AttributeSourceRole { get; }
         public int Priority { get; }
+        public int CandidateSkillId { get; }
+        public int CandidateReferenceId { get; }
+        public bool HasFormula { get; }
+        public float FormulaConstant { get; }
+        public float FormulaLevelCoefficient { get; }
+        public IReadOnlyList<ModifierFormulaTermDTO> FormulaTerms { get; }
+        public MobaParameterSelector Selector { get; }
 
         private static MagnitudeSource CreateMagnitude(ContinuousModifierDTO dto)
         {
@@ -41,8 +63,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
                 case MagnitudeSourceType.Scalable:
                     return MagnitudeSource.LevelCurve(baseValue, dto.MagnitudeCurve, coefficient);
                 case MagnitudeSourceType.Attribute:
-                    var attrId = dto.MagnitudeAttributeTypeId != 0 ? dto.MagnitudeAttributeTypeId : dto.AttrTypeId;
-                    return MagnitudeSource.Attribute(CreateAttributeKey(attrId), coefficient);
+                    return MagnitudeSource.Attribute(CreateAttributeKey(dto.MagnitudeAttributeTypeId), coefficient);
                 case MagnitudeSourceType.TimeDecay:
                     return dto.MagnitudeCurve != null && dto.MagnitudeCurve.Length > 0
                         ? MagnitudeSource.TimeDecay(baseValue, dto.MagnitudeDuration, dto.MagnitudeCurve)
@@ -58,15 +79,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
         private static ModifierKey CreateAttributeKey(int attrTypeId)
         {
-            return ModifierKey.Create(ModifierKey.Categories.Attribute, ToByte(attrTypeId));
+            var attribute = MobaAttributeIds.Get((BattleAttributeType)attrTypeId);
+            return attribute.IsValid ? ModifierKey.FromPacked((uint)attribute.RawId) : ModifierKey.None;
         }
 
-        private static byte ToByte(int value)
-        {
-            if (value <= 0) return 0;
-            if (value >= byte.MaxValue) return byte.MaxValue;
-            return (byte)value;
-        }
     }
 
     public enum BuffDispelPolicy
@@ -115,11 +131,11 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             MaxStacks = dto.MaxStacks;
             TriggerIds = dto.TriggerIds ?? Array.Empty<int>();
             ContinuousTagTemplateId = dto.ContinuousTagTemplateId;
-            Tags = MobaGameplayTagCatalog.ToContainer(dto.TagNames);
+            Tags = MobaGameplayTagCatalog.ToConfigContainer(dto.TagNames);
             Modifiers = CreateModifiers(dto.Modifiers);
             DispelPolicy = (BuffDispelPolicy)dto.DispelPolicy;
             DispelCategory = dto.DispelCategory;
-            DispelBlockedByTags = MobaGameplayTagCatalog.ToContainer(dto.DispelBlockedByTagNames);
+            DispelBlockedByTags = MobaGameplayTagCatalog.ToConfigContainer(dto.DispelBlockedByTagNames);
         }
 
         private static IReadOnlyList<ContinuousModifierMO> CreateModifiers(ContinuousModifierDTO[] modifiers)

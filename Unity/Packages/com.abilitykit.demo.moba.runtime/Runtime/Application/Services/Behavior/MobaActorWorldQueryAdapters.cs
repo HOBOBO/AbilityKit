@@ -73,16 +73,17 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     /// <summary>
     /// MobaWorldQuery.IBuffManager 的 Entitas 实现：
     /// HasBuff 按数值 buffId 扫描 Active 列表。
-    /// HasTag 当前返回 false——BuffRuntime 的 TagRequirements 是结构化约束而非简单标签列表，
-    /// 控制类标签（Stunned/Rooted）接入后在此实现（P2）。
+    /// 标签查询使用持续对象的有效标签投影。
     /// </summary>
     internal sealed class MobaBrainBuffManager : MobaWorldQuery.IBuffManager
     {
         private readonly MobaActorRegistry _registry;
+        private readonly System.Func<IMobaEffectiveTagQueryService> _effectiveTags;
 
-        public MobaBrainBuffManager(MobaActorRegistry registry)
+        public MobaBrainBuffManager(MobaActorRegistry registry, System.Func<IMobaEffectiveTagQueryService> effectiveTags)
         {
             _registry = registry;
+            _effectiveTags = effectiveTags;
         }
 
         public bool HasBuff(long entityId, string buffId)
@@ -100,7 +101,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
 
         public bool HasTag(long entityId, string tag)
         {
-            return false;
+            return entityId > 0 && entityId <= int.MaxValue &&
+                   MobaGameplayTagCatalog.TryGet(tag, out var gameplayTag) &&
+                   _effectiveTags?.Invoke()?.HasTag((int)entityId, gameplayTag) == true;
         }
 
         private bool TryGetActiveBuffs(long entityId, out System.Collections.Generic.List<global::AbilityKit.Demo.Moba.Components.BuffRuntime> active)

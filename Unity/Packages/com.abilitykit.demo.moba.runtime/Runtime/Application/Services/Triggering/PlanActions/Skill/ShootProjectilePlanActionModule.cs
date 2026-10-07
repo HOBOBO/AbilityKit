@@ -24,6 +24,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     {
         protected override IActionSchema<ShootProjectileArgs, IWorldResolver> Schema => ShootProjectileSchema.Instance;
 
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Emitter.Ids.LauncherId,
+            MobaParameterStage.LauncherCreate, MobaModifierSampleTiming.CreateSnapshot)]
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Projectile.Ids.ProjectileId,
+            MobaParameterStage.LauncherCreate, MobaModifierSampleTiming.CreateSnapshot)]
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Emitter.Ids.DurationMs,
+            MobaParameterStage.LauncherCreate, MobaModifierSampleTiming.CreateSnapshot)]
         protected override void Execute(object triggerArgs, ShootProjectileArgs args, ExecCtx<IWorldResolver> ctx)
         {
             if (!ctx.Context.TryResolve<MobaProjectileService>(out var projectileSvc) || projectileSvc == null)
@@ -60,11 +66,20 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var paramResolver = ctx.Context.TryResolve<MobaSkillParamModifierService>(out var resolvedParamResolver)
                 ? resolvedParamResolver
                 : null;
+            ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var skillRuntimes);
+            var skillHandle = coreInput.ExecutionContext.SkillRuntimeHandle;
 
-            if (paramResolver != null)
+            if (ctx.Context.TryResolve<MobaReferenceCandidateService>(out var references) && references != null)
             {
-                launcherId = paramResolver.Projectile.ResolveLauncherId(casterActorId, launcherId);
-                projectileId = paramResolver.Projectile.ResolveProjectileId(casterActorId, projectileId);
+                var launcherRecord = MobaParameterRecord.FromSkillRuntime(
+                    MobaParameterStage.LauncherCreate, skillRuntimes, in skillHandle);
+                launcherId = references.Resolve(casterActorId, MobaSkillParamModifierKeys.Emitter.Ids.LauncherId,
+                    launcherId, in launcherRecord);
+                var projectileRecord = MobaParameterRecord.FromSkillRuntime(
+                    MobaParameterStage.LauncherCreate, skillRuntimes, in skillHandle,
+                    launcherTemplateId: launcherId);
+                projectileId = references.Resolve(casterActorId, MobaSkillParamModifierKeys.Projectile.Ids.ProjectileId,
+                    projectileId, in projectileRecord);
             }
 
             if (launcherId <= 0 || projectileId <= 0)
@@ -91,14 +106,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var countPerShot = paramResolver != null
-                ? paramResolver.Projectile.ResolveCountPerShot(casterActorId, launcher.CountPerShot)
-                : launcher.CountPerShot;
-            var fanAngleDeg = paramResolver != null
-                ? paramResolver.Projectile.ResolveFanAngleDeg(casterActorId, launcher.FanAngleDeg)
-                : launcher.FanAngleDeg;
+            var countPerShot = launcher.CountPerShot;
+            var fanAngleDeg = launcher.FanAngleDeg;
+            var durationRecord = MobaParameterRecord.FromSkillRuntime(
+                MobaParameterStage.LauncherCreate, skillRuntimes, in skillHandle,
+                launcherTemplateId: launcherId, projectileTemplateId: projectileId);
             var durationMs = paramResolver != null
-                ? paramResolver.Projectile.ResolveDurationMs(casterActorId, launcher.DurationMs)
+                ? paramResolver.Projectile.ResolveDurationMs(casterActorId, launcher.DurationMs, in durationRecord)
                 : launcher.DurationMs;
             MobaResolvedShootProjectileParams launchParams;
             try

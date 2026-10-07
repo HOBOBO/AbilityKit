@@ -11,7 +11,8 @@
     "Range": 6,
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
-    "Tags": []
+    "Tags": [],
+    "ExecutionBlockedResultMask": 128
   },
   {
     "Id": 10010001,
@@ -25,7 +26,8 @@
     "Range": 3,
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
-    "Tags": []
+    "Tags": [],
+    "ExecutionBlockedResultMask": 128
   },
   {
     "Id": 10010101,
@@ -39,9 +41,8 @@
     "Range": 8,
     "SkillButtonTemplateId": 2,
     "SkillType": 5,
-    "Tags": [
-      101
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10010201,
@@ -55,9 +56,8 @@
     "Range": 5,
     "SkillButtonTemplateId": 1,
     "SkillType": 5,
-    "Tags": [
-      102
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10010301,
@@ -71,9 +71,8 @@
     "Range": 10,
     "SkillButtonTemplateId": 3,
     "SkillType": 4,
-    "Tags": [
-      103
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10020001,
@@ -87,7 +86,8 @@
     "Range": 8,
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
-    "Tags": []
+    "Tags": [],
+    "ExecutionBlockedResultMask": 128
   },
   {
     "Id": 10020101,
@@ -101,9 +101,8 @@
     "Range": 12,
     "SkillButtonTemplateId": 2,
     "SkillType": 2,
-    "Tags": [
-      201
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10020201,
@@ -117,9 +116,8 @@
     "Range": 10,
     "SkillButtonTemplateId": 3,
     "SkillType": 2,
-    "Tags": [
-      202
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10020301,
@@ -133,9 +131,8 @@
     "Range": 20,
     "SkillButtonTemplateId": 1,
     "SkillType": 4,
-    "Tags": [
-      203
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10030001,
@@ -149,7 +146,8 @@
     "Range": 3,
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
-    "Tags": []
+    "Tags": [],
+    "ExecutionBlockedResultMask": 128
   },
   {
     "Id": 10030101,
@@ -163,9 +161,8 @@
     "Range": 8,
     "SkillButtonTemplateId": 8,
     "SkillType": 2,
-    "Tags": [
-      301
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10030201,
@@ -179,9 +176,8 @@
     "Range": 6,
     "SkillButtonTemplateId": 9,
     "SkillType": 2,
-    "Tags": [
-      302
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10030301,
@@ -195,9 +191,8 @@
     "Range": 12,
     "SkillButtonTemplateId": 10,
     "SkillType": 4,
-    "Tags": [
-      303
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10040011,
@@ -211,7 +206,8 @@
     "Range": 8,
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
-    "Tags": []
+    "Tags": [],
+    "ExecutionBlockedResultMask": 128
   },
   {
     "Id": 10040101,
@@ -225,9 +221,8 @@
     "Range": 8,
     "SkillButtonTemplateId": 2,
     "SkillType": 2,
-    "Tags": [
-      401
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10040112,
@@ -241,9 +236,8 @@
     "Range": 6,
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
-    "Tags": [
-      401
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 128
   },
   {
     "Id": 10040201,
@@ -257,9 +251,8 @@
     "Range": 12,
     "SkillButtonTemplateId": 2,
     "SkillType": 2,
-    "Tags": [
-      402
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10040301,
@@ -273,9 +266,8 @@
     "Range": 6,
     "SkillButtonTemplateId": 1,
     "SkillType": 4,
-    "Tags": [
-      403
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10050001,
@@ -289,7 +281,8 @@
     "Range": 8,
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
-    "Tags": []
+    "Tags": [],
+    "ExecutionBlockedResultMask": 128
   },
   {
     "Id": 10050101,
@@ -303,9 +296,8 @@
     "Range": 12,
     "SkillButtonTemplateId": 4,
     "SkillType": 2,
-    "Tags": [
-      501
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10050201,
@@ -320,9 +312,8 @@
     "RequiredTargetQueryId": 50050201,
     "SkillButtonTemplateId": 3,
     "SkillType": 2,
-    "Tags": [
-      502
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10050301,
@@ -336,9 +327,8 @@
     "Range": 12,
     "SkillButtonTemplateId": 1,
     "SkillType": 4,
-    "Tags": [
-      503
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10060001,
@@ -352,7 +342,8 @@
     "Range": 8,
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
-    "Tags": []
+    "Tags": [],
+    "ExecutionBlockedResultMask": 128
   },
   {
     "Id": 10060101,
@@ -366,9 +357,8 @@
     "Range": 11,
     "SkillButtonTemplateId": 5,
     "SkillType": 2,
-    "Tags": [
-      601
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10060201,
@@ -382,9 +372,8 @@
     "Range": 5,
     "SkillButtonTemplateId": 6,
     "SkillType": 2,
-    "Tags": [
-      602
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   },
   {
     "Id": 10060301,
@@ -398,8 +387,7 @@
     "Range": 14,
     "SkillButtonTemplateId": 7,
     "SkillType": 4,
-    "Tags": [
-      603
-    ]
+    "Tags": [],
+    "ExecutionBlockedResultMask": 4
   }
 ]

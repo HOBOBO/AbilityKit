@@ -72,18 +72,14 @@ namespace AbilityKit.Demo.Moba.Systems
                 var actorId = e.actorId.Value;
                 try
                 {
-                    // Tick-level gate covers status changes after the cast has started,
-                    // including death. Actor despawn later performs the stronger remove path.
                     if (_combatRules != null)
                     {
-                        var ruleResult = _combatRules.CanCastSkill(actorId);
-                        if (!ruleResult.Passed)
+                        var actorResult = _combatRules.CanCastSkill(actorId, 0UL);
+                        if (!actorResult.Passed)
                         {
                             _skills.CancelAll(actorId);
-                            if (ruleResult.Failure == MobaCombatRuleFailure.Dead)
-                            {
+                            if (actorResult.Failure == MobaCombatRuleFailure.Dead)
                                 _buffs?.EndAllForActor(actorId, MobaExecutionEndReason.Dead);
-                            }
                         }
                     }
                     _skills.Step(actorId);

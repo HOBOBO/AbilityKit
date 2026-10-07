@@ -11,26 +11,8 @@ using UnityEngine;
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 {
     /// <summary>
-    /// demo.moba 配置链的 cmd 入口：Unity batchmode -executeMethod 驱动，全程无需 Unity 窗口交互。
-    /// 面向 AI/CI：AI 直接改逐条目 JSON（Resources/moba/{表名}/ 目录）后一条命令落盘到 Excel 真相源。
-    ///
-    /// 数据模型（与 MobaExcelSync/MobaConfigJsonFolderSync 一致）：
-    ///   Excel（落盘唯一来源）⇄ SO（Unity 派生产物）⇄ 逐条目 JSON（AI 编辑面）→ 数组 JSON（运行时）。
-    ///
-    /// 用法（经 tools/run-moba-config-sync.ps1 或直接 Unity 命令行）：
-    ///   -executeMethod AbilityKit.Ability.Impl.BattleDemo.Moba.Editor.MobaConfigHeadlessSync.Run -mode &lt;mode&gt; [-table Buff] [-excelFolder Packages/...]
-    ///
-    /// 模式：
-    ///   push-json  ：逐条目 JSON → SO → Excel（三方合并；冲突中止并产报告）→ 刷新数组 JSON。首次自动接入（建 Excel+baseline+编辑面）。
-    ///   pull-excel ：Excel → SO（刷新 baseline）→ 逐条目 JSON → 数组 JSON。策划改完 Excel 后往下发。
-    ///   bootstrap  ：把尚未接入 Excel 的表从 SO 全量建出 Excel+baseline+逐条目文件夹（已接入的跳过）。
-    ///   export-typed：同 bootstrap，但额外写"类型行"（第2行，字段名下方），产出带类型标注的表头供 Luban/自研管线下游解析。
-    ///   seed-from-json：以数组 JSON 为真相源正式化（数组 JSON→逐条目文件夹→SO 整表替换→带类型 Excel+baseline）；JSON 只读不写。
-    ///   migrate-flows：把 skill_flows 的运行时 DTO 迁移成富作者形态 Def，填进 SkillFlowSO.dataList（供编辑器/解释器读取）；JSON 只读不写。
-    ///   status     ：列出每张表的接入状态与数据量（只读）。
-    ///
-    /// 退出码：0=成功；1=存在处理失败；2=存在合并冲突（先解决 .conflicts.json 再重跑）；3=参数错误。
-    /// 注意：数组 JSON（如 buffs.json）是派生产物，AI 请编辑逐条目文件夹（如 buffs/buffs_900001.json），不要直接改数组文件。
+    /// 旧 SO/MiniTemplate 同步入口。仅保留只读 status 与迁移辅助代码；写入模式已停用。
+    /// 生产配置编辑入口是 LubanConfig/Moba/Production/Datas，发布使用 export_pipeline.py。
     /// </summary>
     public static class MobaConfigHeadlessSync
     {

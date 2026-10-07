@@ -3,7 +3,7 @@ name: coordinator
 description: AbilityKit 会话契约包（com.abilitykit.coordinator）—— moba/shooter 实现的会话端口接口（ILogicWorldDriverBridge/ILogicWorldDriveGate/ISessionCoordinatorHost/ISessionCoordinatorConfigPolicy/ISpawnService）+ 它们使用的纯数据结构（PlayerInput/EntityState/SnapshotEntityState/FrameSnapshotData/SessionConfig/SessionId/PlayerSpawnData/NetworkEndpoint）。⚠ session 编排引擎（SessionCoordinator + SyncAdapter/SubFeature/Timeline/Transport 体系）已于 2026-08-06 移除（死代码，无 demo 使用）。触发场景：实现 ILogicWorldDriverBridge/ILogicWorldDriveGate、构造 PlayerInput/EntityState/SnapshotEntityState/FrameSnapshotData、SessionConfig/SyncMode/HostMode 配置、PlayerSpawnData/NetworkEndpoint。
 ---
 
-# coordinator skill
+# 会话契约指引
 
 基于源码核校（2026-08-06，清理后）。`com.abilitykit.coordinator` 包根：`Unity/Packages/com.abilitykit.coordinator/`。
 
@@ -57,7 +57,7 @@ com.abilitykit.coordinator/Runtime/
 
 会话装配由各 demo 自己拼，见 `Docs/design/07-NetworkSynchronization/07-MultiplayerSdkIntegrationGuide.md` 的"**会话装配配方（statesync / framesync）**"。coordinator 只提供上面的端口 + struct。
 
-## Sections（注意：部分描述已删除的代码，仅作历史参考）
+## 分节索引（注意：部分描述已删除的代码，仅作历史参考）
 
 - [when_to_use.md](when_to_use.md) — 何时启用本 skill
 - [host_and_driver_ports.md](host_and_driver_ports.md) — **保留**：ISessionCoordinatorHost + ILogicWorldDriverBridge + ILogicWorldDriveGate + ISpawnService（当前有效）

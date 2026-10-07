@@ -3,9 +3,9 @@ name: tiny-demo
 description: AbilityKit Tiny 示例（com.abilitykit.demo.tiny / .logic / .turn）——最小的双人联机战斗接入参考，用尽量少的项目代码串起 Room + State/Frame/Hybrid 三种同步模式 + 断线恢复 + Unity 表现。覆盖确定性规则（TinyBattle/TinyInput/TinyBattleStateCodec/FNV-1a 哈希，零框架依赖）、服务端玩法模块（TinyServerGameplayModule 注册进 ServerGameplayModuleCatalog）、同步模板映射与能力协商、会话状态机 TinyBattleSession/TinyGameplayRoot、帧预测与回滚适配 TinyFrameReplication、逐章教程 00-10、以及 17 阶段验收入口 tools/verify-tiny-starter.ps1。触发场景：改 Tiny 战斗规则或攻击伤害、加同步模式、改房间/玩家槽位策略、RulesKey 与启动清单哈希、Tiny 章节样例（Samples~）、Room+State/Frame/Hybrid 联机闭环、Tiny 双进程与 Unity 无头验收、判断 Tiny 当前完成度与证据等级。
 ---
 
-# tiny-demo skill
+# Tiny 示例指引
 
-## Protocol changes
+## 协议变更
 
 Tiny 的战斗输入与状态载荷是**不透明字节**，经通用 Room 协议承载；`TinyBattle.InputOpCode=1`、`TinyBattleStateCodec.PayloadOpCode=31001`、`TinyTurnBattle.InputOpCode=2`、`TinyTurnBattle.SnapshotOpCode=31002` 都定义在共享 Logic 源码里，**不在** `Protocols/` YAML 目录中。改动 Tiny 之外任何 opcode / MemoryPack 字段 / 生成 DTO 时，走 [`protocol-wire`](../protocol-wire/SKILL.md)。Tiny 自身要改线上格式时，直接读本文 [change_checklist.md](change_checklist.md) 的协议演进一节——Tiny 的"协议演进"练习用的是独立教学封套，不是正式 wire。
 
@@ -42,7 +42,7 @@ Tiny 是**新玩法接入 AbilityKit 的最小可运行参考**：两名玩家�
 
 **规则共源机制**（改动前必读）：`src/AbilityKit.Demo.Tiny.Core` 与 `Turn.Core` 是**只有 csproj 的投影工程**，用 `<Compile Include="../../Unity/Packages/com.abilitykit.demo.tiny.logic/Runtime/Logic/*.cs" />` 直接编译 Unity 包源码。所以 ① 服务端构建**依赖 Unity 目录树存在**；② 改 `Unity/Packages/**` 下的规则会**静默改变服务端行为**；③ 永远不要另建第二份规则。
 
-## Sections
+## 分节索引
 
 - [packages_overview.md](packages_overview.md) — 三个 Unity 包 + 服务端 + 19 个 .NET 工程的依赖图与装配引用
 - [rules_and_determinism.md](rules_and_determinism.md) — `TinyBattle`/`TinyInput`/Codec/哈希的完整 API 与不变式；确定性口径

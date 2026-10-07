@@ -178,7 +178,16 @@ namespace AbilityKit.Ability.Editor.Utilities
             var project = AssetDatabase.LoadAssetAtPath<TriggerAuthoringProjectAsset>(ProjectAssetPath);
             if (project == null)
                 throw new FileNotFoundException("MOBA Trigger Authoring project is missing", ProjectAssetPath);
-            var validation = TriggerAuthoringProjectValidator.Validate(project);
+            var productionModules = PackageDefinitions.Select(definition =>
+            {
+                var path = PackageRoot + "/" + definition.ModuleId.Replace('.', '_') + ".Module.asset";
+                var asset = AssetDatabase.LoadAssetAtPath<TriggerAuthoringModuleAsset>(path);
+                if (asset == null) throw new FileNotFoundException("MOBA Trigger Authoring module is missing", path);
+                if (!project.Modules.Contains(asset))
+                    throw new InvalidDataException("Production module is not assigned to the MOBA project: " + path);
+                return asset;
+            }).ToArray();
+            var validation = TriggerAuthoringProjectValidator.Validate(project, productionModules);
             if (!validation.Success) throw new InvalidDataException(validation.BuildMessage());
             var documents = new List<TriggerPlanAggregateCompiler.SourceDocument>();
             foreach (var definition in PackageDefinitions)

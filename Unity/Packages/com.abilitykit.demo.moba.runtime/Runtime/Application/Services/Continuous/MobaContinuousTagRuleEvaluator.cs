@@ -10,6 +10,7 @@ namespace AbilityKit.Demo.Moba.Services
     public interface IMobaContinuousTagRuleEvaluator
     {
         MobaContinuousTagRuleResult Evaluate(IContinuous continuous);
+        MobaContinuousTagRuleResult EvaluateFast(IContinuous continuous);
         bool CanActivate(IContinuous continuous, out string reason);
     }
 
@@ -41,7 +42,8 @@ namespace AbilityKit.Demo.Moba.Services
             MobaContinuousTagRuleAction action;
             var allowed = true;
             var reason = "Tag rules satisfied";
-            if (!activationCheck.Satisfied)
+            if (continuous.State != ContinuousState.Active &&
+                continuous.State != ContinuousState.Paused && !activationCheck.Satisfied)
             {
                 action = MobaContinuousTagRuleAction.BlockActivate;
                 allowed = false;
@@ -67,9 +69,46 @@ namespace AbilityKit.Demo.Moba.Services
             return BuildResult(ownerActorId, action, allowed, reason, tags, activationCheck, removalCheck, ongoingCheck);
         }
 
+        public MobaContinuousTagRuleResult EvaluateFast(IContinuous continuous)
+        {
+            if (continuous?.Config == null)
+                return new MobaContinuousTagRuleResult(0, MobaContinuousTagRuleAction.None, false,
+                    "Continuous or config is null", null, null);
+            if (!(continuous.Config is IMobaContinuousTagConfig tagConfig) || tagConfig.TagRequirements == null)
+                return new MobaContinuousTagRuleResult(ResolveOwnerActorId(continuous),
+                    MobaContinuousTagRuleAction.None, true, "No tag requirements", null, null);
+            var ownerActorId = ResolveOwnerActorId(continuous);
+            var state = _effectiveTags.EvaluateRequirements(ownerActorId, tagConfig.TagRequirements);
+            var action = MobaContinuousTagRuleAction.KeepActive;
+            var reason = "Tag rules satisfied";
+            if (continuous.State != ContinuousState.Active && continuous.State != ContinuousState.Paused &&
+                !state.CanActivate)
+            {
+                action = MobaContinuousTagRuleAction.BlockActivate;
+                reason = "Activation requirements are not satisfied";
+            }
+            else if (state.ShouldRemove)
+            {
+                action = MobaContinuousTagRuleAction.Remove;
+                reason = "Removal requirements are satisfied";
+            }
+            else if (!state.OngoingSatisfied)
+            {
+                action = MobaContinuousTagRuleAction.Pause;
+                reason = "Ongoing requirements are not satisfied";
+            }
+            else if (continuous.IsPaused)
+            {
+                action = MobaContinuousTagRuleAction.Resume;
+            }
+            return new MobaContinuousTagRuleResult(ownerActorId, action,
+                action == MobaContinuousTagRuleAction.KeepActive || action == MobaContinuousTagRuleAction.Resume,
+                reason, null, null);
+        }
+
         public bool CanActivate(IContinuous continuous, out string reason)
         {
-            var result = Evaluate(continuous);
+            var result = EvaluateFast(continuous);
             reason = result.Reason;
             return result.Allowed;
         }
@@ -82,9 +121,11 @@ namespace AbilityKit.Demo.Moba.Services
         private static MobaContinuousTagRequirementCheck BuildRemovalCheck(ContinuousTagRequirements requirements, GameplayTagContainer tags)
         {
             var removal = requirements?.RemovalRequired ?? new GameplayTagRequirements();
-            var hasRequired = removal.Required != null && !removal.Required.IsEmpty;
+            var hasRequired = removal.Required != null && !removal.Required.IsEmpty || removal.Query.IsValid;
             var hasBlocked = removal.Blocked != null && !removal.Blocked.IsEmpty;
-            var requiredSatisfied = !hasRequired || (tags != null && tags.HasAll(removal.Required, removal.Exact));
+            var requiredSatisfied = !hasRequired || (tags != null &&
+                (removal.Required == null || removal.Required.IsEmpty || tags.HasAll(removal.Required, removal.Exact)) &&
+                (!removal.Query.IsValid || removal.Query.Matches(tags)));
             var blockedSatisfied = !hasBlocked || tags == null || !tags.HasAny(removal.Blocked, removal.Exact);
             var satisfied = (hasRequired || hasBlocked) && requiredSatisfied && blockedSatisfied;
             return new MobaContinuousTagRequirementCheck("Removal", satisfied, requiredSatisfied, blockedSatisfied, removal.Exact, CopyTagViews(removal.Required), CopyTagViews(removal.Blocked));
@@ -92,7 +133,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         private static MobaContinuousTagRequirementCheck BuildRequirementCheck(string category, GameplayTagRequirements requirements, GameplayTagContainer tags)
         {
-            var requiredSatisfied = requirements.Required == null || requirements.Required.IsEmpty || (tags != null && tags.HasAll(requirements.Required, requirements.Exact));
+            var requiredSatisfied = (requirements.Required == null || requirements.Required.IsEmpty || (tags != null && tags.HasAll(requirements.Required, requirements.Exact))) &&
+                (!requirements.Query.IsValid || requirements.Query.Matches(tags));
             var blockedSatisfied = requirements.Blocked == null || requirements.Blocked.IsEmpty || tags == null || !tags.HasAny(requirements.Blocked, requirements.Exact);
             return new MobaContinuousTagRequirementCheck(category, requiredSatisfied && blockedSatisfied, requiredSatisfied, blockedSatisfied, requirements.Exact, CopyTagViews(requirements.Required), CopyTagViews(requirements.Blocked));
         }

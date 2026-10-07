@@ -18,7 +18,7 @@ public sealed partial class DRComponentTemplates : Luban.BeanBase
     {
         Id = _buf.ReadInt();
         Name = _buf.ReadString();
-        Ops = _buf.ReadString();
+        {int n0 = _buf.ReadSize(); Ops = new System.Collections.Generic.List<ComponentOp>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { ComponentOp _e0;  _e0 = global::moba_luban.ComponentOp.DeserializeComponentOp(_buf); Ops.Add(_e0);}}
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
     }
@@ -29,12 +29,21 @@ public sealed partial class DRComponentTemplates : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
-    public readonly string Ops;
+    public readonly System.Collections.Generic.List<ComponentOp> Ops;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 1009389546;
@@ -49,7 +58,7 @@ public sealed partial class DRComponentTemplates : Luban.BeanBase
         return "{ "
         + "Id:" + Id + ","
         + "Name:" + Name + ","
-        + "Ops:" + Ops + ","
+        + "Ops:" + Luban.StringUtil.CollectionToString(Ops) + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
         + "}";

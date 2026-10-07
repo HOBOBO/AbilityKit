@@ -33,6 +33,8 @@ namespace AbilityKit.Demo.Moba.Services
         public abstract long OwnerId { get; }
         public virtual bool CanBeInterrupted => true;
         public abstract int OwnerActorId { get; }
+        public virtual int SourceActorId => OwnerActorId;
+        public virtual int TargetActorId => OwnerActorId;
         public abstract int ModifierSourceId { get; }
         public abstract GameplayTagSource TagSource { get; }
 

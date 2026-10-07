@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Threading.Tasks;
 using AbilityKit.GameplayTags;
 using Xunit;
 
@@ -8,6 +9,23 @@ namespace AbilityKit.GameplayTags.Tests;
 [Collection(TagTestCollection.Name)]
 public sealed class TagManagerTests : TagTestBase
 {
+    [Fact]
+    public void Concurrent_registration_and_queries_keep_directory_consistent()
+    {
+        var manager = GameplayTagManager.Instance;
+        Parallel.For(0, 128, i =>
+        {
+            var name = $"Concurrent.Group.Tag{i}";
+            var tag = manager.RequestTag(name);
+            Assert.True(manager.TryGetTag(name, out var resolved));
+            Assert.Equal(tag, resolved);
+            Assert.Equal(name, manager.GetName(tag));
+            Assert.True(manager.IsChildOf(tag, manager.RequestTag("Concurrent.Group")));
+            _ = manager.GetAllTags();
+        });
+        Assert.Equal(128, manager.GetChildren(manager.RequestTag("Concurrent.Group")).Count());
+    }
+
     // ---------- 注册与规范化 ----------
 
     [Fact]

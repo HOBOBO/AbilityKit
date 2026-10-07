@@ -74,17 +74,24 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return false;
             }
 
-            ResolveContinuousConfig(
-                ctx.Context,
-                settings,
-                durationSeconds,
-                out var configId,
-                out var resolvedDurationSeconds,
-                out var requirements,
-                out var modifiers,
-                out var triggerIds,
-                out var intervalSeconds,
-                out var intervalTriggerIds);
+            int configId;
+            float resolvedDurationSeconds;
+            ContinuousTagRequirements requirements;
+            IReadOnlyList<IMobaContinuousModifierSpec> modifiers;
+            IReadOnlyList<int> triggerIds;
+            float intervalSeconds;
+            IReadOnlyList<int> intervalTriggerIds;
+            try
+            {
+                ResolveContinuousConfig(ctx.Context, settings, durationSeconds,
+                    out configId, out resolvedDurationSeconds, out requirements, out modifiers,
+                    out triggerIds, out intervalSeconds, out intervalTriggerIds);
+            }
+            catch (InvalidOperationException error)
+            {
+                rejectReason = error.Message;
+                return false;
+            }
 
             var source = ResolveContextSource(input, sourceActorId, targetActorId, configId);
             var sourceContextId = source.SourceContextId != 0
@@ -137,17 +144,25 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             out float intervalSeconds,
             out IReadOnlyList<int> intervalTriggerIds)
         {
+            if (settings.ContinuousProcessId > 0 && settings.ContinuousTagTemplateId > 0)
+                throw new InvalidOperationException("Motion cannot reference both a continuous process and a tag template.");
+
             configId = settings.ContinuousProcessId > 0 ? settings.ContinuousProcessId : settings.ContinuousTagTemplateId;
             durationSeconds = fallbackDurationSeconds;
-            requirements = ResolveTemplateRequirements(services, settings.ContinuousTagTemplateId);
+            requirements = new ContinuousTagRequirements();
             modifiers = Array.Empty<IMobaContinuousModifierSpec>();
             triggerIds = settings.TriggerIds ?? Array.Empty<int>();
             intervalSeconds = settings.IntervalMs > 0 ? settings.IntervalMs / 1000f : 0f;
             intervalTriggerIds = settings.IntervalTriggerIds ?? Array.Empty<int>();
 
-            if (settings.ContinuousProcessId <= 0) return;
-            if (services == null || !services.TryResolve<MobaConfigDatabase>(out var configs) || configs == null) return;
-            if (!configs.TryGetContinuousProcess(settings.ContinuousProcessId, out var process) || process == null) return;
+            if (settings.ContinuousProcessId <= 0)
+            {
+                requirements = ResolveTemplateRequirements(services, settings.ContinuousTagTemplateId);
+                return;
+            }
+            if (services == null || !services.TryResolve<MobaConfigDatabase>(out var configs) || configs == null ||
+                !configs.TryGetContinuousProcess(settings.ContinuousProcessId, out var process) || process == null)
+                throw new InvalidOperationException($"Motion references missing continuous process {settings.ContinuousProcessId}.");
 
             configId = process.Id;
             if (process.DurationMs > 0)
@@ -185,17 +200,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         private static ContinuousTagRequirements ResolveTemplateRequirements(IWorldResolver services, int templateId)
         {
-            if (templateId <= 0 || services == null)
+            if (templateId <= 0)
             {
                 return new ContinuousTagRequirements();
             }
 
-            if (!services.TryResolve<IMobaContinuousTagTemplateRegistry>(out var templates)
+            if (services == null || !services.TryResolve<IMobaContinuousTagTemplateRegistry>(out var templates)
                 || templates == null
                 || !templates.TryGet(templateId, out var template)
                 || template == null)
             {
-                return new ContinuousTagRequirements();
+                throw new InvalidOperationException($"Motion references missing continuous tag template {templateId}.");
             }
 
             return CopyRequirements(template);
@@ -210,7 +225,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 ApplicationTags = CopyContainer(source.ApplicationTags),
                 RemovalRequired = source.RemovalRequired,
                 OngoingRequired = source.OngoingRequired,
-                RemovalTags = CopyContainer(source.RemovalTags)
+                ExecutionBlockedResultMask = source.ExecutionBlockedResultMask
             };
         }
 

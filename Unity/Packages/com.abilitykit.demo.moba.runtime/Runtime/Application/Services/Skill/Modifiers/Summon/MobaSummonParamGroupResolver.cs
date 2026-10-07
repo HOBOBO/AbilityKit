@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -11,9 +12,27 @@ namespace AbilityKit.Demo.Moba.Services
             _service = service;
         }
 
-        public int ResolveSummonId(int actorId, int summonId, IModifierContext context = null)
+        public int ResolveLifetimeMs(int ownerActorId, int lifetimeMs,
+            in MobaParameterRecord record, IModifierContext context = null)
         {
-            return _service.ResolveInt(actorId, MobaSkillParamModifierKeys.Summon.SummonId, summonId, context);
+            if (record.Stage != MobaParameterStage.SummonCreate)
+                throw new ArgumentException("Summon lifetime requires SummonCreate stage.", nameof(record));
+            var result = _service.ResolveInt(MobaModifierOwnerRef.Actor(ownerActorId),
+                MobaSkillParamModifierKeys.Summon.LifetimeMs, lifetimeMs, in record, context);
+            if (result < 0) throw new InvalidOperationException($"Invalid summon lifetime {result}.");
+            return result;
+        }
+
+        public float ResolveInheritRatioScale(int ownerActorId, float scale,
+            in MobaParameterRecord record, IModifierContext context = null)
+        {
+            if (record.Stage != MobaParameterStage.SummonCreate)
+                throw new ArgumentException("Summon inheritance requires SummonCreate stage.", nameof(record));
+            var result = _service.ResolveFloat(MobaModifierOwnerRef.Actor(ownerActorId),
+                MobaSkillParamModifierKeys.Summon.InheritRatioScale, scale, in record, context);
+            if (result < 0f || float.IsNaN(result) || float.IsInfinity(result))
+                throw new InvalidOperationException($"Invalid summon inheritance scale {result}.");
+            return result;
         }
     }
 }

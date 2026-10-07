@@ -111,15 +111,20 @@ public sealed class SkillRunnerTimingAndActorStateCleanupTests
     public void Skill_modifier_clear_is_actor_scoped_and_idempotent()
     {
         var service = new MobaSkillParamModifierService();
-        var key = MobaSkillParamModifierKeys.Skill.SkillId;
-        service.AddFixed(ActorId, key, ModifierOp.Add, 5f);
-        service.AddFixed(OtherActorId, key, ModifierOp.Add, 7f);
+        var key = MobaSkillParamModifierKeys.Skill.ResourceCost;
+        var record = new MobaParameterRecord(MobaParameterStage.CastPrepare);
+        var first = new ModifierData { Key = key, Op = ModifierOp.Add,
+            Magnitude = MagnitudeSource.Fixed(5f), SourceId = 1 };
+        var second = new ModifierData { Key = key, Op = ModifierOp.Add,
+            Magnitude = MagnitudeSource.Fixed(7f), SourceId = 2 };
+        service.AddModifier(ActorId, in first);
+        service.AddModifier(OtherActorId, in second);
 
         service.ClearActor(ActorId);
         service.ClearActor(ActorId);
 
-        Assert.Equal(10, service.ResolveInt(ActorId, key, 10));
-        Assert.Equal(17, service.ResolveInt(OtherActorId, key, 10));
+        Assert.Equal(10, service.ResolveInt(MobaModifierOwnerRef.Actor(ActorId), key, 10, in record));
+        Assert.Equal(17, service.ResolveInt(MobaModifierOwnerRef.Actor(OtherActorId), key, 10, in record));
     }
 
     private static ShieldLayer CreateShield(int actorId)

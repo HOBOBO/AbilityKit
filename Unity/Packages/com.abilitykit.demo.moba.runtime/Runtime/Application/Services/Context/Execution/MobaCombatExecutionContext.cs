@@ -1,4 +1,5 @@
 using AbilityKit.Context;
+using AbilityKit.Demo.Moba.Services.Projectile;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -13,6 +14,8 @@ namespace AbilityKit.Demo.Moba.Services
     /// </summary>
     public readonly struct MobaCombatExecutionContext : IMobaContextSourceProvider, IMobaRuntimeContextPayload
     {
+        private readonly int _projectileTemplateId;
+
         public MobaCombatExecutionContext(
             object payload,
             MobaEffectLineageInput lineageInput,
@@ -20,7 +23,8 @@ namespace AbilityKit.Demo.Moba.Services
             MobaTriggerExecutionSnapshot executionSnapshot,
             MobaSkillCastRuntimeHandle skillRuntimeHandle,
             int frame,
-            MobaCombatExecutionFacts combatFacts = default)
+            MobaCombatExecutionFacts combatFacts = default,
+            int projectileTemplateId = 0)
         {
             Payload = payload;
             LineageInput = lineageInput;
@@ -29,6 +33,7 @@ namespace AbilityKit.Demo.Moba.Services
             SkillRuntimeHandle = skillRuntimeHandle;
             Frame = frame != 0 ? frame : executionSnapshot.Frame;
             CombatFacts = new MobaCombatExecutionFacts(combatFacts.Flags);
+            _projectileTemplateId = projectileTemplateId;
         }
 
         /// <summary>
@@ -67,6 +72,22 @@ namespace AbilityKit.Demo.Moba.Services
         public long OwnerContextId => LineageInput.OwnerContextId != 0 ? LineageInput.OwnerContextId : Origin.OwnerContextId != 0 ? Origin.OwnerContextId : ExecutionSnapshot.OwnerContextId;
         public int TriggerId => ExecutionSnapshot.TriggerId;
         public int ConfigId => ExecutionSnapshot.ConfigId;
+        public int ProjectileTemplateId
+        {
+            get
+            {
+                if (_projectileTemplateId > 0) return _projectileTemplateId;
+                if (TryGetOriginalPayload<ProjectileHitArgs>(out var hit))
+                    return hit.ProjectileTemplateId > 0 ? hit.ProjectileTemplateId : hit.SourceConfigId;
+                if (TryGetOriginalPayload<ProjectileEventArgs>(out var evt))
+                    return evt.ProjectileTemplateId > 0 ? evt.ProjectileTemplateId : evt.SourceConfigId;
+                if (OriginKind == MobaExecutionKind.ProjectileHit)
+                    return LineageInput.OriginConfigId;
+                if (Origin.ImmediateKind == MobaExecutionKind.ProjectileHit)
+                    return Origin.ImmediateConfigId;
+                return 0;
+            }
+        }
         public bool IsValid => LineageInput.SourceActorId != 0 || LineageInput.TargetActorId != 0 || Origin.IsValid || ExecutionSnapshot.IsValid || SkillRuntimeHandle.IsValid || Payload != null;
         /// <summary>是否具备可继续向下游创建执行节点的来源信息。</summary>
         public bool HasExecutionSource => SourceActorId > 0 && ParentContextId != 0;
@@ -227,7 +248,8 @@ namespace AbilityKit.Demo.Moba.Services
                 ExecutionSnapshot,
                 SkillRuntimeHandle,
                 Frame,
-                CombatFacts);
+                CombatFacts,
+                ProjectileTemplateId);
         }
 
         public MobaCombatExecutionContext WithExecutionRoot(
@@ -296,7 +318,8 @@ namespace AbilityKit.Demo.Moba.Services
                 snapshot,
                 SkillRuntimeHandle,
                 Frame,
-                CombatFacts);
+                CombatFacts,
+                ProjectileTemplateId);
         }
     }
 

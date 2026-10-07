@@ -267,7 +267,6 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsFalse(Directory.Exists(Path.Combine("Assets", "Resources")), "MOBA resources must not be duplicated under Assets/Resources.");
             AssertPackageResourceExists("moba/characters.json");
             AssertPackageResourceExists("moba/battle_start.json");
-            AssertPackageResourceExists("moba/effect_plans.json");
             AssertPackageResourceExists("ability/triggers/passives/trigger_10030000.json");
             AssertPackageResourceExists("ability/triggers/passives/trigger_10040000.json");
             AssertPackageResourceExists("ability/triggers/skills/trigger_10030101.json");

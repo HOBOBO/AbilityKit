@@ -52,6 +52,30 @@ namespace AbilityKit.Triggering.Tests
         }
 
         [Test]
+        public void RejectAction_StopsCurrentPlanWithoutBlockingNextTrigger()
+        {
+            var bus = new EventBus();
+            var runner = new TriggerRunner<TestContext>(bus, new FunctionRegistry(), new ActionRegistry());
+            var key = new EventKey<Ping>(StableStringId.Get("test:execution_control:action_rejection"));
+            var nextExecuted = false;
+
+            runner.Register(key,
+                new DelegateTrigger<Ping, TestContext>(
+                    predicate: (evt, ctx) => true,
+                    actions: (evt, ctx) => ctx.Control.RejectAction("current plan failed")),
+                priority: 10);
+            runner.Register(key,
+                new DelegateTrigger<Ping, TestContext>(
+                    predicate: (evt, ctx) => !ctx.Control.IsActionRejected,
+                    actions: (evt, ctx) => nextExecuted = true),
+                priority: 5);
+
+            bus.Publish(key, new Ping());
+
+            Assert.That(nextExecuted, Is.True);
+        }
+
+        [Test]
         public void StopAll_StopsAllFollowingTriggers()
         {
             var bus = new EventBus();

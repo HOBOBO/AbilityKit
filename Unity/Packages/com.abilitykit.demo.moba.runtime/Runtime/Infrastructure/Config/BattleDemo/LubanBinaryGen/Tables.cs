@@ -30,26 +30,26 @@ public partial class Tables
     public SummonAttrInherits SummonAttrInherits {get; }
     public ComponentTemplates ComponentTemplates {get; }
     public SkillButtonTemplates SkillButtonTemplates {get; }
-    public TagTemplates TagTemplates {get; }
-    public ContinuousTagTemplates ContinuousTagTemplates {get; }
     public SearchQueryTemplates SearchQueryTemplates {get; }
     public SpawnSummonActionTemplates SpawnSummonActionTemplates {get; }
     public PresentationTemplates PresentationTemplates {get; }
     public BattleMaps BattleMaps {get; }
     public Gameplays Gameplays {get; }
     public MotionGroups MotionGroups {get; }
-    public Effects Effects {get; }
     public Brains Brains {get; }
-    public ResourceActorStateMachines ResourceActorStateMachines {get; }
-    public ResourceAttributetemplates ResourceAttributetemplates {get; }
     public ResourceBattleStart ResourceBattleStart {get; }
-    public ResourceCharacterHfsm ResourceCharacterHfsm {get; }
     public ResourceCharacterViewActions ResourceCharacterViewActions {get; }
-    public ResourceDemoTbitem ResourceDemoTbitem {get; }
-    public ResourceDtbuff ResourceDtbuff {get; }
-    public ResourceEffectPlans ResourceEffectPlans {get; }
-    public ResourceOngoingEffects ResourceOngoingEffects {get; }
     public AbilityNodes AbilityNodes {get; }
+    public Vfx Vfx {get; }
+    public ModifierTemplates ModifierTemplates {get; }
+    public TagDefinitions TagDefinitions {get; }
+    public TagRuleGroups TagRuleGroups {get; }
+    public TagRuleNodes TagRuleNodes {get; }
+    public TagResultFlags TagResultFlags {get; }
+    public TagResultMappings TagResultMappings {get; }
+    public ContinuousTagTemplates ContinuousTagTemplates {get; }
+    public ModifierParameters ModifierParameters {get; }
+    public TagBehaviorGates TagBehaviorGates {get; }
 
     public Tables(System.Func<string, ByteBuf> loader)
     {
@@ -70,26 +70,26 @@ public partial class Tables
         SummonAttrInherits = new SummonAttrInherits(loader("summon_attr_inherits"));
         ComponentTemplates = new ComponentTemplates(loader("component_templates"));
         SkillButtonTemplates = new SkillButtonTemplates(loader("skill_button_templates"));
-        TagTemplates = new TagTemplates(loader("tag_templates"));
-        ContinuousTagTemplates = new ContinuousTagTemplates(loader("continuous_tag_templates"));
         SearchQueryTemplates = new SearchQueryTemplates(loader("search_query_templates"));
         SpawnSummonActionTemplates = new SpawnSummonActionTemplates(loader("spawn_summon_action_templates"));
         PresentationTemplates = new PresentationTemplates(loader("presentation_templates"));
         BattleMaps = new BattleMaps(loader("battle_maps"));
         Gameplays = new Gameplays(loader("gameplays"));
         MotionGroups = new MotionGroups(loader("motion_groups"));
-        Effects = new Effects(loader("effects"));
         Brains = new Brains(loader("brains"));
-        ResourceActorStateMachines = new ResourceActorStateMachines(loader("actor_state_machines"));
-        ResourceAttributetemplates = new ResourceAttributetemplates(loader("attributetemplates"));
         ResourceBattleStart = new ResourceBattleStart(loader("battle_start"));
-        ResourceCharacterHfsm = new ResourceCharacterHfsm(loader("character_hfsm"));
         ResourceCharacterViewActions = new ResourceCharacterViewActions(loader("character_view_actions"));
-        ResourceDemoTbitem = new ResourceDemoTbitem(loader("demo_tbitem"));
-        ResourceDtbuff = new ResourceDtbuff(loader("dtbuff"));
-        ResourceEffectPlans = new ResourceEffectPlans(loader("effect_plans"));
-        ResourceOngoingEffects = new ResourceOngoingEffects(loader("ongoing_effects"));
         AbilityNodes = new AbilityNodes(loader("ability_nodes"));
+        Vfx = new Vfx(loader("vfx"));
+        ModifierTemplates = new ModifierTemplates(loader("modifier_templates"));
+        TagDefinitions = new TagDefinitions(loader("tag_definitions"));
+        TagRuleGroups = new TagRuleGroups(loader("tag_rule_groups"));
+        TagRuleNodes = new TagRuleNodes(loader("tag_rule_nodes"));
+        TagResultFlags = new TagResultFlags(loader("tag_result_flags"));
+        TagResultMappings = new TagResultMappings(loader("tag_result_mappings"));
+        ContinuousTagTemplates = new ContinuousTagTemplates(loader("continuous_tag_templates"));
+        ModifierParameters = new ModifierParameters(loader("modifier_parameters"));
+        TagBehaviorGates = new TagBehaviorGates(loader("tag_behavior_gates"));
         ResolveRef();
     }
     
@@ -112,26 +112,26 @@ public partial class Tables
         SummonAttrInherits.ResolveRef(this);
         ComponentTemplates.ResolveRef(this);
         SkillButtonTemplates.ResolveRef(this);
-        TagTemplates.ResolveRef(this);
-        ContinuousTagTemplates.ResolveRef(this);
         SearchQueryTemplates.ResolveRef(this);
         SpawnSummonActionTemplates.ResolveRef(this);
         PresentationTemplates.ResolveRef(this);
         BattleMaps.ResolveRef(this);
         Gameplays.ResolveRef(this);
         MotionGroups.ResolveRef(this);
-        Effects.ResolveRef(this);
         Brains.ResolveRef(this);
-        ResourceActorStateMachines.ResolveRef(this);
-        ResourceAttributetemplates.ResolveRef(this);
         ResourceBattleStart.ResolveRef(this);
-        ResourceCharacterHfsm.ResolveRef(this);
         ResourceCharacterViewActions.ResolveRef(this);
-        ResourceDemoTbitem.ResolveRef(this);
-        ResourceDtbuff.ResolveRef(this);
-        ResourceEffectPlans.ResolveRef(this);
-        ResourceOngoingEffects.ResolveRef(this);
         AbilityNodes.ResolveRef(this);
+        Vfx.ResolveRef(this);
+        ModifierTemplates.ResolveRef(this);
+        TagDefinitions.ResolveRef(this);
+        TagRuleGroups.ResolveRef(this);
+        TagRuleNodes.ResolveRef(this);
+        TagResultFlags.ResolveRef(this);
+        TagResultMappings.ResolveRef(this);
+        ContinuousTagTemplates.ResolveRef(this);
+        ModifierParameters.ResolveRef(this);
+        TagBehaviorGates.ResolveRef(this);
     }
 }
 

@@ -1,16 +1,11 @@
 using System;
-using System.IO;
 using System.Linq;
+using System.Reflection;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using NUnit.Framework;
 
 public sealed class MobaTriggerPlanAggregateTests
 {
-    private const string AbilityResourceDirectory =
-        "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability";
-    private const string SplitDirectory = AbilityResourceDirectory + "/triggers";
-    private const string AggregatePath = AbilityResourceDirectory + "/ability_trigger_plans.json";
-
     [Test]
     public void Compile_SortsTriggersByIdDeterministically()
     {
@@ -46,28 +41,23 @@ public sealed class MobaTriggerPlanAggregateTests
     }
 
     [Test]
-    public void CheckedInAggregate_MatchesCanonicalSplitCompilation()
+    public void CheckedInAggregate_MatchesProductionTriggerAuthoringModules()
     {
-        var documents = Directory.GetFiles(
-                SplitDirectory,
-                "*.json",
-                SearchOption.AllDirectories)
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .Select(path => new TriggerPlanAggregateCompiler.SourceDocument(
-                path.Substring(SplitDirectory.Length + 1).Replace('\\', '/'),
-                File.ReadAllText(path)))
-            .ToArray();
-
-        Assert.IsNotEmpty(documents, "No maintained split trigger plan files were found.");
-
-        var expected = TriggerPlanAggregateCompiler.Compile(documents);
-        var actual = NormalizeNewlines(File.ReadAllText(AggregatePath));
-
-        Assert.AreEqual(
-            expected,
-            actual,
-            "ability_trigger_plans.json drifted from ability/triggers/**/*.json. "
-            + "Run AbilityKit/Ability/Merge Trigger Plan JSON and commit the generated aggregate.");
+        var migration = AppDomain.CurrentDomain.GetAssemblies()
+            .Select(assembly => assembly.GetType(
+                "AbilityKit.Ability.Editor.Utilities.TriggerAuthoringMobaMigration"))
+            .FirstOrDefault(type => type != null);
+        Assert.NotNull(migration, "Trigger Authoring editor assembly was not loaded.");
+        var check = migration.GetMethod("CheckRuntimeBatch", BindingFlags.Public | BindingFlags.Static);
+        Assert.NotNull(check);
+        try
+        {
+            check.Invoke(null, null);
+        }
+        catch (TargetInvocationException ex)
+        {
+            throw ex.InnerException ?? ex;
+        }
     }
 
     private static TriggerPlanAggregateCompiler.SourceDocument Source(
@@ -80,8 +70,4 @@ public sealed class MobaTriggerPlanAggregateTests
             + ",\"event\":\"\",\"enabled\":true,\"actions\":[]}]}" );
     }
 
-    private static string NormalizeNewlines(string value)
-    {
-        return value.Replace("\r\n", "\n").TrimEnd('\n') + "\n";
-    }
 }

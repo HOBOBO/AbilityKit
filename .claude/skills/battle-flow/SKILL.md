@@ -3,7 +3,7 @@ name: battle-flow
 description: 战斗流程编辑器（BattleFlow）——玩法无关的「拖积木→编译→headless跑→verdict+trace」体系。框架三包 com.abilitykit.scenario（中立 IR）/com.abilitykit.battleflow（积木+编译+运行钩子+编辑器窗口）/com.abilitykit.environment（环境 Profile），加 MOBA 项目扩展（binder/runner/shell-out/断言积木）。触发场景：战斗流程、battle flow、积木、场景预览、技能预览、拖积木、断言积木、EnvironmentProfile、TestScenario、BattleBlock、headless runner、battleflow。
 ---
 
-# battle-flow skill（战斗流程编辑器）
+# 战斗流程编辑器指引
 
 目标：**拖积木 → 编译 → headless 跑 → verdict + trace**（降测试代码成本 + 流程可视化），玩法无关的框架地基 + MOBA 项目扩展。核心闭环已端到端验证（`verdict=PASSED`）。
 

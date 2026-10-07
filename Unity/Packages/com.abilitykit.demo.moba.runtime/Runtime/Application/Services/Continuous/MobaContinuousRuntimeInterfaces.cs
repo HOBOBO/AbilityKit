@@ -7,6 +7,11 @@ namespace AbilityKit.Demo.Moba.Services
         void TickManaged(float deltaTimeSeconds);
     }
 
+    public interface IMobaContinuousExecutionBlockedHandler
+    {
+        void OnExecutionBlocked();
+    }
+
     public interface IMobaContinuousIntervalState
     {
         float IntervalRemainingSeconds { get; set; }

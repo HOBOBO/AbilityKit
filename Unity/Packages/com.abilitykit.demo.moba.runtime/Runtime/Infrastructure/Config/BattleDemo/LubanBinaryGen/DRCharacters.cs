@@ -32,15 +32,36 @@ public sealed partial class DRCharacters : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 属性模板 ID，引用角色表中的属性模板。
+    /// </summary>
     public readonly int AttributeTemplateId;
+    /// <summary>
+    /// 模型资源 ID，引用模型表。
+    /// </summary>
     public readonly int ModelId;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 被动技能 ID 列表，引用被动技能表。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> PassiveSkillIds;
+    /// <summary>
+    /// 主动技能 ID 列表，引用技能表。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> SkillIds;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 2105456024;

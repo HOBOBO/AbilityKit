@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
@@ -23,7 +25,8 @@ namespace AbilityKit.Demo.Moba.Services
 
     public readonly struct MobaContinuousModifierMagnitudeView
     {
-        public MobaContinuousModifierMagnitudeView(MagnitudeSource source, float calculatedValue, bool hasCalculatedValue)
+        public MobaContinuousModifierMagnitudeView(MagnitudeSource source, float calculatedValue,
+            bool hasCalculatedValue, bool includeCurveSamples = true)
         {
             Type = source.Type;
             BaseValue = source.BaseValue;
@@ -34,6 +37,8 @@ namespace AbilityKit.Demo.Moba.Services
             AttributeCustomId = source.AttributeKey.CustomId;
             DecayType = (int)source.DecayType;
             IsTimeVarying = source.IsTimeVarying;
+            CurveSamples = !includeCurveSamples || source.ArrayData == null
+                ? Array.Empty<float>() : (float[])source.ArrayData.Clone();
             CalculatedValue = calculatedValue;
             HasCalculatedValue = hasCalculatedValue;
         }
@@ -47,6 +52,7 @@ namespace AbilityKit.Demo.Moba.Services
         public byte AttributeCustomId { get; }
         public int DecayType { get; }
         public bool IsTimeVarying { get; }
+        public IReadOnlyList<float> CurveSamples { get; }
         public float CalculatedValue { get; }
         public bool HasCalculatedValue { get; }
     }
@@ -122,6 +128,7 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public MobaContinuousModifierCaptureRecord(
             IContinuous continuous,
+            IMobaContinuousModifierSpec spec,
             int ownerActorId,
             int targetKind,
             int targetId,
@@ -140,6 +147,7 @@ namespace AbilityKit.Demo.Moba.Services
             string reason)
         {
             Continuous = continuous;
+            Spec = spec;
             OwnerActorId = ownerActorId;
             TargetKind = targetKind;
             TargetId = targetId;
@@ -159,6 +167,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public IContinuous Continuous { get; }
+        public IMobaContinuousModifierSpec Spec { get; }
         public int OwnerActorId { get; }
         public int TargetKind { get; }
         public int TargetId { get; }
@@ -177,39 +186,37 @@ namespace AbilityKit.Demo.Moba.Services
         public string Reason { get; }
     }
 
-    public class MobaContinuousModifierCaptureStore
+    [WorldService(typeof(MobaContinuousModifierCaptureStore))]
+    public sealed class MobaContinuousModifierCaptureStore : IService
     {
-        /// <summary>
-        /// 当前作用域（战斗世界）的捕获存储实例。
-        /// 由 <see cref="MobaContinuousModifierQueryService"/> 在初始化时设置。
-        /// </summary>
-        public static MobaContinuousModifierCaptureStore Instance { get; set; } = new MobaContinuousModifierCaptureStore();
-
         private readonly Dictionary<Key, MobaContinuousModifierCaptureRecord> _records = new Dictionary<Key, MobaContinuousModifierCaptureRecord>();
+
+        public void Dispose() => _records.Clear();
 
         public void Record(in MobaContinuousModifierCaptureRecord record)
         {
             if (record.Continuous == null || record.ModifierSourceId == 0) return;
-            _records[Key.From(record.Continuous, record.ModifierSourceId, record.TargetKind, record.TargetId, record.Op, record.Priority)] = record;
+            _records[Key.From(record.Continuous, record.ModifierSourceId, record.Spec, record.TargetKind, record.TargetId, record.Op, record.Priority)] = record;
         }
 
         public bool TryGet(IContinuous continuous, int sourceId, IMobaContinuousModifierSpec spec, out MobaContinuousModifierCaptureRecord record)
         {
             if (continuous != null && spec != null && sourceId != 0)
-                return _records.TryGetValue(Key.From(continuous, sourceId, spec.TargetKind, spec.TargetId, spec.Op, spec.Priority), out record);
+                return _records.TryGetValue(Key.From(continuous, sourceId, spec, spec.TargetKind, spec.TargetId, spec.Op, spec.Priority), out record);
 
             record = default;
             return false;
         }
 
-        public void Clear(int sourceId)
+        public void Clear(int sourceId, int targetKind, int ownerActorId)
         {
             if (sourceId == 0 || _records.Count == 0) return;
 
             List<Key> remove = null;
             foreach (var pair in _records)
             {
-                if (pair.Key.SourceId != sourceId) continue;
+                if (pair.Key.SourceId != sourceId || pair.Key.TargetKind != targetKind ||
+                    pair.Value.OwnerActorId != ownerActorId) continue;
                 remove ??= new List<Key>();
                 remove.Add(pair.Key);
             }
@@ -221,10 +228,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         private readonly struct Key : IEquatable<Key>
         {
-            private Key(IContinuous continuous, int sourceId, int targetKind, int targetId, int op, int priority)
+            private Key(IContinuous continuous, int sourceId, IMobaContinuousModifierSpec spec, int targetKind, int targetId, int op, int priority)
             {
                 Continuous = continuous;
                 SourceId = sourceId;
+                Spec = spec;
                 TargetKind = targetKind;
                 TargetId = targetId;
                 Op = op;
@@ -233,19 +241,20 @@ namespace AbilityKit.Demo.Moba.Services
 
             public IContinuous Continuous { get; }
             public int SourceId { get; }
+            public IMobaContinuousModifierSpec Spec { get; }
             public int TargetKind { get; }
             public int TargetId { get; }
             public int Op { get; }
             public int Priority { get; }
 
-            public static Key From(IContinuous continuous, int sourceId, int targetKind, int targetId, int op, int priority)
+            public static Key From(IContinuous continuous, int sourceId, IMobaContinuousModifierSpec spec, int targetKind, int targetId, int op, int priority)
             {
-                return new Key(continuous, sourceId, targetKind, targetId, op, priority);
+                return new Key(continuous, sourceId, spec, targetKind, targetId, op, priority);
             }
 
             public bool Equals(Key other)
             {
-                return ReferenceEquals(Continuous, other.Continuous) &&
+                return ReferenceEquals(Continuous, other.Continuous) && ReferenceEquals(Spec, other.Spec) &&
                        SourceId == other.SourceId &&
                        TargetKind == other.TargetKind &&
                        TargetId == other.TargetId &&
@@ -263,6 +272,7 @@ namespace AbilityKit.Demo.Moba.Services
                 unchecked
                 {
                     var hash = Continuous != null ? Continuous.GetHashCode() : 0;
+                    hash = (hash * 397) ^ (Spec != null ? Spec.GetHashCode() : 0);
                     hash = (hash * 397) ^ SourceId;
                     hash = (hash * 397) ^ TargetKind;
                     hash = (hash * 397) ^ TargetId;
@@ -280,19 +290,21 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private IContinuousManager _continuous;
         private MobaActorLookupService _actors;
-        private readonly MobaContinuousModifierCaptureStore _captureStore = new MobaContinuousModifierCaptureStore();
+        private MobaContinuousModifierCaptureStore _captureStore;
 
         public void OnInit(IWorldResolver services)
         {
             services?.TryResolve(out _continuous);
             services?.TryResolve(out _actors);
-            MobaContinuousModifierCaptureStore.Instance = _captureStore;
+            _captureStore = services?.Resolve<MobaContinuousModifierCaptureStore>()
+                ?? throw new InvalidOperationException("Modifier capture store is unavailable in this world.");
         }
 
         public void Dispose()
         {
             _continuous = null;
             _actors = null;
+            _captureStore = null;
         }
 
         public IReadOnlyList<MobaContinuousModifierEntry> GetActiveModifiers(int ownerActorId)
@@ -386,8 +398,11 @@ namespace AbilityKit.Demo.Moba.Services
                 reason = "Snapshot capture was not recorded; value is reconstructed from current context";
             }
 
-            var currentValue = stacked.Calculate(context?.Level ?? 1f, context);
-            var projectedValue = projected.Calculate(context?.Level ?? 1f, context);
+            if (declared.Type == MagnitudeSourceType.TimeDecay)
+                reason = BuildTimeCurveDescription(declared, entry.Continuous.ElapsedSeconds);
+
+            var currentValue = EvaluateMagnitude(stacked, entry.Continuous, context);
+            var projectedValue = EvaluateMagnitude(projected, entry.Continuous, context);
 
             return new MobaContinuousModifierExplainResult(
                 entry.Continuous,
@@ -400,15 +415,45 @@ namespace AbilityKit.Demo.Moba.Services
                 spec.Priority,
                 entry.Stack,
                 sourceId,
-                new MobaContinuousModifierMagnitudeView(declared, declared.Calculate(context?.Level ?? 1f, context), true),
-                new MobaContinuousModifierMagnitudeView(stacked, currentValue, true),
-                new MobaContinuousModifierMagnitudeView(projected, projectedValue, true),
+                new MobaContinuousModifierMagnitudeView(declared, EvaluateMagnitude(declared, entry.Continuous, context), true),
+                new MobaContinuousModifierMagnitudeView(stacked, currentValue, true,
+                    includeCurveSamples: false),
+                new MobaContinuousModifierMagnitudeView(projected, projectedValue, true,
+                    includeCurveSamples: false),
                 currentValue,
                 true,
                 capturedValue,
                 hasCapturedValue,
                 captureMode,
                 reason);
+        }
+
+        private static float EvaluateMagnitude(MagnitudeSource source, IContinuous continuous, AttributeContext context)
+        {
+            return source.Type == MagnitudeSourceType.TimeDecay
+                ? source.CalculateAtElapsed(continuous.ElapsedSeconds)
+                : source.Calculate(context?.Level ?? 1f, context);
+        }
+
+        private static string BuildTimeCurveDescription(MagnitudeSource source, float elapsedSeconds)
+        {
+            var text = new StringBuilder("Time curve: elapsed ");
+            text.Append(elapsedSeconds.ToString("0.###", CultureInfo.InvariantCulture))
+                .Append("s / ")
+                .Append(source.Duration.ToString("0.###", CultureInfo.InvariantCulture))
+                .Append("s; decay ").Append(source.DecayType);
+            var samples = source.ArrayData;
+            if (samples != null && samples.Length > 0)
+            {
+                text.Append("; multipliers [");
+                for (var i = 0; i < samples.Length; i++)
+                {
+                    if (i > 0) text.Append(", ");
+                    text.Append(samples[i].ToString("0.###", CultureInfo.InvariantCulture));
+                }
+                text.Append(']');
+            }
+            return text.ToString();
         }
 
         private AttributeContext ResolveAttributeContext(int ownerActorId)

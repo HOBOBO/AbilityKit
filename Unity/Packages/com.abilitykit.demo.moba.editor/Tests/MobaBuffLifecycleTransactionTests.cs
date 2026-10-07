@@ -37,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         [SetUp]
         public void SetUp()
         {
+            GameplayTagManager.Instance.RegisterTags(new[] { "Debuff.Slow", "State.ControlImmune" });
             _contexts = new Contexts();
             _index = new ActorIdIndex(_contexts);
             _registry = new MobaActorRegistry();
@@ -575,7 +576,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             var removed = service.RemoveBuffsWithTagImmediate(
                 ActorId,
-                MobaGameplayTagCatalog.Debuff.Slow,
+                "Debuff.Slow",
                 SourceActorId,
                 removeAll: true,
                 MobaExecutionEndReason.Dispelled);
@@ -596,7 +597,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     BuffId + 3,
                     BuffDispelPolicy.Dispellable,
                     requestedCategory,
-                    new[] { MobaGameplayTagCatalog.State.ControlImmune }));
+                    new[] { "State.ControlImmune" }));
             var active = new List<BuffRuntime>
             {
                 CreateRuntime(GetBuff(configs, BuffId)),
@@ -610,12 +611,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             SetPrivateField(
                 service,
                 "_tags",
-                new FixedEffectiveTagQueryService(MobaGameplayTagCatalog.State.ControlImmune));
+                new FixedEffectiveTagQueryService("State.ControlImmune"));
             SetPrivateField(service, "_diagnostics", diagnostics);
 
             var removed = service.RemoveBuffsWithTagImmediate(
                 ActorId,
-                MobaGameplayTagCatalog.Debuff.Slow,
+                "Debuff.Slow",
                 requestedCategory,
                 sourceActorId: 0,
                 removeAll: true,
@@ -641,7 +642,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     BuffId,
                     BuffDispelPolicy.Dispellable,
                     requestedCategory,
-                    new[] { MobaGameplayTagCatalog.State.ControlImmune }));
+                    new[] { "State.ControlImmune" }));
             var active = new List<BuffRuntime> { CreateRuntime(GetBuff(configs)) };
             _target.AddBuffs(active);
             var diagnostics = new MobaBattleDiagnosticsService();
@@ -650,7 +651,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             var removed = service.RemoveBuffsWithTagImmediate(
                 ActorId,
-                MobaGameplayTagCatalog.Debuff.Slow,
+                "Debuff.Slow",
                 requestedCategory,
                 sourceActorId: 0,
                 removeAll: true,
@@ -859,7 +860,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 OnRemoveEffects = Array.Empty<int>(),
                 OnIntervalEffects = Array.Empty<int>(),
                 TriggerIds = Array.Empty<int>(),
-                TagNames = new[] { MobaGameplayTagCatalog.Debuff.Slow },
+                TagNames = new[] { "Debuff.Slow" },
                 Modifiers = Array.Empty<ContinuousModifierDTO>(),
                 DispelPolicy = (int)policy,
                 DispelCategory = category,
@@ -915,10 +916,19 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             }
 
             public GameplayTagContainer GetEffectiveTags(int ownerActorId) => _tags;
+            public bool HasTag(int ownerActorId, GameplayTag tag, bool exact = false) =>
+                exact ? _tags.HasTagExact(tag) : _tags.HasTag(tag);
+            public bool HasAnyTag(int ownerActorId, GameplayTagContainer tags, bool exact = false) =>
+                _tags.HasAny(tags, exact);
+
+            public bool CanExecute(IContinuous continuous) => continuous != null && continuous.IsActive && !continuous.IsPaused;
 
             public bool CanActivate(int ownerActorId, ContinuousTagRequirements requirements) => true;
 
             public bool ShouldRemove(int ownerActorId, ContinuousTagRequirements requirements) => false;
+
+            public MobaTagRequirementEvaluation EvaluateRequirements(int ownerActorId, ContinuousTagRequirements requirements) =>
+                new MobaTagRequirementEvaluation(true, false, true);
 
             public void MarkDirty(int ownerActorId)
             {

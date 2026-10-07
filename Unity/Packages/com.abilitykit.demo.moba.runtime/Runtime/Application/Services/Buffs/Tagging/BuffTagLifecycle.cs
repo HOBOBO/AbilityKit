@@ -17,9 +17,10 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Tagging
             if (buff == null) return null;
 
             ContinuousTagRequirements template = null;
-            if (buff.ContinuousTagTemplateId > 0 && registry != null)
+            if (buff.ContinuousTagTemplateId > 0)
             {
-                registry.TryGet(buff.ContinuousTagTemplateId, out template);
+                if (registry == null || !registry.TryGet(buff.ContinuousTagTemplateId, out template) || template == null)
+                    throw new System.InvalidOperationException($"Buff {buff.Id} references missing continuous tag template {buff.ContinuousTagTemplateId}.");
             }
 
             var hasDirectTags = buff.Tags != null && buff.Tags.Count > 0;
@@ -31,7 +32,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Tagging
                 ApplicationTags = CopyContainer(template?.ApplicationTags),
                 RemovalRequired = template?.RemovalRequired ?? new GameplayTagRequirements(),
                 OngoingRequired = template?.OngoingRequired ?? new GameplayTagRequirements(),
-                RemovalTags = CopyContainer(template?.RemovalTags)
+                ExecutionBlockedResultMask = template?.ExecutionBlockedResultMask ?? 0UL
             };
 
             result.ApplicationTags.AppendTags(buff.Tags);

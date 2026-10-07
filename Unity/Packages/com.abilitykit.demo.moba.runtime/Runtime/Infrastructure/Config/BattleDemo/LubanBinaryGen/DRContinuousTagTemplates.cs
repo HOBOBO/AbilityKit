@@ -17,17 +17,18 @@ public sealed partial class DRContinuousTagTemplates : Luban.BeanBase
     public DRContinuousTagTemplates(ByteBuf _buf) 
     {
         Id = _buf.ReadInt();
-        {int n0 = _buf.ReadSize(); ActivationBlockedTags = new System.Collections.Generic.List<string>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { string _e0;  _e0 = _buf.ReadString(); ActivationBlockedTags.Add(_e0);}}
-        {int n0 = _buf.ReadSize(); ActivationRequiredTags = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ActivationRequiredTags.Add(_e0);}}
-        {int n0 = _buf.ReadSize(); ApplicationTags = new System.Collections.Generic.List<string>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { string _e0;  _e0 = _buf.ReadString(); ApplicationTags.Add(_e0);}}
         Name = _buf.ReadString();
-        {int n0 = _buf.ReadSize(); OngoingBlockedTags = new System.Collections.Generic.List<string>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { string _e0;  _e0 = _buf.ReadString(); OngoingBlockedTags.Add(_e0);}}
-        {int n0 = _buf.ReadSize(); OngoingRequiredTags = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OngoingRequiredTags.Add(_e0);}}
-        {int n0 = _buf.ReadSize(); RemovalBlockedTags = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); RemovalBlockedTags.Add(_e0);}}
-        {int n0 = _buf.ReadSize(); RemovalRequiredTags = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); RemovalRequiredTags.Add(_e0);}}
-        {int n0 = _buf.ReadSize(); RemovalTags = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); RemovalTags.Add(_e0);}}
-        OmittedFields = _buf.ReadString();
-        NullFields = _buf.ReadString();
+        {int n0 = _buf.ReadSize(); ActivationRequiredTagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ActivationRequiredTagIds.Add(_e0);}}
+        {int n0 = _buf.ReadSize(); ActivationBlockedTagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ActivationBlockedTagIds.Add(_e0);}}
+        {int n0 = _buf.ReadSize(); ApplicationTagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ApplicationTagIds.Add(_e0);}}
+        {int n0 = _buf.ReadSize(); RemovalRequiredTagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); RemovalRequiredTagIds.Add(_e0);}}
+        {int n0 = _buf.ReadSize(); RemovalBlockedTagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); RemovalBlockedTagIds.Add(_e0);}}
+        {int n0 = _buf.ReadSize(); OngoingRequiredTagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OngoingRequiredTagIds.Add(_e0);}}
+        {int n0 = _buf.ReadSize(); OngoingBlockedTagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OngoingBlockedTagIds.Add(_e0);}}
+        ActivationRuleGroupId = _buf.ReadInt();
+        RemovalRuleGroupId = _buf.ReadInt();
+        OngoingRuleGroupId = _buf.ReadInt();
+        {int n0 = _buf.ReadSize(); ExecutionBlockedFlagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ExecutionBlockedFlagIds.Add(_e0);}}
     }
 
     public static DRContinuousTagTemplates DeserializeDRContinuousTagTemplates(ByteBuf _buf)
@@ -36,20 +37,57 @@ public sealed partial class DRContinuousTagTemplates : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
-    public readonly System.Collections.Generic.List<string> ActivationBlockedTags;
-    public readonly System.Collections.Generic.List<int> ActivationRequiredTags;
-    public readonly System.Collections.Generic.List<string> ApplicationTags;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
-    public readonly System.Collections.Generic.List<string> OngoingBlockedTags;
-    public readonly System.Collections.Generic.List<int> OngoingRequiredTags;
-    public readonly System.Collections.Generic.List<int> RemovalBlockedTags;
-    public readonly System.Collections.Generic.List<int> RemovalRequiredTags;
-    public readonly System.Collections.Generic.List<int> RemovalTags;
-    public readonly string OmittedFields;
-    public readonly string NullFields;
+    /// <summary>
+    /// 激活必需标签定义 ID 列表，逗号分隔。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> ActivationRequiredTagIds;
+    /// <summary>
+    /// 激活阻断标签定义 ID 列表，逗号分隔。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> ActivationBlockedTagIds;
+    /// <summary>
+    /// 应用标签定义 ID 列表，逗号分隔。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> ApplicationTagIds;
+    /// <summary>
+    /// 移除必需标签定义 ID 列表，逗号分隔。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> RemovalRequiredTagIds;
+    /// <summary>
+    /// 移除阻断标签定义 ID 列表，逗号分隔。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> RemovalBlockedTagIds;
+    /// <summary>
+    /// 持续中必需标签定义 ID 列表，逗号分隔。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> OngoingRequiredTagIds;
+    /// <summary>
+    /// 持续中阻断标签定义 ID 列表，逗号分隔。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> OngoingBlockedTagIds;
+    /// <summary>
+    /// 激活条件规则组 ID；0 表示不使用。
+    /// </summary>
+    public readonly int ActivationRuleGroupId;
+    /// <summary>
+    /// 移除条件规则组 ID；0 表示不使用。
+    /// </summary>
+    public readonly int RemovalRuleGroupId;
+    /// <summary>
+    /// 持续中条件规则组 ID；0 表示不使用。
+    /// </summary>
+    public readonly int OngoingRuleGroupId;
+    /// <summary>
+    /// 执行时阻断的结果标志 ID 列表，逗号分隔；由标签规则映射计算，空表示不阻断。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> ExecutionBlockedFlagIds;
    
     public const int __ID__ = -163131492;
     public override int GetTypeId() => __ID__;
@@ -62,17 +100,18 @@ public sealed partial class DRContinuousTagTemplates : Luban.BeanBase
     {
         return "{ "
         + "Id:" + Id + ","
-        + "ActivationBlockedTags:" + Luban.StringUtil.CollectionToString(ActivationBlockedTags) + ","
-        + "ActivationRequiredTags:" + Luban.StringUtil.CollectionToString(ActivationRequiredTags) + ","
-        + "ApplicationTags:" + Luban.StringUtil.CollectionToString(ApplicationTags) + ","
         + "Name:" + Name + ","
-        + "OngoingBlockedTags:" + Luban.StringUtil.CollectionToString(OngoingBlockedTags) + ","
-        + "OngoingRequiredTags:" + Luban.StringUtil.CollectionToString(OngoingRequiredTags) + ","
-        + "RemovalBlockedTags:" + Luban.StringUtil.CollectionToString(RemovalBlockedTags) + ","
-        + "RemovalRequiredTags:" + Luban.StringUtil.CollectionToString(RemovalRequiredTags) + ","
-        + "RemovalTags:" + Luban.StringUtil.CollectionToString(RemovalTags) + ","
-        + "OmittedFields:" + OmittedFields + ","
-        + "NullFields:" + NullFields + ","
+        + "ActivationRequiredTagIds:" + Luban.StringUtil.CollectionToString(ActivationRequiredTagIds) + ","
+        + "ActivationBlockedTagIds:" + Luban.StringUtil.CollectionToString(ActivationBlockedTagIds) + ","
+        + "ApplicationTagIds:" + Luban.StringUtil.CollectionToString(ApplicationTagIds) + ","
+        + "RemovalRequiredTagIds:" + Luban.StringUtil.CollectionToString(RemovalRequiredTagIds) + ","
+        + "RemovalBlockedTagIds:" + Luban.StringUtil.CollectionToString(RemovalBlockedTagIds) + ","
+        + "OngoingRequiredTagIds:" + Luban.StringUtil.CollectionToString(OngoingRequiredTagIds) + ","
+        + "OngoingBlockedTagIds:" + Luban.StringUtil.CollectionToString(OngoingBlockedTagIds) + ","
+        + "ActivationRuleGroupId:" + ActivationRuleGroupId + ","
+        + "RemovalRuleGroupId:" + RemovalRuleGroupId + ","
+        + "OngoingRuleGroupId:" + OngoingRuleGroupId + ","
+        + "ExecutionBlockedFlagIds:" + Luban.StringUtil.CollectionToString(ExecutionBlockedFlagIds) + ","
         + "}";
     }
 }

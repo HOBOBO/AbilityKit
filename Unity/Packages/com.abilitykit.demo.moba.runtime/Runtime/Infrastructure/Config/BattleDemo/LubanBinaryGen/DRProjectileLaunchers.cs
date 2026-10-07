@@ -19,7 +19,7 @@ public sealed partial class DRProjectileLaunchers : Luban.BeanBase
         Id = _buf.ReadInt();
         CountPerShot = _buf.ReadInt();
         DurationMs = _buf.ReadInt();
-        EmitterType = _buf.ReadInt();
+        EmitterType = (ProjectileEmitterType)_buf.ReadInt();
         FanAngleDeg = _buf.ReadInt();
         IntervalMs = _buf.ReadInt();
         Name = _buf.ReadString();
@@ -33,16 +33,40 @@ public sealed partial class DRProjectileLaunchers : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 数量每发射；用于投射发射器配置。
+    /// </summary>
     public readonly int CountPerShot;
+    /// <summary>
+    /// 持续时间，单位毫秒；0 的含义以对应运行时逻辑为准。
+    /// </summary>
     public readonly int DurationMs;
-    public readonly int EmitterType;
+    /// <summary>
+    /// 发射器类型；按 ProjectileEmitterType 枚举或 bean 定义填写。
+    /// </summary>
+    public readonly ProjectileEmitterType EmitterType;
+    /// <summary>
+    /// 扇形角度，单位度。
+    /// </summary>
     public readonly int FanAngleDeg;
+    /// <summary>
+    /// 周期执行间隔，单位毫秒。
+    /// </summary>
     public readonly int IntervalMs;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 1089862012;

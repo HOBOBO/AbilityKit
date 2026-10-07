@@ -76,6 +76,7 @@ namespace AbilityKit.GameplayTags
         }
 
         private readonly Dictionary<string, int> _byName = new Dictionary<string, int>(StringComparer.Ordinal);
+        private readonly object _sync = new object();
         private readonly List<Node> _nodes = new List<Node>(256);
         private readonly Dictionary<int, HashSet<int>> _ancestors = new Dictionary<int, HashSet<int>>();
         private readonly List<IGameplayTagChangedListener> _listeners = new List<IGameplayTagChangedListener>();
@@ -89,12 +90,12 @@ namespace AbilityKit.GameplayTags
         /// <summary>
         /// 已注册的标签数量
         /// </summary>
-        public int TagCount => _byName.Count;
+        public int TagCount { get { lock (_sync) return _byName.Count; } }
 
         /// <summary>
         /// 下一个可用的 NetIndex
         /// </summary>
-        public ushort NextNetIndex => _nextNetIndex;
+        public ushort NextNetIndex { get { lock (_sync) return _nextNetIndex; } }
 
         private GameplayTagManager()
         {
@@ -107,9 +108,10 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public void AddListener(IGameplayTagChangedListener listener)
         {
-            if (listener != null && !_listeners.Contains(listener))
+            lock (_sync)
             {
-                _listeners.Add(listener);
+                if (listener != null && !_listeners.Contains(listener))
+                    _listeners.Add(listener);
             }
         }
 
@@ -118,7 +120,7 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public void RemoveListener(IGameplayTagChangedListener listener)
         {
-            _listeners.Remove(listener);
+            lock (_sync) _listeners.Remove(listener);
         }
 
         /// <summary>
@@ -131,8 +133,11 @@ namespace AbilityKit.GameplayTags
                 throw new ArgumentException("Invalid tag name", nameof(name));
             }
 
-            var id = GetOrCreate(normalized);
-            return new GameplayTag(id, _nodes[id].NetIndex);
+            lock (_sync)
+            {
+                var id = GetOrCreate(normalized);
+                return new GameplayTag(id, _nodes[id].NetIndex);
+            }
         }
 
         /// <summary>
@@ -163,11 +168,16 @@ namespace AbilityKit.GameplayTags
             {
                 try
                 {
-                    var wasAdded = !_byName.ContainsKey(name);
-                    RequestTag(name);
+                    bool wasAdded;
+                    GameplayTag tag;
+                    lock (_sync)
+                    {
+                        wasAdded = !_byName.ContainsKey(name);
+                        tag = RequestTag(name);
+                    }
                     if (wasAdded)
                     {
-                        NotifyTagChanged(new GameplayTag(_byName[name]), GameplayTagChangeType.Added);
+                        NotifyTagChanged(tag, GameplayTagChangeType.Added);
                     }
                 }
                 catch
@@ -183,12 +193,15 @@ namespace AbilityKit.GameplayTags
         {
             tag = default;
             if (!TryNormalize(name, out var normalized)) return false;
-            if (_byName.TryGetValue(normalized, out var id))
+            lock (_sync)
             {
-                tag = new GameplayTag(id, _nodes[id].NetIndex);
-                return true;
+                if (_byName.TryGetValue(normalized, out var id))
+                {
+                    tag = new GameplayTag(id, _nodes[id].NetIndex);
+                    return true;
+                }
+                return false;
             }
-            return false;
         }
 
         /// <summary>
@@ -196,8 +209,11 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public GameplayTag GetTagFromId(int id)
         {
-            if (id <= 0 || id >= _nodes.Count) return GameplayTag.None;
-            return new GameplayTag(id, _nodes[id].NetIndex);
+            lock (_sync)
+            {
+                if (id <= 0 || id >= _nodes.Count) return GameplayTag.None;
+                return new GameplayTag(id, _nodes[id].NetIndex);
+            }
         }
 
         /// <summary>
@@ -205,16 +221,16 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public GameplayTag GetTagFromNetIndex(ushort netIndex)
         {
-            if (netIndex == 0) return GameplayTag.None;
-
-            for (int i = 1; i < _nodes.Count; i++)
+            lock (_sync)
             {
-                if (_nodes[i].NetIndex == netIndex)
+                if (netIndex == 0) return GameplayTag.None;
+                for (int i = 1; i < _nodes.Count; i++)
                 {
-                    return new GameplayTag(i, netIndex);
+                    if (_nodes[i].NetIndex == netIndex)
+                        return new GameplayTag(i, netIndex);
                 }
+                return GameplayTag.None;
             }
-            return GameplayTag.None;
         }
 
         /// <summary>
@@ -222,10 +238,13 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public string GetName(GameplayTag tag)
         {
-            if (!tag.IsValid) return string.Empty;
-            var id = tag.Id;
-            if (id <= 0 || id >= _nodes.Count) return string.Empty;
-            return _nodes[id].Name ?? string.Empty;
+            lock (_sync)
+            {
+                if (!tag.IsValid) return string.Empty;
+                var id = tag.Id;
+                if (id <= 0 || id >= _nodes.Count) return string.Empty;
+                return _nodes[id].Name ?? string.Empty;
+            }
         }
 
         /// <summary>
@@ -243,9 +262,12 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public GameplayTag GetParent(GameplayTag tag)
         {
-            if (!tag.IsValid) return GameplayTag.None;
-            var parentId = _nodes[tag.Id].ParentId;
-            return parentId == 0 ? GameplayTag.None : new GameplayTag(parentId, _nodes[parentId].NetIndex);
+            lock (_sync)
+            {
+                if (!tag.IsValid || tag.Id >= _nodes.Count) return GameplayTag.None;
+                var parentId = _nodes[tag.Id].ParentId;
+                return parentId == 0 ? GameplayTag.None : new GameplayTag(parentId, _nodes[parentId].NetIndex);
+            }
         }
 
         /// <summary>
@@ -263,15 +285,11 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public bool IsChildOf(GameplayTag tag, GameplayTag parent)
         {
-            if (!tag.IsValid || !parent.IsValid) return false;
-            if (tag.Id == parent.Id) return false;
-
-            if (_ancestors.TryGetValue(tag.Id, out var ancestors))
+            lock (_sync)
             {
-                return ancestors.Contains(parent.Id);
+                if (!tag.IsValid || !parent.IsValid || tag.Id == parent.Id) return false;
+                return _ancestors.TryGetValue(tag.Id, out var ancestors) && ancestors.Contains(parent.Id);
             }
-
-            return false;
         }
 
         /// <summary>
@@ -279,12 +297,13 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public IEnumerable<GameplayTag> GetAncestors(GameplayTag tag)
         {
-            if (!tag.IsValid) yield break;
-            if (!_ancestors.TryGetValue(tag.Id, out var ancestors)) yield break;
-
-            foreach (var ancestorId in ancestors)
+            lock (_sync)
             {
-                yield return new GameplayTag(ancestorId, _nodes[ancestorId].NetIndex);
+                var result = new List<GameplayTag>();
+                if (tag.IsValid && _ancestors.TryGetValue(tag.Id, out var ancestors))
+                    foreach (var id in ancestors)
+                        result.Add(new GameplayTag(id, _nodes[id].NetIndex));
+                return result;
             }
         }
 
@@ -293,16 +312,12 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public IEnumerable<GameplayTag> GetDescendants(GameplayTag tag)
         {
-            if (!tag.IsValid) yield break;
-
-            var children = _nodes[tag.Id].Children;
-            foreach (var childId in children)
+            lock (_sync)
             {
-                yield return new GameplayTag(childId, _nodes[childId].NetIndex);
-                foreach (var descendant in GetDescendants(new GameplayTag(childId, _nodes[childId].NetIndex)))
-                {
-                    yield return descendant;
-                }
+                var result = new List<GameplayTag>();
+                if (tag.IsValid && tag.Id < _nodes.Count)
+                    CollectDescendants(tag.Id, result);
+                return result;
             }
         }
 
@@ -311,18 +326,17 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public IEnumerable<GameplayTag> GetSiblings(GameplayTag tag)
         {
-            if (!tag.IsValid) yield break;
-
-            var parentId = _nodes[tag.Id].ParentId;
-            if (parentId == 0) yield break;
-
-            var siblings = _nodes[parentId].Children;
-            foreach (var siblingId in siblings)
+            lock (_sync)
             {
-                if (siblingId != tag.Id)
+                var result = new List<GameplayTag>();
+                if (tag.IsValid && tag.Id < _nodes.Count)
                 {
-                    yield return new GameplayTag(siblingId, _nodes[siblingId].NetIndex);
+                    var parentId = _nodes[tag.Id].ParentId;
+                    if (parentId != 0)
+                        foreach (var id in _nodes[parentId].Children)
+                            if (id != tag.Id) result.Add(new GameplayTag(id, _nodes[id].NetIndex));
                 }
+                return result;
             }
         }
 
@@ -331,11 +345,13 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public IEnumerable<GameplayTag> GetChildren(GameplayTag tag)
         {
-            if (!tag.IsValid) yield break;
-
-            foreach (var childId in _nodes[tag.Id].Children)
+            lock (_sync)
             {
-                yield return new GameplayTag(childId, _nodes[childId].NetIndex);
+                var result = new List<GameplayTag>();
+                if (tag.IsValid && tag.Id < _nodes.Count)
+                    foreach (var id in _nodes[tag.Id].Children)
+                        result.Add(new GameplayTag(id, _nodes[id].NetIndex));
+                return result;
             }
         }
 
@@ -344,14 +360,16 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public GameplayTag GetRootTag(GameplayTag tag)
         {
-            if (!tag.IsValid) return GameplayTag.None;
-
-            int currentId = tag.Id;
-            while (true)
+            lock (_sync)
             {
-                var parentId = _nodes[currentId].ParentId;
-                if (parentId == 0) return new GameplayTag(currentId, _nodes[currentId].NetIndex);
-                currentId = parentId;
+                if (!tag.IsValid || tag.Id >= _nodes.Count) return GameplayTag.None;
+                int currentId = tag.Id;
+                while (true)
+                {
+                    var parentId = _nodes[currentId].ParentId;
+                    if (parentId == 0) return new GameplayTag(currentId, _nodes[currentId].NetIndex);
+                    currentId = parentId;
+                }
             }
         }
 
@@ -360,15 +378,15 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public IReadOnlyList<string> GetAllTagNames()
         {
-            var names = new List<string>(_byName.Count - 1);
-            foreach (var kvp in _byName)
+            lock (_sync)
             {
-                if (!string.IsNullOrEmpty(kvp.Key))
+                var names = new List<string>(_byName.Count - 1);
+                foreach (var kvp in _byName)
                 {
-                    names.Add(kvp.Key);
+                    if (!string.IsNullOrEmpty(kvp.Key)) names.Add(kvp.Key);
                 }
+                return names;
             }
-            return names;
         }
 
         /// <summary>
@@ -376,15 +394,16 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public IReadOnlyList<GameplayTag> GetAllTags()
         {
-            var tags = new List<GameplayTag>(_byName.Count - 1);
-            foreach (var kvp in _byName)
+            lock (_sync)
             {
-                if (!string.IsNullOrEmpty(kvp.Key))
+                var tags = new List<GameplayTag>(_byName.Count - 1);
+                foreach (var kvp in _byName)
                 {
-                    tags.Add(new GameplayTag(kvp.Value, _nodes[kvp.Value].NetIndex));
+                    if (!string.IsNullOrEmpty(kvp.Key))
+                        tags.Add(new GameplayTag(kvp.Value, _nodes[kvp.Value].NetIndex));
                 }
+                return tags;
             }
-            return tags;
         }
 
         /// <summary>
@@ -392,9 +411,21 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public IEnumerable<GameplayTag> GetRootTags()
         {
-            foreach (var childId in _nodes[0].Children)
+            lock (_sync)
             {
-                yield return new GameplayTag(childId, _nodes[childId].NetIndex);
+                var result = new List<GameplayTag>();
+                foreach (var id in _nodes[0].Children)
+                    result.Add(new GameplayTag(id, _nodes[id].NetIndex));
+                return result;
+            }
+        }
+
+        private void CollectDescendants(int parentId, List<GameplayTag> result)
+        {
+            foreach (var id in _nodes[parentId].Children)
+            {
+                result.Add(new GameplayTag(id, _nodes[id].NetIndex));
+                CollectDescendants(id, result);
             }
         }
 
@@ -403,23 +434,26 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public string SerializeToJson()
         {
-            var sb = new StringBuilder();
-            sb.Append('{');
-            sb.Append("\"tags\":[");
-            bool first = true;
-            for (int i = 1; i < _nodes.Count; i++)
+            lock (_sync)
             {
-                var node = _nodes[i];
-                if (!first) sb.Append(',');
+                var sb = new StringBuilder();
                 sb.Append('{');
-                sb.Append($"\"name\":\"{EscapeJson(node.Name)}\",");
-                sb.Append($"\"netIndex\":{node.NetIndex},");
-                sb.Append($"\"parentId\":{node.ParentId}");
-                sb.Append('}');
-                first = false;
+                sb.Append("\"tags\":[");
+                bool first = true;
+                for (int i = 1; i < _nodes.Count; i++)
+                {
+                    var node = _nodes[i];
+                    if (!first) sb.Append(',');
+                    sb.Append('{');
+                    sb.Append($"\"name\":\"{EscapeJson(node.Name)}\",");
+                    sb.Append($"\"netIndex\":{node.NetIndex},");
+                    sb.Append($"\"parentId\":{node.ParentId}");
+                    sb.Append('}');
+                    first = false;
+                }
+                sb.Append("]}");
+                return sb.ToString();
             }
-            sb.Append("]}");
-            return sb.ToString();
         }
 
         /// <summary>
@@ -432,41 +466,38 @@ namespace AbilityKit.GameplayTags
             try
             {
                 var tags = ParseJsonTags(json);
-                foreach (var tagInfo in tags)
+                lock (_sync)
                 {
-                    var normalized = tagInfo.Name;
-                    if (_byName.ContainsKey(normalized)) continue;
-
-                    var parentId = 0;
-                    if (!string.IsNullOrEmpty(tagInfo.ParentName))
+                    foreach (var tagInfo in tags)
                     {
-                        if (_byName.TryGetValue(tagInfo.ParentName, out var existingParentId))
+                        var normalized = tagInfo.Name;
+                        if (_byName.ContainsKey(normalized)) continue;
+
+                        var parentId = 0;
+                        if (!string.IsNullOrEmpty(tagInfo.ParentName))
                         {
-                            parentId = existingParentId;
+                            if (_byName.TryGetValue(tagInfo.ParentName, out var existingParentId))
+                                parentId = existingParentId;
+                            else
+                                parentId = GetOrCreate(tagInfo.ParentName);
                         }
-                        else
+
+                        var id = _nodes.Count;
+                        var node = new Node
                         {
-                            parentId = GetOrCreate(tagInfo.ParentName);
-                        }
+                            Name = normalized,
+                            ParentId = parentId,
+                            Children = new List<int>(),
+                            NetIndex = tagInfo.NetIndex > 0 ? tagInfo.NetIndex : _nextNetIndex++
+                        };
+                        _nodes.Add(node);
+
+                        if (parentId >= 0 && parentId < _nodes.Count)
+                            _nodes[parentId].Children.Add(id);
+
+                        _byName[normalized] = id;
+                        BuildAncestorCache(id, parentId);
                     }
-
-                    var id = _nodes.Count;
-                    var node = new Node
-                    {
-                        Name = normalized,
-                        ParentId = parentId,
-                        Children = new List<int>(),
-                        NetIndex = tagInfo.NetIndex > 0 ? tagInfo.NetIndex : _nextNetIndex++
-                    };
-                    _nodes.Add(node);
-
-                    if (parentId >= 0 && parentId < _nodes.Count)
-                    {
-                        _nodes[parentId].Children.Add(id);
-                    }
-
-                    _byName[normalized] = id;
-                    BuildAncestorCache(id, parentId);
                 }
             }
             catch
@@ -560,19 +591,19 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public void NetworkSerialize(FastBufferWriter writer)
         {
-            writer.WriteValue(_nextNetIndex);
-            writer.WriteValue((ushort)(_nodes.Count - 1));
-
-            for (int i = 1; i < _nodes.Count; i++)
+            lock (_sync)
             {
-                var node = _nodes[i];
-                writer.WriteValue(node.NetIndex);
-                writer.WriteValue((ushort)node.Name.Length);
-                foreach (var c in node.Name)
+                writer.WriteValue(_nextNetIndex);
+                writer.WriteValue((ushort)(_nodes.Count - 1));
+                for (int i = 1; i < _nodes.Count; i++)
                 {
-                    writer.WriteValue((ushort)c);
+                    var node = _nodes[i];
+                    writer.WriteValue(node.NetIndex);
+                    writer.WriteValue((ushort)node.Name.Length);
+                    foreach (var c in node.Name)
+                        writer.WriteValue((ushort)c);
+                    writer.WriteValue((ushort)node.ParentId);
                 }
-                writer.WriteValue((ushort)node.ParentId);
             }
         }
 
@@ -584,42 +615,35 @@ namespace AbilityKit.GameplayTags
             var nextNetIndex = reader.ReadUInt16();
             var count = reader.ReadUInt16();
 
-            for (int i = 0; i < count; i++)
+            lock (_sync)
             {
-                var netIndex = reader.ReadUInt16();
-                var nameLen = reader.ReadUInt16();
-                var chars = new char[nameLen];
-                for (int j = 0; j < nameLen; j++)
+                for (int i = 0; i < count; i++)
                 {
-                    chars[j] = (char)reader.ReadUInt16();
+                    var netIndex = reader.ReadUInt16();
+                    var nameLen = reader.ReadUInt16();
+                    var chars = new char[nameLen];
+                    for (int j = 0; j < nameLen; j++)
+                        chars[j] = (char)reader.ReadUInt16();
+                    var name = new string(chars);
+                    var parentId = reader.ReadUInt16();
+
+                    if (_byName.ContainsKey(name)) continue;
+                    var id = _nodes.Count;
+                    var node = new Node
+                    {
+                        Name = name,
+                        ParentId = parentId,
+                        Children = new List<int>(),
+                        NetIndex = netIndex
+                    };
+                    _nodes.Add(node);
+                    if (parentId < _nodes.Count)
+                        _nodes[parentId].Children.Add(id);
+                    _byName[name] = id;
+                    BuildAncestorCache(id, parentId);
                 }
-                var name = new string(chars);
-                var parentId = reader.ReadUInt16();
-
-                if (_byName.ContainsKey(name)) continue;
-
-                var id = _nodes.Count;
-                var node = new Node
-                {
-                    Name = name,
-                    ParentId = parentId,
-                    Children = new List<int>(),
-                    NetIndex = netIndex
-                };
-                _nodes.Add(node);
-
-                if (parentId < _nodes.Count)
-                {
-                    _nodes[parentId].Children.Add(id);
-                }
-
-                _byName[name] = id;
-                BuildAncestorCache(id, parentId);
-            }
-
-            if (nextNetIndex > _nextNetIndex)
-            {
-                _nextNetIndex = nextNetIndex;
+                if (nextNetIndex > _nextNetIndex)
+                    _nextNetIndex = nextNetIndex;
             }
         }
 
@@ -628,13 +652,15 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public void Reset()
         {
-            _byName.Clear();
-            _nodes.Clear();
-            _ancestors.Clear();
-            _nextNetIndex = 1;
-
-            _nodes.Add(new Node { Name = string.Empty, ParentId = 0, Children = new List<int>(), NetIndex = 0 });
-            _byName[string.Empty] = 0;
+            lock (_sync)
+            {
+                _byName.Clear();
+                _nodes.Clear();
+                _ancestors.Clear();
+                _nextNetIndex = 1;
+                _nodes.Add(new Node { Name = string.Empty, ParentId = 0, Children = new List<int>(), NetIndex = 0 });
+                _byName[string.Empty] = 0;
+            }
         }
 
         private int GetOrCreate(string normalized)
@@ -692,7 +718,9 @@ namespace AbilityKit.GameplayTags
         private void NotifyTagChanged(GameplayTag tag, GameplayTagChangeType changeType)
         {
             var args = new GameplayTagChangedEventArgs(tag, changeType);
-            foreach (var listener in _listeners)
+            IGameplayTagChangedListener[] listeners;
+            lock (_sync) listeners = _listeners.ToArray();
+            foreach (var listener in listeners)
             {
                 try
                 {

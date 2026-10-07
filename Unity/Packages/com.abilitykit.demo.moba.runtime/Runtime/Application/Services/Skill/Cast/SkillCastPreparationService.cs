@@ -37,6 +37,12 @@ namespace AbilityKit.Demo.Moba.Services
             _library = library ?? throw new ArgumentNullException(nameof(library));
         }
 
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Skill.Ids.ResourceCost,
+            MobaParameterStage.CastPrepare, MobaModifierSampleTiming.EventSample)]
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Skill.Ids.CooldownMs,
+            MobaParameterStage.CastPrepare, MobaModifierSampleTiming.EventSample)]
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Skill.Ids.CastRange,
+            MobaParameterStage.CastPrepare, MobaModifierSampleTiming.EventSample)]
         public SkillCastPreparationResult Prepare(in SkillCastPreparationInput input)
         {
             var actorId = input.ActorId;
@@ -77,11 +83,16 @@ namespace AbilityKit.Demo.Moba.Services
 
             var castFlowId = skill.CastFlowId;
             float castRange = skill.Range;
+            var baseSkillId = 0;
+            if (_services.TryResolve<MobaSkillLoadoutService>(out var loadout) && loadout != null)
+                loadout.TryGetBaseSkillId(actorId, slot, out baseSkillId);
+            var parameterRecord = new MobaParameterRecord(MobaParameterStage.CastPrepare,
+                slot: slot, baseSkillId: baseSkillId, effectiveSkillId: skillId);
             MobaSkillParamModifierService paramModifiers = null;
             if (_services.TryResolve<MobaSkillParamModifierService>(out var resolvedModifiers) && resolvedModifiers != null)
             {
                 paramModifiers = resolvedModifiers;
-                castRange = Math.Max(0f, paramModifiers.Skill.ResolveCastRange(actorId, castRange));
+                castRange = Math.Max(0f, paramModifiers.Skill.ResolveCastRange(actorId, castRange, in parameterRecord));
             }
             if (RequiresTargetSearch(skill))
             {
@@ -159,8 +170,8 @@ namespace AbilityKit.Demo.Moba.Services
             if (paramModifiers != null)
             {
                 resolvedConfiguration = resolvedConfiguration.WithRuntimeParameters(
-                    paramModifiers.Skill.ResolveResourceCost(actorId, resolvedConfiguration.ResourceCost),
-                    paramModifiers.Skill.ResolveCooldownMs(actorId, resolvedConfiguration.CooldownMs));
+                    paramModifiers.Skill.ResolveResourceCost(actorId, resolvedConfiguration.ResourceCost, in parameterRecord),
+                    paramModifiers.Skill.ResolveCooldownMs(actorId, resolvedConfiguration.CooldownMs, in parameterRecord));
             }
 
             var sequence = NextCastSequence(actorId);
@@ -169,6 +180,7 @@ namespace AbilityKit.Demo.Moba.Services
                 .WithSkillLevel(resolvedConfiguration.SkillLevel)
                 .WithSequence(sequence)
                 .Build();
+            context.BaseSkillId = baseSkillId;
             context.CastFlowId = castFlowId;
             context.ResolvedConfiguration = resolvedConfiguration;
             context.DiagnosticCommandId = input.DiagnosticCommandId;
@@ -264,7 +276,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (skills == null || index < 0 || index >= skills.Length) return 0;
 
             var runtime = skills[index];
-            return runtime != null && runtime.SkillId == skillId ? runtime.Level : 0;
+            return runtime != null ? runtime.Level : 0;
         }
 
         public void RemoveActor(int actorId)

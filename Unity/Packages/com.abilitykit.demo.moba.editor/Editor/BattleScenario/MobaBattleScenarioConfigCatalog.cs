@@ -23,6 +23,8 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
         Aoe,
         Summon,
         SearchQuery,
+        TagRuleGroup,
+        GameplayTag,
     }
 
     internal sealed class MobaBattleScenarioConfigEntry
@@ -72,11 +74,19 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
             "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/summons.json";
         private const string SearchQueryTemplatesJsonPath =
             "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/search_query_templates.json";
+        private const string ModifierParametersJsonPath =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/modifier_parameters.json";
+        private const string TagRuleGroupsJsonPath =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/tag_rule_groups.json";
+        private const string TagDefinitionsJsonPath =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/tag_definitions.json";
 
         private static readonly IReadOnlyList<MobaBattleScenarioConfigEntry> Empty =
             Array.Empty<MobaBattleScenarioConfigEntry>();
 
         private static Snapshot _snapshot;
+        private static IReadOnlyList<MobaBattleScenarioConfigEntry> _tagRuleGroups;
+        private static IReadOnlyList<MobaBattleScenarioConfigEntry> _activeGameplayTags;
 
         static MobaBattleScenarioConfigCatalog()
         {
@@ -94,14 +104,53 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
         public static IReadOnlyList<MobaBattleScenarioConfigEntry> Summons => Current.Summons;
         public static IReadOnlyList<MobaBattleScenarioConfigEntry> SearchQueries => Current.SearchQueries;
 
+        public static IReadOnlyList<MobaBattleScenarioConfigEntry> TriggerWritableModifierParameters =>
+            LoadJsonArray<ModifierParameterRecord>(ModifierParametersJsonPath)
+                .Where(row => row != null && row.Id > 0 && row.TriggerWritable)
+                .OrderBy(row => row.Id)
+                .Select(row => new MobaBattleScenarioConfigEntry(
+                    row.Id, $"{ModifierParameterDomainName(row.Domain)}.{row.Key}",
+                    MobaBattleScenarioConfigKind.Skill, "修饰参数"))
+                .ToArray();
+
+        public static IReadOnlyList<MobaBattleScenarioConfigEntry> TagRuleGroups =>
+            _tagRuleGroups ??= LoadNamedEntries(
+                TagRuleGroupsJsonPath, MobaBattleScenarioConfigKind.TagRuleGroup, "标签规则组");
+
+        public static IReadOnlyList<MobaBattleScenarioConfigEntry> ActiveGameplayTags =>
+            _activeGameplayTags ??= LoadJsonArray<TagDefinitionRecord>(TagDefinitionsJsonPath)
+                .Where(row => row != null && row.Id > 0 && row.Namespace == 1 &&
+                              row.Status == 0 && row.Kind == 1)
+                .OrderBy(row => row.Id)
+                .Select(row => new MobaBattleScenarioConfigEntry(row.Id,
+                    $"{row.DisplayName} ({row.Name})", MobaBattleScenarioConfigKind.GameplayTag, "战斗标签"))
+                .ToArray();
+
+        private static string ModifierParameterDomainName(int domain)
+        {
+            switch (domain)
+            {
+                case 1: return "Skill";
+                case 2: return "Projectile";
+                case 3: return "Summon";
+                case 4: return "Buff";
+                case 5: return "Aoe";
+                default: return "Unknown";
+            }
+        }
+
         public static void Refresh()
         {
+            _tagRuleGroups = null;
+            _activeGameplayTags = null;
             _snapshot = BuildSnapshot();
         }
 
         public static void Invalidate()
         {
             _snapshot = null;
+            _tagRuleGroups = null;
+            _activeGameplayTags = null;
         }
 
         public static MobaBattleScenarioConfigEntry FindHero(int id) =>
@@ -668,6 +717,26 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
         {
             public int Id;
             public string Name;
+        }
+
+        [Serializable]
+        private sealed class ModifierParameterRecord
+        {
+            public int Id;
+            public int Domain;
+            public string Key;
+            public bool TriggerWritable;
+        }
+
+        [Serializable]
+        private sealed class TagDefinitionRecord
+        {
+            public int Id;
+            public string Name;
+            public string DisplayName;
+            public int Namespace;
+            public int Status;
+            public int Kind;
         }
 
         private sealed class Snapshot

@@ -14,6 +14,7 @@ using CritType = AbilityKit.Demo.Moba.CritType;
 using DamageReasonKind = AbilityKit.Demo.Moba.DamageReasonKind;
 using DamageFormulaKind = AbilityKit.Demo.Moba.DamageFormulaKind;
 using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
+using AbilityKit.Demo.Moba.Services.Projectile;
 
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -67,6 +68,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
         }
 
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Damage.Ids.RequestedBase,
+            MobaParameterStage.Hit, MobaModifierSampleTiming.EventSample)]
         private static void ExecuteDamage(MobaCombatEffectService combat, GiveDamageArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, int attackerActorId, int targetActorId)
         {
             if (targetActorId <= 0)
@@ -83,6 +86,27 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     TriggeringConstants.Actions.GiveDamage,
                     $"cannot resolve damage attribute source. attacker={attackerActorId}, target={targetActorId}, policy={args.AttributeSource}, ratio={args.SourceAttackRatio:0.###}, reason={failure}");
                 return;
+            }
+
+            if (ctx.Context.TryResolve<MobaSkillParamModifierService>(out var modifiers) && modifiers != null)
+            {
+                ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var skillRuntimes);
+                var skillHandle = input.ExecutionContext.SkillRuntimeHandle;
+                var executionContext = input.ExecutionContext;
+                var record = MobaParameterRecord.FromSkillRuntime(MobaParameterStage.Hit,
+                    skillRuntimes, in skillHandle,
+                    projectileTemplateId: ResolveProjectileTemplateId(in executionContext));
+                try
+                {
+                    var resolved = modifiers.Damage.ResolveRequestedBase(attackerActorId,
+                        MobaResourceFixedConvert.ToSingle(requestedDamage), in record);
+                    requestedDamage = MobaResourceFixedConvert.ToFixed(resolved);
+                }
+                catch (System.InvalidOperationException ex)
+                {
+                    MobaPlanActionDiagnostics.Rejected(ctx.Context, TriggeringConstants.Actions.GiveDamage, ex.Message);
+                    return;
+                }
             }
 
             var attack = new AttackInfo
@@ -326,6 +350,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     .Append(" parent=").Append(node.ParentContextId)
                     .Append(" childCount=").Append(childCount);
             }
+        }
+
+        public static int ResolveProjectileTemplateId(in MobaCombatExecutionContext executionContext)
+        {
+            return executionContext.ProjectileTemplateId;
         }
 
         private static long ResolveRootContextId(MobaEffectActionInput input, in MobaGameplayOrigin origin)

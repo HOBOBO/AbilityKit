@@ -259,7 +259,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             {
                 var runtime = active[i];
                 if (runtime == null || (sourceActorId > 0 && runtime.SourceId != sourceActorId)) continue;
-                if (!_configs.TryGetBuff(runtime.BuffId, out var buff) || buff?.Tags == null || !buff.Tags.HasTag(tag)) continue;
+                if (!_configs.TryGetBuff(runtime.BuffId, out var buff) || buff == null ||
+                    runtime.TagRequirements?.ApplicationTags == null ||
+                    !runtime.TagRequirements.ApplicationTags.HasTag(tag)) continue;
                 if (!CanDispel(targetActorId, runtime, buff, dispelCategory)) continue;
 
                 var removeSourceId = sourceActorId > 0 ? sourceActorId : runtime.SourceId;
@@ -293,8 +295,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 return false;
             }
 
-            var effectiveTags = _tags.GetEffectiveTags(targetActorId);
-            if (!MobaGameplayTagCatalog.HasAny(effectiveTags, buff.DispelBlockedByTags)) return true;
+            if (!_tags.HasAnyTag(targetActorId, buff.DispelBlockedByTags)) return true;
 
             ReportDispelRejected("buff.dispel.immunityBlocked", targetActorId, runtime, buff, dispelCategory);
             return false;

@@ -25,6 +25,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int LevelTableId;
         public int PreCastFlowId;
         public int CastFlowId;
+        public ulong ExecutionBlockedResultMask;
     }
 
     [Serializable]

@@ -17,7 +17,6 @@ public sealed partial class DRAttributeTemplates : Luban.BeanBase
     public DRAttributeTemplates(ByteBuf _buf) 
     {
         Id = _buf.ReadInt();
-        {int n0 = _buf.ReadSize(); ActiveSkills = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ActiveSkills.Add(_e0);}}
         AttackRange = _buf.ReadInt();
         AttackSpeedR = _buf.ReadInt();
         BasicAttackSkillId = _buf.ReadInt();
@@ -35,7 +34,6 @@ public sealed partial class DRAttributeTemplates : Luban.BeanBase
         MaxHp = _buf.ReadInt();
         MaxMana = _buf.ReadInt();
         MoveSpeed = _buf.ReadFloat();
-        {int n0 = _buf.ReadSize(); PassiveSkills = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); PassiveSkills.Add(_e0);}}
         PerSecondBloodR = _buf.ReadInt();
         PerSecondManaR = _buf.ReadInt();
         PhysicsAttack = _buf.ReadInt();
@@ -53,36 +51,112 @@ public sealed partial class DRAttributeTemplates : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
-    public readonly System.Collections.Generic.List<int> ActiveSkills;
+    /// <summary>
+    /// 攻击范围；用于属性模板配置。
+    /// </summary>
     public readonly int AttackRange;
+    /// <summary>
+    /// 攻击速度比率；用于属性模板配置。
+    /// </summary>
     public readonly int AttackSpeedR;
+    /// <summary>
+    /// 普攻攻击技能ID；填写对应配置或编辑器产物的 ID。
+    /// </summary>
     public readonly int BasicAttackSkillId;
+    /// <summary>
+    /// 冷却缩减比率；用于属性模板配置。
+    /// </summary>
     public readonly int CooldownReduceR;
+    /// <summary>
+    /// 暴击比率；用于属性模板配置。
+    /// </summary>
     public readonly int CriticalR;
+    /// <summary>
+    /// 额外生命值；用于属性模板配置。
+    /// </summary>
     public readonly int ExtraHp;
+    /// <summary>
+    /// 额外法术攻击；用于属性模板配置。
+    /// </summary>
     public readonly int ExtraMagicAttack;
+    /// <summary>
+    /// 额外物理攻击；用于属性模板配置。
+    /// </summary>
     public readonly int ExtraPhysicsAttack;
+    /// <summary>
+    /// 生命值；用于属性模板配置。
+    /// </summary>
     public readonly int Hp;
+    /// <summary>
+    /// 法术攻击；用于属性模板配置。
+    /// </summary>
     public readonly int MagicAttack;
+    /// <summary>
+    /// 法术吸血比率；用于属性模板配置。
+    /// </summary>
     public readonly int MagicBloodsuckingR;
+    /// <summary>
+    /// 法术防御；用于属性模板配置。
+    /// </summary>
     public readonly int MagicDefense;
+    /// <summary>
+    /// 法术穿透比率；用于属性模板配置。
+    /// </summary>
     public readonly int MagicPenetrationR;
+    /// <summary>
+    /// 法力；用于属性模板配置。
+    /// </summary>
     public readonly int Mana;
+    /// <summary>
+    /// 最大生命值；用于属性模板配置。
+    /// </summary>
     public readonly int MaxHp;
+    /// <summary>
+    /// 最大法力；用于属性模板配置。
+    /// </summary>
     public readonly int MaxMana;
+    /// <summary>
+    /// 移动速度；用于属性模板配置。
+    /// </summary>
     public readonly float MoveSpeed;
-    public readonly System.Collections.Generic.List<int> PassiveSkills;
+    /// <summary>
+    /// 每秒生命比率；用于属性模板配置。
+    /// </summary>
     public readonly int PerSecondBloodR;
+    /// <summary>
+    /// 每秒法力比率；用于属性模板配置。
+    /// </summary>
     public readonly int PerSecondManaR;
+    /// <summary>
+    /// 物理攻击；用于属性模板配置。
+    /// </summary>
     public readonly int PhysicsAttack;
+    /// <summary>
+    /// 物理吸血比率；用于属性模板配置。
+    /// </summary>
     public readonly int PhysicsBloodsuckingR;
+    /// <summary>
+    /// 物理防御；用于属性模板配置。
+    /// </summary>
     public readonly int PhysicsDefense;
+    /// <summary>
+    /// 物理穿透比率；用于属性模板配置。
+    /// </summary>
     public readonly int PhysicsPenetrationR;
+    /// <summary>
+    /// 韧性比率；用于属性模板配置。
+    /// </summary>
     public readonly int ResilienceR;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 1407018283;
@@ -96,7 +170,6 @@ public sealed partial class DRAttributeTemplates : Luban.BeanBase
     {
         return "{ "
         + "Id:" + Id + ","
-        + "ActiveSkills:" + Luban.StringUtil.CollectionToString(ActiveSkills) + ","
         + "AttackRange:" + AttackRange + ","
         + "AttackSpeedR:" + AttackSpeedR + ","
         + "BasicAttackSkillId:" + BasicAttackSkillId + ","
@@ -114,7 +187,6 @@ public sealed partial class DRAttributeTemplates : Luban.BeanBase
         + "MaxHp:" + MaxHp + ","
         + "MaxMana:" + MaxMana + ","
         + "MoveSpeed:" + MoveSpeed + ","
-        + "PassiveSkills:" + Luban.StringUtil.CollectionToString(PassiveSkills) + ","
         + "PerSecondBloodR:" + PerSecondBloodR + ","
         + "PerSecondManaR:" + PerSecondManaR + ","
         + "PhysicsAttack:" + PhysicsAttack + ","

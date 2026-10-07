@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Behavior;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
+using moba_luban;
 
 namespace AbilityKit.Moba.Behavior
 {
@@ -102,17 +103,43 @@ namespace AbilityKit.Moba.Behavior
         private readonly IBuffManager _buffManager;
         private readonly IAttributeSystem _attributeSystem;
         private readonly bool _allowMutations;
+        private readonly Func<int, MobaTagResultFlags?> _tagResults;
+        private readonly Func<int, MobaTagBehaviorGate, bool?> _tagGate;
         
         public MobaWorldQuery(
             IEntityManager entityManager,
             IBuffManager buffManager,
             IAttributeSystem attributeSystem,
-            bool allowMutations = true)
+            bool allowMutations = true,
+            Func<int, MobaTagResultFlags?> tagResults = null,
+            Func<int, MobaTagBehaviorGate, bool?> tagGate = null)
         {
             _entityManager = entityManager;
             _buffManager = buffManager;
             _attributeSystem = attributeSystem;
             _allowMutations = allowMutations;
+            _tagResults = tagResults;
+            _tagGate = tagGate;
+        }
+
+        public bool TryIsBlocked(BehaviorEntityId id, MobaTagBehaviorGate gateId, out bool blocked)
+        {
+            blocked = false;
+            if (_tagGate == null || id.Value <= 0 || id.Value > int.MaxValue) return false;
+            var value = _tagGate((int)id.Value, gateId);
+            if (!value.HasValue) return false;
+            blocked = value.Value;
+            return true;
+        }
+
+        public bool TryHasResult(BehaviorEntityId id, MobaTagResultFlags flags, out bool matched)
+        {
+            matched = false;
+            if (_tagResults == null || id.Value <= 0 || id.Value > int.MaxValue) return false;
+            var results = _tagResults((int)id.Value);
+            if (!results.HasValue) return false;
+            matched = (results.Value & flags) != 0;
+            return true;
         }
         
         public Vec3 GetPosition(BehaviorEntityId id)
@@ -357,8 +384,9 @@ namespace AbilityKit.Moba.Behavior
         /// </summary>
         public static bool CanMove(this IWorldQuery query, BehaviorEntityId id)
         {
-            return query.IsAlive(id)
-                && !query.HasAnyTag(id, MobaGameplayTagCatalog.MoveBlockedAliases);
+            if (query is MobaWorldQuery moba && moba.TryIsBlocked(id, MobaTagBehaviorGate.Move, out var blocked))
+                return query.IsAlive(id) && !blocked;
+            return false;
         }
         
         /// <summary>
@@ -366,8 +394,9 @@ namespace AbilityKit.Moba.Behavior
         /// </summary>
         public static bool CanCast(this IWorldQuery query, BehaviorEntityId id)
         {
-            return query.IsAlive(id)
-                && !query.HasAnyTag(id, MobaGameplayTagCatalog.CastBlockedAliases);
+            if (query is MobaWorldQuery moba && moba.TryIsBlocked(id, MobaTagBehaviorGate.Cast, out var blocked))
+                return query.IsAlive(id) && !blocked;
+            return false;
         }
         
         /// <summary>
@@ -375,7 +404,9 @@ namespace AbilityKit.Moba.Behavior
         /// </summary>
         public static bool CanBeControlled(this IWorldQuery query, BehaviorEntityId id)
         {
-            return !query.HasAnyTag(id, MobaGameplayTagCatalog.ControlBlockedAliases);
+            if (query is MobaWorldQuery moba && moba.TryIsBlocked(id, MobaTagBehaviorGate.Controlled, out var blocked))
+                return !blocked;
+            return false;
         }
         
         /// <summary>
@@ -412,7 +443,7 @@ namespace AbilityKit.Moba.Behavior
                 if (ctx.TargetId.HasValue && world is MobaWorldQuery moba && !moba.IsAlive(ctx.TargetId.Value))
                     return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.TargetDied);
 
-                if (!world.CanBeControlled(ctx.OwnerId))
+                if (!world.CanCast(ctx.OwnerId))
                     return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.LostControl);
                 
                 if (ctx.TargetId.HasValue)

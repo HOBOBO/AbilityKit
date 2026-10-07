@@ -12,7 +12,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor.Hero
     /// 设计目标：
     ///   * 读取已有 JSON，反序列化为 CharacterDTO[]；
     ///   * 找不到该 HeroId 或没传 Id，按 Id 升序插入；
-    ///   * 写盘时使用与 MobaConfigJsonExporter 相同的 Formatting.Indented + Newtonsoft Json。
+    ///   * 写盘时使用 Formatting.Indented + Newtonsoft Json。
     /// </summary>
     public sealed class HeroJsonPatcher
     {

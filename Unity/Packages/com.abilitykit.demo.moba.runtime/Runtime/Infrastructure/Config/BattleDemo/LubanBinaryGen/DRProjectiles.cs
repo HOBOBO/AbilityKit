@@ -21,7 +21,7 @@ public sealed partial class DRProjectiles : Luban.BeanBase
         CollisionLength = _buf.ReadFloat();
         CollisionWidth = _buf.ReadFloat();
         HitCooldownMs = _buf.ReadInt();
-        HitPolicyKind = _buf.ReadInt();
+        HitPolicyKind = (ProjectileHitPolicyKind)_buf.ReadInt();
         HitsRemaining = _buf.ReadInt();
         LifetimeMs = _buf.ReadInt();
         MaxDistance = _buf.ReadFloat();
@@ -51,34 +51,112 @@ public sealed partial class DRProjectiles : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 碰撞高度；用于投射物配置。
+    /// </summary>
     public readonly float CollisionHeight;
+    /// <summary>
+    /// 碰撞长度；用于投射物配置。
+    /// </summary>
     public readonly float CollisionLength;
+    /// <summary>
+    /// 碰撞宽度；用于投射物配置。
+    /// </summary>
     public readonly float CollisionWidth;
+    /// <summary>
+    /// 命中冷却，单位毫秒。
+    /// </summary>
     public readonly int HitCooldownMs;
-    public readonly int HitPolicyKind;
+    /// <summary>
+    /// 命中策略类型；按 ProjectileHitPolicyKind 枚举或 bean 定义填写。
+    /// </summary>
+    public readonly ProjectileHitPolicyKind HitPolicyKind;
+    /// <summary>
+    /// 命中次数剩余；用于投射物配置。
+    /// </summary>
     public readonly int HitsRemaining;
+    /// <summary>
+    /// 实例存活时间，单位毫秒。
+    /// </summary>
     public readonly int LifetimeMs;
+    /// <summary>
+    /// 最大距离；用于投射物配置。
+    /// </summary>
     public readonly float MaxDistance;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 目标离开时执行的触发器 ID 列表。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> OnExitTriggerIds;
+    /// <summary>
+    /// 在过期特效资源 ID，引用特效资源表。
+    /// </summary>
     public readonly int OnExpireVfxId;
+    /// <summary>
+    /// 投射物命中时执行的触发器 ID；历史字段名为 Effect。
+    /// </summary>
     public readonly int OnHitEffectId;
+    /// <summary>
+    /// 在命中特效资源 ID，引用特效资源表。
+    /// </summary>
     public readonly int OnHitVfxId;
+    /// <summary>
+    /// 在生成特效资源 ID，引用特效资源表。
+    /// </summary>
     public readonly int OnSpawnVfxId;
+    /// <summary>
+    /// 返回之后，单位毫秒。
+    /// </summary>
     public readonly int ReturnAfterMs;
+    /// <summary>
+    /// 返回速度；用于投射物配置。
+    /// </summary>
     public readonly float ReturnSpeed;
+    /// <summary>
+    /// 返回停止距离；用于投射物配置。
+    /// </summary>
     public readonly float ReturnStopDistance;
+    /// <summary>
+    /// 生成随机偏移X；用于投射物配置。
+    /// </summary>
     public readonly float SpawnRandomOffsetX;
+    /// <summary>
+    /// 生成随机偏移Y；用于投射物配置。
+    /// </summary>
     public readonly int SpawnRandomOffsetY;
+    /// <summary>
+    /// 生成随机偏移Z；用于投射物配置。
+    /// </summary>
     public readonly float SpawnRandomOffsetZ;
+    /// <summary>
+    /// 移动速度，使用战斗世界单位/秒。
+    /// </summary>
     public readonly float Speed;
+    /// <summary>
+    /// 投射物状态机配置 ID；由状态机编辑器发布。
+    /// </summary>
     public readonly string StateMachineProfileId;
+    /// <summary>
+    /// 逻辑帧间隔，单位毫秒。
+    /// </summary>
     public readonly int TickIntervalMs;
+    /// <summary>
+    /// 特效资源 ID，引用特效资源表。
+    /// </summary>
     public readonly int VfxId;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = -48050628;

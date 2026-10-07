@@ -3,7 +3,7 @@ name: framesync-prediction-rollback
 description: AbilityKit 客户端/服务端帧同步的预测、回滚、对账、CatchUp、BattleHost 排查与调试工作流。覆盖 ClientPredictionDriverModule（含新 IClientPredictionReconcileControl）、RollbackCoordinator、两套并行的客户端预测 primitives（world.framesync 与 host.extension/Client/FrameSync）、ServerRollbackModule、FrameSyncDriverModule、CatchUp 子系统。触发场景：预测不前进、predicted 卡住、rollback 不触发或风暴、reconcile mismatch、idealFrame/stall、per-world 统计混乱、CatchUp、ConfirmedAuthority、BattleHost 生命周期。
 ---
 
-# framesync-prediction-rollback
+# 帧同步预测与回滚
 
 基于当前源码核校（2026-07-20）。客户端帧同步（预测 + 回滚 + 对账 + CatchUp）速查与工作流。
 
@@ -49,7 +49,7 @@ public sealed class ClientPredictionDriverModule :
 
 旧 skill 暗示在 Driver 上。实际：Driver 在 `OnPostTick` 中通过 `ctx.Reconciler.RecordPredictedHash(...)` 调用。`ClientPredictionReconciler` 类位置：`com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/ClientPredictionReconciler.cs`。
 
-## Sections
+## 分节索引
 
 - [when_to_use.md](when_to_use.md) — 何时启用本 skill（含服务端路径）
 - [required_context.md](required_context.md) — 改动前必须明确的上下文

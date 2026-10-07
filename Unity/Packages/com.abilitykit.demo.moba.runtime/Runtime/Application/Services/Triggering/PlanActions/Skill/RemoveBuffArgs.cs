@@ -6,7 +6,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly int BuffId;
         public readonly int SourceActorId;
         public readonly bool RemoveAll;
-        public readonly bool RemoveSlow;
+        public readonly int TagId;
         public readonly MobaExecutionEndReason Reason;
         public readonly MobaActionTargetRequest TargetRequest;
 
@@ -14,14 +14,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             int buffId,
             int sourceActorId,
             bool removeAll,
-            bool removeSlow,
+            int tagId,
             MobaExecutionEndReason reason,
             in MobaActionTargetRequest targetRequest)
         {
             BuffId = buffId;
             SourceActorId = sourceActorId;
             RemoveAll = removeAll;
-            RemoveSlow = removeSlow;
+            TagId = tagId;
             Reason = reason;
             TargetRequest = targetRequest;
         }

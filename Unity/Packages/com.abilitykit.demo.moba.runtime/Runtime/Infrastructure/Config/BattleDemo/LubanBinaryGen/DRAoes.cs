@@ -43,26 +43,80 @@ public sealed partial class DRAoes : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 挂接模式；用于区域配置。
+    /// </summary>
     public readonly int AttachMode;
+    /// <summary>
+    /// 碰撞层掩码；用于区域配置。
+    /// </summary>
     public readonly int CollisionLayerMask;
+    /// <summary>
+    /// 开始前延迟，单位毫秒。
+    /// </summary>
     public readonly int DelayMs;
+    /// <summary>
+    /// 持续时间，单位毫秒；0 的含义以对应运行时逻辑为准。
+    /// </summary>
     public readonly int DurationMs;
+    /// <summary>
+    /// 周期执行间隔，单位毫秒。
+    /// </summary>
     public readonly int IntervalMs;
+    /// <summary>
+    /// 最大目标数；用于区域配置。
+    /// </summary>
     public readonly int MaxTargets;
+    /// <summary>
+    /// 模型资源 ID，引用模型表。
+    /// </summary>
     public readonly int ModelId;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 相对挂点或中心的 X 轴偏移。
+    /// </summary>
     public readonly int OffsetX;
+    /// <summary>
+    /// 相对挂点或中心的 Y 轴偏移。
+    /// </summary>
     public readonly int OffsetY;
+    /// <summary>
+    /// 相对挂点或中心的 Z 轴偏移。
+    /// </summary>
     public readonly float OffsetZ;
+    /// <summary>
+    /// 区域延迟结束时执行的触发器 ID 列表。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> OnDelayTriggerIds;
+    /// <summary>
+    /// 目标进入区域时执行的触发器 ID 列表。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> OnEnterTriggerIds;
+    /// <summary>
+    /// 区域每次间隔执行的触发器 ID 列表。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> OnIntervalTriggerIds;
+    /// <summary>
+    /// 半径，使用战斗世界单位。
+    /// </summary>
     public readonly float Radius;
+    /// <summary>
+    /// 特效资源 ID，引用特效资源表。
+    /// </summary>
     public readonly int VfxId;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 2024557322;

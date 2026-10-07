@@ -111,6 +111,26 @@ public sealed class GameplayTagQueryTests : TagTestBase
         Assert.True(query.Matches(C("E2.C")));
     }
 
+    [Fact]
+    public void CompoundQuery_SupportsAllExactAndNegationOnEmptyTags()
+    {
+        var required = GameplayTagQueryNode.CreateTagQuery(
+            GameplayTagQueryOperator.IncludeAllTags, T("Complex.A"), T("Complex.B"));
+        var exact = GameplayTagQueryNode.CreateTagQuery(
+            GameplayTagQueryOperator.IncludeExactTag, T("Complex.C"));
+        var query = GameplayTagQuery.Create(GameplayTagQueryNode.CreateCompound(
+            GameplayTagQueryOperator.And, required, exact));
+
+        Assert.True(query.Matches(C("Complex.A.Child", "Complex.B", "Complex.C")));
+        Assert.False(query.Matches(C("Complex.A.Child", "Complex.B", "Complex.C.Child")));
+        Assert.False(query.Matches(C("Complex.A", "Complex.C")));
+
+        var absent = GameplayTagQuery.Create(GameplayTagQueryNode.CreateTagQuery(
+            GameplayTagQueryOperator.ExcludeTags, T("Complex.Blocked")));
+        Assert.True(absent.Matches(new GameplayTagContainer()));
+        Assert.True(absent.Matches((GameplayTagContainer)null!));
+    }
+
     // ---------- 组合语义 ----------
 
     [Fact]

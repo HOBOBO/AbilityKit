@@ -95,6 +95,23 @@ namespace AbilityKit.Game.Flow
             _skillSpecs.Clear();
         }
 
+        public bool TryApplySlotSkill(int slot, int skillId, IReadOnlyList<SkillButtonView> skillViews)
+        {
+            if (skillId <= 0 || skillViews == null || slot <= 0 || slot > skillViews.Count ||
+                skillViews[slot - 1] == null) return false;
+            if (_skillSpecs.TryGetValue(slot, out var current) && current.SkillId == skillId) return false;
+
+            if (!_resolver.TryResolveSkill(skillId, out _, out var template, out var spec))
+            {
+                Log.Warning($"[BattleHudSkillButtonTemplateBinder] unknown effective skill. slot={slot}, skillId={skillId}");
+                spec = BattleHudSkillPresentationSpec.Hidden(skillId, string.Empty);
+            }
+
+            _skillSpecs[slot] = spec;
+            _applier.Apply(skillViews[slot - 1], template, spec);
+            return true;
+        }
+
         private readonly struct ResolvedSkillButtonTemplate
         {
             public readonly SkillButtonView View;

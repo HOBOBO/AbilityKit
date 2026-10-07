@@ -30,13 +30,28 @@ public sealed partial class DRModels : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 模型 Prefab 的资源路径。
+    /// </summary>
     public readonly string PrefabPath;
+    /// <summary>
+    /// 表现缩放倍数；1 表示原始大小。
+    /// </summary>
     public readonly float Scale;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 322911384;

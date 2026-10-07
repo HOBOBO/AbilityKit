@@ -1,0 +1,587 @@
+[
+  {
+    "Id": 90,
+    "Name": "Skill",
+    "Namespace": 2,
+    "DisplayName": "技能分类",
+    "ParentId": 0,
+    "Kind": 0,
+    "Status": 0
+  },
+  {
+    "Id": 1000,
+    "Name": "State",
+    "Namespace": 1,
+    "DisplayName": "战斗状态",
+    "ParentId": 0,
+    "Kind": 0,
+    "Status": 0
+  },
+  {
+    "Id": 1001,
+    "Name": "State.ControlImmune",
+    "Namespace": 1,
+    "DisplayName": "控制免疫",
+    "ParentId": 1000,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1002,
+    "Name": "State.SuperArmor",
+    "Namespace": 1,
+    "DisplayName": "霸体",
+    "ParentId": 1000,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1006,
+    "Name": "Debuff.Slow",
+    "Namespace": 1,
+    "DisplayName": "减速",
+    "ParentId": 1040,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1013,
+    "Name": "State.Asleep",
+    "Namespace": 1,
+    "DisplayName": "睡眠",
+    "ParentId": 1000,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1014,
+    "Name": "State.Charmed",
+    "Namespace": 1,
+    "DisplayName": "魅惑",
+    "ParentId": 1000,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1015,
+    "Name": "State.Disabled",
+    "Namespace": 1,
+    "DisplayName": "失能",
+    "ParentId": 1000,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1016,
+    "Name": "State.Feared",
+    "Namespace": 1,
+    "DisplayName": "恐惧",
+    "ParentId": 1000,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1017,
+    "Name": "State.Invulnerable",
+    "Namespace": 1,
+    "DisplayName": "伤害免疫",
+    "ParentId": 1000,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1018,
+    "Name": "State.Rooted",
+    "Namespace": 1,
+    "DisplayName": "禁锢",
+    "ParentId": 1000,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1019,
+    "Name": "State.Silenced",
+    "Namespace": 1,
+    "DisplayName": "沉默",
+    "ParentId": 1000,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1020,
+    "Name": "State.Stunned",
+    "Namespace": 1,
+    "DisplayName": "眩晕",
+    "ParentId": 1000,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1021,
+    "Name": "State.Suppressed",
+    "Namespace": 1,
+    "DisplayName": "压制",
+    "ParentId": 1000,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1022,
+    "Name": "State.Untargetable",
+    "Namespace": 1,
+    "DisplayName": "不可选取",
+    "ParentId": 1000,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1040,
+    "Name": "Debuff",
+    "Namespace": 1,
+    "DisplayName": "负面效果",
+    "ParentId": 0,
+    "Kind": 0,
+    "Status": 0
+  },
+  {
+    "Id": 1100,
+    "Name": "State.Casting",
+    "Namespace": 1,
+    "DisplayName": "施法过程",
+    "ParentId": 1000,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1101,
+    "Name": "State.Casting.Channeling",
+    "Namespace": 1,
+    "DisplayName": "引导中",
+    "ParentId": 1100,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1102,
+    "Name": "State.Casting.Charging",
+    "Namespace": 1,
+    "DisplayName": "蓄力中",
+    "ParentId": 1100,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1120,
+    "Name": "State.Movement",
+    "Namespace": 1,
+    "DisplayName": "运动状态",
+    "ParentId": 1000,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1121,
+    "Name": "State.Movement.Dashing",
+    "Namespace": 1,
+    "DisplayName": "冲刺中",
+    "ParentId": 1120,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1122,
+    "Name": "State.Movement.Leaping",
+    "Namespace": 1,
+    "DisplayName": "跳跃中",
+    "ParentId": 1120,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1123,
+    "Name": "State.Movement.Forced",
+    "Namespace": 1,
+    "DisplayName": "被迫位移中",
+    "ParentId": 1120,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1140,
+    "Name": "State.Visibility",
+    "Namespace": 1,
+    "DisplayName": "可见性状态",
+    "ParentId": 1000,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1141,
+    "Name": "State.Visibility.Invisible",
+    "Namespace": 1,
+    "DisplayName": "隐身",
+    "ParentId": 1140,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1142,
+    "Name": "State.Visibility.Camouflaged",
+    "Namespace": 1,
+    "DisplayName": "伪装",
+    "ParentId": 1140,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1143,
+    "Name": "State.Visibility.Revealed",
+    "Namespace": 1,
+    "DisplayName": "显形",
+    "ParentId": 1140,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1160,
+    "Name": "State.Defense",
+    "Namespace": 1,
+    "DisplayName": "防护状态",
+    "ParentId": 1000,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1161,
+    "Name": "State.Defense.Shielded",
+    "Namespace": 1,
+    "DisplayName": "护盾保护中",
+    "ParentId": 1160,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1162,
+    "Name": "State.Defense.DamageReduction",
+    "Namespace": 1,
+    "DisplayName": "减伤中",
+    "ParentId": 1160,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1163,
+    "Name": "State.Defense.Reflecting",
+    "Namespace": 1,
+    "DisplayName": "反伤中",
+    "ParentId": 1160,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1180,
+    "Name": "State.Attack",
+    "Namespace": 1,
+    "DisplayName": "攻击强化状态",
+    "ParentId": 1000,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1181,
+    "Name": "State.Attack.EmpoweredBasic",
+    "Namespace": 1,
+    "DisplayName": "强化普攻待触发",
+    "ParentId": 1180,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1182,
+    "Name": "State.Attack.EmpoweredSkill",
+    "Namespace": 1,
+    "DisplayName": "强化技能待触发",
+    "ParentId": 1180,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1200,
+    "Name": "State.Immunity",
+    "Namespace": 1,
+    "DisplayName": "免疫状态",
+    "ParentId": 1000,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1201,
+    "Name": "State.Immunity.Projectile",
+    "Namespace": 1,
+    "DisplayName": "投射物免疫",
+    "ParentId": 1200,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1202,
+    "Name": "State.Immunity.Slow",
+    "Namespace": 1,
+    "DisplayName": "减速免疫",
+    "ParentId": 1200,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1203,
+    "Name": "State.Immunity.Displacement",
+    "Namespace": 1,
+    "DisplayName": "强制位移免疫",
+    "ParentId": 1200,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1220,
+    "Name": "State.Survival",
+    "Namespace": 1,
+    "DisplayName": "生存状态",
+    "ParentId": 1000,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1221,
+    "Name": "State.Survival.DeathPrevented",
+    "Namespace": 1,
+    "DisplayName": "免死保护中",
+    "ParentId": 1220,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1222,
+    "Name": "State.Survival.Reviving",
+    "Namespace": 1,
+    "DisplayName": "复活中",
+    "ParentId": 1220,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1500,
+    "Name": "Debuff.Control",
+    "Namespace": 1,
+    "DisplayName": "控制类负面效果",
+    "ParentId": 1040,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1501,
+    "Name": "Debuff.Control.Taunted",
+    "Namespace": 1,
+    "DisplayName": "嘲讽",
+    "ParentId": 1500,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1502,
+    "Name": "Debuff.Control.Disarmed",
+    "Namespace": 1,
+    "DisplayName": "缴械",
+    "ParentId": 1500,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1503,
+    "Name": "Debuff.Control.Blinded",
+    "Namespace": 1,
+    "DisplayName": "致盲",
+    "ParentId": 1500,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1504,
+    "Name": "Debuff.Control.Airborne",
+    "Namespace": 1,
+    "DisplayName": "击飞",
+    "ParentId": 1500,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1505,
+    "Name": "Debuff.Control.KnockedBack",
+    "Namespace": 1,
+    "DisplayName": "击退",
+    "ParentId": 1500,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1506,
+    "Name": "Debuff.Control.Pulled",
+    "Namespace": 1,
+    "DisplayName": "牵引",
+    "ParentId": 1500,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1507,
+    "Name": "Debuff.Control.Frozen",
+    "Namespace": 1,
+    "DisplayName": "冰冻",
+    "ParentId": 1500,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1508,
+    "Name": "Debuff.Control.Petrified",
+    "Namespace": 1,
+    "DisplayName": "石化",
+    "ParentId": 1500,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1520,
+    "Name": "Debuff.Movement",
+    "Namespace": 1,
+    "DisplayName": "位移限制类负面效果",
+    "ParentId": 1040,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1521,
+    "Name": "Debuff.Movement.Grounded",
+    "Namespace": 1,
+    "DisplayName": "禁止位移",
+    "ParentId": 1520,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1540,
+    "Name": "Debuff.DamageOverTime",
+    "Namespace": 1,
+    "DisplayName": "持续伤害类负面效果",
+    "ParentId": 1040,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1541,
+    "Name": "Debuff.DamageOverTime.Burning",
+    "Namespace": 1,
+    "DisplayName": "灼烧",
+    "ParentId": 1540,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1542,
+    "Name": "Debuff.DamageOverTime.Poisoned",
+    "Namespace": 1,
+    "DisplayName": "中毒",
+    "ParentId": 1540,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1543,
+    "Name": "Debuff.DamageOverTime.Bleeding",
+    "Namespace": 1,
+    "DisplayName": "流血",
+    "ParentId": 1540,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1560,
+    "Name": "Debuff.Vision",
+    "Namespace": 1,
+    "DisplayName": "视野限制类负面效果",
+    "ParentId": 1040,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1561,
+    "Name": "Debuff.Vision.Nearsighted",
+    "Namespace": 1,
+    "DisplayName": "视野受限",
+    "ParentId": 1560,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1580,
+    "Name": "Debuff.Healing",
+    "Namespace": 1,
+    "DisplayName": "治疗限制类负面效果",
+    "ParentId": 1040,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1581,
+    "Name": "Debuff.Healing.Reduced",
+    "Namespace": 1,
+    "DisplayName": "治疗降低",
+    "ParentId": 1580,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1582,
+    "Name": "Debuff.Healing.Blocked",
+    "Namespace": 1,
+    "DisplayName": "禁止治疗",
+    "ParentId": 1580,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1600,
+    "Name": "Debuff.Defense",
+    "Namespace": 1,
+    "DisplayName": "防护削弱类负面效果",
+    "ParentId": 1040,
+    "Kind": 0,
+    "Status": 1
+  },
+  {
+    "Id": 1601,
+    "Name": "Debuff.Defense.Vulnerable",
+    "Namespace": 1,
+    "DisplayName": "易伤",
+    "ParentId": 1600,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1602,
+    "Name": "Debuff.Defense.ArmorBroken",
+    "Namespace": 1,
+    "DisplayName": "物理防御削弱",
+    "ParentId": 1600,
+    "Kind": 1,
+    "Status": 1
+  },
+  {
+    "Id": 1603,
+    "Name": "Debuff.Defense.MagicResistanceBroken",
+    "Namespace": 1,
+    "DisplayName": "法术防御削弱",
+    "ParentId": 1600,
+    "Kind": 1,
+    "Status": 1
+  }
+]

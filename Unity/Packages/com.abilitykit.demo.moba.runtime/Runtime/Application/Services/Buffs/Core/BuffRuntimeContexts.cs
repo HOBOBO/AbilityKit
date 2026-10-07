@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         public readonly long OriginContextId;
         public readonly MobaSkillCastRuntimeHandle SkillRuntimeHandle;
         public readonly MobaGameplayOrigin Origin;
+        public readonly int ProjectileTemplateId;
 
         public BuffOriginContext(long parentContextId, int originSourceActorId, int originTargetActorId, MobaExecutionKind originKind = MobaExecutionKind.None, int originConfigId = 0, long originContextId = 0, MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
         {
@@ -31,6 +32,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             OriginConfigId = originConfigId;
             OriginContextId = originContextId;
             SkillRuntimeHandle = skillRuntimeHandle;
+            ProjectileTemplateId = originKind == MobaExecutionKind.ProjectileHit ? originConfigId : 0;
             Origin = new MobaGameplayOrigin(
                 originSourceActorId,
                 originTargetActorId,
@@ -43,9 +45,11 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
                 skillRuntimeHandle);
         }
 
-        public BuffOriginContext(in MobaGameplayOrigin origin)
+        public BuffOriginContext(in MobaGameplayOrigin origin, int projectileTemplateId = 0)
         {
             Origin = origin;
+            ProjectileTemplateId = projectileTemplateId > 0 ? projectileTemplateId :
+                origin.ImmediateKind == MobaExecutionKind.ProjectileHit ? origin.ImmediateConfigId : 0;
             ParentContextId = origin.EffectiveParentContextId;
             OriginSourceActorId = origin.SourceActorId;
             OriginTargetActorId = origin.TargetActorId;
@@ -65,9 +69,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             return new BuffOriginContext(parentContextId, originSourceActorId, originTargetActorId, skillRuntimeHandle: skillRuntimeHandle);
         }
 
-        public static BuffOriginContext FromOrigin(in MobaGameplayOrigin origin)
+        public static BuffOriginContext FromOrigin(in MobaGameplayOrigin origin, int projectileTemplateId = 0)
         {
-            return new BuffOriginContext(in origin);
+            return new BuffOriginContext(in origin, projectileTemplateId);
         }
 
         public bool TryGetOrigin(out MobaGameplayOrigin origin)

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "ying_zheng_ultimate_projectile",
+    "startState": "prepare",
+    "states": [
+      {
+        "id": "prepare",
+        "kind": "actionState",
+        "needsExitTime": true,
+        "completionPolicy": "hold",
+        "behaviorRoot": {
+          "kind": "action",
+          "type": "projectile.moveRelative",
+          "argument": "0,0,-1.8,0.18,0.45"
+        }
+      },
+      {
+        "id": "hold",
+        "kind": "actionState",
+        "needsExitTime": true,
+        "completionPolicy": "hold",
+        "behaviorRoot": {
+          "kind": "delay",
+          "durationSeconds": 0.12
+        }
+      },
+      {
+        "id": "attack",
+        "kind": "actionState",
+        "completionPolicy": "hold",
+        "behaviorRoot": {
+          "kind": "action",
+          "type": "projectile.resume"
+        }
+      }
+    ],
+    "transitions": [
+      {
+        "from": "prepare",
+        "to": "hold",
+        "mode": "onSucceeded"
+      },
+      {
+        "from": "hold",
+        "to": "attack",
+        "mode": "onSucceeded"
+      }
+    ]
+  }
+]

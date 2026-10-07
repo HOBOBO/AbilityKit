@@ -1,49 +1,49 @@
 ---
 name: protocol-wire
-description: Author or change AbilityKit protocol catalogs, grouped Wire Schema v2 files, MemoryPack DTOs, protocol export manifests, decoder registration, or compatibility baselines for MOBA, Shooter, and Room.
+description: 修改 MOBA、Shooter 或 Room 的协议目录、分组 Wire Schema v2、MemoryPack DTO、协议导出清单、解码器注册或兼容性基线时使用。
 ---
 
-# Protocol Wire workflow
+# 线协议开发流程
 
-Use this skill for every change to a protocol message, payload, opcode, serializer layout, generated DTO, or protocol export.
+修改协议消息、载荷、opcode、序列化布局、生成 DTO 或协议导出时，均按本 Skill 执行。
 
-## Sources of truth
+## 权威来源
 
-- Transport identity and policy: `Protocols/Catalogs/*.protocol.yaml`.
-- Payload fields and serialization layout: `Protocols/WireSchemas/*.wire.yaml`.
-- Wire Schema generation applies to catalog-backed `memorypack` transport payloads. A `custom-binary` codec, legacy decode-only layout, transient formatter buffer, or process-local persistence record stays with its specialized codec.
-- Only grouped Wire Schema v2 is valid: `schemaVersion: 2`, `projectId`, stable `groupId`, one shared `namespace`, and `types[]`.
-- Do not add schema v1 or one-file-per-type wire definitions.
+- 传输身份与策略：`Protocols/Catalogs/*.protocol.yaml`。
+- 载荷字段与序列化布局：`Protocols/WireSchemas/*.wire.yaml`。
+- Wire Schema 生成只适用于由目录管理的 `memorypack` 传输载荷。`custom-binary` 编解码器、仅用于旧格式解码的布局、临时格式化缓冲区和进程本地持久化记录仍归各自专用编解码器管理。
+- 只使用分组的 Wire Schema v2：`schemaVersion: 2`、`projectId`、稳定的 `groupId`、组内共享的 `namespace` 和 `types[]`。
+- 不新增 schema v1 或每个类型单独一个文件的 Wire 定义。
 
-## Group and dependency rules
+## 分组与依赖规则
 
-- Group by business owner, namespace, and release cadence. Keep large cohesive domains together; split unrelated namespaces or owners.
-- Project-local reusable types belong in a stable `common` group. Cross-project types need a real shared owner.
-- Custom `type` fields join the generated dependency closure. Use `external: true` only when another compiled package already owns the exact value object or enum.
-- Use `scalarType: uint8` for C# `byte` fields.
-- In the Unity Protocol Workspace, edit a type inside its grouped document; use `Add Type` to append a new type to the selected group. The compiler preserves sibling types and rejects duplicate names. Do not split a group into per-type files.
+- 按业务归属、命名空间和发布节奏分组。内聚的业务域放在同一组；归属或命名空间不同的内容分别建组。
+- 项目内复用类型放入稳定的 `common` 组；跨项目类型必须有真实的共享归属。
+- 自定义 `type` 字段默认进入生成依赖闭包。只有完全相同的值对象或枚举已由另一编译包持有时，才使用 `external: true`。
+- C# `byte` 字段使用 `scalarType: uint8`。
+- 在 Unity Protocol Workspace 中编辑类型所属的分组文档；用 `Add Type` 向选中组追加类型。编译器会保留同组其他类型并拒绝重名类型。不要拆成每类型一个文件。
 
-## Compatibility rules
+## 兼容性规则
 
-- Copy existing `MemoryPackOrder` values exactly to field `id` values.
-- Sequential MemoryPack IDs are contiguous from zero. Do not reorder, remove, widen, or renumber fields casually.
-- Keep DTO fields only in generated `*.MemoryPack.g.cs`. Handwritten partial types may contain constructors, validation, constants, conversions, and codecs, but no duplicate serialization fields or `[MemoryPackable]` attribute.
-- Never hand-edit generated DTOs, catalog glue, codec registry, export manifest, or compatibility baseline content.
+- 现有 `MemoryPackOrder` 必须原样映射为字段 `id`。
+- 顺序布局的 MemoryPack ID 从零开始连续编号。调整顺序、删除、扩大类型或重编号前，必须完成兼容性评审。
+- DTO 序列化字段只放在生成的 `*.MemoryPack.g.cs` 中。手写 partial 类型可包含构造函数、校验、常量、转换和编解码逻辑，不可重复声明序列化字段或 `[MemoryPackable]` 特性。
+- 不手改生成的 DTO、目录装配代码、编解码器注册表、导出清单或兼容性基线内容。
 
-## Runtime boundary rules
+## 运行时边界规则
 
-- At a network receive boundary, use the bounded overload `ProtocolPayloadDecoderRegistry.Decode(catalogId, definition, payload, schemaVersion)` or install `ProtocolPacketBoundaryValidator` on `NetworkPacketRouter` before invoking business handlers.
-- The legacy `Decode(catalogId, messageId, payload)` overload exists only for compatibility and local trusted callers. New transport, dispatch, capture, and diagnostics code must not use it because it cannot enforce catalog limits.
-- Treat `ProtocolDecodeFailureKind` and `ProtocolPacketBoundaryFailureKind` as stable categories for metrics and policy. Do not branch on exception message text.
-- `schemaVersion` in a Wire Schema document describes the YAML document format. Online contract negotiation uses each message's `minimumSchemaVersion`/`maximumSchemaVersion` and `ProtocolSchemaVersionNegotiator`; these are separate from catalog `revision`.
-- Negotiate the catalog/message schema range during connection or session setup and pass the selected version to the receive boundary. A catalog registry helper does not perform transport handshake automatically.
-- Use the generated `abilitykit.system` catalog and `catalog-advertisement.request/response` for a formal catalog handshake. Build the payload with `ProtocolCatalogAdvertisement.FromCatalogs` and use `ProtocolCatalogAdvertisementCodec`; do not invent a project-local JSON or binary advertisement.
-- A physical connection may advertise several catalogs. Use `ProtocolCatalogRegistry.TryNegotiateAdvertisement` for the aggregate payload, or `ProtocolCatalogNegotiator.Negotiate` for one catalog, and persist each result's `SelectedSchemaVersions`. Unknown optional catalogs may coexist, but every shared catalog must be compatible.
-- The system advertisement is a formal bounded `custom-binary` contract because it carries a dynamic catalog/message set. Do not migrate it to a generated business DTO or compare catalog `revision` as if it were a wire version. Treat negotiation failure kinds as stable policy/metric categories.
-- Bind negotiation to a `ProtocolCatalogNegotiationSession` per physical connection. Reset it on every reconnect, apply the remote catalog only after the business handshake has authenticated it, and enable boundary `requireNegotiated` when packets must not be accepted before negotiation.
-- When negotiation gates a connection that still needs login, explicitly list only the login/handshake message IDs in `bootstrapMessageIds`; never disable the gate globally just to let authentication through.
+- 网络接收边界使用带约束的重载 `ProtocolPayloadDecoderRegistry.Decode(catalogId, definition, payload, schemaVersion)`；或者在调用业务处理器前，为 `NetworkPacketRouter` 安装 `ProtocolPacketBoundaryValidator`。
+- 旧重载 `Decode(catalogId, messageId, payload)` 仅供兼容和本地可信调用方使用。新的传输、分发、抓包及诊断代码不得使用它，因为它无法执行目录约束。
+- 将 `ProtocolDecodeFailureKind` 和 `ProtocolPacketBoundaryFailureKind` 视为稳定的指标与策略分类，不根据异常文案分支。
+- Wire Schema 文档中的 `schemaVersion` 表示 YAML 文档格式。线上契约协商使用各消息的 `minimumSchemaVersion`、`maximumSchemaVersion` 和 `ProtocolSchemaVersionNegotiator`；它们也不同于目录的 `revision`。
+- 在建立连接或会话时协商目录与消息的 schema 范围，并把选定版本传给接收边界。目录注册辅助类不会自动完成传输握手。
+- 正式目录握手使用生成的 `abilitykit.system` 目录及 `catalog-advertisement.request/response`。通过 `ProtocolCatalogAdvertisement.FromCatalogs` 构造载荷，并使用 `ProtocolCatalogAdvertisementCodec`；不要另造项目专用的 JSON 或二进制声明格式。
+- 一条物理连接可声明多个目录。聚合载荷使用 `ProtocolCatalogRegistry.TryNegotiateAdvertisement`，单个目录使用 `ProtocolCatalogNegotiator.Negotiate`，并保存各结果的 `SelectedSchemaVersions`。未知的可选目录可以共存，但双方共有的目录必须兼容。
+- 系统声明承载动态目录/消息集合，因此使用有边界的正式 `custom-binary` 契约。不要将它迁移成生成的业务 DTO，也不要把目录 `revision` 当作线协议版本比较。协商失败类型应作为稳定的策略与指标分类。
+- 每条物理连接绑定一个 `ProtocolCatalogNegotiationSession`；每次重连时重置。业务握手验证远端身份后才能应用远端目录。若协商前不允许接收业务包，在接收边界启用 `requireNegotiated`。
+- 当连接仍需登录而协商门禁已启用时，`bootstrapMessageIds` 仅明确列出登录和握手消息 ID；不要为放行认证而关闭整道门禁。
 
-## Required workflow
+## 必要流程
 
 ```powershell
 ./tools/compile-protocol-catalogs.ps1
@@ -56,4 +56,4 @@ dotnet build src/AbilityKit.Protocol.Moba/AbilityKit.Protocol.Moba.csproj
 dotnet build src/AbilityKit.Protocol.Shooter/AbilityKit.Protocol.Shooter.csproj
 ```
 
-Run focused golden-byte and round-trip tests for every changed payload family. Refresh the compatibility baseline only when the reviewed schema is intentionally becoming the new baseline, then rerun its read-only check.
+每个修改过的载荷族都要运行聚焦的黄金字节测试和往返测试。只有经过评审的 schema 确定成为新基线时才更新兼容性基线，并重新执行只读检查。

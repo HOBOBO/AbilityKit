@@ -14,17 +14,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
     public sealed class SkillFlowDefTests
     {
         [Test]
-        public void LegacyJsonTagTemplates_MapConfiguredApplicationAndGrantTags()
+        public void LegacyJsonContinuousTagTemplates_MapConfiguredApplicationTags()
         {
             var continuous = (ContinuousTagTemplateDTO[])LegacyJsonConfigGroupDeserializer.Instance.DeserializeFromText(
                 "[{\"Id\":10010001,\"ApplicationTags\":[\"State.SuperArmor\"]}]",
                 typeof(ContinuousTagTemplateDTO));
-            var tag = (TagTemplateDTO[])LegacyJsonConfigGroupDeserializer.Instance.DeserializeFromText(
-                "[{\"Id\":1,\"GrantTags\":[\"State.SuperArmor\"]}]",
-                typeof(TagTemplateDTO));
-
             Assert.That(continuous[0].ApplicationTagNames, Is.EqualTo(new[] { "State.SuperArmor" }));
-            Assert.That(tag[0].GrantTagNames, Is.EqualTo(new[] { "State.SuperArmor" }));
             var direct = (ContinuousTagTemplateDTO[])JsonNetMobaConfigDtoDeserializer.Instance.DeserializeDtoArray(
                 "[{\"Id\":10010001,\"ApplicationTags\":[\"State.SuperArmor\"]}]",
                 typeof(ContinuousTagTemplateDTO));

@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Predicates
         public static readonly FunctionId OwnerMatchesPayloadSourceFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.OwnerMatchesPayloadSource));
         public static readonly FunctionId OwnerMatchesPayloadTargetFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.OwnerMatchesPayloadTarget));
         public static readonly FunctionId TargetIsFlyingProjectileFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.TargetIsFlyingProjectile));
+        public static readonly FunctionId SourceTargetTagRulesFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.SourceTargetTagRules));
 
         public static void Register(FunctionRegistry functions)
         {
@@ -26,6 +27,26 @@ namespace AbilityKit.Demo.Moba.Predicates
             functions.Register<Predicate2<object, IWorldResolver>>(OwnerMatchesPayloadSourceFunctionId, OwnerMatchesPayloadSource, isDeterministic: true);
             functions.Register<Predicate2<object, IWorldResolver>>(OwnerMatchesPayloadTargetFunctionId, OwnerMatchesPayloadTarget, isDeterministic: true);
             functions.Register<Predicate2<object, IWorldResolver>>(TargetIsFlyingProjectileFunctionId, TargetIsFlyingProjectile, isDeterministic: true);
+            functions.Register<Predicate2<object, IWorldResolver>>(SourceTargetTagRulesFunctionId, SourceTargetTagRules, isDeterministic: true);
+        }
+
+        private static bool SourceTargetTagRules(object triggerArgs, NamedArgsDict args, ExecCtx<IWorldResolver> ctx)
+        {
+            var sourceRuleGroupId = ReadInt(args, CombatPredicateContracts.Argument.FirstPosition);
+            var targetRuleGroupId = ReadInt(args, CombatPredicateContracts.Argument.SecondPosition);
+            if (sourceRuleGroupId <= 0 && targetRuleGroupId <= 0 || ctx.Context == null ||
+                !ctx.Context.TryResolve<IMobaTagRuleQueryService>(out var rules) || rules == null)
+                return false;
+
+            if (sourceRuleGroupId > 0 &&
+                (!CombatPredicateRuntime.TryResolveSourceActorId(triggerArgs, ctx.Context, out var sourceActorId) ||
+                 !rules.TryMatchesRule(sourceActorId, sourceRuleGroupId, out var sourceMatches) || !sourceMatches))
+                return false;
+            if (targetRuleGroupId > 0 &&
+                (!CombatPredicateRuntime.TryResolveTargetActorId(triggerArgs, ctx.Context, out var targetActorId) ||
+                 !rules.TryMatchesRule(targetActorId, targetRuleGroupId, out var targetMatches) || !targetMatches))
+                return false;
+            return true;
         }
 
         private static bool TargetIsFlyingProjectile(object triggerArgs, NamedArgsDict args, ExecCtx<IWorldResolver> ctx)

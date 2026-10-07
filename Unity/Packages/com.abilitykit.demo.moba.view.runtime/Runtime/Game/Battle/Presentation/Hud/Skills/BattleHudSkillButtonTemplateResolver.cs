@@ -50,6 +50,12 @@ namespace AbilityKit.Game.Flow
             if (slot <= 0) return false;
 
             if (!TryResolveSkillId(loadout, slot, out var skillId)) return false;
+            return TryResolveSkill(skillId, out skill, out template, out spec);
+        }
+
+        public bool TryResolveSkill(int skillId, out SkillMO skill,
+            out SkillButtonTemplateMO template, out BattleHudSkillPresentationSpec spec)
+        {
             return _templates.TryResolve(skillId, out skill, out template, out spec);
         }
 

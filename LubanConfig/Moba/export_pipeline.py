@@ -6,9 +6,21 @@ generated assets to the Unity package and Console replica.
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path, PurePosixPath
+
+from tag_excel import REFERENCE_TABLES as TAG_REFERENCE_TABLES
+from pipeline_rules import ExportContext, RulePipeline
+from publication import PublicationPlan
+from relations import RelationGraph, relation_report
+from business.actors import ATTRIBUTE_KEYS, validate_attribute_types
+from business.skills import validate_skill_level_tables
+from business.actors import project_loadouts
+from business.tags import project_tag_references, stable_action_id
+from business.modifiers import project_modifier_bindings
+from tag_bundle import build_tag_bundle_manifest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -23,7 +35,11 @@ RESOURCE_TABLE = "resource_documents"
 TABLE_KEYS = PRODUCTION / "table_keys.json"
 TABLE_ROOTS = PRODUCTION / "table_roots.json"
 AGGREGATE = "ability/ability_trigger_plans.json"
-
+STATE_MACHINE_SOURCE = ROOT / "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaStateMachineAuthoring"
+STATE_MACHINE_NAMES = ("character_hfsm", "actor_state_machines")
+TAG_TEMPLATE_TABLES = ("continuous_tag_templates",)
+REFERENCE_TABLES = {"modifier_templates", "modifier_parameters", "tag_definitions", "attr_types", *TAG_REFERENCE_TABLES,
+                    *TAG_TEMPLATE_TABLES}
 
 def run_luban(kind, output):
     command = ["dotnet", str(LUBAN), "-t", "all", kind, "bin" if kind == "-d" and output.name == "bin" else
@@ -32,9 +48,22 @@ def run_luban(kind, output):
     subprocess.run(command, cwd=ROOT, check=True)
 
 
-def normalize_row(row, complex_columns):
-    omitted = set(filter(None, row.pop("OmittedFields", "").split(",")))
-    nulls = set(filter(None, row.pop("NullFields", "").split(",")))
+def validate_table_inventory(expected, stage, keys, roots):
+    names = set(expected)
+    for folder, suffix in (("json", "json"), ("bin", "bytes")):
+        actual = {path.stem for path in (stage / folder).glob(f"*.{suffix}")}
+        if actual != names:
+            raise ValueError(f"Luban {folder} table inventory differs: "
+                             f"missing={sorted(names - actual)}, unexpected={sorted(actual - names)}")
+    for label, registered in (("table_keys", keys), ("table_roots", roots)):
+        extra = set(registered) - names
+        if extra:
+            raise ValueError(f"{label}: unknown tables {sorted(extra)}")
+
+
+def normalize_row(row, complex_columns, rules=None, table=""):
+    omitted = list(filter(None, row.pop("OmittedFields", "").split(",")))
+    nulls = list(filter(None, row.pop("NullFields", "").split(",")))
     for field, kind in complex_columns.items():
         value = row.get(field)
         if not isinstance(value, str):
@@ -43,6 +72,8 @@ def normalize_row(row, complex_columns):
             row[field] = [] if kind == "array" else None
         else:
             row[field] = json.loads(value)
+    if rules is not None:
+        row = rules.normalize(table, row)
     for field in omitted:
         if row.get(field) in (None, "", 0, False, []):
             row.pop(field, None)
@@ -67,6 +98,12 @@ def restored_table(name, rows, roots):
     return rows
 
 
+def expand_references(tables):
+    project_loadouts(tables)
+    resolve_tags = project_tag_references(tables)
+    project_modifier_bindings(tables, resolve_tags)
+
+
 def verify_tables(tables, json_dir, check_baseline, roots):
     baseline = ROOT / "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba"
     keys = json.loads(TABLE_KEYS.read_text(encoding="utf-8")) if TABLE_KEYS.exists() else {}
@@ -75,8 +112,9 @@ def verify_tables(tables, json_dir, check_baseline, roots):
         generated_ids = [row[keys.get(name, "Id")] for row in generated_rows]
         if len(generated_ids) != len(set(generated_ids)):
             raise ValueError(f"{name}: duplicated IDs")
-        if check_baseline and name != "ability_nodes":
-            source_rows = json.loads((baseline / f"{name}.json").read_text(encoding="utf-8-sig"))
+        if check_baseline and name != "ability_nodes" and name not in REFERENCE_TABLES:
+            baseline_path = RESOURCES / "vfx/vfx.json" if name == "vfx" else baseline / f"{name}.json"
+            source_rows = json.loads(baseline_path.read_text(encoding="utf-8-sig"))
             if source_rows != restored_table(name, generated_rows, roots):
                 raise ValueError(f"{name}: generated JSON differs from the migration baseline")
         if not (STAGE / "bin" / f"{name}.bytes").is_file():
@@ -205,6 +243,43 @@ def verify_editor_trigger_publication():
     ids = [trigger["TriggerId"] for trigger in triggers]
     if not ids or len(ids) != len(set(ids)):
         raise ValueError("editor trigger aggregate is empty or contains duplicate IDs")
+    legacy_actions = ("add_skill_param_modifier", "remove_skill_param_modifiers")
+    legacy_ids = {name: stable_action_id(name) for name in legacy_actions}
+    for trigger in triggers:
+        for action in trigger.get("Actions", []):
+            for name, action_id in legacy_ids.items():
+                if action.get("ActionId") == action_id:
+                    raise ValueError(f"trigger/{trigger['TriggerId']}: legacy modifier action {name} is not publishable")
+
+
+def verify_editor_flow_publication():
+    paths = [root / "moba/skill_flows.json" for root in (RESOURCES, CONSOLE.parent)]
+    flows = [json.loads(path.read_text(encoding="utf-8-sig")) for path in paths]
+    if flows[0] != flows[1] or not isinstance(flows[0], list) or not flows[0]:
+        raise ValueError("Pipeline skill_flows publication differs between Unity and Console")
+
+
+def verify_state_machine_publication(tables):
+    sources = {}
+    for name in STATE_MACHINE_NAMES:
+        source = STATE_MACHINE_SOURCE / f"{name}.json"
+        if not source.exists():
+            raise ValueError(f"state machine source missing: {source}")
+        sources[name] = json.loads(source.read_text(encoding="utf-8-sig"))
+        for root in (RESOURCES, CONSOLE):
+            published = root / "moba" / f"{name}.json"
+            if not published.exists() or json.loads(published.read_text(encoding="utf-8-sig")) != sources[name]:
+                raise ValueError(f"state machine publication differs: {published}")
+    profiles = sources["actor_state_machines"]
+    if not isinstance(profiles, list) or not profiles:
+        raise ValueError("actor_state_machines: no profiles")
+    ids = [profile["id"] for profile in profiles]
+    if len(ids) != len(set(ids)):
+        raise ValueError("actor_state_machines: duplicate profile IDs")
+    for projectile in tables["projectiles"]:
+        profile_id = projectile.get("StateMachineProfileId")
+        if profile_id and profile_id not in ids:
+            raise ValueError(f"projectiles/{projectile['Id']}: missing state machine profile {profile_id}")
 
 
 def verify_documents(documents):
@@ -217,97 +292,58 @@ def verify_documents(documents):
             raise ValueError(f"{name}: generated JSON differs from the migration baseline")
 
 
-def validate_references():
-    def rows(name):
-        return json.loads((STAGE / "normalized-json" / f"{name}.json").read_text(encoding="utf-8"))
+def validate_reference_graph(tables, flows, triggers, rules=(), tag_report_path=None):
+    graph = RelationGraph(tables, {"skill_flows": flows, "triggers": triggers, "rules": rules})
+    if not graph.index["skill_flows"]:
+        raise ValueError("Pipeline skill_flows.json is empty or has duplicate IDs")
+    if not graph.index["triggers"]:
+        raise ValueError("Trigger Authoring aggregate is empty or has duplicate IDs")
+    pipeline = RulePipeline(PRODUCTION / "export_rules.json")
+    graph.validate(pipeline.relations())
+    pipeline.validate_graph(
+        graph, tables, {"skill_flows": flows, "triggers": triggers, "rules": rules,
+                        "tag_report_path": tag_report_path})
+    return graph.edges
 
-    characters = rows("characters")
-    skills = {row["Id"]: row for row in rows("skills")}
-    passives = {row["Id"] for row in rows("passive_skills")}
+
+def validate_references(tables):
     flow_path = RESOURCES / "moba/skill_flows.json"
-    flows = {row["Id"] for row in json.loads(flow_path.read_text(encoding="utf-8-sig"))}
-    if len(flows) == 0:
-        raise ValueError("Pipeline skill_flows.json is empty")
-    attributes = {row["Id"] for row in rows("attribute_templates")}
-    models = {row["Id"] for row in rows("models")}
-    for hero in characters:
-        hero_id = hero["Id"]
-        for field, available in (("SkillIds", skills), ("PassiveSkillIds", passives)):
-            for value in hero.get(field, []):
-                if value not in available:
-                    raise ValueError(f"characters/{hero_id}: {field} references missing ID {value}")
-        for field, available in (("AttributeTemplateId", attributes), ("ModelId", models)):
-            value = hero.get(field, 0)
-            if value and value not in available:
-                raise ValueError(f"characters/{hero_id}: {field} references missing ID {value}")
-    for skill_id, skill in skills.items():
-        for field in ("PreCastFlowId", "CastFlowId"):
-            value = skill.get(field, 0)
-            if value and value not in flows:
-                raise ValueError(f"skills/{skill_id}: {field} references missing flow {value}")
+    trigger_path = RESOURCES / AGGREGATE
+    flows = json.loads(flow_path.read_text(encoding="utf-8-sig"))
+    triggers = json.loads(trigger_path.read_text(encoding="utf-8-sig"))["Triggers"]
+    rules = [json.loads(path.read_text(encoding="utf-8-sig"))
+             for path in sorted((RESOURCES / "ability/rules").rglob("*.json"))]
+    edges = validate_reference_graph(tables, flows, triggers, rules, STAGE / "tag-usage-report.json")
+    (STAGE / "reference-report.json").write_text(
+        json.dumps(relation_report(edges), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def check_published(tables, documents):
-    def same_text(left, right):
-        return left.read_text(encoding="utf-8-sig").replace("\r\n", "\n") == \
-            right.read_text(encoding="utf-8-sig").replace("\r\n", "\n")
-
+def build_publication_plan(tables, documents):
+    plan = PublicationPlan((RESOURCES, CONSOLE.parent, CODE))
+    tag_manifest = build_tag_bundle_manifest(STAGE / "bin")
     for root in (UNITY, CONSOLE):
+        plan.add(root / "moba/tag_bundle_manifest.json", tag_manifest, "tag-bundle")
         for name in tables:
-            for folder, suffix in (("moba", "json"), ("moba_bytes", "bytes")):
-                source = STAGE / ("normalized-json" if suffix == "json" else "bin") / f"{name}.{suffix}"
-                published = root / folder / f"{name}.{suffix}"
-                if suffix == "json" and root == CONSOLE and f"moba/{name}.json" in documents:
-                    if (not published.exists() or
-                            json.loads(published.read_text(encoding="utf-8-sig")) !=
-                            json.loads(documents[f"moba/{name}.json"])):
-                        raise ValueError(f"published artifact differs: {published}")
-                    continue
-                if not published.exists() or (not same_text(source, published) if suffix == "json" else source.read_bytes() != published.read_bytes()):
-                    raise ValueError(f"published artifact differs: {published}")
-    for name, content in documents.items():
-        for root in (RESOURCES, CONSOLE):
-            path = root / name
-            if not path.exists() or json.loads(path.read_text(encoding="utf-8-sig")) != json.loads(content):
-                raise ValueError(f"published resource differs: {path}")
+            document = documents.get(f"moba/{name}.json") if root == CONSOLE else None
+            content = (document.encode("utf-8") if document is not None else
+                       (STAGE / "normalized-json" / f"{name}.json").read_bytes())
+            plan.add(root / "moba" / f"{name}.json", content, "luban-table")
+            plan.add(root / "moba_bytes" / f"{name}.bytes",
+                     (STAGE / "bin" / f"{name}.bytes").read_bytes(), "luban-binary")
+    plan.add_tree(STAGE / "code", CODE, "cs", "luban-code")
     promoted = json.loads(TABLE_KEYS.read_text(encoding="utf-8")) if TABLE_KEYS.exists() else {}
     for name in promoted:
-        source = STAGE / "normalized-json" / f"{name}.json"
-        for root in (RESOURCES, CONSOLE):
-            path = root / "moba" / f"{name}.json"
-            expected = documents.get(f"moba/{name}.json")
-            if not path.exists() or (json.loads(path.read_text(encoding="utf-8-sig")) != json.loads(expected)
-                                     if expected is not None else not same_text(source, path)):
-                raise ValueError(f"published promoted table differs: {path}")
-    for file in (STAGE / "code").rglob("*.cs"):
-        path = CODE / file.relative_to(STAGE / "code")
-        if not path.exists() or not same_text(file, path):
-            raise ValueError(f"published generated code differs: {path}")
-
-
-def publish(source, target, extension):
-    target.mkdir(parents=True, exist_ok=True)
-    for file in source.rglob(f"*.{extension}"):
-        destination = target / file.relative_to(source)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(file, destination)
-
-
-def obsolete_document_artifacts():
-    files = [root / "moba_bytes/resource_documents.bytes" for root in (UNITY, CONSOLE)]
-    files += [CODE / name for name in ("DRResourceDocuments.cs", "ResourceDocuments.cs")]
-    files += [UNITY / "moba_bytes/resource_documents.bytes.meta"]
-    files += [CODE / name for name in ("DRResourceDocuments.cs.meta", "ResourceDocuments.cs.meta")]
-    return files
-
-
-def obsolete_flow_artifacts():
-    files = [root / "moba/skill_flows.json" for root in (UNITY, CONSOLE)]
-    files += [root / "moba_bytes/skill_flows.bytes" for root in (UNITY, CONSOLE)]
-    files += [UNITY / "moba/skill_flows.json.meta", UNITY / "moba_bytes/skill_flows.bytes.meta"]
-    files += [CODE / name for name in ("DRSkillFlows.cs", "SkillFlows.cs")]
-    files += [CODE / name for name in ("DRSkillFlows.cs.meta", "SkillFlows.cs.meta")]
-    return files
+        if f"moba/{name}.json" not in documents:
+            plan.add(RESOURCES / "moba" / f"{name}.json",
+                     (STAGE / "normalized-json" / f"{name}.json").read_bytes(), "promoted-table")
+    for name, content in documents.items():
+        plan.add(RESOURCES / name, content.encode("utf-8"), "resource-document")
+        if not (name.startswith("moba/") and Path(name).stem in tables):
+            plan.add(CONSOLE / name, content.encode("utf-8"), "resource-document")
+    for name in TAG_TEMPLATE_TABLES:
+        plan.add(CONSOLE.parent / "moba" / f"{name}.json",
+                 documents[f"moba/{name}.json"].encode("utf-8"), "tag-template")
+    return plan
 
 
 def main():
@@ -315,7 +351,12 @@ def main():
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--check-baseline", action="store_true")
     parser.add_argument("--check-published", action="store_true")
+    parser.add_argument("--preview-rule", type=int, metavar="GROUP_ID")
+    parser.add_argument("--preview-tags", default="", metavar="TAG1,TAG2")
+    parser.add_argument("--explain-tags", action="store_true")
+    parser.add_argument("--impact-tag", metavar="TAG_NAME")
     args = parser.parse_args()
+    rules = RulePipeline(PRODUCTION / "export_rules.json")
     tables = json.loads((PRODUCTION / "complex_columns.json").read_text(encoding="utf-8"))
     roots = json.loads(TABLE_ROOTS.read_text(encoding="utf-8")) if TABLE_ROOTS.exists() else {}
     for name in ("json", "bin", "code", "normalized-json", "ability"):
@@ -326,13 +367,29 @@ def main():
     run_luban("-d", STAGE / "json")
     run_luban("-d", STAGE / "bin")
     run_luban("-c", STAGE / "code")
+    keys = json.loads(TABLE_KEYS.read_text(encoding="utf-8")) if TABLE_KEYS.exists() else {}
+    validate_table_inventory(tables, STAGE, keys, roots)
+    normalized_tables = {}
     for name, complex_columns in tables.items():
         rows = json.loads((STAGE / "json" / f"{name}.json").read_text(encoding="utf-8"))
-        normalized = [normalize_row(row, complex_columns) for row in rows]
+        normalized_tables[name] = [normalize_row(row, complex_columns, rules, name) for row in rows]
+    context = ExportContext(normalized_tables, STAGE, (UNITY, CONSOLE),
+                            args.preview_rule, args.preview_tags, args.explain_tags)
+    rules.run("project", context)
+    rules.run("transform", context)
+    rules.run("validate", context)
+    rules.run("generate", context)
+    for name, normalized in normalized_tables.items():
         (STAGE / "normalized-json" / f"{name}.json").write_text(
             json.dumps(normalized, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     verify_tables(tables, STAGE / "normalized-json", args.check_baseline, roots)
-    validate_references()
+    validate_references(normalized_tables)
+    if args.impact_tag:
+        report = json.loads((STAGE / "tag-usage-report.json").read_text(encoding="utf-8"))
+        impact = next((row for row in report["tagImpact"] if row["name"] == args.impact_tag), None)
+        if impact is None:
+            raise ValueError(f"unknown tag for impact preview: {args.impact_tag}")
+        print(json.dumps(impact, ensure_ascii=False, indent=2))
     if "ability_nodes" in tables:
         documents = build_ability_documents()
         documents = {name: content for name, content in documents.items()
@@ -343,42 +400,31 @@ def main():
                 restored_table(name, rows, roots), ensure_ascii=False, indent=2) + "\n"
     else:
         documents = build_resource_documents()
+    if "vfx" in tables:
+        documents["vfx/vfx.json"] = (STAGE / "normalized-json/vfx.json").read_text(encoding="utf-8")
+    for name in TAG_TEMPLATE_TABLES:
+        documents[f"moba/{name}.json"] = json.dumps(
+            normalized_tables[name], ensure_ascii=False, indent=2) + "\n"
     if args.check_baseline:
         verify_documents(documents)
-    if args.check_published:
-        check_published(tables, documents)
+    if args.check_published or args.apply:
+        verify_editor_flow_publication()
         verify_editor_trigger_publication()
-        for path in obsolete_flow_artifacts():
-            if path.exists():
-                raise ValueError(f"obsolete Luban skill flow artifact remains: {path}")
-        if "ability_nodes" in tables:
-            for path in obsolete_document_artifacts():
-                if path.exists():
-                    raise ValueError(f"obsolete resource_documents artifact remains: {path}")
+        verify_state_machine_publication(normalized_tables)
+    plan = build_publication_plan(tables, documents)
+    source_files = [*sorted((PRODUCTION / "Datas").glob("*.xlsx")),
+                    *sorted((PRODUCTION / "Defines").glob("*.xml")),
+                    PRODUCTION / "luban.conf", PRODUCTION / "complex_columns.json",
+                    PRODUCTION / "table_keys.json", PRODUCTION / "table_roots.json",
+                    PRODUCTION / "export_rules.json"]
+    (STAGE / "publication-report.json").write_text(
+        json.dumps(plan.report(ROOT, source_files), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if args.check_published:
+        plan.check()
     if args.apply:
-        for root in (UNITY, CONSOLE):
-            publish(STAGE / "normalized-json", root / "moba", "json")
-            publish(STAGE / "bin", root / "moba_bytes", "bytes")
-        publish(STAGE / "code", CODE, "cs")
-        promoted = json.loads(TABLE_KEYS.read_text(encoding="utf-8")) if TABLE_KEYS.exists() else {}
-        for name in promoted:
-            source = STAGE / "normalized-json" / f"{name}.json"
-            for root in (RESOURCES, CONSOLE):
-                destination = root / "moba" / f"{name}.json"
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source, destination)
-        for name, content in documents.items():
-            for root in (RESOURCES, CONSOLE):
-                destination = root / name
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                if not destination.exists() or destination.read_text(encoding="utf-8-sig") != content:
-                    destination.write_text(content, encoding="utf-8")
-        if "ability_nodes" in tables:
-            for path in obsolete_document_artifacts():
-                path.unlink(missing_ok=True)
-        for path in obsolete_flow_artifacts():
-            path.unlink(missing_ok=True)
-        print("published Unity and Console Luban artifacts")
+        count = plan.apply()
+        plan.check()
+        print(f"published Unity and Console Luban artifacts: {count} changed")
     else:
         print(f"validated in {STAGE}; pass --apply to publish")
 

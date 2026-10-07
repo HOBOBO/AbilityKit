@@ -47,6 +47,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return Shoot(casterActorId, emitterType, projectileCode, speed, lifetimeFrames, maxDistance, in aimPos, in aimDir, default);
         }
 
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Projectile.Ids.Speed,
+            MobaParameterStage.ProjectileSpawn, MobaModifierSampleTiming.CreateSnapshot)]
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Projectile.Ids.LifetimeMs,
+            MobaParameterStage.ProjectileSpawn, MobaModifierSampleTiming.CreateSnapshot)]
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Projectile.Ids.PierceHits,
+            MobaParameterStage.ProjectileSpawn, MobaModifierSampleTiming.CreateSnapshot)]
         public bool Shoot(int casterActorId, ProjectileEmitterType emitterType, int projectileCode, float speed, int lifetimeFrames, float maxDistance, in Vec3 aimPos, in Vec3 aimDir, in ProjectileSourceContext sourceContext)
         {
             if (_projectiles == null) return false;
@@ -54,7 +60,35 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (_entities == null) return false;
             if (casterActorId <= 0) return false;
             if (projectileCode <= 0) return false;
-            if (speed <= 0f) return false;
+            var hitPolicyKind = ProjectileHitPolicyKind.ExitOnHit;
+            var hitPolicyParam = 0;
+            if (_configs != null && _configs.TryGetProjectile(projectileCode, out var projectileConfig) &&
+                projectileConfig != null && projectileConfig.HitPolicyKind == ProjectileHitPolicyKind.Pierce)
+            {
+                hitPolicyKind = ProjectileHitPolicyKind.Pierce;
+                hitPolicyParam = projectileConfig.HitsRemaining == -1
+                    ? -1 : Math.Max(1, projectileConfig.HitsRemaining);
+            }
+            if (_skillParamModifiers != null)
+            {
+                var skillHandle = sourceContext.SkillRuntimeHandle;
+                var record = MobaParameterRecord.FromSkillRuntime(MobaParameterStage.ProjectileSpawn,
+                    _skillRuntimes, in skillHandle, projectileTemplateId: projectileCode);
+                speed = _skillParamModifiers.Projectile.ResolveSpeed(casterActorId, speed, in record);
+                if (hitPolicyKind == ProjectileHitPolicyKind.Pierce)
+                    hitPolicyParam = _skillParamModifiers.Projectile.ResolvePierceHits(
+                        casterActorId, hitPolicyParam, in record);
+                if (_frameTime != null && _frameTime.DeltaTime > 0f)
+                {
+                    var baseLifetimeMs = (int)Math.Min(int.MaxValue,
+                        Math.Round(lifetimeFrames * (double)_frameTime.DeltaTime * 1000d));
+                    var lifetimeMs = _skillParamModifiers.Projectile.ResolveLifetimeMs(
+                        casterActorId, baseLifetimeMs, in record);
+                    if (lifetimeMs < 0) return false;
+                    lifetimeFrames = ResolveOptionalFramesFromMs(lifetimeMs, _frameTime);
+                }
+            }
+            if (speed <= 0f || float.IsNaN(speed) || float.IsInfinity(speed)) return false;
             if (lifetimeFrames <= 0 && maxDistance <= 0f) return false;
 
             if (!_entities.TryGetActorEntity(casterActorId, out var caster) || caster == null || !caster.hasTransform)
@@ -116,6 +150,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     maxDistance: maxDistance,
                     collisionLayerMask: collisionMask,
                     ignoreCollider: ignore,
+                    hitsRemaining: hitPolicyKind == ProjectileHitPolicyKind.Pierce ? 0 : 1,
+                    hitPolicyKind: hitPolicyKind,
+                    hitPolicyParam: hitPolicyParam,
                     hitFilter: new MobaTeamProjectileHitFilter(_registry));
 
                 ProjectileId pid;
@@ -394,6 +431,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return startedDirectly && result.Success;
         }
 
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Emitter.Ids.IntervalMs,
+            MobaParameterStage.LauncherCreate, MobaModifierSampleTiming.CreateSnapshot)]
         public bool TryStartLaunch(in MobaProjectileLaunchRequest request, out MobaProjectileLaunchResult result)
         {
             result = default;
@@ -436,10 +475,25 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             var nowMs = (long)System.MathF.Round(frameTime.Time * 1000f);
             var durationMs = request.DurationMs;
+            var intervalMs = launcher.IntervalMs;
+            if (_skillParamModifiers != null)
+            {
+                var skillHandle = request.SourceContext.SkillRuntimeHandle;
+                var launcherRecord = MobaParameterRecord.FromSkillRuntime(MobaParameterStage.LauncherCreate,
+                    _skillRuntimes, in skillHandle, launcherTemplateId: launcher.Id,
+                    projectileTemplateId: projectile.Id);
+                intervalMs = _skillParamModifiers.Projectile.ResolveIntervalMs(
+                    casterActorId, intervalMs, in launcherRecord);
+            }
+            if (intervalMs < 0)
+            {
+                result = MobaProjectileLaunchResult.Failed($"Resolved launcher interval is negative. intervalMs={intervalMs}");
+                return false;
+            }
 
-            var repeatCount = ResolveRepeatCount(durationMs, launcher.IntervalMs, launcher.Id);
+            var repeatCount = ResolveRepeatCount(durationMs, intervalMs, launcher.Id);
             var intervalFrames = repeatCount > 1
-                ? ResolveRequiredFramesFromMs(launcher.IntervalMs, frameTime, $"projectile launcher interval. launcherId={launcher.Id}")
+                ? ResolveRequiredFramesFromMs(intervalMs, frameTime, $"projectile launcher interval. launcherId={launcher.Id}")
                 : 0;
             var returnAfterFrames = ResolveOptionalFramesFromMs(projectile.ReturnAfterMs, frameTime);
             var returnSpeed = projectile.ReturnSpeed;
@@ -451,6 +505,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             var lifetimeFrames = ResolveOptionalFramesFromMs(projectile.LifetimeMs, frameTime);
 
             var launcherActorId = _actorIds.Next();
+            var projectileSpeed = projectile.Speed;
+            if (projectileSpeed <= 0f)
+            {
+                result = MobaProjectileLaunchResult.Failed($"Projectile speed is invalid. speed={projectileSpeed}");
+                return false;
+            }
             var launcherSpec = MobaConverter.ToProjectileLauncherActorBuildSpec(launcherActorId, launcher.Id, caster, in sp, in d);
             var launcherRequest = MobaActorSpawnRequest.FromSpec(in launcherSpec);
 
@@ -488,7 +548,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 spawnFrame: startFrame,
                 position: sp,
                 direction: d,
-                speed: projectile.Speed,
+                speed: projectileSpeed,
                 returnAfterFrames: returnAfterFrames,
                 returnSpeed: returnSpeed,
                 returnStopDistance: returnStopDistance,
@@ -556,6 +616,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
                 transaction.Enlist("launcher-sequence", () => RollbackLaunchSequence(sequence, sequenceResult));
 
+                var skillHandle = request.SourceContext.SkillRuntimeHandle;
+                var skillRecord = MobaParameterRecord.FromSkillRuntime(
+                    MobaParameterStage.LauncherCreate, _skillRuntimes, in skillHandle);
                 var context = new MobaProjectileLaunchContext(
                     in request,
                     launcher,
@@ -574,7 +637,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     _links,
                     _skillParamModifiers,
                     _random,
-                    this);
+                    this,
+                    skillRecord,
+                    frameTime.DeltaTime * 1000f);
 
                 var started = sequence.TryStart(in context, out sequenceResult);
                 result = sequenceResult;

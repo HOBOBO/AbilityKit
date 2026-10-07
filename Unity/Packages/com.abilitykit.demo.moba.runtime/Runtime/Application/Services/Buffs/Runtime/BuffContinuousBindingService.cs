@@ -45,9 +45,11 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             if (_continuous == null) return true;
             if (wasActive)
             {
+                _tags?.MarkDirty(targetActorId);
                 if (_continuous is MobaContinuousManager mobaContinuous)
                 {
                     mobaContinuous.Reproject(runtime.Continuous);
+                    mobaContinuous.RefreshTagRequirements(runtime.Continuous);
                 }
 
                 return true;
@@ -65,9 +67,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
         }
 
         /// <summary>
-        /// 清理 Buff 与持续行为的双向引用，并按需通知标签系统重新计算移除标签。
+        /// 清理 Buff 与持续行为的双向引用，并按需刷新有效标签缓存。
         /// </summary>
-        public void Cleanup(global::ActorEntity target, int targetActorId, BuffRuntime runtime, bool applyRemovalTags)
+        public void Cleanup(global::ActorEntity target, int targetActorId, BuffRuntime runtime, bool invalidateTags)
         {
             if (runtime == null) return;
 
@@ -88,7 +90,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             runtime.Continuous = null;
             runtime.TagRequirements = null;
 
-            if (applyRemovalTags && targetActorId > 0)
+            if (invalidateTags && targetActorId > 0)
             {
                 _tags?.MarkDirty(targetActorId);
             }

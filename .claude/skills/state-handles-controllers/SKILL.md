@@ -3,7 +3,7 @@ name: state-handles-controllers
 description: AbilityKit Session/Flow 业务代码（如 BattleSessionFeature）重构准则——State(纯数据)/Handles(可释放资源,partial)/Controllers(行为,Session*Controller)/SubFeatures(薄胶水) 分离，含 Host 接口反向桥接、Runtime 契约、partial 按领域拆、WorldSystemBase.OnTearDown 等模式。触发场景：会话/流程类代码臃肿、feature 持续变大、字段/资源/编排/逻辑混在一个类、SubFeature 越权访问、BattleSessionFeature 拆分、Start/Stop 顺序、State 混入 IDisposable、OnCleanup vs OnTearDown。
 ---
 
-# state-handles-controllers
+# 状态句柄与控制器
 
 基于当前源码核校（2026-07-20）。本 skill 用于把"会话/流程类代码"重构为：
 
@@ -56,7 +56,7 @@ SubFeature 通过 `FeatureModuleContext<BattleSessionFeature>` + `BattleSessionF
 - `OnCleanup()`：每帧清理（基本不用，`ReactiveWorldSystemBase` 注释明说"空实现，资源释放在 TearDown 中进行"）
 - `OnTearDown()`：销毁阶段释放（**始终执行，不受 Enabled 影响**）— 反注册放这里
 
-## Sections
+## 分节索引
 
 - [when_to_use.md](when_to_use.md) — 何时启用本 skill
 - [required_context.md](required_context.md) — 重构前需确认的边界、字段归属、调用链

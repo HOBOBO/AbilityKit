@@ -20,6 +20,9 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
         public const string AreaSemanticId = "moba.area-id";
         public const string SummonSemanticId = "moba.summon-id";
         public const string SearchQuerySemanticId = "moba.search-query-id";
+        public const string ModifierParameterSemanticId = "moba.modifier-parameter-id";
+        public const string TagRuleGroupSemanticId = "moba.tag-rule-group-id";
+        public const string ActiveGameplayTagSemanticId = "moba.active-gameplay-tag-id";
 
         public string Id => ExtensionId;
 
@@ -80,6 +83,18 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 SearchQuerySemanticId,
                 () => MobaBattleScenarioConfigCatalog.SearchQueries,
                 "search_query_templates"));
+            context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
+                ModifierParameterSemanticId,
+                () => MobaBattleScenarioConfigCatalog.TriggerWritableModifierParameters,
+                ""));
+            context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
+                TagRuleGroupSemanticId,
+                () => MobaBattleScenarioConfigCatalog.TagRuleGroups,
+                "tag_rule_groups"));
+            context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
+                ActiveGameplayTagSemanticId,
+                () => MobaBattleScenarioConfigCatalog.ActiveGameplayTags,
+                "tag_definitions"));
         }
 
         private static void RegisterSkillRuntimeValues(TriggerAuthoringExtensionContext context)
@@ -136,6 +151,40 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
             context.RegisterCondition(Condition(
                     "target_is_flying_projectile", "目标是飞行投射物", "Condition/Context"),
                 new FunctionConditionCompiler("predicate:target_is_flying_projectile"));
+            context.RegisterCondition(Condition("source_target_tag_rules", "来源与目标标签规则", "Condition/Combat",
+                    Reference("source_rule_group_id", TagRuleGroupSemanticId, false),
+                    Reference("target_rule_group_id", TagRuleGroupSemanticId, false)),
+                new SourceTargetTagRulesConditionCompiler());
+        }
+
+        private sealed class SourceTargetTagRulesConditionCompiler : ITriggerAuthoringConditionCompiler
+        {
+            public void Compile(TriggerAuthoringConditionCompilerContext context)
+            {
+                var hasSource = context.HasArgument("source_rule_group_id");
+                var hasTarget = context.HasArgument("target_rule_group_id");
+                if (!hasSource && !hasTarget)
+                {
+                    context.ReportError("TRG2024", ".arguments", "来源与目标至少需要一个标签规则组。");
+                    return;
+                }
+                if (hasSource && !ValidRuleGroupId(context, "source_rule_group_id") ||
+                    hasTarget && !ValidRuleGroupId(context, "target_rule_group_id"))
+                    return;
+                var source = context.CompileArgument(false, "source_rule_group_id");
+                var target = context.CompileArgument(false, "target_rule_group_id");
+                context.EmitFunction("predicate:source_target_tag_rules", source, target);
+            }
+
+            private static bool ValidRuleGroupId(TriggerAuthoringConditionCompilerContext context, string name)
+            {
+                if (context.TryGetConstantNumber(out var value, name) &&
+                    value > 0 && value <= int.MaxValue && Math.Truncate(value) == value)
+                    return true;
+                context.ReportError("TRG2025", ".arguments." + name,
+                    "标签规则组 ID 必须是已配置的正整数常量。");
+                return false;
+            }
         }
 
         private sealed class FunctionConditionCompiler : ITriggerAuthoringConditionCompiler
@@ -262,7 +311,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Reference("buff_id", BuffSemanticId, false),
                 Optional("source_actor_id", TriggerValueType.Integer),
                 Optional("remove_all", TriggerValueType.Boolean),
-                Optional("remove_slow", TriggerValueType.Boolean),
+                Reference("tag_id", ActiveGameplayTagSemanticId, false),
                 Optional("reason", TriggerValueType.Integer))));
             context.RegisterAction(Action("add_shield", "添加护盾", "Action/Shield", WithTargets(WithMagnitude("shield_amount",
                 Optional("shield_id", TriggerValueType.Integer),
@@ -350,9 +399,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Reference("skill_id", SkillSemanticId, false, "skill_identity"),
                 OneOf("skill_identity", "skill_slot", TriggerValueType.Integer))));
             context.RegisterAction(Action("add_skill_param_modifier", "添加技能参数修饰", "Action/Skill", WithTargets(
-                Choice("parameter_id", true,
-                    Option(3, "投射物数量"), Option(4, "投射物扇形角度"), Option(5, "投射物持续时间"),
-                    Option(8, "技能资源消耗"), Option(9, "技能冷却时间"), Option(10, "技能施法范围")),
+                Reference("parameter_id", ModifierParameterSemanticId),
                 Choice("operation", false,
                     Option(0, "加法"), Option(1, "乘法"), Option(2, "覆盖"), Option(3, "百分比加成")),
                 Required("value", TriggerValueType.Number),
@@ -692,6 +739,12 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
             {
                 target = null;
                 if (string.IsNullOrWhiteSpace(_resourceName)) return false;
+                if (SemanticId == TagRuleGroupSemanticId || SemanticId == ActiveGameplayTagSemanticId)
+                {
+                    target = AssetDatabase.LoadAssetAtPath<TextAsset>(
+                        "Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/" + _resourceName + ".json");
+                    return target != null;
+                }
                 var splitPath = ResourceRoot + _resourceName + "/" +
                                 _resourceName + "_" + value + ".json";
                 target = AssetDatabase.LoadAssetAtPath<TextAsset>(splitPath);

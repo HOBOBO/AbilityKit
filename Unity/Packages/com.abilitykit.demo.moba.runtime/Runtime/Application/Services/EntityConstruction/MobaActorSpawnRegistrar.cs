@@ -166,6 +166,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 throw;
             }
 
+            _entities?.CompleteActorRemoval(actorId);
             if (publishDespawn && entityRegistered)
             {
                 _entities.PublishDespawn(entity);

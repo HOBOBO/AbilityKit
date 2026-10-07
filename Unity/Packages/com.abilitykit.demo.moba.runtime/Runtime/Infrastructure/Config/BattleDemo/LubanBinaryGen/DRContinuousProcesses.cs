@@ -21,11 +21,11 @@ public sealed partial class DRContinuousProcesses : Luban.BeanBase
         DurationMs = _buf.ReadInt();
         IntervalMs = _buf.ReadInt();
         {int n0 = _buf.ReadSize(); IntervalTriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); IntervalTriggerIds.Add(_e0);}}
-        Modifiers = _buf.ReadString();
+        {int n0 = _buf.ReadSize(); ModifierIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ModifierIds.Add(_e0);}}
         Name = _buf.ReadString();
         OutOfCombatSeconds = _buf.ReadInt();
         RequireOutOfCombat = _buf.ReadBool();
-        {int n0 = _buf.ReadSize(); Tags = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); Tags.Add(_e0);}}
+        {int n0 = _buf.ReadSize(); TagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); TagIds.Add(_e0);}}
         {int n0 = _buf.ReadSize(); TriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); TriggerIds.Add(_e0);}}
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
@@ -37,20 +37,56 @@ public sealed partial class DRContinuousProcesses : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 持续标签模板 ID；0 表示不启用。
+    /// </summary>
     public readonly int ContinuousTagTemplateId;
+    /// <summary>
+    /// 持续时间，单位毫秒；0 的含义以对应运行时逻辑为准。
+    /// </summary>
     public readonly int DurationMs;
+    /// <summary>
+    /// 周期执行间隔，单位毫秒。
+    /// </summary>
     public readonly int IntervalMs;
+    /// <summary>
+    /// 持续流程每次间隔执行的触发器 ID 列表。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> IntervalTriggerIds;
-    public readonly string Modifiers;
+    /// <summary>
+    /// 有序修饰器定义 ID 列表；顺序影响应用次序。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> ModifierIds;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 脱离的战斗秒；用于持续流程配置。
+    /// </summary>
     public readonly int OutOfCombatSeconds;
+    /// <summary>
+    /// 要求脱离的战斗：true 为启用，false 为关闭。
+    /// </summary>
     public readonly bool RequireOutOfCombat;
-    public readonly System.Collections.Generic.List<int> Tags;
+    /// <summary>
+    /// 授予或携带的标签定义 ID 列表，逗号分隔。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> TagIds;
+    /// <summary>
+    /// 触发器 ID 列表；由 Trigger Authoring 发布，逗号分隔。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> TriggerIds;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = -1202765408;
@@ -68,11 +104,11 @@ public sealed partial class DRContinuousProcesses : Luban.BeanBase
         + "DurationMs:" + DurationMs + ","
         + "IntervalMs:" + IntervalMs + ","
         + "IntervalTriggerIds:" + Luban.StringUtil.CollectionToString(IntervalTriggerIds) + ","
-        + "Modifiers:" + Modifiers + ","
+        + "ModifierIds:" + Luban.StringUtil.CollectionToString(ModifierIds) + ","
         + "Name:" + Name + ","
         + "OutOfCombatSeconds:" + OutOfCombatSeconds + ","
         + "RequireOutOfCombat:" + RequireOutOfCombat + ","
-        + "Tags:" + Luban.StringUtil.CollectionToString(Tags) + ","
+        + "TagIds:" + Luban.StringUtil.CollectionToString(TagIds) + ","
         + "TriggerIds:" + Luban.StringUtil.CollectionToString(TriggerIds) + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","

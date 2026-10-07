@@ -30,13 +30,28 @@ public sealed partial class DRBrains : Luban.BeanBase
     }
 
     /// <summary>
-    /// Promoted from resource_documents.xlsx; edit this table as the source.
+    /// AI 脑ID；填写对应配置或编辑器产物的 ID。
     /// </summary>
     public readonly int BrainId;
+    /// <summary>
+    /// 决策名称；用于AI脑配置。
+    /// </summary>
     public readonly string DecisionName;
+    /// <summary>
+    /// 驱动器类型；用于AI脑配置。
+    /// </summary>
     public readonly string DriverKind;
+    /// <summary>
+    /// 技能选择策略；用于AI脑配置。
+    /// </summary>
     public readonly string SkillSelectionPolicy;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 10675819;

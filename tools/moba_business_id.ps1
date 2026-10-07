@@ -130,6 +130,18 @@ function Get-SourceRecords {
                     [void]$records.Add([pscustomobject]@{ id = $id; location = $location; source = [string]$Source.path })
                 }
             }
+            "trigger-aggregate" {
+                if ($null -eq $json -or $json.PSObject.Properties.Name -notcontains 'Triggers') {
+                    throw "Trigger aggregate at $relative must contain Triggers."
+                }
+
+                $items = @($json.Triggers)
+                for ($index = 0; $index -lt $items.Count; $index++) {
+                    $location = "$relative.Triggers[$index]"
+                    $id = Get-PropertyValue -Value $items[$index] -PropertyName ([string]$Source.idProperty) -Location $location
+                    [void]$records.Add([pscustomobject]@{ id = $id; location = $location; source = [string]$Source.path })
+                }
+            }
             default {
                 throw "Unsupported source shape '$($Source.shape)' for '$($Source.path)'."
             }

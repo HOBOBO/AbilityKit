@@ -59,7 +59,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             Exception firstFailure = null;
 
             TryStep(() => _bindings?.EndContinuous(runtime, normalizedReason), ref firstFailure);
-            TryStep(() => _bindings?.CleanupContinuous(target, targetActorId, runtime, applyRemovalTags: true), ref firstFailure);
+            TryStep(() => _bindings?.CleanupContinuous(target, targetActorId, runtime, invalidateTags: true), ref firstFailure);
             TryStep(() => _ctx?.EndByRuntimeNoClear(runtime, normalizedReason), ref firstFailure);
             TryStep(() => CleanupOwnerBindings(target, sourceContextId), ref firstFailure);
             TryStep(() => NotifyRemoved(targetActorId, sourceActorId, runtime, normalizedReason), ref firstFailure);

@@ -156,18 +156,16 @@ namespace AbilityKit.Modifiers.Tests
         }
 
         [Fact]
-        public void TimeDecay_custom_curve_is_ignored_falls_back_to_linear_documents_current_behavior()
+        public void TimeDecay_custom_curve_interpolates_and_keeps_its_last_sample()
         {
-            // 钉当前行为（可疑）：带自定义曲线的工厂把 ArrayData 存进来源，
-            // 但 CalculateTimeDecay 走 MagnitudeModifierUtils.CalculateDecay，
-            // 其 CustomCurve 分支是固定 1-t（曲线数据从未参与计算）。
-            // 同场景下 TimeDecaySource（IValueSource 版本）会按曲线插值 —— 两处实现不一致。
-            var curve = new float[] { 1f, 0.5f };
+            var curve = new float[] { 1f, 0.25f, 0.2f };
             var source = MagnitudeSource.TimeDecay(100f, 4f, curve);
             Assert.Equal(DecayType.CustomCurve, source.DecayType);
 
-            var ctx = new TestModifierContext { ElapsedTime = 2f }; // t = 0.5
-            FloatAssert.Near(50f, source.Calculate(1f, ctx)); // 线性 1-t = 0.5；若按曲线应为 0.75
+            FloatAssert.Near(62.5f, source.Calculate(1f, new TestModifierContext { ElapsedTime = 1f }));
+            FloatAssert.Near(25f, source.Calculate(1f, new TestModifierContext { ElapsedTime = 2f }));
+            FloatAssert.Near(20f, source.Calculate(1f, new TestModifierContext { ElapsedTime = 4f }));
+            FloatAssert.Near(20f, source.Calculate(1f, new TestModifierContext { ElapsedTime = 8f }));
         }
 
         [Fact]

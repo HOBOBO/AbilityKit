@@ -4,6 +4,8 @@ using AbilityKit.Game.Flow;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
+using AbilityKit.Demo.Moba.Services.StateMachine;
+using AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Testing;
 using AbilityKit.Demo.Moba.View.Config;
@@ -61,6 +63,23 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.That(loader.TryLoadText("moba/actor_state_machines", out var json), Is.True);
             StringAssert.Contains("ying_zheng_ultimate_projectile", json);
+            var catalog = new MobaActorStateMachineProfileCatalog();
+            try
+            {
+                Assert.That(MobaActorStateMachineProfileJsonLoader.LoadJson(json, catalog), Is.EqualTo(1));
+                Assert.That(catalog.TryGet("ying_zheng_ultimate_projectile", out _), Is.True);
+            }
+            finally { catalog.Dispose(); }
+        }
+
+        [Test]
+        public void ProductionGraphsAndTriggers_ShouldUseEditorPublishedResources()
+        {
+            var loader = new ResourcesTextAssetLoader();
+            Assert.That(MobaCharacterHfsmProfile.LoadDefinition(loader).DefinitionId,
+                Is.EqualTo(MobaCharacterHfsmProfile.Id));
+            Assert.That(System.Array.Exists(MobaTriggerPlanLoadProfile.Default.Entries,
+                entry => entry.Path == "moba/effect_plans.json"), Is.False);
         }
 
         [Test]
@@ -181,6 +200,7 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void BuffDispelPolicy_InvalidAndRedundantValues_AreReportedWithStableCodes()
         {
+            AbilityKit.GameplayTags.GameplayTagManager.Instance.RegisterTags(new[] { "State.ControlImmune" });
             var config = new MobaTestConfigBuilder()
                 .AddDtos(
                     CreateBuffDto(7201, dispelPolicy: 99, dispelCategory: 0),
@@ -189,7 +209,7 @@ namespace AbilityKit.Game.Test.UnitTest
                         7203,
                         dispelPolicy: 2,
                         dispelCategory: 7,
-                        dispelBlockedByTagNames: new[] { MobaGameplayTagCatalog.State.ControlImmune }))
+                        dispelBlockedByTagNames: new[] { "State.ControlImmune" }))
                 .BuildDatabase();
             var report = new MobaRuntimeValidationReport();
             var validator = new MobaBattleConfigReferenceValidator();

@@ -1,0 +1,13 @@
+{
+  "rules": [
+    "business.actors",
+    "business.skills",
+    "business.buffs",
+    "business.projectiles",
+    "business.summons",
+    "business.presentation",
+    "business.gameplays",
+    "business.tags",
+    { "module": "business.modifiers", "after": ["business.tags"] }
+  ]
+}

@@ -10,41 +10,14 @@ using UnityEngine;
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 {
     /// <summary>
-    /// 把 demo.moba 的配置表 SO（MobaConfigTableAssetSO，字段形态为 T[] dataList）桥接到 excel-sync，
-    /// 实现 Excel ⇄ SO 双向同步。
-    ///
-    /// 定位：Excel 是落盘唯一来源，SO 是 Unity 侧派生产物（预览 / asset 引用载体）。
-    /// 导入（Excel→SO）会建立 baseline；导出（SO→Excel）走 excel-sync 的三方合并，冲突时中止并写 .conflicts.json。
-    ///
-    /// 依赖 excel-sync 对集合成员的泛化解析（大小写不敏感 + 支持 T[] 数组）。
-    /// 首个落地表：BuffSO / BuffDTO（其余表照此模式复制菜单项即可）。
-    /// 批处理/CI 入口见 MobaConfigHeadlessSync（-executeMethod）。
+    /// 旧 SO/Excel 同步工具，仅供迁移测试使用；MOBA 生产配置由 Production/Datas 经 Luban 发布。
     /// </summary>
     public static class MobaExcelSync
     {
         /// <summary>
-        /// 落盘真相源目录：仓库根的 Luban 工程 Datas 目录。Excel 是唯一真相源，SO 与 JSON 都是它的投影。
-        /// 注意 "../" 前缀——路径按 Application.dataPath（Unity/Assets）解析，需上溯到仓库根。
+        /// 旧 MiniTemplate 路径，仅供迁移工具和测试使用，不是生产编辑源。
         /// </summary>
         public const string ExcelFolder = "../LubanConfig/Moba/MiniTemplate/Datas";
-
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Excel/Buff: Import Excel -> SO")]
-        public static void ImportBuffExcelToSo()
-        {
-            Debug.LogError("The legacy MiniTemplate import is retired. Edit LubanConfig/Moba/Production/Datas/buffs.xlsx and run export_pipeline.py --apply.");
-        }
-
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Excel/Buff: Export SO -> Excel")]
-        public static void ExportBuffSoToExcel()
-        {
-            Debug.LogError("MOBA Production Excel is the source. Edit LubanConfig/Moba/Production/Datas/buffs.xlsx and run export_pipeline.py --apply.");
-        }
-
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Excel/Buff: Create Skeleton Excel")]
-        public static void CreateBuffSkeletonExcel()
-        {
-            Debug.LogError("MOBA Production Excel already exists in LubanConfig/Moba/Production/Datas/buffs.xlsx.");
-        }
 
         /// <summary>表对应的 Excel 文件名：{FileWithoutExt}.xlsx（与 Resources 数组 JSON 同名规则）。</summary>
         public static string ExcelFileNameFor(MobaConfigTableAssetSO table)

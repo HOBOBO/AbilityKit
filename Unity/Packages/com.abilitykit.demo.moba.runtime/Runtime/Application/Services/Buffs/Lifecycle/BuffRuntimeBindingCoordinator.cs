@@ -79,10 +79,10 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             _continuousBindings?.End(runtime, continuousReason);
         }
 
-        public void CleanupContinuous(global::ActorEntity target, int targetActorId, BuffRuntime runtime, bool applyRemovalTags)
+        public void CleanupContinuous(global::ActorEntity target, int targetActorId, BuffRuntime runtime, bool invalidateTags)
         {
             if (runtime == null) return;
-            _continuousBindings?.Cleanup(target, targetActorId, runtime, applyRemovalTags);
+            _continuousBindings?.Cleanup(target, targetActorId, runtime, invalidateTags);
         }
 
         public void NotifyLifecycle(BuffRuntime runtime, MobaRuntimeLifecycleEventKind kind, string reason)

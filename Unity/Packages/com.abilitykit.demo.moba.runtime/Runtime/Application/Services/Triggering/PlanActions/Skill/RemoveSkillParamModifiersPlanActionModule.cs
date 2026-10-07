@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 LogRejected(ctx, "source_id must be non-zero.");
                 return;
             }
-            if (!TryResolveRequired(ctx, out MobaSkillParamModifierService modifiers)) return;
+            if (!TryResolveRequired(ctx, out MobaTriggerModifierContinuousService modifiers)) return;
             if (!MobaPlanActionInputResolver.TryResolve(triggerArgs, ctx, out var coreInput))
             {
                 LogRejected(ctx, "requires combat execution context.");
@@ -39,7 +39,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 {
                     var actorId = targets[i];
                     if (actorId <= 0) continue;
-                    modifiers.ClearSource(actorId, args.SourceId);
+                    modifiers.Remove(actorId, args.SourceId);
                     LogApplied(ctx, $"actorId={actorId}, sourceId={args.SourceId}.");
                 }
             }

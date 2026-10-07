@@ -51,6 +51,7 @@ namespace AbilityKit.Demo.Moba.Predicates
             public const string OwnerMatchesPayloadSource = "predicate:owner_matches_payload_source";
             public const string OwnerMatchesPayloadTarget = "predicate:owner_matches_payload_target";
             public const string TargetIsFlyingProjectile = "predicate:target_is_flying_projectile";
+            public const string SourceTargetTagRules = "predicate:source_target_tag_rules";
         }
     }
 

@@ -10,6 +10,7 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class SkillCastContext : IMobaActorContextProvider, IMobaCombatContextSource, IMobaCombatExecutionContextProvider, IMobaTriggerLineageContextProvider, IMobaTriggerExecutionSnapshotProvider, IMobaOriginContextProvider, IMobaContextSourceProvider
     {
         public int SkillId;
+        public int BaseSkillId;
         public int SkillSlot;
         public int SkillLevel;
         public int CastFlowId;
@@ -100,6 +101,7 @@ namespace AbilityKit.Demo.Moba.Services
             IUnitFacade targetUnit)
         {
             SkillId = skillId;
+            BaseSkillId = 0;
             SkillSlot = skillSlot;
             SkillLevel = skillLevel;
             CastFlowId = 0;

@@ -4,68 +4,39 @@
   "attr_types": {},
   "skills": {},
   "passive_skills": {},
-  "skill_level_tables": {
-    "Levels": "array"
-  },
+  "skill_level_tables": {},
   "models": {},
-  "buffs": {
-    "Modifiers": "array"
-  },
-  "continuous_processes": {
-    "Modifiers": "array"
-  },
+  "buffs": {},
+  "continuous_processes": {},
+  "modifier_templates": {},
+  "modifier_parameters": {},
+  "tag_definitions": {},
+  "tag_rule_groups": {},
+  "tag_rule_nodes": {},
+  "tag_result_flags": {},
+  "tag_result_mappings": {},
+  "tag_behavior_gates": {},
+  "continuous_tag_templates": {},
   "projectile_launchers": {},
   "projectiles": {},
   "aoes": {},
   "emitters": {},
   "summons": {},
-  "summon_attr_inherits": {},
-  "component_templates": {
-    "Ops": "array"
-  },
+  "summon_attr_inherits": {"Scales": "array"},
+  "component_templates": {},
   "skill_button_templates": {},
-  "tag_templates": {},
-  "continuous_tag_templates": {},
-  "search_query_templates": {
-    "Provider": "object",
-    "Selector": "object",
-    "Scorers": "array",
-    "Rules": "array"
-  },
+  "search_query_templates": {},
   "spawn_summon_action_templates": {},
   "presentation_templates": {},
-  "battle_maps": {
-    "SpawnPoints": "array",
-    "WalkableAreas": "array",
-    "CollisionObjects": "array",
-    "Bounds": "object"
-  },
+  "vfx": {},
+  "battle_maps": {},
   "gameplays": {},
   "motion_groups": {},
-  "effects": {},
   "brains": {},
-  "actor_state_machines": {
-    "states": "array",
-    "transitions": "array"
-  },
-  "attributetemplates": {},
-  "battle_start": {
-    "Network": "object",
-    "Players": "array"
-  },
-  "character_hfsm": {
-    "machines": "array"
-  },
+  "battle_start": {},
   "character_view_actions": {
     "states": "array",
     "variants": "array"
   },
-  "demo_tbitem": {},
-  "dtbuff": {},
-  "effect_plans": {
-    "Strings": "object",
-    "Triggers": "array"
-  },
-  "ongoing_effects": {},
   "ability_nodes": {}
 }

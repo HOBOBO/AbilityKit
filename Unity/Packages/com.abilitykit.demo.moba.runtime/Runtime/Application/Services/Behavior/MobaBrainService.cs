@@ -32,6 +32,10 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly Dictionary<int, BrainCreationIdentity> _failedCreations = new();
         [WorldInject(required: false)] private IFrameTime _frameTime;
         [WorldInject(required: false)] private SearchTargetService _searchTargets;
+        [WorldInject(required: false)] private IMobaTagResultQueryService _tagResults;
+        [WorldInject(required: false)] private IMobaTagBehaviorGateQueryService _tagGates;
+        [WorldInject(required: false)] private IMobaEffectiveTagQueryService _effectiveTags;
+        [WorldInject(required: false)] private MobaSkillLoadoutService _skillLoadout;
 
         public MobaBrainDecisionDriverRegistry DecisionDrivers => _decisionDrivers;
 
@@ -66,9 +70,12 @@ namespace AbilityKit.Demo.Moba.Services
             _stateMachineProfiles = stateMachineProfiles;
             _worldQuery = new MobaWorldQuery(
                 new MobaBrainEntityManager(registry),
-                new MobaBrainBuffManager(registry),
+                new MobaBrainBuffManager(registry, () => _effectiveTags),
                 new MobaBrainAttributeSystem(registry),
-                allowMutations: false);
+                allowMutations: false,
+                tagResults: actorId => _tagResults?.GetResultFlags(actorId),
+                tagGate: (actorId, gateId) => _tagGates != null &&
+                    _tagGates.TryIsBlocked(actorId, gateId, out var blocked) ? blocked : null);
         }
 
         public BehaviorRuntime EnsureBehavior(global::ActorEntity actor)
@@ -306,7 +313,8 @@ namespace AbilityKit.Demo.Moba.Services
                 sourceKind,
                 sourceId,
                 _searchTargets,
-                GetCurrentTimeMs);
+                GetCurrentTimeMs,
+                _skillLoadout);
 
             try
             {

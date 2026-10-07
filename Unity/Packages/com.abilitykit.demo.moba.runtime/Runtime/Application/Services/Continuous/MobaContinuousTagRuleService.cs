@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Logging;
@@ -102,10 +103,12 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaContinuousTagRuleService))]
     public sealed class MobaContinuousTagRuleService : IMobaContinuousTagRuleService, IContinuousAdmissionPolicy, IContinuousLifecycleBinder, IWorldInitializable, IService
     {
-        private const int MaxReconcilePasses = 8;
+        private const int MinReconcilePasses = 8;
 
         private readonly HashSet<IContinuous> _pausedByTags = new HashSet<IContinuous>();
         private readonly Dictionary<IContinuous, MobaContinuousTagRuleResult> _lastResults = new Dictionary<IContinuous, MobaContinuousTagRuleResult>();
+        private readonly SortedSet<int> _pendingOwners = new SortedSet<int>();
+        private readonly List<IContinuous> _ownerSnapshot = new List<IContinuous>();
         private bool _reconciling;
 
         private IMobaEffectiveTagQueryService _effectiveTags;
@@ -134,6 +137,8 @@ namespace AbilityKit.Demo.Moba.Services
 
             _pausedByTags.Clear();
             _lastResults.Clear();
+            _pendingOwners.Clear();
+            _ownerSnapshot.Clear();
             _effectiveTags = null;
             _continuous = null;
             _evaluator = null;
@@ -160,10 +165,12 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            var allowed = _evaluator.CanActivate(continuous, out reason);
-            var evaluation = _evaluator.Evaluate(continuous);
-            SetResult(continuous, evaluation);
-            Log.Warning($"[MobaContinuousTagRuleService] CanActivate evaluated. ownerActorId={ownerActorId} continuousType={continuousType} allowed={allowed} reason={reason ?? "<none>"} action={evaluation.Action} resultAllowed={evaluation.Allowed} resultReason={evaluation.Reason ?? "<none>"}");
+            var evaluation = _evaluator.EvaluateFast(continuous);
+            var allowed = evaluation.Allowed;
+            reason = evaluation.Reason;
+            SetResult(continuous, allowed ? evaluation : _evaluator.Evaluate(continuous));
+            if (!allowed)
+                Log.Warning($"[MobaContinuousTagRuleService] CanActivate rejected. ownerActorId={ownerActorId} continuousType={continuousType} reason={reason ?? "<none>"} action={evaluation.Action}");
             return allowed;
         }
 
@@ -191,78 +198,97 @@ namespace AbilityKit.Demo.Moba.Services
         public void ReconcileOwner(int ownerActorId)
         {
             if (ownerActorId <= 0 || _continuous == null || _effectiveTags == null) return;
-            if (_reconciling) return;
+            if (_reconciling)
+            {
+                _pendingOwners.Add(ownerActorId);
+                return;
+            }
 
             _reconciling = true;
             try
             {
-                for (int pass = 0; pass < MaxReconcilePasses; pass++)
+                _pendingOwners.Add(ownerActorId);
+                var processed = 0;
+                while (_pendingOwners.Count > 0)
                 {
-                    _effectiveTags.MarkDirty(ownerActorId);
-                    var tags = _effectiveTags.GetEffectiveTags(ownerActorId);
-                    var changed = ReconcileOwnerPass(ownerActorId, tags);
-                    if (!changed) break;
+                    if (++processed > 1024)
+                        throw new InvalidOperationException("MOBA continuous tag reconciliation exceeded its owner budget.");
+                    var nextOwner = _pendingOwners.Min;
+                    _pendingOwners.Remove(nextOwner);
+                    ReconcileOwnerNow(nextOwner);
                 }
             }
             finally
             {
+                _pendingOwners.Clear();
+                _ownerSnapshot.Clear();
                 _reconciling = false;
             }
         }
 
+        private void ReconcileOwnerNow(int ownerActorId)
+        {
+            var ownerCount = _continuous.GetOwnerContinuous(ownerActorId)?.Count ?? 0;
+            var maxPasses = Math.Max(MinReconcilePasses, ownerCount + 1);
+            for (int pass = 0; pass < maxPasses; pass++)
+            {
+                if (!ReconcileOwnerPass(ownerActorId)) return;
+            }
+            throw new InvalidOperationException(
+                $"MOBA continuous tag rules did not converge for actor {ownerActorId} after {maxPasses} passes.");
+        }
+
         public void OnRegistered(IContinuous continuous, IContinuousManager manager)
         {
-            SetResult(continuous, Explain(continuous));
-            ReconcileOwnerFor(continuous);
+            SetResult(continuous, EvaluateLifecycle(continuous));
         }
 
         public void OnActivated(IContinuous continuous, IContinuousManager manager)
         {
             _pausedByTags.Remove(continuous);
-            SetResult(continuous, Explain(continuous));
-            ReconcileOwnerFor(continuous);
+            NotifyGrantChanged(continuous);
         }
 
         public void OnPaused(IContinuous continuous, IContinuousManager manager)
         {
-            MarkDirty(continuous);
-            SetResult(continuous, Explain(continuous));
+            NotifyGrantChanged(continuous);
         }
 
         public void OnResumed(IContinuous continuous, IContinuousManager manager)
         {
             _pausedByTags.Remove(continuous);
-            SetResult(continuous, Explain(continuous));
-            ReconcileOwnerFor(continuous);
+            NotifyGrantChanged(continuous);
         }
 
         public void OnEnded(IContinuous continuous, ContinuousEndReason reason, IContinuousManager manager)
         {
             _pausedByTags.Remove(continuous);
-            SetResult(continuous, Explain(continuous));
-            ReconcileOwnerFor(continuous);
+            NotifyGrantChanged(continuous);
         }
 
         public void OnUnregistered(IContinuous continuous, ContinuousEndReason reason, IContinuousManager manager)
         {
             _pausedByTags.Remove(continuous);
-            SetResult(continuous, Explain(continuous));
-            ReconcileOwnerFor(continuous);
+            if (continuous != null && continuous.IsActive)
+                NotifyGrantChanged(continuous);
+            if (continuous != null) _lastResults.Remove(continuous);
         }
 
-        private bool ReconcileOwnerPass(int ownerActorId, GameplayTagContainer tags)
+        private bool ReconcileOwnerPass(int ownerActorId)
         {
             var ownerContinuous = _continuous.GetOwnerContinuous(ownerActorId);
             if (ownerContinuous == null || ownerContinuous.Count == 0) return false;
 
-            var snapshot = new List<IContinuous>(ownerContinuous);
+            _ownerSnapshot.Clear();
+            for (var i = 0; i < ownerContinuous.Count; i++)
+                _ownerSnapshot.Add(ownerContinuous[i]);
             var changed = false;
-            for (int i = 0; i < snapshot.Count; i++)
+            for (int i = 0; i < _ownerSnapshot.Count; i++)
             {
-                var continuous = snapshot[i];
-                if (!CanEvaluate(continuous)) continue;
+                var continuous = _ownerSnapshot[i];
+                if (!CanEvaluate(continuous) || !HasReactiveRequirements(continuous)) continue;
 
-                var result = Explain(continuous);
+                var result = _evaluator.EvaluateFast(continuous);
                 if (continuous.IsActive && result.Action == MobaContinuousTagRuleAction.Remove)
                 {
                     _pausedByTags.Remove(continuous);
@@ -293,8 +319,21 @@ namespace AbilityKit.Demo.Moba.Services
                     }
                 }
             }
-
+            _ownerSnapshot.Clear();
             return changed;
+        }
+
+        private MobaContinuousTagRuleResult EvaluateLifecycle(IContinuous continuous) =>
+            _evaluator?.EvaluateFast(continuous) ?? MobaContinuousTagRuleResult.None;
+
+        private void NotifyGrantChanged(IContinuous continuous)
+        {
+            if (!(continuous?.Config is IMobaContinuousTagConfig tagConfig) ||
+                tagConfig.TagRequirements?.ApplicationTags == null ||
+                tagConfig.TagRequirements.ApplicationTags.Count == 0) return;
+            MarkDirty(continuous);
+            SetResult(continuous, EvaluateLifecycle(continuous));
+            ReconcileOwnerFor(continuous);
         }
 
         private void SetResult(IContinuous continuous, MobaContinuousTagRuleResult result)
@@ -313,6 +352,19 @@ namespace AbilityKit.Demo.Moba.Services
         private static bool CanEvaluate(IContinuous continuous)
         {
             return continuous != null && !continuous.IsTerminated && continuous.Config is IMobaContinuousTagConfig;
+        }
+
+        private static bool HasReactiveRequirements(IContinuous continuous)
+        {
+            var requirements = (continuous.Config as IMobaContinuousTagConfig)?.TagRequirements;
+            return requirements != null &&
+                (HasCondition(requirements.RemovalRequired) || HasCondition(requirements.OngoingRequired));
+        }
+
+        private static bool HasCondition(GameplayTagRequirements condition)
+        {
+            return condition.Query.IsValid || condition.Required != null && condition.Required.Count > 0 ||
+                condition.Blocked != null && condition.Blocked.Count > 0;
         }
 
         private static int ResolveOwnerActorId(IContinuous continuous)

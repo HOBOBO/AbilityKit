@@ -3,7 +3,7 @@ name: host-extension
 description: AbilityKit Host 扩展包（com.abilitykit.host.extension，v0.1.0 Beta）——框架通用的 Host runtime 扩展（FrameSyncDriver/Rollback/CatchUp/Session/Client/Server/Time/WorldStart）。⚠ Moba 专属 host adapter（Runtime/Moba/ 子树，38 文件 + 3 asmdef）已于 0.1.0 提取到新的 demo 包 com.abilitykit.demo.moba.host；Moba 相关设计文档仍在本目录 moba_*.md 中但代码位置已变。触发场景：FrameSync 驱动、客户端预测/回滚/对账、BattleHost 生命周期、CatchUp、FixedStepTickRunner、WorldAutoStart。
 ---
 
-# host-extension skill
+# Host 扩展指引
 
 基于源码核校（2026-07-31）。`com.abilitykit.host.extension` 包根：`Unity/Packages/com.abilitykit.host.extension/`，version `0.1.0`（Beta，`AbilityKitStable=true`）。⚠ Moba 专属子树（`Runtime/Moba/`）已于 0.1.0 提取到 `com.abilitykit.demo.moba.host`；以下包结构仅列出通用部分。
 
@@ -44,7 +44,7 @@ com.abilitykit.host.extension/
 
 **安装顺序**（源码验证）：`FrameSync → ServerFrameTime → WorldAutoStart → Rollback`（`MobaHostRuntimeBuilder.CreateModules` 实现）。
 
-## Sections
+## 分节索引
 
 - [host_modules.md](host_modules.md) — 5 个 IHostRuntimeModule + 顺序约束
 - [client_prediction.md](client_prediction.md) — ClientPredictionDriverModule + 配置接口（含新 IClientPredictionReconcileControl）

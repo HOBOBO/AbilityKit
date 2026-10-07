@@ -17,13 +17,13 @@ public sealed partial class DRSearchQueryTemplates : Luban.BeanBase
     public DRSearchQueryTemplates(ByteBuf _buf) 
     {
         Id = _buf.ReadInt();
-        ExplicitTargetPolicy = _buf.ReadInt();
+        ExplicitTargetPolicy = (SearchQueryExplicitTargetPolicy)_buf.ReadInt();
         MaxCount = _buf.ReadInt();
         Name = _buf.ReadString();
-        Provider = _buf.ReadString();
-        Rules = _buf.ReadString();
-        Scorers = _buf.ReadString();
-        Selector = _buf.ReadString();
+        Provider = global::moba_luban.SearchTargetProvider.DeserializeSearchTargetProvider(_buf);
+        {int n0 = _buf.ReadSize(); Rules = new System.Collections.Generic.List<SearchTargetRule>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { SearchTargetRule _e0;  _e0 = global::moba_luban.SearchTargetRule.DeserializeSearchTargetRule(_buf); Rules.Add(_e0);}}
+        {int n0 = _buf.ReadSize(); Scorers = new System.Collections.Generic.List<SearchTargetScorer>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { SearchTargetScorer _e0;  _e0 = global::moba_luban.SearchTargetScorer.DeserializeSearchTargetScorer(_buf); Scorers.Add(_e0);}}
+        Selector = global::moba_luban.SearchTargetSelector.DeserializeSearchTargetSelector(_buf);
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
     }
@@ -34,17 +34,38 @@ public sealed partial class DRSearchQueryTemplates : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
-    public readonly int ExplicitTargetPolicy;
+    /// <summary>
+    /// 显式目标策略；按 SearchQueryExplicitTargetPolicy 枚举或 bean 定义填写。
+    /// </summary>
+    public readonly SearchQueryExplicitTargetPolicy ExplicitTargetPolicy;
+    /// <summary>
+    /// 最大数量；用于目标查询配置。
+    /// </summary>
     public readonly int MaxCount;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
-    public readonly string Provider;
-    public readonly string Rules;
-    public readonly string Scorers;
-    public readonly string Selector;
+    /// <summary>
+    /// Provider.Kind：当前记录的类型；取值由对应配置契约定义。
+    /// </summary>
+    public readonly SearchTargetProvider Provider;
+    public readonly System.Collections.Generic.List<SearchTargetRule> Rules;
+    public readonly System.Collections.Generic.List<SearchTargetScorer> Scorers;
+    /// <summary>
+    /// Selector.Kind：当前记录的类型；取值由对应配置契约定义。
+    /// </summary>
+    public readonly SearchTargetSelector Selector;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 1508950215;
@@ -62,8 +83,8 @@ public sealed partial class DRSearchQueryTemplates : Luban.BeanBase
         + "MaxCount:" + MaxCount + ","
         + "Name:" + Name + ","
         + "Provider:" + Provider + ","
-        + "Rules:" + Rules + ","
-        + "Scorers:" + Scorers + ","
+        + "Rules:" + Luban.StringUtil.CollectionToString(Rules) + ","
+        + "Scorers:" + Luban.StringUtil.CollectionToString(Scorers) + ","
         + "Selector:" + Selector + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","

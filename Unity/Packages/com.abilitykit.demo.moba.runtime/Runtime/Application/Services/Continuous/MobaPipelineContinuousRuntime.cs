@@ -39,7 +39,6 @@ namespace AbilityKit.Demo.Moba.Services
             SourceActorId = sourceActorId > 0 ? sourceActorId : ResolveSourceActorId(Context);
             TargetActorId = targetActorId > 0 ? targetActorId : ResolveTargetActorId(Context, SourceActorId);
             SourceContextId = sourceContextId != 0 ? sourceContextId : ResolveSourceContextId(Context);
-            ModifierSourceId = CreateModifierSourceId(SourceContextId, PipelineConfig.ConfigId, OwnerActorId, SourceActorId, TargetActorId);
             _source = source;
             _kind = string.IsNullOrEmpty(kind) ? "PipelineContinuous" : kind;
             _config = new MobaPipelineContinuousConfig(this, requirements ?? new ContinuousTagRequirements(), modifiers);
@@ -54,7 +53,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int SourceActorId { get; }
         public int TargetActorId { get; }
         public long SourceContextId { get; }
-        public int ModifierSourceId { get; }
+        public int ModifierSourceId => AllocatedModifierSourceId;
         public EAbilityPipelineState PipelineState => Run.State;
         public AbilityPipelinePhaseId CurrentPhaseId => Run.CurrentPhaseId;
         public override IContinuousConfig Config => _config;
@@ -245,20 +244,6 @@ namespace AbilityKit.Demo.Moba.Services
             return context != null ? context.GetSourceContextId() : 0L;
         }
 
-        private static int CreateModifierSourceId(long sourceContextId, int configId, int ownerActorId, int sourceActorId, int targetActorId)
-        {
-            unchecked
-            {
-                var hash = 17;
-                hash = hash * 31 + sourceContextId.GetHashCode();
-                hash = hash * 31 + configId;
-                hash = hash * 31 + ownerActorId;
-                hash = hash * 31 + sourceActorId;
-                hash = hash * 31 + targetActorId;
-                return hash == 0 ? configId : hash;
-            }
-        }
-
         private sealed class MobaPipelineContinuousConfig : MobaContinuousConfigBase
         {
             private readonly MobaPipelineContinuousRuntime<TCtx> _runtime;
@@ -275,6 +260,8 @@ namespace AbilityKit.Demo.Moba.Services
             public override string Id => $"pipeline_continuous:{_runtime.OwnerActorId}:{_runtime.SourceActorId}:{_runtime.TargetActorId}:{_runtime.ConfigId}:{_runtime.SourceContextId}";
             public override long OwnerId => _runtime.OwnerActorId;
             public override int OwnerActorId => _runtime.OwnerActorId;
+            public override int SourceActorId => _runtime.SourceActorId;
+            public override int TargetActorId => _runtime.TargetActorId;
             public override int ModifierSourceId => _runtime.ModifierSourceId;
             public override GameplayTagSource TagSource => CreateSource(_runtime);
 

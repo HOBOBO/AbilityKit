@@ -3,7 +3,7 @@ name: ability-kit
 description: AbilityKit MOBA 技能框架速查与实现约束。涵盖两套触发器引擎（旧字符串键引擎 + 新 Plan 行为树引擎）、技能施放管线（SkillPipelineRunner/SkillCastCoordinator）、Pipeline（com.abilitykit.pipeline 独立包）、Effect 系统（替代旧 EffectSource）、BUFF 生命周期、Combat/Damage Pipeline、Continuous、Host/WorldBlueprints 多包装配、Console Demo 运行调试。触发场景：用户提到 abilitykit、技能 cast/pipeline、触发器 trigger、event bus、被动 Passive、Plan 行为树、BUFF apply/remove/tick、EffectService/EffectInstance、PipelineRuntime/EditorPipelineRegistry、HostRuntime/WorldBlueprintRegistry、IWorldModule、Console Demo、dotnet run、AutoTestRunner、Configs/moba|luban|ability、帧同步日志、DamagePipeline、Continuous、MobaTriggerPlanExecutor。
 ---
 
-# ability-kit skill
+# AbilityKit 能力指引
 
 基于当前源码核校（2026-07-31）。⚠ 稳定化工程已把 25 个核心框架包推到 `0.1.0` Beta（基础层/同步/战斗/技能/网络/流/上下文），每包已开 `AbilityKitStable=true`（警告即错误 + 可空硬错误，core 的剩余标注由 core.csproj NoWarn 逐码追踪）。本目录按业务域分子目录。
 

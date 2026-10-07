@@ -35,10 +35,8 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public GameplayTagRequirements OngoingRequired { get; set; }
 
-        /// <summary>
-        /// 移除时授予的标签
-        /// </summary>
-        public GameplayTagContainer RemovalTags { get; set; } = new();
+        /// <summary>持续对象执行时需要避开的已编译结果位。</summary>
+        public ulong ExecutionBlockedResultMask { get; set; }
 
         /// <summary>
         /// 创建空的标签需求
@@ -67,9 +65,11 @@ namespace AbilityKit.GameplayTags
         public bool ShouldRemove(GameplayTagContainer entityTags)
         {
             if (entityTags == null) return false;
-            if (RemovalRequired.Required == null) return false;
-            
-            return entityTags.HasAll(RemovalRequired.Required);
+            if ((RemovalRequired.Required == null || RemovalRequired.Required.IsEmpty) &&
+                (RemovalRequired.Blocked == null || RemovalRequired.Blocked.IsEmpty) &&
+                !RemovalRequired.Query.IsValid)
+                return false;
+            return RemovalRequired.IsSatisfiedBy(entityTags);
         }
 
         /// <summary>
@@ -79,21 +79,7 @@ namespace AbilityKit.GameplayTags
         {
             if (entityTags == null) return true;
             
-            // 检查阻塞标签
-            if (OngoingRequired.Blocked != null && !OngoingRequired.Blocked.IsEmpty)
-            {
-                if (entityTags.HasAny(OngoingRequired.Blocked))
-                    return false;
-            }
-            
-            // 检查必需标签
-            if (OngoingRequired.Required != null && !OngoingRequired.Required.IsEmpty)
-            {
-                if (!entityTags.HasAll(OngoingRequired.Required))
-                    return false;
-            }
-            
-            return true;
+            return OngoingRequired.IsSatisfiedBy(entityTags);
         }
 
         #endregion

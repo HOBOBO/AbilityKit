@@ -35,7 +35,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (index < 0 || index >= actor.skillLoadout.ActiveSkills.Length) return false;
 
             var candidate = actor.skillLoadout.ActiveSkills[index];
-            if (candidate == null || candidate.SkillId != skillId) return false;
+            if (candidate == null || candidate.SkillId <= 0) return false;
 
             runtime = candidate;
             return true;

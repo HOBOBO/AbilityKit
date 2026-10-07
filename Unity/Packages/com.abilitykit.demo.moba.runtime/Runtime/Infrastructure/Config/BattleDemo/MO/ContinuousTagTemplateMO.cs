@@ -16,7 +16,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public GameplayTagContainer RemovalBlockedTags { get; }
         public GameplayTagContainer OngoingRequiredTags { get; }
         public GameplayTagContainer OngoingBlockedTags { get; }
-        public GameplayTagContainer RemovalTags { get; }
+        public GameplayTagQuery ActivationCondition { get; }
+        public GameplayTagQuery RemovalCondition { get; }
+        public GameplayTagQuery OngoingCondition { get; }
+        public ulong ExecutionBlockedResultMask { get; }
 
         public ContinuousTagTemplateMO(ContinuousTagTemplateDTO dto)
         {
@@ -24,14 +27,17 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
             Id = dto.Id;
             Name = dto.Name;
-            ActivationRequiredTags = MobaGameplayTagCatalog.ToContainer(dto.ActivationRequiredTagNames);
-            ActivationBlockedTags = MobaGameplayTagCatalog.ToContainer(dto.ActivationBlockedTagNames);
-            ApplicationTags = MobaGameplayTagCatalog.ToContainer(dto.ApplicationTagNames);
-            RemovalRequiredTags = MobaGameplayTagCatalog.ToContainer(dto.RemovalRequiredTagNames);
-            RemovalBlockedTags = MobaGameplayTagCatalog.ToContainer(dto.RemovalBlockedTagNames);
-            OngoingRequiredTags = MobaGameplayTagCatalog.ToContainer(dto.OngoingRequiredTagNames);
-            OngoingBlockedTags = MobaGameplayTagCatalog.ToContainer(dto.OngoingBlockedTagNames);
-            RemovalTags = MobaGameplayTagCatalog.ToContainer(dto.RemovalTagNames);
+            ActivationRequiredTags = MobaGameplayTagCatalog.ToConfigContainer(dto.ActivationRequiredTagNames);
+            ActivationBlockedTags = MobaGameplayTagCatalog.ToConfigContainer(dto.ActivationBlockedTagNames);
+            ApplicationTags = MobaGameplayTagCatalog.ToConfigContainer(dto.ApplicationTagNames);
+            RemovalRequiredTags = MobaGameplayTagCatalog.ToConfigContainer(dto.RemovalRequiredTagNames);
+            RemovalBlockedTags = MobaGameplayTagCatalog.ToConfigContainer(dto.RemovalBlockedTagNames);
+            OngoingRequiredTags = MobaGameplayTagCatalog.ToConfigContainer(dto.OngoingRequiredTagNames);
+            OngoingBlockedTags = MobaGameplayTagCatalog.ToConfigContainer(dto.OngoingBlockedTagNames);
+            ActivationCondition = MobaTagConditionCompiler.Compile(dto.ActivationCondition);
+            RemovalCondition = MobaTagConditionCompiler.Compile(dto.RemovalCondition);
+            OngoingCondition = MobaTagConditionCompiler.Compile(dto.OngoingCondition);
+            ExecutionBlockedResultMask = dto.ExecutionBlockedResultMask;
         }
     }
 }

@@ -31,7 +31,6 @@
 
         public const string SkillButtonTemplatesFile = "skill_button_templates";
 
-        public const string TagTemplatesFile = "tag_templates";
         public const string ContinuousTagTemplatesFile = "continuous_tag_templates";
 
         public const string SearchQueryTemplatesFile = "search_query_templates";

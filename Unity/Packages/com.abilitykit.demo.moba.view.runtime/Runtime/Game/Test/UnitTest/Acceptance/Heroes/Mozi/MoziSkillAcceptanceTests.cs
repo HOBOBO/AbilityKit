@@ -63,9 +63,13 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 const int basicAttackSlot = 4;
                 const int normalBasicAttackSkillId = 10040011;
-                var modifiers = harness.World.Services.Resolve<MobaSkillParamModifierService>();
-                harness.AssertSlotSkill(basicAttackSlot, normalBasicAttackSkillId);
-                Assert.AreEqual(10040112, modifiers.Skill.ResolveSkillId(actorId, normalBasicAttackSkillId), "Mozi skill 1 buff should override normal basic attack skill id to the enhanced basic attack.");
+                var candidates = harness.World.Services.Resolve<MobaSkillSlotCandidateService>();
+                var loadout = harness.World.Services.Resolve<MobaSkillLoadoutService>();
+                Assert.IsTrue(loadout.TryGetBaseSkillId(actorId, basicAttackSlot, out var baseSkillId));
+                Assert.AreEqual(normalBasicAttackSkillId, baseSkillId);
+                Assert.IsTrue(loadout.TryGetSkillId(actorId, basicAttackSlot, out var effectiveSkillId));
+                Assert.AreEqual(10040112, effectiveSkillId);
+                Assert.AreEqual(10040112, candidates.Resolve(actorId, basicAttackSlot, normalBasicAttackSkillId).EffectiveSkillId, "Mozi skill 1 buff should select the enhanced basic attack in its slot.");
 
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var cast = skills.TryCastSkill(actorId, normalBasicAttackSkillId, slot: basicAttackSlot, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: targetActorId);
@@ -79,7 +83,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 harness.Tick(1);
                 Assert.IsFalse(harness.HasActorBuff(actorId, 10040101), "Mozi enhanced basic attack should consume the skill 1 modifier buff.");
-                Assert.AreEqual(normalBasicAttackSkillId, modifiers.Skill.ResolveSkillId(actorId, normalBasicAttackSkillId), "Mozi normal basic attack skill id should recover after the modifier buff is removed.");
+                Assert.AreEqual(normalBasicAttackSkillId, candidates.Resolve(actorId, basicAttackSlot, normalBasicAttackSkillId).EffectiveSkillId, "Mozi normal basic attack skill id should recover after the modifier buff is removed.");
             }
         }
 
@@ -90,7 +94,8 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 AssertMoziSkill2ControlChain(harness);
 
-                var effectTrace = HeroSkillHeadlessContract.CastSlotAndAssertEffect(harness, Skill2, "mozi skill 2 endpoint crater contract");
+                var effectTrace = HeroSkillHeadlessContract.CastSlotAndAssertEffect(harness, Skill2, "mozi skill 2 endpoint crater contract",
+                    aimDir: new Vec3(1f, 0f, -1.5f));
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.ShootProjectileId.Value, TriggeringConstants.Actions.ShootProjectile);
                 harness.AssertProjectileLaunchedUnderEffect(effectTrace.RootId, 31040201, 30040201);
                 var spawn = TickUntilProjectileSpawnSnapshot(harness, 30040201, maxTicks: 30);
@@ -289,6 +294,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var cast = skills.TryCastBySlot(actorId, Skill1.Slot, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
                 Assert.IsTrue(cast.Success, $"Mozi skill 1 should cast successfully. failReason={cast.FailReason}");
 
+                harness.TickUntilSkillStops(actorId, Skill1.Slot, maxTicks: 120, message: "Mozi skill 1 must complete before its cast-complete passive is checked.");
                 harness.TickUntilTraceNode(MobaExecutionKind.SkillCast, Skill1.SkillId, maxTicks: 10, message: "Mozi skill 1 should publish its cast trace.");
                 var passiveTrace = harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, 10040000, maxTicks: 120, message: "Mozi cast-complete passive should execute through the formal owner-bound effect gateway.");
                 harness.AssertActionExecutedUnderEffect(passiveTrace.RootId, (int)TriggeringConstants.AddBuffId.Value, TriggeringConstants.Actions.AddBuff);
@@ -562,9 +568,9 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual((int)ProjectileEventKind.Spawn, spawn.Kind, "Mozi skill 2 should emit a projectile spawn snapshot for the cannon.");
             Assert.Greater(spawn.LauncherActorId, 0, "Mozi skill 2 cannon spawn snapshot should keep the launcher actor for follow/position resolution.");
             Assert.Greater(spawn.ProjectileActorId, 0, "Mozi skill 2 cannon spawn snapshot should expose the moving projectile actor for scene VFX follow binding.");
-            Assert.AreEqual(1f, spawn.ForwardX, 0.0001f, "Mozi skill 2 cannon spawn snapshot should carry launch forward for VFX orientation.");
+            Assert.AreEqual(0.5547002f, spawn.ForwardX, 0.0001f, "Mozi skill 2 cannon spawn snapshot should carry launch forward for VFX orientation.");
             Assert.AreEqual(0f, spawn.ForwardY, 0.0001f, "Mozi skill 2 cannon spawn snapshot should stay on the XZ plane.");
-            Assert.AreEqual(0f, spawn.ForwardZ, 0.0001f, "Mozi skill 2 cannon spawn snapshot should follow the skill aim direction.");
+            Assert.AreEqual(-0.8320503f, spawn.ForwardZ, 0.0001f, "Mozi skill 2 cannon spawn snapshot should follow the skill aim direction.");
 
             var projectileActor = harness.AssertActorEntity(spawn.ProjectileActorId);
             Assert.IsTrue(projectileActor.hasTransform, "Mozi skill 2 cannon projectile actor should have a transform for snapshot-driven movement.");

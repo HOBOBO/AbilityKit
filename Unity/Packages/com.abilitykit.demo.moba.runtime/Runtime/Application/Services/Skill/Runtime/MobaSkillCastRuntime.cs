@@ -855,6 +855,7 @@ namespace AbilityKit.Demo.Moba.Services
             Generation = generation;
             RootContextId = request.RootContextId;
             SkillId = request.SkillId;
+            BaseSkillId = request.BaseSkillId;
             SkillSlot = request.SkillSlot;
             SkillLevel = request.SkillLevel;
             Sequence = request.Sequence;
@@ -871,6 +872,7 @@ namespace AbilityKit.Demo.Moba.Services
         public long RootContextId { get; internal set; }
         public MobaSkillCastRuntimeHandle Handle => new MobaSkillCastRuntimeHandle(RuntimeId, Generation, RootContextId);
         public int SkillId { get; }
+        public int BaseSkillId { get; private set; }
         public int SkillSlot { get; }
         public int SkillLevel { get; }
         public int Sequence { get; }
@@ -1037,7 +1039,8 @@ namespace AbilityKit.Demo.Moba.Services
                 IsEnded,
                 EndReason,
                 _children.ToArray(),
-                Blackboard.CaptureRollbackSnapshot());
+                Blackboard.CaptureRollbackSnapshot(),
+                BaseSkillId);
         }
 
         internal void RestoreRollbackSnapshot(in MobaSkillCastRuntimeSnapshot snapshot)
@@ -1045,6 +1048,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (snapshot.RuntimeId != RuntimeId || snapshot.Generation != Generation)
                 throw new InvalidOperationException($"Skill runtime identity mismatch. expected={RuntimeId}:{Generation} actual={snapshot.RuntimeId}:{snapshot.Generation}");
             RootContextId = snapshot.RootContextId;
+            BaseSkillId = snapshot.BaseSkillId;
             TargetActorId = snapshot.TargetActorId;
             AimPos = snapshot.AimPos;
             AimDir = snapshot.AimDir;
@@ -1083,10 +1087,11 @@ namespace AbilityKit.Demo.Moba.Services
             long runtimeId, int generation, long rootContextId, int skillId, int skillSlot, int skillLevel,
             int sequence, int casterActorId, int targetActorId, Vec3 aimPos, Vec3 aimDir, SkillCastStage stage,
             bool pipelineEnded, bool isEnding, bool isEnded, MobaSkillRuntimeEndReason endReason,
-            MobaSkillRuntimeChildRef[] children, MobaSkillRuntimeBlackboardSnapshotEntry[] blackboardEntries)
+            MobaSkillRuntimeChildRef[] children, MobaSkillRuntimeBlackboardSnapshotEntry[] blackboardEntries,
+            int baseSkillId)
         {
             RuntimeId = runtimeId; Generation = generation; RootContextId = rootContextId;
-            SkillId = skillId; SkillSlot = skillSlot; SkillLevel = skillLevel; Sequence = sequence;
+            SkillId = skillId; BaseSkillId = baseSkillId; SkillSlot = skillSlot; SkillLevel = skillLevel; Sequence = sequence;
             CasterActorId = casterActorId; TargetActorId = targetActorId; AimPos = aimPos; AimDir = aimDir;
             Stage = stage; PipelineEnded = pipelineEnded; IsEnding = isEnding; IsEnded = isEnded; EndReason = endReason;
             Children = children ?? Array.Empty<MobaSkillRuntimeChildRef>();
@@ -1097,6 +1102,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int Generation { get; }
         public long RootContextId { get; }
         public int SkillId { get; }
+        public int BaseSkillId { get; }
         public int SkillSlot { get; }
         public int SkillLevel { get; }
         public int Sequence { get; }
@@ -1125,9 +1131,11 @@ namespace AbilityKit.Demo.Moba.Services
             in Vec3 aimPos,
             in Vec3 aimDir,
             long rootContextId,
-            long diagnosticCommandId = 0L)
+            long diagnosticCommandId = 0L,
+            int baseSkillId = 0)
         {
             SkillId = skillId;
+            BaseSkillId = baseSkillId;
             SkillSlot = skillSlot;
             SkillLevel = skillLevel;
             Sequence = sequence;
@@ -1140,6 +1148,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public int SkillId { get; }
+        public int BaseSkillId { get; }
         public int SkillSlot { get; }
         public int SkillLevel { get; }
         public int Sequence { get; }

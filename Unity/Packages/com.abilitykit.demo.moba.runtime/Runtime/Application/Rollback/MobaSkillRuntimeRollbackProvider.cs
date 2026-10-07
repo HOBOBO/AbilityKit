@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     {
         public const int DefaultKey = 10012;
         private const int LocalPayloadVersion = 1;
-        private const int RuntimePayloadVersion = 2;
+        private const int RuntimePayloadVersion = 3;
         private readonly MobaSkillCastRuntimeService _runtimes;
 
         public MobaSkillRuntimeRollbackProvider(MobaSkillCastRuntimeService runtimes)
@@ -274,7 +274,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                 value.RuntimeId, value.Generation, value.RootContextId, value.SkillId, value.SkillSlot,
                 value.SkillLevel, value.Sequence, value.CasterActorId, value.TargetActorId,
                 value.AimPos.X, value.AimPos.Y, value.AimPos.Z, value.AimDir.X, value.AimDir.Y, value.AimDir.Z,
-                (int)value.Stage, value.PipelineEnded, value.IsEnding, value.IsEnded, (int)value.EndReason, children, boards);
+                (int)value.Stage, value.PipelineEnded, value.IsEnding, value.IsEnded, (int)value.EndReason,
+                children, boards, value.BaseSkillId);
         }
 
         private static MobaSkillCastRuntimeSnapshot FromSerializable(in MobaSkillRuntimeRollbackEntry value)
@@ -291,7 +292,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 value.SkillLevel, value.Sequence, value.CasterActorId, value.TargetActorId,
                 new Vec3(value.AimX, value.AimY, value.AimZ), new Vec3(value.DirX, value.DirY, value.DirZ),
                 (SkillCastStage)value.Stage, value.PipelineEnded, value.IsEnding, value.IsEnded,
-                (MobaSkillRuntimeEndReason)value.EndReason, children, boards);
+                (MobaSkillRuntimeEndReason)value.EndReason, children, boards, value.BaseSkillId);
         }
 
         private static MobaSkillRuntimeBlackboardRollbackEntry ToSerializable(in MobaSkillRuntimeBlackboardSnapshotEntry entry)
@@ -497,9 +498,10 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(18)] public readonly bool IsEnded; [MemoryPackOrder(19)] public readonly int EndReason;
         [MemoryPackOrder(20)] public readonly MobaSkillRuntimeChildRollbackEntry[] Children;
         [MemoryPackOrder(21)] public readonly MobaSkillRuntimeBlackboardRollbackEntry[] BlackboardEntries;
+        [MemoryPackOrder(22)] public readonly int BaseSkillId;
         [MemoryPackConstructor]
-        public MobaSkillRuntimeRollbackEntry(long runtimeId, int generation, long rootContextId, int skillId, int skillSlot, int skillLevel, int sequence, int casterActorId, int targetActorId, float aimX, float aimY, float aimZ, float dirX, float dirY, float dirZ, int stage, bool pipelineEnded, bool isEnding, bool isEnded, int endReason, MobaSkillRuntimeChildRollbackEntry[] children, MobaSkillRuntimeBlackboardRollbackEntry[] blackboardEntries)
-        { RuntimeId=runtimeId;Generation=generation;RootContextId=rootContextId;SkillId=skillId;SkillSlot=skillSlot;SkillLevel=skillLevel;Sequence=sequence;CasterActorId=casterActorId;TargetActorId=targetActorId;AimX=aimX;AimY=aimY;AimZ=aimZ;DirX=dirX;DirY=dirY;DirZ=dirZ;Stage=stage;PipelineEnded=pipelineEnded;IsEnding=isEnding;IsEnded=isEnded;EndReason=endReason;Children=children;BlackboardEntries=blackboardEntries; }
+        public MobaSkillRuntimeRollbackEntry(long runtimeId, int generation, long rootContextId, int skillId, int skillSlot, int skillLevel, int sequence, int casterActorId, int targetActorId, float aimX, float aimY, float aimZ, float dirX, float dirY, float dirZ, int stage, bool pipelineEnded, bool isEnding, bool isEnded, int endReason, MobaSkillRuntimeChildRollbackEntry[] children, MobaSkillRuntimeBlackboardRollbackEntry[] blackboardEntries, int baseSkillId)
+        { RuntimeId=runtimeId;Generation=generation;RootContextId=rootContextId;SkillId=skillId;SkillSlot=skillSlot;SkillLevel=skillLevel;Sequence=sequence;CasterActorId=casterActorId;TargetActorId=targetActorId;AimX=aimX;AimY=aimY;AimZ=aimZ;DirX=dirX;DirY=dirY;DirZ=dirZ;Stage=stage;PipelineEnded=pipelineEnded;IsEnding=isEnding;IsEnded=isEnded;EndReason=endReason;Children=children;BlackboardEntries=blackboardEntries;BaseSkillId=baseSkillId; }
     }
 
     [MemoryPackable]

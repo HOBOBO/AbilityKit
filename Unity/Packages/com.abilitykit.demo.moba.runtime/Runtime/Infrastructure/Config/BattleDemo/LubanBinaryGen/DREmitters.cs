@@ -17,7 +17,7 @@ public sealed partial class DREmitters : Luban.BeanBase
     public DREmitters(ByteBuf _buf) 
     {
         Id = _buf.ReadInt();
-        CenterMode = _buf.ReadInt();
+        CenterMode = (SearchQueryCenterMode)_buf.ReadInt();
         CountPerShot = _buf.ReadInt();
         DelayMs = _buf.ReadInt();
         DurationMs = _buf.ReadInt();
@@ -40,23 +40,68 @@ public sealed partial class DREmitters : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
-    public readonly int CenterMode;
+    /// <summary>
+    /// 中心模式；按 SearchQueryCenterMode 枚举或 bean 定义填写。
+    /// </summary>
+    public readonly SearchQueryCenterMode CenterMode;
+    /// <summary>
+    /// 数量每发射；用于发射器配置。
+    /// </summary>
     public readonly int CountPerShot;
+    /// <summary>
+    /// 开始前延迟，单位毫秒。
+    /// </summary>
     public readonly int DelayMs;
+    /// <summary>
+    /// 持续时间，单位毫秒；0 的含义以对应运行时逻辑为准。
+    /// </summary>
     public readonly int DurationMs;
+    /// <summary>
+    /// 发射类型；用于发射器配置。
+    /// </summary>
     public readonly int EmitKind;
+    /// <summary>
+    /// 扇形角度，单位度。
+    /// </summary>
     public readonly int FanAngleDeg;
+    /// <summary>
+    /// 周期执行间隔，单位毫秒。
+    /// </summary>
     public readonly int IntervalMs;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 相对挂点或中心的 X 轴偏移。
+    /// </summary>
     public readonly int OffsetX;
+    /// <summary>
+    /// 相对挂点或中心的 Y 轴偏移。
+    /// </summary>
     public readonly int OffsetY;
+    /// <summary>
+    /// 相对挂点或中心的 Z 轴偏移。
+    /// </summary>
     public readonly int OffsetZ;
+    /// <summary>
+    /// 模板 ID；按本表用途引用对应模板表。
+    /// </summary>
     public readonly int TemplateId;
+    /// <summary>
+    /// 总数量；用于发射器配置。
+    /// </summary>
     public readonly int TotalCount;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = -1595166349;

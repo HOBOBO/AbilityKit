@@ -8,6 +8,7 @@ using AbilityKit.Core.Logging;
 using AbilityKit.Effect;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Continuous;
+using AbilityKit.GameplayTags;
 using AbilityKit.Pipeline;
 using AbilityKit.Demo.Moba.Services.Search;
 
@@ -520,6 +521,14 @@ namespace AbilityKit.Demo.Moba.Services
             entry.Context.Initialize(entry.AbilityInstance, in entry.Request, entry.TriggerContext);
             entry.Context.SetFrame(entry.StartFrame);
             entry.Context.SetCastFlowId(0);
+            if (!TryBindPipelineContinuous(ref entry, entry.PreCastConfig, out var preCastBindError))
+            {
+                entry.FailReason = preCastBindError;
+                MarkPipelineFailure(ref entry, SkillFailureCodes.Pipeline.PreCastFailed, entry.FailReason);
+                TryEndExecutionContext(entry, MobaExecutionEndReason.Cancelled);
+                RunCleanups(in entry, "precast.continuous.failed");
+                return false;
+            }
             TryBeginPhaseContext(ref entry);
             entry.Run = entry.Pipeline.Start(entry.PreCastConfig, entry.Context);
 
@@ -565,7 +574,14 @@ namespace AbilityKit.Demo.Moba.Services
             entry.Context.Initialize(entry.AbilityInstance, in entry.Request, entry.TriggerContext);
             entry.Context.SetFrame(ResolveCurrentFrame(in entry, entry.StartFrame));
             entry.Context.SetCastFlowId(entry.TriggerContext?.CastFlowId ?? 0);
-            TryBindPipelineContinuous(ref entry);
+            if (!TryBindPipelineContinuous(ref entry, entry.CastConfig, out var castBindError))
+            {
+                entry.FailReason = castBindError;
+                MarkPipelineFailure(ref entry, SkillFailureCodes.Pipeline.CastFailed, entry.FailReason);
+                TryEndExecutionContext(entry, MobaExecutionEndReason.Cancelled);
+                RunCleanups(in entry, "cast.continuous.failed");
+                return false;
+            }
             TryBeginPhaseContext(ref entry);
             entry.Run = entry.Pipeline.Start(entry.CastConfig, entry.Context);
 
@@ -606,33 +622,64 @@ namespace AbilityKit.Demo.Moba.Services
             return state == EAbilityPipelineState.Completed;
         }
 
-        private static void TryBindPipelineContinuous(ref Entry entry)
+        private static bool TryBindPipelineContinuous(ref Entry entry, IAbilityPipelineConfig pipelineConfig, out string error)
         {
+            error = null;
             var context = entry.Context;
-            if (context == null) return;
-            if (!(entry.CastConfig is MobaSkillPipelineConfig config) || !config.HasPipelineContinuousTagTemplate) return;
+            if (context == null || !(pipelineConfig is MobaSkillPipelineConfig config)) return true;
 
             var failContext = $"actor={entry.Request.CasterActorId}, skill={entry.Request.SkillId}, config={config.ConfigId}, tagTemplate={config.PipelineContinuousTagTemplateId}";
-            var registry = SafeResolve<IMobaContinuousTagTemplateRegistry>(in entry, failContext);
-            if (registry == null) return;
-
-            if (!registry.TryGet(config.PipelineContinuousTagTemplateId, out var requirements) || requirements == null)
+            var requirements = new ContinuousTagRequirements();
+            if (config.HasPipelineContinuousTagTemplate)
             {
-                Log.Warning($"[SkillPipelineRunner] pipeline continuous tag template missing. {failContext}");
-                return;
+                var registry = SafeResolve<IMobaContinuousTagTemplateRegistry>(in entry, failContext);
+                if (registry == null || !registry.TryGet(config.PipelineContinuousTagTemplateId, out requirements) || requirements == null)
+                {
+                    error = $"Pipeline continuous tag template is missing. {failContext}";
+                    return false;
+                }
+            }
+
+            if (config.ExecutionBlockedResultMask != 0UL)
+            {
+                var applicationTags = new GameplayTagContainer();
+                applicationTags.AppendTags(requirements.ApplicationTags);
+                requirements = new ContinuousTagRequirements
+                {
+                    ActivationRequired = requirements.ActivationRequired,
+                    ApplicationTags = applicationTags,
+                    RemovalRequired = requirements.RemovalRequired,
+                    OngoingRequired = requirements.OngoingRequired,
+                    ExecutionBlockedResultMask = requirements.ExecutionBlockedResultMask | config.ExecutionBlockedResultMask
+                };
             }
 
             var continuous = SafeResolve<IContinuousManager>(in entry, failContext);
-            if (continuous == null) return;
+            if (continuous == null)
+            {
+                error = $"Pipeline continuous manager is missing. {failContext}";
+                return false;
+            }
+
+            var effectiveTags = SafeResolve<IMobaEffectiveTagQueryService>(in entry, failContext);
+            if (requirements.ExecutionBlockedResultMask != 0UL && effectiveTags == null)
+            {
+                error = $"Pipeline execution tag gate is missing. {failContext}";
+                return false;
+            }
 
             var runtime = new SkillPipelineContinuousRuntime(context, config, requirements);
             if (!continuous.TryActivate(runtime))
             {
-                Log.Warning($"[SkillPipelineRunner] pipeline continuous activation failed. actor={context.CasterActorId} skillId={context.SkillId} configId={config.ConfigId} tagTemplateId={config.PipelineContinuousTagTemplateId}");
-                return;
+                continuous.Unregister(runtime, ContinuousEndReason.CleanedUp);
+                error = $"Pipeline continuous activation failed. {failContext}";
+                return false;
             }
 
             context.RegisterCleanup(() => continuous.TryEnd(runtime, ContinuousEndReason.Completed));
+            entry.Continuous = runtime;
+            entry.EffectiveTags = effectiveTags;
+            return true;
         }
 
         private static int ReadNextEventIndex(SkillPipelineContext context)
@@ -940,6 +987,13 @@ namespace AbilityKit.Demo.Moba.Services
                     continue;
                 }
 
+                if (entry.Continuous != null && entry.Continuous.IsTerminated)
+                {
+                    CancelAt(i, in entry, "ContinuousEnded");
+                    ended++;
+                    continue;
+                }
+
                 if (!ResolveLostTarget(ref entry))
                 {
                     CancelAt(i, in entry, "TargetLost");
@@ -949,6 +1003,9 @@ namespace AbilityKit.Demo.Moba.Services
 
                 if (p.State == EAbilityPipelineState.Executing)
                 {
+                    if (entry.Continuous != null && entry.EffectiveTags != null &&
+                        !entry.EffectiveTags.CanExecute(entry.Continuous))
+                        continue;
                     ticked++;
                     entry.Context.SetFrame(ResolveCurrentFrame(in entry, entry.StartFrame));
                     entry.Context.AdvanceTime(deltaTime);
@@ -1236,6 +1293,8 @@ namespace AbilityKit.Demo.Moba.Services
             public SkillCastPipeline Pipeline;
             public IAbilityPipelineRun<SkillPipelineContext> Run;
             public SkillPipelineContext Context;
+            public SkillPipelineContinuousRuntime Continuous;
+            public IMobaEffectiveTagQueryService EffectiveTags;
             public string FailReason;
             public SkillPipelineFailure PipelineFailure;
             public long PhaseContextId;
@@ -1265,6 +1324,8 @@ namespace AbilityKit.Demo.Moba.Services
                 Pipeline = null;
                 Run = null;
                 Context = null;
+                Continuous = null;
+                EffectiveTags = null;
                 FailReason = null;
                 PipelineFailure = SkillPipelineFailure.None;
                 PhaseContextId = 0L;

@@ -3,7 +3,7 @@ name: determinism
 description: AbilityKit 定点数与确定性栈——com.abilitykit.deterministic 定点数学(Fixed64/Q32.32/FixedVec/CORDIC 三角/DeterministicHash)、DeterministicMathBridge 收敛层、raw long 快照约定、帧时钟确定≠全战斗确定的边界、定点改造配方(基类 raw 存储+float 视图)、已知漂移源(遍历序/System.Math/float 计时)。触发场景：定点化改造、确定性 bug、漂移排查、Fixed64、raw long 快照、回滚 payload、golden 测试、帧同步一致性、位一致断言、MathUtil.Sqrt、DeterministicMathBridge。
 ---
 
-# determinism skill
+# 确定性指引
 
 基于源码核校（2026-08-16）。定点化 P0-P4 已全部完成：全模拟域定点（伤害/资源/护盾/FrameTime/Effect/buff 链）+ 审计修复（三角/遍历序/整数对齐）+ bridge 收敛 Core + 旧 Numerics 删除。剩余为 float 计时残留收尾与外部步骤（OpenUPM/Unity 验证）。
 

@@ -37,7 +37,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
         public int SourceActorId { get; private set; }
         public int TargetActorId { get; }
         public long SourceContextId { get; private set; }
-        public int ModifierSourceId { get; private set; }
+        public int ModifierSourceId => AllocatedModifierSourceId;
         public BuffRuntime Runtime { get; private set; }
 
         public ContinuousTagRequirements TagRequirements => _config.TagRequirements;
@@ -65,7 +65,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
         public void BindSourceContext(long sourceContextId)
         {
             SourceContextId = sourceContextId;
-            ModifierSourceId = CreateModifierSourceId(sourceContextId, BuffId, TargetActorId);
         }
 
         /// <summary>
@@ -216,18 +215,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             return source.IsValid;
         }
 
-        private static int CreateModifierSourceId(long sourceContextId, int buffId, int targetActorId)
-        {
-            unchecked
-            {
-                var hash = 17;
-                hash = hash * 31 + sourceContextId.GetHashCode();
-                hash = hash * 31 + buffId;
-                hash = hash * 31 + targetActorId;
-                return hash == 0 ? buffId : hash;
-            }
-        }
-
         private sealed class BuffContinuousConfig : MobaContinuousConfigBase, IMobaContinuousOwnerBoundTriggerConfig
         {
             private readonly BuffContinuousRuntime _runtime;
@@ -244,6 +231,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             public override string Id => $"buff:{_runtime.TargetActorId}:{_runtime.BuffId}:{_runtime.SourceContextId}";
             public override long OwnerId => _runtime.TargetActorId;
             public override int OwnerActorId => _runtime.TargetActorId;
+            public override int SourceActorId => _runtime.SourceActorId;
+            public override int TargetActorId => _runtime.TargetActorId;
             public override int ModifierSourceId => _runtime.ModifierSourceId;
             public override GameplayTagSource TagSource => CreateSource(_runtime);
             public override float IntervalSeconds => _buff != null && _buff.IntervalMs > 0 ? _buff.IntervalMs / 1000f : 0f;

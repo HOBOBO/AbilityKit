@@ -3,7 +3,7 @@ name: test-artifacts
 description: AbilityKit 测试产物管理规范——统一规划 moba headless / shooter StateSync multiprocess / dotnet test / Unity EditMode+PlayMode 四类测试的输出路径、命名、生命周期与清理。涵盖 tools/run_test_gate.ps1 + tools/test-gates.json 的 29 个 gate 体系（P0 3 / P1 18 / P2 8，含 foundation-units 基础叶子包契约与 moba-acceptance-dotnet 白盒验收）、本地 local/Logs/ 与 CI 显式 artifacts/test-gates/ 目录约定、.gitignore 覆盖范围、绕过 gate 体系直接跑命令的注意事项。触发场景：跑测试、写新测试、加 test gate、排查测试产物位置、清理 TestResults、MultiplayerHeadlessHeroReplacement 产物、shooter multiprocess artifact、TRX 文件、NUnit XML、上传 CI artifact、CI workflow 上传测试产物。
 ---
 
-# test-artifacts skill
+# 测试产物指引
 
 基于源码核校（2026-08-04）。本 skill 规范 AbilityKit 所有测试产物的输出路径、命名、生命周期、清理与 gitignore 覆盖，覆盖 4 类测试：
 
@@ -53,7 +53,7 @@ local/Logs/
 
 `/local/` 覆盖所有本地产物；`**/*.log` 与 `**/TestResults/` 仅用于拦截未遵守显式输出约定的工具默认值。
 
-## Sections
+## 分节索引
 
 - [when_to_use.md](when_to_use.md) — 何时启用本 skill
 - [gate_runner.md](gate_runner.md) — `run_test_gate.ps1` + `test-gates.json` 29 gate 体系（推荐入口；含 foundation-units 基础叶子包契约 + moba-acceptance-dotnet 白盒验收判定 gate，trace 基线在 `src/AbilityKit.Demo.Moba.Acceptance.Tests/{Fixtures,Traces}/`，真实基线经 `tools/capture_moba_acceptance_traces.ps1` 刷新）

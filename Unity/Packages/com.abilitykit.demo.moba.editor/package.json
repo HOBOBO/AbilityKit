@@ -16,6 +16,7 @@
     "com.abilitykit.world.ecs": "0.1.0",
     "com.abilitykit.world.entitas": "0.1.0",
     "com.abilitykit.host": "0.1.0",
-    "com.abilitykit.hotreload": "0.1.0"
+    "com.abilitykit.hotreload": "0.1.0",
+    "com.abilitykit.hfsm": "0.1.0"
   }
 }

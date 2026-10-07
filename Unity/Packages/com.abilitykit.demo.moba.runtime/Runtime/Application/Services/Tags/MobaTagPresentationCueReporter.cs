@@ -1,15 +1,17 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Triggering;
+using AbilityKit.Continuous;
 using AbilityKit.GameplayTags;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(MobaTagPresentationCueReporter))]
-    public sealed class MobaTagPresentationCueReporter : IService, IWorldInitializable, IDisposable
+    public sealed class MobaTagPresentationCueReporter : IService, IWorldInitializable, IContinuousLifecycleBinder, IDisposable
     {
         private const string CueKindTag = "Tag";
         private const string EventTagAdded = "tag.added";
@@ -19,37 +21,89 @@ namespace AbilityKit.Demo.Moba.Services
         private const int NumericChangeKind = 3;
         private const int NumericSourceValue = 4;
 
-        private IGameplayTagService _tags;
+        private readonly Dictionary<int, GameplayTagContainer> _lastTags = new Dictionary<int, GameplayTagContainer>();
+        private IMobaEffectiveTagQueryService _effectiveTags;
+        private DefaultContinuousManager _continuous;
+        private MobaContinuousManager _mobaContinuous;
         private MobaPresentationCueSnapshotService _presentationCues;
 
         public void OnInit(IWorldResolver services)
         {
-            services?.TryResolve(out _tags);
+            services?.TryResolve(out _effectiveTags);
+            IContinuousManager continuous = null;
+            services?.TryResolve(out continuous);
+            _continuous = continuous as DefaultContinuousManager;
+            _mobaContinuous = continuous as MobaContinuousManager;
             services?.TryResolve(out _presentationCues);
-
-            if (_tags != null)
+            if (_effectiveTags == null || _continuous == null)
+                throw new InvalidOperationException("MOBA tag cues require effective tags and a lifecycle-aware continuous manager.");
+            foreach (var active in _continuous.GetAllActiveContinuous())
             {
-                _tags.TagsChanged += OnTagsChanged;
+                if (!(active?.Config is IMobaContinuousTagConfig tagConfig) ||
+                    tagConfig.TagRequirements?.ApplicationTags == null ||
+                    tagConfig.TagRequirements.ApplicationTags.Count == 0) continue;
+                var ownerId = active.Config.OwnerId;
+                if (ownerId <= 0 || ownerId > int.MaxValue) continue;
+                _lastTags[(int)ownerId] = _effectiveTags.GetEffectiveTags((int)ownerId);
             }
+            _continuous.AddLifecycleBinder(this);
+            if (_mobaContinuous != null)
+                _mobaContinuous.TagRequirementsChanged += ReportRequirementsChanged;
         }
 
         public void Dispose()
         {
-            if (_tags != null)
-            {
-                _tags.TagsChanged -= OnTagsChanged;
-            }
-
-            _tags = null;
+            _continuous?.RemoveLifecycleBinder(this);
+            if (_mobaContinuous != null)
+                _mobaContinuous.TagRequirementsChanged -= ReportRequirementsChanged;
+            _lastTags.Clear();
+            _continuous = null;
+            _mobaContinuous = null;
+            _effectiveTags = null;
             _presentationCues = null;
         }
 
-        private void OnTagsChanged(int ownerActorId, GameplayTagDelta delta, GameplayTagSource source)
+        public void OnRegistered(IContinuous continuous, IContinuousManager manager) { }
+        public void OnActivated(IContinuous continuous, IContinuousManager manager) => ReportChange(continuous);
+        public void OnPaused(IContinuous continuous, IContinuousManager manager) => ReportChange(continuous);
+        public void OnResumed(IContinuous continuous, IContinuousManager manager) => ReportChange(continuous);
+        public void OnEnded(IContinuous continuous, ContinuousEndReason reason, IContinuousManager manager) => ReportChange(continuous);
+        public void OnUnregistered(IContinuous continuous, ContinuousEndReason reason, IContinuousManager manager)
         {
-            if (_presentationCues == null || ownerActorId <= 0 || delta.IsEmpty) return;
+            if (continuous != null && !continuous.IsTerminated) ReportChange(continuous);
+        }
 
-            ReportTags(ownerActorId, delta.Added, source, MobaPresentationCueStage.Started, EventTagAdded, 1);
-            ReportTags(ownerActorId, delta.Removed, source, MobaPresentationCueStage.Removed, EventTagRemoved, -1);
+        private void ReportRequirementsChanged(IContinuous continuous)
+        {
+            ReportChange(continuous, allowEmptyGrant: true);
+        }
+
+        private void ReportChange(IContinuous continuous, bool allowEmptyGrant = false)
+        {
+            if (!(continuous?.Config is IMobaContinuousTagConfig tagConfig) ||
+                !allowEmptyGrant && (tagConfig.TagRequirements?.ApplicationTags == null ||
+                                     tagConfig.TagRequirements.ApplicationTags.Count == 0)) return;
+            var ownerId = continuous?.Config?.OwnerId ?? 0;
+            if (_effectiveTags == null || ownerId <= 0 || ownerId > int.MaxValue) return;
+            var ownerActorId = (int)ownerId;
+            _effectiveTags.MarkDirty(ownerActorId);
+            var current = _effectiveTags.GetEffectiveTags(ownerActorId);
+            if (!_lastTags.TryGetValue(ownerActorId, out var previous))
+                previous = new GameplayTagContainer();
+            var added = new GameplayTagContainer();
+            var removed = new GameplayTagContainer();
+            foreach (var tag in current)
+                if (!previous.HasTagExact(tag)) added.Add(tag);
+            foreach (var tag in previous)
+                if (!current.HasTagExact(tag)) removed.Add(tag);
+            if (current.Count == 0) _lastTags.Remove(ownerActorId);
+            else _lastTags[ownerActorId] = current;
+
+            if (_presentationCues == null) return;
+            var source = continuous.Config is IMobaContinuousProjectionConfig projection
+                ? projection.TagSource : GameplayTagSource.System;
+            ReportTags(ownerActorId, added, source, MobaPresentationCueStage.Started, EventTagAdded, 1);
+            ReportTags(ownerActorId, removed, source, MobaPresentationCueStage.Removed, EventTagRemoved, -1);
         }
 
         private void ReportTags(int ownerActorId, GameplayTagContainer tags, GameplayTagSource source, MobaPresentationCueStage stage, string eventId, int changeKind)
@@ -61,22 +115,24 @@ namespace AbilityKit.Demo.Moba.Services
                 if (!tag.IsValid) continue;
 
                 var tagName = tag.TagName ?? string.Empty;
+                if (!MobaGameplayTagCatalog.TryGetDefinitionId(tagName, out var definitionId))
+                    throw new InvalidOperationException($"Tag cue has no published definition: {tagName}");
                 var simpleName = tag.SimpleName ?? string.Empty;
                 var entry = new MobaPresentationCueSnapshotEntry
                 {
                     Stage = (int)stage,
                     CueKind = CueKindTag,
-                    RequestKey = BuildRequestKey(eventId, ownerActorId, tag),
+                    RequestKey = BuildInstanceKey(ownerActorId, definitionId),
                     SourceActorId = source.Value > 0 && source.Value <= int.MaxValue ? (int)source.Value : ownerActorId,
                     TargetActorId = ownerActorId,
                     Targets = new[] { ownerActorId },
                     OwnerKind = CueKindTag,
-                    InstanceId = ComposeInstanceId(ownerActorId, tag),
-                    InstanceKey = BuildInstanceKey(ownerActorId, tag),
+                    InstanceId = ComposeInstanceId(ownerActorId, definitionId),
+                    InstanceKey = BuildInstanceKey(ownerActorId, definitionId),
                     LifecycleReason = changeKind,
                     ContextEventId = eventId,
                     NumericParamKeys = new[] { NumericTagId, NumericTagDepth, NumericChangeKind, NumericSourceValue },
-                    NumericParamValues = new[] { (float)tag.Value, tag.GetDepth(), changeKind, (float)source.Value },
+                    NumericParamValues = new[] { (float)definitionId, tag.GetDepth(), changeKind, (float)source.Value },
                     StringParamKeys = new[] { "tag", "simple", "event", "source" },
                     StringParamValues = new[] { tagName, simpleName, eventId, source.ToString() },
                 };
@@ -85,19 +141,14 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private static string BuildRequestKey(string eventId, int ownerActorId, GameplayTag tag)
+        private static string BuildInstanceKey(int ownerActorId, int definitionId)
         {
-            return $"{eventId}:{ownerActorId}:{tag.Value}";
+            return $"tag:{ownerActorId}:{definitionId}";
         }
 
-        private static string BuildInstanceKey(int ownerActorId, GameplayTag tag)
+        private static long ComposeInstanceId(int ownerActorId, int definitionId)
         {
-            return $"tag:{ownerActorId}:{tag.Value}";
-        }
-
-        private static long ComposeInstanceId(int ownerActorId, GameplayTag tag)
-        {
-            return ((long)ownerActorId << 32) ^ (uint)tag.Value;
+            return ((long)ownerActorId << 32) ^ (uint)definitionId;
         }
     }
 }

@@ -397,7 +397,6 @@ MOBA 层不是重新实现属性系统，而是提供映射和便捷访问。
 属性模板和相关配置由 MOBA 配置层驱动，例如：
 
 - `BattleAttributeTemplateMO`
-- `AttributeTemplateLubanMO`
 - `MobaConfigDatabase`
 - `MobaConfigPaths`
 - `MobaBattleConfigReferenceValidator`

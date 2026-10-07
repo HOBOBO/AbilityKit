@@ -71,12 +71,9 @@ public sealed class MobaMapRuntimeServiceTests
     [Fact]
     public void Console_config_replica_loads_battle_map_into_runtime_model()
     {
-        var configs = new MobaConfigDatabase(
-            textAssetLoader: new ConsoleTextAssetLoader());
-
-        var result = configs.ReloadFromResources("moba", strict: true);
-
-        Assert.True(result.Succeeded, result.Error);
+        var loader = new ConsoleTextAssetLoader();
+        var configs = new MobaConfigDatabase(textAssetLoader: loader);
+        configs.LoadFromGroups(MobaLubanConfigGroups.Create(loader, Array.Empty<string>()));
         Assert.True(configs.TryGetBattleMap(1, out var map));
         Assert.Equal("Prototype Arena", map.Name);
         Assert.Single(map.WalkableAreas);

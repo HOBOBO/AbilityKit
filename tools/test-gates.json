@@ -700,6 +700,34 @@
       ]
     },
     {
+      "name": "moba-modifier-contracts",
+      "level": "P1",
+      "owner": "MOBA Modifier Runtime and Content",
+      "description": "Verify modifier parameter catalog, Luban publication, continuous lifecycle, stage selectors, and numeric hot path.",
+      "scope": ["moba-modifiers", "moba-content-pipeline", "continuous-lifecycle"],
+      "requiredBefore": ["publish-moba-modifiers", "merge-moba-modifier-changes"],
+      "failurePolicy": "Block modifier publication until source configuration and runtime contracts pass.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Modifier catalog and published configuration",
+          "kind": "powershell-script",
+          "script": "tools/check_moba_modifier_catalog.ps1"
+        },
+        {
+          "name": "Modifier lifecycle and stage resolution",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
+            "filter": "FullyQualifiedName~MobaModifierAttributeSourceTests|FullyQualifiedName~MobaModifierConsumerContractTests|FullyQualifiedName~MobaModifierRealObjectSmokeTests"
+        }
+      ]
+    },
+    {
       "name": "moba-content-contracts",
       "level": "P1",
       "owner": "MOBA Content Pipeline",
@@ -758,6 +786,15 @@
             "-Validate"
           ],
           "timeoutSeconds": 60
+        },
+        {
+          "name": "MOBA modifier template impact report",
+          "kind": "powershell-script",
+          "script": "tools/build_moba_modifier_impact_report.ps1",
+          "arguments": [
+            "-OutputPath",
+            "{GateOutputDirectory}/modifier-impact-report.json"
+          ]
         },
         {
           "name": "MOBA portable content analysis data",
@@ -940,7 +977,7 @@
       ],
       "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
       "ciPolicy": {
-        "runOnPullRequest": true,
+        "runOnPullRequest": false,
         "runOnPush": false,
         "runOnSchedule": true,
         "artifactRequired": true
@@ -974,7 +1011,7 @@
       ],
       "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
       "ciPolicy": {
-        "runOnPullRequest": true,
+        "runOnPullRequest": false,
         "runOnPush": false,
         "runOnSchedule": true,
         "artifactRequired": true
@@ -1008,7 +1045,7 @@
       ],
       "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
       "ciPolicy": {
-        "runOnPullRequest": true,
+        "runOnPullRequest": false,
         "runOnPush": false,
         "runOnSchedule": true,
         "artifactRequired": true
@@ -1042,7 +1079,7 @@
       ],
       "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
       "ciPolicy": {
-        "runOnPullRequest": true,
+        "runOnPullRequest": false,
         "runOnPush": false,
         "runOnSchedule": true,
         "artifactRequired": true

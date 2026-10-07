@@ -1,14 +1,38 @@
 ---
 name: moba-skill-authoring
-description: MOBA 英雄技能扩展规范与操作手册 —— 状态落点判定树(能力组件/continuous runtime/配置参数/世界级服务)、逻辑落点四级判定(内容参数/skill_flow 阶段/触发器/PlanAction 动词/领域服务)与"技能时序归 flow 不归触发器"的分界、实体生命周期与回滚分档(销毁预测+重执行，及 ActorIdAllocator 前提)、开放扩展点速查(PlanAction/目标规则/打分器/命中策略)、"做之前先查"阶梯与排查纪律、反模式清单(含实证)。触发场景：新增英雄或技能、新增触发器动词、判断该用触发器还是组件还是写代码、技能要创建实体(召唤/陷阱/分身)、技能实现走偏排查、技能验收补齐、技能配置契约失败、给技能加特殊状态。
+description: 开发或修改 AbilityKit MOBA 英雄技能时使用。约束 Luban Excel、Pipeline + ActionEditor、Trigger Authoring 的配置归属、发布顺序、标签与控制效果契约，以及技能验收；也指导何时扩展 PlanAction、组件或领域服务。
 ---
 
-# moba-skill-authoring skill
+# MOBA 技能开发规范
 
-基于源码核校（2026-09-14）。**这是规范，不是教程**：新增英雄技能时按本文判定落点，不要临时发明。
+技能机制按下文判断落点；生产配置和发布以本节为准。详细命令与运行时路径见 `Docs/MobaSkillPipeline.md`、`Docs/MobaTriggerAuthoring.md` 和 `LubanConfig/Moba/README.md`。不要把下文的历史计数或旧案例当作当前配置来源。
 
 覆盖：**技能扩展的落点判定、交付清单、门禁与反模式**。
 不覆盖：调用链细节 → [ability-kit](../ability-kit/SKILL.md)（`skill_buff/`、`triggering/`、`combat_*`）；包装配/配置加载链 → [moba-demo](../moba-demo/SKILL.md)。
+
+## 生产配置归属与发布
+
+| 内容 | 可编辑的权威来源 | 发布产物 |
+|---|---|---|
+| 英雄、技能等级、Buff、区域、投射物、目标查询、模型和特效资源等表 | `LubanConfig/Moba/Production/Datas/*.xlsx`，其中模型在 `M-模型表.xlsx`，特效资源及跟随模板在 `T-特效表.xlsx` | Unity/Console 的 Luban JSON、`.bytes`、生成代码；特效另发布 `Resources/vfx/vfx.json` |
+| 主动技能施法阶段、等待、提交点和效果触发时序 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/Moba/SkillFlowCO.asset` | Unity/Console 的 `skill_flows.json` |
+| Timeline Phase 的逻辑动作和表现轨道 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_*.json`，用 ActionEditor 编辑 | 同目录的 `*.moba.logic.json` 和 `*.moba.presentation.json` |
+| 技能、被动、Buff 和玩法事件的条件、伤害数值与效果动作 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/Packages/*.Module.asset`，与 `Sources/*.trigger.json` 保持同步 | Unity/Console 的 `ability_trigger_plans.json` |
+| 标签、规则组、模板与结果映射 | `LubanConfig/Moba/Production/Datas/J-标签表.xlsx`；业务门禁枚举在 `Production/Defines/strong_types.xml`，门禁子表的 `Id` 使用该 Luban enum；规则逐行配置，模板引用规则组 ID | Luban JSON、二进制、生成的 `MobaTagBehaviorGate` 与 `MobaTagResultFlags`；规则说明见 `Docs/MobaTagAuthoring.md` |
+| 角色 HFSM 与投射物状态机 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaStateMachineAuthoring/*.json`，通过 MOBA 状态机编辑器维护 | Unity/Console 的 `moba/character_hfsm.json`、`moba/actor_state_machines.json` |
+
+`Production/Archive/skill_flows.xlsx`、`Production/Datas/J-资源节点表.xlsx` 的 `Ability节点` 子 sheet 中旧触发器节点、`Resources/ability/triggers/` 分文件和 `MiniTemplate` 均不是这些生产内容的编辑入口。状态机与旧 `effect_plans` 也不再从 Excel 发布；`J-效果表.xlsx` 中未被战斗使用的 `效果`、`旧Buff`、`持续效果` 子 sheet 已删除。不要直接改发布后的 `Resources/moba/*.json`、`Resources/luban/`、`Resources/ability/ability_trigger_plans.json` 或 Console 副本来修技能。
+
+1. 先列清 Skill ID、Flow ID、Effect/Trigger ID、Buff/Area/Query ID 及标签契约；确认每个引用的生产来源和运行时消费者。
+2. 按依赖编辑 ActionEditor、Pipeline、Trigger Authoring 和 Excel。先导出 ActionEditor 逻辑/表现 JSON，再发布 Pipeline 和 Trigger Authoring，最后执行 `python LubanConfig/Moba/export_pipeline.py --apply`；新技能的 Flow ID 需先由 Pipeline 发布，Luban 才能校验 Excel 中的 Flow 引用。
+3. 修改角色或投射物状态机时，先在 MOBA 状态机编辑器保存并运行 `MobaStateMachinePublisher.Publish`。用 `MobaSkillPipelineExporter.Check`、`TriggerAuthoringMobaMigration.CheckRuntimeBatch`、`MobaStateMachinePublisher.Check` 和 `python LubanConfig/Moba/export_pipeline.py --check-published` 检查发布一致性。Trigger Authoring 的 `GenerateBatch` 会从迁移旧文件覆盖生产模块，日常开发不可运行。
+4. 先跑受影响技能的 Unity EditMode 验收，再跑六英雄 .NET 冒烟和 `MobaLubanConfigPipelineTests`。复杂技能至少断言真实状态或运动结果，以及关键 trace；只看到 Action trace 不代表位移、击飞或 Buff 生效。
+
+标签模板要区分施法者自身运动与对敌控制。施法期霸体可以保护自身，但不能让自身 `jump` 套用“目标霸体免疫击飞”的阻断模板；对敌 `pull`/击飞仍应按目标有效标签检查免疫。涉及位移时分别验证墙体穿越、起跳/落地、目标击飞高度和霸体免疫，不用一条效果触发断言代替这些行为。
+
+普通标签是配置事实；不能移动、不能施法等代码结果通过规则映射生成并缓存 flag。不要为普通标记标签添加手写比较分支，也不要直接设置派生 flag。已发布结果的 Key 和 BitIndex 必须保持稳定；新增规则优先复用规则组，修改映射后验证多来源撤销与持续行为结束时的结果位。
+技能表的 `Tags` 默认留空；只有 AI 或配置筛选确实需要跨技能语义分类时，才在 `Skill.*` 下按需定义标签并为相关技能赋值。不要按英雄、技能槽位批量建标签；指定单个技能时直接使用技能 ID。`J-标签表.xlsx` 中预置的战斗标签只是词汇目录，接入新机制时还需明确持续对象授予源、消费规则和验收场景。
+MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff、位移和技能 Pipeline 应持有对应持续对象。不得向独立 Owner 标签服务写入同一事实，也不得通过硬编码标签名推导控制结果。行为查询需要标签时读取有效标签服务；修改标签生命周期时同时验证表现 Cue 的添加、暂停、恢复、结束与多来源叠加。
 
 ## 0. 一句话规范
 
@@ -34,26 +58,26 @@ description: MOBA 英雄技能扩展规范与操作手册 —— 状态落点判
 | **跨实体关系** | **世界级关系服务** | 状态维度是 (A, B) 而非单实体 | 只有 `MobaPlayerActorMapService` 一个先例 |
 | **世界级仲裁** | **领域服务 / 系统** | 多来源叠加后的最终结果 | `MobaEffectiveTagQueryService`、`MobaContinuousTagRuleService` |
 | 内容参数 | **配置**（Excel/MO 表 → JSON） | 每个技能/等级不同、策划要改 | `DashArgs` 的 speed/duration/priority |
-| 逻辑编排 | **触发器 JSON + skill_flow** | 是"什么时候做什么" | 91 个触发器定义 |
+| 逻辑编排 | **Pipeline + Trigger Authoring** | 施法阶段和事件效果各有权威编辑源 | 见本节生产配置归属 |
 | 表现 | presentation cue / 客户端本地 | 只有本人可见、不影响模拟 | `MobaPresentationCueSnapshotService` |
 
-### 逻辑（行为）放哪：四级，从内容到机制
+### 逻辑（行为）放哪：从内容到机制
 
 状态那一维之外，**逻辑**也要选落点。顺序是从上往下问，**能落在上面就别往下走**：
 
 | 级 | 落在哪 | 判据 | 实例 |
 |---|---|---|---|
-| 1 | **内容参数**（Excel/MO 表） | 是"数值/开关"差异 | 伤害值、冷却、投射物速度 |
-| 2 | **skill_flow 阶段树** | 是**这一次施放内部的时间轴** | 发动/结算两段 RulePlan + Timeline；`WaitUntil`/`AwaitEvent`/`CommitPoint` |
-| 3 | **TriggerPlan（触发器）** | 是"**当…就…**"，且动作用现有动词能拼出来 | 91 个触发器定义；Buff 的 `TriggerIds`、被动、伤害阶段响应 |
-| 4 | **PlanAction 动词** | 触发器缺一个动作，但它是**可复用的领域能力** | `dash`/`shoot_projectile`/`spawn_area`（36 个） |
+| 1 | **内容参数**（Excel/MO 表或 Trigger Action 参数） | 是"数值/开关"差异 | 触发器伤害值、技能冷却、投射物速度 |
+| 2 | **skill_flow 阶段树** | 是**这一次施放内部的时序** | Pipeline 的 RulePlan/Timeline/WaitUntil/AwaitEvent/CommitPoint |
+| 3 | **TriggerPlan（触发器）** | 是"**当…就…**"，且动作用现有动词能拼出来 | Buff 的 `TriggerIds`、被动、伤害阶段响应 |
+| 4 | **PlanAction 动词** | 触发器缺一个动作，但它是**可复用的领域能力** | `dash`/`shoot_projectile`/`spawn_area` |
 | 5 | **领域服务 / 系统** | 需要**新状态维度**、每帧遍历实体、或与生命周期/回滚强耦合 | 护盾服务、Motion 服务、Visibility（尚无） |
 
 **第 2 级和第 3 级的分界是这里最容易做错的地方**，也是仓库唯一有成文规则的一条：
 
 > **技能内部的时序归 skill_flow，不归 TriggerPlan。**（原文：*Cast phases and charge state remain responsibilities of the skill pipeline rather than Trigger Plan nodes*，见 `demo.moba.editor/Tests/Fixtures/TriggerAuthoring/README.md`）
 
-具体说：**蓄力/引导/充能、提交点、资源结算、阶段等待** → skill_flow 的 phase；**"发生某事件时做一串事"** → TriggerPlan。当前 26 条 flow 全是 `RulePlan(发动) + RulePlan(结算) + Timeline` 三段式，而 flow 里能用的 15 种 phase（`Window`/`Race`/`AwaitEvent`/`CommitPoint`/`Economy`/`DerivedSkill`…）**一条都没被内容用过**——写新技能时优先看这些，别急着用触发器绕。这批能力**构建、编辑器作者化、往返、Unity EditMode 单测都齐**（详见矩阵 §3.1），只是没有生产内容示范。
+具体说：**蓄力/引导/充能、提交点、资源结算、阶段等待** → Pipeline phase；**Timeline 内的动作轨道** → ActionEditor；**事件发生时执行条件与效果** → Trigger Authoring。廉颇三技能已经使用多段阶段和等待，新增复杂技能先检查现有 phase 能否表达，再考虑扩展机制。
 
 **⚠ 命名陷阱**：`Parallel` 有两套不同语义——flow 级 `AbilityParallelPhase` 是**真并行**（子阶段同帧启动、未完成者逐帧推进）；触发器级 `ParallelTriggerPlanExecutable` 是**顺序遍历 + fail-fast**。按名字选用会出错。
 
@@ -115,13 +139,12 @@ description: MOBA 英雄技能扩展规范与操作手册 —— 状态落点判
 
 | 步骤 | 位置 |
 |---|---|
-| 数值表（如需要） | `LubanConfig/Moba/MiniTemplate/Datas/*.xlsx` → 权威 JSON `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/*.json` |
-| 技能表 + Flow 绑定 | `skills.json`（`CooldownMs/Range/PreCastFlowId/CastFlowId`）+ `skill_flows.json` |
-| 技能编排 | `skill_flows.json`：`RulePlan(发动)` + `RulePlan(结算)` + `Timeline` 是当前标准三段式 |
-| 触发器 | `Resources/ability/triggers/skills/trigger_<id>.json`（注意有**两种文件形态**，见 §6） |
+| 数值表与技能 Flow 绑定 | `LubanConfig/Moba/Production/Datas/*.xlsx`；Flow ID 由 Pipeline 发布并供导表校验 |
+| 技能阶段 | `Configs/Moba/SkillFlowCO.asset`；需要动作轨道时组合 ActionEditor 的 `*.moba.logic.json` |
+| 触发器与效果 | `Configs/MobaTriggerAuthoring/Packages/*.Module.asset`；同步 `Sources/*.trigger.json` 后发布聚合 TriggerPlan |
 | 表现资源 | `presentation_templates.json` + `Resources/effect/*.prefab` |
 
-**配置作者化入口**：`LubanConfig/Moba/MiniTemplate`（Excel 真相源）；触发器走 Trigger Authoring 编辑器（`com.abilitykit.ability/Editor/Utilities/TriggerAuthoring*`），不要手写 JSON 后不回写。
+编辑与发布命令以本节和 `Docs/MobaSkillPipeline.md`、`Docs/MobaTriggerAuthoring.md` 为准。上表省略的路径前缀均为 `Unity/Packages/com.abilitykit.demo.moba.view.runtime/`。
 
 ### 2.2 验收（必须，不是可选）
 
@@ -136,17 +159,18 @@ description: MOBA 英雄技能扩展规范与操作手册 —— 状态落点判
 
 ### 2.3 自检
 
-- [ ] `characters.json` 绑定了技能/被动 id
+- [ ] Excel 的角色、技能、等级与技能 Flow 引用能通过 Luban 校验
 - [ ] `SkillMO` / `PassiveSkillMO` 能找到 trigger ids
-- [ ] trigger JSON 能被 `TriggerPlanJsonDatabase` 编译
+- [ ] Trigger Authoring 产物能被 `TriggerPlanJsonDatabase` 加载
 - [ ] 每个 action 的动词都在 §3 的注册表里
+- [ ] 自身运动、对敌控制和施法期间标签的组合有行为验收
 - [ ] 表现资源存在且被 `moba-content-contracts` gate 的"configured presentation resources"检查覆盖
 
 ---
 
 ## 3. 新增一种 PlanAction 动词：6 处同步点
 
-实测（36 个模块，逐一核过）：
+按当前注册与生成链检查以下接点；模块数量以源码为准：
 
 | # | 改哪 | 位置 |
 |---|---|---|
@@ -155,11 +179,11 @@ description: MOBA 英雄技能扩展规范与操作手册 —— 状态落点判
 | 3 | order 常量 | `PlanActions/Core/PlanActionModuleAttribute.cs:22`（`MobaPlanActionModuleOrders`） |
 | 4 | 作者描述符 | `com.abilitykit.demo.moba.editor/Editor/TriggerAuthoring/MobaTriggerAuthoringExtension.cs` 的 `RegisterActions` |
 | 5 | 生成清单 | `PlanActions/Core/MobaGeneratedPlanActionManifest.cs`（`AddGenerated` 由 MOBA Source Generator 生成，**不要手改**） |
-| 6 | 测试计数 | `src/AbilityKit.Demo.Moba.Tests/Skill/PlanActionModuleRegistryTests.cs`（**当前过期：期望 31，实际 36**） |
+| 6 | 注册与生成契约测试 | `src/AbilityKit.Demo.Moba.Tests/Skill/PlanActionModuleRegistryTests.cs` |
 
 **权威步骤清单在 `PlanActions/README.md`（9 步，含模块模板代码），以它为准。** 但注意该 README 的目录路径**已过期**——它写 Args 放 `PlanActions/Args`、Schema 放 `PlanActions/Schemas`，实际是按业务分类的 `PlanActions/{Skill,Motion,Gameplay,Presentation,Debug,Targeting}/` 三件套同目录。以实际目录为准。
 
-漏第 6 处不影响运行，但会让该用例长期红（见 §6）。更好的做法是把该用例改成"断言每个 `[PlanActionModule]` 都被生成清单覆盖"，而不是硬编码数字。
+注册测试应检查每个 `[PlanActionModule]` 都被生成清单覆盖，避免依赖固定模块数量。
 
 ---
 
@@ -172,7 +196,7 @@ description: MOBA 英雄技能扩展规范与操作手册 —— 状态落点判
 | 把通用抽象做成万能容器 | 抽象最终退化成几个 setter | `component_templates` 只有 2 个 op（`SetModelId`/`SetLifetimeMs`）、2 条内容、唯一召唤物的引用是空数组 |
 | 参数解析了不用 | 能力落差伪装成"已实现" | `SpawnSummonPlanActionModule` 读了 `interval_ms/duration_ms/total_count/query_template_id`，一个都没用 |
 | 两套引擎混用 | 事件收不到、行为不一致 | 两套触发器（旧 `MobaTriggerIndexService` 仍挂在 bootstrap 里但**零消费者**）、两套树引擎、两个 HFSM 内核、两套 Effect |
-| 绕过门禁跑测试 | gate 绿 ≠ 工程绿 | 全量 `dotnet test` 有 8 个稳定失败不在任何 gate filter 里 |
+| 只跑过滤后的门禁 | 其他技能或跨模块回归可能未执行 | 按改动范围补充六英雄冒烟、相关验收和发布一致性检查 |
 | 英雄 id 进 runtime 代码 | 示例退化成英雄脚本集合 | 目前零命中，必须保持 |
 | **以为"不支持"就自己新造** | 能力可能已在更下一层（键控/注册表）实现了 | "多来源独立标记"我判过 C，实际 `BuffRuntimeKey.MatchApplyRequest` 用的是 `MatchBuffAndSource(buffId, **sourceActorId**)`，还有更细的 `MatchInstance(..., sourceContextId)`——**一直是支持的** |
 | **给模拟创建/销毁的实体写 state provider 管增删** | 结构性做不到，provider 不能增删实体 | 见 §5.1 裁定的分档 |
@@ -219,29 +243,16 @@ tools/run_test_gate.ps1 -Gate moba-content-contracts      # P1 内容契约（�
 tools/run_test_gate.ps1 -Gate moba-console-smoke          # P0 控制台冒烟
 tools/run_test_gate.ps1 -Gate moba-complete-battle-journey # P1 完整对局旅程
 tools/run_test_gate.ps1 -Gate moba-<hero>-unity           # 逐英雄 Unity EditMode 验收
-dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj   # 全量（未被 gate 覆盖，但有价值）
+dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj --filter "FullyQualifiedName~BattleScenarioRealSkillTests.Luban_six_heroes_spawn_and_cast_first_skill|FullyQualifiedName~MobaLubanConfigPipelineTests"
 ```
 
-**当前已知红灯**（2026-09-14 实测，做技能时别被误导）：
-
-- 全量 379 用例有 8 个稳定失败，其中 **5 个同根因**：测试技能 `9900001` 在 `skills.json` / `skill_flows.json` 里没有条目 → 整条**召唤物技能链路**测试全红
-- `PlanActionModuleRegistryTests` 计数过期（31 vs 36）、2 个 BT validator 用例断言英文文案但源码已中文化
-- `moba-console-smoke`（P0）**偶发**：4 次重跑 2 次红，失败集中在 LiveSim 系列（单独跑 6/6 全过）——用例间状态污染
-- 以上**都不在任何 gate 的 filter 里**，所以 gate 可以绿
+测试失败应核对当前工作树、发布产物和测试报告；不要沿用历史失败计数或旧基线推断结果。
 
 ---
 
-## 6. 已知漂移实例（用来校准手感）
+## 6. 配置漂移排查
 
-| 漂移 | 形态 |
-|---|---|
-| 触发器文件两种形态 | 87 个文件里 38 个是单触发器平铺对象（`{id, conditions, actions}`），49 个是 `{triggers:[...]}`；写脚本扫描时两种都要处理 |
-| 组合控制流零使用 | 计划引擎有 14 种执行节点、作者侧有 `seq/conditional/random/weighted/scheduled/for_each`，但 91 个触发器定义**嵌套节点数为 0**，组合节点只在测试 fixture 里被驱动 |
-| **能力齐、内容零**（重验修正） | flow 的 15 种 phase 里，蓄力/引导/重复/并行/竞速/充能/共享冷却/提交点/派生技能/事件捕获 **10 条有 Unity EditMode 单测**（`MobaSkillWindowPhaseTests` 8 例、`MobaSkillEconomyServiceTests` 9 例、`SkillFlowDefTests` 10 例、`AbilityRacePhaseTests`），构建/编辑器/往返全齐——**只是 26 条生产 flow 一条都没用**。真正零验证的只有 **`PreCast`**（无单测、无样例） |
-| 机制有、没接线 | `ProjectileRollbackProvider` 零注册（投射物不参与帧回滚，实为 §5.1 的裁定范围）；`AreaWorld` 无快照；`aoes.AttachMode` 字段存在但运行时未消费（只在 validator 里查 `<0`） |
-| 配置面缺口 | `aoes.json` 只暴露 `OnDelayTriggerIds`，Enter/Exit/Interval 触发 id 在 DTO 里有、内容表没有 |
-| 配置副本漂移 | `trigger_9900001.json` 只在 Console 副本里，权威 package Resources 没有；`skills.json` 也没有对应条目 |
-| **注释与事实不符**（已证伪的旧判断） | 曾有记录说"召唤物状态导入后丢 `SummonMeta`"——**不成立**：召唤物根本不进快照（spawn/despawn 两侧都不发），importer 的 Unit 分支只处理开局 roster。见 §5.1 |
+从失败的技能 ID 向前检查 Excel 行、Pipeline Phase/ActionEditor 引用、Trigger Authoring 模块，再检查各发布器的 Unity/Console 产物。对比源与发布产物的 ID、标签模板及动作参数；不要从历史 `Resources/ability/triggers/` 或旧 Excel 快照回写生产源。运行结果以当前测试报告为准。
 
 ---
 
@@ -250,7 +261,7 @@ dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj   #
 ### 7.1 查证阶梯
 
 1. **查矩阵**：`Docs/design/09-ImplementationExamples/MOBA/21-SkillCapabilityGapMatrix.md`——六条机制轴 × 61 条形态。落在"✓ 能表达"→ 直接配；"A 差动词/规则"→ 按 §3 或开放扩展点；"C"→ 才需要设计。
-2. **查有没有现成同类**：位移看 `MobaMotionContinuousRuntime`；周期/持续看 `BuffContinuousRuntime` + `ongoing_effects.json`；投射物发射看 `MobaProjectileLauncherContinuous`；目标选择看 `search_query_templates.json`（18 条）——**先抄形状，别新发明**。
+2. **查有没有现成同类**：位移看 `MobaMotionContinuousRuntime`；周期/持续看 `BuffContinuousRuntime` 和对应 Luban 表；投射物发射看 `MobaProjectileLauncherContinuous`；目标选择看 `Production/Datas/J-技能表.xlsx` 的 `目标查询` 子 sheet——先查正式来源及现有消费形态。
 3. **查开放扩展点**（下一节表）——很多需求是"加一个类"，不是"缺机制"。
 4. **确认参与哪些契约**：照 §5，特别是有没有创建实体（→ §5.1）。
 5. 以上都走不通，才按 §1 判定树设计新机制。

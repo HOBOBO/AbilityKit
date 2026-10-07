@@ -23,7 +23,7 @@ public sealed class MobaSkillConfigurationContractTests
     {
         var loader = new ConsoleTextAssetLoader();
         var configs = new MobaConfigDatabase(textAssetLoader: loader);
-        configs.LoadFromResources("moba", strict: true);
+        configs.LoadFromGroups(MobaLubanConfigGroups.Create(loader, Array.Empty<string>()));
 
         var report = Validate(configs);
         var contractErrors = report.Entries

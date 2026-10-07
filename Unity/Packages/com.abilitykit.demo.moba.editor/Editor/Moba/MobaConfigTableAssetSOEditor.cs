@@ -1,7 +1,6 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
-using System.IO;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Game.Battle.Moba.Config;
@@ -16,8 +15,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     {
         public override void OnInspectorGUI()
         {
-            MobaConfigInspectorGui.DrawExportButton(target);
-
             DrawInspectorBody();
         }
     }
@@ -27,8 +24,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     {
         public override void OnInspectorGUI()
         {
-            MobaConfigInspectorGui.DrawExportButton(target);
-
             var selection = SkillFlowInspectorSelectionState.Current;
             if (selection.IsValid && ReferenceEquals(selection.Asset, target))
             {
@@ -62,20 +57,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 }
             }
             serializedObject.ApplyModifiedProperties();
-        }
-    }
-
-    internal static class MobaConfigInspectorGui
-    {
-        public static void DrawExportButton(UnityEngine.Object target)
-        {
-            if (!GUILayout.Button("Export Config Json")) return;
-
-            var assetPath = AssetDatabase.GetAssetPath(target);
-            var folder = AssetDatabase.IsValidFolder(assetPath)
-                ? assetPath
-                : Path.GetDirectoryName(assetPath)?.Replace('\\', '/');
-            MobaConfigJsonExporter.ExportFromFolder(folder);
         }
     }
 

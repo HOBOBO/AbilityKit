@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Continuous;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Deterministic;
@@ -14,6 +15,63 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private long _elapsedRaw;
         private long _intervalRemainingRaw;
+        private int _allocatedModifierSourceId;
+        private readonly Dictionary<int, MobaModifierCapturedValue> _modifierCaptures = new Dictionary<int, MobaModifierCapturedValue>();
+
+        public IReadOnlyDictionary<int, MobaModifierCapturedValue> ModifierCaptures => _modifierCaptures;
+
+        internal int AllocatedModifierSourceId => _allocatedModifierSourceId;
+
+        internal void AssignModifierSourceId(int sourceId)
+        {
+            if (sourceId <= 0 || _allocatedModifierSourceId != 0 && _allocatedModifierSourceId != sourceId)
+                throw new InvalidOperationException("Continuous modifier source identity cannot be reassigned.");
+            _allocatedModifierSourceId = sourceId;
+        }
+
+        public bool TryGetModifierCapture(int index, int stack, int op, out float value)
+        {
+            if (_modifierCaptures.TryGetValue(index, out var capture))
+            {
+                if (capture.Stack == stack || op == (int)AbilityKit.Modifiers.ModifierOp.Override)
+                    value = capture.Value;
+                else if (op == (int)AbilityKit.Modifiers.ModifierOp.Mul)
+                {
+                    var scaled = capture.HasUnitValue
+                        ? System.Math.Pow(capture.UnitValue, stack)
+                        : System.Math.Pow(capture.Value, (double)stack / capture.Stack);
+                    if (double.IsNaN(scaled) || double.IsInfinity(scaled) ||
+                        scaled < float.MinValue || scaled > float.MaxValue)
+                        throw new System.InvalidOperationException("Captured multiplier cannot be rescaled for the new stack count.");
+                    value = (float)scaled;
+                }
+                else value = capture.Value * stack / capture.Stack;
+                return true;
+            }
+            value = 0f;
+            return false;
+        }
+
+        public void SetModifierCapture(int index, int stack, float value)
+        {
+            if (!_modifierCaptures.ContainsKey(index))
+                _modifierCaptures.Add(index, new MobaModifierCapturedValue(stack, value));
+        }
+
+        public void SetModifierCapture(int index, int stack, float value, float unitValue)
+        {
+            if (!_modifierCaptures.ContainsKey(index))
+                _modifierCaptures.Add(index, new MobaModifierCapturedValue(stack, value, unitValue));
+        }
+
+        public void RestoreModifierCaptures(IReadOnlyDictionary<int, MobaModifierCapturedValue> captures)
+        {
+            _modifierCaptures.Clear();
+            if (captures == null) return;
+            foreach (var pair in captures) _modifierCaptures.Add(pair.Key, pair.Value);
+        }
+
+        public void ClearModifierCaptures() => _modifierCaptures.Clear();
 
         public abstract IContinuousConfig Config { get; }
 
@@ -123,6 +181,24 @@ namespace AbilityKit.Demo.Moba.Services
             if (IsTerminated) return;
             State = reason == ContinuousEndReason.Completed ? ContinuousState.Expired : ContinuousState.Aborted;
             OnEnded?.Invoke(this, reason);
+            ClearModifierCaptures();
         }
+    }
+
+    public readonly struct MobaModifierCapturedValue
+    {
+        public MobaModifierCapturedValue(int stack, float value, float? unitValue = null)
+        {
+            if (stack < 1) throw new ArgumentOutOfRangeException(nameof(stack));
+            Stack = stack;
+            Value = value;
+            HasUnitValue = unitValue.HasValue;
+            UnitValue = unitValue.GetValueOrDefault();
+        }
+
+        public int Stack { get; }
+        public float Value { get; }
+        public bool HasUnitValue { get; }
+        public float UnitValue { get; }
     }
 }

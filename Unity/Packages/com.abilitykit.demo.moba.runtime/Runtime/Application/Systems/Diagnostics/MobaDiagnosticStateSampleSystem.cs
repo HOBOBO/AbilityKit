@@ -35,6 +35,14 @@ namespace AbilityKit.Demo.Moba.Systems.Diagnostics
         protected override void OnExecute()
         {
             if (_sampler == null) return;
+            try
+            {
+                _sampler.SampleTrackedAttribute();
+            }
+            catch
+            {
+                // Optional debug history must not affect combat simulation.
+            }
             if (_capturePolicy != null)
             {
                 var frame = _frameTime != null ? _frameTime.Frame.Value : 0;

@@ -38,7 +38,7 @@
         "attributeTemplateId": 1002,
         "skillIds": [10020101, 10020201, 10020301],
         "hasSpawnPosition": true,
-        "spawnPosition": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "spawnPosition": { "x": 0.0, "y": 0.0, "z": -5.0 },
         "facingDirection": { "x": 1.0, "y": 0.0, "z": 0.0 }
       },
       {
@@ -48,7 +48,7 @@
         "heroId": 1002,
         "attributeTemplateId": 1002,
         "hasSpawnPosition": true,
-        "spawnPosition": { "x": 6.0, "y": 0.0, "z": 0.0 },
+        "spawnPosition": { "x": 6.0, "y": 0.0, "z": -5.0 },
         "facingDirection": { "x": -1.0, "y": 0.0, "z": 0.0 }
       }
     ],

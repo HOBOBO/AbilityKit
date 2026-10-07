@@ -12,7 +12,6 @@ namespace AbilityKit.Demo.Moba.Services
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             PipelineConfig = pipelineConfig ?? throw new ArgumentNullException(nameof(pipelineConfig));
-            ModifierSourceId = CreateModifierSourceId(context.SourceContextId, context.SkillId, context.CasterActorId, pipelineConfig.ConfigId);
             _config = new SkillPipelineContinuousConfig(this, requirements ?? new ContinuousTagRequirements());
         }
 
@@ -23,25 +22,12 @@ namespace AbilityKit.Demo.Moba.Services
         public int TargetActorId => Context.TargetActorId;
         public int ConfigId => PipelineConfig.ConfigId;
         public long SourceContextId => Context.SourceContextId;
-        public int ModifierSourceId { get; }
+        public int ModifierSourceId => AllocatedModifierSourceId;
         public override IContinuousConfig Config => _config;
 
         protected override bool OnActivating()
         {
-            return Context.CasterActorId > 0 && PipelineConfig.HasPipelineContinuousTagTemplate;
-        }
-
-        private static int CreateModifierSourceId(long sourceContextId, int skillId, int casterActorId, int configId)
-        {
-            unchecked
-            {
-                var hash = 17;
-                hash = hash * 31 + sourceContextId.GetHashCode();
-                hash = hash * 31 + skillId;
-                hash = hash * 31 + casterActorId;
-                hash = hash * 31 + configId;
-                return hash == 0 ? skillId : hash;
-            }
+            return Context.CasterActorId > 0;
         }
 
         private sealed class SkillPipelineContinuousConfig : MobaContinuousConfigBase

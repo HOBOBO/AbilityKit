@@ -1,34 +1,314 @@
 [
   {
     "Id": 10000001,
-    "ActivationBlockedTags": [
-      "State.ControlImmune",
-      "State.SuperArmor"
-    ],
-    "ActivationRequiredTags": [],
-    "ApplicationTags": [],
-    "Name": "控制位移-霸体免疫阻断模板",
-    "OngoingBlockedTags": [
-      "State.ControlImmune",
-      "State.SuperArmor"
-    ],
-    "OngoingRequiredTags": [],
-    "RemovalBlockedTags": [],
-    "RemovalRequiredTags": [],
-    "RemovalTags": []
+    "Name": "通用-目标可受普通控制的位移",
+    "ActivationCondition": {
+      "Operator": "Not",
+      "Children": [
+        {
+          "Operator": "Any",
+          "Children": [
+            {
+              "Operator": "Tag",
+              "Tag": "State.ControlImmune",
+              "Exact": false
+            },
+            {
+              "Operator": "Tag",
+              "Tag": "State.SuperArmor",
+              "Exact": false
+            }
+          ]
+        }
+      ]
+    },
+    "OngoingCondition": {
+      "Operator": "Not",
+      "Children": [
+        {
+          "Operator": "Any",
+          "Children": [
+            {
+              "Operator": "Tag",
+              "Tag": "State.ControlImmune",
+              "Exact": false
+            },
+            {
+              "Operator": "Tag",
+              "Tag": "State.SuperArmor",
+              "Exact": false
+            }
+          ]
+        }
+      ]
+    },
+    "ExecutionBlockedResultMask": 0
   },
   {
     "Id": 10010001,
-    "ActivationBlockedTags": [],
-    "ActivationRequiredTags": [],
+    "Name": "通用-施法期间霸体",
     "ApplicationTags": [
       "State.SuperArmor"
     ],
-    "Name": "廉颇-释放期间霸体标签模板",
-    "OngoingBlockedTags": [],
-    "OngoingRequiredTags": [],
-    "RemovalBlockedTags": [],
-    "RemovalRequiredTags": [],
-    "RemovalTags": []
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3001,
+    "Name": "通用-控制免疫",
+    "ApplicationTags": [
+      "State.ControlImmune"
+    ],
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3002,
+    "Name": "通用-霸体与伤害免疫",
+    "ApplicationTags": [
+      "State.SuperArmor",
+      "State.Invulnerable"
+    ],
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3003,
+    "Name": "通用-伤害免疫",
+    "ApplicationTags": [
+      "State.Invulnerable"
+    ],
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3004,
+    "Name": "通用-不可选取",
+    "ApplicationTags": [
+      "State.Untargetable"
+    ],
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3005,
+    "Name": "通用-普通控制-眩晕",
+    "ApplicationTags": [
+      "State.Stunned"
+    ],
+    "ActivationCondition": {
+      "Operator": "Not",
+      "Children": [
+        {
+          "Operator": "Any",
+          "Children": [
+            {
+              "Operator": "Tag",
+              "Tag": "State.ControlImmune",
+              "Exact": false
+            },
+            {
+              "Operator": "Tag",
+              "Tag": "State.SuperArmor",
+              "Exact": false
+            }
+          ]
+        }
+      ]
+    },
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3006,
+    "Name": "通用-普通控制-禁锢",
+    "ApplicationTags": [
+      "State.Rooted"
+    ],
+    "ActivationCondition": {
+      "Operator": "Not",
+      "Children": [
+        {
+          "Operator": "Any",
+          "Children": [
+            {
+              "Operator": "Tag",
+              "Tag": "State.ControlImmune",
+              "Exact": false
+            },
+            {
+              "Operator": "Tag",
+              "Tag": "State.SuperArmor",
+              "Exact": false
+            }
+          ]
+        }
+      ]
+    },
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3007,
+    "Name": "通用-普通控制-沉默",
+    "ApplicationTags": [
+      "State.Silenced"
+    ],
+    "ActivationCondition": {
+      "Operator": "Not",
+      "Children": [
+        {
+          "Operator": "Any",
+          "Children": [
+            {
+              "Operator": "Tag",
+              "Tag": "State.ControlImmune",
+              "Exact": false
+            },
+            {
+              "Operator": "Tag",
+              "Tag": "State.SuperArmor",
+              "Exact": false
+            }
+          ]
+        }
+      ]
+    },
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3008,
+    "Name": "通用-普通控制-恐惧",
+    "ApplicationTags": [
+      "State.Feared"
+    ],
+    "ActivationCondition": {
+      "Operator": "Not",
+      "Children": [
+        {
+          "Operator": "Any",
+          "Children": [
+            {
+              "Operator": "Tag",
+              "Tag": "State.ControlImmune",
+              "Exact": false
+            },
+            {
+              "Operator": "Tag",
+              "Tag": "State.SuperArmor",
+              "Exact": false
+            }
+          ]
+        }
+      ]
+    },
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3009,
+    "Name": "通用-普通控制-魅惑",
+    "ApplicationTags": [
+      "State.Charmed"
+    ],
+    "ActivationCondition": {
+      "Operator": "Not",
+      "Children": [
+        {
+          "Operator": "Any",
+          "Children": [
+            {
+              "Operator": "Tag",
+              "Tag": "State.ControlImmune",
+              "Exact": false
+            },
+            {
+              "Operator": "Tag",
+              "Tag": "State.SuperArmor",
+              "Exact": false
+            }
+          ]
+        }
+      ]
+    },
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3010,
+    "Name": "通用-普通控制-睡眠",
+    "ApplicationTags": [
+      "State.Asleep"
+    ],
+    "ActivationCondition": {
+      "Operator": "Not",
+      "Children": [
+        {
+          "Operator": "Any",
+          "Children": [
+            {
+              "Operator": "Tag",
+              "Tag": "State.ControlImmune",
+              "Exact": false
+            },
+            {
+              "Operator": "Tag",
+              "Tag": "State.SuperArmor",
+              "Exact": false
+            }
+          ]
+        }
+      ]
+    },
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3011,
+    "Name": "通用-普通控制-失能",
+    "ApplicationTags": [
+      "State.Disabled"
+    ],
+    "ActivationCondition": {
+      "Operator": "Not",
+      "Children": [
+        {
+          "Operator": "Any",
+          "Children": [
+            {
+              "Operator": "Tag",
+              "Tag": "State.ControlImmune",
+              "Exact": false
+            },
+            {
+              "Operator": "Tag",
+              "Tag": "State.SuperArmor",
+              "Exact": false
+            }
+          ]
+        }
+      ]
+    },
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3012,
+    "Name": "通用-压制标记",
+    "ApplicationTags": [
+      "State.Suppressed"
+    ],
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3013,
+    "Name": "通用-减速标记",
+    "ApplicationTags": [
+      "Debuff.Slow"
+    ],
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3014,
+    "Name": "通用-不可选取与伤害免疫",
+    "ApplicationTags": [
+      "State.Invulnerable",
+      "State.Untargetable"
+    ],
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3015,
+    "Name": "通用-自主移动执行门禁",
+    "ExecutionBlockedResultMask": 16
   }
 ]

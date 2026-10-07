@@ -17,7 +17,6 @@ namespace AbilityKit.Demo.Moba.Services
             SourceActorId = sourceActorId;
             TargetActorId = targetActorId != 0 ? targetActorId : sourceActorId;
             SourceContextId = sourceContextId;
-            ModifierSourceId = CreateModifierSourceId(sourceContextId, Process.Id, SourceActorId, TargetActorId);
             _source = source;
             _config = new MobaTriggerIntervalContinuousConfig(this, BuildRequirements(requirements, process.Tags), process);
             IntervalRemainingSeconds = _config.IntervalSeconds;
@@ -28,7 +27,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int SourceActorId { get; }
         public int TargetActorId { get; }
         public long SourceContextId { get; }
-        public int ModifierSourceId { get; }
+        public int ModifierSourceId => AllocatedModifierSourceId;
         public override IContinuousConfig Config => _config;
 
         public float RemainingSeconds
@@ -158,7 +157,7 @@ namespace AbilityKit.Demo.Moba.Services
                 ApplicationTags = CopyContainer(template?.ApplicationTags),
                 RemovalRequired = template?.RemovalRequired ?? new GameplayTagRequirements(),
                 OngoingRequired = template?.OngoingRequired ?? new GameplayTagRequirements(),
-                RemovalTags = CopyContainer(template?.RemovalTags)
+                ExecutionBlockedResultMask = template?.ExecutionBlockedResultMask ?? 0UL
             };
 
             result.ApplicationTags.AppendTags(extraTags);
@@ -170,19 +169,6 @@ namespace AbilityKit.Demo.Moba.Services
             var copy = new GameplayTagContainer();
             copy.AppendTags(source);
             return copy;
-        }
-
-        private static int CreateModifierSourceId(long sourceContextId, int processId, int sourceActorId, int targetActorId)
-        {
-            unchecked
-            {
-                var hash = 17;
-                hash = hash * 31 + sourceContextId.GetHashCode();
-                hash = hash * 31 + processId;
-                hash = hash * 31 + sourceActorId;
-                hash = hash * 31 + targetActorId;
-                return hash == 0 ? processId : hash;
-            }
         }
 
         private sealed class MobaTriggerIntervalContinuousConfig : MobaContinuousConfigBase, IMobaContinuousOwnerBoundTriggerConfig, IMobaContinuousPeriodicGateConfig
@@ -200,6 +186,8 @@ namespace AbilityKit.Demo.Moba.Services
             public override string Id => $"trigger_interval_continuous:{_runtime.SourceActorId}:{_runtime.TargetActorId}:{_runtime.ProcessId}:{_runtime.SourceContextId}";
             public override long OwnerId => _runtime.TargetActorId;
             public override int OwnerActorId => _runtime.TargetActorId;
+            public override int SourceActorId => _runtime.SourceActorId;
+            public override int TargetActorId => _runtime.TargetActorId;
             public override int ModifierSourceId => _runtime.ModifierSourceId;
             public override GameplayTagSource TagSource => CreateSource(_runtime);
             public override float IntervalSeconds => _process != null && _process.IntervalMs > 0 ? _process.IntervalMs / 1000f : 0f;

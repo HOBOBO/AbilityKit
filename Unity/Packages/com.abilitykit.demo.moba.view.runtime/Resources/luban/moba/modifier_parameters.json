@@ -1,0 +1,233 @@
+[
+  {
+    "Id": 10001,
+    "Domain": 1,
+    "Key": "SkillId",
+    "Category": 40,
+    "SubCategory": 1,
+    "ValueKind": 1,
+    "OpMask": 4,
+    "TriggerWritable": false,
+    "ResolveAt": 1
+  },
+  {
+    "Id": 10002,
+    "Domain": 1,
+    "Key": "ResourceCost",
+    "Category": 40,
+    "SubCategory": 3,
+    "ValueKind": 2,
+    "OpMask": 15,
+    "TriggerWritable": true,
+    "ResolveAt": 1
+  },
+  {
+    "Id": 10003,
+    "Domain": 1,
+    "Key": "CooldownMs",
+    "Category": 40,
+    "SubCategory": 4,
+    "ValueKind": 2,
+    "OpMask": 15,
+    "TriggerWritable": true,
+    "ResolveAt": 1
+  },
+  {
+    "Id": 10004,
+    "Domain": 1,
+    "Key": "CastRange",
+    "Category": 40,
+    "SubCategory": 5,
+    "ValueKind": 3,
+    "OpMask": 15,
+    "TriggerWritable": true,
+    "ResolveAt": 1
+  },
+  {
+    "Id": 20001,
+    "Domain": 4,
+    "Key": "DurationMs",
+    "Category": 32,
+    "SubCategory": 1,
+    "ValueKind": 2,
+    "OpMask": 15,
+    "TriggerWritable": true,
+    "ResolveAt": 3
+  },
+  {
+    "Id": 30001,
+    "Domain": 7,
+    "Key": "LauncherId",
+    "Category": 30,
+    "SubCategory": 1,
+    "ValueKind": 1,
+    "OpMask": 4,
+    "TriggerWritable": false,
+    "ResolveAt": 2
+  },
+  {
+    "Id": 30002,
+    "Domain": 7,
+    "Key": "CountPerShot",
+    "Category": 30,
+    "SubCategory": 3,
+    "ValueKind": 2,
+    "OpMask": 15,
+    "TriggerWritable": true,
+    "ResolveAt": 5
+  },
+  {
+    "Id": 30003,
+    "Domain": 7,
+    "Key": "FanAngleDeg",
+    "Category": 30,
+    "SubCategory": 4,
+    "ValueKind": 3,
+    "OpMask": 15,
+    "TriggerWritable": true,
+    "ResolveAt": 5
+  },
+  {
+    "Id": 30004,
+    "Domain": 7,
+    "Key": "DurationMs",
+    "Category": 30,
+    "SubCategory": 5,
+    "ValueKind": 2,
+    "OpMask": 15,
+    "TriggerWritable": true,
+    "ResolveAt": 2
+  },
+  {
+    "Id": 30005,
+    "Domain": 7,
+    "Key": "IntervalMs",
+    "Category": 30,
+    "SubCategory": 7,
+    "ValueKind": 2,
+    "OpMask": 15,
+    "TriggerWritable": false,
+    "ResolveAt": 2
+  },
+  {
+    "Id": 40001,
+    "Domain": 2,
+    "Key": "ProjectileId",
+    "Category": 30,
+    "SubCategory": 2,
+    "ValueKind": 1,
+    "OpMask": 4,
+    "TriggerWritable": false,
+    "ResolveAt": 2
+  },
+  {
+    "Id": 40002,
+    "Domain": 2,
+    "Key": "Speed",
+    "Category": 30,
+    "SubCategory": 6,
+    "ValueKind": 3,
+    "OpMask": 15,
+    "TriggerWritable": true,
+    "ResolveAt": 6
+  },
+  {
+    "Id": 40003,
+    "Domain": 2,
+    "Key": "LifetimeMs",
+    "Category": 30,
+    "SubCategory": 8,
+    "ValueKind": 2,
+    "OpMask": 15,
+    "TriggerWritable": false,
+    "ResolveAt": 6
+  },
+  {
+    "Id": 40004,
+    "Domain": 2,
+    "Key": "PierceHits",
+    "Category": 30,
+    "SubCategory": 9,
+    "ValueKind": 2,
+    "OpMask": 15,
+    "TriggerWritable": false,
+    "ResolveAt": 6
+  },
+  {
+    "Id": 50001,
+    "Domain": 5,
+    "Key": "Radius",
+    "Category": 31,
+    "SubCategory": 1,
+    "ValueKind": 3,
+    "OpMask": 15,
+    "TriggerWritable": true,
+    "ResolveAt": 4
+  },
+  {
+    "Id": 50002,
+    "Domain": 5,
+    "Key": "DurationMs",
+    "Category": 31,
+    "SubCategory": 2,
+    "ValueKind": 2,
+    "OpMask": 15,
+    "TriggerWritable": true,
+    "ResolveAt": 4
+  },
+  {
+    "Id": 50003,
+    "Domain": 5,
+    "Key": "IntervalMs",
+    "Category": 31,
+    "SubCategory": 3,
+    "ValueKind": 2,
+    "OpMask": 15,
+    "TriggerWritable": false,
+    "ResolveAt": 4
+  },
+  {
+    "Id": 60001,
+    "Domain": 3,
+    "Key": "SummonId",
+    "Category": 40,
+    "SubCategory": 2,
+    "ValueKind": 1,
+    "OpMask": 4,
+    "TriggerWritable": false,
+    "ResolveAt": 8
+  },
+  {
+    "Id": 60002,
+    "Domain": 3,
+    "Key": "LifetimeMs",
+    "Category": 40,
+    "SubCategory": 6,
+    "ValueKind": 2,
+    "OpMask": 15,
+    "TriggerWritable": false,
+    "ResolveAt": 8
+  },
+  {
+    "Id": 60003,
+    "Domain": 3,
+    "Key": "InheritRatioScale",
+    "Category": 40,
+    "SubCategory": 7,
+    "ValueKind": 3,
+    "OpMask": 15,
+    "TriggerWritable": false,
+    "ResolveAt": 8
+  },
+  {
+    "Id": 70001,
+    "Domain": 6,
+    "Key": "RequestedBase",
+    "Category": 33,
+    "SubCategory": 1,
+    "ValueKind": 3,
+    "OpMask": 15,
+    "TriggerWritable": false,
+    "ResolveAt": 7
+  }
+]

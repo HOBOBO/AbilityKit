@@ -55,7 +55,8 @@ namespace AbilityKit.Game.Test.UnitTest
         public static TraceSnapshot<MobaTraceMetadata> CastSlotAndAssertEffect(
             MobaSkillConfigTestHarness harness,
             in HeroSkillSlotContract skill,
-            string reason)
+            string reason,
+            Vec3? aimDir = null)
         {
             harness.EnterGameAndWarmup(reason: reason);
             harness.AssertSlotSkill(skill.Slot, skill.SkillId);
@@ -64,7 +65,8 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var actorId = harness.AssertPlayerActorBound();
             var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
-            var cast = skills.TryCastBySlot(actorId, skill.Slot, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
+            var direction = aimDir ?? new Vec3(1f, 0f, 0f);
+            var cast = skills.TryCastBySlot(actorId, skill.Slot, aimPos: default, aimDir: direction, targetActorId: 0);
             Assert.IsTrue(
                 cast.Success,
                 $"{reason} should cast skill {skill.SkillId} from slot {skill.Slot}. " +

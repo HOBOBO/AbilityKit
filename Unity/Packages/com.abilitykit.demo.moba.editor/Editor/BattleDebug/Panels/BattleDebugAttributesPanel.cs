@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Editor.Diagnostics;
 using UnityEditor;
 using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
-    internal sealed class BattleDebugAttributesPanel : IBattleDebugPanel, IBattleDebugPanelLayout
+    internal sealed class BattleDebugAttributesPanel : IBattleDebugPanel,
+        IBattleDebugPanelLayout, IBattleDebugPanelSessionCleanup
     {
         public string Name => "属性";
         public int Order => 200;
@@ -19,19 +21,49 @@ namespace AbilityKit.Game.Editor
         private readonly BattleDebugDiagnosticBuffsViewModel _buffsViewModel =
             new BattleDebugDiagnosticBuffsViewModel();
         private readonly Dictionary<int, bool> _expandedAttributes = new Dictionary<int, bool>();
+        private readonly HashSet<string> _expandedSources = new HashSet<string>();
+        private readonly HashSet<int> _knownModifierSourceIds = new HashSet<int>();
+        private static readonly string[] ModifierKindOptions =
+            { "全部", "属性", "状态机参数", "状态标记", "领域参数", "技能槽位", "引用候选", "其他" };
+        private IReadOnlyList<MobaContinuousRuntimeView> _modifierRuntimes =
+            Array.Empty<MobaContinuousRuntimeView>();
         private Vector2 _scroll;
         private string _search = string.Empty;
+        private int _viewMode;
+        private int _modifierKindFilter;
         private bool _modifiedOnly;
         private bool _expandAll = true;
         private int _chartAttributeId;
         private bool _recordChart = true;
+        private int _samplingIntervalFrames = 1;
+        private bool _compareExpected;
+        private float _expectedValue;
+        private float _expectedTolerance = 0.01f;
+        private long _modifierActorId;
+        private object _modifierWorld;
+        private IMobaBattleDiagnosticAttributeHistory _chartHistoryService;
+        private double _nextModifierRefreshAt;
 
         public bool IsVisible(in BattleDebugContext ctx) => true;
+
+        public void ClearSessionState()
+        {
+            ReleaseRuntimeChart();
+            _viewModel.ClearHistory();
+            _viewModel.InvalidateCache();
+            _buffsViewModel.InvalidateCache();
+            _modifierRuntimes = Array.Empty<MobaContinuousRuntimeView>();
+            _modifierWorld = null;
+            _modifierActorId = 0;
+            _nextModifierRefreshAt = 0d;
+            _expandedSources.Clear();
+        }
 
         public void Draw(in BattleDebugContext ctx)
         {
             if (!ctx.HasSelection)
             {
+                ReleaseRuntimeChart();
                 DrawEmptyState(BattleDebugEmptyStateProjector.Project(
                     default,
                     requiresSelection: true,
@@ -40,8 +72,34 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
+            DrawToolbar(in ctx);
+
+            if (_viewMode == 1)
+            {
+                TrySyncRuntimeChart(in ctx);
+                if (BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var modifierSession) &&
+                    modifierSession.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorAttributes))
+                {
+                    _viewModel.RefreshIfNeeded(modifierSession, ctx.SelectedId.ActorId);
+                    if (modifierSession.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorBuffs))
+                        _buffsViewModel.RefreshIfNeeded(modifierSession, ctx.SelectedId.ActorId);
+                    else
+                        _buffsViewModel.InvalidateCache();
+                }
+                else
+                {
+                    _viewModel.InvalidateCache();
+                    _buffsViewModel.InvalidateCache();
+                }
+                _scroll = EditorGUILayout.BeginScrollView(_scroll);
+                DrawActorModifiers(in ctx);
+                EditorGUILayout.EndScrollView();
+                return;
+            }
+
             if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
+                ReleaseRuntimeChart();
                 EditorGUILayout.HelpBox(
                     "诊断会话不可用。请启动战斗或打开包含战斗诊断的 Artifact。",
                     MessageType.Info);
@@ -50,6 +108,7 @@ namespace AbilityKit.Game.Editor
 
             if (!session.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorAttributes))
             {
+                ReleaseRuntimeChart();
                 var unsupported = BattleDiagnosticQueryStatus.Unavailable(
                     0,
                     session.ActorAttributeStoreRevision,
@@ -61,12 +120,20 @@ namespace AbilityKit.Game.Editor
             }
 
             _viewModel.RefreshIfNeeded(session, ctx.SelectedId.ActorId);
-            _viewModel.TrackAttribute(session, ctx.SelectedId.ActorId, _chartAttributeId, _recordChart);
             if (session.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorBuffs))
             {
                 _buffsViewModel.RefreshIfNeeded(session, ctx.SelectedId.ActorId);
             }
-            DrawToolbar(in ctx);
+            else
+            {
+                _buffsViewModel.InvalidateCache();
+            }
+            if (!TrySyncRuntimeChart(in ctx))
+                _viewModel.TrackAttribute(session, ctx.SelectedId.ActorId, _chartAttributeId,
+                    _recordChart, _samplingIntervalFrames);
+            EditorGUILayout.LabelField(
+                $"属性 {_viewModel.Attributes.Count} · 属性投影 {_viewModel.Modifiers.Count} · 版本 {_viewModel.StoreRevision}",
+                EditorStyles.miniLabel);
             if (_chartAttributeId != 0) DrawChart(in ctx);
 
             var attributes = _viewModel.Attributes;
@@ -121,23 +188,221 @@ namespace AbilityKit.Game.Editor
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUILayout.Label($"Actor #{ctx.SelectedId.ActorId}", EditorStyles.miniLabel);
-            _search = GUILayout.TextField(_search, EditorStyles.toolbarSearchField, GUILayout.MinWidth(100));
-            _modifiedOnly = GUILayout.Toggle(_modifiedOnly, "仅修改项", EditorStyles.toolbarButton);
-            if (GUILayout.Button(_expandAll ? "全部收起" : "全部展开", EditorStyles.toolbarButton, GUILayout.Width(70)))
-            {
-                _expandAll = !_expandAll;
-                _expandedAttributes.Clear();
-            }
+            GUILayout.FlexibleSpace();
+            _viewMode = GUILayout.Toolbar(_viewMode, new[] { "属性", "修改器" },
+                EditorStyles.toolbarButton, GUILayout.Width(112));
             if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(48)))
             {
                 _viewModel.InvalidateCache();
                 _buffsViewModel.InvalidateCache();
+                _nextModifierRefreshAt = 0d;
                 ctx.RequestRepaint?.Invoke();
             }
             EditorGUILayout.EndHorizontal();
-            EditorGUILayout.LabelField(
-                $"属性 {_viewModel.Attributes.Count} · 修改器 {_viewModel.Modifiers.Count} · 版本 {_viewModel.StoreRevision}",
+            if (_viewMode == 0)
+            {
+                EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+                _search = GUILayout.TextField(_search, EditorStyles.toolbarSearchField,
+                    GUILayout.MinWidth(80));
+                _modifiedOnly = GUILayout.Toggle(_modifiedOnly, "仅修改项", EditorStyles.toolbarButton);
+                if (GUILayout.Button(_expandAll ? "全部收起" : "全部展开",
+                        EditorStyles.toolbarButton, GUILayout.Width(70)))
+                {
+                    _expandAll = !_expandAll;
+                    _expandedAttributes.Clear();
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+
+        private void DrawActorModifiers(in BattleDebugContext ctx)
+        {
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("类型", EditorStyles.miniLabel, GUILayout.Width(28));
+            _modifierKindFilter = EditorGUILayout.Popup(_modifierKindFilter, ModifierKindOptions,
+                GUILayout.Width(110));
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            if (ctx.IsOffline)
+            {
+                EditorGUILayout.HelpBox("离线数据仅包含属性投影，缺少持续实例和其他参数修改器。",
+                    MessageType.Info);
+                _knownModifierSourceIds.Clear();
+                DrawUnlinkedAttributeModifiers(in ctx, hasRuntimeView: false);
+                return;
+            }
+            if (ctx.SelectedId.ActorId <= 0 || ctx.SelectedId.ActorId > int.MaxValue ||
+                ctx.Facade == null || !ctx.Facade.TryGetSession(out var liveSession) ||
+                liveSession == null || !liveSession.TryGetWorld(out var world) ||
+                world?.Services == null ||
+                !world.Services.TryResolve<IMobaContinuousRuntimeQueryService>(out var query) || query == null)
+            {
+                EditorGUILayout.HelpBox("当前战斗世界没有持续实例查询服务。", MessageType.Info);
+                _knownModifierSourceIds.Clear();
+                DrawUnlinkedAttributeModifiers(in ctx, hasRuntimeView: false);
+                return;
+            }
+
+            var actorId = (int)ctx.SelectedId.ActorId;
+            var now = EditorApplication.timeSinceStartup;
+            if (_modifierActorId != actorId || !ReferenceEquals(_modifierWorld, world))
+            {
+                _modifierActorId = actorId;
+                _modifierWorld = world;
+                _expandedSources.Clear();
+                _nextModifierRefreshAt = 0d;
+            }
+            if (now >= _nextModifierRefreshAt)
+            {
+                _modifierRuntimes = query.GetOwnerContinuous(actorId) ??
+                    Array.Empty<MobaContinuousRuntimeView>();
+                _nextModifierRefreshAt = now + 0.15d;
+            }
+
+            var sourceCount = 0;
+            var modifierCount = 0;
+            _knownModifierSourceIds.Clear();
+            for (var i = 0; i < _modifierRuntimes.Count; i++)
+            {
+                var runtime = _modifierRuntimes[i];
+                if (runtime?.Modifiers == null) continue;
+                for (var j = 0; j < runtime.Modifiers.Count; j++)
+                    if (runtime.Modifiers[j].TargetKind ==
+                        MobaContinuousModifierTargetKind.Attribute)
+                        _knownModifierSourceIds.Add(runtime.Modifiers[j].ModifierSourceId);
+                var visible = 0;
+                for (var j = 0; j < runtime.Modifiers.Count; j++)
+                    if (MatchesModifierKind(runtime.Modifiers[j].TargetKind)) visible++;
+                if (visible == 0) continue;
+
+                sourceCount++;
+                modifierCount += visible;
+                var sourceId = runtime.Modifiers[0].ModifierSourceId;
+                var key = $"{actorId}:{sourceId}:{runtime.Id}";
+                var expanded = _expandedSources.Contains(key);
+                EditorGUILayout.BeginVertical(GUI.skin.box);
+                var nextExpanded = EditorGUILayout.Foldout(expanded,
+                    $"{BattleDebugDisplayText.ContinuousKind(runtime.Kind)}  配置 #{runtime.ConfigId}  来源 #{sourceId}  ({visible})",
+                    true, EditorStyles.foldoutHeader);
+                if (nextExpanded != expanded)
+                {
+                    if (nextExpanded) _expandedSources.Add(key);
+                    else _expandedSources.Remove(key);
+                }
+                EditorGUILayout.LabelField(
+                    $"{BattleDebugDisplayText.ContinuousState(runtime.State)}  层数 {runtime.Stack}  已持续 {runtime.ElapsedSeconds:0.###} 秒  剩余 {runtime.RemainingSeconds:0.###} 秒",
+                    EditorStyles.miniLabel);
+                if (nextExpanded)
+                {
+                    EditorGUILayout.LabelField(
+                        $"施加者 Actor #{runtime.SourceActorId}  目标 Actor #{runtime.TargetActorId}  来源上下文 {runtime.SourceContextId}  根上下文 {runtime.RootContextId}",
+                        EditorStyles.wordWrappedMiniLabel);
+                    if (!runtime.IsActive)
+                        EditorGUILayout.LabelField("当前未生效；以下显示配置声明。", EditorStyles.miniLabel);
+                    for (var j = 0; j < runtime.Modifiers.Count; j++)
+                        if (MatchesModifierKind(runtime.Modifiers[j].TargetKind))
+                            BattleDebugModifierDetails.Draw(runtime, j, ResolveAttributeName,
+                                ResolveAttributeValue, ShowAttributeChart);
+                }
+                EditorGUILayout.EndVertical();
+            }
+            EditorGUILayout.LabelField($"持续来源 {sourceCount} · 修改器 {modifierCount}",
                 EditorStyles.miniLabel);
+            var unlinkedCount = DrawUnlinkedAttributeModifiers(in ctx);
+            if (modifierCount == 0 && unlinkedCount == 0)
+                EditorGUILayout.LabelField("当前角色没有匹配的修改器。", EditorStyles.centeredGreyMiniLabel);
+        }
+
+        private int DrawUnlinkedAttributeModifiers(in BattleDebugContext ctx,
+            bool hasRuntimeView = true)
+        {
+            if (_modifierKindFilter != 0 && _modifierKindFilter != 1) return 0;
+            var count = 0;
+            for (var i = 0; i < _viewModel.Modifiers.Count; i++)
+            {
+                var modifier = _viewModel.Modifiers[i];
+                if (_knownModifierSourceIds.Contains(modifier.SourceId)) continue;
+                if (count++ == 0)
+                    EditorGUILayout.LabelField(hasRuntimeView
+                        ? "未关联持续实例的属性投影" : "属性投影", EditorStyles.boldLabel);
+                DrawModifier(in ctx, in modifier);
+            }
+            return count;
+        }
+
+        private bool MatchesModifierKind(int targetKind)
+        {
+            switch (_modifierKindFilter)
+            {
+                case 1: return targetKind == MobaContinuousModifierTargetKind.Attribute;
+                case 2: return targetKind == MobaContinuousModifierTargetKind.StateMachineParameter;
+                case 3: return targetKind == MobaContinuousModifierTargetKind.StateFlag;
+                case 4: return targetKind == MobaContinuousModifierTargetKind.SkillParameter;
+                case 5: return targetKind == MobaContinuousModifierTargetKind.SkillSlotCandidate;
+                case 6: return targetKind == MobaContinuousModifierTargetKind.ParameterReferenceCandidate;
+                case 7: return targetKind != MobaContinuousModifierTargetKind.Attribute &&
+                               targetKind != MobaContinuousModifierTargetKind.StateMachineParameter &&
+                               targetKind != MobaContinuousModifierTargetKind.StateFlag &&
+                               targetKind != MobaContinuousModifierTargetKind.SkillParameter &&
+                               targetKind != MobaContinuousModifierTargetKind.SkillSlotCandidate &&
+                               targetKind != MobaContinuousModifierTargetKind.ParameterReferenceCandidate;
+                default: return true;
+            }
+        }
+
+        private string ResolveAttributeName(int attributeId)
+        {
+            var attributes = _viewModel.Attributes;
+            for (var i = 0; i < attributes.Count; i++)
+                if (attributes[i].AttributeId == attributeId)
+                    return attributes[i].Name;
+            return null;
+        }
+
+        private void ShowAttributeChart(int attributeId)
+        {
+            _chartAttributeId = attributeId;
+            _viewMode = 0;
+            _viewModel.ClearHistory();
+        }
+
+        private bool TrySyncRuntimeChart(in BattleDebugContext ctx)
+        {
+            if (_chartAttributeId <= 0 || ctx.SelectedId.ActorId <= 0 ||
+                ctx.SelectedId.ActorId > int.MaxValue || ctx.IsOffline || ctx.Facade == null ||
+                !ctx.Facade.TryGetSession(out var session) || session == null ||
+                !session.TryGetWorld(out var world) || world?.Services == null ||
+                !world.Services.TryResolve<IMobaBattleDiagnosticAttributeHistory>(out var history) ||
+                history == null)
+            {
+                ReleaseRuntimeChart();
+                return false;
+            }
+
+            if (!ReferenceEquals(_chartHistoryService, history))
+            {
+                ReleaseRuntimeChart();
+                _chartHistoryService = history;
+            }
+            history.Configure(ctx.SelectedId.ActorId, _chartAttributeId,
+                _samplingIntervalFrames, _recordChart);
+            _viewModel.ReplaceHistory(history.GetSamples());
+            return true;
+        }
+
+        private void ReleaseRuntimeChart()
+        {
+            _chartHistoryService?.Stop();
+            _chartHistoryService = null;
+        }
+
+        private string ResolveAttributeValue(int attributeId)
+        {
+            var attributes = _viewModel.Attributes;
+            for (var i = 0; i < attributes.Count; i++)
+                if (attributes[i].AttributeId == attributeId)
+                    return $"属性基础 {attributes[i].BaseValue:0.#####}  最终 {attributes[i].FinalValue:0.#####}";
+            return null;
         }
 
         private bool Matches(in BattleDiagnosticActorAttribute attribute)
@@ -217,8 +482,39 @@ namespace AbilityKit.Game.Editor
                 GUILayout.Width(52));
             if (GUILayout.Button(new GUIContent("清空", "清空当前属性的曲线采样"),
                     EditorStyles.toolbarButton, GUILayout.Width(36)))
+            {
                 _viewModel.ClearHistory(waitForNextRevision: true);
+                _chartHistoryService?.ClearSamples();
+            }
             EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("采样间隔", "实时世界按战斗帧采样选中属性；离线快照只有单帧数据"),
+                EditorStyles.miniLabel, GUILayout.Width(56));
+            var interval = EditorGUILayout.IntField(_samplingIntervalFrames, GUILayout.Width(48));
+            if (interval != _samplingIntervalFrames)
+            {
+                _samplingIntervalFrames = Mathf.Clamp(interval, 1, 600);
+                _viewModel.ClearHistory(waitForNextRevision: true);
+                _chartHistoryService?.Configure(ctx.SelectedId.ActorId, _chartAttributeId,
+                    _samplingIntervalFrames, _recordChart);
+            }
+            GUILayout.Label("帧", EditorStyles.miniLabel, GUILayout.Width(20));
+            GUILayout.FlexibleSpace();
+            _compareExpected = GUILayout.Toggle(_compareExpected, "预期值", GUILayout.Width(66));
+            EditorGUILayout.EndHorizontal();
+            if (_compareExpected)
+            {
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label("目标", EditorStyles.miniLabel, GUILayout.Width(28));
+                _expectedValue = EditorGUILayout.FloatField(_expectedValue, GUILayout.Width(80));
+                GUILayout.Label("容差", EditorStyles.miniLabel, GUILayout.Width(28));
+                var tolerance = EditorGUILayout.FloatField(_expectedTolerance, GUILayout.Width(80));
+                if (!float.IsNaN(tolerance) && !float.IsInfinity(tolerance))
+                    _expectedTolerance = Mathf.Max(0f, tolerance);
+                GUILayout.FlexibleSpace();
+                EditorGUILayout.EndHorizontal();
+            }
 
             var samples = _viewModel.History;
             if (samples.Count == 0)
@@ -234,6 +530,11 @@ namespace AbilityKit.Game.Editor
                 min = Mathf.Min(min, samples[i].BaseValue, samples[i].FinalValue);
                 max = Mathf.Max(max, samples[i].BaseValue, samples[i].FinalValue);
             }
+            if (_compareExpected && !float.IsNaN(_expectedValue) && !float.IsInfinity(_expectedValue))
+            {
+                min = Mathf.Min(min, _expectedValue);
+                max = Mathf.Max(max, _expectedValue);
+            }
             var padding = Mathf.Max((max - min) * 0.08f, 0.001f);
             min -= padding;
             max += padding;
@@ -242,6 +543,7 @@ namespace AbilityKit.Game.Editor
             var plot = new Rect(rect.x + 58f, rect.y + 10f, Mathf.Max(1f, rect.width - 70f), 125f);
             var baseColor = new Color(0.18f, 0.72f, 0.67f);
             var finalColor = new Color(0.96f, 0.65f, 0.23f);
+            var expectedColor = new Color(0.82f, 0.36f, 0.38f);
             if (Event.current.type == EventType.Repaint)
             {
                 EditorGUI.DrawRect(rect, EditorGUIUtility.isProSkin
@@ -258,6 +560,14 @@ namespace AbilityKit.Game.Editor
                 Handles.BeginGUI();
                 DrawSeries(samples, plot, min, max, firstFrame, frameSpan, baseColor, false);
                 DrawSeries(samples, plot, min, max, firstFrame, frameSpan, finalColor, true);
+                if (_compareExpected && !float.IsNaN(_expectedValue) && !float.IsInfinity(_expectedValue))
+                {
+                    var y = plot.yMax - plot.height * (_expectedValue - min) / (max - min);
+                    var previousColor = Handles.color;
+                    Handles.color = expectedColor;
+                    Handles.DrawLine(new Vector3(plot.x, y), new Vector3(plot.xMax, y));
+                    Handles.color = previousColor;
+                }
                 Handles.EndGUI();
             }
             GUI.Label(new Rect(rect.x + 3f, plot.y - 4f, 55f, 17f), max.ToString("0.###"), EditorStyles.miniLabel);
@@ -269,8 +579,10 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.BeginHorizontal();
             DrawLegend(baseColor, "基础值");
             DrawLegend(finalColor, "最终值");
+            if (_compareExpected) DrawLegend(expectedColor, "预期值");
             GUILayout.FlexibleSpace();
-            GUILayout.Label($"{samples.Count} 点 · 采样帧", EditorStyles.miniLabel);
+            GUILayout.Label($"{samples.Count} 点 · {(_chartHistoryService == null ? "窗口快照" : "运行时帧末尾")}",
+                EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
 
             var mouse = Event.current.mousePosition;
@@ -295,6 +607,25 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField(
                 $"帧 {selectedSample.Frame} · 基础 {selectedSample.BaseValue:0.#####} · 最终 {selectedSample.FinalValue:0.#####} · 修改器 {selectedSample.ModifierCount}",
                 EditorStyles.wordWrappedMiniLabel);
+            if (_compareExpected && !float.IsNaN(_expectedValue) &&
+                !float.IsInfinity(_expectedValue) && !float.IsNaN(_expectedTolerance))
+            {
+                var delta = selectedSample.FinalValue - _expectedValue;
+                EditorGUILayout.LabelField(
+                    $"预期 {_expectedValue:0.#####} · 偏差 {delta:+0.#####;-0.#####;0} · 容差 {_expectedTolerance:0.#####} · {(Mathf.Abs(delta) <= _expectedTolerance ? "符合" : "超出")}",
+                    EditorStyles.wordWrappedMiniLabel);
+                var exceeded = 0;
+                var maxDeviation = 0f;
+                for (var i = 0; i < samples.Count; i++)
+                {
+                    var deviation = Mathf.Abs(samples[i].FinalValue - _expectedValue);
+                    if (deviation > _expectedTolerance) exceeded++;
+                    maxDeviation = Mathf.Max(maxDeviation, deviation);
+                }
+                EditorGUILayout.LabelField(
+                    $"已记录点：符合 {samples.Count - exceeded} · 超差 {exceeded} · 最大绝对偏差 {maxDeviation:0.#####}",
+                    EditorStyles.wordWrappedMiniLabel);
+            }
         }
 
         private static void DrawSeries(
@@ -361,7 +692,7 @@ namespace AbilityKit.Game.Editor
                 EditorStyles.miniBoldLabel,
                 GUILayout.Width(100));
             EditorGUILayout.LabelField(
-                $"操作={modifier.Operation} · 优先级 {modifier.Priority} · 数值类型 {modifier.MagnitudeType}",
+                $"操作={modifier.Operation} · 优先级 {modifier.Priority} · 数值类型 {ResolveMagnitudeType(modifier.MagnitudeType)}",
                 EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
 
@@ -440,6 +771,20 @@ namespace AbilityKit.Game.Editor
                     return "应用时快照";
                 default:
                     return $"未知（{evaluationPolicy}）";
+            }
+        }
+
+        private static string ResolveMagnitudeType(int magnitudeType)
+        {
+            switch (magnitudeType)
+            {
+                case 0: return "固定值";
+                case 1: return "等级曲线";
+                case 2: return "属性引用";
+                case 3: return "时间曲线";
+                case 4: return "组合";
+                case 5: return "上下文数值";
+                default: return $"未知（{magnitudeType}）";
             }
         }
 

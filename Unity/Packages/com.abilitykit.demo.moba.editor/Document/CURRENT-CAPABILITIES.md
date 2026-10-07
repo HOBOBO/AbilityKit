@@ -47,6 +47,8 @@ World、Actor、Attributes、Buffs、Tags 和 Effects 当前使用 latest-only �
 - Actor 存在但对应集合为空时返回正常 `Empty`，不等同于未采样。
 - 各 Store revision 独立推进，不提供跨 Store 原子事务。
 
+属性面板的“修改器”视图在本地实时世界额外查询 `IMobaContinuousRuntimeQueryService`，按 owner 下的持续实例展示属性、领域参数、技能槽位候选、引用候选和未知类型的声明与解释。此查询不属于 `IBattleDiagnosticReadOnlySession` 或 Artifact 契约；离线仅有属性投影。实时属性曲线通过 `IMobaBattleDiagnosticAttributeHistory` 在战斗帧末尾定向采集当前选中的属性，独立于 latest-only 快照间隔，最多保留 240 点；窗口支持 1–600 帧采样间隔及常量预期值容差统计。离线只有单帧快照，缺少运行时采样服务时退化为窗口观察采样。
+
 Overview 同时依赖 `ActorState | ActorTags | ActorEffects`，并以 Session Scope、三类 revision、ActorId 和 Frame 作为联合缓存键。某一项 capability 缺失时，Overview 不回退读取 Runtime 对象。
 
 ## 不可变诊断快照与标准 Artifact

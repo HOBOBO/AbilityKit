@@ -84,6 +84,33 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
         }
 
         [Test]
+        public void Source_target_tag_rule_condition_exports_from_authoring_model()
+        {
+            var database = MobaTriggerSkillFixtureCompiler.Compile(
+                "moba-self-buff-skill.trigger.json",
+                MobaTriggerAuthoringTestIds.SelfBuff,
+                module => module.Triggers[0].Condition = new TriggerNodeData
+                {
+                    Kind = TriggerNodeKind.Condition,
+                    Type = "source_target_tag_rules",
+                    Arguments = new List<TriggerArgumentData>
+                    {
+                        new TriggerArgumentData
+                        {
+                            Name = "source_rule_group_id",
+                            Value = new TriggerValueRefData
+                            {
+                                Source = TriggerValueSource.Constant,
+                                Type = TriggerValueType.Integer,
+                                IntegerValue = 2004
+                            }
+                        }
+                    }
+                });
+            Assert.That(database, Is.Not.Null);
+        }
+
+        [Test]
         public void ReservedTriggerIds_DoNotOverlapFormalAuthoringSources()
         {
             var sourceDirectory = Path.Combine(

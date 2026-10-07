@@ -145,6 +145,63 @@ namespace AbilityKit.Combat.Projectile
                 collisionHalfExtents: CollisionHalfExtents);
         }
 
+        public ProjectileSpawnParams WithSpeed(float speed)
+        {
+            return new ProjectileSpawnParams(
+                ownerId: OwnerId, templateId: TemplateId,
+                launcherActorId: LauncherActorId, rootActorId: RootActorId,
+                spawnFrame: SpawnFrame, position: Position, direction: Direction,
+                speed: speed, returnAfterFrames: ReturnAfterFrames,
+                returnSpeed: ReturnSpeed, returnStopDistance: ReturnStopDistance,
+                lifetimeFrames: LifetimeFrames, maxDistance: MaxDistance,
+                collisionLayerMask: CollisionLayerMask, ignoreCollider: IgnoreCollider,
+                hitPolicy: HitPolicy, hitsRemaining: HitsRemaining,
+                hitPolicyKind: HitPolicyKind, hitPolicyParam: HitPolicyParam,
+                tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
+                hitCooldownFrames: HitCooldownFrames, startSuspended: StartSuspended,
+                patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
+                trackingTargetActorId: TrackingTargetActorId,
+                collisionHalfExtents: CollisionHalfExtents);
+        }
+
+        public ProjectileSpawnParams WithLifetimeFrames(int lifetimeFrames)
+        {
+            return new ProjectileSpawnParams(
+                ownerId: OwnerId, templateId: TemplateId,
+                launcherActorId: LauncherActorId, rootActorId: RootActorId,
+                spawnFrame: SpawnFrame, position: Position, direction: Direction,
+                speed: Speed, returnAfterFrames: ReturnAfterFrames,
+                returnSpeed: ReturnSpeed, returnStopDistance: ReturnStopDistance,
+                lifetimeFrames: lifetimeFrames, maxDistance: MaxDistance,
+                collisionLayerMask: CollisionLayerMask, ignoreCollider: IgnoreCollider,
+                hitPolicy: HitPolicy, hitsRemaining: HitsRemaining,
+                hitPolicyKind: HitPolicyKind, hitPolicyParam: HitPolicyParam,
+                tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
+                hitCooldownFrames: HitCooldownFrames, startSuspended: StartSuspended,
+                patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
+                trackingTargetActorId: TrackingTargetActorId,
+                collisionHalfExtents: CollisionHalfExtents);
+        }
+
+        public ProjectileSpawnParams WithHitPolicyParam(int hitPolicyParam)
+        {
+            return new ProjectileSpawnParams(
+                ownerId: OwnerId, templateId: TemplateId,
+                launcherActorId: LauncherActorId, rootActorId: RootActorId,
+                spawnFrame: SpawnFrame, position: Position, direction: Direction,
+                speed: Speed, returnAfterFrames: ReturnAfterFrames,
+                returnSpeed: ReturnSpeed, returnStopDistance: ReturnStopDistance,
+                lifetimeFrames: LifetimeFrames, maxDistance: MaxDistance,
+                collisionLayerMask: CollisionLayerMask, ignoreCollider: IgnoreCollider,
+                hitPolicy: null, hitsRemaining: HitsRemaining,
+                hitPolicyKind: HitPolicyKind, hitPolicyParam: hitPolicyParam,
+                tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
+                hitCooldownFrames: HitCooldownFrames, startSuspended: StartSuspended,
+                patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
+                trackingTargetActorId: TrackingTargetActorId,
+                collisionHalfExtents: CollisionHalfExtents);
+        }
+
         public ProjectileSpawnParams WithPosition(in Vec3 position)
         {
             return new ProjectileSpawnParams(

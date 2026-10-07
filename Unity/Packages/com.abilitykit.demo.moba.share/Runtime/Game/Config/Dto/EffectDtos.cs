@@ -3,11 +3,18 @@ using System;
 namespace AbilityKit.Demo.Moba.Share.Config
 {
     [Serializable]
+    public sealed class ModifierFormulaTermDTO
+    {
+        public int ActorRole;
+        public int AttributeTypeId;
+        public float Coefficient;
+    }
+
+    [Serializable]
     public sealed class ContinuousModifierDTO
     {
         public int TargetKind;
         public int TargetId;
-        public int AttrTypeId;
         public int Op;
         public float Value;
         public int Priority;
@@ -22,9 +29,24 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public string MagnitudeContextKey;
         public float[] MagnitudeCurve;
 
-        // 0/Realtime 在目标值每次重算时从来源重新计算。
-        // 1/OnApplySnapshot 在 continuous modifier 投影时计算一次，然后存储固定值。
+        // 0/Realtime 保留动态数值源；属性引用目前须使用快照策略。
+        // 1/OnApplySnapshot 在 continuous modifier 每次投影时计算一次，然后存储固定值。
         public int EvaluationPolicy;
+        // 0/Owner, 1/Source, 2/Target；仅用于属性引用数值源。
+        public int AttributeSourceRole;
+        public int SelectorSlot;
+        public int SelectorBaseSkillId;
+        public int SelectorEffectiveSkillId;
+        public int SelectorLauncherTemplateId;
+        public int SelectorProjectileTemplateId;
+        public int SelectorAreaTemplateId;
+        public int SelectorSummonTemplateId;
+        public int SelectorBuffTemplateId;
+        public int CandidateSkillId;
+        public int CandidateReferenceId;
+        public float FormulaConstant;
+        public float FormulaLevelCoefficient;
+        public ModifierFormulaTermDTO[] FormulaTerms;
     }
 
     [Serializable]

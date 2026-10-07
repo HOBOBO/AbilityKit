@@ -33,6 +33,8 @@ public sealed partial class DRSummons : Luban.BeanBase
         UnitSubType = _buf.ReadInt();
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
+        BrainId = _buf.ReadInt();
+        InheritAttributeConfigId = _buf.ReadInt();
     }
 
     public static DRSummons DeserializeDRSummons(ByteBuf _buf)
@@ -41,25 +43,81 @@ public sealed partial class DRSummons : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 召唤物继承属性的配置列表；每项指定属性 ID 与缩放值。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> AttrScales;
+    /// <summary>
+    /// 属性模板 ID，引用角色表中的属性模板。
+    /// </summary>
     public readonly int AttributeTemplateId;
+    /// <summary>
+    /// 默认组件模板 ID 列表，逗号分隔。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> DefaultComponentTemplateIds;
+    /// <summary>
+    /// 销毁在拥有者死亡：true 为启用，false 为关闭。
+    /// </summary>
     public readonly bool DespawnOnOwnerDie;
+    /// <summary>
+    /// 实例存活时间，单位毫秒。
+    /// </summary>
     public readonly int LifetimeMs;
+    /// <summary>
+    /// 最大存活每拥有者；用于召唤物配置。
+    /// </summary>
     public readonly int MaxAlivePerOwner;
+    /// <summary>
+    /// 模型资源 ID，引用模型表。
+    /// </summary>
     public readonly int ModelId;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 超限策略；用于召唤物配置。
+    /// </summary>
     public readonly int OverflowPolicy;
+    /// <summary>
+    /// 被动技能 ID 列表，引用被动技能表。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> PassiveSkillIds;
+    /// <summary>
+    /// 主动技能 ID 列表，引用技能表。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> SkillIds;
+    /// <summary>
+    /// 属性模式；用于召唤物配置。
+    /// </summary>
     public readonly int StatsMode;
+    /// <summary>
+    /// 暂不使用；单位身份与玩法类型由专用字段表示，不通过旧数字标签配置。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> Tags;
+    /// <summary>
+    /// 单位子类型；用于召唤物配置。
+    /// </summary>
     public readonly int UnitSubType;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
+    /// <summary>
+    /// AI 行为配置 ID；0 表示不启用 AI，引用角色表的 AI 表。
+    /// </summary>
+    public readonly int BrainId;
+    /// <summary>
+    /// Modifier authoring reference
+    /// </summary>
+    public readonly int InheritAttributeConfigId;
    
     public const int __ID__ = -1664266428;
     public override int GetTypeId() => __ID__;
@@ -88,6 +146,8 @@ public sealed partial class DRSummons : Luban.BeanBase
         + "UnitSubType:" + UnitSubType + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
+        + "BrainId:" + BrainId + ","
+        + "InheritAttributeConfigId:" + InheritAttributeConfigId + ","
         + "}";
     }
 }

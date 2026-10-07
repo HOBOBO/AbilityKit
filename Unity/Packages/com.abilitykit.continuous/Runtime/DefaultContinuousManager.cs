@@ -178,8 +178,28 @@ namespace AbilityKit.Continuous
  
             if (continuous.IsActive && !wasActive)
             {
-                NotifyActivated(continuous);
-                OnActivated?.Invoke(continuous);
+                try
+                {
+                    NotifyActivated(continuous);
+                    OnActivated?.Invoke(continuous);
+                }
+                catch
+                {
+                    try
+                    {
+                        continuous.End(ContinuousEndReason.CleanedUp);
+                    }
+                    catch
+                    {
+                        // Keep the activation failure; unregister below if ending also failed.
+                    }
+                    if (_registered.Contains(continuous))
+                    {
+                        try { Unregister(continuous, ContinuousEndReason.CleanedUp); }
+                        catch { /* Keep the activation failure after best-effort cleanup. */ }
+                    }
+                    throw;
+                }
             }
 
             return continuous.IsActive;

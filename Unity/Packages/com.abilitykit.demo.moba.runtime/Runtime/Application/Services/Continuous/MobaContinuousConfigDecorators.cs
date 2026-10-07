@@ -49,6 +49,8 @@ namespace AbilityKit.Demo.Moba.Services
         public const int StateMachineParameter = 2;
         public const int StateFlag = 3;
         public const int SkillParameter = 4;
+        public const int SkillSlotCandidate = 5;
+        public const int ParameterReferenceCandidate = 6;
         public const int Custom = 255;
     }
 
@@ -56,6 +58,13 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public const int Realtime = 0;
         public const int OnApplySnapshot = 1;
+    }
+
+    public static class MobaModifierAttributeSourceRole
+    {
+        public const int Owner = 0;
+        public const int Source = 1;
+        public const int Target = 2;
     }
 
     /// <summary>
@@ -69,7 +78,26 @@ namespace AbilityKit.Demo.Moba.Services
         float Value { get; }
         MagnitudeSource Magnitude { get; }
         int EvaluationPolicy { get; }
+        int AttributeSourceRole { get; }
         int Priority { get; }
+    }
+
+    public interface IMobaContinuousSkillCandidateSpec
+    {
+        int CandidateSkillId { get; }
+    }
+
+    public interface IMobaContinuousReferenceCandidateSpec
+    {
+        int CandidateReferenceId { get; }
+    }
+
+    public interface IMobaContinuousFormulaSpec
+    {
+        bool HasFormula { get; }
+        float FormulaConstant { get; }
+        float FormulaLevelCoefficient { get; }
+        IReadOnlyList<AbilityKit.Demo.Moba.Share.Config.ModifierFormulaTermDTO> FormulaTerms { get; }
     }
 
     /// <summary>
@@ -78,6 +106,8 @@ namespace AbilityKit.Demo.Moba.Services
     public interface IMobaContinuousProjectionConfig
     {
         int OwnerActorId { get; }
+        int SourceActorId { get; }
+        int TargetActorId { get; }
         int ModifierSourceId { get; }
         GameplayTagSource TagSource { get; }
     }

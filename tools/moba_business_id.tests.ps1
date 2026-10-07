@@ -131,7 +131,24 @@ try {
     Assert-Equal -Expected 1 -Actual $collision.ExitCode -Message 'Cross-namespace collision validation should fail.'
     Assert-Contains -Value $collision.Output -Expected 'Cross-namespace id collision for id 200' -Message 'Collision validation should report the shared formal ID.'
 
-    Write-Host '[moba-business-id-tests] passed: cases=4'
+    $aggregateCase = Join-Path $tempRoot 'trigger-aggregate'
+    $null = New-Item -ItemType Directory -Force -Path $aggregateCase
+    Write-Utf8Json -Path (Join-Path $aggregateCase 'ability_trigger_plans.json') -Value ([ordered]@{
+        FormatVersion = 1
+        Triggers = @([ordered]@{ TriggerId = 100 }, [ordered]@{ TriggerId = 101 })
+    })
+    $aggregateNamespace = New-Namespace -Name 'alpha' -Min 100 -Max 199 -Source 'ability_trigger_plans.json'
+    $aggregateNamespace.sources = @([ordered]@{
+        path = 'ability_trigger_plans.json'
+        shape = 'trigger-aggregate'
+        idProperty = 'TriggerId'
+    })
+    $aggregateRegistry = New-Registry -CaseDirectory $aggregateCase -Namespaces @($aggregateNamespace)
+    $aggregate = Invoke-Tool -RegistryPath $aggregateRegistry -Arguments @('-Mode', 'Validate')
+    Assert-Equal -Expected 0 -Actual $aggregate.ExitCode -Message 'Published trigger aggregate should validate.'
+    Assert-Contains -Value $aggregate.Output -Expected 'records=2' -Message 'Both Trigger Authoring records must be counted.'
+
+    Write-Host '[moba-business-id-tests] passed: cases=5'
     exit 0
 }
 finally {

@@ -19,10 +19,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var buffId = ReadInt(namedArgs, ctx, 0, "buff_id", "buffid", "id");
             var sourceActorId = ReadInt(namedArgs, ctx, 0, "source_actor_id", "sourceactorid", "source_id", "sourceid");
             var removeAll = ReadBool(namedArgs, ctx, true, "remove_all", "removeall", "all", "clear");
-            var removeSlow = ReadBoolNonZero(namedArgs, ctx, false, "remove_slow", "removeslow");
+            var tagId = ReadInt(namedArgs, ctx, 0, "tag_id", "tagid");
             var reason = ReadEnum(namedArgs, ctx, MobaExecutionEndReason.Dispelled, "reason", "remove_reason", "removereason");
             var targetRequest = MobaActionTargetSchemaReader.Read(namedArgs, ctx);
-            return new RemoveBuffArgs(buffId, sourceActorId, removeAll, removeSlow, reason, in targetRequest);
+            return new RemoveBuffArgs(buffId, sourceActorId, removeAll, tagId, reason, in targetRequest);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Core.Pooling;
 using AbilityKit.Ability.Battle.EntityManager;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Events.Unit;
@@ -19,6 +20,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
     [WorldService(typeof(MobaEntityManager))]
     public sealed class MobaEntityManager :
         IMobaRuntimeObjectBootstrapContributor,
+        IWorldInitializable,
         IService
     {
         private static readonly ObjectPool<List<int>> s_actorIdListPool = Pools.GetPool(
@@ -35,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
         [WorldInject(required: false)] private IMobaRuntimeObjectLifecycleHook _objectLifecycle = null;
         [WorldInject(required: false)] private IMobaRuntimeObjectBootstrapRegistry _objectBootstrap = null;
+        private IWorldResolver _services;
 
         private bool _objectBootstrapRegistered;
         private MobaActorRollbackCommandRuntime _actorRollbackCommands;
@@ -196,7 +199,19 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
         public void Unregister(int actorId)
         {
             if (!UnregisterSilently(actorId, out var entity)) return;
+            CompleteActorRemoval(actorId);
             PublishDespawn(entity);
+        }
+
+        public void OnInit(IWorldResolver services) => _services = services;
+
+        internal void CompleteActorRemoval(int actorId)
+        {
+            if (_services == null) return;
+            if (_services.TryResolve(out MobaTriggerModifierContinuousService triggerModifiers))
+                triggerModifiers.RemoveOwner(actorId);
+            if (_services.TryResolve(out MobaContinuousManager continuous))
+                continuous.EndOwnerActor(actorId);
         }
 
         internal void PublishDespawn(global::ActorEntity entity)

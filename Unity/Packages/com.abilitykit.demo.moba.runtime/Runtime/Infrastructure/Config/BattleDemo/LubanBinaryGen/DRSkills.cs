@@ -27,10 +27,11 @@ public sealed partial class DRSkills : Luban.BeanBase
         Range = _buf.ReadInt();
         RequiredTargetQueryId = _buf.ReadInt();
         SkillButtonTemplateId = _buf.ReadInt();
-        SkillType = _buf.ReadInt();
+        SkillType = (SkillType)_buf.ReadInt();
         {int n0 = _buf.ReadSize(); Tags = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); Tags.Add(_e0);}}
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
+        {int n0 = _buf.ReadSize(); ExecutionBlockedFlagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ExecutionBlockedFlagIds.Add(_e0);}}
     }
 
     public static DRSkills DeserializeDRSkills(ByteBuf _buf)
@@ -39,23 +40,69 @@ public sealed partial class DRSkills : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 必填；施法 Pipeline ID，引用 Pipeline 编辑器发布的 skill_flows。
+    /// </summary>
     public readonly int CastFlowId;
+    /// <summary>
+    /// 技能分类编号；用于技能分组。
+    /// </summary>
     public readonly int Category;
+    /// <summary>
+    /// 冷却时间，单位毫秒。
+    /// </summary>
     public readonly int CooldownMs;
+    /// <summary>
+    /// 图标ID；填写对应配置或编辑器产物的 ID。
+    /// </summary>
     public readonly int IconId;
+    /// <summary>
+    /// 技能等级表 ID；0 表示不使用等级参数。
+    /// </summary>
     public readonly int LevelTableId;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 可选；前置施法 Pipeline ID，0 表示不使用。
+    /// </summary>
     public readonly int PreCastFlowId;
+    /// <summary>
+    /// 技能有效距离，使用战斗世界单位。
+    /// </summary>
     public readonly int Range;
+    /// <summary>
+    /// 施法所需目标查询模板 ID；0 表示无此要求。
+    /// </summary>
     public readonly int RequiredTargetQueryId;
+    /// <summary>
+    /// 技能按钮与瞄准表现模板 ID；0 表示无专用模板。
+    /// </summary>
     public readonly int SkillButtonTemplateId;
-    public readonly int SkillType;
+    /// <summary>
+    /// 技能类型枚举；按 strong_types.xml 中 SkillType 填写。
+    /// </summary>
+    public readonly SkillType SkillType;
+    /// <summary>
+    /// 可选技能选择标签 ID；仅在 AI 或配置查询确有需求时填写，不按英雄或技能槽位自动分配。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> Tags;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
+    /// <summary>
+    /// 执行前及施法过程中阻断本技能的结果标志 ID，多个用逗号分隔；空表示不检查。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> ExecutionBlockedFlagIds;
    
     public const int __ID__ = 491147888;
     public override int GetTypeId() => __ID__;
@@ -82,6 +129,7 @@ public sealed partial class DRSkills : Luban.BeanBase
         + "Tags:" + Luban.StringUtil.CollectionToString(Tags) + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
+        + "ExecutionBlockedFlagIds:" + Luban.StringUtil.CollectionToString(ExecutionBlockedFlagIds) + ","
         + "}";
     }
 }

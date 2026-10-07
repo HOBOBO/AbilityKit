@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
+using AbilityKit.Demo.Moba.Share.Config;
 using Luban;
 using Newtonsoft.Json.Linq;
 
@@ -16,10 +17,11 @@ namespace AbilityKit.Demo.Moba.Config.Core
         public static IReadOnlyList<IConfigGroup> Create(
             ITextAssetLoader assets,
             IReadOnlyCollection<string> binaryTables,
-            bool useLubanJsonForRemaining = false)
+            bool useLubanJsonForRemaining = true)
         {
             if (assets == null) throw new ArgumentNullException(nameof(assets));
             if (binaryTables == null) throw new ArgumentNullException(nameof(binaryTables));
+            AbilityKit.Demo.Moba.Services.MobaGameplayTagCatalog.RegisterDefinitions(assets);
             var selected = new HashSet<string>(binaryTables, StringComparer.Ordinal);
             var known = new HashSet<string>(MobaRuntimeConfigTableRegistry.Tables.Select(t => t.FilePath), StringComparer.Ordinal);
             foreach (var name in selected)
@@ -38,7 +40,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             {
                 groups.Add(new ConfigGroup(ConfigGroupNames.LubanBinary,
                     new MobaLubanAssetGroupLoader(assets, BinaryDirectory, binary: true),
-                    MobaLubanBinaryGroupDeserializer.Instance, binary));
+                    new MobaLubanBinaryGroupDeserializer(assets), binary));
             }
             if (remaining.Length > 0)
             {
@@ -123,7 +125,18 @@ namespace AbilityKit.Demo.Moba.Config.Core
     {
         public static readonly MobaLubanBinaryGroupDeserializer Instance = new MobaLubanBinaryGroupDeserializer();
 
+        private readonly ITextAssetLoader _assets;
+        private Dictionary<int, JObject> _modifiers;
+        private Dictionary<int, JObject> _tags;
+        private Dictionary<int, JObject> _characterLoadouts;
+        private AbilityKit.Demo.Moba.Services.MobaTagWorkbookRuntime _tagWorkbook;
+
         private MobaLubanBinaryGroupDeserializer() { }
+
+        public MobaLubanBinaryGroupDeserializer(ITextAssetLoader assets)
+        {
+            _assets = assets ?? throw new ArgumentNullException(nameof(assets));
+        }
 
         public override Array DeserializeFromBytes(byte[] bytes, Type dtoType)
         {
@@ -162,6 +175,30 @@ namespace AbilityKit.Demo.Moba.Config.Core
                         property.Value = JToken.Parse(value);
                     }
                 }
+                RestoreReferences(json, dtoType);
+                if (dtoType == typeof(BuffDTO) && json["Modifiers"] is JArray modifiers)
+                {
+                    foreach (var modifier in modifiers.OfType<JObject>())
+                    {
+                        if (modifier.Value<string>("MagnitudeContextKey") == string.Empty)
+                            modifier["MagnitudeContextKey"] = JValue.CreateNull();
+                        if (modifier["MagnitudeCurve"] is JArray curve && curve.Count == 0)
+                            modifier["MagnitudeCurve"] = JValue.CreateNull();
+                    }
+                }
+                if (dtoType == typeof(SearchQueryTemplateDTO))
+                {
+                    RemoveNullMembers(json["Rules"]);
+                    RemoveNullMembers(json["Scorers"]);
+                }
+                if (dtoType == typeof(BattleMapDTO) && json["CollisionObjects"] is JArray collisions)
+                {
+                    foreach (var collision in collisions.OfType<JObject>())
+                    {
+                        RestoreEnumName<moba_luban.MapCollisionShapeType>(collision, "ShapeType");
+                        RestoreEnumName<moba_luban.MapProjectileResponse>(collision, "ProjectileResponse");
+                    }
+                }
                 foreach (var field in omitted)
                 {
                     var value = json[field];
@@ -179,6 +216,187 @@ namespace AbilityKit.Demo.Moba.Config.Core
         public override Array DeserializeFromText(string text, Type dtoType) => throw new NotSupportedException();
 
         public override bool CanHandle(Type dtoType) => MobaLubanJsonGroupDeserializer.Instance.CanHandle(dtoType);
+
+        private void RestoreReferences(JObject row, Type dtoType)
+        {
+            if (dtoType == typeof(ContinuousTagTemplateDTO))
+            {
+                if (_tagWorkbook == null)
+                    _tagWorkbook = new AbilityKit.Demo.Moba.Services.MobaTagWorkbookRuntime(_assets);
+                _tagWorkbook.RestoreTemplate(row);
+            }
+            if (dtoType == typeof(BattleAttributeTemplateDTO))
+            {
+                var id = row.Value<int>("Id");
+                var loadout = CharacterLoadouts().TryGetValue(id, out var value) ? value : null;
+                row["ActiveSkills"] = loadout?["ActiveSkills"]?.DeepClone() ?? new JArray();
+                row["PassiveSkills"] = loadout?["PassiveSkills"]?.DeepClone() ?? new JArray();
+            }
+            if (dtoType == typeof(SkillDTO))
+            {
+                ValidateTagValues(row, "Tags", moba_luban.MobaTagNamespace.SkillSelection);
+                if (_tagWorkbook == null)
+                    _tagWorkbook = new AbilityKit.Demo.Moba.Services.MobaTagWorkbookRuntime(_assets);
+                _tagWorkbook.RestoreSkill(row);
+            }
+            if (dtoType == typeof(SummonDTO) || dtoType == typeof(GameplayDTO))
+            {
+                if (((JArray)row["Tags"]).Count != 0)
+                    throw new InvalidOperationException($"{dtoType.Name}/{row.Value<int>("Id")}: unused Tags must be empty");
+            }
+            if (dtoType == typeof(BuffDTO) || dtoType == typeof(ContinuousProcessDTO))
+            {
+                var buff = dtoType == typeof(BuffDTO);
+                var owner = $"{dtoType.Name}/{row.Value<int>("Id")}";
+                var modifierIds = (JArray)row["ModifierIds"];
+                row.Remove("ModifierIds");
+                var resolved = new JArray();
+                var seen = new HashSet<int>();
+                foreach (var token in modifierIds)
+                {
+                    var id = token.Value<int>();
+                    if (!seen.Add(id)) throw new InvalidOperationException($"{owner}: duplicate modifier {id}");
+                    var definition = ModifierDefinitions().TryGetValue(id, out var value) ? value : null;
+                    if (definition == null || definition.Value<int>("Kind") != (buff ? 0 : 1))
+                        throw new InvalidOperationException($"{owner}: missing or wrong-kind modifier {id}");
+                    var modifier = (JObject)definition.DeepClone();
+                    modifier.Remove("Id");
+                    modifier.Remove("Kind");
+                    resolved.Add(modifier);
+                }
+                row["Modifiers"] = resolved;
+                if (buff)
+                {
+                    RestoreTagIds(row, "TagIds", "TagNames",
+                        moba_luban.MobaTagNamespace.GameplayState);
+                    RestoreTagIds(row, "DispelBlockedByTagIds", "DispelBlockedByTagNames",
+                        moba_luban.MobaTagNamespace.GameplayState);
+                }
+                else
+                {
+                    RestoreTagIds(row, "TagIds", "Tags",
+                        moba_luban.MobaTagNamespace.GameplayState);
+                }
+            }
+        }
+
+        private void ValidateTagValues(JObject row, string field, moba_luban.MobaTagNamespace expectedNamespace)
+        {
+            var owner = $"{row.Value<int>("Id")}.{field}";
+            var seen = new HashSet<int>();
+            foreach (var token in (JArray)row[field])
+            {
+                var id = token.Value<int>();
+                if (!seen.Add(id)) throw new InvalidOperationException($"{owner}: duplicate tag {id}");
+                if (!TagDefinitions().TryGetValue(id, out var definition) ||
+                    definition.Value<int>("Namespace") != (int)expectedNamespace ||
+                    definition.Value<int>("Status") != (int)moba_luban.MobaTagStatus.Active ||
+                    definition.Value<int>("Kind") != (int)moba_luban.MobaTagKind.Fact)
+                    throw new InvalidOperationException($"{owner}: missing or wrong-namespace tag {id}");
+            }
+        }
+
+        private void RestoreTagIds(JObject row, string source, string target,
+            moba_luban.MobaTagNamespace expectedNamespace)
+        {
+            var ids = (JArray)row[source];
+            if (source != "DispelBlockedByTagIds")
+                ValidateTagValues(row, source, expectedNamespace);
+            row.Remove(source);
+            var resolved = new JArray();
+            var seen = new HashSet<int>();
+            foreach (var token in ids)
+            {
+                var id = token.Value<int>();
+                if (!seen.Add(id) || !TagDefinitions().TryGetValue(id, out var definition) ||
+                    definition.Value<int>("Namespace") != (int)expectedNamespace ||
+                    definition.Value<int>("Status") != (int)moba_luban.MobaTagStatus.Active)
+                    throw new InvalidOperationException($"{row.Value<int>("Id")}.{source}: invalid tag {id}");
+                var name = definition.Value<string>("Name");
+                resolved.Add(name);
+            }
+            row[target] = resolved;
+        }
+
+        private Dictionary<int, JObject> ModifierDefinitions()
+        {
+            if (_modifiers != null) return _modifiers;
+            var table = new moba_luban.ModifierTemplates(ByteBuf.Wrap(LoadReferenceBytes("modifier_templates")));
+            _modifiers = table.DataList.ToDictionary(row => row.Id, row => JObject.FromObject(row));
+            return _modifiers;
+        }
+
+        private Dictionary<int, JObject> CharacterLoadouts()
+        {
+            if (_characterLoadouts != null) return _characterLoadouts;
+            var table = new moba_luban.Characters(ByteBuf.Wrap(LoadReferenceBytes("characters")));
+            var loadouts = new Dictionary<int, JObject>();
+            foreach (var character in table.DataList)
+            {
+                var candidate = new JObject
+                {
+                    ["ActiveSkills"] = JArray.FromObject(character.SkillIds),
+                    ["PassiveSkills"] = JArray.FromObject(character.PassiveSkillIds)
+                };
+                if (loadouts.TryGetValue(character.AttributeTemplateId, out var existing) &&
+                    !JToken.DeepEquals(existing, candidate))
+                    throw new InvalidOperationException(
+                        $"attribute_templates/{character.AttributeTemplateId}: characters disagree on skill loadout");
+                loadouts[character.AttributeTemplateId] = candidate;
+            }
+            _characterLoadouts = loadouts;
+            return _characterLoadouts;
+        }
+
+        private Dictionary<int, JObject> TagDefinitions()
+        {
+            if (_tags != null) return _tags;
+            var table = new moba_luban.TagDefinitions(ByteBuf.Wrap(LoadReferenceBytes("tag_definitions")));
+            _tags = table.DataList.ToDictionary(row => row.Id, row => JObject.FromObject(row));
+            if (_tags.Values.Select(value => value.Value<int>("Namespace") + ":" + value.Value<string>("Name"))
+                    .Distinct(StringComparer.Ordinal).Count() != _tags.Count ||
+                _tags.Values.Any(value => string.IsNullOrEmpty(value.Value<string>("Name"))))
+                throw new InvalidOperationException("tag_definitions has duplicate or empty names");
+            foreach (var definition in _tags)
+            {
+                var value = definition.Value;
+                var tagNamespace = value.Value<int>("Namespace");
+                if (!Enum.IsDefined(typeof(moba_luban.MobaTagNamespace), tagNamespace) ||
+                    !Enum.IsDefined(typeof(moba_luban.MobaTagKind), value.Value<int>("Kind")) ||
+                    !Enum.IsDefined(typeof(moba_luban.MobaTagStatus), value.Value<int>("Status")))
+                    throw new InvalidOperationException($"tag_definitions/{definition.Key}: invalid namespace or name");
+            }
+            return _tags;
+        }
+
+        private byte[] LoadReferenceBytes(string name)
+        {
+            if (_assets == null || !_assets.TryLoadBytes(MobaLubanConfigGroups.BinaryDirectory + "/" + name + ".bytes", out var bytes)
+                || bytes == null || bytes.Length == 0)
+                throw new InvalidOperationException($"Missing Luban reference table: {name}");
+            return bytes;
+        }
+
+        private static void RestoreEnumName<TEnum>(JObject row, string field) where TEnum : struct, Enum
+        {
+            if (row[field]?.Type != JTokenType.Integer) return;
+            row[field] = Enum.GetName(typeof(TEnum), row.Value<int>(field));
+        }
+
+        private static void RemoveNullMembers(JToken value)
+        {
+            if (value is JArray array)
+            {
+                foreach (var item in array) RemoveNullMembers(item);
+            }
+            else if (value is JObject obj)
+            {
+                foreach (var property in obj.Properties().ToArray())
+                {
+                    if (property.Value.Type == JTokenType.Null) property.Remove();
+                }
+            }
+        }
 
         private static bool IsDefault(JToken value)
         {

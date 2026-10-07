@@ -163,6 +163,7 @@ namespace AbilityKit.Triggering.Runtime
             {
                 for (int i = 0; i < triggers.Count; i++)
                 {
+                    control.ClearActionRejection();
                     var entry = triggers[i];
 
                     if (TryHandlePriorityBlock(key, in args, in entry, control, in execCtx))

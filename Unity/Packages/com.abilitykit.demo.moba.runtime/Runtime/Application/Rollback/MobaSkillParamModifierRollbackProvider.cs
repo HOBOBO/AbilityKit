@@ -9,21 +9,33 @@ using AbilityKit.Modifiers;
 namespace AbilityKit.Demo.Moba.Rollback
 {
     [MobaRollbackProvider(DefaultKey)]
-    public sealed class MobaSkillParamModifierRollbackProvider : IRollbackStateProvider, IMobaStateRecoveryProvider
+    public sealed class MobaSkillParamModifierRollbackProvider : IRollbackStateProvider,
+        IRollbackStatePreflightProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10015;
-        private const int Version = 1;
+        private const int Version = 3;
         private readonly MobaSkillParamModifierService _modifiers;
+        private readonly bool _restoreProjection;
 
         public MobaSkillParamModifierRollbackProvider(MobaSkillParamModifierService modifiers)
+            : this(modifiers, restoreProjection: false) { }
+
+        internal MobaSkillParamModifierRollbackProvider(MobaSkillParamModifierService modifiers,
+            bool restoreProjection)
         {
             _modifiers = modifiers ?? throw new ArgumentNullException(nameof(modifiers));
+            _restoreProjection = restoreProjection;
         }
 
         public int Key => DefaultKey;
         public string Name => "SkillParamModifiers";
         public byte[] Export(FrameIndex frame) => ExportState(frame);
         public void Import(FrameIndex frame, byte[] payload) => ImportState(frame, payload);
+
+        public void ValidateImport(FrameIndex frame, byte[] payload)
+        {
+            ReadAndValidate(payload);
+        }
 
         public byte[] ExportState(FrameIndex frame)
         {
@@ -40,22 +52,25 @@ namespace AbilityKit.Demo.Moba.Rollback
 
         public void ImportState(FrameIndex frame, byte[] payload)
         {
-            if (payload == null || payload.Length == 0)
-            {
-                _modifiers.RestoreRollbackSnapshot(default);
-                return;
-            }
+            var snapshot = ReadAndValidate(payload);
+            _modifiers.RestoreRollbackSnapshot(_restoreProjection ? snapshot : default);
+        }
 
+        private static MobaSkillParamModifierServiceSnapshot ReadAndValidate(byte[] payload)
+        {
+            if (payload == null || payload.Length == 0) return default;
             using var stream = new MemoryStream(payload, writable: false);
             using var reader = new BinaryReader(stream);
             var version = reader.ReadInt32();
-            if (version != Version) throw new InvalidOperationException($"Unsupported skill parameter modifier rollback payload version '{version}'.");
+            if (version < 1 || version > Version) throw new InvalidOperationException($"Unsupported skill parameter modifier rollback payload version '{version}'.");
             var count = reader.ReadInt32();
             if (count < 0 || count > 1_000_000) throw new InvalidDataException($"Invalid skill parameter modifier count '{count}'.");
             var entries = new MobaSkillParamModifierSnapshotEntry[count];
-            for (var i = 0; i < count; i++) entries[i] = ReadEntry(reader);
+            for (var i = 0; i < count; i++) entries[i] = ReadEntry(reader, version);
             if (stream.Position != stream.Length) throw new InvalidDataException("Skill parameter modifier rollback payload contains trailing data.");
-            _modifiers.RestoreRollbackSnapshot(new MobaSkillParamModifierServiceSnapshot(entries));
+            var snapshot = new MobaSkillParamModifierServiceSnapshot(entries);
+            MobaSkillParamModifierService.ValidateRollbackSnapshot(in snapshot);
+            return snapshot;
         }
 
         public void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash)
@@ -85,9 +100,18 @@ namespace AbilityKit.Demo.Moba.Rollback
             writer.Write(modifier.CustomData.IntValue);
             WriteNullableString(writer, modifier.CustomData.StringValue);
             WriteBytes(writer, modifier.CustomData.RawData);
+            var selector = entry.Selector;
+            writer.Write(selector.Slot);
+            writer.Write(selector.BaseSkillId);
+            writer.Write(selector.EffectiveSkillId);
+            writer.Write(selector.LauncherTemplateId);
+            writer.Write(selector.ProjectileTemplateId);
+            writer.Write(selector.AreaTemplateId);
+            writer.Write(selector.SummonTemplateId);
+            writer.Write(selector.BuffTemplateId);
         }
 
-        private static MobaSkillParamModifierSnapshotEntry ReadEntry(BinaryReader reader)
+        private static MobaSkillParamModifierSnapshotEntry ReadEntry(BinaryReader reader, int version)
         {
             var scope = (MobaModifierOwnerScope)reader.ReadInt32();
             var ownerId = reader.ReadInt32();
@@ -114,7 +138,12 @@ namespace AbilityKit.Demo.Moba.Rollback
                     RawData = ReadBytes(reader),
                 },
             };
-            return new MobaSkillParamModifierSnapshotEntry(scope, ownerId, modifier);
+            var selector = version >= 2
+                ? new MobaParameterSelector(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
+                    reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
+                    version >= 3 ? reader.ReadInt32() : 0)
+                : default;
+            return new MobaSkillParamModifierSnapshotEntry(scope, ownerId, modifier, selector);
         }
 
         private static void WriteMagnitude(BinaryWriter writer, in MagnitudeSource magnitude)

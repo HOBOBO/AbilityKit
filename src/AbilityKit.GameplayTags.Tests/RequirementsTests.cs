@@ -125,6 +125,19 @@ public sealed class RequirementsTests : TagTestBase
         Assert.True(requirements.IsSatisfiedBy(T("ST2.B")));
     }
 
+    [Fact]
+    public void SingleTagOverload_EvaluatesQuery()
+    {
+        var query = GameplayTagQuery.Create(GameplayTagQueryNode.CreateCompound(
+            GameplayTagQueryOperator.Not,
+            GameplayTagQueryNode.CreateTagQuery(GameplayTagQueryOperator.IncludeTags, T("ST3.Blocked"))));
+        var requirements = new GameplayTagRequirements(null!, null!, query: query);
+
+        Assert.False(requirements.IsSatisfiedBy(T("ST3.Blocked.Child")));
+        Assert.True(requirements.IsSatisfiedBy(T("ST3.Allowed")));
+        Assert.True(requirements.IsSatisfiedBy(GameplayTag.None));
+    }
+
     // ---------- ContinuousTagRequirements ----------
 
     [Fact]
@@ -197,5 +210,29 @@ public sealed class RequirementsTests : TagTestBase
         Assert.False(requirements.IsOngoingSatisfied(C("OG.R", "OG.B")));   // 命中阻塞
         Assert.False(requirements.IsOngoingSatisfied(C("OG.B")));           // 缺少必需
         Assert.True(requirements.IsOngoingSatisfied(null!));                // null 视为无限制
+    }
+
+    [Fact]
+    public void ContinuousRequirements_EvaluateNestedQueryAcrossLifecycle()
+    {
+        var active = GameplayTagQuery.Create(GameplayTagQueryNode.CreateCompound(
+            GameplayTagQueryOperator.Or,
+            GameplayTagQueryNode.CreateTagQuery(GameplayTagQueryOperator.IncludeTags, T("Query.Ready")),
+            GameplayTagQueryNode.CreateTagQuery(GameplayTagQueryOperator.IncludeExactTag, T("Query.Override"))));
+        var remove = GameplayTagQuery.Create(GameplayTagQueryNode.CreateTagQuery(
+            GameplayTagQueryOperator.IncludeTags, T("Query.End")));
+        var requirements = new ContinuousTagRequirements
+        {
+            ActivationRequired = new GameplayTagRequirements(null, null, query: active),
+            RemovalRequired = new GameplayTagRequirements(null, null, query: remove),
+            OngoingRequired = new GameplayTagRequirements(null, null, query: active),
+        };
+
+        Assert.True(requirements.CanActivate(C("Query.Ready.Child")));
+        Assert.False(requirements.CanActivate(C("Query.Override.Child")));
+        Assert.True(requirements.IsOngoingSatisfied(C("Query.Override")));
+        Assert.False(requirements.IsOngoingSatisfied(new GameplayTagContainer()));
+        Assert.True(requirements.ShouldRemove(C("Query.End.Child")));
+        Assert.False(requirements.ShouldRemove(C("Query.Other")));
     }
 }

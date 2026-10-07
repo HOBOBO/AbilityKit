@@ -45,28 +45,88 @@ public sealed partial class DRPresentationTemplates : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 特效资源 ID，引用特效资源表。
+    /// </summary>
     public readonly int AssetId;
+    /// <summary>
+    /// 挂接模式；用于特效表现模板配置。
+    /// </summary>
     public readonly int AttachMode;
+    /// <summary>
+    /// 特效颜色透明度通道，范围 0～1。
+    /// </summary>
     public readonly float ColorA;
+    /// <summary>
+    /// 特效颜色蓝色通道，范围 0～1。
+    /// </summary>
     public readonly float ColorB;
+    /// <summary>
+    /// 特效颜色绿色通道，范围 0～1。
+    /// </summary>
     public readonly float ColorG;
+    /// <summary>
+    /// 特效颜色红色通道，范围 0～1。
+    /// </summary>
     public readonly float ColorR;
+    /// <summary>
+    /// 默认持续时间，单位毫秒。
+    /// </summary>
     public readonly int DefaultDurationMs;
+    /// <summary>
+    /// 是否随挂接目标持续移动。
+    /// </summary>
     public readonly bool Follow;
+    /// <summary>
+    /// 当前记录的类型；取值由对应配置契约定义。
+    /// </summary>
     public readonly int Kind;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 相对挂点或中心的 X 轴偏移。
+    /// </summary>
     public readonly float OffsetX;
+    /// <summary>
+    /// 相对挂点或中心的 Y 轴偏移。
+    /// </summary>
     public readonly float OffsetY;
+    /// <summary>
+    /// 相对挂点或中心的 Z 轴偏移。
+    /// </summary>
     public readonly float OffsetZ;
+    /// <summary>
+    /// 半径，使用战斗世界单位。
+    /// </summary>
     public readonly float Radius;
+    /// <summary>
+    /// 表现缩放倍数；1 表示原始大小。
+    /// </summary>
     public readonly float Scale;
+    /// <summary>
+    /// 表现挂点名称；空值使用默认位置。
+    /// </summary>
     public readonly string Socket;
+    /// <summary>
+    /// 叠层策略；用于特效表现模板配置。
+    /// </summary>
     public readonly int StackPolicy;
+    /// <summary>
+    /// 停止策略；用于特效表现模板配置。
+    /// </summary>
     public readonly int StopPolicy;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 256773457;

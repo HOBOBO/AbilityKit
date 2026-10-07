@@ -1,0 +1,362 @@
+[
+  {
+    "Id": 200101,
+    "GroupId": 2001,
+    "ParentId": 0,
+    "Order": 0,
+    "Operator": 3,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200102,
+    "GroupId": 2001,
+    "ParentId": 200101,
+    "Order": 1,
+    "Operator": 1,
+    "TagId": 1022,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200201,
+    "GroupId": 2002,
+    "ParentId": 0,
+    "Order": 0,
+    "Operator": 3,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200202,
+    "GroupId": 2002,
+    "ParentId": 200201,
+    "Order": 1,
+    "Operator": 1,
+    "TagId": 1017,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200301,
+    "GroupId": 2003,
+    "ParentId": 0,
+    "Order": 0,
+    "Operator": 3,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200302,
+    "GroupId": 2003,
+    "ParentId": 200301,
+    "Order": 1,
+    "Operator": 1,
+    "TagId": 1020,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200303,
+    "GroupId": 2003,
+    "ParentId": 200301,
+    "Order": 4,
+    "Operator": 1,
+    "TagId": 1015,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200304,
+    "GroupId": 2003,
+    "ParentId": 200301,
+    "Order": 7,
+    "Operator": 1,
+    "TagId": 1021,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200305,
+    "GroupId": 2003,
+    "ParentId": 200301,
+    "Order": 10,
+    "Operator": 1,
+    "TagId": 1019,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200306,
+    "GroupId": 2003,
+    "ParentId": 200301,
+    "Order": 13,
+    "Operator": 1,
+    "TagId": 1016,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200307,
+    "GroupId": 2003,
+    "ParentId": 200301,
+    "Order": 16,
+    "Operator": 1,
+    "TagId": 1013,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200401,
+    "GroupId": 2004,
+    "ParentId": 0,
+    "Order": 0,
+    "Operator": 3,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200402,
+    "GroupId": 2004,
+    "ParentId": 200401,
+    "Order": 1,
+    "Operator": 1,
+    "TagId": 1020,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200403,
+    "GroupId": 2004,
+    "ParentId": 200401,
+    "Order": 4,
+    "Operator": 1,
+    "TagId": 1015,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200404,
+    "GroupId": 2004,
+    "ParentId": 200401,
+    "Order": 7,
+    "Operator": 1,
+    "TagId": 1021,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200501,
+    "GroupId": 2005,
+    "ParentId": 0,
+    "Order": 0,
+    "Operator": 3,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200502,
+    "GroupId": 2005,
+    "ParentId": 200501,
+    "Order": 1,
+    "Operator": 1,
+    "TagId": 1020,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200503,
+    "GroupId": 2005,
+    "ParentId": 200501,
+    "Order": 4,
+    "Operator": 1,
+    "TagId": 1015,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200504,
+    "GroupId": 2005,
+    "ParentId": 200501,
+    "Order": 7,
+    "Operator": 1,
+    "TagId": 1021,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200505,
+    "GroupId": 2005,
+    "ParentId": 200501,
+    "Order": 10,
+    "Operator": 1,
+    "TagId": 1018,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200506,
+    "GroupId": 2005,
+    "ParentId": 200501,
+    "Order": 13,
+    "Operator": 1,
+    "TagId": 1016,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200507,
+    "GroupId": 2005,
+    "ParentId": 200501,
+    "Order": 16,
+    "Operator": 1,
+    "TagId": 1013,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200601,
+    "GroupId": 2006,
+    "ParentId": 0,
+    "Order": 0,
+    "Operator": 3,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200602,
+    "GroupId": 2006,
+    "ParentId": 200601,
+    "Order": 1,
+    "Operator": 1,
+    "TagId": 1001,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200603,
+    "GroupId": 2006,
+    "ParentId": 200601,
+    "Order": 4,
+    "Operator": 1,
+    "TagId": 1002,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200701,
+    "GroupId": 2007,
+    "ParentId": 0,
+    "Order": 0,
+    "Operator": 3,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200702,
+    "GroupId": 2007,
+    "ParentId": 200701,
+    "Order": 1,
+    "Operator": 1,
+    "TagId": 1020,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200703,
+    "GroupId": 2007,
+    "ParentId": 200701,
+    "Order": 4,
+    "Operator": 1,
+    "TagId": 1016,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200704,
+    "GroupId": 2007,
+    "ParentId": 200701,
+    "Order": 7,
+    "Operator": 1,
+    "TagId": 1014,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200705,
+    "GroupId": 2007,
+    "ParentId": 200701,
+    "Order": 10,
+    "Operator": 1,
+    "TagId": 1013,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 1000000101,
+    "GroupId": 10000001,
+    "ParentId": 0,
+    "Order": 0,
+    "Operator": 4,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 1000000102,
+    "GroupId": 10000001,
+    "ParentId": 1000000101,
+    "Order": 1,
+    "Operator": 5,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 2006
+  },
+  {
+    "Id": 200801,
+    "GroupId": 2008,
+    "ParentId": 0,
+    "Order": 0,
+    "Operator": 3,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200802,
+    "GroupId": 2008,
+    "ParentId": 200801,
+    "Order": 1,
+    "Operator": 5,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 2004
+  },
+  {
+    "Id": 200803,
+    "GroupId": 2008,
+    "ParentId": 200801,
+    "Order": 2,
+    "Operator": 1,
+    "TagId": 1016,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200804,
+    "GroupId": 2008,
+    "ParentId": 200801,
+    "Order": 5,
+    "Operator": 1,
+    "TagId": 1013,
+    "Exact": false,
+    "RefGroupId": 0
+  }
+]

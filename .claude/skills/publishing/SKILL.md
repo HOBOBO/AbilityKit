@@ -3,7 +3,7 @@ name: publishing
 description: AbilityKit 框架包发布流程——OpenUPM scoped registry + monorepo cohort 版本(0.1.0) + 白名单批次；tools/publish/ 工具链(align-versions.js/audit-versions.js/release.js/release-manifest.json)；thirdparty/demo 永不发布；dry-run 打 tag 流程与依赖闭环 gate。触发场景：发布包、改 package.json 版本/keywords/author、对齐版本、清 BOM、打 tag、查发布批次、新增包进白名单、发布审计。
 ---
 
-# publishing skill
+# 发布指引
 
 基于源码核校（2026-08-17）。AbilityKit 发布走 **OpenUPM scoped registry + monorepo cohort 版本 + 白名单批次**。开发期包仍是 Unity embedded（`Unity/Packages/com.abilitykit.*`），发布只是对外产出，两者不冲突。
 

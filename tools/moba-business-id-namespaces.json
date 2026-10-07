@@ -10,26 +10,14 @@
       "max": 19999999,
       "allowSameIdAcrossSources": true,
       "sources": [
-        { "path": "moba/skills.json", "shape": "array", "idProperty": "Id" },
+        { "path": "luban/moba/skills.json", "shape": "array", "idProperty": "Id" },
         { "path": "moba/skill_flows.json", "shape": "array", "idProperty": "Id" },
-        { "path": "moba/effects.json", "shape": "array", "idProperty": "Id" },
-        { "path": "moba/buffs.json", "shape": "array", "idProperty": "Id" },
-        { "path": "moba/passive_skills.json", "shape": "array", "idProperty": "Id" },
-        { "path": "moba/skill_level_tables.json", "shape": "array", "idProperty": "Id" },
-        { "path": "moba/continuous_processes.json", "shape": "array", "idProperty": "Id" },
-        { "path": "moba/continuous_tag_templates.json", "shape": "array", "idProperty": "Id" },
-        { "path": "ability/triggers/skills/*.json", "shape": "trigger-files", "idProperty": "id" },
-        { "path": "ability/triggers/passives/*.json", "shape": "trigger-files", "idProperty": "id" }
-      ]
-    },
-    {
-      "name": "ongoing-effect",
-      "description": "Continuous runtime effect definitions.",
-      "min": 20000000,
-      "max": 29999999,
-      "allowSameIdAcrossSources": false,
-      "sources": [
-        { "path": "moba/ongoing_effects.json", "shape": "array", "idProperty": "Id" }
+        { "path": "luban/moba/buffs.json", "shape": "array", "idProperty": "Id" },
+        { "path": "luban/moba/passive_skills.json", "shape": "array", "idProperty": "Id" },
+        { "path": "luban/moba/skill_level_tables.json", "shape": "array", "idProperty": "Id" },
+        { "path": "luban/moba/continuous_processes.json", "shape": "array", "idProperty": "Id" },
+        { "path": "luban/moba/continuous_tag_templates.json", "shape": "array", "idProperty": "Id" },
+        { "path": "ability/ability_trigger_plans.json", "shape": "trigger-aggregate", "idProperty": "TriggerId" }
       ]
     },
     {
@@ -39,7 +27,7 @@
       "max": 30999999,
       "allowSameIdAcrossSources": false,
       "sources": [
-        { "path": "moba/projectiles.json", "shape": "array", "idProperty": "Id" }
+        { "path": "luban/moba/projectiles.json", "shape": "array", "idProperty": "Id" }
       ]
     },
     {
@@ -49,7 +37,7 @@
       "max": 31999999,
       "allowSameIdAcrossSources": false,
       "sources": [
-        { "path": "moba/projectile_launchers.json", "shape": "array", "idProperty": "Id" }
+        { "path": "luban/moba/projectile_launchers.json", "shape": "array", "idProperty": "Id" }
       ]
     },
     {
@@ -59,7 +47,7 @@
       "max": 49999999,
       "allowSameIdAcrossSources": false,
       "sources": [
-        { "path": "moba/aoes.json", "shape": "array", "idProperty": "Id" }
+        { "path": "luban/moba/aoes.json", "shape": "array", "idProperty": "Id" }
       ]
     },
     {
@@ -69,7 +57,7 @@
       "max": 59999999,
       "allowSameIdAcrossSources": false,
       "sources": [
-        { "path": "moba/search_query_templates.json", "shape": "array", "idProperty": "Id" }
+        { "path": "luban/moba/search_query_templates.json", "shape": "array", "idProperty": "Id" }
       ]
     },
     {
@@ -79,7 +67,7 @@
       "max": 90009999,
       "allowSameIdAcrossSources": false,
       "sources": [
-        { "path": "moba/presentation_templates.json", "shape": "array", "idProperty": "Id" }
+        { "path": "luban/moba/presentation_templates.json", "shape": "array", "idProperty": "Id" }
       ]
     },
     {
@@ -89,7 +77,7 @@
       "max": 90000199,
       "allowSameIdAcrossSources": false,
       "sources": [
-        { "path": "moba/models.json", "shape": "array", "idProperty": "Id" }
+        { "path": "luban/moba/models.json", "shape": "array", "idProperty": "Id" }
       ]
     }
   ]

@@ -20,7 +20,6 @@ using AbilityKit.Demo.Moba.Share.Config;
 [assembly: MobaConfigTable(MobaConfigPaths.SummonAttrInheritsFile, typeof(SummonAttrInheritDTO), typeof(SummonAttrInheritMO), ConfigGroupNames.LegacyJson, 150)]
 [assembly: MobaConfigTable(MobaConfigPaths.ComponentTemplatesFile, typeof(ComponentTemplateDTO), typeof(ComponentTemplateMO), ConfigGroupNames.LegacyJson, 160)]
 [assembly: MobaConfigTable(MobaConfigPaths.SkillButtonTemplatesFile, typeof(SkillButtonTemplateDTO), typeof(SkillButtonTemplateMO), ConfigGroupNames.LegacyJson, 170)]
-[assembly: MobaConfigTable(MobaConfigPaths.TagTemplatesFile, typeof(TagTemplateDTO), typeof(TagTemplateMO), ConfigGroupNames.LegacyJson, 180)]
 [assembly: MobaConfigTable(MobaConfigPaths.ContinuousTagTemplatesFile, typeof(ContinuousTagTemplateDTO), typeof(ContinuousTagTemplateMO), ConfigGroupNames.LegacyJson, 190)]
 [assembly: MobaConfigTable(MobaConfigPaths.SearchQueryTemplatesFile, typeof(SearchQueryTemplateDTO), typeof(SearchQueryTemplateMO), ConfigGroupNames.LegacyJson, 200)]
 [assembly: MobaConfigTable(MobaConfigPaths.SpawnSummonActionTemplatesFile, typeof(SpawnSummonActionTemplateDTO), typeof(SpawnSummonActionTemplateMO), ConfigGroupNames.LegacyJson, 210)]

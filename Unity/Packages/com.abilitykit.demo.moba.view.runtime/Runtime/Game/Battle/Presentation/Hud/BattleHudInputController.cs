@@ -69,10 +69,11 @@ namespace AbilityKit.Game.Flow
             return true;
         }
 
-        public void ApplySkillStates(SkillStateData[] entries, int localActorId)
+        public bool ApplySkillStates(SkillStateData[] entries, int localActorId)
         {
-            if (_inputUi == null) return;
+            if (_inputUi == null) return false;
 
+            var templatesChanged = false;
             _appliedSkillStateSlots.Clear();
             if (entries != null)
             {
@@ -80,6 +81,8 @@ namespace AbilityKit.Game.Flow
                 {
                     var entry = entries[i];
                     if (!ShouldApplySkillState(entry, localActorId)) continue;
+                    templatesChanged |= _templateBinder.TryApplySlotSkill(
+                        entry.Slot, entry.SkillId, _inputUi.SkillViews);
                     if (!TryResolveSkillView(entry.Slot, entry.SkillId, out var view)) continue;
 
                     view.ApplySkillState(entry);
@@ -91,6 +94,8 @@ namespace AbilityKit.Game.Flow
             {
                 ClearMissingSkillStates(_appliedSkillStateSlots);
             }
+            if (templatesChanged) _inputEvents.SetSkillSpecs(_templateBinder.SkillSpecs);
+            return templatesChanged;
         }
 
         public void Dispose()

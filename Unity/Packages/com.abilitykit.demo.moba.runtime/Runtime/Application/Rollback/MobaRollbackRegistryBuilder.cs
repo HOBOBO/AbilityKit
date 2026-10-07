@@ -170,7 +170,18 @@ namespace AbilityKit.Demo.Moba.Rollback
 
             if (world.Services.TryResolve<MobaSkillParamModifierService>(out var skillParamModifiers) && skillParamModifiers != null)
             {
-                registry.Register(new MobaSkillParamModifierRollbackProvider(skillParamModifiers));
+                registry.Register(new MobaSkillParamModifierRollbackProvider(skillParamModifiers,
+                    restoreProjection: false));
+            }
+
+            if (world.Services.TryResolve<MobaContinuousManager>(out var modifierContinuous) && modifierContinuous != null)
+            {
+                registry.Register(new MobaContinuousModifierCaptureRollbackProvider(modifierContinuous));
+            }
+
+            if (world.Services.TryResolve<MobaTriggerModifierContinuousService>(out var triggerModifiers) && triggerModifiers != null)
+            {
+                registry.Register(new MobaTriggerModifierContinuousRollbackProvider(triggerModifiers));
             }
 
             if (world.Services.TryResolve<MobaDerivedSkillService>(out var derivedSkills) && derivedSkills != null)

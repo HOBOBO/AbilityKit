@@ -1,0 +1,42 @@
+[
+  {
+    "Id": 1,
+    "FlagId": 1,
+    "RuleGroupId": 2001
+  },
+  {
+    "Id": 2,
+    "FlagId": 2,
+    "RuleGroupId": 2002
+  },
+  {
+    "Id": 3,
+    "FlagId": 3,
+    "RuleGroupId": 2003
+  },
+  {
+    "Id": 4,
+    "FlagId": 4,
+    "RuleGroupId": 2004
+  },
+  {
+    "Id": 5,
+    "FlagId": 5,
+    "RuleGroupId": 2005
+  },
+  {
+    "Id": 6,
+    "FlagId": 6,
+    "RuleGroupId": 2006
+  },
+  {
+    "Id": 7,
+    "FlagId": 7,
+    "RuleGroupId": 2007
+  },
+  {
+    "Id": 8,
+    "FlagId": 8,
+    "RuleGroupId": 2008
+  }
+]

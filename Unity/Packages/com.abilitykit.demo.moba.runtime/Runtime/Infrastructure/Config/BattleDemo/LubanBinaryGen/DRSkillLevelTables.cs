@@ -17,7 +17,7 @@ public sealed partial class DRSkillLevelTables : Luban.BeanBase
     public DRSkillLevelTables(ByteBuf _buf) 
     {
         Id = _buf.ReadInt();
-        Levels = _buf.ReadString();
+        {int n0 = _buf.ReadSize(); Levels = new System.Collections.Generic.List<SkillLevel>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { SkillLevel _e0;  _e0 = global::moba_luban.SkillLevel.DeserializeSkillLevel(_buf); Levels.Add(_e0);}}
         {int n0 = _buf.ReadSize(); ParamNames = new System.Collections.Generic.List<string>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { string _e0;  _e0 = _buf.ReadString(); ParamNames.Add(_e0);}}
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
@@ -29,12 +29,21 @@ public sealed partial class DRSkillLevelTables : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
-    public readonly string Levels;
+    public readonly System.Collections.Generic.List<SkillLevel> Levels;
+    /// <summary>
+    /// 各等级 Params 的参数名，逗号分隔；名称及顺序必须与每级数值一一对应。
+    /// </summary>
     public readonly System.Collections.Generic.List<string> ParamNames;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 244806822;
@@ -48,7 +57,7 @@ public sealed partial class DRSkillLevelTables : Luban.BeanBase
     {
         return "{ "
         + "Id:" + Id + ","
-        + "Levels:" + Levels + ","
+        + "Levels:" + Luban.StringUtil.CollectionToString(Levels) + ","
         + "ParamNames:" + Luban.StringUtil.CollectionToString(ParamNames) + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","

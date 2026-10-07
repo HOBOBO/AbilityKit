@@ -55,13 +55,27 @@ namespace AbilityKit.Game.Editor
             _historyRevision = waitForNextRevision ? _lastStoreRevision : -1;
         }
 
+        public void ReplaceHistory(IReadOnlyList<BattleDiagnosticActorAttribute> samples)
+        {
+            ClearHistory();
+            if (samples == null) return;
+            for (var i = 0; i < samples.Count; i++)
+            {
+                var sample = samples[i];
+                _history.Add(new AttributeSample(sample.Frame, sample.BaseValue,
+                    sample.FinalValue, sample.ModifierCount));
+            }
+        }
+
         public void TrackAttribute(
             IBattleDiagnosticReadOnlySession session,
             long actorId,
             int attributeId,
-            bool recording)
+            bool recording,
+            int intervalFrames = 1)
         {
             if (session == null) throw new ArgumentNullException(nameof(session));
+            if (intervalFrames < 1) throw new ArgumentOutOfRangeException(nameof(intervalFrames));
             var scope = session.SessionInfo.Scope;
             if (!ReferenceEquals(_historySession, session) || _historyScope != scope ||
                 _historyActorId != actorId || _historyAttributeId != attributeId)
@@ -97,7 +111,8 @@ namespace AbilityKit.Game.Editor
                     attribute.Frame, attribute.BaseValue, attribute.FinalValue, attribute.ModifierCount);
                 if (_history.Count > 0 && _history[_history.Count - 1].Frame == sample.Frame)
                     _history[_history.Count - 1] = sample;
-                else
+                else if (_history.Count == 0 ||
+                         (long)sample.Frame - _history[_history.Count - 1].Frame >= intervalFrames)
                 {
                     if (_history.Count == MaxSamples) _history.RemoveAt(0);
                     _history.Add(sample);

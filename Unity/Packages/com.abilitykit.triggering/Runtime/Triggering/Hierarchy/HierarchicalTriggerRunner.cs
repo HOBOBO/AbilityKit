@@ -348,6 +348,7 @@ namespace AbilityKit.Triggering.Runtime
             {
                 for (int i = 0; i < triggers.Count; i++)
                 {
+                    control.ClearActionRejection();
                     var entry = triggers[i];
 
                 // ========== 检查优先级打断 ==========

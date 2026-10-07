@@ -3,7 +3,7 @@ name: design-docs
 description: AbilityKit 设计文档治理——Docs/design/ canonical 体系与 00-index.md 总索引、E0-E5 证据分级、文档类型(能力地图/Canonical/接入指南/审计/演进计划)、单篇最小结构、事实状态语言(规范/实现/示例策略/目标/限制)、能力下沉判定、文档版本记录维护。触发场景：写/改设计文档、判成熟度、E0-E5、canonical、能力地图、事实基线、文档版本、能力下沉、区分框架原语与项目应用层。
 ---
 
-# design-docs skill
+# 设计文档指引
 
 基于源码核校（2026-08-17）。设计文档是"能力边界、源码落点、生命周期、限制、证据等级"的 canonical 入口，总索引是 `Docs/design/00-index.md`。写/改任何跨模块结论前，先看它。
 

@@ -18,17 +18,17 @@ public sealed partial class DRSkillButtonTemplates : Luban.BeanBase
     {
         Id = _buf.ReadInt();
         AimMaxRadius = _buf.ReadFloat();
-        AimMode = _buf.ReadInt();
+        AimMode = (SkillAimMode)_buf.ReadInt();
         DragThreshold = _buf.ReadFloat();
         EnableAim = _buf.ReadBool();
         FaceToAim = _buf.ReadBool();
-        IndicatorShape = _buf.ReadInt();
+        IndicatorShape = (SkillAimIndicatorShape)_buf.ReadInt();
         IndicatorWorldWidth = _buf.ReadFloat();
         LongPressSeconds = _buf.ReadFloat();
         Name = _buf.ReadString();
         SelectRange = _buf.ReadFloat();
         SelfRadius = _buf.ReadFloat();
-        UsePointMode = _buf.ReadInt();
+        UsePointMode = (SkillUsePointMode)_buf.ReadInt();
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
     }
@@ -39,22 +39,64 @@ public sealed partial class DRSkillButtonTemplates : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 瞄准最大半径；用于技能按钮与瞄准配置。
+    /// </summary>
     public readonly float AimMaxRadius;
-    public readonly int AimMode;
+    /// <summary>
+    /// 瞄准模式；按 SkillAimMode 枚举或 bean 定义填写。
+    /// </summary>
+    public readonly SkillAimMode AimMode;
+    /// <summary>
+    /// 拖拽阈值；用于技能按钮与瞄准配置。
+    /// </summary>
     public readonly float DragThreshold;
+    /// <summary>
+    /// 启用瞄准：true 为启用，false 为关闭。
+    /// </summary>
     public readonly bool EnableAim;
+    /// <summary>
+    /// 朝向到瞄准：true 为启用，false 为关闭。
+    /// </summary>
     public readonly bool FaceToAim;
-    public readonly int IndicatorShape;
+    /// <summary>
+    /// 指示器形状；按 SkillAimIndicatorShape 枚举或 bean 定义填写。
+    /// </summary>
+    public readonly SkillAimIndicatorShape IndicatorShape;
+    /// <summary>
+    /// 指示器世界宽度；用于技能按钮与瞄准配置。
+    /// </summary>
     public readonly float IndicatorWorldWidth;
+    /// <summary>
+    /// 长按压秒；用于技能按钮与瞄准配置。
+    /// </summary>
     public readonly float LongPressSeconds;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 选择范围；用于技能按钮与瞄准配置。
+    /// </summary>
     public readonly float SelectRange;
+    /// <summary>
+    /// 自身半径；用于技能按钮与瞄准配置。
+    /// </summary>
     public readonly float SelfRadius;
-    public readonly int UsePointMode;
+    /// <summary>
+    /// 使用点位模式；按 SkillUsePointMode 枚举或 bean 定义填写。
+    /// </summary>
+    public readonly SkillUsePointMode UsePointMode;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 240254788;

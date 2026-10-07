@@ -23,7 +23,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             MobaProjectileLinkService links,
             MobaSkillParamModifierService skillParamModifiers,
             AbilityKit.Ability.World.Services.IWorldRandom random,
-            IMobaProjectileLaunchRuntime runtime)
+            IMobaProjectileLaunchRuntime runtime,
+            MobaParameterRecord skillRecord = default,
+            float frameDurationMs = 0f)
         {
             if (repeatCount <= 0) throw new System.ArgumentOutOfRangeException(nameof(repeatCount), repeatCount, "Projectile repeat count must be positive.");
             if (repeatCount > 1 && intervalFrames <= 0) throw new System.ArgumentOutOfRangeException(nameof(intervalFrames), intervalFrames, "Repeated projectile launch requires a positive interval.");
@@ -48,6 +50,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             SkillParamModifiers = skillParamModifiers;
             Random = random;
             Runtime = runtime;
+            SkillRecord = skillRecord;
+            FrameDurationMs = frameDurationMs;
         }
 
         public MobaProjectileLaunchRequest Request { get; }
@@ -68,6 +72,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         public MobaSkillParamModifierService SkillParamModifiers { get; }
         public AbilityKit.Ability.World.Services.IWorldRandom Random { get; }
         public IMobaProjectileLaunchRuntime Runtime { get; }
+        public MobaParameterRecord SkillRecord { get; }
+        public float FrameDurationMs { get; }
         public int TotalCount => RepeatCount * BulletsPerShot;
     }
 }

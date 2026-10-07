@@ -20,7 +20,6 @@ namespace AbilityKit.Demo.Moba.Config.Core
             typeof(CharacterDTO),
             typeof(SkillDTO),
             typeof(SkillButtonTemplateDTO),
-            typeof(TagTemplateDTO),
             typeof(ContinuousTagTemplateDTO),
             typeof(SearchQueryTemplateDTO),
             typeof(PassiveSkillDTO),
@@ -56,8 +55,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 throw CreateNotSupportedException(dtoType, nameof(LegacyJsonConfigGroupDeserializer));
 
             if (dtoType == typeof(SkillFlowDTO) ||
-                dtoType == typeof(ContinuousTagTemplateDTO) ||
-                dtoType == typeof(TagTemplateDTO))
+                dtoType == typeof(ContinuousTagTemplateDTO))
             {
                 return LubanConfigGroupDeserializer.Instance.DeserializeFromText(text, dtoType);
             }

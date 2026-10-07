@@ -5,6 +5,7 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaSkillCastRuntimeCreateRequestBuilder
     {
         private int _skillId;
+        private int _baseSkillId;
         private int _skillSlot;
         private int _skillLevel;
         private int _sequence;
@@ -28,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillCastRuntimeCreateRequestBuilder Reset()
         {
             _skillId = 0;
+            _baseSkillId = 0;
             _skillSlot = 0;
             _skillLevel = 0;
             _sequence = 0;
@@ -45,6 +47,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (context == null) return this;
 
             _skillId = context.SkillId;
+            _baseSkillId = context.BaseSkillId;
             _skillSlot = context.SkillSlot;
             _skillLevel = context.SkillLevel;
             _sequence = context.Sequence;
@@ -60,6 +63,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillCastRuntimeCreateRequestBuilder FromRequest(in SkillCastRequest request)
         {
             _skillId = request.SkillId;
+            _baseSkillId = 0;
             _skillSlot = request.SkillSlot;
             _casterActorId = request.CasterActorId;
             _targetActorId = request.TargetActorId;
@@ -98,7 +102,8 @@ namespace AbilityKit.Demo.Moba.Services
                 in _aimPos,
                 in _aimDir,
                 _rootContextId,
-                _diagnosticCommandId);
+                _diagnosticCommandId,
+                _baseSkillId);
         }
     }
 }

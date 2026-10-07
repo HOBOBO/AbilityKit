@@ -23,6 +23,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         public readonly int SourceId;
         public readonly SearchTargetService SearchTargets;
         public readonly Func<long> CurrentTimeMsProvider;
+        public readonly MobaSkillLoadoutService SkillLoadout;
 
         public MobaBrainDecisionCreateContext(
             in MobaActorBrainDefinition definition,
@@ -32,7 +33,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             int sourceKind,
             int sourceId,
             SearchTargetService searchTargets = null,
-            Func<long> currentTimeMsProvider = null)
+            Func<long> currentTimeMsProvider = null,
+            MobaSkillLoadoutService skillLoadout = null)
         {
             Definition = definition;
             Registry = registry;
@@ -42,6 +44,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             SourceId = sourceId;
             SearchTargets = searchTargets;
             CurrentTimeMsProvider = currentTimeMsProvider;
+            SkillLoadout = skillLoadout;
         }
     }
 
@@ -178,7 +181,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                 context.CurrentTimeMsProvider,
                 context.Definition.SkillSelectionPolicy,
                 debugName: treeName,
-                debugOwnerLabel: "actor:" + context.OwnerActorId);
+                debugOwnerLabel: "actor:" + context.OwnerActorId,
+                skillLoadout: context.SkillLoadout);
             if (decision == null)
             {
                 Log.Warning($"[MobaBrain] behavior tree create failed. brainId={context.Definition.BrainId} tree={treeName}");

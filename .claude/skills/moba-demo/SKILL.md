@@ -3,11 +3,11 @@ name: moba-demo
 description: AbilityKit MOBA Demo（com.abilitykit.demo.moba.*）的包结构、逻辑与表现装配、Bootstrap、Entitas ECS、配置加载、DTO 到 MO 转换、MOBA Source Generator/Analyzer、测试门禁、导航碰撞和多人同步指南。用于定位或修改 MOBA runtime/view/host/editor/codegen 包，新增配置表、注册 PlanAction/事件/目标查询/发射器/快照/路由，处理生成代码或 Analyzer 诊断，以及运行 MOBA 验证门禁。
 ---
 
-# moba-demo skill
+# MOBA 示例指引
 
-## Protocol changes
+## 协议变更
 
-For MOBA opcodes, payloads, MemoryPack fields, codecs, or generated DTOs, follow [`protocol-wire`](../protocol-wire/SKILL.md). Protocol fields must originate from grouped Wire Schema v2; handwritten protocol files retain behavior only.
+修改 MOBA 的 opcode、载荷、MemoryPack 字段、编解码器或生成 DTO 时，遵循 [`protocol-wire`](../protocol-wire/SKILL.md)。协议字段必须来自分组的 Wire Schema v2；手写协议文件只保留行为逻辑。
 
 基于源码核校（2026-08-04）。**覆盖 demo 装配/阶段机/ECS/视图/同步/网络/Editor/测试/配置/CodeGen，以及导航/寻路/碰撞墙体/PathFollowing/map 运行时/AI BT**。技能/触发器/BUFF/Passive 业务内容归 [ability-kit](../ability-kit/SKILL.md)。碰撞/移动/导航基础设施（`com.abilitykit.combat.{collision,motion,navigation}` 包）归 ability-kit 的 [combat_* 子目录](../ability-kit/SKILL.md)。**新增英雄技能的落点判定、交付清单与门禁**归 [moba-skill-authoring](../moba-skill-authoring/SKILL.md)。
 
@@ -46,7 +46,7 @@ Host/Session → WorldTypeRegistry → MobaWorldBlueprintsRegistration
 
 这些归 ability-kit skill。本 skill 聚焦**装配/编排/视图/工具链/测试/配置加载链**。
 
-## Sections
+## 分节索引
 
 - [packages_overview.md](packages_overview.md) — 7 包职责 + 编译期/运行时依赖图
 - [codegen_analyzer.md](codegen_analyzer.md) — MOBA Generator/Analyzer 覆盖矩阵、DTO→MO 规则、fallback 边界与 P1 门禁

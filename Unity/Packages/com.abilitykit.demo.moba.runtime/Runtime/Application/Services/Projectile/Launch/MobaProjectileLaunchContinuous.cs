@@ -12,7 +12,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         IMobaTickableContinuous,
         IMobaContinuousIntervalState,
         IMobaContinuousRuntimeDebugSource,
-        IMobaContinuousExecutionContextProvider
+        IMobaContinuousExecutionContextProvider,
+        IMobaContinuousExecutionBlockedHandler
     {
         private readonly MobaProjectileLaunchConfig _config;
         private readonly IMobaProjectileLaunchExecutor _executor;
@@ -46,7 +47,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         public int LauncherId => Request.LauncherId;
         public int ProjectileId => Request.ProjectileId;
         public int ConfigId => Request.ContinuousProcessId > 0 ? Request.ContinuousProcessId : LauncherId;
-        public int ModifierSourceId => CreateModifierSourceId(SourceContextId, ConfigId, CasterActorId, LauncherId, ProjectileId);
+        public int ModifierSourceId => AllocatedModifierSourceId;
         public long SourceContextId => Request.SourceContext.SourceContextId;
 
         public override IContinuousConfig Config => _config;
@@ -80,6 +81,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         protected override void OnEnding(ContinuousEndReason reason)
         {
             StopLaunch(reason);
+        }
+
+        public void OnExecutionBlocked()
+        {
+            End(ContinuousEndReason.Interrupted);
         }
 
         public bool TryGetCombatExecutionContext(out MobaCombatExecutionContext context)
@@ -186,14 +192,14 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
 
         private static ContinuousTagRequirements ResolveTemplateRequirements(int templateId, IMobaContinuousTagTemplateRegistry tagTemplates)
         {
-            if (templateId <= 0 || tagTemplates == null)
+            if (templateId <= 0)
             {
                 return new ContinuousTagRequirements();
             }
 
-            if (!tagTemplates.TryGet(templateId, out var template) || template == null)
+            if (tagTemplates == null || !tagTemplates.TryGet(templateId, out var template) || template == null)
             {
-                return new ContinuousTagRequirements();
+                throw new InvalidOperationException($"Projectile launch references missing continuous tag template {templateId}.");
             }
 
             return CopyRequirements(template);
@@ -208,7 +214,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
                 ApplicationTags = CopyContainer(source.ApplicationTags),
                 RemovalRequired = source.RemovalRequired,
                 OngoingRequired = source.OngoingRequired,
-                RemovalTags = CopyContainer(source.RemovalTags)
+                ExecutionBlockedResultMask = source.ExecutionBlockedResultMask
             };
         }
 
@@ -217,20 +223,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             var copy = new GameplayTagContainer();
             copy.AppendTags(source);
             return copy;
-        }
-
-        private static int CreateModifierSourceId(long sourceContextId, int configId, int casterActorId, int launcherId, int projectileId)
-        {
-            unchecked
-            {
-                var hash = 23;
-                hash = hash * 31 + sourceContextId.GetHashCode();
-                hash = hash * 31 + configId;
-                hash = hash * 31 + casterActorId;
-                hash = hash * 31 + launcherId;
-                hash = hash * 31 + projectileId;
-                return hash == 0 ? configId : hash;
-            }
         }
 
         private sealed class MobaProjectileLaunchConfig : MobaContinuousConfigBase, IMobaContinuousOwnerBoundTriggerConfig

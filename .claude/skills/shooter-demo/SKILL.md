@@ -3,11 +3,11 @@ name: shooter-demo
 description: AbilityKit Shooter Demo（com.abilitykit.demo.shooter.*）——6 个包的服务端权威 StateSync + Svelto.ECS 演示示例。**刻意不复用 ability/combat 技能栈**，与 moba demo（Entitas + FrameSync + 全技能栈）形成对照。覆盖 ShooterBattleRuntimePort 9 端口、ShooterBattleSimulation 双 module 管线、三类快照（StateSnapshot/PackedSnapshot/PureStateSnapshot 含 AOI）、三种客户端同步策略（PredictRollback/AuthoritativeInterpolation/HybridHeroPrediction）、11 opcodes、6 种实体 Group、4 种 PlayMode、ShooterDemoWindow 三种 DriveMode、ShooterAcceptanceSpecs 纯 C# 验收基线。🆕 v0.1.0：多人烟雾测试通过、Unity 无头双实例脚本、暂停/恢复 GUI、IGatewayConnection 统一网关抽象。触发场景：StateSync 实现、Svelto ECS 适配、packed/pure-state 快照编码、AOI 兴趣裁剪、客户端预测回滚（不复用 ClientPredictionDriverModule）、Lag Compensation、Fast Reconnect、Drift Recovery、FrameRecordReplay、ML-Agents 训练环境。
 ---
 
-# shooter-demo skill
+# Shooter 示例指引
 
-## Protocol changes
+## 协议变更
 
-For Shooter opcodes, payloads, MemoryPack fields, codecs, or generated DTOs, follow [`protocol-wire`](../protocol-wire/SKILL.md). Protocol fields must originate from grouped Wire Schema v2; handwritten protocol files retain behavior only.
+修改 Shooter 的 opcode、载荷、MemoryPack 字段、编解码器或生成 DTO 时，遵循 [`protocol-wire`](../protocol-wire/SKILL.md)。协议字段必须来自分组的 Wire Schema v2；手写协议文件只保留行为逻辑。
 
 基于源码核校（2026-08-03）。Shooter demo 实际存在，约 215 个 .cs 文件，分 6 个包。
 
@@ -41,7 +41,7 @@ For Shooter opcodes, payloads, MemoryPack fields, codecs, or generated DTOs, fol
 | `com.abilitykit.demo.shooter.ai` | 1 | ML-Agents 训练环境适配 |
 | `com.abilitykit.protocol.shooter` | 7 | 线协议（MemoryPack 结构体 + Codec） |
 
-## Sections
+## 分节索引
 
 - [when_to_use.md](when_to_use.md) — 何时启用本 skill
 - [packages_overview.md](packages_overview.md) — 6 包依赖图 + 职责

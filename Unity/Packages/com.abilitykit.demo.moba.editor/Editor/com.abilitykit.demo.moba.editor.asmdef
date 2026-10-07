@@ -38,7 +38,8 @@
     "AbilityKit.BattleScenario",
     "AbilityKit.BattleScenario.Editor",
     "AbilityKit.Scenario",
-    "AbilityKit.Demo.Moba.Environment"
+    "AbilityKit.Demo.Moba.Environment",
+    "AbilityKit.HFSM.Core"
   ],
   "includePlatforms": [
     "Editor"

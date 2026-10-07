@@ -20,7 +20,7 @@
   <ItemGroup>
     <!-- 排除 Editor 相关 -->
     <Compile Remove="../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/**/Editor/**" />
-    <!-- 排除 Impl 目录（LubanGen 重复） -->
+    <!-- 排除 Unity 专用 Impl 目录 -->
     <Compile Remove="../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Impl/**" />
     <!-- 共享测试脚本的源文件保留在 Core 项目中，Unity 包内副本只给 Unity asmdef 消费。 -->
     <Compile Remove="../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Testing/**" />

@@ -35,15 +35,11 @@ namespace AbilityKit.Moba.Behavior
                 
                 if (mobaWorld != null)
                 {
-                    if (!mobaWorld.CanBeControlled(ctx.OwnerId))
+                    if (!mobaWorld.CanCast(ctx.OwnerId))
                     {
                         return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.LostControl);
                     }
                     
-                    if (mobaWorld.HasAnyTag(ctx.OwnerId, MobaGameplayTagCatalog.SilencedAliases))
-                    {
-                        return DecisionResult.Interrupt(MobaBehaviorContracts.InterruptReason.Silenced);
-                    }
                 }
                 
                 if (ctx.TargetId.HasValue)

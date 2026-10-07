@@ -31,14 +31,32 @@ public sealed partial class DRAbilityNodes : Luban.BeanBase
     }
 
     /// <summary>
-    /// Ability JSON tree nodes; Pointer uses RFC 6901.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 当前记录的类型；取值由对应配置契约定义。
+    /// </summary>
     public readonly string Kind;
+    /// <summary>
+    /// 输出资源文档路径。
+    /// </summary>
     public readonly string Path;
+    /// <summary>
+    /// 资源节点在 JSON 中的 RFC 6901 指针。
+    /// </summary>
     public readonly string Pointer;
+    /// <summary>
+    /// 资源节点的 JSON 标量值。
+    /// </summary>
     public readonly string ValueJson;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 2117013333;

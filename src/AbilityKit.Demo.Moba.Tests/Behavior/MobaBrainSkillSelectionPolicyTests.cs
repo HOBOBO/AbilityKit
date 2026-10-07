@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Behavior;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
@@ -93,6 +94,42 @@ public sealed class MobaBrainSkillSelectionPolicyTests
     }
 
     [Fact]
+    public void Btree_uses_effective_slot_skill_and_reverts_after_candidate_removal()
+    {
+        var actorContext = new ActorContext();
+        var actor = actorContext.CreateEntity();
+        actor.AddActorId(1);
+        var slotRuntime = new ActiveSkillRuntime { SkillId = 1001 };
+        actor.AddSkillLoadout(new[] { slotRuntime }, Array.Empty<PassiveSkillRuntime>());
+        var registry = new MobaActorRegistry();
+        registry.Register(1, actor);
+        using var candidates = new MobaSkillSlotCandidateService();
+        using var loadout = new MobaSkillLoadoutService(null);
+        loadout.SetLoadout(1, new[] { 1001 });
+        loadout.OnInit(new CandidateResolver(candidates));
+        candidates.Add(1, 40, 1, 1002, 20, 0);
+        var decision = MobaBTreeDecision.Create(CreateSelectReadySkillTreeJson(), registry,
+            CreateConfigDatabase(), skillLoadout: loadout);
+        Assert.NotNull(decision);
+        var manager = new BehaviorManager();
+        manager.CreateBehavior(new BehaviorCreateConfig
+        {
+            BehaviorKind = "test",
+            OwnerId = new BehaviorEntityId(1),
+            Decision = decision,
+            World = new DefaultWorldQuery(),
+        });
+
+        manager.Tick(0.016f, frame: 1);
+        Assert.Equal(1002, decision.Blackboard.GetInt64(MobaBTreeKeys.SkillId));
+        Assert.Equal(1, decision.Blackboard.GetInt64(MobaBTreeKeys.SkillSlot));
+        Assert.Same(slotRuntime, actor.skillLoadout.ActiveSkills[0]);
+        candidates.ClearSource(1, 40);
+        manager.Tick(0.016f, frame: 2);
+        Assert.Equal(1001, decision.Blackboard.GetInt64(MobaBTreeKeys.SkillId));
+    }
+
+    [Fact]
     public void Brain_catalog_parses_optional_skill_selection_policy()
     {
         const string json = """
@@ -149,5 +186,25 @@ public sealed class MobaBrainSkillSelectionPolicyTests
               "blackboard": { "keys": [] }
             }
             """;
+    }
+
+    private sealed class CandidateResolver : IWorldResolver
+    {
+        private readonly MobaSkillSlotCandidateService _candidates;
+        public CandidateResolver(MobaSkillSlotCandidateService candidates) => _candidates = candidates;
+        public object Resolve(Type type) => TryResolve(type, out var value)
+            ? value : throw new InvalidOperationException();
+        public T Resolve<T>() => (T)Resolve(typeof(T));
+        public bool TryResolve(Type type, out object instance)
+        {
+            instance = type == typeof(MobaSkillSlotCandidateService) ? _candidates : null;
+            return instance != null;
+        }
+        public bool TryResolve<T>(out T instance)
+        {
+            var found = TryResolve(typeof(T), out var value);
+            instance = found ? (T)value : default;
+            return found;
+        }
     }
 }

@@ -14,6 +14,8 @@
     "SkillIds": [],
     "StatsMode": 0,
     "Tags": [],
-    "UnitSubType": 1
+    "UnitSubType": 1,
+    "BrainId": 1,
+    "InheritAttributeConfigId": 1
   }
 ]

@@ -89,8 +89,8 @@
         "action": "press",
         "actorAlias": "caster",
         "slot": 1,
-        "position": { "x": 12.0, "y": 0.0, "z": 0.0 },
-        "direction": { "x": 1.0, "y": 0.0, "z": 0.0 }
+        "position": { "x": 12.0, "y": 0.0, "z": 2.5 },
+        "direction": { "x": 8.0, "y": 0.0, "z": 2.5 }
       },
       {
         "stepId": "wait_for_inserted_skill_and_ultimate_resume",

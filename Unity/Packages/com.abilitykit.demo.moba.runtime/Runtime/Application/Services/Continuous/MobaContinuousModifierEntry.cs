@@ -39,7 +39,7 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     Key = key,
                     Op = ToModifierOp(spec.Op),
-                    Magnitude = ApplyStack(spec.Magnitude, entry.Stack),
+                    Magnitude = ApplyStack(spec.Magnitude, entry.Stack, spec.Op),
                     Priority = spec.Priority,
                     SourceId = entry.Projection?.ModifierSourceId ?? 0,
                     SourceNameIndex = -1,
@@ -61,10 +61,22 @@ namespace AbilityKit.Demo.Moba.Services
             return ModifierOp.Add;
         }
 
-        private static MagnitudeSource ApplyStack(MagnitudeSource magnitude, int stack)
+        public static float ApplyStackValue(float value, int stack, int op)
         {
-            if (stack <= 1) return magnitude;
-            return magnitude.WithBaseValue(magnitude.BaseValue * stack);
+            if (stack <= 1 || op == (int)ModifierOp.Override) return value;
+            var result = op == (int)ModifierOp.Mul
+                ? Math.Pow(value, stack)
+                : (double)value * stack;
+            if (double.IsNaN(result) || double.IsInfinity(result) ||
+                result < float.MinValue || result > float.MaxValue)
+                throw new InvalidOperationException("Continuous modifier stack magnitude is not finite.");
+            return (float)result;
+        }
+
+        private static MagnitudeSource ApplyStack(MagnitudeSource magnitude, int stack, int op)
+        {
+            if (stack <= 1 || op == (int)ModifierOp.Override) return magnitude;
+            return magnitude.WithBaseValue(ApplyStackValue(magnitude.BaseValue, stack, op));
         }
 
         private static byte ToByte(int value)

@@ -47,7 +47,6 @@ namespace AbilityKit.Demo.Moba.Services
                 id => config.TryGetAoe(id, out var area) ? area : null,
                 report);
             ValidateGameplay(config, triggers, report);
-            ValidateTagTemplates(config, report);
             ValidateContinuousTagTemplates(config, report);
         }
 
@@ -619,17 +618,24 @@ namespace AbilityKit.Demo.Moba.Services
                 }
                 else if (modifier.TargetKind == MobaContinuousModifierTargetKind.SkillParameter)
                 {
-                    ValidateSkillParameterModifierTarget(modifier.TargetId, report, itemPath + ".targetId", businessId);
+                    ValidateSkillParameterModifierTarget(modifier.TargetId, modifier.Op, report, itemPath + ".targetId", businessId);
+                }
+                else if (modifier.TargetKind == MobaContinuousModifierTargetKind.SkillSlotCandidate &&
+                         (!config.TryGetSkill(modifier.CandidateSkillId, out var candidateSkill) ||
+                          candidateSkill == null))
+                {
+                    report.Error(Source, itemPath + ".candidateSkillId",
+                        "skill slot candidate is invalid.", businessId.ToString());
                 }
             }
         }
 
-        private static void ValidateSkillParameterModifierTarget(int targetId, MobaRuntimeValidationReport report, string path, int businessId)
+        private static void ValidateSkillParameterModifierTarget(int targetId, int op, MobaRuntimeValidationReport report, string path, int businessId)
         {
-            if (targetId >= 1 && targetId <= 5) return;
-
-            if (targetId == 2) return;
-            report.Warning(Source, path, "skill parameter modifier target is not one of the built-in projectile/summon parameter ids.", businessId.ToString());
+            if (!MobaSkillParamModifierKeys.TryResolve(targetId, out _))
+                report.Error(Source, path, "modifier parameter id is not registered.", businessId.ToString());
+            else if (!MobaSkillParamModifierKeys.SupportsOperation(targetId, op))
+                report.Error(Source, path, "modifier operation is not allowed for this parameter.", businessId.ToString());
         }
 
         private static void ValidateProjectiles(MobaConfigDatabase config, TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report)
@@ -939,16 +945,6 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     report.Warning(Source, $"gameplay.{gameplay.Id}.defaultDurationMs", "gameplay default duration is negative.", gameplay.Id.ToString());
                 }
-            }
-        }
-
-        private static void ValidateTagTemplates(MobaConfigDatabase config, MobaRuntimeValidationReport report)
-        {
-            foreach (var template in All<TagTemplateMO>(config))
-            {
-                if (template == null) continue;
-                var path = $"tagTemplate.{template.Id}";
-                WarnEmptyName(template.Name, report, path + ".name", template.Id);
             }
         }
 

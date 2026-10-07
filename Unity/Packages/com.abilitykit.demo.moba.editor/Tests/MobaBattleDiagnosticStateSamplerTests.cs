@@ -395,15 +395,46 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var sink = scope.Resolve<IMobaBattleDiagnosticEventSink>();
             var collector = scope.Resolve<MobaBattleDiagnosticEventCollector>();
             var attributeStore = scope.Resolve<IBattleDiagnosticActorAttributeStore>();
+            var attributeHistory = scope.Resolve<IMobaBattleDiagnosticAttributeHistory>();
             var buffStore = scope.Resolve<IBattleDiagnosticActorBuffStore>();
             var tagStore = scope.Resolve<IBattleDiagnosticActorTagStore>();
             var effectStore = scope.Resolve<IBattleDiagnosticActorEffectStore>();
 
             Assert.That(sink, Is.Not.Null);
             Assert.That(attributeStore.Scope, Is.EqualTo(collector.Scope));
+            Assert.That(attributeHistory, Is.SameAs(attributeStore));
             Assert.That(buffStore.Scope, Is.EqualTo(collector.Scope));
             Assert.That(tagStore.Scope, Is.EqualTo(collector.Scope));
             Assert.That(effectStore.Scope, Is.EqualTo(collector.Scope));
+        }
+
+        [Test]
+        public void SampleTrackedAttribute_ReadsSelectedActorWithoutFullSnapshot()
+        {
+            AttributeWorldServicesModule.ClearCache();
+            var builder = CreateAttributedRuntimeBuilder();
+            using var container = builder.Build();
+            using var scope = container.CreateScope();
+            var registry = scope.Resolve<MobaActorRegistry>();
+            var sampler = scope.Resolve<MobaBattleDiagnosticStateSampler>();
+            var history = scope.Resolve<IMobaBattleDiagnosticAttributeHistory>();
+            var context = new ActorContext();
+            var entity = context.CreateEntity();
+            var attributeContext = new AttributeContext();
+            var group = new AttributeGroup("tracked", attributeContext);
+            group.SetBase(MobaAttributeIds.PHYSICS_ATTACK, 20f);
+            group.AddModifier(MobaAttributeIds.PHYSICS_ATTACK, ModifierOp.Add, 5f, 77);
+            entity.AddAttributeGroup(group, attributeContext);
+            registry.Register(10, entity);
+            history.Configure(10, MobaAttributeIds.PHYSICS_ATTACK.RawId, 1, true);
+
+            sampler.SampleTrackedAttribute();
+
+            var samples = history.GetSamples();
+            Assert.That(samples, Has.Count.EqualTo(1));
+            Assert.That(samples[0].BaseValue, Is.EqualTo(20f));
+            Assert.That(samples[0].FinalValue, Is.EqualTo(25f));
+            Assert.That(samples[0].ModifierCount, Is.EqualTo(1));
         }
 
         [Test]

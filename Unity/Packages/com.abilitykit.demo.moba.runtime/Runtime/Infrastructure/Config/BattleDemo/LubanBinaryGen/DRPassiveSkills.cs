@@ -31,14 +31,32 @@ public sealed partial class DRPassiveSkills : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 持续流程ID 列表；填写对应配置或编辑器产物的 ID。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> ContinuousProcessIds;
+    /// <summary>
+    /// 冷却时间，单位毫秒。
+    /// </summary>
     public readonly int CooldownMs;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 触发器 ID 列表；由 Trigger Authoring 发布，逗号分隔。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> TriggerIds;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 1857527899;

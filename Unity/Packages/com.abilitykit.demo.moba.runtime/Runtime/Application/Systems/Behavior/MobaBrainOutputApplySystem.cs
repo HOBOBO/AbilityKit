@@ -109,8 +109,7 @@ namespace AbilityKit.Demo.Moba.Systems
         private void ApplySkillIntent(global::ActorEntity actor, in MobaActorIntent intent)
         {
             if (_skills == null || actor == null || !actor.hasActorId || !intent.IsValid() || !intent.HasCast
-                || intent.SkillSlot <= 0 || !IsSkillReady(actor, intent.SkillSlot, intent.SkillId)
-                || (_combatRules != null && !_combatRules.CanCastSkill(actor.actorId.Value).Passed))
+                || intent.SkillSlot <= 0 || !IsSkillReady(actor, intent.SkillSlot, intent.SkillId))
                 return;
 
             var aimPosition = intent.AimPosition;

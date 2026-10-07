@@ -70850,7 +70850,7 @@ MonoBehaviour:
       Data: 4270|AbilityKit.Ability.Config.Authoring.TriggerArgumentData, AbilityKit.Ability
     - Name: Name
       Entry: 1
-      Data: remove_slow
+      Data: tag_id
     - Name: Value
       Entry: 7
       Data: 4271|AbilityKit.Ability.Config.Authoring.TriggerValueRefData, AbilityKit.Ability
@@ -70859,16 +70859,16 @@ MonoBehaviour:
       Data: 0
     - Name: Type
       Entry: 3
-      Data: 3
+      Data: 1
     - Name: IntegerValue
       Entry: 3
-      Data: 0
+      Data: 1006
     - Name: NumberValue
       Entry: 4
       Data: 0
     - Name: BooleanValue
       Entry: 5
-      Data: true
+      Data: false
     - Name: StringValue
       Entry: 6
       Data: 

@@ -30,6 +30,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var effectInput = new MobaEffectActionInput(in coreInput);
+            string tagName = null;
+            if (args.TagId > 0 &&
+                (!TryResolveRequired(ctx, out IMobaTagDefinitionQueryService definitions) ||
+                 !definitions.TryGetActiveTagName(args.TagId, out tagName)))
+            {
+                LogRejected(ctx, $"unknown active gameplay tag definition: {args.TagId}");
+                return;
+            }
             var targets = PooledMobaPlanActionLists.GetIntList();
             try
             {
@@ -38,19 +46,19 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     return;
                 }
 
-                // A cleanse targets every matching slow, regardless of which actor applied it.
-                var sourceActorId = args.RemoveSlow ? 0 : (args.SourceActorId > 0 ? args.SourceActorId : effectInput.CasterActorId);
+                var sourceActorId = args.SourceActorId > 0 ? args.SourceActorId :
+                    args.TagId > 0 ? 0 : effectInput.CasterActorId;
                 var removed = 0;
                 for (var i = 0; i < targets.Count; i++)
                 {
                     var targetActorId = targets[i];
                     if (targetActorId <= 0) continue;
-                    removed += args.RemoveSlow
-                        ? buffs.RemoveBuffsWithTagImmediate(targetActorId, "Debuff.Slow", sourceActorId, args.RemoveAll, args.Reason)
+                    removed += args.TagId > 0
+                        ? buffs.RemoveBuffsWithTagImmediate(targetActorId, tagName, sourceActorId, args.RemoveAll, args.Reason)
                         : buffs.RemoveBuffsImmediate(targetActorId, args.BuffId, sourceActorId, args.RemoveAll, args.Reason);
                 }
 
-                LogApplied($"buffId={args.BuffId} removeSlow={args.RemoveSlow} source={sourceActorId} targets={targets.Count} removed={removed} reason={args.Reason}");
+                LogApplied($"buffId={args.BuffId} tagId={args.TagId} source={sourceActorId} targets={targets.Count} removed={removed} reason={args.Reason}");
             }
             finally
             {

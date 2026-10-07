@@ -122,6 +122,57 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void SkillStateSnapshot_SwitchesSlotTemplateAndRestoresBaseSkill()
+        {
+            var root = new GameObject("SkillCandidateHud.Root", typeof(RectTransform), typeof(Canvas));
+            var context = BattleContext.Rent();
+            var controller = new BattleHudInputController(
+                context, root.GetComponent<RectTransform>(), root.GetComponent<Canvas>(), null);
+            const int actorId = 1001;
+            const int baseSkillId = 10010201;
+            const int candidateSkillId = 10020201;
+            var loadout = CreateLoadout("lian_po", 1001, 10010011,
+                10010101, baseSkillId, 10010301);
+            var response = new BattleEnterGameSnapshot(
+                "test", "lian_po", actorId, 1, 30, 0, playersLoadout: new[] { loadout });
+
+            try
+            {
+                controller.Ensure();
+                Assert.IsTrue(controller.ApplySkillButtonTemplates(response, "lian_po"));
+                Assert.AreEqual(baseSkillId, controller.SkillSpecs[2].SkillId);
+
+                Assert.IsTrue(controller.ApplySkillStates(new[]
+                {
+                    new SkillStateData(actorId, 2, candidateSkillId, level: 1,
+                        cooldownTotalMs: 2000, cooldownRemainingMs: 1000,
+                        availability: SkillAvailabilityState.CoolingDown)
+                }, actorId));
+                Assert.AreEqual(candidateSkillId, controller.SkillSpecs[2].SkillId);
+                Assert.AreEqual(controller.SkillSpecs[2].IndicatorShape,
+                    controller.InputUi.SkillViews[1].Config.IndicatorShape);
+                Assert.IsTrue(controller.SkillStateMatchesTemplate(new SkillStateData(
+                    actorId, 2, candidateSkillId, level: 1,
+                    availability: SkillAvailabilityState.CoolingDown)));
+
+                Assert.IsTrue(controller.ApplySkillStates(new[]
+                {
+                    new SkillStateData(actorId, 2, baseSkillId, level: 1,
+                        availability: SkillAvailabilityState.Available)
+                }, actorId));
+                Assert.AreEqual(baseSkillId, controller.SkillSpecs[2].SkillId);
+                Assert.AreEqual(controller.SkillSpecs[2].IndicatorShape,
+                    controller.InputUi.SkillViews[1].Config.IndicatorShape);
+            }
+            finally
+            {
+                controller.Dispose();
+                BattleContext.Return(context);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PlayerLoadoutResolver_SwitchesBetweenHeroesWithoutUsingResponsePlayer()
         {
             var lianPo = CreateLoadout("lian_po", 1001, 10010011, 10010101, 10010201, 10010301);

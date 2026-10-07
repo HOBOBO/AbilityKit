@@ -41,6 +41,30 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
         }
 
         [Test]
+        public void ModifierParameterChoices_FollowPublishedWritableCatalog()
+        {
+            var parameters = MobaBattleScenarioConfigCatalog.TriggerWritableModifierParameters;
+            Assert.That(parameters.Select(entry => entry.Id), Does.Contain(11));
+            Assert.That(parameters.Select(entry => entry.Id), Does.Contain(12));
+            Assert.That(parameters.Select(entry => entry.Id), Does.Contain(13));
+            Assert.That(parameters.Select(entry => entry.Id), Does.Contain(14));
+            Assert.That(parameters.Any(entry => entry.Id == 1), Is.False);
+            Assert.That(parameters.Any(entry => entry.Id == 2), Is.False);
+            Assert.That(parameters.Single(entry => entry.Id == 12).Name,
+                Is.EqualTo("Projectile.Speed"));
+        }
+
+        [Test]
+        public void GameplayTagChoices_OnlyContainActiveCombatFacts()
+        {
+            var tags = MobaBattleScenarioConfigCatalog.ActiveGameplayTags;
+            Assert.That(tags.Select(entry => entry.Id), Does.Contain(1020));
+            Assert.That(tags.Any(entry => entry.Id == 90), Is.False);
+            Assert.That(tags.Any(entry => entry.Id == 1100), Is.False);
+            Assert.That(tags.All(entry => entry.Kind == MobaBattleScenarioConfigKind.GameplayTag), Is.True);
+        }
+
+        [Test]
         public void TraceKind_SelectsTheMatchingConfigDomain()
         {
             var damage = MobaBattleScenarioConfigCatalog.TraceConfigChoices("DamageApply");

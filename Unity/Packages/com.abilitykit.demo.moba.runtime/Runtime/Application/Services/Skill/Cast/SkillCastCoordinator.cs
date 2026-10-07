@@ -399,8 +399,12 @@ namespace AbilityKit.Demo.Moba.Services
             SkillCastPolicy? policyOverride = null,
             long diagnosticCommandId = 0L)
         {
-            var resolvedSkillId = ResolveModifiedSkillId(actorId, skillId);
-            if (!TryValidateCombatRules(actorId, out var combatFailure, out var combatMessage))
+            MobaResolvedSlotSkill selected = default;
+            var selectedByContinuous = slot > 0 &&
+                _loadout.TryResolveSlot(actorId, slot, out selected) &&
+                (selected.BaseSkillId == skillId || selected.EffectiveSkillId == skillId);
+            var resolvedSkillId = selectedByContinuous ? selected.EffectiveSkillId : skillId;
+            if (!TryValidateCombatRules(actorId, resolvedSkillId, out var combatFailure, out var combatMessage))
             {
                 var rejected = MobaSkillCastResult.Failed(combatMessage, in combatFailure);
                 CollectSkillFailure(actorId, resolvedSkillId, slot, targetActorId, in rejected,
@@ -501,25 +505,6 @@ namespace AbilityKit.Demo.Moba.Services
             sink.TryCollect(in draft);
         }
 
-        private int ResolveModifiedSkillId(int actorId, int skillId)
-        {
-            if (actorId <= 0 || skillId <= 0) return skillId;
-            if (!IsNormalAttackSkill(skillId)) return skillId;
-            if (_services == null || !_services.TryResolve<MobaSkillParamModifierService>(out var modifiers) || modifiers == null) return skillId;
-
-            var resolved = modifiers.Skill.ResolveSkillId(actorId, skillId);
-            return resolved > 0 ? resolved : skillId;
-        }
-
-        private bool IsNormalAttackSkill(int skillId)
-        {
-            if (skillId <= 0) return false;
-            if (_services == null || !_services.TryResolve<MobaConfigDatabase>(out var configs) || configs == null) return false;
-            if (!configs.TryGetSkill(skillId, out var skill) || skill == null) return false;
-
-            return skill.SkillType == SkillType.NormalAttack;
-        }
-
         private MobaSkillCastResult StartPreparedCast(
             int actorId,
             int skillId,
@@ -530,7 +515,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             // Keep a post-preparation gate as a race-safe fallback. Any rejection after
             // preparation must release the formal runtime, which owns the root execution context.
-            if (!TryValidateCombatRules(actorId, out var combatFailure, out var combatMessage))
+            if (!TryValidateCombatRules(actorId, skillId, out var combatFailure, out var combatMessage))
             {
                 prepared.Runtimes.ForceTerminate(in ctx.RuntimeHandle, MobaSkillRuntimeEndReason.RollbackCleanup);
                 return new MobaSkillCastResult(false, combatMessage, in ctx.RuntimeHandle, in combatFailure);
@@ -560,19 +545,14 @@ namespace AbilityKit.Demo.Moba.Services
 
         private bool TryValidateCombatRules(
             int actorId,
+            int skillId,
             out MobaSkillCastFailure failure,
             out string message)
         {
             failure = MobaSkillCastFailure.None;
             message = null;
-            if (_services == null ||
-                !_services.TryResolve<MobaCombatRulesService>(out var combatRules) ||
-                combatRules == null)
-            {
-                return true;
-            }
 
-            var result = combatRules.CanCastSkill(actorId);
+            var result = CheckCombatRules(actorId, skillId);
             if (result.Passed) return true;
 
             message = result.Message;
@@ -582,6 +562,22 @@ namespace AbilityKit.Demo.Moba.Services
                 $"combat.{result.Failure}",
                 result.Message);
             return false;
+        }
+
+        public MobaCombatRuleResult CheckCombatRules(int actorId, int skillId)
+        {
+            if (_services == null ||
+                !_services.TryResolve<MobaCombatRulesService>(out var combatRules) ||
+                combatRules == null)
+            {
+                return MobaCombatRuleResult.Pass;
+            }
+
+            if (!_services.TryResolve<MobaConfigDatabase>(out var configs) || configs == null ||
+                !configs.TryGetSkill(skillId, out var skill) || skill == null)
+                return combatRules.CanCastSkill(actorId, 0UL);
+
+            return combatRules.CanCastSkill(actorId, skill.ExecutionBlockedResultMask);
         }
 
         public bool TryGetRunningBySlot(int actorId, int slot, out SkillPipelineRunner.RunningSnapshot snapshot)

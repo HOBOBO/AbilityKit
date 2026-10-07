@@ -176,7 +176,7 @@ namespace AbilityKit.Demo.Moba.Services
             return runtimes.TryGetBlackboard(in handle, out blackboard);
         }
 
-        private sealed class CurrentEffectWorldResolver : IWorldResolver
+        internal sealed class CurrentEffectWorldResolver : IWorldResolver
         {
             private readonly IWorldResolver _inner;
             private readonly MobaEffectExecutionService _effects;

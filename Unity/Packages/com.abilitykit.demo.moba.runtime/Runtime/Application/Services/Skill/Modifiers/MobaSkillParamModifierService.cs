@@ -1,6 +1,8 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Modifiers;
@@ -11,77 +13,100 @@ namespace AbilityKit.Demo.Moba.Services
     /// 面向作用域的修饰器容器与解析器，用于技能和计划动作参数。
     /// </summary>
     [WorldService(typeof(MobaSkillParamModifierService))]
-    public sealed class MobaSkillParamModifierService : IService
+    public sealed class MobaSkillParamModifierService : IService, IWorldInitializable
     {
+        private const int ResolutionTraceCapacity = 128;
         private readonly Dictionary<OwnerKey, List<ModifierData>> _modifiersByOwner = new Dictionary<OwnerKey, List<ModifierData>>();
+        private readonly Dictionary<OwnerKey, List<MobaParameterSelector>> _selectorsByOwner =
+            new Dictionary<OwnerKey, List<MobaParameterSelector>>();
+        private readonly Dictionary<OwnerKey, Dictionary<ModifierKey, List<int>>> _indicesByOwner =
+            new Dictionary<OwnerKey, Dictionary<ModifierKey, List<int>>>();
         private readonly ModifierCalculator _calculator = new ModifierCalculator { EnableCache = false };
+        private readonly MobaParameterResolutionTrace[] _recentResolutions =
+            new MobaParameterResolutionTrace[ResolutionTraceCapacity];
+        private int _nextResolutionTrace;
+        private int _resolutionTraceCount;
+        private long _evictedResolutionTraceCount;
+        private IFrameTime _frameTime;
+
+        public long EvictedResolutionTraceCount => _evictedResolutionTraceCount;
 
         public MobaSkillParamGroupResolver Skill { get; }
         public MobaProjectileParamGroupResolver Projectile { get; }
         public MobaSummonParamGroupResolver Summon { get; }
+        public MobaBuffParamGroupResolver Buff { get; }
+        public MobaAoeParamGroupResolver Aoe { get; }
+        public MobaDamageParamGroupResolver Damage { get; }
 
         public MobaSkillParamModifierService()
         {
             Skill = new MobaSkillParamGroupResolver(this);
             Projectile = new MobaProjectileParamGroupResolver(this);
             Summon = new MobaSummonParamGroupResolver(this);
+            Buff = new MobaBuffParamGroupResolver(this);
+            Aoe = new MobaAoeParamGroupResolver(this);
+            Damage = new MobaDamageParamGroupResolver(this);
         }
 
-        public void AddModifier(int actorId, in ModifierData modifier)
+        public void OnInit(IWorldResolver services)
+        {
+            services?.TryResolve(out _frameTime);
+        }
+
+        internal void AddModifier(int actorId, in ModifierData modifier)
         {
             AddModifier(MobaModifierOwnerRef.Actor(actorId), in modifier);
         }
 
-        public void AddModifier(MobaModifierOwnerRef owner, in ModifierData modifier)
+        internal void AddModifier(MobaModifierOwnerRef owner, in ModifierData modifier)
         {
-            if (!owner.IsValid) return;
+            AddModifier(owner, in modifier, default);
+        }
+
+        internal void AddModifier(MobaModifierOwnerRef owner, in ModifierData modifier, in MobaParameterSelector selector)
+        {
+            AddModifierCore(owner, in modifier, in selector);
+        }
+
+        private void AddModifierCore(MobaModifierOwnerRef owner, in ModifierData modifier,
+            in MobaParameterSelector selector)
+        {
+            ValidateProjection(owner, in modifier, in selector);
 
             var key = new OwnerKey(owner.Scope, owner.Id);
             if (!_modifiersByOwner.TryGetValue(key, out var modifiers) || modifiers == null)
             {
                 modifiers = new List<ModifierData>(4);
                 _modifiersByOwner[key] = modifiers;
+                _selectorsByOwner[key] = new List<MobaParameterSelector>(4);
+                _indicesByOwner[key] = new Dictionary<ModifierKey, List<int>>();
             }
 
+            var index = modifiers.Count;
             modifiers.Add(modifier);
+            _selectorsByOwner[key].Add(selector);
+            AddIndex(key, modifier.Key, index);
         }
 
-        public void AddFixed(int actorId, ModifierKey key, ModifierOp op, float value, int sourceId = 0, int priority = 10)
-        {
-            AddFixed(MobaModifierOwnerRef.Actor(actorId), key, op, value, sourceId, priority);
-        }
-
-        public void AddFixed(MobaModifierOwnerRef owner, ModifierKey key, ModifierOp op, float value, int sourceId = 0, int priority = 10)
-        {
-            AddModifier(owner, new ModifierData
-            {
-                Key = key,
-                Op = op,
-                Magnitude = MagnitudeSource.Fixed(value),
-                Priority = priority,
-                SourceId = sourceId,
-                SourceNameIndex = -1,
-                Metadata = ModifierMetadata.CreateByIndex(-1, 0, sourceId)
-            });
-        }
-
-        public void ClearActor(int actorId)
+        internal void ClearActor(int actorId)
         {
             ClearOwner(MobaModifierOwnerRef.Actor(actorId));
         }
 
-        public void ClearOwner(MobaModifierOwnerRef owner)
+        internal void ClearOwner(MobaModifierOwnerRef owner)
         {
             if (!owner.IsValid) return;
             _modifiersByOwner.Remove(new OwnerKey(owner.Scope, owner.Id));
+            _selectorsByOwner.Remove(new OwnerKey(owner.Scope, owner.Id));
+            _indicesByOwner.Remove(new OwnerKey(owner.Scope, owner.Id));
         }
 
-        public void ClearSource(int actorId, int sourceId)
+        internal void ClearSource(int actorId, int sourceId)
         {
             ClearSource(MobaModifierOwnerRef.Actor(actorId), sourceId);
         }
 
-        public void ClearSource(MobaModifierOwnerRef owner, int sourceId)
+        internal void ClearSource(MobaModifierOwnerRef owner, int sourceId)
         {
             if (!owner.IsValid) return;
             var key = new OwnerKey(owner.Scope, owner.Id);
@@ -92,13 +117,17 @@ namespace AbilityKit.Demo.Moba.Services
                 if (modifiers[i].SourceId == sourceId)
                 {
                     modifiers.RemoveAt(i);
+                    _selectorsByOwner[key].RemoveAt(i);
                 }
             }
 
             if (modifiers.Count == 0)
             {
                 _modifiersByOwner.Remove(key);
+                _selectorsByOwner.Remove(key);
+                _indicesByOwner.Remove(key);
             }
+            else RebuildIndices(key, modifiers);
         }
 
         public MobaSkillParamModifierServiceSnapshot CaptureRollbackSnapshot()
@@ -112,203 +141,214 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     var modifier = modifiers[i];
                     entries.Add(new MobaSkillParamModifierSnapshotEntry(
-                        pair.Key.Scope, pair.Key.Id, CloneModifier(in modifier)));
+                        pair.Key.Scope, pair.Key.Id, CloneModifier(in modifier), _selectorsByOwner[pair.Key][i]));
                 }
             }
             entries.Sort(MobaSkillParamModifierSnapshotEntry.Compare);
             return new MobaSkillParamModifierServiceSnapshot(entries.ToArray());
         }
 
-        public void RestoreRollbackSnapshot(in MobaSkillParamModifierServiceSnapshot snapshot)
+        internal void RestoreRollbackSnapshot(in MobaSkillParamModifierServiceSnapshot snapshot)
         {
+            ValidateRollbackSnapshot(in snapshot);
             _modifiersByOwner.Clear();
+            _selectorsByOwner.Clear();
+            _indicesByOwner.Clear();
+            _nextResolutionTrace = 0;
+            _resolutionTraceCount = 0;
+            _evictedResolutionTraceCount = 0;
             var entries = snapshot.Entries;
             if (entries == null) return;
             for (var i = 0; i < entries.Length; i++)
             {
                 var entry = entries[i];
                 var modifier = entry.Modifier;
-                AddModifier(new MobaModifierOwnerRef(entry.Scope, entry.OwnerId), CloneModifier(in modifier));
+                AddModifierCore(new MobaModifierOwnerRef(entry.Scope, entry.OwnerId),
+                    CloneModifier(in modifier), entry.Selector);
             }
         }
 
-        public int ResolveInt(int actorId, ModifierKey key, int baseValue, IModifierContext context = null)
+        internal static void ValidateRollbackSnapshot(in MobaSkillParamModifierServiceSnapshot snapshot)
         {
-            return ResolveInt(MobaModifierOwnerRef.Actor(actorId), key, baseValue, context);
-        }
-
-        public int ResolveInt(MobaModifierOwnerRef owner, ModifierKey key, int baseValue, IModifierContext context = null)
-        {
-            if (!owner.IsValid) return baseValue;
-            return ResolveIntCore(owner, key, baseValue, context);
-        }
-
-        public int ResolveInt(MobaModifierOwnerRef[] ownerChain, ModifierKey key, int baseValue, IModifierContext context = null)
-        {
-            return ResolveInt((ReadOnlySpan<MobaModifierOwnerRef>)ownerChain, key, baseValue, context);
-        }
-
-        public int ResolveInt(ReadOnlySpan<MobaModifierOwnerRef> ownerChain, ModifierKey key, int baseValue, IModifierContext context = null)
-        {
-            var matchCount = CountMatchingModifiers(ownerChain, key);
-            if (matchCount == 0) return baseValue;
-
-            var rented = ArrayPool<ModifierData>.Shared.Rent(matchCount);
-            try
+            var entries = snapshot.Entries;
+            if (entries == null) return;
+            for (var i = 0; i < entries.Length; i++)
             {
-                var written = WriteMatchingModifiers(ownerChain, key, rented);
-                return RoundToInt(_calculator.Calculate(rented.AsSpan(0, written), baseValue, context).FinalValue);
-            }
-            finally
-            {
-                ArrayPool<ModifierData>.Shared.Return(rented, clearArray: true);
+                var entry = entries[i];
+                var modifier = entry.Modifier;
+                var selector = entry.Selector;
+                ValidateProjection(new MobaModifierOwnerRef(entry.Scope, entry.OwnerId),
+                    in modifier, in selector);
             }
         }
 
-        public float ResolveFloat(int actorId, ModifierKey key, float baseValue, IModifierContext context = null)
+        private static void ValidateProjection(MobaModifierOwnerRef owner, in ModifierData modifier,
+            in MobaParameterSelector selector)
         {
-            return ResolveFloat(MobaModifierOwnerRef.Actor(actorId), key, baseValue, context);
+            if (!owner.IsValid)
+                throw new InvalidOperationException(
+                    $"Modifier projection requires a positive Actor owner, got {owner.Scope}:{owner.Id}.");
+            if (!selector.IsEmpty &&
+                (!MobaSkillParamModifierKeys.TryGetResolveStage(modifier.Key, out var stage) ||
+                 !selector.IsValidForStage(stage)))
+                throw new InvalidOperationException($"Modifier selector is unavailable at parameter stage for {modifier.Key}.");
         }
 
-        public float ResolveFloat(MobaModifierOwnerRef owner, ModifierKey key, float baseValue, IModifierContext context = null)
+        public int ResolveInt(MobaModifierOwnerRef owner, ModifierKey key, int baseValue,
+            in MobaParameterRecord record, IModifierContext context = null)
         {
-            if (!owner.IsValid) return baseValue;
-            return ResolveFloatCore(owner, key, baseValue, context);
+            RequireActorOwner(owner);
+            var resolved = ResolveRecorded(owner, key, baseValue, in record, context,
+                out var matchedCount, out var missingFields);
+            var result = RoundToInt(resolved);
+            TrackResolution(owner, key, baseValue, result, in record, matchedCount, missingFields);
+            return result;
         }
 
-        public float ResolveFloat(MobaModifierOwnerRef[] ownerChain, ModifierKey key, float baseValue, IModifierContext context = null)
+        public float ResolveFloat(MobaModifierOwnerRef owner, ModifierKey key, float baseValue,
+            in MobaParameterRecord record, IModifierContext context = null)
         {
-            return ResolveFloat((ReadOnlySpan<MobaModifierOwnerRef>)ownerChain, key, baseValue, context);
+            RequireActorOwner(owner);
+            var result = ResolveRecorded(owner, key, baseValue, in record, context,
+                out var matchedCount, out var missingFields);
+            TrackResolution(owner, key, baseValue, result, in record, matchedCount, missingFields);
+            return result;
         }
 
-        public float ResolveFloat(ReadOnlySpan<MobaModifierOwnerRef> ownerChain, ModifierKey key, float baseValue, IModifierContext context = null)
+        public void CopyRecentResolutionsTo(List<MobaParameterResolutionTrace> destination)
         {
-            var matchCount = CountMatchingModifiers(ownerChain, key);
-            if (matchCount == 0) return baseValue;
-
-            var rented = ArrayPool<ModifierData>.Shared.Rent(matchCount);
-            try
-            {
-                var written = WriteMatchingModifiers(ownerChain, key, rented);
-                return _calculator.Calculate(rented.AsSpan(0, written), baseValue, context).FinalValue;
-            }
-            finally
-            {
-                ArrayPool<ModifierData>.Shared.Return(rented, clearArray: true);
-            }
+            if (destination == null) throw new ArgumentNullException(nameof(destination));
+            destination.Clear();
+            var first = (_nextResolutionTrace - _resolutionTraceCount + ResolutionTraceCapacity) %
+                ResolutionTraceCapacity;
+            for (var i = 0; i < _resolutionTraceCount; i++)
+                destination.Add(_recentResolutions[(first + i) % ResolutionTraceCapacity]);
         }
 
-        private int ResolveIntCore(MobaModifierOwnerRef owner, ModifierKey key, int baseValue, IModifierContext context)
+        private void TrackResolution(MobaModifierOwnerRef owner, ModifierKey key, float baseValue,
+            float finalValue, in MobaParameterRecord record, int matchedCount,
+            MobaParameterIdentityFields missingFields)
         {
-            if (!_modifiersByOwner.TryGetValue(new OwnerKey(owner.Scope, owner.Id), out var modifiers) ||
-                modifiers == null || modifiers.Count == 0)
-            {
-                return baseValue;
-            }
-
-            var matchCount = CountMatchingModifiers(modifiers, key);
-            if (matchCount == 0) return baseValue;
-
-            var rented = ArrayPool<ModifierData>.Shared.Rent(matchCount);
-            try
-            {
-                var written = WriteMatchingModifiers(modifiers, key, rented, 0);
-                return RoundToInt(_calculator.Calculate(rented.AsSpan(0, written), baseValue, context).FinalValue);
-            }
-            finally
-            {
-                ArrayPool<ModifierData>.Shared.Return(rented, clearArray: true);
-            }
+            if (!owner.IsValid || record.Stage == MobaParameterStage.None) return;
+            _recentResolutions[_nextResolutionTrace] = new MobaParameterResolutionTrace(
+                owner, key, record, baseValue, finalValue, matchedCount, missingFields,
+                _frameTime?.Frame.Value ?? -1);
+            _nextResolutionTrace = (_nextResolutionTrace + 1) % ResolutionTraceCapacity;
+            if (_resolutionTraceCount < ResolutionTraceCapacity) _resolutionTraceCount++;
+            else _evictedResolutionTraceCount++;
         }
 
-        private float ResolveFloatCore(MobaModifierOwnerRef owner, ModifierKey key, float baseValue, IModifierContext context)
+        public MobaParameterResolutionExplanation ExplainRecorded(MobaModifierOwnerRef owner,
+            ModifierKey key, float baseValue, in MobaParameterRecord record,
+            IModifierContext context = null)
         {
-            if (!_modifiersByOwner.TryGetValue(new OwnerKey(owner.Scope, owner.Id), out var modifiers) ||
-                modifiers == null || modifiers.Count == 0)
-            {
-                return baseValue;
-            }
+            RequireActorOwner(owner);
+            ValidateRecordStage(key, in record);
+            if (!owner.IsValid ||
+                !_modifiersByOwner.TryGetValue(new OwnerKey(owner.Scope, owner.Id), out var modifiers))
+                return new MobaParameterResolutionExplanation(record, baseValue, baseValue,
+                    Array.Empty<ModifierSourceEntry>());
 
-            var matchCount = CountMatchingModifiers(modifiers, key);
-            if (matchCount == 0) return baseValue;
-
-            var rented = ArrayPool<ModifierData>.Shared.Rent(matchCount);
-            try
-            {
-                var written = WriteMatchingModifiers(modifiers, key, rented, 0);
-                return _calculator.Calculate(rented.AsSpan(0, written), baseValue, context).FinalValue;
-            }
-            finally
-            {
-                ArrayPool<ModifierData>.Shared.Return(rented, clearArray: true);
-            }
-        }
-
-        private int CountMatchingModifiers(ReadOnlySpan<MobaModifierOwnerRef> ownerChain, ModifierKey key)
-        {
-            var count = 0;
-            for (var i = 0; i < ownerChain.Length; i++)
-            {
-                var owner = ownerChain[i];
-                if (!owner.IsValid ||
-                    !_modifiersByOwner.TryGetValue(new OwnerKey(owner.Scope, owner.Id), out var modifiers) ||
-                    modifiers == null)
+            var selectors = _selectorsByOwner[new OwnerKey(owner.Scope, owner.Id)];
+            var matched = new List<ModifierData>();
+            var missingFields = MobaParameterIdentityFields.None;
+            if (_indicesByOwner.TryGetValue(new OwnerKey(owner.Scope, owner.Id), out var byKey) &&
+                byKey.TryGetValue(key, out var indices))
+                for (var i = 0; i < indices.Count; i++)
                 {
-                    continue;
+                    missingFields |= selectors[indices[i]].MissingFields(in record);
+                    if (selectors[indices[i]].Matches(in record))
+                        matched.Add(modifiers[indices[i]]);
                 }
+            if (matched.Count == 0)
+                return new MobaParameterResolutionExplanation(record, baseValue, baseValue,
+                    Array.Empty<ModifierSourceEntry>(), missingFields);
 
-                count += CountMatchingModifiers(modifiers, key);
-            }
-
-            return count;
+            var ordered = matched.ToArray();
+            var recorder = new DefaultRecorder(ordered.Length);
+            var result = _calculator.Calculate(ordered.AsSpan(), baseValue, recorder, context);
+            var contributions = new ModifierSourceEntry[recorder.Count];
+            for (var i = 0; i < contributions.Length; i++)
+                contributions[i] = recorder.GetEntry(i);
+            return new MobaParameterResolutionExplanation(record, baseValue, result.FinalValue,
+                contributions, missingFields);
         }
 
-        private int WriteMatchingModifiers(
-            ReadOnlySpan<MobaModifierOwnerRef> ownerChain,
-            ModifierKey key,
-            ModifierData[] destination)
+        private float ResolveRecorded(MobaModifierOwnerRef owner, ModifierKey key, float baseValue,
+            in MobaParameterRecord record, IModifierContext context, out int matchedCount,
+            out MobaParameterIdentityFields missingFields)
         {
-            var written = 0;
-            for (var i = 0; i < ownerChain.Length; i++)
-            {
-                var owner = ownerChain[i];
-                if (!owner.IsValid ||
-                    !_modifiersByOwner.TryGetValue(new OwnerKey(owner.Scope, owner.Id), out var modifiers) ||
-                    modifiers == null)
-                {
-                    continue;
-                }
-
-                written = WriteMatchingModifiers(modifiers, key, destination, written);
-            }
-
-            return written;
-        }
-
-        private static int CountMatchingModifiers(List<ModifierData> modifiers, ModifierKey key)
-        {
+            matchedCount = 0;
+            missingFields = MobaParameterIdentityFields.None;
+            ValidateRecordStage(key, in record);
+            if (!owner.IsValid) return baseValue;
+            var ownerKey = new OwnerKey(owner.Scope, owner.Id);
+            if (!_modifiersByOwner.TryGetValue(ownerKey, out var modifiers)) return baseValue;
+            if (!_indicesByOwner[ownerKey].TryGetValue(key, out var indices)) return baseValue;
+            var selectors = _selectorsByOwner[ownerKey];
             var count = 0;
-            for (var i = 0; i < modifiers.Count; i++)
+            for (var i = 0; i < indices.Count; i++)
             {
-                if (modifiers[i].Key.Equals(key)) count++;
+                missingFields |= selectors[indices[i]].MissingFields(in record);
+                if (selectors[indices[i]].Matches(in record)) count++;
             }
+            matchedCount = count;
+            if (count == 0) return baseValue;
 
-            return count;
+            var rented = ArrayPool<ModifierData>.Shared.Rent(count);
+            try
+            {
+                var written = 0;
+                for (var i = 0; i < indices.Count; i++)
+                    if (selectors[indices[i]].Matches(in record))
+                        rented[written++] = modifiers[indices[i]];
+                return Compose(rented.AsSpan(0, written), baseValue, context);
+            }
+            finally
+            {
+                ArrayPool<ModifierData>.Shared.Return(rented, clearArray: true);
+            }
         }
 
-        private static int WriteMatchingModifiers(
-            List<ModifierData> modifiers,
-            ModifierKey key,
-            ModifierData[] destination,
-            int destinationIndex)
+        private static void RequireActorOwner(MobaModifierOwnerRef owner)
         {
-            for (var i = 0; i < modifiers.Count; i++)
-            {
-                var modifier = modifiers[i];
-                if (modifier.Key.Equals(key)) destination[destinationIndex++] = modifier;
-            }
+            if (owner.Scope != MobaModifierOwnerScope.Actor)
+                throw new InvalidOperationException($"Modifier resolution requires an Actor owner, got {owner.Scope}.");
+        }
 
-            return destinationIndex;
+        private void AddIndex(OwnerKey owner, ModifierKey key, int index)
+        {
+            var byKey = _indicesByOwner[owner];
+            if (!byKey.TryGetValue(key, out var indices))
+                byKey[key] = indices = new List<int>(4);
+            var modifiers = _modifiersByOwner[owner];
+            var item = modifiers[index];
+            var position = indices.Count;
+            while (position > 0)
+            {
+                var previous = modifiers[indices[position - 1]];
+                if (item.Priority < previous.Priority ||
+                    item.Priority == previous.Priority && item.SourceId >= previous.SourceId)
+                    break;
+                position--;
+            }
+            indices.Insert(position, index);
+        }
+
+        private void RebuildIndices(OwnerKey owner, List<ModifierData> modifiers)
+        {
+            var byKey = _indicesByOwner[owner];
+            byKey.Clear();
+            for (var i = 0; i < modifiers.Count; i++)
+                AddIndex(owner, modifiers[i].Key, i);
+        }
+
+        private static void ValidateRecordStage(ModifierKey key, in MobaParameterRecord record)
+        {
+            if (!MobaSkillParamModifierKeys.TryGetResolveStage(key, out var expected) ||
+                record.Stage != expected)
+                throw new InvalidOperationException(
+                    $"Invalid modifier parameter stage for {key}: expected {expected}, actual {record.Stage}.");
         }
 
         private static int RoundToInt(float value)
@@ -321,9 +361,23 @@ namespace AbilityKit.Demo.Moba.Services
         public void Dispose()
         {
             _modifiersByOwner.Clear();
+            _selectorsByOwner.Clear();
+            _indicesByOwner.Clear();
+            _nextResolutionTrace = 0;
+            _resolutionTraceCount = 0;
+            _evictedResolutionTraceCount = 0;
+            _frameTime = null;
         }
 
-        private readonly struct OwnerKey
+        private static float Compose(ReadOnlySpan<ModifierData> modifiers, float baseValue,
+            IModifierContext context)
+        {
+            return context == null
+                ? OperatorComposer.Compose(modifiers, baseValue, 1f, null).FinalValue
+                : new ModifierComputeCore(null).Compute(modifiers, baseValue, context.Level, context).FinalValue;
+        }
+
+        private readonly struct OwnerKey : IEquatable<OwnerKey>
         {
             public OwnerKey(MobaModifierOwnerScope scope, int id)
             {
@@ -344,8 +398,10 @@ namespace AbilityKit.Demo.Moba.Services
 
             public override bool Equals(object obj)
             {
-                return obj is OwnerKey other && Scope == other.Scope && Id == other.Id;
+                return obj is OwnerKey other && Equals(other);
             }
+
+            public bool Equals(OwnerKey other) => Scope == other.Scope && Id == other.Id;
         }
 
         private static ModifierData CloneModifier(in ModifierData source)
@@ -368,6 +424,53 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
+    public readonly struct MobaParameterResolutionTrace
+    {
+        public MobaParameterResolutionTrace(MobaModifierOwnerRef owner, ModifierKey key,
+            MobaParameterRecord record, float baseValue, float finalValue, int matchedCount,
+            MobaParameterIdentityFields missingSelectorFields = MobaParameterIdentityFields.None,
+            int frame = -1)
+        {
+            Owner = owner;
+            Key = key;
+            Record = record;
+            BaseValue = baseValue;
+            FinalValue = finalValue;
+            MatchedCount = matchedCount;
+            MissingSelectorFields = missingSelectorFields;
+            Frame = frame;
+        }
+
+        public MobaModifierOwnerRef Owner { get; }
+        public ModifierKey Key { get; }
+        public MobaParameterRecord Record { get; }
+        public float BaseValue { get; }
+        public float FinalValue { get; }
+        public int MatchedCount { get; }
+        public MobaParameterIdentityFields MissingSelectorFields { get; }
+        public int Frame { get; }
+    }
+
+    public readonly struct MobaParameterResolutionExplanation
+    {
+        public MobaParameterResolutionExplanation(MobaParameterRecord record, float baseValue,
+            float finalValue, IReadOnlyList<ModifierSourceEntry> contributions,
+            MobaParameterIdentityFields missingSelectorFields = MobaParameterIdentityFields.None)
+        {
+            Record = record;
+            BaseValue = baseValue;
+            FinalValue = finalValue;
+            Contributions = contributions;
+            MissingSelectorFields = missingSelectorFields;
+        }
+
+        public MobaParameterRecord Record { get; }
+        public float BaseValue { get; }
+        public float FinalValue { get; }
+        public IReadOnlyList<ModifierSourceEntry> Contributions { get; }
+        public MobaParameterIdentityFields MissingSelectorFields { get; }
+    }
+
     public readonly struct MobaSkillParamModifierServiceSnapshot
     {
         public MobaSkillParamModifierServiceSnapshot(MobaSkillParamModifierSnapshotEntry[] entries)
@@ -380,16 +483,19 @@ namespace AbilityKit.Demo.Moba.Services
 
     public readonly struct MobaSkillParamModifierSnapshotEntry
     {
-        public MobaSkillParamModifierSnapshotEntry(MobaModifierOwnerScope scope, int ownerId, ModifierData modifier)
+        public MobaSkillParamModifierSnapshotEntry(MobaModifierOwnerScope scope, int ownerId,
+            ModifierData modifier, MobaParameterSelector selector = default)
         {
             Scope = scope;
             OwnerId = ownerId;
             Modifier = modifier;
+            Selector = selector;
         }
 
         public MobaModifierOwnerScope Scope { get; }
         public int OwnerId { get; }
         public ModifierData Modifier { get; }
+        public MobaParameterSelector Selector { get; }
 
         internal static int Compare(MobaSkillParamModifierSnapshotEntry left, MobaSkillParamModifierSnapshotEntry right)
         {
@@ -403,7 +509,23 @@ namespace AbilityKit.Demo.Moba.Services
             if (priority != 0) return priority;
             var source = left.Modifier.SourceId.CompareTo(right.Modifier.SourceId);
             if (source != 0) return source;
-            return left.Modifier.Op.CompareTo(right.Modifier.Op);
+            var op = left.Modifier.Op.CompareTo(right.Modifier.Op);
+            if (op != 0) return op;
+            var slot = left.Selector.Slot.CompareTo(right.Selector.Slot);
+            if (slot != 0) return slot;
+            var baseSkill = left.Selector.BaseSkillId.CompareTo(right.Selector.BaseSkillId);
+            if (baseSkill != 0) return baseSkill;
+            var effectiveSkill = left.Selector.EffectiveSkillId.CompareTo(right.Selector.EffectiveSkillId);
+            if (effectiveSkill != 0) return effectiveSkill;
+            var launcher = left.Selector.LauncherTemplateId.CompareTo(right.Selector.LauncherTemplateId);
+            if (launcher != 0) return launcher;
+            var projectile = left.Selector.ProjectileTemplateId.CompareTo(right.Selector.ProjectileTemplateId);
+            if (projectile != 0) return projectile;
+            var area = left.Selector.AreaTemplateId.CompareTo(right.Selector.AreaTemplateId);
+            if (area != 0) return area;
+            var summon = left.Selector.SummonTemplateId.CompareTo(right.Selector.SummonTemplateId);
+            if (summon != 0) return summon;
+            return left.Selector.BuffTemplateId.CompareTo(right.Selector.BuffTemplateId);
         }
     }
 }

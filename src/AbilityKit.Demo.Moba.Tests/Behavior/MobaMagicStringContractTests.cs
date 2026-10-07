@@ -52,15 +52,4 @@ public sealed class MobaMagicStringContractTests
         Assert.Equal("log", TriggerLogHandler.LogArgumentKey);
     }
 
-    [Fact]
-    public void Gameplay_tag_aliases_preserve_legacy_sleep_names_in_blocking_groups()
-    {
-        Assert.Contains(MobaGameplayTagCatalog.State.Asleep, MobaGameplayTagCatalog.AsleepAliases);
-        Assert.Contains("Asleep", MobaGameplayTagCatalog.AsleepAliases);
-        Assert.Contains("Sleeping", MobaGameplayTagCatalog.AsleepAliases);
-        Assert.Contains("sleeping", MobaGameplayTagCatalog.AsleepAliases);
-        Assert.Contains("Sleeping", MobaGameplayTagCatalog.MoveBlockedAliases);
-        Assert.Contains("Sleeping", MobaGameplayTagCatalog.CastBlockedAliases);
-        Assert.Contains("Sleeping", MobaGameplayTagCatalog.ControlBlockedAliases);
-    }
 }

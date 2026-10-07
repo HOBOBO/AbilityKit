@@ -195,7 +195,12 @@ namespace AbilityKit.Demo.Moba.Services
             int evaluationPolicy,
             int priority,
             int stack,
-            int modifierSourceId)
+            int modifierSourceId,
+            MobaParameterSelector selector = default,
+            int candidateSkillId = 0,
+            int candidateReferenceId = 0,
+            bool hasFormula = false,
+            string formulaDescription = null)
         {
             TargetKind = targetKind;
             TargetId = targetId;
@@ -208,6 +213,11 @@ namespace AbilityKit.Demo.Moba.Services
             Priority = priority;
             Stack = stack;
             ModifierSourceId = modifierSourceId;
+            Selector = selector;
+            CandidateSkillId = candidateSkillId;
+            CandidateReferenceId = candidateReferenceId;
+            HasFormula = hasFormula;
+            FormulaDescription = formulaDescription;
         }
 
         public int TargetKind { get; }
@@ -221,5 +231,10 @@ namespace AbilityKit.Demo.Moba.Services
         public int Priority { get; }
         public int Stack { get; }
         public int ModifierSourceId { get; }
+        public MobaParameterSelector Selector { get; }
+        public int CandidateSkillId { get; }
+        public int CandidateReferenceId { get; }
+        public bool HasFormula { get; }
+        public string FormulaDescription { get; }
     }
 }

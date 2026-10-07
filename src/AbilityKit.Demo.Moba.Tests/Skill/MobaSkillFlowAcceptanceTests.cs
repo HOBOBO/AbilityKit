@@ -11,6 +11,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Continuous;
 using AbilityKit.Deterministic;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
@@ -235,6 +236,7 @@ public sealed class MobaSkillFlowAcceptanceTests
             var frame = new FixedFrameTime();
             Economy = new MobaSkillEconomyService(Runtimes, lookup, frame);
             Services = new Resolver(frame, Economy, Runtimes);
+            Services.Add<IContinuousManager>(new DefaultContinuousManager());
             Services.Add(lookup);
             var combatRules = new MobaCombatRulesService(lookup);
             Services.Add(combatRules);

@@ -39,7 +39,7 @@ namespace AbilityKit.Modifiers
         /// <summary>操作类型</summary>
         public ModifierOp Op;
 
-        /// <summary>优先级（数字越小越先计算）</summary>
+        /// <summary>优先级（同一操作内数字越大越先计算）</summary>
         public int Priority;
 
         /// <summary>来源标识（业务层定义，用于溯源和批量移除）</summary>

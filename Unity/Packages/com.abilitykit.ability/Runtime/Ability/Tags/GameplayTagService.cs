@@ -44,7 +44,10 @@ namespace AbilityKit.Ability.Tags
         public void ClearOwner(int ownerId)
         {
             if (ownerId <= 0) return;
+            if (!_owners.TryGetValue(ownerId, out var state)) return;
             _owners.Remove(ownerId);
+            if (state.Tags.Count > 0)
+                Raise(ownerId, new GameplayTagDelta(null, new GameplayTagContainer(state.Tags)), GameplayTagSource.System);
         }
 
         public bool HasTag(int ownerId, GameplayTag tag, bool exact = false)

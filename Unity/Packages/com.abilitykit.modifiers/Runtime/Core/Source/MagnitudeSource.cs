@@ -604,14 +604,23 @@ namespace AbilityKit.Modifiers
         private float CalculateTimeDecay(IModifierContext context)
         {
             if (context == null || Duration <= 0f) return Data0;
+            return CalculateAtElapsed(context.ElapsedTime);
+        }
 
-            float elapsed = context.ElapsedTime;
-            float t = Math.Min(elapsed / Duration, 1f);
-
+        public float CalculateAtElapsed(float elapsedSeconds)
+        {
+            if (Type != MagnitudeSourceType.TimeDecay || Duration <= 0f) return Data0;
+            var t = Math.Max(0f, Math.Min(elapsedSeconds / Duration, 1f));
+            if (DecayType == DecayType.CustomCurve && ArrayData != null && ArrayData.Length >= 2)
+            {
+                if (t >= 1f) return Data0 * ArrayData[ArrayData.Length - 1];
+                var position = t * (ArrayData.Length - 1);
+                var index = Math.Min((int)position, ArrayData.Length - 2);
+                return Data0 * (ArrayData[index] +
+                    (ArrayData[index + 1] - ArrayData[index]) * (position - index));
+            }
             if (t >= 1f) return 0f;
-
-            float decayMultiplier = MagnitudeModifierUtils.CalculateDecay(t, DecayType);
-            return Data0 * decayMultiplier;
+            return Data0 * MagnitudeModifierUtils.CalculateDecay(t, DecayType);
         }
 
         #endregion

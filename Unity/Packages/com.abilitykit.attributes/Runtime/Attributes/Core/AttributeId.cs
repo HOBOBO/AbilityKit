@@ -46,6 +46,9 @@ namespace AbilityKit.Attributes.Core
         /// </summary>
         public bool IsValid => Id != 0;
 
+        /// <summary>运行时注册 ID，用于构造属性修饰器键。</summary>
+        public int RawId => Id;
+
         /// <summary>
         /// 属性名称。
         /// 直接返回持有的名称，避免每次查询 Registry。

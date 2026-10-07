@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using AbilityKit.Continuous;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Mathematics;
@@ -292,6 +293,52 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         private static EventKey<UnitEventPayload> CreateUnitEventKey(string eventId)
         {
             return new EventKey<UnitEventPayload>(TriggeringIdUtil.GetEventEid(eventId));
+        }
+
+        [Test]
+        public void Unregister_EndsOwnerContinuousAndBridgeBeforeActorIdReuse()
+        {
+            var registry = new MobaActorRegistry();
+            var entities = new MobaEntityManager(null);
+            var manager = new MobaContinuousManager();
+            var bridge = new MobaTriggerModifierContinuousService();
+            SetPrivateField(bridge, "_continuous", manager);
+            SetPrivateField(entities, "_continuous", manager);
+            SetPrivateField(entities, "_triggerModifiers", bridge);
+            var original = Register(registry, entities, ActorId);
+            var owned = new TriggerModifierContinuous(ActorId, 10, -10);
+            var unrelated = new TriggerModifierContinuous(ActorId + 1, 11, -11);
+            bridge.Restore(new[] { owned }, -12);
+            Assert.That(manager.TryActivate(unrelated), Is.True);
+
+            Assert.That(new MobaActorSpawnRegistrar(registry, entities).Unregister(
+                ActorId, out var removed, publishDespawn: false), Is.True);
+
+            Assert.That(removed, Is.SameAs(original));
+            Assert.That(owned.IsTerminated, Is.True);
+            Assert.That(bridge.GetActive(), Is.Empty);
+            Assert.That(unrelated.IsTerminated, Is.False);
+            var replacement = Register(registry, entities, ActorId);
+            Assert.That(replacement, Is.Not.SameAs(original));
+            Assert.That(bridge.GetActive(), Is.Empty);
+        }
+
+        [Test]
+        public void RollbackSilentUnregister_DoesNotEndOwnerContinuous()
+        {
+            var registry = new MobaActorRegistry();
+            var entities = new MobaEntityManager(null);
+            var manager = new MobaContinuousManager();
+            SetPrivateField(entities, "_continuous", manager);
+            Register(registry, entities, ActorId);
+            var owned = new TriggerModifierContinuous(ActorId, 10, -10);
+            Assert.That(manager.TryActivate(owned), Is.True);
+
+            Assert.That(entities.UnregisterSilently(
+                ActorId, out _, publishObjectLifecycle: false), Is.True);
+
+            Assert.That(owned.IsTerminated, Is.False);
+            manager.TryEnd(owned, ContinuousEndReason.CleanedUp);
         }
 
         private static void SetPrivateField<T>(object target, string fieldName, T value)

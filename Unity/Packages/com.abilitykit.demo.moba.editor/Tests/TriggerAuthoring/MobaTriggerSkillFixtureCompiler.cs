@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System;
 using System.IO;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor;
@@ -20,7 +21,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
         private const string FixtureDirectory =
             "Packages/com.abilitykit.demo.moba.editor/Tests/Fixtures/TriggerAuthoring";
 
-        public static TriggerPlanJsonDatabase Compile(string fixtureFileName, int expectedTriggerId)
+        public static TriggerPlanJsonDatabase Compile(
+            string fixtureFileName,
+            int expectedTriggerId,
+            Action<TriggerAuthoringModuleData> configure = null)
         {
             Assert.That(MobaTriggerAuthoringTestIds.IsReserved(expectedTriggerId), Is.True,
                 $"Trigger {expectedTriggerId} is outside the reserved MOBA authoring test range.");
@@ -31,6 +35,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
                 FixtureDirectory,
                 fixtureFileName));
             var document = TriggerAuthoringSourceCodec.ReadFile(fixturePath);
+            configure?.Invoke(document.Module);
             var project = AssetDatabase.LoadAssetAtPath<TriggerAuthoringProjectAsset>(ProjectAssetPath);
             Assert.That(project, Is.Not.Null, "MOBA Trigger Authoring project asset is required.");
 

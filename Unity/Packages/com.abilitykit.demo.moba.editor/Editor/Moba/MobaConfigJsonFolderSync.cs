@@ -15,68 +15,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     {
         private const string BaseResourcesFolder = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba";
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Json/Import Folder -> Selected SO")]
-        public static void ImportFolderToSelectedSo()
-        {
-            RejectLegacyMenu();
-            var table = Selection.activeObject as MobaConfigTableAssetSO;
-            if (table == null)
-            {
-                Debug.LogError("[MobaConfigJsonFolderSync] Please select a config table ScriptableObject (MobaConfigTableAssetSO).");
-                return;
-            }
-
-            ImportInto(table);
-        }
-
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Json/Export Selected SO -> Folder")]
-        public static void ExportSelectedSoToFolder()
-        {
-            RejectLegacyMenu();
-            var table = Selection.activeObject as MobaConfigTableAssetSO;
-            if (table == null)
-            {
-                Debug.LogError("[MobaConfigJsonFolderSync] Please select a config table ScriptableObject (MobaConfigTableAssetSO).");
-                return;
-            }
-
-            ExportFrom(table);
-        }
-
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Json/Export Array Json -> Folder (Selected SO Type)")]
-        public static void ExportArrayJsonToFolderBySelectedType()
-        {
-            RejectLegacyMenu();
-            var table = Selection.activeObject as MobaConfigTableAssetSO;
-            if (table == null)
-            {
-                Debug.LogError("[MobaConfigJsonFolderSync] Please select a config table ScriptableObject (MobaConfigTableAssetSO).");
-                return;
-            }
-
-            ExportArrayJsonToFolder(table);
-        }
-
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Config Json/Import Folder -> Array Json (Selected SO Type)")]
-        public static void ImportFolderToArrayJsonBySelectedType()
-        {
-            RejectLegacyMenu();
-            var table = Selection.activeObject as MobaConfigTableAssetSO;
-            if (table == null)
-            {
-                Debug.LogError("[MobaConfigJsonFolderSync] Please select a config table ScriptableObject (MobaConfigTableAssetSO).");
-                return;
-            }
-
-            ImportFolderToArrayJson(table);
-        }
-
-        private static void RejectLegacyMenu()
-        {
-            throw new InvalidOperationException(
-                "MOBA configs are authored in LubanConfig/Moba/Production/Datas. Run export_pipeline.py --apply to publish.");
-        }
-
         public static void ImportInto(MobaConfigTableAssetSO table)
         {
             if (table == null) throw new ArgumentNullException(nameof(table));

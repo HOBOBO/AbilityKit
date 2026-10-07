@@ -10,6 +10,10 @@ using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Diagnostics;
 
+[CollectionDefinition("Moba global profiler", DisableParallelization = true)]
+public sealed class MobaGlobalProfilerCollection { }
+
+[Collection("Moba global profiler")]
 public sealed class MobaPerformanceProfilingTests
 {
     [Fact]

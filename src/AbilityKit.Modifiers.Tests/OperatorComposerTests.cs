@@ -86,13 +86,13 @@ namespace AbilityKit.Modifiers.Tests
         [Fact]
         public void Compose_first_override_in_sorted_order_wins_by_modifier_priority()
         {
-            // 同为 Override：排序键为（操作优先级 0, 修改器 Priority）→ Priority 小者在前、先触发、生效。
+            // 同为 Override：Priority 大者先触发。
             var highPrioValue = Mod(ModifierOp.Override, 20f, priority: 5);
             var lowPrioValue = Mod(ModifierOp.Override, 10f, priority: 1);
 
             var result = OperatorComposer.Compose(new[] { highPrioValue, lowPrioValue }, 100f, 1f, null);
-            Assert.Equal(10f, result.FinalValue);
-            Assert.Equal(10f, result.OverrideValue);
+            Assert.Equal(20f, result.FinalValue);
+            Assert.Equal(20f, result.OverrideValue);
         }
 
         [Fact]
@@ -151,12 +151,12 @@ namespace AbilityKit.Modifiers.Tests
             Assert.Equal(new[]
             {
                 ModifierOp.Override,
-                ModifierOp.Add,      // priority 5
                 ModifierOp.Add,      // priority 10
+                ModifierOp.Add,      // priority 5
                 ModifierOp.PercentAdd,
                 ModifierOp.Mul,
             }, mods.Select(m => m.Op).ToArray());
-            Assert.Equal(new[] { 5, 10 }, new[] { mods[1].Priority, mods[2].Priority });
+            Assert.Equal(new[] { 10, 5 }, new[] { mods[1].Priority, mods[2].Priority });
         }
 
         [Fact]
@@ -169,10 +169,10 @@ namespace AbilityKit.Modifiers.Tests
 
             OperatorComposer.SortByPriority(mods);
 
-            // third (priority 0) 提前；first/second 同键保持输入相对顺序。
-            Assert.Equal(3, mods[0].SourceId);
-            Assert.Equal(1, mods[1].SourceId);
-            Assert.Equal(2, mods[2].SourceId);
+            // first/second retain source order; the lower-priority third is last.
+            Assert.Equal(1, mods[0].SourceId);
+            Assert.Equal(2, mods[1].SourceId);
+            Assert.Equal(3, mods[2].SourceId);
         }
 
         [Fact]

@@ -254,17 +254,36 @@ namespace AbilityKit.Modifiers.Tests
         }
 
         [Fact]
-        public void Calculate_cache_returns_first_level_result_when_level_changes_documents_current_behavior()
+        public void Calculate_level_curve_recomputes_when_level_changes()
         {
-            // 钉当前行为（可疑）：缓存键不包含 level/context，
-            // 同一组修改器 + 同一 baseValue 换等级会命中旧缓存，返回等级 1 的结果。
-            // 若未来修复此问题（缓存键纳入 level），本测试应删除或反转。
             var curve = new float[] { 1f, 1f, 5f, 5f };
             var mods = new[] { ModifierData.Add(TestKeys.Attack, MagnitudeSource.LevelCurve(10f, curve, 1f)) };
             var calc = new ModifierCalculator();
 
             FloatAssert.Near(110f, calc.Calculate(mods, 100f, level: 1f).FinalValue);
-            FloatAssert.Near(110f, calc.Calculate(mods, 100f, level: 3f).FinalValue); // 期望 130，实际命中缓存 110
+            FloatAssert.Near(130f, calc.Calculate(mods, 100f, level: 3f).FinalValue);
+        }
+
+        [Fact]
+        public void Calculate_override_uses_highest_priority_independent_of_input_order()
+        {
+            var lower = ModifierData.Override(TestKeys.Attack, 25f, sourceId: 1);
+            lower.Priority = 10;
+            var higher = ModifierData.Override(TestKeys.Attack, 75f, sourceId: 2);
+            higher.Priority = 20;
+
+            Assert.Equal(75f, new ModifierCalculator().Calculate(new[] { lower, higher }, 100f).FinalValue);
+            Assert.Equal(75f, new ModifierCalculator().Calculate(new[] { higher, lower }, 100f).FinalValue);
+        }
+
+        [Fact]
+        public void Calculate_override_tie_uses_lowest_source_id_independent_of_input_order()
+        {
+            var first = ModifierData.Override(TestKeys.Attack, 25f, sourceId: 1);
+            var second = ModifierData.Override(TestKeys.Attack, 75f, sourceId: 2);
+
+            Assert.Equal(25f, new ModifierCalculator().Calculate(new[] { first, second }, 100f).FinalValue);
+            Assert.Equal(25f, new ModifierCalculator().Calculate(new[] { second, first }, 100f).FinalValue);
         }
 
         [Fact]

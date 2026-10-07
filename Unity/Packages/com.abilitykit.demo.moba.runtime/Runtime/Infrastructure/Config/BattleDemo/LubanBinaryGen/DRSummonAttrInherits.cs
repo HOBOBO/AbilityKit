@@ -16,9 +16,10 @@ public sealed partial class DRSummonAttrInherits : Luban.BeanBase
 {
     public DRSummonAttrInherits(ByteBuf _buf) 
     {
-        Id = _buf.ReadString();
+        Id = _buf.ReadInt();
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
+        Scales = _buf.ReadString();
     }
 
     public static DRSummonAttrInherits DeserializeDRSummonAttrInherits(ByteBuf _buf)
@@ -27,11 +28,21 @@ public sealed partial class DRSummonAttrInherits : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
-    public readonly string Id;
+    public readonly int Id;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
+    /// <summary>
+    /// Modifier authoring reference
+    /// </summary>
+    public readonly string Scales;
    
     public const int __ID__ = -296053608;
     public override int GetTypeId() => __ID__;
@@ -46,6 +57,7 @@ public sealed partial class DRSummonAttrInherits : Luban.BeanBase
         + "Id:" + Id + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
+        + "Scales:" + Scales + ","
         + "}";
     }
 }

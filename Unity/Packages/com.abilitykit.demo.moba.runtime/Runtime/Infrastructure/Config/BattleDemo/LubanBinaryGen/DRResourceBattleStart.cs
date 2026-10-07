@@ -25,11 +25,11 @@ public sealed partial class DRResourceBattleStart : Luban.BeanBase
         InputDelayFrames = _buf.ReadInt();
         MaxPlayerCount = _buf.ReadInt();
         Name = _buf.ReadString();
-        Network = _buf.ReadString();
+        Network = global::moba_luban.BattleNetwork.DeserializeBattleNetwork(_buf);
         PlayerId = _buf.ReadString();
-        Players = _buf.ReadString();
-        RunMode = _buf.ReadString();
-        SyncMode = _buf.ReadString();
+        {int n0 = _buf.ReadSize(); Players = new System.Collections.Generic.List<BattlePlayer>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { BattlePlayer _e0;  _e0 = global::moba_luban.BattlePlayer.DeserializeBattlePlayer(_buf); Players.Add(_e0);}}
+        RunMode = (BattleRunMode)_buf.ReadInt();
+        SyncMode = (BattleSyncMode)_buf.ReadInt();
         TickRate = _buf.ReadInt();
         WorldId = _buf.ReadString();
         WorldType = _buf.ReadString();
@@ -43,26 +43,74 @@ public sealed partial class DRResourceBattleStart : Luban.BeanBase
     }
 
     /// <summary>
-    /// MOBA runtime resource; edit Excel as the source.
+    /// 导表行 ID；对象根或数组根重建时使用，不是玩法 ID。
     /// </summary>
     public readonly int RowId;
+    /// <summary>
+    /// 客户端ID；填写对应配置或编辑器产物的 ID。
+    /// </summary>
     public readonly string ClientId;
+    /// <summary>
+    /// 启用客户端预测：true 为启用，false 为关闭。
+    /// </summary>
     public readonly bool EnableClientPrediction;
+    /// <summary>
+    /// 启用调试：true 为启用，false 为关闭。
+    /// </summary>
     public readonly bool EnableDebug;
+    /// <summary>
+    /// 启用输入录制：true 为启用，false 为关闭。
+    /// </summary>
     public readonly bool EnableInputRecording;
+    /// <summary>
+    /// 启用输入回放：true 为启用，false 为关闭。
+    /// </summary>
     public readonly bool EnableInputReplay;
+    /// <summary>
+    /// 输入延迟帧；用于战斗开局配置。
+    /// </summary>
     public readonly int InputDelayFrames;
+    /// <summary>
+    /// 最大玩家数量；用于战斗开局配置。
+    /// </summary>
     public readonly int MaxPlayerCount;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
-    public readonly string Network;
+    public readonly BattleNetwork Network;
+    /// <summary>
+    /// 玩家ID；填写对应配置或编辑器产物的 ID。
+    /// </summary>
     public readonly string PlayerId;
-    public readonly string Players;
-    public readonly string RunMode;
-    public readonly string SyncMode;
+    public readonly System.Collections.Generic.List<BattlePlayer> Players;
+    /// <summary>
+    /// 运行模式；按 BattleRunMode 枚举或 bean 定义填写。
+    /// </summary>
+    public readonly BattleRunMode RunMode;
+    /// <summary>
+    /// 同步模式；按 BattleSyncMode 枚举或 bean 定义填写。
+    /// </summary>
+    public readonly BattleSyncMode SyncMode;
+    /// <summary>
+    /// 逻辑帧速率；用于战斗开局配置。
+    /// </summary>
     public readonly int TickRate;
+    /// <summary>
+    /// 世界ID；填写对应配置或编辑器产物的 ID。
+    /// </summary>
     public readonly string WorldId;
+    /// <summary>
+    /// 世界类型；用于战斗开局配置。
+    /// </summary>
     public readonly string WorldType;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 621497902;
@@ -86,7 +134,7 @@ public sealed partial class DRResourceBattleStart : Luban.BeanBase
         + "Name:" + Name + ","
         + "Network:" + Network + ","
         + "PlayerId:" + PlayerId + ","
-        + "Players:" + Players + ","
+        + "Players:" + Luban.StringUtil.CollectionToString(Players) + ","
         + "RunMode:" + RunMode + ","
         + "SyncMode:" + SyncMode + ","
         + "TickRate:" + TickRate + ","

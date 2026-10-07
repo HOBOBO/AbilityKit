@@ -17,11 +17,11 @@ public sealed partial class DRBattleMaps : Luban.BeanBase
     public DRBattleMaps(ByteBuf _buf) 
     {
         Id = _buf.ReadInt();
-        Bounds = _buf.ReadString();
-        CollisionObjects = _buf.ReadString();
+        Bounds = global::moba_luban.MapBounds.DeserializeMapBounds(_buf);
+        {int n0 = _buf.ReadSize(); CollisionObjects = new System.Collections.Generic.List<MapCollisionObject>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { MapCollisionObject _e0;  _e0 = global::moba_luban.MapCollisionObject.DeserializeMapCollisionObject(_buf); CollisionObjects.Add(_e0);}}
         Name = _buf.ReadString();
-        SpawnPoints = _buf.ReadString();
-        WalkableAreas = _buf.ReadString();
+        {int n0 = _buf.ReadSize(); SpawnPoints = new System.Collections.Generic.List<MapSpawnPoint>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { MapSpawnPoint _e0;  _e0 = global::moba_luban.MapSpawnPoint.DeserializeMapSpawnPoint(_buf); SpawnPoints.Add(_e0);}}
+        {int n0 = _buf.ReadSize(); WalkableAreas = new System.Collections.Generic.List<MapWalkableArea>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { MapWalkableArea _e0;  _e0 = global::moba_luban.MapWalkableArea.DeserializeMapWalkableArea(_buf); WalkableAreas.Add(_e0);}}
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
     }
@@ -32,15 +32,24 @@ public sealed partial class DRBattleMaps : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
-    public readonly string Bounds;
-    public readonly string CollisionObjects;
+    public readonly MapBounds Bounds;
+    public readonly System.Collections.Generic.List<MapCollisionObject> CollisionObjects;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
-    public readonly string SpawnPoints;
-    public readonly string WalkableAreas;
+    public readonly System.Collections.Generic.List<MapSpawnPoint> SpawnPoints;
+    public readonly System.Collections.Generic.List<MapWalkableArea> WalkableAreas;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = -1381451107;
@@ -55,10 +64,10 @@ public sealed partial class DRBattleMaps : Luban.BeanBase
         return "{ "
         + "Id:" + Id + ","
         + "Bounds:" + Bounds + ","
-        + "CollisionObjects:" + CollisionObjects + ","
+        + "CollisionObjects:" + Luban.StringUtil.CollectionToString(CollisionObjects) + ","
         + "Name:" + Name + ","
-        + "SpawnPoints:" + SpawnPoints + ","
-        + "WalkableAreas:" + WalkableAreas + ","
+        + "SpawnPoints:" + Luban.StringUtil.CollectionToString(SpawnPoints) + ","
+        + "WalkableAreas:" + Luban.StringUtil.CollectionToString(WalkableAreas) + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
         + "}";

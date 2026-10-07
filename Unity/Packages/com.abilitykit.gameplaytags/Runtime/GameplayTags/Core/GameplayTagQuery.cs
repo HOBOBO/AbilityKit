@@ -62,7 +62,10 @@ namespace AbilityKit.GameplayTags
         /// <summary>
         /// 否操作
         /// </summary>
-        Not = 5
+        Not = 5,
+        IncludeAllTags = 6,
+        IncludeExactTag = 7,
+        ExcludeExactTag = 8
     }
 
     /// <summary>
@@ -124,6 +127,8 @@ namespace AbilityKit.GameplayTags
     [Serializable]
     public struct GameplayTagQuery : IEquatable<GameplayTagQuery>
     {
+        private static readonly GameplayTagContainer EmptyMatchContainer = new GameplayTagContainer();
+
         /// <summary>
         /// 空查询
         /// </summary>
@@ -145,6 +150,12 @@ namespace AbilityKit.GameplayTags
             _description = description;
         }
 
+        public static GameplayTagQuery Create(GameplayTagQueryNode root, string description = null)
+        {
+            if (root == null) throw new ArgumentNullException(nameof(root));
+            return new GameplayTagQuery(root, description);
+        }
+
         /// <summary>
         /// 是否有效
         /// </summary>
@@ -156,8 +167,7 @@ namespace AbilityKit.GameplayTags
         public bool Matches(GameplayTagContainer container)
         {
             if (!IsValid) return true;
-            if (container == null || container.IsEmpty) return false;
-            return EvaluateNode(_root, container);
+            return EvaluateNode(_root, container ?? EmptyMatchContainer);
         }
 
         /// <summary>
@@ -166,7 +176,7 @@ namespace AbilityKit.GameplayTags
         public bool Matches(GameplayTag tag)
         {
             if (!IsValid) return true;
-            if (!tag.IsValid) return false;
+            if (!tag.IsValid) return Matches(EmptyMatchContainer);
             return Matches(new GameplayTagContainer(tag));
         }
 
@@ -176,7 +186,7 @@ namespace AbilityKit.GameplayTags
         public bool Matches(GameplayTagStackContainer stacks)
         {
             if (!IsValid) return true;
-            if (stacks == null || stacks.Count == 0) return false;
+            if (stacks == null || stacks.Count == 0) return Matches(EmptyMatchContainer);
             return Matches(stacks.ToContainer());
         }
 
@@ -187,10 +197,29 @@ namespace AbilityKit.GameplayTags
             switch (node.Operator)
             {
                 case GameplayTagQueryOperator.IncludeTags:
-                    return container.HasAny(new GameplayTagContainer(node.Tags));
+                    foreach (var tag in node.Tags)
+                        if (container.HasTag(tag)) return true;
+                    return false;
+
+                case GameplayTagQueryOperator.IncludeAllTags:
+                    foreach (var tag in node.Tags)
+                        if (!container.HasTag(tag)) return false;
+                    return true;
+
+                case GameplayTagQueryOperator.IncludeExactTag:
+                    foreach (var tag in node.Tags)
+                        if (container.HasTagExact(tag)) return true;
+                    return false;
 
                 case GameplayTagQueryOperator.ExcludeTags:
-                    return !container.HasAny(new GameplayTagContainer(node.Tags));
+                    foreach (var tag in node.Tags)
+                        if (container.HasTag(tag)) return false;
+                    return true;
+
+                case GameplayTagQueryOperator.ExcludeExactTag:
+                    foreach (var tag in node.Tags)
+                        if (container.HasTagExact(tag)) return false;
+                    return true;
 
                 case GameplayTagQueryOperator.And:
                     foreach (var child in node.Children)

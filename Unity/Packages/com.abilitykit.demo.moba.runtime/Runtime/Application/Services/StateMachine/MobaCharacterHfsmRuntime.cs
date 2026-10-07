@@ -23,15 +23,13 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
 
         public static StateMachineDefinition LoadDefinition(ITextAssetLoader loader)
         {
-            if (loader != null && loader.TryLoadText(ResourcePath, out var json) &&
-                !string.IsNullOrWhiteSpace(json))
-            {
-                var definition = DefinitionJson.Load(json);
-                if (!string.Equals(definition.DefinitionId, Id, StringComparison.Ordinal))
-                    throw new InvalidOperationException("MOBA character HFSM definition id does not match.");
-                return definition;
-            }
-            return CreateDefinition();
+            if (loader == null || !loader.TryLoadText(ResourcePath, out var json) ||
+                string.IsNullOrWhiteSpace(json))
+                throw new InvalidOperationException("MOBA character HFSM resource is missing.");
+            var definition = DefinitionJson.Load(json);
+            if (!string.Equals(definition.DefinitionId, Id, StringComparison.Ordinal))
+                throw new InvalidOperationException("MOBA character HFSM definition id does not match.");
+            return definition;
         }
 
         public static StateMachineDefinition CreateDefinition()

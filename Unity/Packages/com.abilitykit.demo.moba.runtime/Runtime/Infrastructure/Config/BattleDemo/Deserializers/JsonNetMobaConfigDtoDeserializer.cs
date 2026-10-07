@@ -17,7 +17,6 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             typeof(CharacterDTO),
             typeof(SkillDTO),
             typeof(SkillButtonTemplateDTO),
-            typeof(TagTemplateDTO),
             typeof(ContinuousTagTemplateDTO),
             typeof(SearchQueryTemplateDTO),
             typeof(PassiveSkillDTO),
@@ -50,7 +49,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             if (string.IsNullOrEmpty(text)) return Array.CreateInstance(dtoType, 0);
 
             if (dtoType == typeof(SkillFlowDTO) || dtoType == typeof(BuffDTO) ||
-                dtoType == typeof(ContinuousTagTemplateDTO) || dtoType == typeof(TagTemplateDTO))
+                dtoType == typeof(ContinuousTagTemplateDTO))
             {
                 return LubanConfigGroupDeserializer.Instance.DeserializeFromText(text, dtoType);
             }

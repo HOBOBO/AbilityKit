@@ -59,7 +59,10 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            var skillId = ResolveSkillId(entity, evt.Slot);
+            var skillId = context.Services != null &&
+                          context.Services.TryResolve<MobaSkillLoadoutService>(out var loadout) &&
+                          loadout.TryGetSkillId(actorId, evt.Slot, out var selectedSkillId)
+                ? selectedSkillId : ResolveSkillId(entity, evt.Slot);
             MobaActionAckSnapshotService actionAcks = null;
             MobaActorRegistry actors = null;
             var replayAcceptedDecision = false;

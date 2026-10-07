@@ -13,7 +13,8 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         IMobaContinuousIntervalState,
         IMobaContinuousRuntimeStateSync,
         IMobaContinuousRuntimeDebugSource,
-        IMobaContinuousExecutionContextProvider
+        IMobaContinuousExecutionContextProvider,
+        IMobaContinuousExecutionBlockedHandler
     {
         private readonly MobaMotionContinuousConfig _config;
         private readonly MobaContextSourceView _source;
@@ -52,7 +53,6 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             TargetActorId = targetActorId > 0 ? targetActorId : sourceActorId;
             OwnerActorId = ownerActorId > 0 ? ownerActorId : TargetActorId;
             SourceContextId = sourceContextId;
-            ModifierSourceId = CreateModifierSourceId(sourceContextId, configId, OwnerActorId, SourceActorId, TargetActorId);
             _actors = actors;
             _motionSource = motionSource;
             _source = source;
@@ -76,7 +76,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         public int TargetActorId { get; }
         public int OwnerActorId { get; }
         public long SourceContextId { get; }
-        public int ModifierSourceId { get; }
+        public int ModifierSourceId => AllocatedModifierSourceId;
         public override IContinuousConfig Config => _config;
 
         protected override bool OnActivating()
@@ -128,6 +128,11 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         protected override void OnEnding(ContinuousEndReason reason)
         {
             StopMotionSource();
+        }
+
+        public void OnExecutionBlocked()
+        {
+            End(ContinuousEndReason.Interrupted);
         }
 
         public void TickManaged(float deltaTimeSeconds)
@@ -290,20 +295,6 @@ namespace AbilityKit.Demo.Moba.Services.Motion
 
             var motion = entity.motion;
             motion.Pipeline?.RemoveSource(_motionSource);
-        }
-
-        private static int CreateModifierSourceId(long sourceContextId, int configId, int ownerActorId, int sourceActorId, int targetActorId)
-        {
-            unchecked
-            {
-                var hash = 19;
-                hash = hash * 31 + sourceContextId.GetHashCode();
-                hash = hash * 31 + configId;
-                hash = hash * 31 + ownerActorId;
-                hash = hash * 31 + sourceActorId;
-                hash = hash * 31 + targetActorId;
-                return hash == 0 ? configId : hash;
-            }
         }
 
         private sealed class MobaMotionContinuousConfig : MobaContinuousConfigBase, IMobaContinuousOwnerBoundTriggerConfig

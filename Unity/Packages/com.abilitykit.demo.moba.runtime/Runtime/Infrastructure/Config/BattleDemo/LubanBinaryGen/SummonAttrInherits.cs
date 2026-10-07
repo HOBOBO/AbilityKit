@@ -14,13 +14,13 @@ namespace moba_luban
 {
 public partial class SummonAttrInherits
 {
-    private readonly System.Collections.Generic.Dictionary<string, DRSummonAttrInherits> _dataMap;
+    private readonly System.Collections.Generic.Dictionary<int, DRSummonAttrInherits> _dataMap;
     private readonly System.Collections.Generic.List<DRSummonAttrInherits> _dataList;
     
     public SummonAttrInherits(ByteBuf _buf)
     {
         int n = _buf.ReadSize();
-        _dataMap = new System.Collections.Generic.Dictionary<string, DRSummonAttrInherits>(n);
+        _dataMap = new System.Collections.Generic.Dictionary<int, DRSummonAttrInherits>(n);
         _dataList = new System.Collections.Generic.List<DRSummonAttrInherits>(n);
         for(int i = n ; i > 0 ; --i)
         {
@@ -31,12 +31,12 @@ public partial class SummonAttrInherits
         }
     }
 
-    public System.Collections.Generic.Dictionary<string, DRSummonAttrInherits> DataMap => _dataMap;
+    public System.Collections.Generic.Dictionary<int, DRSummonAttrInherits> DataMap => _dataMap;
     public System.Collections.Generic.List<DRSummonAttrInherits> DataList => _dataList;
 
-    public DRSummonAttrInherits GetOrDefault(string key) => _dataMap.TryGetValue(key, out var v) ? v : default;
-    public DRSummonAttrInherits Get(string key) => _dataMap[key];
-    public DRSummonAttrInherits this[string key] => _dataMap[key];
+    public DRSummonAttrInherits GetOrDefault(int key) => _dataMap.TryGetValue(key, out var v) ? v : default;
+    public DRSummonAttrInherits Get(int key) => _dataMap[key];
+    public DRSummonAttrInherits this[int key] => _dataMap[key];
 
     public void ResolveRef(Tables tables)
     {

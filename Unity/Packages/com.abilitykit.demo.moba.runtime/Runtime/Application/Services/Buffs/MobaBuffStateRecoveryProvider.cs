@@ -240,7 +240,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                 {
                     var runtime = active[i];
                     if (runtime == null) continue;
-                    continuousBindings.Cleanup(actor, actorId, runtime, applyRemovalTags: false);
+                    continuousBindings.Cleanup(actor, actorId, runtime, invalidateTags: false);
                     _runtimeContexts.SnapshotAndDestroyBuffContext(runtime, MobaRuntimeContextLifecycleState.Destroyed, frame.Value);
                     _runtimeBindings.ReleaseSkillRuntime(runtime);
                     BuffRepository.ReleaseRuntime(runtime);
@@ -287,7 +287,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                 if (runtime != null)
                 {
                     if (added && list.Remove(runtime)) BuffRepository.MarkDirty(list);
-                    new BuffContinuousBindingService(_continuous, _tags).Cleanup(actor, entry.TargetActorId, runtime, applyRemovalTags: false);
+                    new BuffContinuousBindingService(_continuous, _tags).Cleanup(actor, entry.TargetActorId, runtime, invalidateTags: false);
                     _runtimeContexts.SnapshotAndDestroyBuffContext(runtime, MobaRuntimeContextLifecycleState.Destroyed, frame.Value);
                     _runtimeBindings.ReleaseSkillRuntime(runtime);
                     BuffRepository.ReleaseRuntime(runtime);

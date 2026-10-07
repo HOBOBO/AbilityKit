@@ -30,13 +30,28 @@ public sealed partial class DRResourceCharacterViewActions : Luban.BeanBase
     }
 
     /// <summary>
-    /// MOBA runtime resource; edit Excel as the source.
+    /// 导表行 ID；对象根或数组根重建时使用，不是玩法 ID。
     /// </summary>
     public readonly int RowId;
+    /// <summary>
+    /// 结构版本；用于角色动画动作配置。
+    /// </summary>
     public readonly int SchemaVersion;
+    /// <summary>
+    /// 状态定义；用于角色动画动作配置。
+    /// </summary>
     public readonly string States;
+    /// <summary>
+    /// 动作变体；用于角色动画动作配置。
+    /// </summary>
     public readonly string Variants;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 1280646283;

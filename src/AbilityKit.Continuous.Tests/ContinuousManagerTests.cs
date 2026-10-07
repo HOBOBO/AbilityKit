@@ -36,6 +36,24 @@ public sealed class ContinuousManagerTests
         Assert.True(continuous.IsActive);
     }
 
+    [Fact]
+    public void Failed_activation_ends_and_unregisters_the_continuous()
+    {
+        var recording = new RecordingBinder();
+        var manager = new DefaultContinuousManager(lifecycleBinders: new IContinuousLifecycleBinder[]
+        {
+            recording, new FailingActivationBinder(),
+        });
+        var continuous = new TestContinuous(new TestConfig("buff", 42, true));
+
+        Assert.Throws<InvalidOperationException>(() => manager.TryActivate(continuous));
+        Assert.True(continuous.IsTerminated);
+        Assert.Equal(0, manager.ActiveCount);
+        Assert.Equal(0, manager.TotalCount);
+        Assert.Empty(manager.GetOwnerContinuous(42));
+        Assert.Equal(new[] { "registered", "activated", "ended", "unregistered" }, recording.Calls);
+    }
+
     private sealed record TestConfig(string Id, long OwnerId, bool CanBeInterrupted) : IContinuousConfig;
 
     private sealed class TestContinuous : IContinuous
@@ -76,5 +94,16 @@ public sealed class ContinuousManagerTests
         public void OnResumed(IContinuous continuous, IContinuousManager manager) => Calls.Add("resumed");
         public void OnEnded(IContinuous continuous, ContinuousEndReason reason, IContinuousManager manager) => Calls.Add("ended");
         public void OnUnregistered(IContinuous continuous, ContinuousEndReason reason, IContinuousManager manager) => Calls.Add("unregistered");
+    }
+
+    private sealed class FailingActivationBinder : IContinuousLifecycleBinder
+    {
+        public void OnRegistered(IContinuous continuous, IContinuousManager manager) { }
+        public void OnActivated(IContinuous continuous, IContinuousManager manager) =>
+            throw new InvalidOperationException("activation failed");
+        public void OnPaused(IContinuous continuous, IContinuousManager manager) { }
+        public void OnResumed(IContinuous continuous, IContinuousManager manager) { }
+        public void OnEnded(IContinuous continuous, ContinuousEndReason reason, IContinuousManager manager) { }
+        public void OnUnregistered(IContinuous continuous, ContinuousEndReason reason, IContinuousManager manager) { }
     }
 }

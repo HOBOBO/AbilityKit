@@ -3,15 +3,12 @@ using System;
 namespace AbilityKit.Demo.Moba.Share.Config
 {
     [Serializable]
-    public sealed class TagTemplateDTO
+    public sealed class TagConditionDTO
     {
-        public int Id;
-        public string Name;
-
-        public string[] RequiredTagNames;
-        public string[] BlockedTagNames;
-        public string[] GrantTagNames;
-        public string[] RemoveTagNames;
+        public string Operator;
+        public string Tag;
+        public bool Exact;
+        public TagConditionDTO[] Children;
     }
 
     [Serializable]
@@ -27,7 +24,10 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public string[] RemovalBlockedTagNames;
         public string[] OngoingRequiredTagNames;
         public string[] OngoingBlockedTagNames;
-        public string[] RemovalTagNames;
+        public TagConditionDTO ActivationCondition;
+        public TagConditionDTO RemovalCondition;
+        public TagConditionDTO OngoingCondition;
+        public ulong ExecutionBlockedResultMask;
     }
 
     public enum SearchTargetProviderKind

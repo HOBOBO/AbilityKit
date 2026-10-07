@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Runtime.CompilerServices;
 
 namespace AbilityKit.Modifiers
@@ -198,23 +199,24 @@ namespace AbilityKit.Modifiers
             IModifierContext context,
             IComposerStrategy strategy)
         {
-            if (strategy == null)
-                return DefaultStrategy.Compose(modifiers, baseValue, level, context);
-
+            strategy ??= DefaultStrategy;
             int count = modifiers.Length;
             if (count == 0)
                 return ModifierResult.Empty(baseValue);
 
-            // 按 Priority 排序（稳定排序）
-            if (count > 1)
+            if (count == 1) return strategy.Compose(modifiers, baseValue, level, context);
+            var rented = ArrayPool<ModifierData>.Shared.Rent(count);
+            try
             {
-                var sorted = new ModifierData[count];
+                var sorted = rented.AsSpan(0, count);
                 modifiers.CopyTo(sorted);
                 SortByPriority(sorted);
                 return strategy.Compose(sorted, baseValue, level, context);
             }
-
-            return strategy.Compose(modifiers, baseValue, level, context);
+            finally
+            {
+                ArrayPool<ModifierData>.Shared.Return(rented, clearArray: true);
+            }
         }
 
         /// <summary>
@@ -227,7 +229,7 @@ namespace AbilityKit.Modifiers
             float level,
             IModifierContext context)
         {
-            return Compose(sortedModifiers, baseValue, level, context, DefaultStrategy);
+            return DefaultStrategy.Compose(sortedModifiers, baseValue, level, context);
         }
 
         /// <summary>
@@ -290,9 +292,11 @@ namespace AbilityKit.Modifiers
                     int prevOpPriority = GetOperatorPriority(modifiers[j].Op);
                     int prevPriority = modifiers[j].Priority;
 
-                    // 首先按操作优先级排序，然后按修改器优先级排序
+                    // Operation groups remain fixed; within a group, larger priority wins.
                     if (prevOpPriority > keyOpPriority ||
-                        (prevOpPriority == keyOpPriority && prevPriority > keyPriority))
+                        (prevOpPriority == keyOpPriority &&
+                         (prevPriority < keyPriority ||
+                          prevPriority == keyPriority && modifiers[j].SourceId > key.SourceId)))
                     {
                         modifiers[j + 1] = modifiers[j];
                         j--;

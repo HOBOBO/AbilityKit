@@ -74,6 +74,11 @@ namespace AbilityKit.Modifiers
         {
             result = default;
 
+            // Context data (level, attributes, elapsed time and custom values) cannot be
+            // represented by the cache key. Only fixed magnitudes are cacheable.
+            if (ContainsContextDependent(modifiers))
+                return false;
+
             // 快速检查：修改器数量和基础值
             if (modifiers.Length != _lastCount || _lastBaseValue != baseValue)
                 return false;
@@ -110,7 +115,7 @@ namespace AbilityKit.Modifiers
                 baseValue,
                 context?.CurrentTime ?? 0f,
                 result,
-                ContainsTimeVarying(modifiers)
+                ContainsContextDependent(modifiers)
             );
         }
 
@@ -211,11 +216,11 @@ namespace AbilityKit.Modifiers
             return hash;
         }
 
-        private static bool ContainsTimeVarying(ReadOnlySpan<ModifierData> modifiers)
+        private static bool ContainsContextDependent(ReadOnlySpan<ModifierData> modifiers)
         {
             for (int i = 0; i < modifiers.Length; i++)
             {
-                if (modifiers[i].Magnitude.IsTimeVarying)
+                if (modifiers[i].Magnitude.Type != MagnitudeSourceType.Fixed)
                     return true;
             }
             return false;

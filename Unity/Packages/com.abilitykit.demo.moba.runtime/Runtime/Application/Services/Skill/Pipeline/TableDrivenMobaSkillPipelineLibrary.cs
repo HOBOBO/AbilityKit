@@ -167,11 +167,13 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (skill.PreCastFlowId > 0 && _configs.TryGetSkillFlow(skill.PreCastFlowId, out var preFlow) && preFlow != null)
             {
-                preCastConfig = CreatePipelineConfig((skillId << 2) | 0, $"Skill_{skillId}_PreCast", preFlow);
+                preCastConfig = CreatePipelineConfig((skillId << 2) | 0, $"Skill_{skillId}_PreCast", preFlow,
+                    skill.ExecutionBlockedResultMask);
                 preCastDefinitions = BuildFlowDefinitions(preFlow, checksPhaseId: PreCastChecksPhaseId, timelinePhaseId: PreCastTimelinePhaseId);
             }
 
-            var castConfig = CreatePipelineConfig((skillId << 2) | 1, $"Skill_{skillId}_Cast", castFlow);
+            var castConfig = CreatePipelineConfig((skillId << 2) | 1, $"Skill_{skillId}_Cast", castFlow,
+                skill.ExecutionBlockedResultMask);
             var castDefinitions = BuildFlowDefinitions(castFlow, checksPhaseId: CastChecksPhaseId, timelinePhaseId: CastTimelinePhaseId);
 
             entry = new SkillPipelineCacheEntry(preCastConfig, preCastDefinitions, castConfig, castDefinitions);
@@ -179,10 +181,12 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
-        private static IAbilityPipelineConfig CreatePipelineConfig(int configId, string configName, SkillFlowMO flow)
+        private static IAbilityPipelineConfig CreatePipelineConfig(int configId, string configName, SkillFlowMO flow,
+            ulong executionBlockedResultMask)
         {
             var inner = new AbilityKit.Ability.Share.Impl.Pipeline.Skill.SkillPipelineConfig(configId, configName);
-            return new MobaSkillPipelineConfig(inner, flow?.PipelineContinuousTagTemplateId ?? 0);
+            return new MobaSkillPipelineConfig(inner, flow?.PipelineContinuousTagTemplateId ?? 0,
+                executionBlockedResultMask);
         }
 
         private static IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> BuildPhases(IReadOnlyList<PhaseDefinition> definitions)

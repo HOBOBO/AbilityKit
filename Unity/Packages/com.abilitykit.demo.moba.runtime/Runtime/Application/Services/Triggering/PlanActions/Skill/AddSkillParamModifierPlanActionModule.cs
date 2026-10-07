@@ -17,12 +17,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         protected override void Execute(object triggerArgs, AddSkillParamModifierArgs args, ExecCtx<IWorldResolver> ctx)
         {
             if (!MobaSkillParamModifierKeys.IsTriggerWritable(args.ParameterId) ||
-                !MobaSkillParamModifierKeys.TryResolve(args.ParameterId, out var key))
+                !MobaSkillParamModifierKeys.TryResolve(args.ParameterId, out _))
             {
                 LogRejected(ctx, $"unsupported skill parameter id: {args.ParameterId}.");
                 return;
             }
-            if (!args.Operation.IsBuiltin())
+            if (!args.Operation.IsBuiltin() ||
+                !MobaSkillParamModifierKeys.SupportsOperation(args.ParameterId, (int)args.Operation))
             {
                 LogRejected(ctx, $"unsupported modifier operation: {(int)args.Operation}.");
                 return;
@@ -32,7 +33,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 LogRejected(ctx, "source_id must be non-zero.");
                 return;
             }
-            if (!TryResolveRequired(ctx, out MobaSkillParamModifierService modifiers)) return;
+            if (!TryResolveRequired(ctx, out MobaTriggerModifierContinuousService modifiers)) return;
             if (!MobaPlanActionInputResolver.TryResolve(triggerArgs, ctx, out var coreInput))
             {
                 LogRejected(ctx, "requires combat execution context.");
@@ -51,7 +52,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 {
                     var actorId = targets[i];
                     if (actorId <= 0) continue;
-                    modifiers.AddFixed(actorId, key, args.Operation, args.Value, args.SourceId, args.Priority);
+                    if (!modifiers.Add(actorId, args.SourceId, args.ParameterId, args.Operation, args.Value, args.Priority))
+                    {
+                        LogRejected(ctx, $"continuous modifier activation rejected: actorId={actorId}, sourceId={args.SourceId}.");
+                        continue;
+                    }
                     LogApplied(ctx, $"actorId={actorId}, parameterId={args.ParameterId}, op={args.Operation}, value={args.Value:0.###}, sourceId={args.SourceId}.");
                 }
             }

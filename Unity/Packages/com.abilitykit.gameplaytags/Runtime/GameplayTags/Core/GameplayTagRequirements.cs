@@ -21,11 +21,15 @@ namespace AbilityKit.GameplayTags
         /// </summary>
         public readonly bool Exact;
 
-        public GameplayTagRequirements(GameplayTagContainer required, GameplayTagContainer blocked, bool exact = false)
+        public readonly GameplayTagQuery Query;
+
+        public GameplayTagRequirements(GameplayTagContainer required, GameplayTagContainer blocked, bool exact = false,
+            GameplayTagQuery query = default)
         {
             Required = required;
             Blocked = blocked;
             Exact = exact;
+            Query = query;
         }
 
         /// <summary>
@@ -71,7 +75,7 @@ namespace AbilityKit.GameplayTags
                 if (!tags.HasAll(Required, Exact)) return false;
             }
 
-            return true;
+            return !Query.IsValid || Query.Matches(tags);
         }
 
         /// <summary>
@@ -89,7 +93,7 @@ namespace AbilityKit.GameplayTags
                 if (!Required.HasTag(tag)) return false;
             }
 
-            return true;
+            return !Query.IsValid || Query.Matches(tag);
         }
     }
 }

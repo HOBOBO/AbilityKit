@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         internal SearchTargetService SearchTargets { get; }
         internal Func<long> CurrentTimeMsProvider { get; }
         internal MobaBrainSkillSelectionPolicy SkillSelectionPolicy { get; }
+        internal MobaSkillLoadoutService SkillLoadout { get; }
         internal IBehaviorContext Behavior { get; private set; }
         internal IWorldQuery World { get; private set; }
 
@@ -29,13 +30,15 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             MobaConfigDatabase config,
             SearchTargetService searchTargets,
             Func<long> currentTimeMsProvider,
-            MobaBrainSkillSelectionPolicy skillSelectionPolicy)
+            MobaBrainSkillSelectionPolicy skillSelectionPolicy,
+            MobaSkillLoadoutService skillLoadout = null)
         {
             Registry = registry;
             Config = config;
             SearchTargets = searchTargets;
             CurrentTimeMsProvider = currentTimeMsProvider;
             SkillSelectionPolicy = skillSelectionPolicy;
+            SkillLoadout = skillLoadout;
         }
 
         internal void BeginEvaluation(IBehaviorContext behavior, IWorldQuery world)

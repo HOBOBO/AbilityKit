@@ -132,6 +132,12 @@ namespace AbilityKit.Triggering.Runtime
             ActionRejectReason = reason;
         }
 
+        public void ClearActionRejection()
+        {
+            IsActionRejected = false;
+            ActionRejectReason = null;
+        }
+
         /// <summary>
         /// 显式打断所有后续触发器（向后兼容）
         /// </summary>

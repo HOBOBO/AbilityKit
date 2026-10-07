@@ -170,9 +170,9 @@ namespace AbilityKit.Demo.Moba.Services
         private ContinuousTagRequirements ResolveRequirements(ContinuousProcessMO process)
         {
             if (process == null || process.ContinuousTagTemplateId <= 0) return new ContinuousTagRequirements();
-            return _tagTemplates != null && _tagTemplates.TryGet(process.ContinuousTagTemplateId, out var requirements) && requirements != null
-                ? requirements
-                : new ContinuousTagRequirements();
+            if (_tagTemplates == null || !_tagTemplates.TryGet(process.ContinuousTagTemplateId, out var requirements) || requirements == null)
+                throw new System.InvalidOperationException($"Continuous process {process.Id} references missing tag template {process.ContinuousTagTemplateId}.");
+            return requirements;
         }
 
         private bool CanKeepActive(ContinuousProcessMO process, int actorId)

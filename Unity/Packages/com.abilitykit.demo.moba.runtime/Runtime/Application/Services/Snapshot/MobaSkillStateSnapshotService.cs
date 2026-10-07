@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Components;
@@ -10,12 +11,13 @@ namespace AbilityKit.Demo.Moba.Services
 {
     [MobaSnapshotEmitter(85)]
     [WorldService(typeof(MobaSkillStateSnapshotService))]
-    public sealed class MobaSkillStateSnapshotService : IService, IMobaSnapshotEmitter
+    public sealed class MobaSkillStateSnapshotService : IService, IWorldInitializable, IMobaSnapshotEmitter
     {
         private readonly MobaLogicWorldRunGateService _phase;
         private readonly MobaActorRegistry _registry;
         private readonly IFrameTime _time;
         private readonly MobaSkillEconomyService _economy;
+        private MobaSkillSlotCandidateService _slotCandidates;
         private readonly MobaSnapshotBuffer<MobaSkillStateSnapshotEntry> _entries = new MobaSnapshotBuffer<MobaSkillStateSnapshotEntry>(16, 256);
 
         private FrameIndex _lastFrame;
@@ -31,6 +33,11 @@ namespace AbilityKit.Demo.Moba.Services
             _time = time ?? throw new ArgumentNullException(nameof(time));
             _economy = economy ?? throw new ArgumentNullException(nameof(economy));
             _lastFrame = new FrameIndex(-999999);
+        }
+
+        public void OnInit(IWorldResolver services)
+        {
+            services?.TryResolve(out _slotCandidates);
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
@@ -84,6 +91,9 @@ namespace AbilityKit.Demo.Moba.Services
                     var runtime = activeSkills[i];
                     if (runtime == null || runtime.SkillId <= 0) continue;
 
+                    var effectiveSkillId = _slotCandidates?.Resolve(actorId, i + 1, runtime.SkillId).EffectiveSkillId
+                        ?? runtime.SkillId;
+
                     MobaSkillEconomyService.RefreshCharges(runtime, nowMs);
 
                     var sharedEndTimeMs = _economy.GetCooldownGroupEndTimeMs(actorId, runtime.CooldownGroupId);
@@ -103,7 +113,7 @@ namespace AbilityKit.Demo.Moba.Services
                     {
                         ActorId = actorId,
                         Slot = i + 1,
-                        SkillId = runtime.SkillId,
+                        SkillId = effectiveSkillId,
                         Level = runtime.Level,
                         CooldownTotalMs = totalMs,
                         CooldownRemainingMs = remainingMs,

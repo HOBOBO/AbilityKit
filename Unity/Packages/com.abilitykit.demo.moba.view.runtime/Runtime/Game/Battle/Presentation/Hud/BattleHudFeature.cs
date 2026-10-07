@@ -219,7 +219,8 @@ namespace AbilityKit.Game.Flow
                 matchesLoadout);
             PublishLocalActorId();
 
-            _inputController?.ApplySkillStates(entries, localActorId);
+            if (_inputController != null && _inputController.ApplySkillStates(entries, localActorId))
+                _aimPreview?.SetSkillSpecs(_inputController.SkillSpecs);
         }
 
         private void OnPresentationCueSnapshot(PresentationCueData[] entries)

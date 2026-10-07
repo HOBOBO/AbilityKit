@@ -198,7 +198,11 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             {
                 var runtime = skills[i];
                 if (runtime == null || runtime.SkillId <= 0) continue;
-                if (!config.TryGetSkill(runtime.SkillId, out var skill) || skill == null) continue;
+                var effectiveSkillId = runtime.SkillId;
+                if (_runtime.SkillLoadout != null &&
+                    _runtime.SkillLoadout.TryResolveSlot((int)behavior.OwnerId.Value, i + 1, out var slotSkill))
+                    effectiveSkillId = slotSkill.EffectiveSkillId;
+                if (!config.TryGetSkill(effectiveSkillId, out var skill) || skill == null) continue;
 
                 var range = Math.Max(0f, skill.Range);
                 maxConfiguredRange = Math.Max(maxConfiguredRange, range);

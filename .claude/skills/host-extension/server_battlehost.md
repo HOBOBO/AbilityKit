@@ -82,7 +82,7 @@ public enum BattleInputAcceptStatus {
 ```csharp
 public sealed class BattleSnapshotPublisher<TObserver, TSnapshot> {
     public void Publish(...);                   // 全体观察者
-    public void PublishPerObserver(...);        // per-observer（如 AOI 裁剪）
+    public void PublishPerObserver(...);        // 逐观察者发布（如 AOI 裁剪）
     public void PublishTo(TObserver observer, ...);
 }
 
@@ -135,7 +135,7 @@ var runner = new BattleHostLifecycleRunner(
     cleanup: ...);
 
 var startResult = runner.Start(new BattleHostStartContext { TickInterval = ... });
-if (!startResult.Success) { /* handle startResult.ErrorCode */ }
+if (!startResult.Success) { /* 处理 startResult.ErrorCode */ }
 
 // 主循环
 while (running) {

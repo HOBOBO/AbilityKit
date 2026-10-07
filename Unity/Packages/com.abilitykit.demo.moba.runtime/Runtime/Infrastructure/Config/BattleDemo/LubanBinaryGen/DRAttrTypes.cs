@@ -17,34 +17,10 @@ public sealed partial class DRAttrTypes : Luban.BeanBase
     public DRAttrTypes(ByteBuf _buf) 
     {
         Id = _buf.ReadInt();
-        {int n0 = _buf.ReadSize(); ActiveSkills = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ActiveSkills.Add(_e0);}}
-        AttackRange = _buf.ReadInt();
-        AttackSpeedR = _buf.ReadInt();
-        CooldownReduceR = _buf.ReadInt();
-        CriticalR = _buf.ReadInt();
-        ExtraHp = _buf.ReadInt();
-        ExtraMagicAttack = _buf.ReadInt();
-        ExtraPhysicsAttack = _buf.ReadInt();
-        Hp = _buf.ReadInt();
-        MagicAttack = _buf.ReadInt();
-        MagicBloodsuckingR = _buf.ReadInt();
-        MagicDefense = _buf.ReadInt();
-        MagicPenetrationR = _buf.ReadInt();
-        Mana = _buf.ReadInt();
-        MaxHp = _buf.ReadInt();
-        MaxMana = _buf.ReadInt();
-        MoveSpeed = _buf.ReadInt();
+        Key = _buf.ReadString();
         Name = _buf.ReadString();
-        {int n0 = _buf.ReadSize(); PassiveSkills = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); PassiveSkills.Add(_e0);}}
-        PerSecondBloodR = _buf.ReadInt();
-        PerSecondManaR = _buf.ReadInt();
-        PhysicsAttack = _buf.ReadInt();
-        PhysicsBloodsuckingR = _buf.ReadInt();
-        PhysicsDefense = _buf.ReadInt();
-        PhysicsPenetrationR = _buf.ReadInt();
-        ResilienceR = _buf.ReadInt();
-        OmittedFields = _buf.ReadString();
-        NullFields = _buf.ReadString();
+        ValueKind = (MobaAttributeValueKind)_buf.ReadInt();
+        DefaultValue = _buf.ReadFloat();
     }
 
     public static DRAttrTypes DeserializeDRAttrTypes(ByteBuf _buf)
@@ -53,37 +29,25 @@ public sealed partial class DRAttrTypes : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
-    public readonly System.Collections.Generic.List<int> ActiveSkills;
-    public readonly int AttackRange;
-    public readonly int AttackSpeedR;
-    public readonly int CooldownReduceR;
-    public readonly int CriticalR;
-    public readonly int ExtraHp;
-    public readonly int ExtraMagicAttack;
-    public readonly int ExtraPhysicsAttack;
-    public readonly int Hp;
-    public readonly int MagicAttack;
-    public readonly int MagicBloodsuckingR;
-    public readonly int MagicDefense;
-    public readonly int MagicPenetrationR;
-    public readonly int Mana;
-    public readonly int MaxHp;
-    public readonly int MaxMana;
-    public readonly int MoveSpeed;
+    /// <summary>
+    /// 稳定的程序标识或业务键；修改前检查代码与引用。
+    /// </summary>
+    public readonly string Key;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
-    public readonly System.Collections.Generic.List<int> PassiveSkills;
-    public readonly int PerSecondBloodR;
-    public readonly int PerSecondManaR;
-    public readonly int PhysicsAttack;
-    public readonly int PhysicsBloodsuckingR;
-    public readonly int PhysicsDefense;
-    public readonly int PhysicsPenetrationR;
-    public readonly int ResilienceR;
-    public readonly string OmittedFields;
-    public readonly string NullFields;
+    /// <summary>
+    /// 属性值类型：Flat 为普通数值，Percent 为比率。
+    /// </summary>
+    public readonly MobaAttributeValueKind ValueKind;
+    /// <summary>
+    /// 属性未被模板覆盖时使用的默认数值。
+    /// </summary>
+    public readonly float DefaultValue;
    
     public const int __ID__ = 1130492954;
     public override int GetTypeId() => __ID__;
@@ -96,34 +60,10 @@ public sealed partial class DRAttrTypes : Luban.BeanBase
     {
         return "{ "
         + "Id:" + Id + ","
-        + "ActiveSkills:" + Luban.StringUtil.CollectionToString(ActiveSkills) + ","
-        + "AttackRange:" + AttackRange + ","
-        + "AttackSpeedR:" + AttackSpeedR + ","
-        + "CooldownReduceR:" + CooldownReduceR + ","
-        + "CriticalR:" + CriticalR + ","
-        + "ExtraHp:" + ExtraHp + ","
-        + "ExtraMagicAttack:" + ExtraMagicAttack + ","
-        + "ExtraPhysicsAttack:" + ExtraPhysicsAttack + ","
-        + "Hp:" + Hp + ","
-        + "MagicAttack:" + MagicAttack + ","
-        + "MagicBloodsuckingR:" + MagicBloodsuckingR + ","
-        + "MagicDefense:" + MagicDefense + ","
-        + "MagicPenetrationR:" + MagicPenetrationR + ","
-        + "Mana:" + Mana + ","
-        + "MaxHp:" + MaxHp + ","
-        + "MaxMana:" + MaxMana + ","
-        + "MoveSpeed:" + MoveSpeed + ","
+        + "Key:" + Key + ","
         + "Name:" + Name + ","
-        + "PassiveSkills:" + Luban.StringUtil.CollectionToString(PassiveSkills) + ","
-        + "PerSecondBloodR:" + PerSecondBloodR + ","
-        + "PerSecondManaR:" + PerSecondManaR + ","
-        + "PhysicsAttack:" + PhysicsAttack + ","
-        + "PhysicsBloodsuckingR:" + PhysicsBloodsuckingR + ","
-        + "PhysicsDefense:" + PhysicsDefense + ","
-        + "PhysicsPenetrationR:" + PhysicsPenetrationR + ","
-        + "ResilienceR:" + ResilienceR + ","
-        + "OmittedFields:" + OmittedFields + ","
-        + "NullFields:" + NullFields + ","
+        + "ValueKind:" + ValueKind + ","
+        + "DefaultValue:" + DefaultValue + ","
         + "}";
     }
 }

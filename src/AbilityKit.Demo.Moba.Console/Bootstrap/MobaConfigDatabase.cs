@@ -18,7 +18,6 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         private readonly Dictionary<int, AttributeTemplateConfig> _attributeTemplatesById = new();
         private readonly Dictionary<int, BuffConfig> _buffsById = new();
         private readonly Dictionary<int, ProjectileConfig> _projectilesById = new();
-        private readonly Dictionary<int, EffectConfig> _effectsById = new();
 
         public const string DefaultResourcesDir = "luban/moba";
 
@@ -38,7 +37,6 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
             LoadAttributeTemplates(dir);
             LoadBuffs(dir);
             LoadProjectiles(dir);
-            LoadEffects(dir);
         }
 
         private void LoadCharacters(string dir)
@@ -185,126 +183,12 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
             }
         }
 
-        private void LoadEffects(string dir)
-        {
-            if (dir.Replace('\\', '/') == DefaultResourcesDir &&
-                _loader.TryLoadBytes("luban/moba_bytes/effects.bytes", out var bytes))
-            {
-                var table = new moba_luban.Effects(Luban.ByteBuf.Wrap(bytes));
-                foreach (var row in table.DataList)
-                {
-                    _effectsById.Add(row.Id, new EffectConfig
-                    {
-                        Id = row.Id,
-                        Name = row.Name,
-                        EffectType = row.EffectType,
-                        BaseDamage = row.BaseDamage,
-                        DamageType = row.DamageType,
-                        AttackRatio = row.AttackRatio,
-                        TargetPolicy = row.TargetPolicy,
-                        Radius = row.Radius,
-                    });
-                }
-                Log.System($"Loaded {table.DataList.Count} effect configs from Luban binary");
-                return;
-            }
-
-            var loaded = false;
-            var path = System.IO.Path.Combine(dir, "effects.json");
-
-            if (_loader.TryLoadText(path, out var json) && !string.IsNullOrEmpty(json))
-            {
-                try
-                {
-                    var effects = Newtonsoft.Json.JsonConvert.DeserializeObject<List<EffectConfig>>(json);
-                    if (effects != null && effects.Count > 0)
-                    {
-                        foreach (var e in effects)
-                        {
-                            _effectsById[e.Id] = e;
-                        }
-                        Log.System($"Loaded {effects.Count} effect configs from effects.json");
-                        loaded = true;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn($"Failed to load effects.json: {ex.Message}");
-                }
-            }
-
-            // 如果没有从 effects.json 加载成功，尝试从 effect_plans.json 加载（兼容旧配置）
-            if (!loaded)
-            {
-                LoadEffectsFromPlans(dir);
-            }
-        }
-
-        /// <summary>
-        /// 从 effect_plans.json 兼容加载效果配置
-        /// effect_plans.json 的格式与 EffectConfig 不同，需要转换
-        /// </summary>
-        private void LoadEffectsFromPlans(string dir)
-        {
-            var path = System.IO.Path.Combine(dir, "effect_plans.json");
-            if (_loader.TryLoadText(path, out var json) && !string.IsNullOrEmpty(json))
-            {
-                try
-                {
-                    // effect_plans.json 的根结构是 { "Triggers": [...] }
-                    var wrapper = Newtonsoft.Json.JsonConvert.DeserializeObject<EffectPlansWrapper>(json);
-                    if (wrapper?.Triggers != null)
-                    {
-                        foreach (var trigger in wrapper.Triggers)
-                        {
-                            var effect = new EffectConfig
-                            {
-                                Id = trigger.TriggerId,
-                                Name = $"Effect_{trigger.TriggerId}",
-                                EffectType = 1, // 伤害类型
-                                DamageType = 1, // 物理伤害
-                            };
-
-                            // 从 Actions 中提取伤害值
-                            if (trigger.Actions != null && trigger.Actions.Count > 0)
-                            {
-                                var firstAction = trigger.Actions[0];
-                                if (firstAction.Args != null)
-                                {
-                                    if (firstAction.Args.TryGetValue("damage_value", out var dv) && dv.ConstValue > 0)
-                                    {
-                                        effect.BaseDamage = (float)dv.ConstValue;
-                                    }
-                                    if (firstAction.Args.TryGetValue("damage_type", out var dt) && dt.ConstValue > 0)
-                                    {
-                                        effect.DamageType = (int)dt.ConstValue;
-                                    }
-                                    if (firstAction.Args.TryGetValue("attack_ratio", out var ar) && ar.ConstValue > 0)
-                                    {
-                                        effect.AttackRatio = (float)ar.ConstValue;
-                                    }
-                                }
-                            }
-
-                            _effectsById[effect.Id] = effect;
-                        }
-                        Log.System($"Loaded {wrapper.Triggers.Count} effects from effect_plans.json (legacy format)");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn($"Failed to load effects from effect_plans.json: {ex.Message}");
-                }
-            }
-        }
-
         public bool TryGetCharacter(int id, out CharacterConfig config) => _charactersById.TryGetValue(id, out config);
         public bool TryGetSkill(int id, out SkillConfig config) => _skillsById.TryGetValue(id, out config);
         public bool TryGetSkillLevelTable(int id, out SkillLevelTableConfig config) => _skillLevelTablesById.TryGetValue(id, out config);
         public bool TryGetAttributeTemplate(int id, out AttributeTemplateConfig config) => _attributeTemplatesById.TryGetValue(id, out config);
         public bool TryGetBuff(int id, out BuffConfig config) => _buffsById.TryGetValue(id, out config);
         public bool TryGetProjectile(int id, out ProjectileConfig config) => _projectilesById.TryGetValue(id, out config);
-        public bool TryGetEffect(int id, out EffectConfig config) => _effectsById.TryGetValue(id, out config);
 
         public int CharacterCount => _charactersById.Count;
         public int SkillCount => _skillsById.Count;
@@ -312,7 +196,6 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         public int AttributeTemplateCount => _attributeTemplatesById.Count;
         public int BuffCount => _buffsById.Count;
         public int ProjectileCount => _projectilesById.Count;
-        public int EffectCount => _effectsById.Count;
 
         public IEnumerable<CharacterConfig> GetAllCharacters() => _charactersById.Values;
         public IEnumerable<SkillConfig> GetAllSkills() => _skillsById.Values;
@@ -480,58 +363,4 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         }
     }
 
-    /// <summary>
-    /// 效果配置（逻辑层配置）
-    /// 定义技能的伤害、类型等参数
-    /// </summary>
-    public sealed class EffectConfig
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
-        public int EffectType { get; set; } // 1=伤害, 2=治疗, 3=护盾等
-        public float BaseDamage { get; set; }
-        public int DamageType { get; set; } // 1=物理, 2=魔法, 3=真实
-        public float AttackRatio { get; set; } // 攻击力加成系数
-        public int TargetPolicy { get; set; } // 0=无目标, 1=单体, 2=区域
-        public float Radius { get; set; } // 区域半径（用于区域效果）
-    }
-
-    /// <summary>
-    /// effect_plans.json 兼容解析类
-    /// </summary>
-    internal sealed class EffectPlansWrapper
-    {
-        public List<TriggerPlan> Triggers { get; set; } = new();
-    }
-
-    internal sealed class TriggerPlan
-    {
-        public int TriggerId { get; set; }
-        public string EventName { get; set; } = "";
-        public int EventId { get; set; }
-        public bool AllowExternal { get; set; }
-        public int Phase { get; set; }
-        public int Priority { get; set; }
-        public PredicateDef Predicate { get; set; } = new();
-        public List<ActionDef> Actions { get; set; } = new();
-    }
-
-    internal sealed class PredicateDef
-    {
-        public string Kind { get; set; } = "";
-        public object Nodes { get; set; }
-    }
-
-    internal sealed class ActionDef
-    {
-        public int ActionId { get; set; }
-        public int Arity { get; set; }
-        public Dictionary<string, ArgValue> Args { get; set; } = new();
-    }
-
-    internal sealed class ArgValue
-    {
-        public string Kind { get; set; } = "";
-        public double ConstValue { get; set; }
-    }
 }

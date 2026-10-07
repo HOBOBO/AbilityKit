@@ -1,0 +1,50 @@
+[
+  {
+    "Id": 1,
+    "Key": "Untargetable",
+    "BitIndex": 0,
+    "Name": "不可被选取"
+  },
+  {
+    "Id": 2,
+    "Key": "Invulnerable",
+    "BitIndex": 1,
+    "Name": "免疫伤害"
+  },
+  {
+    "Id": 3,
+    "Key": "CannotCast",
+    "BitIndex": 2,
+    "Name": "不能施法"
+  },
+  {
+    "Id": 4,
+    "Key": "Stunned",
+    "BitIndex": 3,
+    "Name": "硬控中"
+  },
+  {
+    "Id": 5,
+    "Key": "CannotMove",
+    "BitIndex": 4,
+    "Name": "不能移动"
+  },
+  {
+    "Id": 6,
+    "Key": "ControlImmune",
+    "BitIndex": 5,
+    "Name": "控制免疫"
+  },
+  {
+    "Id": 7,
+    "Key": "CannotBeControlled",
+    "BitIndex": 6,
+    "Name": "不能受控制"
+  },
+  {
+    "Id": 8,
+    "Key": "CannotAttack",
+    "BitIndex": 7,
+    "Name": "不能攻击"
+  }
+]

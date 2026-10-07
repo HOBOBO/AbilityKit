@@ -53,12 +53,6 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 return LubanConfigGroup.Create(textAssetLoader, _lubanResourcesDir);
             });
 
-            builder.Register<ILubanConfigLoader>(WorldLifetime.Singleton, container =>
-            {
-                var textAssetLoader = container.Resolve<ITextAssetLoader>();
-                return new ConsoleLubanConfigLoader(textAssetLoader, _lubanResourcesDir);
-            });
-
             builder.Register<AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase>(WorldLifetime.Singleton, container =>
             {
                 var registry = container.Resolve<IMobaConfigTableRegistry>();

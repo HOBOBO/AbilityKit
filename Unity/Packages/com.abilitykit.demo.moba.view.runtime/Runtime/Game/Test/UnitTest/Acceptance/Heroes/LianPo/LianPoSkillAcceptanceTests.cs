@@ -279,7 +279,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 var actorId = harness.AssertPlayerActorBound();
                 Assert.IsTrue(
-                    MobaGameplayTagCatalog.TryGet(MobaGameplayTagCatalog.State.SuperArmor, out var superArmorTag),
+                    MobaGameplayTagCatalog.TryGet("State.SuperArmor", out var superArmorTag),
                     "The canonical super-armor gameplay tag must be registered before the battle starts.");
 
                 Assert.IsFalse(HasEffectiveTag(harness, actorId, superArmorTag), "Lian Po should not carry super armor before a tagged cast pipeline starts.");

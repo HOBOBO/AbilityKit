@@ -77,7 +77,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             BuffContinuousBindingService continuousBindings,
             MobaSkillCastRuntimeService skillRuntimes,
             MobaBuffPresentationCueReporter presentationCues,
-            BuffEndFlow endFlow)
+            BuffEndFlow endFlow,
+            MobaSkillParamModifierService paramModifiers = null)
         {
             _actors = actors;
             var resolvedRepo = repo ?? new BuffRepository();
@@ -85,7 +86,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             var resolvedStacking = stacking ?? new BuffStackingPolicyApplier();
             var resolvedBindings = new BuffRuntimeBindingCoordinator(lifecycleHooks, continuousBindings, skillRuntimes);
             _endFlow = endFlow ?? new BuffEndFlow(configs, ctx, resolvedNotifier, resolvedBindings);
-            _applyFlow = new BuffApplyFlow(configs, actors, tags, tagTemplates, resolvedRepo, ctx, resolvedStacking, resolvedBindings, _endFlow, resolvedNotifier);
+            _applyFlow = new BuffApplyFlow(configs, actors, tags, tagTemplates, resolvedRepo, ctx, resolvedStacking, resolvedBindings, _endFlow, resolvedNotifier, paramModifiers, skillRuntimes);
         }
 
         /// <summary>
@@ -175,6 +176,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             services.TryResolve(out IContinuousManager continuous);
             services.TryResolve(out MobaActorLookupService actors);
             services.TryResolve(out MobaSkillCastRuntimeService skillRuntimes);
+            services.TryResolve(out MobaSkillParamModifierService paramModifiers);
             services.TryResolve(out MobaPresentationCueSnapshotService cueSnapshots);
             services.TryResolve(out MobaRuntimeContextService runtimeContexts);
             services.TryResolve(out IMobaBuffLifecycleHook observationHook);
@@ -211,7 +213,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
                 continuousBindings,
                 skillRuntimes,
                 presentationCues,
-                endFlow);
+                endFlow,
+                paramModifiers);
         }
     }
 }

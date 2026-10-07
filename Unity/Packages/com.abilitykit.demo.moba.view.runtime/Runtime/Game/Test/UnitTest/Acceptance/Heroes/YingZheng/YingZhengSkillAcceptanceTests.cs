@@ -120,8 +120,10 @@ namespace AbilityKit.Game.Test.UnitTest
                 var buffs = harness.World.Services.Resolve<MobaBuffService>();
                 Assert.IsTrue(harness.Config.TryGetBuff(10060101, out var slowBuff), "Ying Zheng skill 1 slow Buff config should exist.");
                 Assert.IsTrue(MobaGameplayTagCatalog.TryResolve("Debuff.Slow", out var slowTag), "Debuff.Slow should resolve from the gameplay tag catalog.");
-                Assert.IsNotNull(slowBuff.Tags, "Ying Zheng skill 1 slow Buff should retain its configured tags.");
-                Assert.IsTrue(slowBuff.Tags.HasTag(slowTag), "Ying Zheng skill 1 slow Buff should carry the Debuff.Slow tag at runtime.");
+                Assert.AreEqual(3013, slowBuff.ContinuousTagTemplateId, "Ying Zheng slow Buff should use the shared slow template.");
+                var slowTemplates = new MobaContinuousTagTemplateRegistry(harness.Config);
+                Assert.IsTrue(slowTemplates.TryGet(slowBuff.ContinuousTagTemplateId, out var slowRequirements));
+                Assert.IsTrue(slowRequirements.ApplicationTags.HasTag(slowTag), "The shared template should grant Debuff.Slow.");
                 Assert.IsTrue(buffs.ApplyBuffImmediate(actorId, 10060101, actorId, durationOverrideMs: 0), "Ying Zheng slow setup buff should apply before guard cleanse.");
                 Assert.Less(harness.GetActorMoveSpeed(actorId), baseMoveSpeed, "The tagged slow setup should reduce movement speed before skill 2.");
                 Assert.AreEqual(1, buffs.RemoveBuffsWithTagImmediate(actorId, "Debuff.Slow", sourceActorId: 0, removeAll: true, MobaExecutionEndReason.Dispelled), "Tag-based buff removal should find the active slow regardless of source.");
@@ -190,10 +192,18 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsTrue(projectileActor.hasTransform, "Ying Zheng ultimate projectile actor should have a transform for client-followed movement.");
                 var initialPosition = projectileActor.transform.Value.Position;
                 var positions = new List<Vec3>(19) { initialPosition };
+                var observedTransformSnapshot = false;
+                var latestTransformX = initialPosition.X;
                 for (var i = 0; i < 18; i++)
                 {
                     harness.Tick(1);
-                    positions.Add(harness.AssertActorEntity(spawn.ProjectileActorId).transform.Value.Position);
+                    if (!harness.TryGetActorEntity(spawn.ProjectileActorId, out projectileActor)) break;
+                    positions.Add(projectileActor.transform.Value.Position);
+                    if (TryCollectActorTransformSnapshot(harness, spawn.ProjectileActorId, out var currentTransform))
+                    {
+                        observedTransformSnapshot = true;
+                        latestTransformX = currentTransform.X;
+                    }
                 }
 
                 var rearIndex = 0;
@@ -217,8 +227,8 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 var moved = positions[positions.Count - 1];
                 Assert.Greater(moved.X, rearPosition.X + 0.05f, "After holding, the attack state should move the sword along the locked cast direction.");
-                Assert.IsTrue(TryCollectActorTransformSnapshot(harness, spawn.ProjectileActorId, out var transformEntry), "Ying Zheng moving ultimate projectile should be included in actor transform snapshots.");
-                Assert.Greater(transformEntry.X, rearPosition.X + 0.05f, "Ying Zheng ultimate transform snapshot should carry its attack-state position for the view layer.");
+                Assert.IsTrue(observedTransformSnapshot, "Ying Zheng moving ultimate projectile should be included in actor transform snapshots.");
+                Assert.Greater(latestTransformX, rearPosition.X + 0.05f, "Ying Zheng ultimate transform snapshot should carry its attack-state position for the view layer.");
 
                 var resolver = new BattleProjectileVfxResolver();
                 Assert.AreEqual(90006003, resolver.ResolveSnapshotVfxId(spawn.TemplateId, (ProjectilePresentationEventKind)spawn.Kind), "Ying Zheng ultimate should resolve its configured flying-sword VFX.");
@@ -247,9 +257,12 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 if (snapshots[snapshotIndex].OpCode != MobaOpCodes.Snapshot.ProjectileEvent) continue;
                 var entries = MobaProjectileEventSnapshotCodec.Deserialize(snapshots[snapshotIndex].Payload);
-                for (var entryIndex = 0; entryIndex < entries.Length; entryIndex++)
+                for (var entryIndex = entries.Length - 1; entryIndex >= 0; entryIndex--)
                 {
-                    if (entries[entryIndex].Kind != (int)ProjectileEventKind.Spawn || entries[entryIndex].TemplateId != templateId) continue;
+                    if (entries[entryIndex].Kind != (int)ProjectileEventKind.Spawn ||
+                        entries[entryIndex].TemplateId != templateId ||
+                        entries[entryIndex].ProjectileActorId <= 0 ||
+                        !harness.TryGetActorEntity(entries[entryIndex].ProjectileActorId, out _)) continue;
                     entry = entries[entryIndex];
                     return true;
                 }

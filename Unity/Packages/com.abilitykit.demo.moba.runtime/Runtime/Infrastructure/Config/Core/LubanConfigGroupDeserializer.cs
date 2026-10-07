@@ -73,7 +73,6 @@ namespace AbilityKit.Demo.Moba.Config.Core
             if (dtoType == typeof(SkillDTO)) return DeserializeSkill(obj);
             if (dtoType == typeof(PassiveSkillDTO)) return DeserializePassiveSkill(obj);
             if (dtoType == typeof(SkillButtonTemplateDTO)) return DeserializeSkillButtonTemplate(obj);
-            if (dtoType == typeof(TagTemplateDTO)) return DeserializeTagTemplate(obj);
             if (dtoType == typeof(ContinuousTagTemplateDTO)) return DeserializeContinuousTagTemplate(obj);
             if (dtoType == typeof(SearchQueryTemplateDTO)) return DeserializeSearchQueryTemplate(obj);
             if (dtoType == typeof(BuffDTO)) return DeserializeBuff(obj);
@@ -169,7 +168,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 RequiredTargetQueryId = obj["RequiredTargetQueryId"]?.Value<int>() ?? 0,
                 LevelTableId = obj["LevelTableId"]?.Value<int>() ?? 0,
                 PreCastFlowId = obj["PreCastFlowId"]?.Value<int>() ?? 0,
-                CastFlowId = obj["CastFlowId"]?.Value<int>() ?? 0
+                CastFlowId = obj["CastFlowId"]?.Value<int>() ?? 0,
+                ExecutionBlockedResultMask = obj["ExecutionBlockedResultMask"]?.Value<ulong>() ?? 0UL
             };
             return dto;
         }
@@ -207,27 +207,13 @@ namespace AbilityKit.Demo.Moba.Config.Core
             return dto;
         }
 
-        private static TagTemplateDTO DeserializeTagTemplate(JObject obj)
-        {
-            var dto = new TagTemplateDTO
-            {
-                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
-                Name = obj["Name"]?.Value<string>() ?? string.Empty,
-            };
-
-            dto.RequiredTagNames = ReadTagNames(obj["RequiredTags"] ?? obj["RequiredTagNames"]);
-            dto.BlockedTagNames = ReadTagNames(obj["BlockedTags"] ?? obj["BlockedTagNames"]);
-            dto.GrantTagNames = ReadTagNames(obj["GrantTags"] ?? obj["GrantTagNames"]);
-            dto.RemoveTagNames = ReadTagNames(obj["RemoveTags"] ?? obj["RemoveTagNames"]);
-            return dto;
-        }
-
         private static ContinuousTagTemplateDTO DeserializeContinuousTagTemplate(JObject obj)
         {
             var dto = new ContinuousTagTemplateDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
                 Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                ExecutionBlockedResultMask = obj["ExecutionBlockedResultMask"]?.Value<ulong>() ?? 0UL,
             };
 
             dto.ActivationRequiredTagNames = ReadTagNames(obj["ActivationRequiredTags"] ?? obj["ActivationRequiredTagNames"]);
@@ -237,7 +223,9 @@ namespace AbilityKit.Demo.Moba.Config.Core
             dto.RemovalBlockedTagNames = ReadTagNames(obj["RemovalBlockedTags"] ?? obj["RemovalBlockedTagNames"]);
             dto.OngoingRequiredTagNames = ReadTagNames(obj["OngoingRequiredTags"] ?? obj["OngoingRequiredTagNames"]);
             dto.OngoingBlockedTagNames = ReadTagNames(obj["OngoingBlockedTags"] ?? obj["OngoingBlockedTagNames"]);
-            dto.RemovalTagNames = ReadTagNames(obj["RemovalTags"] ?? obj["RemovalTagNames"]);
+            dto.ActivationCondition = obj["ActivationCondition"]?.ToObject<TagConditionDTO>();
+            dto.RemovalCondition = obj["RemovalCondition"]?.ToObject<TagConditionDTO>();
+            dto.OngoingCondition = obj["OngoingCondition"]?.ToObject<TagConditionDTO>();
             return dto;
         }
 
@@ -372,9 +360,9 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Modifiers = DeserializeContinuousModifiers(obj["Modifiers"]),
                 DispelPolicy = obj["DispelPolicy"]?.Value<int>() ?? 0,
                 DispelCategory = obj["DispelCategory"]?.Value<int>() ?? 0,
-                DispelBlockedByTagNames = ReadTagNames(obj["DispelBlockedByTags"])
+                DispelBlockedByTagNames = ReadTagNames(obj["DispelBlockedByTags"] ?? obj["DispelBlockedByTagNames"])
             };
-            dto.TagNames = ReadTagNames(obj["Tags"]);
+            dto.TagNames = ReadTagNames(obj["Tags"] ?? obj["TagNames"]);
             return dto;
         }
 
@@ -395,7 +383,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 RequireOutOfCombat = obj["RequireOutOfCombat"]?.Value<bool>() ?? false,
                 OutOfCombatSeconds = obj["OutOfCombatSeconds"]?.Value<int>() ?? 0
             };
-            dto.TagNames = ReadTagNames(obj["Tags"]);
+            dto.TagNames = ReadTagNames(obj["Tags"] ?? obj["TagNames"]);
             return dto;
         }
 
@@ -403,23 +391,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
         {
             if (token == null) return Array.Empty<ContinuousModifierDTO>();
 
-            var modifiers = token.ToObject<ContinuousModifierDTO[]>() ?? Array.Empty<ContinuousModifierDTO>();
-            for (int i = 0; i < modifiers.Length; i++)
-            {
-                var modifier = modifiers[i];
-                if (modifier == null) continue;
-                if (modifier.TargetKind == 0 && modifier.AttrTypeId != 0)
-                {
-                    modifier.TargetKind = 1;
-                }
-
-                if (modifier.TargetId == 0 && modifier.AttrTypeId != 0)
-                {
-                    modifier.TargetId = modifier.AttrTypeId;
-                }
-            }
-
-            return modifiers;
+            return token.ToObject<ContinuousModifierDTO[]>() ?? Array.Empty<ContinuousModifierDTO>();
         }
 
         private static ModelDTO DeserializeModel(JObject obj)

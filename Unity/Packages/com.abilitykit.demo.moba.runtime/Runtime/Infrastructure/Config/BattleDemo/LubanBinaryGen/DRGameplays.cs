@@ -32,15 +32,36 @@ public sealed partial class DRGameplays : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 默认持续时间，单位毫秒。
+    /// </summary>
     public readonly int DefaultDurationMs;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 暂不使用；单位身份与玩法类型由专用字段表示，不通过旧数字标签配置。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> Tags;
+    /// <summary>
+    /// 触发器 ID 列表；由 Trigger Authoring 发布，逗号分隔。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> TriggerIds;
+    /// <summary>
+    /// 胜利策略；用于玩法配置。
+    /// </summary>
     public readonly int WinPolicy;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = -2142237153;

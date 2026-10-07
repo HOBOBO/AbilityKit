@@ -1240,6 +1240,36 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void AttributeCurve_UsesFrameIntervalAndResetsAfterFrameRollback()
+        {
+            var session = new RecordingSession { ReturnAttributes = true };
+            var viewModel = new BattleDebugDiagnosticAttributesViewModel();
+            foreach (var frame in new[] { 10, 11, 12, 13, 14, 16 })
+            {
+                session.ActorAttributeStoreRevision++;
+                session.AttributeFrame = frame;
+                session.AttributeValue = frame;
+                viewModel.RefreshIfNeeded(session, 11);
+                viewModel.TrackAttribute(session, 11, 1, true, intervalFrames: 3);
+            }
+            Assert.That(viewModel.History.Select(sample => sample.Frame), Is.EqualTo(new[] { 10, 13, 16 }));
+
+            session.ActorAttributeStoreRevision++;
+            session.AttributeFrame = 16;
+            session.AttributeValue = 99;
+            viewModel.RefreshIfNeeded(session, 11);
+            viewModel.TrackAttribute(session, 11, 1, true, intervalFrames: 3);
+            Assert.That(viewModel.History.Count, Is.EqualTo(3));
+            Assert.That(viewModel.History[2].FinalValue, Is.EqualTo(99));
+
+            session.ActorAttributeStoreRevision++;
+            session.AttributeFrame = 9;
+            viewModel.RefreshIfNeeded(session, 11);
+            viewModel.TrackAttribute(session, 11, 1, true, intervalFrames: 3);
+            Assert.That(viewModel.History.Select(sample => sample.Frame), Is.EqualTo(new[] { 9 }));
+        }
+
+        [Test]
         public void AttributeCurve_ResetsOnSelectionSessionOrFrameRollbackAndIgnoresUnavailable()
         {
             var session = new RecordingSession { ReturnAttributes = true, ActorAttributeStoreRevision = 1, AttributeFrame = 10 };

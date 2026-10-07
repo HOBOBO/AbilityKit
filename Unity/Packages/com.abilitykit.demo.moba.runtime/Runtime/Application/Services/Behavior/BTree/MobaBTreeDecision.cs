@@ -50,7 +50,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             Func<long> currentTimeMsProvider = null,
             MobaBrainSkillSelectionPolicy skillSelectionPolicy = MobaBrainSkillSelectionPolicy.FirstReady,
             string debugName = null,
-            string debugOwnerLabel = null)
+            string debugOwnerLabel = null,
+            MobaSkillLoadoutService skillLoadout = null)
         {
             if (string.IsNullOrEmpty(json)) return null;
 
@@ -70,7 +71,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                 config,
                 searchTargets,
                 currentTimeMsProvider,
-                skillSelectionPolicy);
+                skillSelectionPolicy,
+                skillLoadout);
             var services = new DefaultServiceResolver().Add(runtimeContext);
 
             // DebugName 非空才登记进 BtDebugRegistry，编辑器观察窗口按需拉取；

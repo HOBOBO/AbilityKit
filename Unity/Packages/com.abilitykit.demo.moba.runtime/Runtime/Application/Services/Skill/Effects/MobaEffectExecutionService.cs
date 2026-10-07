@@ -928,7 +928,14 @@ namespace AbilityKit.Demo.Moba.Services
             if (!source.HasExecutionSource) return false;
 
             var lineageInput = source.ToLineageInput();
-            var executionSnapshot = CreateExecutionSnapshot(args, in lineageInput, triggerId, triggerId);
+            // The event payload belongs to the triggering cast; this effect belongs to the
+            // owner-bound provider. Keep the payload for conditions and actions, but do not
+            // merge its execution identity into the provider's effect lineage.
+            var executionSnapshot = MobaTriggerExecutionSnapshotBuilder.Create()
+                .FromLineage(in lineageInput)
+                .WithTrigger(triggerId, triggerId)
+                .WithFrameIfMissing(CurrentBudgetFrame)
+                .Build();
             var frame = executionSnapshot.Frame != 0 ? executionSnapshot.Frame : CurrentBudgetFrame;
             var origin = new MobaGameplayOrigin(
                 lineageInput.SourceActorId,
@@ -965,7 +972,7 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     TryGetCurrentTriggerCollections(out var collections);
                     var actionCtx = new ExecCtx<IWorldResolver>(
-                        _services ?? ctx.Context,
+                        new MobaTriggerPlanExecutionContextFactory.CurrentEffectWorldResolver(_services ?? ctx.Context, this),
                         ctx.EventBus,
                         ctx.Functions,
                         ctx.Actions,

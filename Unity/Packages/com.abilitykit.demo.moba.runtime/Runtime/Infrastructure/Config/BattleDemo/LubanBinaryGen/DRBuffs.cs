@@ -18,21 +18,21 @@ public sealed partial class DRBuffs : Luban.BeanBase
     {
         Id = _buf.ReadInt();
         ContinuousTagTemplateId = _buf.ReadInt();
-        DispelBlockedByTagNames = _buf.ReadString();
+        {int n0 = _buf.ReadSize(); DispelBlockedByTagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); DispelBlockedByTagIds.Add(_e0);}}
         DispelCategory = _buf.ReadInt();
-        DispelPolicy = _buf.ReadInt();
+        DispelPolicy = (BuffDispelPolicy)_buf.ReadInt();
         DurationMs = _buf.ReadInt();
         IntervalMs = _buf.ReadInt();
         MaxStacks = _buf.ReadInt();
-        Modifiers = _buf.ReadString();
+        {int n0 = _buf.ReadSize(); ModifierIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ModifierIds.Add(_e0);}}
         Name = _buf.ReadString();
         {int n0 = _buf.ReadSize(); OnAddEffects = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnAddEffects.Add(_e0);}}
         {int n0 = _buf.ReadSize(); OnIntervalEffects = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnIntervalEffects.Add(_e0);}}
         {int n0 = _buf.ReadSize(); OnRemoveEffects = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnRemoveEffects.Add(_e0);}}
         PresentationTemplateId = _buf.ReadInt();
-        RefreshPolicy = _buf.ReadInt();
-        StackingPolicy = _buf.ReadInt();
-        TagNames = _buf.ReadString();
+        RefreshPolicy = (BuffRefreshPolicy)_buf.ReadInt();
+        StackingPolicy = (BuffStackingPolicy)_buf.ReadInt();
+        {int n0 = _buf.ReadSize(); TagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); TagIds.Add(_e0);}}
         {int n0 = _buf.ReadSize(); TriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); TriggerIds.Add(_e0);}}
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
@@ -44,27 +44,84 @@ public sealed partial class DRBuffs : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 持续标签模板 ID；0 表示不启用。
+    /// </summary>
     public readonly int ContinuousTagTemplateId;
-    public readonly string DispelBlockedByTagNames;
+    /// <summary>
+    /// 驱散阻断依据标签定义 ID 列表，逗号分隔。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> DispelBlockedByTagIds;
+    /// <summary>
+    /// 驱散类别；用于Buff配置。
+    /// </summary>
     public readonly int DispelCategory;
-    public readonly int DispelPolicy;
+    /// <summary>
+    /// 驱散策略；按 BuffDispelPolicy 枚举或 bean 定义填写。
+    /// </summary>
+    public readonly BuffDispelPolicy DispelPolicy;
+    /// <summary>
+    /// 持续时间，单位毫秒；0 的含义以对应运行时逻辑为准。
+    /// </summary>
     public readonly int DurationMs;
+    /// <summary>
+    /// 周期执行间隔，单位毫秒。
+    /// </summary>
     public readonly int IntervalMs;
+    /// <summary>
+    /// 最大层数；用于Buff配置。
+    /// </summary>
     public readonly int MaxStacks;
-    public readonly string Modifiers;
+    /// <summary>
+    /// 有序修饰器定义 ID 列表；顺序影响应用次序。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> ModifierIds;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// Buff 添加时执行的触发器 ID 列表；历史字段名为 Effects。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> OnAddEffects;
+    /// <summary>
+    /// Buff 周期触发器 ID 列表；历史字段名为 Effects。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> OnIntervalEffects;
+    /// <summary>
+    /// Buff 移除时执行的触发器 ID 列表；历史字段名为 Effects。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> OnRemoveEffects;
+    /// <summary>
+    /// 表现模板 ID；用于复用挂点、跟随与外观配置。
+    /// </summary>
     public readonly int PresentationTemplateId;
-    public readonly int RefreshPolicy;
-    public readonly int StackingPolicy;
-    public readonly string TagNames;
+    /// <summary>
+    /// 刷新策略；按 BuffRefreshPolicy 枚举或 bean 定义填写。
+    /// </summary>
+    public readonly BuffRefreshPolicy RefreshPolicy;
+    /// <summary>
+    /// 叠层策略；按 BuffStackingPolicy 枚举或 bean 定义填写。
+    /// </summary>
+    public readonly BuffStackingPolicy StackingPolicy;
+    /// <summary>
+    /// 授予或携带的标签定义 ID 列表，逗号分隔。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> TagIds;
+    /// <summary>
+    /// 触发器 ID 列表；由 Trigger Authoring 发布，逗号分隔。
+    /// </summary>
     public readonly System.Collections.Generic.List<int> TriggerIds;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = -1662129518;
@@ -79,13 +136,13 @@ public sealed partial class DRBuffs : Luban.BeanBase
         return "{ "
         + "Id:" + Id + ","
         + "ContinuousTagTemplateId:" + ContinuousTagTemplateId + ","
-        + "DispelBlockedByTagNames:" + DispelBlockedByTagNames + ","
+        + "DispelBlockedByTagIds:" + Luban.StringUtil.CollectionToString(DispelBlockedByTagIds) + ","
         + "DispelCategory:" + DispelCategory + ","
         + "DispelPolicy:" + DispelPolicy + ","
         + "DurationMs:" + DurationMs + ","
         + "IntervalMs:" + IntervalMs + ","
         + "MaxStacks:" + MaxStacks + ","
-        + "Modifiers:" + Modifiers + ","
+        + "ModifierIds:" + Luban.StringUtil.CollectionToString(ModifierIds) + ","
         + "Name:" + Name + ","
         + "OnAddEffects:" + Luban.StringUtil.CollectionToString(OnAddEffects) + ","
         + "OnIntervalEffects:" + Luban.StringUtil.CollectionToString(OnIntervalEffects) + ","
@@ -93,7 +150,7 @@ public sealed partial class DRBuffs : Luban.BeanBase
         + "PresentationTemplateId:" + PresentationTemplateId + ","
         + "RefreshPolicy:" + RefreshPolicy + ","
         + "StackingPolicy:" + StackingPolicy + ","
-        + "TagNames:" + TagNames + ","
+        + "TagIds:" + Luban.StringUtil.CollectionToString(TagIds) + ","
         + "TriggerIds:" + Luban.StringUtil.CollectionToString(TriggerIds) + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","

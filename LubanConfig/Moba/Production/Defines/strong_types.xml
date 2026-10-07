@@ -1,0 +1,365 @@
+<module name="">
+    <enum name="MobaAttributeValueKind">
+        <var name="Flat" value="0"/>
+        <var name="Percent" value="1"/>
+    </enum>
+    <enum name="BuffStackingPolicy">
+        <var name="None" value="0"/>
+        <var name="IgnoreIfExists" value="1"/>
+        <var name="Replace" value="2"/>
+        <var name="AddStack" value="3"/>
+        <var name="RefreshDuration" value="4"/>
+    </enum>
+    <enum name="BuffRefreshPolicy">
+        <var name="None" value="0"/>
+        <var name="KeepRemaining" value="1"/>
+        <var name="ResetRemaining" value="2"/>
+        <var name="AddRemaining" value="3"/>
+    </enum>
+    <enum name="BuffDispelPolicy">
+        <var name="LegacyTag" value="0"/>
+        <var name="Dispellable" value="1"/>
+        <var name="Undispellable" value="2"/>
+    </enum>
+    <enum name="MobaComponentOpKind">
+        <var name="None" value="0"/>
+        <var name="SetModelId" value="1"/>
+        <var name="SetLifetimeMs" value="2"/>
+    </enum>
+    <enum name="MobaModifierTargetKind">
+        <var name="Attribute" value="1"/>
+        <var name="StateMachineParameter" value="2"/>
+        <var name="StateFlag" value="3"/>
+        <var name="SkillParameter" value="4"/>
+        <var name="SkillSlotCandidate" value="5"/>
+        <var name="ParameterReferenceCandidate" value="6"/>
+        <var name="Custom" value="255"/>
+    </enum>
+    <enum name="ModifierParameterDomain">
+        <var name="Skill" value="1"/>
+        <var name="Projectile" value="2"/>
+        <var name="Summon" value="3"/>
+        <var name="Buff" value="4"/>
+        <var name="Aoe" value="5"/>
+        <var name="Damage" value="6"/>
+        <var name="Emitter" value="7"/>
+    </enum>
+    <enum name="ModifierParameterValueKind">
+        <var name="ReferenceId" value="1"/>
+        <var name="Integer" value="2"/>
+        <var name="Float" value="3"/>
+    </enum>
+    <enum name="ModifierParameterResolveAt">
+        <var name="Action" value="1"/>
+        <var name="Launch" value="2"/>
+        <var name="BuffApply" value="3"/>
+        <var name="AreaSpawn" value="4"/>
+        <var name="Emit" value="5"/>
+        <var name="ProjectileSpawn" value="6"/>
+        <var name="Hit" value="7"/>
+        <var name="SummonCreate" value="8"/>
+    </enum>
+    <enum name="ModifierOp">
+        <var name="Add" value="0"/>
+        <var name="Mul" value="1"/>
+        <var name="Override" value="2"/>
+        <var name="PercentAdd" value="3"/>
+        <var name="Custom" value="100"/>
+    </enum>
+    <enum name="MagnitudeSourceType">
+        <var name="Fixed" value="0"/>
+        <var name="Scalable" value="1"/>
+        <var name="Attribute" value="2"/>
+        <var name="TimeDecay" value="3"/>
+        <var name="Pipeline" value="4"/>
+        <var name="ContextFloat" value="5"/>
+        <var name="LinearFormula" value="6"/>
+    </enum>
+    <enum name="ModifierEvaluationPolicy">
+        <var name="Realtime" value="0"/>
+        <var name="OnApplySnapshot" value="1"/>
+    </enum>
+    <enum name="ModifierAttributeSourceRole">
+        <var name="Owner" value="0"/>
+        <var name="Source" value="1"/>
+        <var name="Target" value="2"/>
+    </enum>
+    <enum name="ModifierTemplateKind">
+        <var name="Buff" value="0"/>
+        <var name="ContinuousProcess" value="1"/>
+    </enum>
+    <enum name="MobaTagNamespace">
+        <var name="GameplayState" value="1"/>
+        <var name="SkillSelection" value="2"/>
+    </enum>
+    <enum name="MobaTagKind">
+        <var name="Category" value="0"/>
+        <var name="Fact" value="1"/>
+    </enum>
+    <enum name="MobaTagStatus">
+        <var name="Active" value="0"/>
+        <var name="Planned" value="1"/>
+    </enum>
+    <enum name="MobaTagBehaviorGate">
+        <var name="Targetable" value="1"/>
+        <var name="Damageable" value="2"/>
+        <var name="Cast" value="3"/>
+        <var name="Stunned" value="4"/>
+        <var name="Move" value="5"/>
+        <var name="Attack" value="6"/>
+        <var name="Controlled" value="7"/>
+    </enum>
+    <enum name="TagRuleOperator">
+        <var name="Tag" value="1"/>
+        <var name="All" value="2"/>
+        <var name="Any" value="3"/>
+        <var name="Not" value="4"/>
+        <var name="GroupRef" value="5"/>
+    </enum>
+    <enum name="SearchQueryExplicitTargetPolicy">
+        <var name="PreferExplicitTarget" value="0"/>
+        <var name="SearchWhenMissing" value="1"/>
+        <var name="IgnoreExplicitTarget" value="2"/>
+    </enum>
+    <enum name="SearchTargetProviderKind">
+        <var name="AllActors" value="1"/>
+        <var name="ExplicitTarget" value="2"/>
+        <var name="ContextTarget" value="3"/>
+        <var name="Caster" value="4"/>
+        <var name="SameTeam" value="5"/>
+        <var name="EnemyTeam" value="6"/>
+        <var name="MainType" value="7"/>
+        <var name="UnitSubType" value="8"/>
+    </enum>
+    <enum name="SearchTargetSelectorKind">
+        <var name="TopKByScore" value="4097"/>
+        <var name="StreamingTopKByScore" value="4098"/>
+    </enum>
+    <enum name="SearchTargetRuleKind">
+        <var name="CircleShape" value="257"/>
+        <var name="SectorShape" value="258"/>
+        <var name="Whitelist" value="513"/>
+        <var name="Blacklist" value="514"/>
+        <var name="RequireValidId" value="516"/>
+        <var name="RequireHasPosition" value="517"/>
+        <var name="ExcludeCaster" value="769"/>
+        <var name="ExcludeExplicitTarget" value="770"/>
+        <var name="RectangleShape" value="771"/>
+        <var name="CapsuleShape" value="772"/>
+    </enum>
+    <enum name="SearchTargetScorerKind">
+        <var name="Zero" value="8193"/>
+        <var name="SeededHashRandom" value="8194"/>
+        <var name="DistanceToCaster" value="8196"/>
+        <var name="DistanceToExplicitTarget" value="8197"/>
+    </enum>
+    <enum name="SearchTargetPointKind">
+        <var name="Caster" value="0"/>
+        <var name="AimPosition" value="1"/>
+        <var name="ExplicitTarget" value="2"/>
+    </enum>
+    <enum name="MapCollisionShapeType">
+        <var name="Box" value="0"/>
+        <var name="Sphere" value="1"/>
+        <var name="Capsule" value="2"/>
+    </enum>
+    <enum name="MapProjectileResponse">
+        <var name="Default" value="0"/>
+        <var name="Block" value="1"/>
+        <var name="Ignore" value="2"/>
+        <var name="HitOnly" value="3"/>
+        <var name="Pierce" value="4"/>
+    </enum>
+    <enum name="BattleRunMode">
+        <var name="Normal" value="0"/>
+        <var name="Record" value="1"/>
+        <var name="Replay" value="2"/>
+    </enum>
+    <enum name="BattleSyncMode">
+        <var name="Lockstep" value="0"/>
+        <var name="SnapshotAuthority" value="1"/>
+        <var name="StateSync" value="2"/>
+        <var name="Hybrid" value="3"/>
+    </enum>
+    <enum name="SkillType">
+        <var name="None" value="0"/>
+        <var name="NormalAttack" value="1"/>
+        <var name="Active" value="2"/>
+        <var name="Passive" value="3"/>
+        <var name="Ultimate" value="4"/>
+        <var name="ParallelActive" value="5"/>
+    </enum>
+    <enum name="SkillAimMode">
+        <var name="Direction" value="0"/>
+        <var name="Point" value="1"/>
+    </enum>
+    <enum name="SkillAimIndicatorShape">
+        <var name="Hidden" value="0"/>
+        <var name="DirectionLine" value="1"/>
+        <var name="TargetCircle" value="2"/>
+        <var name="SelfCircle" value="3"/>
+        <var name="Sector" value="4"/>
+        <var name="DirectionArea" value="5"/>
+        <var name="DashLine" value="6"/>
+        <var name="LockProjectile" value="7"/>
+        <var name="FanArea" value="8"/>
+    </enum>
+    <enum name="SkillUsePointMode">
+        <var name="None" value="0"/>
+        <var name="Aim" value="1"/>
+        <var name="TargetPoint" value="2"/>
+    </enum>
+    <enum name="ProjectileEmitterType">
+        <var name="None" value="0"/>
+        <var name="Linear" value="1"/>
+    </enum>
+    <enum name="ProjectileHitPolicyKind">
+        <var name="ExitOnHit" value="0"/>
+        <var name="Pierce" value="1"/>
+    </enum>
+    <enum name="SearchQueryCenterMode">
+        <var name="Caster" value="0"/>
+        <var name="AimPos" value="1"/>
+        <var name="ExplicitTarget" value="2"/>
+    </enum>
+    <bean name="SkillLevel" valueType="1" sep="|">
+        <var name="CooldownMs" type="int"/>
+        <var name="Cost" type="int"/>
+        <var name="Params" type="(list#sep=,),float"/>
+    </bean>
+    <bean name="ComponentOp" valueType="1" sep="|">
+        <var name="Kind" type="MobaComponentOpKind"/>
+        <var name="IntValue" type="int"/>
+        <var name="FloatValue" type="float"/>
+        <var name="BoolValue" type="bool"/>
+    </bean>
+    <bean name="ModifierFormulaTerm" valueType="1" sep="|">
+        <var name="ActorRole" type="ModifierAttributeSourceRole"/>
+        <var name="AttributeTypeId" type="int"/>
+        <var name="Coefficient" type="float"/>
+    </bean>
+    <bean name="BuffModifier" valueType="1" sep="|">
+        <var name="TargetKind" type="MobaModifierTargetKind"/>
+        <var name="TargetId" type="int"/>
+        <var name="Op" type="ModifierOp"/>
+        <var name="Value" type="float"/>
+        <var name="Priority" type="int"/>
+        <var name="MagnitudeSourceType" type="MagnitudeSourceType"/>
+        <var name="MagnitudeBaseValue" type="float"/>
+        <var name="MagnitudeCoefficient" type="float"/>
+        <var name="MagnitudeDuration" type="float"/>
+        <var name="MagnitudeDecayType" type="int"/>
+        <var name="MagnitudeAttributeTypeId" type="int"/>
+        <var name="MagnitudeContextKey" type="string"/>
+        <var name="MagnitudeCurve" type="(list#sep=,),float"/>
+        <var name="EvaluationPolicy" type="ModifierEvaluationPolicy"/>
+        <var name="AttributeSourceRole" type="ModifierAttributeSourceRole"/>
+        <var name="SelectorSlot" type="int"/>
+        <var name="SelectorBaseSkillId" type="int"/>
+        <var name="SelectorEffectiveSkillId" type="int"/>
+        <var name="SelectorLauncherTemplateId" type="int"/>
+        <var name="SelectorProjectileTemplateId" type="int"/>
+        <var name="SelectorAreaTemplateId" type="int"/>
+        <var name="SelectorSummonTemplateId" type="int"/>
+        <var name="SelectorBuffTemplateId" type="int"/>
+        <var name="CandidateSkillId" type="int"/>
+        <var name="CandidateReferenceId" type="int"/>
+        <var name="FormulaConstant" type="float"/>
+        <var name="FormulaLevelCoefficient" type="float"/>
+        <var name="FormulaTerms" type="(list#sep=,),ModifierFormulaTerm"/>
+    </bean>
+    <bean name="ContinuousProcessModifier" valueType="1" sep="|">
+        <var name="TargetKind" type="MobaModifierTargetKind"/>
+        <var name="TargetId" type="int"/>
+        <var name="Op" type="ModifierOp"/>
+        <var name="Value" type="float"/>
+        <var name="Priority" type="int"/>
+        <var name="MagnitudeSourceType" type="MagnitudeSourceType"/>
+        <var name="MagnitudeBaseValue" type="float"/>
+        <var name="MagnitudeCoefficient" type="float"/>
+        <var name="MagnitudeContextKey" type="string"/>
+        <var name="EvaluationPolicy" type="ModifierEvaluationPolicy"/>
+        <var name="AttributeSourceRole" type="ModifierAttributeSourceRole"/>
+        <var name="SelectorSlot" type="int"/>
+        <var name="SelectorBaseSkillId" type="int"/>
+        <var name="SelectorEffectiveSkillId" type="int"/>
+        <var name="SelectorLauncherTemplateId" type="int"/>
+        <var name="SelectorProjectileTemplateId" type="int"/>
+        <var name="SelectorAreaTemplateId" type="int"/>
+        <var name="SelectorSummonTemplateId" type="int"/>
+        <var name="SelectorBuffTemplateId" type="int"/>
+        <var name="CandidateSkillId" type="int"/>
+        <var name="CandidateReferenceId" type="int"/>
+        <var name="FormulaConstant" type="float"/>
+        <var name="FormulaLevelCoefficient" type="float"/>
+        <var name="FormulaTerms" type="(list#sep=,),ModifierFormulaTerm"/>
+    </bean>
+    <bean name="SearchTargetProvider" valueType="1" sep="|">
+        <var name="Kind" type="SearchTargetProviderKind"/>
+    </bean>
+    <bean name="SearchTargetSelector" valueType="1" sep="|">
+        <var name="Kind" type="SearchTargetSelectorKind"/>
+    </bean>
+    <bean name="SearchTargetRule" valueType="1" sep="|">
+        <var name="Kind" type="SearchTargetRuleKind"/>
+        <var name="Center" type="SearchTargetPointKind?"/>
+        <var name="Forward" type="SearchTargetPointKind?"/>
+        <var name="Radius" type="float?"/>
+        <var name="HalfAngleDeg" type="float?"/>
+    </bean>
+    <bean name="SearchTargetScorer" valueType="1" sep="|">
+        <var name="Kind" type="SearchTargetScorerKind"/>
+        <var name="Source" type="SearchTargetPointKind?"/>
+        <var name="RandomSeed" type="int?"/>
+    </bean>
+    <bean name="MapVector3" valueType="1" sep=",">
+        <var name="X" type="float"/>
+        <var name="Y" type="float"/>
+        <var name="Z" type="float"/>
+    </bean>
+    <bean name="MapBounds" valueType="1" sep="|">
+        <var name="Center" type="MapVector3"/>
+        <var name="Size" type="MapVector3"/>
+    </bean>
+    <bean name="MapWalkableArea" valueType="1" sep="|">
+        <var name="Id" type="int"/>
+        <var name="Name" type="string"/>
+        <var name="Center" type="MapVector3"/>
+        <var name="Size" type="MapVector3"/>
+    </bean>
+    <bean name="MapSpawnPoint" valueType="1" sep="|">
+        <var name="Id" type="int"/>
+        <var name="TeamId" type="int"/>
+        <var name="Position" type="MapVector3"/>
+        <var name="YawDegrees" type="float"/>
+    </bean>
+    <bean name="MapCollisionObject" valueType="1" sep="|">
+        <var name="Id" type="int"/>
+        <var name="Name" type="string"/>
+        <var name="ObjectType" type="string"/>
+        <var name="ShapeType" type="MapCollisionShapeType"/>
+        <var name="Position" type="MapVector3"/>
+        <var name="RotationEuler" type="MapVector3"/>
+        <var name="Size" type="MapVector3"/>
+        <var name="Radius" type="float"/>
+        <var name="Height" type="float"/>
+        <var name="CollisionLayer" type="int"/>
+        <var name="BlocksMovement" type="bool"/>
+        <var name="ProjectileResponse" type="MapProjectileResponse"/>
+        <var name="GenerateView" type="bool"/>
+    </bean>
+    <bean name="BattleNetwork" valueType="1" sep="|">
+        <var name="Host" type="string"/>
+        <var name="Port" type="int"/>
+    </bean>
+    <bean name="BattlePlayer" valueType="1" sep="|">
+        <var name="PlayerId" type="string"/>
+        <var name="TeamId" type="int"/>
+        <var name="HeroId" type="int"/>
+        <var name="Name" type="string"/>
+        <var name="PositionX" type="float"/>
+        <var name="PositionZ" type="float"/>
+        <var name="BrainId" type="int?"/>
+        <var name="EnableBrainOnSpawn" type="bool?"/>
+    </bean>
+</module>

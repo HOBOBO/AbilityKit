@@ -38,6 +38,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn = null;
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
+        [WorldInject(required: false)] private MobaSkillParamModifierService _paramModifiers = null;
         [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
         [WorldInject(required: false)] private IMobaRuntimeObjectLifecycleHook _objectLifecycle = null;
         [WorldInject(required: false)] private IMobaRuntimeObjectBootstrapRegistry _objectBootstrap = null;
@@ -79,12 +80,16 @@ namespace AbilityKit.Demo.Moba.Services
             return TrySummonInternal(casterActorId, summonId, in pos, hasForward: true, forward: in forward, sourceContext: in sourceContext, out _);
         }
 
-        public bool TrySummon(int casterActorId, int summonId, in Vec3 pos, in Vec3 forward, in SummonSourceContext sourceContext, out int summonActorId)
+        public bool TrySummon(int casterActorId, int summonId, in Vec3 pos, in Vec3 forward, in SummonSourceContext sourceContext, out int summonActorId, int durationOverrideMs = 0)
         {
-            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: true, forward: in forward, sourceContext: in sourceContext, out summonActorId);
+            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: true, forward: in forward, sourceContext: in sourceContext, out summonActorId, durationOverrideMs);
         }
 
-        private bool TrySummonInternal(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward, in SummonSourceContext sourceContext, out int summonActorId)
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Summon.Ids.LifetimeMs,
+            MobaParameterStage.SummonCreate, MobaModifierSampleTiming.CreateSnapshot)]
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Summon.Ids.InheritRatioScale,
+            MobaParameterStage.SummonCreate, MobaModifierSampleTiming.CreateSnapshot)]
+        private bool TrySummonInternal(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward, in SummonSourceContext sourceContext, out int summonActorId, int durationOverrideMs = 0)
         {
             summonActorId = 0;
             if (casterActorId <= 0) return false;
@@ -94,6 +99,26 @@ namespace AbilityKit.Demo.Moba.Services
             if (_config == null) return false;
 
             if (!_config.TryGetSummon(summonId, out var summon) || summon == null) return false;
+            var lifetimeMs = durationOverrideMs > 0 ? durationOverrideMs : summon.LifetimeMs;
+            var inheritRatioScale = 1f;
+            if (_paramModifiers != null)
+            {
+                var skillHandle = sourceContext.SkillRuntimeHandle;
+                var record = MobaParameterRecord.FromSkillRuntime(MobaParameterStage.SummonCreate,
+                    _skillRuntimes, in skillHandle, summonTemplateId: summonId);
+                try
+                {
+                    lifetimeMs = _paramModifiers.Summon.ResolveLifetimeMs(casterActorId, lifetimeMs, in record);
+                    inheritRatioScale = _paramModifiers.Summon.ResolveInheritRatioScale(
+                        casterActorId, inheritRatioScale, in record);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    Log.Warning($"[MobaSummonService] summon lifetime rejected. summonId={summonId} casterActorId={casterActorId} error={ex.Message}");
+                    return false;
+                }
+            }
+            if (lifetimeMs < 0) return false;
 
             if (!_entities.TryGetActorEntity(casterActorId, out var caster) || caster == null || !caster.hasTransform)
             {
@@ -123,8 +148,8 @@ namespace AbilityKit.Demo.Moba.Services
                 SetSummonMeta = true,
                 SummonId = summonId,
                 DespawnOnOwnerDie = summon.DespawnOnOwnerDie,
-                SetLifetime = summon.LifetimeMs > 0,
-                LifetimeEndTimeMs = summon.LifetimeMs > 0 ? NowMs() + summon.LifetimeMs : 0L,
+                SetLifetime = lifetimeMs > 0,
+                LifetimeEndTimeMs = lifetimeMs > 0 ? NowMs() + lifetimeMs : 0L,
                 SetModelId = summon.ModelId > 0,
                 ModelId = summon.ModelId,
                 SetBrain = summon.BrainId > 0,
@@ -165,7 +190,7 @@ namespace AbilityKit.Demo.Moba.Services
                 }
 
                 // 继承属性配置：按 施法者属性 × Ratio + Add 覆写召唤物属性基础值
-                TryApplyInheritAttributes(entity, caster, summon);
+                TryApplyInheritAttributes(entity, caster, summon, inheritRatioScale);
 
                 TryApplyDefaultComponentTemplates(entity, summon.DefaultComponentTemplateIds);
 
@@ -209,7 +234,8 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private void TryApplyInheritAttributes(global::ActorEntity entity, global::ActorEntity caster, Config.BattleDemo.MO.SummonMO summon)
+        private void TryApplyInheritAttributes(global::ActorEntity entity, global::ActorEntity caster,
+            Config.BattleDemo.MO.SummonMO summon, float inheritRatioScale)
         {
             if (summon.InheritAttributeConfigId <= 0) return;
             if (_config == null) return;
@@ -231,7 +257,7 @@ namespace AbilityKit.Demo.Moba.Services
                 if (attrId.Equals(default(AbilityKit.Attributes.Core.AttributeId))) continue;
 
                 var casterValue = casterGroup.GetValue(attrId);
-                var inherited = casterValue * scale.Ratio + scale.Add;
+                var inherited = casterValue * (scale.Ratio * inheritRatioScale) + scale.Add;
                 summonGroup.SetBase(attrId, inherited);
             }
         }

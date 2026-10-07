@@ -414,7 +414,8 @@ namespace AbilityKit.Demo.Moba.Services
                     var aimDir = state.AimDir;
                     var request = new MobaSkillCastRuntimeCreateRequest(
                         state.SkillId, state.SkillSlot, state.SkillLevel, state.Sequence, state.CasterActorId,
-                        state.TargetActorId, in aimPos, in aimDir, state.RootContextId);
+                        state.TargetActorId, in aimPos, in aimDir, state.RootContextId,
+                        baseSkillId: state.BaseSkillId);
                     runtime = new MobaSkillCastRuntime(state.RuntimeId, state.Generation, in request);
                 }
                 runtime.RestoreRollbackSnapshot(in state);

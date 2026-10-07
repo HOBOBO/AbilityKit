@@ -27,6 +27,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
         private readonly BuffRuntimeBindingCoordinator _bindings;
         private readonly BuffEndFlow _endFlow;
         private readonly BuffLifecycleNotifier _notifier;
+        private readonly MobaSkillParamModifierService _paramModifiers;
+        private readonly MobaSkillCastRuntimeService _skillRuntimes;
 
         public BuffApplyFlow(
             MobaConfigDatabase configs,
@@ -38,7 +40,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             BuffStackingPolicyApplier stacking,
             BuffRuntimeBindingCoordinator bindings,
             BuffEndFlow endFlow,
-            BuffLifecycleNotifier notifier)
+            BuffLifecycleNotifier notifier,
+            MobaSkillParamModifierService paramModifiers = null,
+            MobaSkillCastRuntimeService skillRuntimes = null)
         {
             _configs = configs;
             _actors = actors;
@@ -50,10 +54,14 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             _bindings = bindings;
             _endFlow = endFlow;
             _notifier = notifier;
+            _paramModifiers = paramModifiers;
+            _skillRuntimes = skillRuntimes;
         }
 
         public BuffLifecycleRejectResult LastReject { get; private set; }
 
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Buff.Ids.DurationMs,
+            MobaParameterStage.BuffApply, MobaModifierSampleTiming.CreateSnapshot)]
         public bool Apply(in BuffApplyRequest request)
         {
             LastReject = BuffLifecycleRejectResult.None;
@@ -71,6 +79,18 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             if (list == null) return Reject(BuffLifecycleRejectCode.ApplyRuntimeListUnavailable, $"buff runtime list is unavailable. target={targetActorId} buffId={request.BuffId} source={request.SourceActorId}.");
 
             var duration = request.DurationOverrideMs > 0 ? request.DurationOverrideMs : buff.DurationMs;
+            if (_paramModifiers != null && request.SourceActorId > 0)
+            {
+                var skillHandle = request.SkillRuntimeHandle;
+                var record = MobaParameterRecord.FromSkillRuntime(MobaParameterStage.BuffApply,
+                    _skillRuntimes, in skillHandle,
+                    projectileTemplateId: request.Origin.ProjectileTemplateId,
+                    buffTemplateId: request.BuffId);
+                duration = _paramModifiers.Buff.ResolveDurationMs(request.SourceActorId, duration, in record);
+            }
+            if (duration < 0)
+                return Reject(BuffLifecycleRejectCode.ApplyInvalidRequest,
+                    $"resolved buff duration is negative. buffId={request.BuffId} durationMs={duration}.");
             var context = new BuffOperationContext
             {
                 ApplyRequest = request,
@@ -231,7 +251,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
 
             Exception firstFailure = null;
             TryStep(() => _bindings?.EndContinuous(runtime, MobaExecutionEndReason.Failed), ref firstFailure);
-            TryStep(() => _bindings?.CleanupContinuous(target, targetActorId, runtime, applyRemovalTags: false), ref firstFailure);
+            TryStep(() => _bindings?.CleanupContinuous(target, targetActorId, runtime, invalidateTags: false), ref firstFailure);
             TryStep(() => _ctx?.CancelAndEnd(runtime), ref firstFailure);
             TryStep(() => _endFlow.ReleaseSkillRuntime(runtime), ref firstFailure);
             TryStep(() => _endFlow.NotifyLifecycle(runtime, MobaRuntimeLifecycleEventKind.Failed, "buff.lifecycle.activateFailed"), ref firstFailure);

@@ -1,5 +1,7 @@
 # 5.7 MOBA CodeGen 与 Luban 生产链：项目清单、候选数据和发布边界
 
+> 下文的 `.generated` 候选流程和 `LubanGen` 路径是历史审计记录，对应代码已清理。当前生产入口是 [export_pipeline.py](../../../LubanConfig/Moba/export_pipeline.py)，规则模块及发布命令见 [MOBA Luban 配置管线](../../../LubanConfig/Moba/README.md)。
+
 > 本文说明当前仓库真实存在的编译期与导表链路。MOBA CodeGen 是示例项目的应用层编译资产，Luban 脚本是项目内容生产工具；二者都不构成 AbilityKit 框架默认的战斗应用套件。
 
 ---

@@ -72,7 +72,8 @@ namespace AbilityKit.Demo.Moba.Services
                 snapshot,
                 handle,
                 frame != 0 ? frame : executionContext.Frame,
-                executionContext.CombatFacts);
+                executionContext.CombatFacts,
+                executionContext.ProjectileTemplateId);
         }
 
         private static MobaSkillCastRuntimeHandle ResolveSkillRuntimeHandle(

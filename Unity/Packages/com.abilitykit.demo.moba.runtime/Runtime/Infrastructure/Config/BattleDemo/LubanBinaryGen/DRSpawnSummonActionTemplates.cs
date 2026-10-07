@@ -50,33 +50,108 @@ public sealed partial class DRSpawnSummonActionTemplates : Luban.BeanBase
     }
 
     /// <summary>
-    /// Generated once from the runtime JSON baseline; edit Excel after migration.
+    /// 本表记录的唯一 ID；其他表按该值引用。
     /// </summary>
     public readonly int Id;
+    /// <summary>
+    /// 弧线角度，单位度。
+    /// </summary>
     public readonly int ArcAngleDeg;
+    /// <summary>
+    /// 网格列数；用于召唤动作模板配置。
+    /// </summary>
     public readonly int GridCols;
+    /// <summary>
+    /// 网格行数；用于召唤动作模板配置。
+    /// </summary>
     public readonly int GridRows;
+    /// <summary>
+    /// 网格间距X；用于召唤动作模板配置。
+    /// </summary>
     public readonly int GridSpacingX;
+    /// <summary>
+    /// 网格间距Z；用于召唤动作模板配置。
+    /// </summary>
     public readonly int GridSpacingZ;
+    /// <summary>
+    /// 周期执行间隔，单位毫秒。
+    /// </summary>
     public readonly int IntervalMs;
+    /// <summary>
+    /// 编辑器和调试时显示的名称。
+    /// </summary>
     public readonly string Name;
+    /// <summary>
+    /// 拥有者键模式；用于召唤动作模板配置。
+    /// </summary>
     public readonly int OwnerKeyMode;
+    /// <summary>
+    /// 模式数量；用于召唤动作模板配置。
+    /// </summary>
     public readonly int PatternCount;
+    /// <summary>
+    /// 模式模式；用于召唤动作模板配置。
+    /// </summary>
     public readonly int PatternMode;
+    /// <summary>
+    /// 每点位旋转模式；用于召唤动作模板配置。
+    /// </summary>
     public readonly int PerPointRotationMode;
+    /// <summary>
+    /// 每点位偏航角偏移，单位度。
+    /// </summary>
     public readonly int PerPointYawOffsetDeg;
+    /// <summary>
+    /// 位置模式；用于召唤动作模板配置。
+    /// </summary>
     public readonly int PositionMode;
+    /// <summary>
+    /// 半径，使用战斗世界单位。
+    /// </summary>
     public readonly int Radius;
+    /// <summary>
+    /// 随机半径最大；用于召唤动作模板配置。
+    /// </summary>
     public readonly int RandomRadiusMax;
+    /// <summary>
+    /// 随机半径最小；用于召唤动作模板配置。
+    /// </summary>
     public readonly int RandomRadiusMin;
+    /// <summary>
+    /// 随机种子；用于召唤动作模板配置。
+    /// </summary>
     public readonly int RandomSeed;
+    /// <summary>
+    /// 旋转模式；用于召唤动作模板配置。
+    /// </summary>
     public readonly int RotationMode;
+    /// <summary>
+    /// 间距；用于召唤动作模板配置。
+    /// </summary>
     public readonly float Spacing;
+    /// <summary>
+    /// 开始角度，单位度。
+    /// </summary>
     public readonly int StartAngleDeg;
+    /// <summary>
+    /// 召唤物 ID，引用召唤物表。
+    /// </summary>
     public readonly int SummonId;
+    /// <summary>
+    /// 目标模式；用于召唤动作模板配置。
+    /// </summary>
     public readonly int TargetMode;
+    /// <summary>
+    /// 偏航角偏移，单位度。
+    /// </summary>
     public readonly int YawOffsetDeg;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// </summary>
     public readonly string OmittedFields;
+    /// <summary>
+    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// </summary>
     public readonly string NullFields;
    
     public const int __ID__ = 2126270709;

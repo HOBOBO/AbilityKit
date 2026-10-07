@@ -1,0 +1,117 @@
+[
+  {
+    "Id": 200001,
+    "Resource": "effect/bullet_1",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90001001,
+    "Resource": "effect/lianpo_skill2_circle",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90002001,
+    "Resource": "effect/xiaoqiao_skill1_fan",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90002002,
+    "Resource": "effect/xiaoqiao_skill2_lift",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90002003,
+    "Resource": "effect/xiaoqiao_skill3_star",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90003001,
+    "Resource": "effect/zhaoyun_skill1_thunder",
+    "DurationMs": 800
+  },
+  {
+    "Id": 90003002,
+    "Resource": "effect/zhaoyun_skill2_spear",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90003003,
+    "Resource": "effect/zhaoyun_skill3_landing",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90004001,
+    "Resource": "effect/mozi_skill1_shield",
+    "DurationMs": 800
+  },
+  {
+    "Id": 90004002,
+    "Resource": "effect/mozi_skill2_cannon",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90004004,
+    "Resource": "effect/mozi_skill2_crater",
+    "DurationMs": 2000
+  },
+  {
+    "Id": 90004003,
+    "Resource": "effect/mozi_skill3_barrier",
+    "DurationMs": 3500
+  },
+  {
+    "Id": 90005001,
+    "Resource": "effect/daji_skill1_soul_wave",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90005002,
+    "Resource": "effect/daji_basic_soul_orb",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90005003,
+    "Resource": "effect/daji_skill3_foxfire",
+    "DurationMs": 1600
+  },
+  {
+    "Id": 90005004,
+    "Resource": "effect/daji_skill3_foxfire",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90006001,
+    "Resource": "effect/yingzheng_skill1_sword_array",
+    "DurationMs": 1400
+  },
+  {
+    "Id": 90006002,
+    "Resource": "effect/yingzheng_skill2_guard",
+    "DurationMs": 3000
+  },
+  {
+    "Id": 90006003,
+    "Resource": "effect/yingzheng_skill3_flying_sword",
+    "DurationMs": 2500
+  },
+  {
+    "Id": 90002011,
+    "Resource": "effect/xiaoqiao_basic_fan",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90004011,
+    "Resource": "effect/mozi_basic_energy_orb",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90005011,
+    "Resource": "effect/daji_basic_soul_orb",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90006011,
+    "Resource": "effect/yingzheng_basic_sword",
+    "DurationMs": 0
+  }
+]

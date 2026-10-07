@@ -18,6 +18,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     {
         protected override IActionSchema<SpawnAreaArgs, IWorldResolver> Schema => SpawnAreaSchema.Instance;
 
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Aoe.Ids.Radius,
+            MobaParameterStage.AreaSpawn, MobaModifierSampleTiming.CreateSnapshot)]
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Aoe.Ids.DurationMs,
+            MobaParameterStage.AreaSpawn, MobaModifierSampleTiming.CreateSnapshot)]
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Aoe.Ids.IntervalMs,
+            MobaParameterStage.AreaSpawn, MobaModifierSampleTiming.CreateSnapshot)]
         protected override void Execute(object triggerArgs, SpawnAreaArgs args, ExecCtx<IWorldResolver> ctx)
         {
             LogInvestigation(ctx,
@@ -58,9 +64,35 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var radius = args.RadiusOverride > 0f ? args.RadiusOverride : aoe.Radius;
-            var lifetimeFrames = ResolveLifetimeFrames(args, aoe.DurationMs, ctx.Context);
+            var durationMs = args.DurationMs > 0 ? args.DurationMs : aoe.DurationMs;
+            var intervalMs = aoe.IntervalMs;
+            if (ctx.Context.TryResolve<MobaSkillParamModifierService>(out var paramModifiers) && paramModifiers != null)
+            {
+                ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var skillRuntimes);
+                var skillHandle = coreInput.ExecutionContext.SkillRuntimeHandle;
+                var record = MobaParameterRecord.FromSkillRuntime(MobaParameterStage.AreaSpawn,
+                    skillRuntimes, in skillHandle,
+                    projectileTemplateId: coreInput.ExecutionContext.ProjectileTemplateId,
+                    areaTemplateId: args.AreaId);
+                radius = paramModifiers.Aoe.ResolveRadius(input.CasterActorId, radius, in record);
+                if (args.DurationFrames <= 0)
+                    durationMs = paramModifiers.Aoe.ResolveDurationMs(input.CasterActorId, durationMs, in record);
+                if (args.StayIntervalFrames <= 0)
+                    intervalMs = paramModifiers.Aoe.ResolveIntervalMs(input.CasterActorId, intervalMs, in record);
+            }
+            if (radius <= 0f || float.IsNaN(radius) || float.IsInfinity(radius))
+            {
+                LogRejected(ctx, $"resolved area radius must be positive. areaId={args.AreaId} radius={radius}");
+                return;
+            }
+            var lifetimeFrames = ResolveLifetimeFrames(args, durationMs, ctx.Context);
             var collisionLayerMask = args.CollisionLayerMaskOverride != 0 ? args.CollisionLayerMaskOverride : aoe.CollisionLayerMask;
-            var stayIntervalFrames = ResolveStayIntervalFrames(args, aoe.IntervalMs, ctx.Context);
+            if (intervalMs < 0)
+            {
+                LogRejected(ctx, $"resolved area interval cannot be negative. areaId={args.AreaId} intervalMs={intervalMs}");
+                return;
+            }
+            var stayIntervalFrames = ResolveStayIntervalFrames(args, intervalMs, ctx.Context);
             var delayFrames = ResolveDelayFrames(aoe.DelayMs, ctx.Context);
             var frame = ResolveFrame(ctx.Context);
             var offset = new Vec3(aoe.OffsetX + args.OffsetX, aoe.OffsetY + args.OffsetY, aoe.OffsetZ + args.OffsetZ);
@@ -300,11 +332,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return frameTime.TimeToFrame(frameTime.Time + seconds).Value - frameTime.Frame.Value;
         }
 
-        private static int ResolveLifetimeFrames(SpawnAreaArgs args, int configDurationMs, IWorldResolver services)
+        private static int ResolveLifetimeFrames(SpawnAreaArgs args, int durationMs, IWorldResolver services)
         {
             if (args.DurationFrames > 0) return args.DurationFrames;
-
-            var durationMs = args.DurationMs > 0 ? args.DurationMs : configDurationMs;
             if (durationMs <= 0)
             {
                 throw new InvalidOperationException($"SpawnArea requires a positive duration. areaId={args.AreaId}");

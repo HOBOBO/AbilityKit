@@ -50,6 +50,13 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         public static TriggerAuthoringProjectValidationResult Validate(TriggerAuthoringProjectAsset project)
         {
+            return Validate(project, null);
+        }
+
+        public static TriggerAuthoringProjectValidationResult Validate(
+            TriggerAuthoringProjectAsset project,
+            IReadOnlyList<TriggerAuthoringModuleAsset> selectedModules)
+        {
             var result = new TriggerAuthoringProjectValidationResult();
             if (project == null)
             {
@@ -67,7 +74,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             ValidateEventCatalog(project, result);
             ValidateGlobalBlackboardCatalog(project, result);
             ValidateTemplates(project, result);
-            ValidateModules(project, result);
+            ValidateModules(project, result, selectedModules);
             return result;
         }
 
@@ -156,9 +163,10 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static void ValidateModules(
             TriggerAuthoringProjectAsset project,
-            TriggerAuthoringProjectValidationResult result)
+            TriggerAuthoringProjectValidationResult result,
+            IReadOnlyList<TriggerAuthoringModuleAsset> selectedModules)
         {
-            var modules = project.Modules;
+            var modules = selectedModules ?? project.Modules;
             if (modules == null || modules.Count == 0)
             {
                 AddWarning(result, "TRG3040", "project.modules", "项目中没有模块资产。");

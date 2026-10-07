@@ -123,14 +123,15 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 var actorId = harness.AssertPlayerActorBound();
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
-                var cast = skills.TryCastBySlot(actorId, slot: 1, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
+                var cast = skills.TryCastBySlot(actorId, slot: 1, aimPos: default, aimDir: new Vec3(1f, 0f, -1.5f), targetActorId: 0);
                 Assert.IsTrue(cast.Success, $"Xiao Qiao skill 1 cast should succeed before checking projectile return. failReason={cast.FailReason}");
 
                 var spawn = TickUntilProjectileSpawnSnapshot(harness, templateId: 30020101, maxTicks: 30);
                 Assert.Greater(spawn.ProjectileId, 0, "The fan projectile spawn should expose the runtime projectile id for return validation.");
 
                 var exit = TickUntilProjectileExitSnapshot(harness, spawn.ProjectileId, maxTicks: 90);
-                Assert.AreEqual((int)ProjectileExitReason.ReturnArrived, exit.ExitReason, $"Xiao Qiao fan should return to the caster instead of being lost or ending by max distance. exitReason={exit.ExitReason}");
+                Assert.AreEqual((int)ProjectileExitReason.ReturnArrived, exit.ExitReason,
+                    $"Xiao Qiao fan should return to the caster. exitReason={exit.ExitReason}, exit=({exit.X:F2},{exit.Y:F2},{exit.Z:F2}), spawn=({spawn.X:F2},{spawn.Y:F2},{spawn.Z:F2})");
                 Assert.AreEqual(actorId, exit.RootActorId, "The returning fan should keep Xiao Qiao as its root actor for caster-position return targeting.");
             }
         }
@@ -264,6 +265,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 var castResult = skills.TryCastBySlot(playerActorId, slot: 1, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
                 Assert.IsTrue(castResult.Success, $"Xiao Qiao skill 1 cast should succeed in the passive contract test. failReason={castResult.FailReason}");
 
+                harness.TickUntilSkillStops(playerActorId, 1, maxTicks: 120, message: "Xiao Qiao skill 1 must complete before its cast-complete passive is checked.");
+
                 harness.TickUntilTraceNode(MobaExecutionKind.SkillCast, 10020101, maxTicks: 10, message: "Xiao Qiao skill 1 should emit SkillCast after direct cast.");
                 harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, 10020101, maxTicks: 10, message: "Xiao Qiao skill 1 should execute effect 10020101 after direct cast.");
                 harness.TickUntilTraceNode(MobaExecutionKind.BuffApply, passiveBuffId, maxTicks: 30, message: "Xiao Qiao passive should apply buff 10020001 after skill cast completes.");
@@ -295,6 +298,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 var firstCast = skills.TryCastBySlot(playerActorId, slot: 1, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
                 Assert.IsTrue(firstCast.Success, $"Xiao Qiao first skill 1 cast should succeed. failReason={firstCast.FailReason}");
+                harness.TickUntilSkillStops(playerActorId, 1, maxTicks: 120, message: "Xiao Qiao first cast must complete before its passive is checked.");
                 TickUntilActorBuff(harness, playerActorId, passiveBuffId, maxTicks: 30, message: "Xiao Qiao passive should apply the speed buff after the first cast completes.");
 
                 Assert.AreEqual(buffedMoveSpeed, harness.GetActorMoveSpeed(playerActorId), 0.01f, "The first passive application should raise move speed.");

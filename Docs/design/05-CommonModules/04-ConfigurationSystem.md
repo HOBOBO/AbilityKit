@@ -1,5 +1,7 @@
 # 5.4 配置系统
 
+> 本文中的 `MiniTemplate`、`cfg.Tables` 和 `LubanGen` 内容只保留作历史背景，对应代码已清理。当前生产入口、业务规则扩展和发布顺序以 [MOBA Luban 配置管线](../../../LubanConfig/Moba/README.md) 为准。
+
 > 基于真实源码说明 AbilityKit 的配置体系：通用 `AbilityKit.Ability.Config` 配置数据库，以及 MOBA 示例围绕它扩展的表目录、生成清单、Luban/JSON/字节加载、业务校验和多端接入。两者处于不同所有权层级，不能合并声明为框架默认应用套件。
 
 ---
@@ -101,12 +103,9 @@ AbilityKit 的配置系统不是一个单一的 `JsonConfigLoader`，而是一�
 |------|------|
 | [MobaBattleConfigReferenceValidator.cs](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs) | 校验战斗配置跨表引用、数值合法性、触发器引用、技能流结构等。 |
 | [MobaTriggerPlanIntegrityValidator.cs](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaTriggerPlanIntegrityValidator.cs) | 校验 TriggerPlan 数据库、事件订阅、Action Schema、Action 参数和数值引用。 |
-| [ConsoleConfigModule.cs](../../../src/AbilityKit.Demo.Moba.Console/Bootstrap/ConsoleConfigModule.cs) | Console 端 DI 注册配置加载器、MOBA 配置库、Luban 加载器和 TriggerPlan JSON 数据库。 |
-| [ConsoleLubanConfigLoader.cs](../../../src/AbilityKit.Demo.Moba.Console/Bootstrap/ConsoleLubanConfigLoader.cs) | Console 端 Luban `cfg.Tables` 加载与适配。 |
+| [ConsoleConfigModule.cs](../../../src/AbilityKit.Demo.Moba.Console/Bootstrap/ConsoleConfigModule.cs) | Console 端 DI 注册配置加载器、MOBA 配置库、Luban 配置组和 TriggerPlan JSON 数据库。 |
 | [PlayerSpawnBuilder.cs](../../../src/AbilityKit.Demo.ET.Logic/Model/Driver/Player/PlayerSpawnBuilder.cs) | ET 逻辑层通过 `MobaConfigDatabase` 构造玩家出生数据。 |
-| [export_moba_configs.ps1](../../../LubanConfig/Moba/export_moba_configs.ps1) | 离线运行 Luban，导出 JSON 数据和 C# 代码，并复制到 Unity Resources、Console Configs 与 runtime `LubanGen`。 |
-| [convert_to_source_format.ps1](../../../LubanConfig/Moba/convert_to_source_format.ps1) | 将运行时 Trigger JSON 转成 source authoring 格式，补充 schema、metadata、actions 与 conditions。 |
-| [split_trigger_configs.ps1](../../../LubanConfig/Moba/split_trigger_configs.ps1) | 将聚合 Trigger 配置拆分成按业务分类存放的单触发器 JSON，可输出运行时格式或 source 格式。 |
+| [export_moba_configs.ps1](../../../LubanConfig/Moba/export_moba_configs.ps1) | 转发到生产导出管线，发布 JSON、二进制与 runtime `LubanBinaryGen`。 |
 
 ---
 
@@ -357,7 +356,7 @@ flowchart LR
 
 `tools/sync_moba_json_configs.ps1` 只拥有 `moba` 与 `ability` 两个发布面，默认或 `-Check` 只做语义 JSON 漂移审计，`-DryRun` 展示变更，只有显式 `-Apply` 才发布 package 到 Console。`-DeleteExtra` 也只作用于上述目录，因此不会删除 Console 独有配置。脚本拒绝非 package 权威源以及任何指向 Unity 的副本目标。
 
-Trigger 配置还有两条工具链：`convert_to_source_format.ps1` 把运行时 JSON 转成带 `$schema`、metadata、actions、conditions 的 authoring source 格式；`split_trigger_configs.ps1` 将聚合 Trigger JSON 拆成 `skills`、`buffs`、`passives`、`misc` 等目录下的单文件，并可选择输出 source 格式或运行时格式。
+旧的 Trigger JSON 转换与分拆脚本已经退役。当前触发器在 Trigger Authoring 中编辑并由其发布器生成聚合运行时配置，详见 [MobaTriggerAuthoring](../../MobaTriggerAuthoring.md)。
 
 ### 6.4 多源选择策略
 
@@ -381,7 +380,7 @@ flowchart LR
 - 测试环境可以使用 DTO Provider。
 - ET 或服务端可以传入自己的 `IConfigSource`。
 
-Console 端还存在一条独立的 Luban generated-code 加载路径：`ConsoleLubanConfigLoader.LoadAll` 构造 `cfg.Tables`，通过 `Func<string, JArray>` 从 `resourcesDir/tableName` 或 `resourcesDir/underscore_case(tableName)` 读取 JSON。这条路径服务于 Luban 生成代码的表访问，不等同于 `ConfigDatabase` 的 DTO/MO 构表主链路；正式业务读取仍应优先通过 `MobaConfigDatabase` 门面。
+Console 端通过 `MobaLubanConfigGroups` 装配生产 JSON 与二进制，并由 `MobaConfigDatabase` 提供业务读取入口。旧 `cfg.Tables` 加载器已删除。
 
 ---
 
@@ -529,7 +528,6 @@ Action Schema 校验是 TriggerPlan 的启动门禁：如果配置里声明了�
 - `IMobaConfigDtoBytesDeserializer` → `LubanMobaConfigDtoBytesDeserializer`
 - `DefaultMobaConfigLoader`
 - `LubanConfigGroup`
-- `ILubanConfigLoader` → `ConsoleLubanConfigLoader`
 - `MobaConfigDatabase`
 - `TriggerPlanJsonDatabase`
 
