@@ -144,6 +144,7 @@ namespace AbilityKit.Game.Flow
         internal BattleSessionDiagnostics Diagnostics { get; }
         internal BattleInputRuntime Input { get; }
         internal BattlePredictionRuntime Prediction { get; }
+        internal MobaBattleRecoveryRuntime LockstepRecovery { get; }
         internal BattlePresentationSessionResources Presentation { get; }
         internal SessionPresentationController PresentationController { get; }
         internal SessionReplicationController ReplicationController { get; }
@@ -152,6 +153,14 @@ namespace AbilityKit.Game.Flow
         internal SpectatorSessionRuntime Spectator { get; }
         internal BattleSimulationRuntime Simulation { get; private set; }
         internal SessionSimulationController SimulationController { get; private set; }
+        internal SessionDispatchersController Dispatchers { get; }
+        internal SessionNetAdapterController NetController { get; }
+        internal SessionReplayController ReplayController { get; }
+        internal SessionPlanController PlanController { get; }
+        internal SessionEventsController EventsController { get; }
+        internal SessionWorldCatchUpController WorldCatchUp { get; }
+        internal SessionStartupTaskOwner StartupTasks { get; }
+        internal SessionTickLoopController TickLoop { get; private set; }
 
         internal BattleSessionRuntime()
         {
@@ -162,6 +171,7 @@ namespace AbilityKit.Game.Flow
             Diagnostics = new BattleSessionDiagnostics(Replication);
             Input = new BattleInputRuntime();
             Prediction = new BattlePredictionRuntime();
+            LockstepRecovery = new MobaBattleRecoveryRuntime();
             SnapshotRouting = new BattleSnapshotRoutingRuntime(Handles, Diagnostics);
             Presentation = new BattlePresentationSessionResources();
             PresentationController = new SessionPresentationController(Presentation);
@@ -173,16 +183,26 @@ namespace AbilityKit.Game.Flow
             Assets = new BattleAssetLeaseOwner();
             Replay = new BattleReplayRuntime();
             Spectator = new SpectatorSessionRuntime();
+            Dispatchers = new SessionDispatchersController();
+            NetController = new SessionNetAdapterController();
+            ReplayController = new SessionReplayController();
+            PlanController = new SessionPlanController();
+            EventsController = new SessionEventsController();
+            WorldCatchUp = new SessionWorldCatchUpController();
+            StartupTasks = new SessionStartupTaskOwner();
         }
 
         internal void BindContext(BattleContext context)
         {
             context?.BindInputRuntime(Input);
             context?.BindPredictionRuntime(Prediction);
+            if (context != null) MobaBattlePauseController.Register(context, LockstepRecovery);
         }
 
         internal void UnbindContext(BattleContext context)
         {
+            context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.PauseRecovery, false);
+            MobaBattlePauseController.Unregister(context, LockstepRecovery);
             context?.UnbindPredictionRuntime(Prediction);
             context?.UnbindInputRuntime(Input);
         }
@@ -208,14 +228,18 @@ namespace AbilityKit.Game.Flow
                 new BattleAuthoritativeWorldRecoveryPort(Simulation, Handles));
         }
 
-        internal void ConfigureSimulationController(
-            Func<BattleStartPlan> getPlan,
-            Func<BattleContext> getContext,
-            Func<GameFlowDomain> getFlow,
-            Func<bool> hasLogicSession,
-            Func<float> getFixedDeltaSeconds,
-            Func<WorldId, int> resolveIdealFrameLimit,
-            Action<IEntity> destroyEntityTree)
+        internal void ConfigureTickLoop(ISessionTickLoopPort host)
+        {
+            if (host == null) throw new ArgumentNullException(nameof(host));
+            if (TickLoop != null)
+                throw new InvalidOperationException("Battle session tick loop has already been configured.");
+            TickLoop = new SessionTickLoopController(
+                State.Tick,
+                host,
+                new StopwatchSessionTickClock());
+        }
+
+        internal void ConfigureSimulationController(ISessionSimulationHost host)
         {
             if (Simulation == null)
             {
@@ -231,14 +255,8 @@ namespace AbilityKit.Game.Flow
             SimulationController = new SessionSimulationController(
                 Simulation,
                 Diagnostics,
-                getPlan,
-                getContext,
-                getFlow,
-                hasLogicSession,
-                getFixedDeltaSeconds,
-                resolveIdealFrameLimit,
-                destroyEntityTree);
-            _getContext = getContext;
+                host);
+            _getContext = () => host.Context;
         }
 
         internal void ConfigureGatewayRoom(

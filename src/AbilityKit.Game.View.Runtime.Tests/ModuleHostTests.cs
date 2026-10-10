@@ -81,7 +81,7 @@ public sealed class ModuleHostTests
         Assert.Throws<InvalidOperationException>(() => host.Attach(in ctx));
 
         Assert.False(host.IsAttached);
-        Assert.Equal(new[] { "attach:first:7", "attach:second:7", "detach:first:7" }, events);
+        Assert.Equal(new[] { "attach:first:7", "attach:second:7", "detach:second:7", "detach:first:7" }, events);
 
         second.ThrowOnAttach = false;
         host.Attach(in ctx);
@@ -90,7 +90,7 @@ public sealed class ModuleHostTests
         Assert.Equal(
             new[]
             {
-                "attach:first:7", "attach:second:7", "detach:first:7",
+                "attach:first:7", "attach:second:7", "detach:second:7", "detach:first:7",
                 "attach:first:7", "attach:second:7"
             },
             events);
@@ -107,9 +107,35 @@ public sealed class ModuleHostTests
 
         var exception = Assert.Throws<AggregateException>(() => host.Attach(in ctx));
 
-        Assert.False(host.IsAttached);
+        Assert.True(host.IsAttached);
         Assert.Equal(2, exception.InnerExceptions.Count);
-        Assert.Equal(new[] { "attach:first:7", "attach:second:7", "detach:first:7" }, events);
+        Assert.Equal(new[] { "attach:first:7", "attach:second:7", "detach:second:7", "detach:first:7" }, events);
+
+        first.ThrowOnDetach = false;
+        host.Detach(in ctx);
+        Assert.False(host.IsAttached);
+        Assert.Equal("detach:first:7", events[^1]);
+    }
+
+    [Fact]
+    public void Attach_WhenFailingModuleCannotRollback_KeepsItForRetry()
+    {
+        var events = new List<string>();
+        var module = new TestModule("partial", events)
+        {
+            ThrowOnAttach = true,
+            ThrowOnDetach = true
+        };
+        var host = new ModuleHost<TestContext, TestModule>(new List<TestModule> { module });
+        var ctx = new TestContext(7);
+
+        Assert.Throws<AggregateException>(() => host.Attach(in ctx));
+        Assert.True(host.IsAttached);
+
+        module.ThrowOnDetach = false;
+        host.Detach(in ctx);
+        Assert.False(host.IsAttached);
+        Assert.Equal(new[] { "attach:partial:7", "detach:partial:7", "detach:partial:7" }, events);
     }
 
     [Fact]
@@ -126,9 +152,16 @@ public sealed class ModuleHostTests
 
         var exception = Assert.Throws<AggregateException>(() => host.Detach(in ctx));
 
-        Assert.False(host.IsAttached);
+        Assert.True(host.IsAttached);
         Assert.Equal(2, exception.InnerExceptions.Count);
         Assert.Equal(new[] { "detach:third:7", "detach:second:7", "detach:first:7" }, events);
+
+        first.ThrowOnDetach = false;
+        second.ThrowOnDetach = false;
+        host.Detach(in ctx);
+        Assert.False(host.IsAttached);
+        Assert.Equal(new[] { "detach:third:7", "detach:second:7", "detach:first:7",
+            "detach:second:7", "detach:first:7" }, events);
     }
 
     private readonly record struct TestContext(int Value);

@@ -641,6 +641,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var tags = GatewayMultiplayerRoomSession.BuildLaunchTags(spec);
 
             Assert.That(tags[RoomTagKeys.MinPlayers], Is.EqualTo("2"));
+            Assert.That(tags["tagBundleVersion"], Is.EqualTo("test-bundle"));
         }
 
         [Test]
@@ -1238,7 +1239,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 ServerId = "server-a",
                 RoomType = "moba",
                 RoomTitle = "MOBA Room",
-                MaxPlayers = 2
+                MaxPlayers = 2,
+                TagBundleVersion = "test-bundle"
             };
         }
 

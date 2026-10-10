@@ -34,6 +34,8 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
             StableStringId.Get("payload:" + GameplayTriggerEvents.ElapsedSecondsField),
             StableStringId.Get("payload:" + GameplayTriggerEvents.DeltaSecondsField),
             StableStringId.Get("payload:" + GameplayTriggerEvents.WinTeamIdField),
+            StableStringId.Get("payload:" + GameplayTriggerEvents.TeamIdField),
+            StableStringId.Get("payload:" + GameplayTriggerEvents.ScoreField),
             MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.AttackerActorId),
             MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.TargetActorId),
             MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.DamageValue),
@@ -104,14 +106,21 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
             var triggerIds = gameplay.TriggerIds;
             if (triggerIds == null || triggerIds.Count == 0)
             {
-                AddWarning(report, $"gameplay[{gameplay.Id}]", "gameplay has no trigger ids", gameplay.Id.ToString());
+                AddError(report, $"gameplay[{gameplay.Id}]", "gameplay has no trigger ids", gameplay.Id.ToString());
                 return;
             }
 
+            var seen = new HashSet<int>();
+            var hasTimeExpiredRule = false;
             for (int i = 0; i < triggerIds.Count; i++)
             {
                 var triggerId = triggerIds[i];
                 var path = $"gameplay[{gameplay.Id}].triggerIds[{i}]={triggerId}";
+                if (triggerId <= 0 || !seen.Add(triggerId))
+                {
+                    AddError(report, path, "invalid or duplicate trigger id", triggerId.ToString());
+                    continue;
+                }
                 if (!_TryGetRecord(db, triggerId, out var record))
                 {
                     AddError(report, path, "trigger id not found in trigger database", triggerId.ToString());
@@ -119,7 +128,18 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
                 }
 
                 ValidateRecord(record, eventRegistry, path, report);
+                if (record.EventName == GameplayTriggerEvents.TimeExpired &&
+                    record.Plan.Actions != null)
+                {
+                    foreach (var action in record.Plan.Actions)
+                    {
+                        if (action.Id.Value == TriggeringConstants.EndGameId.Value)
+                            hasTimeExpiredRule = true;
+                    }
+                }
             }
+            if (gameplay.DefaultDurationMs > 0 && !hasTimeExpiredRule)
+                AddError(report, $"gameplay[{gameplay.Id}]", "timed gameplay requires gameplay.time_expired trigger with end_game action", gameplay.Id.ToString());
         }
 
         private static bool _TryGetRecord(TriggerPlanJsonDatabase db, int triggerId, out TriggerPlanJsonDatabase.Record record)

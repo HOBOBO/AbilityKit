@@ -65,6 +65,24 @@ namespace AbilityKit.Game.Flow
 
     public static class SessionTeardownPolicy
     {
+        public static async Task ExecuteUntilFailureAsync(params AsyncSessionTeardownStep[] steps)
+        {
+            if (steps == null) throw new ArgumentNullException(nameof(steps));
+            for (var i = 0; i < steps.Length; i++)
+            {
+                try { await (steps[i].Cleanup() ?? Task.CompletedTask); }
+                catch (Exception exception)
+                {
+                    var pending = new AsyncSessionTeardownStep[steps.Length - i];
+                    Array.Copy(steps, i, pending, 0, pending.Length);
+                    throw new SessionTeardownException(pending, new[]
+                    {
+                        new InvalidOperationException($"Session teardown step failed: {steps[i].Name}.", exception)
+                    });
+                }
+            }
+        }
+
         public static void Execute(
             Action<string, Exception> failureHandler,
             params SessionTeardownStep[] steps)
@@ -120,8 +138,7 @@ namespace AbilityKit.Game.Flow
                 var step = steps[i];
                 try
                 {
-                    await (step.Cleanup() ?? Task.CompletedTask)
-                        .ConfigureAwait(false);
+                    await (step.Cleanup() ?? Task.CompletedTask);
                 }
                 catch (Exception exception)
                 {

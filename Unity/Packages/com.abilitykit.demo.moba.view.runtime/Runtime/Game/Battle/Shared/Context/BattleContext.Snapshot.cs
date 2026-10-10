@@ -5,6 +5,8 @@ namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleContext
     {
+        bool IBattleGameplayPresentationSource.TryGetFrameSnapshots(out FrameSnapshotDispatcher snapshots) =>
+            TryGetFrameSnapshots(out snapshots);
         private readonly ReferenceBindingOwner<FrameSnapshotDispatcher> _snapshotRoutingBinding =
             new ReferenceBindingOwner<FrameSnapshotDispatcher>();
         private SnapshotPipeline _snapshotPipeline;

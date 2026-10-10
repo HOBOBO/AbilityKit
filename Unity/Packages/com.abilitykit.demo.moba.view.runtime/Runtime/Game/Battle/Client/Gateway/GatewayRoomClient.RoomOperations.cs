@@ -59,7 +59,7 @@ namespace AbilityKit.Game.Battle.Agent
                 new RoomGatewayJoinRequest(sessionToken, region, serverId, roomId),
                 timeout,
                 cancellationToken).ConfigureAwait(false);
-            var anchor = ToGatewayAnchor(in result.WorldStartAnchor);
+            var anchor = GatewayRoomResponseMapper.ToGatewayAnchor(in result.WorldStartAnchor);
             return new GatewayJoinRoomResult(
                 result.Success,
                 result.RoomId,

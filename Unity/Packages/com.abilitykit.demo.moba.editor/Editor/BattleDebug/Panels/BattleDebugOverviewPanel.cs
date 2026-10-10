@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
-    [BattleDebugModule(BattleDebugModuleIds.DiagnosticHealth, "调查",
+    [BattleDebugModule(BattleDebugModuleIds.DiagnosticHealth, "会话",
         Selections = BattleDebugModuleSelectionSupport.None)]
     internal sealed class BattleDebugDiagnosticsHealthPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {

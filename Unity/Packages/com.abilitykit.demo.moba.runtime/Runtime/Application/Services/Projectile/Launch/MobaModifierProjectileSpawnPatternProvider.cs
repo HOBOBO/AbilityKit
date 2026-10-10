@@ -79,7 +79,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             var spawnRecord = new MobaParameterRecord(MobaParameterStage.ProjectileSpawn,
                 slot: _slot, baseSkillId: _baseSkillId, effectiveSkillId: _effectiveSkillId,
                 launcherTemplateId: _launcherTemplateId, projectileTemplateId: baseSpawn.TemplateId);
-            var speed = _paramModifiers.Projectile.ResolveSpeed(
+            var speed = _paramModifiers.Projectile.ResolveSpeedSim(
                 baseSpawn.RootActorId, _projectile.Speed, in spawnRecord);
             if (speed <= 0f || float.IsNaN(speed) || float.IsInfinity(speed))
                 throw new System.InvalidOperationException($"Invalid projectile spawn speed {speed}.");

@@ -40,6 +40,7 @@ namespace AbilityKit.Game.Flow
     /// </summary>
     public sealed class MultiplayerRoomSnapshot
     {
+        public int GameplayId { get; set; } = 1;
         public string RoomId { get; set; } = string.Empty;
         public string OwnerAccountId { get; set; } = string.Empty;
         public ulong NumericRoomId { get; set; }
@@ -51,6 +52,7 @@ namespace AbilityKit.Game.Flow
         public long LaunchGeneration { get; set; }
         public int LaunchManifestVersion { get; set; }
         public string LaunchManifestHash { get; set; } = string.Empty;
+        public string TagBundleVersion { get; set; } = string.Empty;
         public long LoadingDeadlineUnixMs { get; set; }
         public long RoomRevision { get; set; }
         public long LastEventSequence { get; set; }
@@ -313,6 +315,7 @@ namespace AbilityKit.Game.Flow
         public int GameplayId { get; set; } = 1;
         public int RuleSetId { get; set; } = 1;
         public int ConfigVersion { get; set; } = 1;
+        public string TagBundleVersion { get; set; } = string.Empty;
         public int ProtocolVersion { get; set; } = 1;
         public string WorldType { get; set; } = "moba";
         public string ClientId { get; set; } = "moba-client";

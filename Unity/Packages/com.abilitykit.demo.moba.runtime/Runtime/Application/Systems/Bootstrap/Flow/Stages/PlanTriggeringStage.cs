@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Runtime.Plan.Json;
@@ -116,6 +118,15 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             }
 
             services.TryResolve<MobaEventSubscriptionRegistry>(out var eventRegistry);
+            var gameplayTriggerIds = new HashSet<int>();
+            if (services.TryResolve<MobaConfigDatabase>(out var configs) && configs != null)
+            {
+                foreach (var gameplay in configs.GetAllGameplays())
+                {
+                    if (gameplay?.TriggerIds == null) continue;
+                    foreach (var triggerId in gameplay.TriggerIds) gameplayTriggerIds.Add(triggerId);
+                }
+            }
 
             for (int i = 0; i < records.Count; i++)
             {
@@ -125,7 +136,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                     continue;
                 }
 
-                if (IsGameplayRecord(record))
+                if (gameplayTriggerIds.Contains(record.TriggerId) || IsGameplayRecord(record))
                 {
                     continue;
                 }

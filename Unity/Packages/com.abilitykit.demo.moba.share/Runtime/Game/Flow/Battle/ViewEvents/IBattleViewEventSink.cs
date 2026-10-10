@@ -101,6 +101,11 @@ namespace AbilityKit.Demo.Moba.Share
         void OnFrameSyncComplete(int frameIndex);
     }
 
+    public interface IGameplayClockViewEventSink
+    {
+        void OnGameplayClockSnapshot(in FrameSnapshotData snapshot);
+    }
+
     /// <summary>
     /// 触发器事件数据
     /// 平台无关的触发器事件表示

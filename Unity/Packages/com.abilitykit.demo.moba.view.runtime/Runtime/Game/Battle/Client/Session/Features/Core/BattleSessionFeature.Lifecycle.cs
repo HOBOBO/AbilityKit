@@ -18,26 +18,33 @@ namespace AbilityKit.Game.Flow
         public void OnAttach(in GamePhaseContext ctx)
         {
             _featureLifecycle.Attach();
-            TryInstallUnityLogSinkIfNeeded();
+            try
+            {
+                _startupTasks.Attach();
+                TryInstallUnityLogSinkIfNeeded();
 
-            _phaseCtx = ctx;
-            BattleContext battleCtx;
-            ctx.Features.TryGet(out battleCtx);
-            _ctx = battleCtx;
-            _runtime.BindContext(_ctx);
-            _runtime.Diagnostics.BindScope(_plan.World.WorldId);
-            ctx.Features.Set<IBattleAssetLoadSessionPort>(this);
-            _flow = ctx.Entry != null ? ctx.Entry.Get<GameFlowDomain>() : null;
+                _phaseCtx = ctx;
+                _ctx = ctx.RequireFeature<BattleContext>(nameof(BattleSessionFeature));
+                _runtime.BindContext(_ctx);
+                _runtime.Diagnostics.BindScope(_plan.World.WorldId);
+                ctx.Features.Set<IBattleAssetLoadSessionPort>(this);
+                _flow = ctx.Entry != null ? ctx.Entry.Get<IBattleViewFeatureHost>() : null;
 
-            _eventsCtrl.OnAttach(this);
-            Battle.Replay.BattleReplayControlProvider.Publish(
-                _plan.World.WorldId,
-                this);
-            Battle.Replay.BattleReplayControlProvider.Current = this;
+                _eventsCtrl.OnAttach(this);
+                Battle.Replay.BattleReplayControlProvider.Publish(
+                    _plan.World.WorldId,
+                    this);
+                Battle.Replay.BattleReplayControlProvider.Current = this;
 
-            EnsureSubFeaturesCreated();
-            _subFeatureHost?.Attach(new FeatureModuleContext<BattleSessionFeature>(ctx, this));
-            _runtime.Diagnostics.PublishDebugControls(_ctx);
+                EnsureSubFeaturesCreated();
+                _subFeatureHost?.Attach(new FeatureModuleContext<ISessionRuntimeFeature>(ctx, _moduleRuntime));
+                _runtime.Diagnostics.PublishDebugControls(_ctx);
+            }
+            catch
+            {
+                _ = ObserveDetachFailureAsync(DetachAsync(ctx));
+                throw;
+            }
         }
 
         private static void TryInstallUnityLogSinkIfNeeded()
@@ -94,16 +101,20 @@ namespace AbilityKit.Game.Flow
         {
             return new[]
             {
+                new AsyncSessionTeardownStep("session startup", _startupTasks.BeginDetachAsync),
                 new AsyncSessionTeardownStep("replay control", WithdrawReplayControl),
                 new AsyncSessionTeardownStep(
                     "sub-features",
-                    () => _subFeatureHost?.Detach(new FeatureModuleContext<BattleSessionFeature>(detachContext, this))),
+                    () =>
+                    {
+                        if (_subFeatureHost?.IsAttached == true)
+                            _subFeatureHost.Detach(new FeatureModuleContext<ISessionRuntimeFeature>(detachContext, _moduleRuntime));
+                    }),
                 new AsyncSessionTeardownStep("gateway room", StopGatewayRoomPreparationAsync),
                 new AsyncSessionTeardownStep("network condition", () => NetworkCondition.Detach()),
                 new AsyncSessionTeardownStep("spectator session", _runtime.Spectator.StopAsync),
                 new AsyncSessionTeardownStep("replay session", _runtime.Replay.Stop),
                 new AsyncSessionTeardownStep("battle session", _orchestrator.StopSessionAsync),
-                new AsyncSessionTeardownStep("session handles", ResetHandles),
                 new AsyncSessionTeardownStep("session flags", _state.ResetSessionFlags),
                 new AsyncSessionTeardownStep("session events", () => _eventsCtrl.OnDetach(this)),
                 new AsyncSessionTeardownStep("session context", () => SessionContextBinder.ClearSession(_ctx)),
@@ -111,6 +122,7 @@ namespace AbilityKit.Game.Flow
                 new AsyncSessionTeardownStep("asset load port", () => UnpublishAssetLoadPort(detachContext)),
                 new AsyncSessionTeardownStep("session diagnostics", _runtime.Diagnostics.Dispose),
                 new AsyncSessionTeardownStep("asset lease", _runtime.Assets.Dispose),
+                new AsyncSessionTeardownStep("session handles", ResetHandles),
                 new AsyncSessionTeardownStep("feature references", ClearFeatureReferences),
             };
         }
@@ -175,9 +187,9 @@ namespace AbilityKit.Game.Flow
 
             // Lockstep recovery is a production battle lifecycle responsibility. It must keep
             // progressing in release/headless builds even when the debug GUI feature is absent.
-            if (MobaBattlePauseController.IsRecovering && _ctx != null)
+            if (_runtime.LockstepRecovery.IsRecovering && _ctx != null)
             {
-                MobaBattlePauseController.TickRecovery(_ctx);
+                _runtime.LockstepRecovery.TickRecovery(_ctx);
             }
 
             InvokeMainTickSubFeatures(ctx, deltaTime);
@@ -189,15 +201,15 @@ namespace AbilityKit.Game.Flow
                 _runtime.Diagnostics.RecordFrameMetrics(_ctx, in projection);
             }
 
-            _subFeatureHost?.Tick(new FeatureModuleContext<BattleSessionFeature>(ctx, this), deltaTime);
+            _subFeatureHost?.Tick(new FeatureModuleContext<ISessionRuntimeFeature>(ctx, _moduleRuntime), deltaTime);
             Hooks?.PostTick.Invoke(deltaTime);
         }
 
         private void InvokeMainTickSubFeatures(in GamePhaseContext ctx, float deltaTime)
         {
             if (_subFeatureHost == null) return;
-            var fctx = new FeatureModuleContext<BattleSessionFeature>(ctx, this);
-            _subFeatureHost.ForEach<ISessionMainTickSubFeature<BattleSessionFeature>>(m => m.MainTick(fctx, deltaTime));
+            var fctx = new FeatureModuleContext<ISessionRuntimeFeature>(ctx, _moduleRuntime);
+            _subFeatureHost.ForEach<ISessionMainTickSubFeature<ISessionRuntimeFeature>>(m => m.MainTick(fctx, deltaTime));
         }
     }
 }

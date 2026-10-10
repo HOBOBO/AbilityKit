@@ -13,7 +13,8 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var wire = new WireRoomSnapshot
             {
-                Summary = new WireRoomSummary { RoomId = "room-7" },
+                Summary = new WireRoomSummary { RoomId = "room-7", Tags = new Dictionary<string, string>
+                    { ["tagBundleVersion"] = "bundle-7", [RoomTagKeys.GameplayId] = "2" } },
                 Members = new List<string> { "acc-1", "acc-2" },
                 Players = new List<WireRoomPlayerSnapshot>
                 {
@@ -60,6 +61,9 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(9L, snapshot.LaunchGeneration);
             Assert.AreEqual(1234567890L, snapshot.LoadingDeadlineUnixMs);
             Assert.AreEqual("manifest-hash", snapshot.LaunchManifestHash);
+            Assert.AreEqual("bundle-7", snapshot.TagBundleVersion);
+            Assert.AreEqual(2, snapshot.GameplayId);
+            Assert.AreEqual(2, new ClientRoomSnapshotAssetSource(snapshot).GameplayId);
             Assert.AreEqual(3, snapshot.LaunchManifestVersion);
             Assert.AreEqual("none", snapshot.LastStartFailureCode);
             Assert.AreEqual(42L, snapshot.RoomRevision);

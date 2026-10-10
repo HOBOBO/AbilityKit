@@ -31,7 +31,7 @@ namespace AbilityKit.Game.Flow
             internal BattleContext Context;
             internal ProjectedBattleViewFeature Feature;
             internal PredictionViewBridge Bridge;
-            internal GameFlowDomain Flow;
+            internal IBattleViewFeatureHost Flow;
             internal Action<IEntity> DestroyEntityTree;
         }
 
@@ -92,7 +92,7 @@ namespace AbilityKit.Game.Flow
 
         internal bool AddProjectionView(string instanceId, BattleProjectionViewRole role,
             IBattleProjectionViewSource source, BattleContext sourceContext,
-            GameFlowDomain flow, Vector3 offset,
+            IBattleViewFeatureHost flow, Vector3 offset,
             Action<IEntity> destroyEntityTree,
             BattleProjectionViewCapabilities capabilities = BattleProjectionViewCapabilities.Actors)
         {
@@ -223,7 +223,7 @@ namespace AbilityKit.Game.Flow
 
         internal void EnsureConfirmedViewInstalled(
             BattleContext sourceContext,
-            GameFlowDomain flow,
+            IBattleViewFeatureHost flow,
             WorldId authWorldId,
             bool enabled,
             Action<IEntity> destroyEntityTree)
@@ -243,7 +243,7 @@ namespace AbilityKit.Game.Flow
         }
 
         internal void DisposeConfirmedView(
-            GameFlowDomain flow,
+            IBattleViewFeatureHost flow,
             Action<IEntity> destroyEntityTree)
         {
             SessionSimRuntimeDisposer.ExecuteCleanupSteps(
@@ -253,7 +253,7 @@ namespace AbilityKit.Game.Flow
                 () => DisposeConfirmedContext(destroyEntityTree));
         }
 
-        private void DetachConfirmedFeature(GameFlowDomain flow)
+        private void DetachConfirmedFeature(IBattleViewFeatureHost flow)
         {
             var feature = _confirmedFeature;
             if (flow != null && feature != null) flow.Detach(feature);

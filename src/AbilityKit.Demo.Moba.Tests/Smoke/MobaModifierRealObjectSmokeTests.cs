@@ -86,25 +86,110 @@ public sealed class MobaModifierRealObjectSmokeTests
         var captureSnapshotBytes = new MobaContinuousModifierCaptureRollbackProvider(continuous)
             .ExportState(frame).Length;
         battle.Tick();
-        var beforeAllocated = GC.GetAllocatedBytesForCurrentThread();
-        var start = Stopwatch.GetTimestamp();
-        for (var i = 0; i < measuredFrames; i++) battle.Tick();
-        var elapsed = Stopwatch.GetElapsedTime(start);
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - beforeAllocated;
+        var frameTimes = new double[measuredFrames];
+        var frameAllocations = new long[measuredFrames];
+        for (var i = 0; i < measuredFrames; i++)
+        {
+            var beforeAllocated = GC.GetAllocatedBytesForCurrentThread();
+            var start = Stopwatch.GetTimestamp();
+            battle.Tick();
+            frameTimes[i] = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+            frameAllocations[i] = GC.GetAllocatedBytesForCurrentThread() - beforeAllocated;
+        }
+        var sortedFrameTimes = (double[])frameTimes.Clone();
+        System.Array.Sort(sortedFrameTimes);
         _output.WriteLine(JsonSerializer.Serialize(new
         {
-            schemaVersion = "moba-modifier-load.v1",
+            schemaVersion = "moba-modifier-load.v2",
             runtime = Environment.Version.ToString(),
+            operatingSystem = Environment.OSVersion.ToString(),
+            processArchitecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
             sources = sourceCount,
             projectiles = projectileCount,
             frames = measuredFrames,
-            averageBattleFrameMs = elapsed.TotalMilliseconds / measuredFrames,
-            battleAllocatedBytes = allocated,
+            averageBattleFrameMs = frameTimes.Average(),
+            p95BattleFrameMs = sortedFrameTimes[(int)System.Math.Ceiling(measuredFrames * 0.95) - 1],
+            maximumBattleFrameMs = sortedFrameTimes[measuredFrames - 1],
+            battleAllocatedBytes = frameAllocations.Sum(),
+            peakFrameAllocatedBytes = frameAllocations.Max(),
             parameterSnapshotBytes,
             captureSnapshotBytes,
         }));
         Assert.Equal(sourceCount, modifiers.CaptureRollbackSnapshot().Entries.Length);
         foreach (var source in sources) Assert.True(continuous.TryEnd(source));
+    }
+
+    [Fact]
+    public void One_continuous_source_changes_projectile_motion_and_hit_damage_then_reverts()
+    {
+        using var battle = StartBattle();
+        var services = battle.RuntimeServices!;
+        var registry = services.Resolve<MobaActorRegistry>();
+        var continuous = services.Resolve<MobaContinuousManager>();
+        var projectiles = services.Resolve<IProjectileService>();
+        var shooter = services.Resolve<MobaProjectileService>();
+        var combatants = registry.Entries.Where(entry =>
+            entry.Value != null && entry.Value.hasTeam && entry.Value.hasTransform &&
+            entry.Value.hasCollisionId && entry.Value.hasResourceContainer).ToArray();
+        var caster = combatants.First();
+        var target = combatants.First(entry => entry.Value.team.Value != caster.Value.team.Value);
+        var targetPosition = caster.Value.transform.Value.Position + new Vec3(0f, 0f, 4f);
+        target.Value.ReplaceTransform(new Transform3(targetPosition,
+            target.Value.transform.Value.Rotation, target.Value.transform.Value.Scale));
+        var hp = target.Value.resourceContainer.Value.Map[ResourceType.Hp];
+        var process = new ContinuousProcessMO(new ContinuousProcessDTO
+        {
+            Id = 718,
+            Modifiers = new[]
+            {
+                new ContinuousModifierDTO
+                {
+                    TargetKind = MobaContinuousModifierTargetKind.SkillParameter,
+                    TargetId = MobaSkillParamModifierKeys.Projectile.Ids.Speed,
+                    Op = (int)ModifierOp.Add,
+                    Value = 4f,
+                    SelectorProjectileTemplateId = 30060301,
+                },
+                new ContinuousModifierDTO
+                {
+                    TargetKind = MobaContinuousModifierTargetKind.SkillParameter,
+                    TargetId = MobaSkillParamModifierKeys.Damage.Ids.RequestedBase,
+                    Op = (int)ModifierOp.Add,
+                    Value = 50f,
+                    SelectorProjectileTemplateId = 30060301,
+                },
+            },
+        });
+        var source = new MobaTriggerIntervalContinuousRuntime(process,
+            caster.Key, caster.Key, 718L, null);
+        Assert.True(continuous.TryActivate(source));
+
+        (float displacement, float damage) ShootAndMeasure()
+        {
+            var events = new List<ProjectileSpawnEvent>();
+            projectiles.DrainSpawnEvents(events);
+            var beforeHp = hp.Current;
+            var origin = caster.Value.transform.Value.Position + new Vec3(0f, 0f, 1f);
+            var forward = Vec3.Forward;
+            Assert.True(shooter.Shoot(caster.Key, ProjectileEmitterType.Linear,
+                30060301, 30f, 30, 14f, in origin, in forward));
+            events.Clear();
+            projectiles.PeekSpawnEvents(events);
+            var spawned = Assert.Single(events, entry => entry.OwnerId == caster.Key &&
+                entry.TemplateId == 30060301);
+            Assert.True(projectiles.TryGetRuntimeState(spawned.Projectile, out var before));
+            battle.Tick();
+            Assert.True(projectiles.TryGetRuntimeState(spawned.Projectile, out var after));
+            for (var i = 0; i < 11 && hp.Current == beforeHp; i++) battle.Tick();
+            Assert.True(hp.Current < beforeHp);
+            return (after.Position.Z - before.Position.Z, (float)(beforeHp - hp.Current));
+        }
+
+        var modified = ShootAndMeasure();
+        Assert.True(continuous.TryEnd(source));
+        var baseline = ShootAndMeasure();
+        Assert.True(modified.displacement > baseline.displacement);
+        Assert.True(modified.damage > baseline.damage);
     }
 
     [Fact]

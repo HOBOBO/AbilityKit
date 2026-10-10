@@ -12,7 +12,7 @@ namespace AbilityKit.Network.Sdk
     /// <summary>
     /// Owns one connection and its single request client for the complete SDK lifetime.
     /// </summary>
-    public sealed class NetworkSdkClient : IReconnectableConnection, INetworkProtocolTransport, IDisposable
+    public sealed class NetworkSdkClient : IConnection, IReconnectableConnection, INetworkProtocolTransport, IDisposable
     {
         private readonly IConnection _connection;
         private readonly IReconnectableConnection? _reconnectableConnection;
@@ -201,6 +201,12 @@ namespace AbilityKit.Network.Sdk
         {
             ThrowIfDisposed();
             _connection.Tick(deltaTime);
+        }
+
+        public void Send(uint opCode, ArraySegment<byte> payload, ushort flags = 0, uint seq = 0)
+        {
+            ThrowIfDisposed();
+            _connection.Send(opCode, payload, flags, seq);
         }
 
         public void ResetReconnect()

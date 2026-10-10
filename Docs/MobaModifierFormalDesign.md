@@ -67,6 +67,8 @@
 
 公式编译和数值计算必须使用一个明确的战斗精度规范。既有通用内核以 `float` 计算，而 MOBA 的计时、资源等路径已采用定点值；正式版需决定在计算边界量化为统一定点值，或证明当前浮点运算在目标平台的回放结果一致。所有常数、属性读取、运算中间值、舍入与最终写入遵循同一规则；禁止 NaN/Infinity 进入快照。该决定应先于公式表铺量。
 
+**精度裁定（2026-10-08）**：组合内核维持 float。修改器内核与 Sim 数值出口只含 IEEE 位一致的加减乘除、比较与 `Math.Round`，漂移证据由跨运行时 golden 位锁承担——共享用例 `MobaModifierNumericGoldenCases`（PercentAdd 连乘、Override 优先级/同级决胜、Selector 命中/未命中、银行家舍入、TimeDecay 曲线插值、Sim 出口直通/定点往返/退化截断）由 .NET 侧 `MobaModifierNumericGoldenTests` 锁定期望位值，Unity EditMode 侧同名测试执行同一份用例；两侧不一致即跨端漂移。进入模拟域的数值在解析出口经世界级 `IMobaModifierPrecisionPolicy` 处理：未注册策略的世界（非帧同步复用、独立构造）使用直通空实现，Sim 出口与普通出口位等价、零换算；帧同步世界注册 `Fixed64ModifierPrecisionPolicy`，Sim 出口经 `Fixed64` 单次精确换算对齐 Q32.32 权威网格——常用数值域（2^-32 至 2^31）内位等价，小于 2^-32 的退化值截断为零，越界 fail-loud。普通 `Shoot` 与发射器模式两条子弹速度路径已接 Sim 出口。需要定点组合内核时使用框架既有的 `IComposerStrategy` 替换缝，不在本策略层扩展运算语义。配套红线：`tools/check_modifier_determinism.js` 扫描修改器内核与解析/投影面，禁止 `System.Math`/`MathF` 超越函数；叠层整数幂已从 `Math.Pow` 改为连乘实现，多项式衰减（EaseIn/EaseOut/EaseInOut）由 `MathF.Pow` 改为乘法（均为位确定）。**2026-10-08 第二批**：`DeterministicMath` 补齐 `Exp/Ln/Pow`（Cody-Waite ln2 归约 + Taylor/atanh 级数 + 64x64→128 位整数乘，全程 64 位整数与显式舍入，不经 `Fixed64` 乘除的 NET7/decimal 双路径），`DeterministicMathBridge` 增加 `Exp/Ln/Pow` float 边界成员；内置 Exponential/Logarithmic 衰减与旧版捕获的分数指数重缩放已迁移到定点实现，**全部 `determinism-allowlist:` 豁免已撤销**（豁免机制保留供未来显式记录使用）。已发布内容的 `MagnitudeDecayType` 全部为 Linear，迁移对生产配置零影响；`DeterministicMath` 与 `DeterministicMathBridge` 的新 API 已登记各自 PublicAPI.Unshipped 清单，golden raw 位锁（16 例）与 MOBA 衰减链路 golden 用例（含 Exponential 衰减全链）已锁定。golden 位锁只能证明已覆盖用例的位一致；IL2CPP/ARM64 侧由 Unity EditMode 执行后补证，不以此裁定替代跨端重放验收。
+
 叠层策略按定义显式选择 `ScaleMagnitude`、`RepeatContribution`、`HighestStack` 或 `NoStack`。Override 默认 `NoStack`；PercentAdd 的线性叠加与逐层复合是两种不同策略。Buff 层数变化时按策略重投射，不能统一乘 `BaseValue`。
 
 ## 5. 技能槽位候选

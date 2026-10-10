@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Modifiers
 {
@@ -182,18 +183,21 @@ namespace AbilityKit.Modifiers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float GetBaseValue() => InitialValue * Coefficient;
 
+        // log2(e)：把 ln(1+t) 换算成 log2 的单次乘法常数，避免每采样点重复求 ln(2)。
+        private const float Log2OfE = 1.4426950408889634f;
+
         private float CalculateDecay(float t)
         {
             return DecayType switch
             {
                 DecayType.Linear => 1f - t,
-                DecayType.Exponential => (float)Math.Exp(-2f * t),
-                DecayType.Logarithmic => 1f - MathF.Log(1f + t) / MathF.Log(2f),
-                DecayType.EaseOut => 1f - MathF.Pow(1f - t, 2f),
-                DecayType.EaseIn => MathF.Pow(t, 2f),
+                DecayType.Exponential => DeterministicMathBridge.Exp(-2f * t),
+                DecayType.Logarithmic => 1f - DeterministicMathBridge.Ln(1f + t) * Log2OfE,
+                DecayType.EaseOut => 1f - (1f - t) * (1f - t),
+                DecayType.EaseIn => t * t,
                 DecayType.EaseInOut => t < 0.5f
                     ? 2f * t * t
-                    : 1f - MathF.Pow(-2f * t + 2f, 2f) / 2f,
+                    : 1f - (-2f * t + 2f) * (-2f * t + 2f) / 2f,
                 DecayType.CustomCurve => InterpolateCurve(t),
                 _ => 1f - t
             };
@@ -603,6 +607,9 @@ namespace AbilityKit.Modifiers
     /// </summary>
     public static class MagnitudeModifierUtils
     {
+        // log2(e)：把 ln(1+t) 换算成 log2 的单次乘法常数，避免每采样点重复求 ln(2)。
+        private const float Log2OfE = 1.4426950408889634f;
+
         /// <summary>
         /// 计算衰减曲线上的值
         /// </summary>
@@ -612,13 +619,13 @@ namespace AbilityKit.Modifiers
             return decayType switch
             {
                 DecayType.Linear => 1f - t,
-                DecayType.Exponential => (float)Math.Exp(-2f * t),
-                DecayType.Logarithmic => 1f - MathF.Log(1f + t) / MathF.Log(2f),
-                DecayType.EaseOut => 1f - MathF.Pow(1f - t, 2f),
-                DecayType.EaseIn => MathF.Pow(t, 2f),
+                DecayType.Exponential => DeterministicMathBridge.Exp(-2f * t),
+                DecayType.Logarithmic => 1f - DeterministicMathBridge.Ln(1f + t) * Log2OfE,
+                DecayType.EaseOut => 1f - (1f - t) * (1f - t),
+                DecayType.EaseIn => t * t,
                 DecayType.EaseInOut => t < 0.5f
                     ? 2f * t * t
-                    : 1f - MathF.Pow(-2f * t + 2f, 2f) / 2f,
+                    : 1f - (-2f * t + 2f) * (-2f * t + 2f) / 2f,
                 DecayType.CustomCurve => 1f - t,
                 _ => 1f - t
             };

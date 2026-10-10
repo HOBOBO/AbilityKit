@@ -3,8 +3,8 @@ using AbilityKit.Game.Flow.Modules;
 namespace AbilityKit.Game.Flow
 {
     internal sealed class SessionTickLoopSubFeature :
-        ISessionSubFeature<BattleSessionFeature>,
-        ISessionMainTickSubFeature<BattleSessionFeature>,
+        ISessionSubFeature<ISessionRuntimeFeature>,
+        ISessionMainTickSubFeature<ISessionRuntimeFeature>,
         IGameModuleId,
         IGameModuleDependencies
     {
@@ -12,19 +12,20 @@ namespace AbilityKit.Game.Flow
 
         public System.Collections.Generic.IEnumerable<string> Dependencies => new[] { "session_events" };
 
-        public void OnAttach(in FeatureModuleContext<BattleSessionFeature> ctx) { }
+        public void OnAttach(in FeatureModuleContext<ISessionRuntimeFeature> ctx) =>
+            BattleSessionFeatureRuntimeAccess.Require<ISessionTickLoopRuntime>(ctx, Id);
 
-        public void OnDetach(in FeatureModuleContext<BattleSessionFeature> ctx) { }
+        public void OnDetach(in FeatureModuleContext<ISessionRuntimeFeature> ctx) { }
 
-        public void MainTick(in FeatureModuleContext<BattleSessionFeature> ctx, float deltaTime)
+        public void MainTick(in FeatureModuleContext<ISessionRuntimeFeature> ctx, float deltaTime)
         {
-            if (!BattleSessionFeatureRuntimeAccess.TryGet<ISessionTickLoopRuntime>(ctx, out var runtime)) return;
+            var runtime = BattleSessionFeatureRuntimeAccess.Require<ISessionTickLoopRuntime>(ctx, Id);
 
-            runtime.TickLoop.MainTick(deltaTime);
+            runtime.TickSession(deltaTime);
         }
 
-        public void Tick(in FeatureModuleContext<BattleSessionFeature> ctx, float deltaTime) { }
+        public void Tick(in FeatureModuleContext<ISessionRuntimeFeature> ctx, float deltaTime) { }
 
-        public void RebindAll(in FeatureModuleContext<BattleSessionFeature> ctx) { }
+        public void RebindAll(in FeatureModuleContext<ISessionRuntimeFeature> ctx) { }
     }
 }

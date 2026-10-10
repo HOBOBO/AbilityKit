@@ -72,7 +72,7 @@ namespace AbilityKit.Game.View.Flow
 
             if (_isAttached)
             {
-                await (_detachFeatureAsync(feature, ctx) ?? Task.CompletedTask).ConfigureAwait(false);
+                await (_detachFeatureAsync(feature, ctx) ?? Task.CompletedTask);
             }
 
             _features.RemoveAt(index);
@@ -172,7 +172,7 @@ namespace AbilityKit.Game.View.Flow
                     if (_features[i] == null) continue;
                     try
                     {
-                        await (_detachFeatureAsync(_features[i], ctx) ?? Task.CompletedTask).ConfigureAwait(false);
+                        await (_detachFeatureAsync(_features[i], ctx) ?? Task.CompletedTask);
                     }
                     catch (Exception exception)
                     {
@@ -212,7 +212,7 @@ namespace AbilityKit.Game.View.Flow
             {
                 if (_isAttached)
                 {
-                    await DetachAllAsync(ctx).ConfigureAwait(false);
+                    await DetachAllAsync(ctx);
                 }
             }
             finally

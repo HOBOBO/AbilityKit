@@ -7,10 +7,16 @@ using AbilityKit.Game.Flow.Modules;
 
 namespace AbilityKit.Game.Flow
 {
+    internal interface ISessionRuntimeFeature
+    {
+        ISessionPlanHost PlanHost { get; }
+        ISessionEventsHost EventsHost { get; }
+    }
+
     internal interface ISessionDispatchersRuntime
     {
-        BattleSessionHandles Handles { get; }
-        SessionDispatchersController Dispatchers { get; }
+        void AttachDispatchers();
+        void DetachDispatchers();
     }
 
     internal interface ISessionEventsRuntime
@@ -20,34 +26,24 @@ namespace AbilityKit.Game.Flow
 
     internal interface ISessionPlanRuntime
     {
-        IBattleBootstrapper Bootstrapper { get; }
-        BattleSessionState State { get; }
-        BattleSessionHandles Handles { get; }
-        BattleContext Context { get; }
-        BattleSessionHooks Hooks { get; }
-        SessionPlanController PlanController { get; }
+        SessionStartupTaskOwner StartupTasks { get; }
+        Task AttachPlanAsync(Func<bool> isCurrent);
     }
 
     internal interface ISessionReplayRuntime
     {
-        BattleStartPlan Plan { get; }
-        BattleSessionState State { get; }
-        BattleSessionHandles Handles { get; }
-        BattleContext Context { get; }
-        SessionReplayController Replay { get; }
-        BattleReplayRuntime ReplayResources { get; }
+        void SetupReplayOrRecord();
+        void OnReplayFrameReceived(AbilityKit.Ability.Host.FramePacket packet);
     }
 
     internal interface ISessionNetAdapterRuntime
     {
-        BattleLogicSession Session { get; }
-        BattleSessionNetAdapter NetAdapter { get; }
-        SessionNetAdapterController Net { get; }
+        AbilityKit.Ability.Host.FramePacket TransformFramePacket(AbilityKit.Ability.Host.FramePacket packet);
     }
 
     internal interface ISessionTickLoopRuntime
     {
-        SessionTickLoopController TickLoop { get; }
+        void TickSession(float deltaTime);
     }
 
     internal interface ISessionLifecycleRuntime
@@ -62,7 +58,7 @@ namespace AbilityKit.Game.Flow
         Task GatewayRoomPreparationTask { get; }
         bool ShouldPrepareGatewayRoom();
         Task StartGatewayRoomPreparation();
-        void CompleteGatewayRoomPreparation();
+        Task CompleteGatewayRoomPreparationAsync();
         Task StopGatewayRoomPreparationAsync();
         void TickGatewayRoomConnection(float deltaTime);
         void OnStartSessionRequested();
@@ -86,7 +82,15 @@ namespace AbilityKit.Game.Flow
 
     internal static class BattleSessionFeatureRuntimeAccess
     {
-        public static bool TryGet<T>(in FeatureModuleContext<BattleSessionFeature> ctx, out T runtime)
+        public static T Require<T>(in FeatureModuleContext<ISessionRuntimeFeature> ctx, string moduleId)
+            where T : class
+        {
+            if (ctx.Feature is T runtime) return runtime;
+            throw new InvalidOperationException(
+                $"Session module '{moduleId}' requires runtime capability {typeof(T).Name}.");
+        }
+
+        public static bool TryGet<T>(in FeatureModuleContext<ISessionRuntimeFeature> ctx, out T runtime)
             where T : class
         {
             runtime = ctx.Feature as T;

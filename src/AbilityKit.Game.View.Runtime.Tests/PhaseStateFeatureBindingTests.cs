@@ -53,6 +53,26 @@ public sealed class PhaseStateFeatureBindingTests
     }
 
     [Fact]
+    public void Enter_WithEmptyFeatureIds_InstallsNothingAndRunsCompletion()
+    {
+        var events = new List<string>();
+        var ctx = new TestContext(5);
+        var plan = new PhaseFeaturePlan<TestContext, IPhaseFeature<TestContext>>()
+            .Add("first", (in TestContext c) => new TestFeature("first", c.Value, events));
+        var binding = new PhaseStateFeatureBinding<TestContext, IPhaseFeature<TestContext>>(
+            "test",
+            feature => feature.OnAttach(in ctx),
+            plan,
+            Array.Empty<string>(),
+            afterEnter: (in TestContext c, int count) => events.Add($"after:{c.Value}:{count}"));
+
+        var installed = binding.Enter(in ctx);
+
+        Assert.Equal(0, installed);
+        Assert.Equal(new[] { "after:5:0" }, events);
+    }
+
+    [Fact]
     public void Enter_RunsHooksAroundFeatureInstallation()
     {
         var events = new List<string>();

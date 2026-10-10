@@ -11,13 +11,13 @@ namespace AbilityKit.Game.Flow
 
         void EnsureConfirmedViewInstalled(
             BattleContext sourceContext,
-            GameFlowDomain flow,
+            IBattleViewFeatureHost flow,
             WorldId authWorldId,
             bool enabled,
             Action<IEntity> destroyEntityTree);
 
         void DisposeConfirmedView(
-            GameFlowDomain flow,
+            IBattleViewFeatureHost flow,
             Action<IEntity> destroyEntityTree);
         void DisposeProjectionViews();
     }
@@ -38,7 +38,7 @@ namespace AbilityKit.Game.Flow
 
         public void EnsureConfirmedViewInstalled(
             BattleContext sourceContext,
-            GameFlowDomain flow,
+            IBattleViewFeatureHost flow,
             WorldId authWorldId,
             bool enabled,
             Action<IEntity> destroyEntityTree)
@@ -52,7 +52,7 @@ namespace AbilityKit.Game.Flow
         }
 
         public void DisposeConfirmedView(
-            GameFlowDomain flow,
+            IBattleViewFeatureHost flow,
             Action<IEntity> destroyEntityTree)
         {
             _resources.DisposeConfirmedView(flow, destroyEntityTree);

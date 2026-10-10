@@ -49,22 +49,70 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
-        public void NavigationGroups_KeepActorInvestigationAndFrameSyncDistinct()
+        public void NavigationGroups_ClassifyModulesAndPreserveSavedValues()
         {
+            Assert.That((int)BattleDebugNavigationGroup.Actor, Is.EqualTo(0));
+            Assert.That((int)BattleDebugNavigationGroup.Investigation, Is.EqualTo(1));
+            Assert.That((int)BattleDebugNavigationGroup.FrameSync, Is.EqualTo(2));
+            Assert.That(BattleDebugNavigation.OrderedGroups, Is.EqualTo(new[]
+            {
+                BattleDebugNavigationGroup.Actor,
+                BattleDebugNavigationGroup.Runtime,
+                BattleDebugNavigationGroup.Investigation,
+                BattleDebugNavigationGroup.FrameSync,
+                BattleDebugNavigationGroup.Session
+            }));
+            Assert.That(BattleDebugNavigation.UseCompactNavigation(500f), Is.True);
+            Assert.That(BattleDebugNavigation.UseCompactNavigation(800f), Is.False);
             Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugAttributesPanel()),
                 Is.EqualTo(BattleDebugNavigationGroup.Actor));
             Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugDiagnosticEventsPanel()),
                 Is.EqualTo(BattleDebugNavigationGroup.Investigation));
             Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugRuntimeObjectsPanel()),
-                Is.EqualTo(BattleDebugNavigationGroup.Investigation));
+                Is.EqualTo(BattleDebugNavigationGroup.Runtime));
+            Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugSkillRuntimesPanel()),
+                Is.EqualTo(BattleDebugNavigationGroup.Runtime));
+            Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugActiveObjectsPanel()),
+                Is.EqualTo(BattleDebugNavigationGroup.Runtime));
+            Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugDiagnosticStatePanel()),
+                Is.EqualTo(BattleDebugNavigationGroup.Session));
+            Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugDiagnosticsHealthPanel()),
+                Is.EqualTo(BattleDebugNavigationGroup.Session));
             Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugFrameSyncPredictionPanel()),
                 Is.EqualTo(BattleDebugNavigationGroup.FrameSync));
+            Assert.That(BattleDebugNavigation.GroupOfModuleId(BattleDebugModuleIds.SkillRuntimes),
+                Is.EqualTo(BattleDebugNavigationGroup.Runtime));
+            Assert.That(BattleDebugNavigation.GroupOfModuleId(BattleDebugModuleIds.DiagnosticHealth),
+                Is.EqualTo(BattleDebugNavigationGroup.Session));
             Assert.That(BattleDebugNavigation.GroupOfModuleId(BattleDebugModuleIds.FrameSyncNetwork),
                 Is.EqualTo(BattleDebugNavigationGroup.FrameSync));
             Assert.That(BattleDebugNavigation.GroupOfModuleId(BattleDebugModuleIds.DiagnosticTrace),
                 Is.EqualTo(BattleDebugNavigationGroup.Investigation));
             Assert.That(BattleDebugNavigation.NavigationName(new BattleDebugFrameSyncPredictionPanel()),
                 Is.EqualTo("预测"));
+        }
+
+        [Test]
+        public void PaneLayout_KeepsActorAndDiagnosticVisibilityIndependent()
+        {
+            Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugTagsPanel()),
+                Is.EqualTo(BattleDebugNavigationGroup.Actor));
+            Assert.That(BattleDebugPaneLayout.ShowEntityPane(
+                BattleDebugNavigationGroup.Actor, true, false), Is.True);
+            Assert.That(BattleDebugPaneLayout.ShowEntityPane(
+                BattleDebugNavigationGroup.Investigation, true, false), Is.False);
+            Assert.That(BattleDebugPaneLayout.ShowEntityPane(
+                BattleDebugNavigationGroup.FrameSync, true, false), Is.False);
+            Assert.That(BattleDebugPaneLayout.ShowEntityPane(
+                BattleDebugNavigationGroup.Runtime, true, false), Is.False);
+            Assert.That(BattleDebugPaneLayout.ShowEntityPane(
+                BattleDebugNavigationGroup.Session, true, false), Is.False);
+            Assert.That(BattleDebugPaneLayout.ShowEntityPane(
+                BattleDebugNavigationGroup.Investigation, false, true), Is.True);
+            Assert.That(BattleDebugPaneLayout.ShowInspector(
+                BattleDebugNavigationGroup.Actor, false, true), Is.False);
+            Assert.That(BattleDebugPaneLayout.ShowInspector(
+                BattleDebugNavigationGroup.FrameSync, false, true), Is.True);
         }
 
         [Test]

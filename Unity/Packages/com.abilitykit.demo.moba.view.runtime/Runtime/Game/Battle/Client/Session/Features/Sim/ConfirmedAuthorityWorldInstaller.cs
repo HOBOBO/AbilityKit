@@ -7,7 +7,7 @@ namespace AbilityKit.Game.Flow
     {
         public readonly BattleStartPlan Plan;
         public readonly BattleContext Context;
-        public readonly GameFlowDomain Flow;
+        public readonly IBattleViewFeatureHost Flow;
         public readonly BattleSessionConfirmedWorldRuntime Handles;
         public readonly BattleSessionDiagnostics Diagnostics;
         public readonly bool HasSession;
@@ -18,7 +18,7 @@ namespace AbilityKit.Game.Flow
         public ConfirmedAuthorityWorldInstallOptions(
             BattleStartPlan plan,
             BattleContext context,
-            GameFlowDomain flow,
+            IBattleViewFeatureHost flow,
             BattleSessionConfirmedWorldRuntime handles,
             BattleSessionDiagnostics diagnostics,
             bool hasSession,

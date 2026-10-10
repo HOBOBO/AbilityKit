@@ -13,6 +13,8 @@ namespace AbilityKit.Game.Flow
     internal sealed class ExistingGatewayRoomBattleBootstrapper :
         IBattleBootstrapper,
         IFlowGateProvider,
+        IBattleFlowProfileProvider,
+        IBattleFlowModeProvider,
         IMobaReliableBattleEventCheckpointStore
     {
         private readonly BattleStartPlan _sourcePlan;
@@ -31,6 +33,8 @@ namespace AbilityKit.Game.Flow
         private readonly RoomGatewayNetworkSyncCapabilities _syncCapabilities;
 
         public bool ColdStartReconnect { get; }
+        public string FlowProfileId { get; }
+        public string FlowHostMode => _sourcePlan.HostMode.ToString();
 
         public ExistingGatewayRoomBattleBootstrapper(
             IBattleBootstrapper inner,
@@ -47,6 +51,8 @@ namespace AbilityKit.Game.Flow
             bool coldStartReconnect = false)
         {
             if (inner == null) throw new ArgumentNullException(nameof(inner));
+
+            FlowProfileId = (inner as IBattleFlowProfileProvider)?.FlowProfileId;
 
             _sourcePlan = inner.Build();
             _sessionToken = sessionToken ?? string.Empty;
@@ -116,81 +122,42 @@ namespace AbilityKit.Game.Flow
             var launchSpec = BuildAuthoritativeLaunchSpec(in plan.LaunchSpec);
             _syncCapabilities?.EnsureProfile("Lockstep");
             var createWorldPayload = launchSpec.ToCreateWorldInitPayload();
-            return new BattleStartPlan(
-                worldId: _worldId.ToString(),
-                worldType: world.WorldType,
-                clientId: world.ClientId,
-                playerId: _localPlayerId.ToString(CultureInfo.InvariantCulture),
-                tickRate: world.TickRate,
-                inputDelayFrames: world.InputDelayFrames,
-                hostMode: BattleHostMode.GatewayRemote,
-                useGatewayTransport: true,
-                gatewayHost: _gatewayHost,
-                gatewayPort: _gatewayPort,
-                numericRoomId: _numericRoomId,
-                gatewaySessionToken: _sessionToken,
-                gatewayRegion: _gatewayRegion,
-                gatewayServerId: _gatewayServerId,
-                gatewayAutoCreateRoom: false,
-                gatewayAutoJoinRoom: false,
-                gatewayJoinRoomId: _roomId,
-                gatewayCreateRoomOpCode: gateway.CreateRoomOpCode,
-                gatewayJoinRoomOpCode: gateway.JoinRoomOpCode,
-                autoConnect: auto.AutoConnect,
-                autoCreateWorld: auto.AutoCreateWorld,
-                autoJoin: auto.AutoJoin,
-                autoReady: auto.AutoReady,
-                syncMode: BattleSyncMode.Lockstep,
-                viewEventSourceMode: plan.Sync.ViewEventSourceMode,
-                enableClientPrediction: plan.Authority.EnableClientPrediction,
-                enableConfirmedAuthorityWorld: plan.Authority.EnableConfirmedAuthorityWorld,
-                enableInputRecording: runMode.EnableInputRecording,
-                inputRecordOutputPath: runMode.InputRecordOutputPath,
-                enableInputReplay: runMode.EnableInputReplay,
-                inputReplayPath: runMode.InputReplayPath,
-                runMode: runMode.RunMode,
-                createWorldOpCode: createWorld.OpCode,
-                createWorldPayload: MobaCreateWorldInitCodec.Serialize(in createWorldPayload),
-                timeSyncOpCode: timeSync.OpCode,
-                timeSyncIntervalMs: timeSync.IntervalMs,
-                timeSyncAlpha: timeSync.Alpha,
-                timeSyncTimeoutMs: timeSync.TimeoutMs,
-                idealFrameSafetyConstMarginFrames: timeSync.IdealFrameSafetyConstMarginFrames,
-                idealFrameSafetyRttFactor: timeSync.IdealFrameSafetyRttFactor,
-                idealFrameSafetyMinMarginFrames: timeSync.IdealFrameSafetyMinMarginFrames,
-                idealFrameSafetyMaxMarginFrames: timeSync.IdealFrameSafetyMaxMarginFrames,
-                enabledSnapshotRegistryIds: plan.Sync.EnabledSnapshotRegistryIds,
-                launchSpec: launchSpec,
-                gatewayBattleId: _battleId,
-                reliableEventCheckpoint: checkpoint,
-                remoteSyncCapabilities: _syncCapabilities);
+            var worldOptions = new BattleStartPlanWorldOptions(
+                _worldId.ToString(CultureInfo.InvariantCulture), world.WorldType, world.ClientId,
+                _localPlayerId.ToString(CultureInfo.InvariantCulture), world.TickRate, world.InputDelayFrames);
+            var gatewayOptions = new BattleStartPlanGatewayOptions(
+                true, _gatewayHost, _gatewayPort, _numericRoomId, _sessionToken,
+                _gatewayRegion, _gatewayServerId, false, false, _roomId,
+                gateway.CreateRoomOpCode, gateway.JoinRoomOpCode, _battleId, gateway.MaxPlayers);
+            var syncOptions = new BattleStartPlanSyncOptions(
+                BattleSyncMode.Lockstep, plan.Sync.ViewEventSourceMode, plan.Sync.EnabledSnapshotRegistryIds);
+            var createWorldOptions = new BattleStartPlanCreateWorldOptions(
+                createWorld.OpCode, MobaCreateWorldInitCodec.Serialize(in createWorldPayload));
+            var authority = plan.Authority;
+            var options = new BattleStartPlanOptions(
+                in worldOptions, BattleHostMode.GatewayRemote, in syncOptions, in authority,
+                in gatewayOptions, in auto, in runMode, in createWorldOptions, in timeSync,
+                launchSpec, checkpoint, _syncCapabilities);
+            return new BattleStartPlan(in options);
         }
 
         private MobaBattleLaunchSpec BuildAuthoritativeLaunchSpec(in MobaBattleLaunchSpec source)
         {
             var localPlayerId = new AbilityKit.Ability.Host.PlayerId(_localPlayerId.ToString(CultureInfo.InvariantCulture));
             var players = BuildAuthoritativePlayerLoadouts(source.Players);
+            var identity = new MobaBattleLaunchIdentity(
+                _battleId, _battleId, _worldId.ToString(CultureInfo.InvariantCulture));
+            var createWorld = new MobaCreateWorldSpec(
+                _battleId, source.MapId, source.RandomSeed, source.TickRate,
+                source.InputDelayFrames, players, source.GameplayId);
+            var profile = new MobaBattleLaunchProfile(
+                source.WorldType, source.ClientId, source.LaunchMode,
+                MobaBattleLaunchSyncMode.FrameSync, source.AuthorityMode,
+                source.RuleSetId, source.ConfigVersion, source.ProtocolVersion,
+                source.TickRate, source.InputDelayFrames);
             return new MobaBattleLaunchSpec(
-                battleId: _battleId,
-                matchId: _battleId,
-                worldId: _worldId.ToString(CultureInfo.InvariantCulture),
-                worldType: source.WorldType,
-                clientId: source.ClientId,
-                localPlayerId: localPlayerId,
-                mapId: source.MapId,
-                gameplayId: source.GameplayId,
-                ruleSetId: source.RuleSetId,
-                configVersion: source.ConfigVersion,
-                protocolVersion: source.ProtocolVersion,
-                randomSeed: source.RandomSeed,
-                tickRate: source.TickRate,
-                inputDelayFrames: source.InputDelayFrames,
-                launchMode: source.LaunchMode,
-                syncMode: MobaBattleLaunchSyncMode.FrameSync,
-                authorityMode: source.AuthorityMode,
-                players: players,
-                enterGameOpCode: source.EnterGameOpCode,
-                enterGamePayload: source.EnterGamePayload);
+                in identity, localPlayerId, in createWorld, in profile,
+                source.EnterGameOpCode, source.EnterGamePayload);
         }
 
         private MobaPlayerLoadout[] BuildAuthoritativePlayerLoadouts(MobaPlayerLoadout[] configuredPlayers)

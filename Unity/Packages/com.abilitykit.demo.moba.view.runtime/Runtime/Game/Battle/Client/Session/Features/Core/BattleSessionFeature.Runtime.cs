@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
 using AbilityKit.Game.Battle;
@@ -5,68 +6,87 @@ using AbilityKit.Game.Flow.Battle.Modules;
 
 namespace AbilityKit.Game.Flow
 {
-    public sealed partial class BattleSessionFeature :
-        ISessionDispatchersRuntime,
-        ISessionEventsRuntime,
-        ISessionPlanRuntime,
-        ISessionReplayRuntime,
-        ISessionNetAdapterRuntime,
-        ISessionTickLoopRuntime,
-        ISessionLifecycleRuntime,
-        ISessionGatewayRuntime,
-        ISessionSnapshotRoutingRuntime,
-        ISessionTickLoopPort,
-#if UNITY_EDITOR
-        ISessionEditorHooksRuntime,
-#endif
-        ISessionPlanHost,
-        ISessionEventsHost
+    public sealed partial class BattleSessionFeature : ISessionTickLoopPort, ISessionPlanHost, ISessionEventsHost
     {
-        BattleSessionHandles ISessionDispatchersRuntime.Handles => _handles;
-        SessionDispatchersController ISessionDispatchersRuntime.Dispatchers => _dispatchers;
+        private sealed class SessionModuleRuntime :
+            ISessionRuntimeFeature,
+            ISessionDispatchersRuntime,
+            ISessionEventsRuntime,
+            ISessionPlanRuntime,
+            ISessionReplayRuntime,
+            ISessionNetAdapterRuntime,
+            ISessionTickLoopRuntime,
+            ISessionLifecycleRuntime,
+            ISessionGatewayRuntime,
+            ISessionSnapshotRoutingRuntime
+#if UNITY_EDITOR
+            , ISessionEditorHooksRuntime
+#endif
+        {
+            private readonly BattleSessionFeature _owner;
+            private readonly BattleSessionRuntime _runtime;
 
-        SessionEventsController ISessionEventsRuntime.Events => _eventsCtrl;
+            public SessionModuleRuntime(BattleSessionFeature owner)
+            {
+                _owner = owner ?? throw new ArgumentNullException(nameof(owner));
+                _runtime = owner._runtime;
+            }
 
-        IBattleBootstrapper ISessionPlanRuntime.Bootstrapper => _bootstrapper;
-        BattleSessionState ISessionPlanRuntime.State => _state;
-        BattleSessionHandles ISessionPlanRuntime.Handles => _handles;
-        BattleContext ISessionPlanRuntime.Context => _ctx;
-        BattleSessionHooks ISessionPlanRuntime.Hooks => Hooks;
-        SessionPlanController ISessionPlanRuntime.PlanController => _planCtrl;
+            public ISessionPlanHost PlanHost => _owner;
+            public ISessionEventsHost EventsHost => _owner;
 
-        BattleStartPlan ISessionReplayRuntime.Plan => _plan;
-        BattleSessionState ISessionReplayRuntime.State => _state;
-        BattleSessionHandles ISessionReplayRuntime.Handles => _handles;
-        BattleContext ISessionReplayRuntime.Context => _ctx;
-        SessionReplayController ISessionReplayRuntime.Replay => _replayCtrl;
-        BattleReplayRuntime ISessionReplayRuntime.ReplayResources => _runtime.Replay;
+            void ISessionDispatchersRuntime.AttachDispatchers() =>
+                _runtime.Dispatchers.OnAttach(_runtime.Handles);
+            void ISessionDispatchersRuntime.DetachDispatchers() =>
+                _runtime.Dispatchers.OnDetach(_runtime.Handles);
+            SessionEventsController ISessionEventsRuntime.Events => _runtime.EventsController;
 
-        BattleLogicSession ISessionNetAdapterRuntime.Session => _session;
-        BattleSessionNetAdapter ISessionNetAdapterRuntime.NetAdapter => _netAdapter;
-        SessionNetAdapterController ISessionNetAdapterRuntime.Net => _net;
+            SessionStartupTaskOwner ISessionPlanRuntime.StartupTasks => _runtime.StartupTasks;
+            Task ISessionPlanRuntime.AttachPlanAsync(Func<bool> isCurrent) =>
+                _runtime.PlanController.OnAttachAsync(
+                    _owner,
+                    _owner._bootstrapper,
+                    _runtime.State,
+                    _runtime.Handles,
+                    _owner.Hooks,
+                    _runtime.Handles.Phase.Ctx,
+                    isCurrent);
 
-        SessionTickLoopController ISessionTickLoopRuntime.TickLoop => _tickLoop;
+            void ISessionReplayRuntime.SetupReplayOrRecord() =>
+                _runtime.ReplayController.SetupReplayOrRecord(
+                    _runtime.State.Plan, _runtime.Handles.Phase.Ctx, _runtime.Replay);
+            void ISessionReplayRuntime.OnReplayFrameReceived(AbilityKit.Ability.Host.FramePacket packet) =>
+                _runtime.ReplayController.OnFrameReceived(
+                    _runtime.State.Plan, _runtime.State, _runtime.Handles.Phase.Ctx, packet);
 
-        BattleSessionHooks ISessionLifecycleRuntime.Hooks => Hooks;
+            AbilityKit.Ability.Host.FramePacket ISessionNetAdapterRuntime.TransformFramePacket(
+                AbilityKit.Ability.Host.FramePacket packet) =>
+                _runtime.NetController.TransformFramePacket(
+                    _runtime.Handles.Session, _runtime.Handles.Net.Adapter, packet);
+            void ISessionTickLoopRuntime.TickSession(float deltaTime) =>
+                _runtime.TickLoop.MainTick(deltaTime);
+            BattleSessionHooks ISessionLifecycleRuntime.Hooks => _owner.Hooks;
 
-        BattleSessionHooks ISessionGatewayRuntime.Hooks => Hooks;
-        bool ISessionGatewayRuntime.HasGatewayRoomConnection => HasGatewayRoomConnection;
-        Task ISessionGatewayRuntime.GatewayRoomPreparationTask => GatewayRoomPreparationTask;
-        bool ISessionGatewayRuntime.ShouldPrepareGatewayRoom() => ShouldPrepareGatewayRoom();
-        Task ISessionGatewayRuntime.StartGatewayRoomPreparation() => StartGatewayRoomPreparation();
-        void ISessionGatewayRuntime.CompleteGatewayRoomPreparation() => CompleteGatewayRoomPreparation();
-        Task ISessionGatewayRuntime.StopGatewayRoomPreparationAsync() => StopGatewayRoomPreparationAsync();
-        void ISessionGatewayRuntime.TickGatewayRoomConnection(float deltaTime) => TickGatewayRoomConnection(deltaTime);
-        void ISessionGatewayRuntime.OnStartSessionRequested() => OnStartSessionRequested();
-        void ISessionGatewayRuntime.NotifySessionFailed(System.Exception exception) => _eventsCtrl.NotifySessionFailed(this, exception);
+            BattleSessionHooks ISessionGatewayRuntime.Hooks => _owner.Hooks;
+            bool ISessionGatewayRuntime.HasGatewayRoomConnection => _owner.HasGatewayRoomConnection;
+            Task ISessionGatewayRuntime.GatewayRoomPreparationTask => _owner.GatewayRoomPreparationTask;
+            bool ISessionGatewayRuntime.ShouldPrepareGatewayRoom() => _owner.ShouldPrepareGatewayRoom();
+            Task ISessionGatewayRuntime.StartGatewayRoomPreparation() => _owner.StartGatewayRoomPreparation();
+            Task ISessionGatewayRuntime.CompleteGatewayRoomPreparationAsync() => _owner.CompleteGatewayRoomPreparationAsync();
+            Task ISessionGatewayRuntime.StopGatewayRoomPreparationAsync() => _owner.StopGatewayRoomPreparationAsync();
+            void ISessionGatewayRuntime.TickGatewayRoomConnection(float deltaTime) => _owner.TickGatewayRoomConnection(deltaTime);
+            void ISessionGatewayRuntime.OnStartSessionRequested() => _owner.OnStartSessionRequested();
+            void ISessionGatewayRuntime.NotifySessionFailed(Exception exception) =>
+                _owner._eventsCtrl.NotifySessionFailed(_owner, exception);
 
-        BattleSessionHooks ISessionSnapshotRoutingRuntime.Hooks => Hooks;
-        void ISessionSnapshotRoutingRuntime.EnsureSnapshotRoutingBuilt() => EnsureSnapshotRoutingBuilt();
-        void ISessionSnapshotRoutingRuntime.DisposeSnapshotRoutingIfAny() => DisposeSnapshotRoutingIfAny();
+            BattleSessionHooks ISessionSnapshotRoutingRuntime.Hooks => _owner.Hooks;
+            void ISessionSnapshotRoutingRuntime.EnsureSnapshotRoutingBuilt() => _owner.EnsureSnapshotRoutingBuilt();
+            void ISessionSnapshotRoutingRuntime.DisposeSnapshotRoutingIfAny() => _owner.DisposeSnapshotRoutingIfAny();
 
 #if UNITY_EDITOR
-        void ISessionEditorHooksRuntime.TryInstallEditorPlayModeStopHook() => TryInstallEditorPlayModeStopHook();
-        void ISessionEditorHooksRuntime.TryUninstallEditorPlayModeStopHook() => TryUninstallEditorPlayModeStopHook();
+            void ISessionEditorHooksRuntime.TryInstallEditorPlayModeStopHook() => _owner.TryInstallEditorPlayModeStopHook();
+            void ISessionEditorHooksRuntime.TryUninstallEditorPlayModeStopHook() => _owner.TryUninstallEditorPlayModeStopHook();
 #endif
+        }
     }
 }

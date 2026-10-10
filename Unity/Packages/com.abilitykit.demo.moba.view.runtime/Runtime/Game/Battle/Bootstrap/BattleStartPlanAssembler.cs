@@ -87,7 +87,8 @@ namespace AbilityKit.Game.Flow
                     autoJoinRoom: false,
                     joinRoomId: joinRoomId,
                     createRoomOpCode: RoomGatewayOpCodes.CreateRoom,
-                    joinRoomOpCode: RoomGatewayOpCodes.JoinRoom)
+                    joinRoomOpCode: RoomGatewayOpCodes.JoinRoom,
+                    maxPlayers: gateway != null ? gateway.MaxPlayers : 2)
                 .WithAutoFlow(autoConnect, autoCreateWorld, autoJoin, autoReady)
                 .WithRunMode(
                     runMode: runMode,

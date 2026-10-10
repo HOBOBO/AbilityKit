@@ -31,6 +31,20 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.CreateWorld
         ClientPrediction = 3,
     }
 
+    public readonly struct MobaBattleLaunchIdentity
+    {
+        public MobaBattleLaunchIdentity(string battleId, string matchId, string worldId)
+        {
+            BattleId = battleId;
+            MatchId = matchId;
+            WorldId = worldId;
+        }
+
+        public string BattleId { get; }
+        public string MatchId { get; }
+        public string WorldId { get; }
+    }
+
     public readonly struct MobaBattleLaunchSpec
     {
         public readonly string BattleId;
@@ -53,6 +67,26 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.CreateWorld
         public readonly MobaPlayerLoadout[] Players;
         public readonly int EnterGameOpCode;
         public readonly byte[] EnterGamePayload;
+
+        public MobaBattleLaunchSpec(
+            in MobaBattleLaunchIdentity identity,
+            PlayerId localPlayerId,
+            in MobaCreateWorldSpec createWorld,
+            in MobaBattleLaunchProfile profile,
+            int enterGameOpCode = 0,
+            byte[] enterGamePayload = null)
+            : this(
+                identity.BattleId, identity.MatchId, identity.WorldId,
+                profile.WorldType, profile.ClientId, localPlayerId,
+                createWorld.MapId, createWorld.GameplayId, profile.RuleSetId,
+                profile.ConfigVersion, profile.ProtocolVersion, createWorld.RandomSeed,
+                createWorld.TickRate, createWorld.InputDelayFrames,
+                profile.LaunchMode, profile.SyncMode, profile.AuthorityMode,
+                createWorld.Players, enterGameOpCode, enterGamePayload)
+        {
+            if (!string.Equals(createWorld.MatchId, MatchId, System.StringComparison.Ordinal))
+                throw new System.ArgumentException("Launch identity and CreateWorld match ids differ.", nameof(createWorld));
+        }
 
         public MobaBattleLaunchSpec(
             string battleId,
@@ -295,25 +329,13 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.CreateWorld
             var effectiveMatchId = string.IsNullOrEmpty(matchId) ? effectiveBattleId : matchId;
             var seed = randomSeed != 0 ? randomSeed : System.Environment.TickCount;
 
-            return new MobaBattleLaunchSpec(
-                battleId: effectiveBattleId,
-                matchId: effectiveMatchId,
-                worldId: string.IsNullOrEmpty(worldId) ? effectiveBattleId : worldId,
-                worldType: profile.WorldType,
-                clientId: profile.ClientId,
-                localPlayerId: localPlayerId,
-                mapId: mapId > 0 ? mapId : 1,
-                gameplayId: gameplayId,
-                ruleSetId: profile.RuleSetId,
-                configVersion: profile.ConfigVersion,
-                protocolVersion: profile.ProtocolVersion,
-                randomSeed: seed,
-                tickRate: profile.TickRate,
-                inputDelayFrames: profile.InputDelayFrames,
-                launchMode: profile.LaunchMode,
-                syncMode: profile.SyncMode,
-                authorityMode: profile.AuthorityMode,
-                players: players);
+            var identity = new MobaBattleLaunchIdentity(
+                effectiveBattleId, effectiveMatchId,
+                string.IsNullOrEmpty(worldId) ? effectiveBattleId : worldId);
+            var createWorld = new MobaCreateWorldSpec(
+                effectiveMatchId, mapId > 0 ? mapId : 1, seed,
+                profile.TickRate, profile.InputDelayFrames, players, gameplayId);
+            return new MobaBattleLaunchSpec(in identity, localPlayerId, in createWorld, in profile);
         }
 
         public static MobaBattleLaunchSpec FromEnterReq(

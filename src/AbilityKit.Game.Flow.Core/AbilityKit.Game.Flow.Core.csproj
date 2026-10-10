@@ -14,10 +14,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Presentation.Contracts\AbilityKit.Demo.Moba.Presentation.Contracts.csproj" />
     <ProjectReference Include="..\AbilityKit.Flow\AbilityKit.Flow.csproj" />
     <ProjectReference Include="..\AbilityKit.Game.View.Runtime\AbilityKit.Game.View.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.HFSM.Core\AbilityKit.HFSM.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Network.Room\AbilityKit.Network.Room.csproj" />
+    <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
     <ProjectReference Include="..\AbilityKit.World.DI\AbilityKit.World.DI.csproj" />
     <ProjectReference Include="..\AbilityKit.World.ECS\AbilityKit.World.ECS.csproj" />
   </ItemGroup>

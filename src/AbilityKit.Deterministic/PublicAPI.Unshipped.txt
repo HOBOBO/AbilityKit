@@ -19,13 +19,16 @@ static AbilityKit.Deterministic.DeterministicMath.Ceiling(AbilityKit.Determinist
 static AbilityKit.Deterministic.DeterministicMath.Clamp(AbilityKit.Deterministic.Fixed64 value, AbilityKit.Deterministic.Fixed64 min, AbilityKit.Deterministic.Fixed64 max) -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.Cos(AbilityKit.Deterministic.Fixed64 angle) -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.E.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Exp(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.Floor(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.HalfPi.get -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.Lerp(AbilityKit.Deterministic.Fixed64 from, AbilityKit.Deterministic.Fixed64 to, AbilityKit.Deterministic.Fixed64 t) -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.LerpClamped(AbilityKit.Deterministic.Fixed64 from, AbilityKit.Deterministic.Fixed64 to, AbilityKit.Deterministic.Fixed64 t) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Ln(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.Max(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.Min(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.Pi.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Pow(AbilityKit.Deterministic.Fixed64 baseValue, AbilityKit.Deterministic.Fixed64 exponent) -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.Round(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.Sin(AbilityKit.Deterministic.Fixed64 angle) -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.Sqrt(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64

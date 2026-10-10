@@ -95,9 +95,9 @@ namespace AbilityKit.Game.Flow
         internal GamePhaseContext PhaseCtx;
         internal BattleContext Ctx;
         internal AbilityKit.World.ECS.IEntity Root;
-        internal List<ISessionSubFeature<BattleSessionFeature>> SubFeatures;
-        internal ModuleHost<FeatureModuleContext<BattleSessionFeature>, ISessionSubFeature<BattleSessionFeature>> SubFeatureHost;
-        internal GameFlowDomain Flow;
+        internal List<ISessionSubFeature<ISessionRuntimeFeature>> SubFeatures;
+        internal ModuleHost<FeatureModuleContext<ISessionRuntimeFeature>, ISessionSubFeature<ISessionRuntimeFeature>> SubFeatureHost;
+        internal IBattleViewFeatureHost Flow;
 
         public void Reset()
         {

@@ -72,6 +72,22 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void ViewResources_RequireBoundPresentationSession()
+        {
+            var context = BattleContext.Rent();
+            try
+            {
+                var view = (IViewFeatureRuntime)new ConfirmedBattleViewFeature(context);
+                Assert.That(() => _ = view.Resources,
+                    Throws.InvalidOperationException.With.Message.Contains("bound battle presentation session"));
+            }
+            finally
+            {
+                BattleContext.Return(context);
+            }
+        }
+
+        [Test]
         public void PredictionViewOwner_AttachesTwoInstancesAndDisposesSeparately()
         {
             var world = new AbilityKit.World.ECS.EntityWorld();

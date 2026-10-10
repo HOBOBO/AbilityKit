@@ -48,7 +48,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 "召唤物", "SummonEventPayload", SummonFields());
             AddExactEvents(events, new[] { "unit.spawn", "unit.despawn", "unit.die", "unit.respawn" },
                 "单位", "UnitEventPayload", UnitFields());
-            AddExactEvents(events, new[] { "gameplay.started", "gameplay.tick", "gameplay.ended" },
+            AddExactEvents(events, new[] { "gameplay.started", "gameplay.tick", "gameplay.time_expired", "gameplay.score_changed", "gameplay.ended" },
                 "玩法", "GameplayLifecycleEventArgs", GameplayFields(), true);
             for (var i = 0; i < events.Count; i++)
             {
@@ -226,7 +226,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             return new List<TriggerPayloadFieldData>
             {
                 Field("frame_index", TriggerValueType.Integer), Field("elapsed_seconds", TriggerValueType.Number),
-                Field("delta_seconds", TriggerValueType.Number), Field("win_team_id", TriggerValueType.Integer)
+                Field("delta_seconds", TriggerValueType.Number), Field("win_team_id", TriggerValueType.Integer),
+                Field("team_id", TriggerValueType.Integer), Field("score", TriggerValueType.Number)
             };
         }
 

@@ -87,12 +87,17 @@ namespace AbilityKit.Game.Flow
         {
             ValidateFeatureSpec(configuration.BootFeatures, "Boot", errors);
             ValidateFeatureSpec(configuration.LobbyFeatures, "Lobby", errors);
-            ValidateFeatureSpec(configuration.BattlePrepareFeatures, "Battle.Prepare", errors);
-            ValidateFeatureSpec(configuration.BattleConnectFeatures, "Battle.Connect", errors);
-            ValidateFeatureSpec(configuration.BattleCreateOrJoinWorldFeatures, "Battle.CreateOrJoinWorld", errors);
-            ValidateFeatureSpec(configuration.BattleLoadAssetsFeatures, "Battle.LoadAssets", errors);
-            ValidateFeatureSpec(configuration.BattleInMatchFeatures, "Battle.InMatch", errors);
-            ValidateFeatureSpec(configuration.BattleEndFeatures, "Battle.End", errors);
+            foreach (var state in configuration.BattleMachine.States)
+            {
+                if (!configuration.BattleFeatureSpecs.TryGetValue(state, out var spec))
+                    errors.Add($"MOBA battle state has no feature specification: {state}");
+                else
+                    ValidateFeatureSpec(spec, "Battle." + state, errors);
+            }
+
+            foreach (var state in configuration.BattleFeatureSpecs.Keys)
+                if (!Contains(configuration.BattleMachine.States, state))
+                    errors.Add($"MOBA feature specification references an unregistered battle state: {state}");
         }
 
         private static void ValidateFeatureSpec(PhaseStateFeatureSpec spec, string expectedStateId, List<string> errors)

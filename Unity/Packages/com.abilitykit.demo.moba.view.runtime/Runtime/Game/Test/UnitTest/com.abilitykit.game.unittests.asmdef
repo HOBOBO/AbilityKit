@@ -9,6 +9,7 @@
         "AbilityKit.Demo.Moba.Presentation.Core",
         "AbilityKit.Demo.Moba.Presentation.Contracts",
         "AbilityKit.Demo.Moba.Presentation.ProtocolAdapter",
+        "AbilityKit.Demo.Moba.Presentation.SnapshotAdapter",
         "AbilityKit.Demo.Moba.Presentation.Adapter",
         "AbilityKit.Demo.Moba.Environment",
         "AbilityKit.BattleScenario",

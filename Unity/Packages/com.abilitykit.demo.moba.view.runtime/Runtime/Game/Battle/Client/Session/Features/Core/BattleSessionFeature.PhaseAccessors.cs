@@ -17,19 +17,19 @@ namespace AbilityKit.Game.Flow
             set => _handles.Phase.Ctx = value;
         }
 
-        private List<ISessionSubFeature<BattleSessionFeature>> _subFeatures
+        private List<ISessionSubFeature<ISessionRuntimeFeature>> _subFeatures
         {
             get => _handles.Phase.SubFeatures;
             set => _handles.Phase.SubFeatures = value;
         }
 
-        private ModuleHost<FeatureModuleContext<BattleSessionFeature>, ISessionSubFeature<BattleSessionFeature>> _subFeatureHost
+        private ModuleHost<FeatureModuleContext<ISessionRuntimeFeature>, ISessionSubFeature<ISessionRuntimeFeature>> _subFeatureHost
         {
             get => _handles.Phase.SubFeatureHost;
             set => _handles.Phase.SubFeatureHost = value;
         }
 
-        private GameFlowDomain _flow
+        private IBattleViewFeatureHost _flow
         {
             get => _handles.Phase.Flow;
             set => _handles.Phase.Flow = value;

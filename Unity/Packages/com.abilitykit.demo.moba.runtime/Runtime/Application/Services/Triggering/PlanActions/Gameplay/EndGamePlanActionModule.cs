@@ -4,6 +4,7 @@ using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Demo.Moba.Gameplay;
+using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Systems;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -37,13 +38,31 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 reason = "trigger_end_game";
             }
 
-            if (!gameplay.End(reason, args.WinTeamId))
+            var winTeamId = args.WinTeamId;
+            if (args.WinTeamFromEvent)
             {
-                LogRejected($"ignored phase={gameplay.Phase}, reason={reason}, winTeamId={args.WinTeamId}");
+                if (!(triggerArgs is GameplayLifecycleEventArgs evt) ||
+                    (evt.TeamId != (int)Team.Team1 && evt.TeamId != (int)Team.Team2))
+                {
+                    LogRejected("win_team_from_event requires a scored team event");
+                    return;
+                }
+                winTeamId = evt.TeamId;
+            }
+
+            if (winTeamId != 0 && winTeamId != (int)Team.Team1 && winTeamId != (int)Team.Team2)
+            {
+                LogRejected("win_team_id must be a team in this mode");
                 return;
             }
 
-            LogApplied($"reason={reason}, winTeamId={args.WinTeamId}");
+            if (!gameplay.End(reason, winTeamId))
+            {
+                LogRejected($"ignored phase={gameplay.Phase}, reason={reason}, winTeamId={winTeamId}");
+                return;
+            }
+
+            LogApplied($"reason={reason}, winTeamId={winTeamId}");
         }
     }
 }

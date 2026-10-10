@@ -42,6 +42,9 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
                 return false;
             }
 
+            if (!MobaGameplayTriggerValidator.ValidateGameplay(gameplay, _triggerDb, _eventRegistry))
+                return false;
+
             var ok = true;
             var triggerIds = gameplay.TriggerIds;
             if (triggerIds != null)

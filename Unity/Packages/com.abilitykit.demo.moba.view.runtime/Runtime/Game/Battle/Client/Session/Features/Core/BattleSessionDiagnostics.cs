@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Network.Runtime.Sync;
 
@@ -355,10 +357,44 @@ namespace AbilityKit.Game.Flow
 
         internal void PublishDebugControls(BattleContext context = null)
         {
+            if (_debugControlContext != null)
+            {
+                _debugControlContext.StateHashSnapshotReceived -= CollectStateHashSnapshot;
+                if (DebugControlsByContext.TryGetValue(_debugControlContext, out var previous) &&
+                    ReferenceEquals(previous, this))
+                    DebugControlsByContext.Remove(_debugControlContext);
+            }
             _forceClientHashMismatch = _debugForceClientHashMismatch;
             _debugControlContext = context;
-            if (context != null) DebugControlsByContext[context] = this;
+            if (context != null)
+            {
+                DebugControlsByContext[context] = this;
+                context.StateHashSnapshotReceived += CollectStateHashSnapshot;
+            }
             _debugControlOwner = this;
+        }
+
+        private void CollectStateHashSnapshot(int authoritativeFrame, uint stateHash)
+        {
+            var context = _debugControlContext;
+            if (context == null ||
+                !DebugControlsByContext.TryGetValue(context, out var owner) ||
+                !ReferenceEquals(owner, this)) return;
+
+            try
+            {
+                if (!context.TryGetRuntimeWorld(out var world) || world.Services == null ||
+                    !world.Services.TryResolve<IMobaBattleDiagnosticEventSink>(out var sink) ||
+                    sink == null) return;
+
+                var draft = MobaSyncDiagnosticProducer.CreateSnapshotReceivedDraft(
+                    authoritativeFrame, stateHash);
+                sink.TryCollect(in draft);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[BattleSessionDiagnostics] Failed to collect StateHash sync diagnostic");
+            }
         }
 
         internal void PublishJitterBuffer(JitterBufferStatsSnapshot snapshot)
@@ -490,6 +526,8 @@ namespace AbilityKit.Game.Flow
 
         public void Dispose()
         {
+            if (_debugControlContext != null)
+                _debugControlContext.StateHashSnapshotReceived -= CollectStateHashSnapshot;
             if (_debugControlContext != null &&
                 DebugControlsByContext.TryGetValue(_debugControlContext, out var published) &&
                 ReferenceEquals(published, this))

@@ -10,6 +10,7 @@ using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Persistence;
 using AbilityKit.Orleans.Grains.Rooms;
 using AbilityKit.Orleans.Grains.Rooms.Gameplay;
+using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Orleans.Grains.Gameplays.Moba.Rooms;
 
@@ -163,6 +164,9 @@ internal sealed class MobaRoomGameplayAdapter : IRoomGameplayAdapter
 
     public RoomLaunchManifest BuildLaunchManifest(object state, RoomSummary summary)
     {
+        if (summary.Tags == null || !summary.Tags.TryGetValue(RoomTagKeys.MobaTagBundleVersion, out var tagBundleVersion) ||
+            string.IsNullOrWhiteSpace(tagBundleVersion))
+            throw new InvalidOperationException("MOBA room is missing its tag bundle version.");
         var roomState = RequireMobaState(state);
         var references = new List<string>();
 
@@ -189,6 +193,7 @@ internal sealed class MobaRoomGameplayAdapter : IRoomGameplayAdapter
             ["mapId"] = mapId.ToString(),
             ["players"] = roomState.Players.Count.ToString()
         };
+        metadata[RoomTagKeys.MobaTagBundleVersion] = tagBundleVersion;
 
         return RoomLaunchManifestBuilder.Build(RoomLaunchManifestBuilder.CurrentManifestVersion, references, metadata);
     }

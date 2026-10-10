@@ -23,12 +23,6 @@ namespace AbilityKit.Game.Flow
             set => _state.Tick.LastFrame = value;
         }
 
-        private float _tickAcc
-        {
-            get => _state.Tick.TickAcc;
-            set => _state.Tick.TickAcc = value;
-        }
-
         private bool _worldReady
         {
             get => _state.Tick.WorldReady;

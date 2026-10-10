@@ -1,9 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using AbilityKit.Ability.FrameSync;
 using AbilityKit.Game.Battle;
-using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Game.Flow.Battle.Replay;
 using AbilityKit.Game.Flow.Modules;
 using AbilityKit.Network.Abstractions;
@@ -16,7 +14,8 @@ namespace AbilityKit.Game.Flow
         Battle.Replay.IBattleReplayControl,
         IBattleAssetLoadSessionPort,
         ISessionLogicPort,
-        ISessionPipelinePort
+        ISessionPipelinePort,
+        ISessionSimulationHost
     {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         public static bool DebugForceClientHashMismatch
@@ -42,6 +41,7 @@ namespace AbilityKit.Game.Flow
         // Compatibility facade during staged migration. Mutable session state and resources
         // are owned by BattleSessionRuntime rather than by this feature facade.
         private readonly BattleSessionRuntime _runtime = new BattleSessionRuntime();
+        private readonly SessionModuleRuntime _moduleRuntime;
         private BattleSessionState _state => _runtime.State;
         private BattleSessionHandles _handles => _runtime.Handles;
         private SessionOrchestrator _orchestrator => _runtime.Orchestrator;
@@ -49,14 +49,12 @@ namespace AbilityKit.Game.Flow
         private readonly SessionRuntimeResourcesPort _runtimeResourcesPort;
         private readonly SessionLifecycleHost _lifecycleHost;
         private readonly SessionNetAdapterContextHost _netAdapterContextHost;
-        private readonly SessionDispatchersController _dispatchers;
-        private readonly SessionNetAdapterController _net;
-        private readonly SessionReplayController _replayCtrl;
-        private readonly SessionPlanController _planCtrl;
-        private readonly SessionEventsController _eventsCtrl;
-        private readonly SessionTickLoopController _tickLoop;
-        private readonly SessionWorldCatchUpController _worldCatchUp;
+        private SessionDispatchersController _dispatchers => _runtime.Dispatchers;
+        private SessionEventsController _eventsCtrl => _runtime.EventsController;
+        private SessionTickLoopController _tickLoop => _runtime.TickLoop;
+        private SessionWorldCatchUpController _worldCatchUp => _runtime.WorldCatchUp;
         private readonly BattleSessionLifecycleController<GamePhaseContext> _featureLifecycle;
+        private SessionStartupTaskOwner _startupTasks => _runtime.StartupTasks;
 
 #if UNITY_EDITOR
         private static bool _editorPlayModeHookInstalled;
@@ -85,23 +83,19 @@ namespace AbilityKit.Game.Flow
             IBattleSessionTransportFactory transportFactory = null,
             IBattleSessionGatewayConnectionFactory gatewayRoomConnectionFactory = null,
             IBattleSessionGatewayRoomClientFactory gatewayRoomClientFactory = null,
-            IBattleLogicSessionRegistry sessionRegistry = null)
+            IBattleLogicSessionRegistry sessionRegistry = null,
+            Func<string, ISessionSubFeature<ISessionRuntimeFeature>> sessionModuleFactory = null)
         {
             _bootstrapper = bootstrapper;
+            _moduleRuntime = new SessionModuleRuntime(this);
             _connectionRegistry = connectionRegistry ?? new AbilityKitConnectionRegistry();
             _transportFactory = transportFactory ?? new DefaultBattleSessionTransportFactory();
             _gatewayConnectionFactory = gatewayRoomConnectionFactory ?? new DefaultBattleSessionGatewayConnectionFactory(gatewayConnectionFactory);
             _gatewayRoomClientFactory = gatewayRoomClientFactory ?? new DefaultBattleSessionGatewayRoomClientFactory();
             _sessionRegistry = sessionRegistry ?? new DefaultBattleLogicSessionRegistry();
+            _sessionModuleFactory = sessionModuleFactory;
             _runtime.ConfigureSimulation(worldInstaller ?? new DefaultBattleSessionWorldInstaller());
-            _runtime.ConfigureSimulationController(
-                () => _plan,
-                () => _ctx,
-                () => _flow,
-                () => _session != null,
-                GetFixedDeltaSeconds,
-                ResolveIdealFrameLimit,
-                DestroyEntityTree);
+            _runtime.ConfigureSimulationController(this);
             _runtime.ConfigureGatewayRoom(
                 _connectionRegistry,
                 _gatewayConnectionFactory,
@@ -114,27 +108,28 @@ namespace AbilityKit.Game.Flow
                 this,
                 _runtimeResourcesPort);
             _runtime.ConfigureOrchestrator(_lifecycleHost);
-            _dispatchers = new SessionDispatchersController();
-            _net = new SessionNetAdapterController();
-            _replayCtrl = new SessionReplayController();
-            _planCtrl = new SessionPlanController();
-            _eventsCtrl = new SessionEventsController();
             _featureLifecycle = new BattleSessionLifecycleController<GamePhaseContext>(
                 CreateTeardownSteps);
-            _tickLoop = new SessionTickLoopController(
-                _state.Tick,
-                this,
-                new StopwatchSessionTickClock());
+            _runtime.ConfigureTickLoop(this);
             _netAdapterContextHost = new SessionNetAdapterContextHost(
                 () => _plan,
                 _handles,
                 () => _snapshots);
-            _worldCatchUp = new SessionWorldCatchUpController();
         }
 
         public BattleLogicSession Session => _session;
         public int LastFrame => _lastFrame;
         public BattleStartPlan Plan => _plan;
+
+        BattleStartPlan ISessionSimulationHost.Plan => _plan;
+        BattleContext ISessionSimulationHost.Context => _ctx;
+        IBattleViewFeatureHost ISessionSimulationHost.Flow => _flow;
+        bool ISessionSimulationHost.HasLogicSession => _session != null;
+        float ISessionSimulationHost.FixedDeltaSeconds => GetFixedDeltaSeconds();
+        int ISessionSimulationHost.ResolveIdealFrameLimit(AbilityKit.Ability.World.Abstractions.WorldId worldId) =>
+            ResolveIdealFrameLimit(worldId);
+        void ISessionSimulationHost.DestroyEntityTree(AbilityKit.World.ECS.IEntity root) =>
+            DestroyEntityTree(root);
 
         public bool IsReplaySession => _runtime.Replay.IsActive;
         public bool IsPlaying => _runtime.Replay.IsPlaying;
@@ -201,11 +196,7 @@ namespace AbilityKit.Game.Flow
 
         private float GetFixedDeltaSeconds() => _orchestrator.GetFixedDeltaSeconds();
 
-        private void StartSession() => _orchestrator.StartSession();
-
         private Task StartSessionAsync() => _orchestrator.StartSessionAsync();
-
-        private void StopSession() => _orchestrator.StopSession();
 
         private Task StopSessionAsync() => _orchestrator.StopSessionAsync();
     }

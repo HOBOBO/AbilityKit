@@ -2,22 +2,41 @@ namespace AbilityKit.Game.Flow
 {
     public sealed class BattleContextFeature : IGamePhaseFeature
     {
+        private BattleContext _ownedContext;
+
         public void OnAttach(in GamePhaseContext ctx)
         {
-            if (ctx.Features.TryGet(out BattleContext existing) && existing != null) return;
-            ctx.Features.Set(BattleContext.Rent());
+            if (!ctx.Features.TryGet(out BattleContext context) || context == null)
+            {
+                context = BattleContext.Rent();
+                _ownedContext = context;
+                ctx.Features.Set(context);
+            }
+            ctx.Features.Set<IBattleRuntimeContext>(context);
+            ctx.Features.Set<IBattleGameplayPresentationSource>(context);
+            ctx.Features.Set<IBattleHudPresentationPort>(context);
+            ctx.Features.Set<IBattleEntityContext>(context);
+            ctx.Features.Set<IBattleInputContext>(context);
+            ctx.Features.Set<IBattleSnapshotRoutingContext>(context);
+            ctx.Features.Set<IBattleHudInputSink>(context);
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            if (ctx.Features.TryGet(out BattleContext existing) && existing != null)
+            ctx.Features.Remove<IBattleHudInputSink>();
+            ctx.Features.Remove<IBattleSnapshotRoutingContext>();
+            ctx.Features.Remove<IBattleInputContext>();
+            ctx.Features.Remove<IBattleEntityContext>();
+            ctx.Features.Remove<IBattleRuntimeContext>();
+            ctx.Features.Remove<IBattleGameplayPresentationSource>();
+            ctx.Features.Remove<IBattleHudPresentationPort>();
+            if (_ownedContext != null)
             {
-                ctx.Features.Remove<BattleContext>();
-                BattleContext.Return(existing);
-            }
-            else
-            {
-                ctx.Features.Remove<BattleContext>();
+                if (ctx.Features.TryGet(out BattleContext current) &&
+                    ReferenceEquals(current, _ownedContext))
+                    ctx.Features.Remove<BattleContext>();
+                BattleContext.Return(_ownedContext);
+                _ownedContext = null;
             }
         }
 

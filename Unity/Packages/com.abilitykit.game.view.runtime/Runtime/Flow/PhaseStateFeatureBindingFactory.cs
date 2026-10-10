@@ -19,7 +19,8 @@ namespace AbilityKit.Game.View.Flow
             PhaseEnterCompleteActionResolver<TContext>? enterAfterAction = null,
             PhaseActionResolver<TContext>? exitAction = null,
             Action<string>? fail = null,
-            PhaseEnterCompleteActionResolver<TContext>? switchFlowAction = null)
+            PhaseEnterCompleteActionResolver<TContext>? switchFlowAction = null,
+            PhaseStateFeatureBinding<TContext, TFeature>.PhaseContextAction? onEnterFailure = null)
             where TFeature : class, IPhaseFeature<TContext>
             {
                 if (spec == null) throw new ArgumentNullException(nameof(spec));
@@ -37,7 +38,8 @@ namespace AbilityKit.Game.View.Flow
                     BuildAfterEnter(spec, afterEnter, enterAfterAction),
                     BuildExit(spec, onExit, exitAction),
                     fail,
-                    BuildSwitchFlow<TContext, TFeature>(spec, switchFlowAction));
+                    BuildSwitchFlow<TContext, TFeature>(spec, switchFlowAction),
+                    onEnterFailure);
             }
 
         private static PhaseStateFeatureBinding<TContext, TFeature>.PhaseContextAction? BuildBeforeEnter<TContext, TFeature>(

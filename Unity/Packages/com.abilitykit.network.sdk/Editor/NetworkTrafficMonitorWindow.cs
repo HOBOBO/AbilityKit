@@ -11,6 +11,8 @@ using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Observability;
 using AbilityKit.Network.Sdk.Diagnostics;
 using AbilityKit.Network.Sdk.Observability;
+using AbilityKit.Protocol;
+using AbilityKit.Protocol.Catalog;
 using UnityEditor;
 using UnityEngine;
 
@@ -19,11 +21,13 @@ namespace AbilityKit.Network.Sdk.Editor
     public sealed class NetworkTrafficMonitorWindow : EditorWindow
     {
         private enum DirectionFilter { All, Inbound, Outbound }
-        private enum DataView { Connections, Routes, Traffic }
+        private enum DataView { Connections, Routes, Traffic, Intercept }
+        private const string FavoritesPreference = "AbilityKit.NetworkTraffic.Favorites";
 
         private readonly List<NetworkTrafficInspectionRow> _visible =
             new List<NetworkTrafficInspectionRow>();
         private readonly NetworkTrafficJsonExporter _exporter = new NetworkTrafficJsonExporter();
+        private readonly HashSet<string> _favorites = new HashSet<string>(StringComparer.Ordinal);
 
         private IReadOnlyList<NetworkTrafficInspectionRow> _snapshot =
             Array.Empty<NetworkTrafficInspectionRow>();
@@ -40,6 +44,10 @@ namespace AbilityKit.Network.Sdk.Editor
         private bool _followLatest = true;
         private bool _includeRawPayload;
         private bool _allowSensitiveRawPayload;
+        private bool _favoritesOnly;
+        private long _selectedPendingId;
+        private string _pendingHex = string.Empty;
+        private string _pendingError = string.Empty;
         private int _selectedIndex = -1;
         private double _nextRefreshAt;
         private GUIStyle? _monoStyle;
@@ -56,8 +64,20 @@ namespace AbilityKit.Network.Sdk.Editor
             window.Show();
         }
 
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Network/Protocol Monitor")]
+        public static void OpenMoba()
+        {
+            Open();
+            var window = GetWindow<NetworkTrafficMonitorWindow>();
+            window._dataView = DataView.Traffic;
+            window.Repaint();
+        }
+
         private void OnEnable()
         {
+            _favorites.Clear();
+            foreach (var key in EditorPrefs.GetString(FavoritesPreference, string.Empty).Split('|'))
+                if (!string.IsNullOrWhiteSpace(key)) _favorites.Add(key);
             EditorApplication.update += OnEditorUpdate;
             RefreshSnapshot(force: true);
         }
@@ -87,7 +107,7 @@ namespace AbilityKit.Network.Sdk.Editor
             EnsureStyles();
             _dataView = (DataView)GUILayout.Toolbar(
                 (int)_dataView,
-                new[] { "Connections", "Routes", "Traffic" },
+                new[] { "Connections", "Routes", "Traffic", "Intercept" },
                 EditorStyles.toolbarButton);
             if (_dataView == DataView.Connections)
             {
@@ -98,6 +118,12 @@ namespace AbilityKit.Network.Sdk.Editor
             if (_dataView == DataView.Routes)
             {
                 DrawRoutes();
+                return;
+            }
+
+            if (_dataView == DataView.Intercept)
+            {
+                DrawIntercept();
                 return;
             }
 
@@ -238,6 +264,15 @@ namespace AbilityKit.Network.Sdk.Editor
                 new GUIContent("Follow", "Select the newest matching packet"),
                 EditorStyles.toolbarButton,
                 GUILayout.Width(55f));
+
+            var favoritesOnly = GUILayout.Toggle(_favoritesOnly,
+                new GUIContent("★", "Show favorite protocols only"),
+                EditorStyles.toolbarButton, GUILayout.Width(26f));
+            if (favoritesOnly != _favoritesOnly)
+            {
+                _favoritesOnly = favoritesOnly;
+                RebuildVisible();
+            }
 
             GUILayout.Label(
                 $"Events {monitor.Count}/{monitor.Capacity}   Dropped {monitor.DroppedCount}   " +
@@ -380,7 +415,10 @@ namespace AbilityKit.Network.Sdk.Editor
             var row = _visible[_selectedIndex];
             var traffic = row.Traffic;
             _detailScroll = EditorGUILayout.BeginScrollView(_detailScroll);
+            EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField(row.Message?.Id ?? "Unresolved packet", EditorStyles.boldLabel);
+            DrawFavoriteButton(traffic.CatalogId, traffic.OpCode);
+            EditorGUILayout.EndHorizontal();
             DrawField("Catalog", traffic.CatalogId);
             DrawField("Connection", $"{traffic.ConnectionId} / generation {traffic.Generation}");
             DrawField("Role", traffic.Role);
@@ -437,6 +475,7 @@ namespace AbilityKit.Network.Sdk.Editor
         private bool Matches(NetworkTrafficInspectionRow row)
         {
             var traffic = row.Traffic;
+            if (_favoritesOnly && !_favorites.Contains(FavoriteKey(traffic.CatalogId, traffic.OpCode))) return false;
             if (_directionFilter == DirectionFilter.Inbound && traffic.Direction != NetworkTrafficDirection.Inbound) return false;
             if (_directionFilter == DirectionFilter.Outbound && traffic.Direction != NetworkTrafficDirection.Outbound) return false;
             if (!string.IsNullOrWhiteSpace(_roleFilter) && !Contains(traffic.Role, _roleFilter)) return false;
@@ -503,6 +542,129 @@ namespace AbilityKit.Network.Sdk.Editor
 
         private static bool Contains(string? value, string search) =>
             value?.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
+
+        private void DrawIntercept()
+        {
+            var interception = NetworkPacketInterception.Default;
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            interception.Enabled = GUILayout.Toggle(interception.Enabled,
+                new GUIContent("Intercept all outbound", "Hold every outgoing packet until released"),
+                EditorStyles.toolbarButton, GUILayout.Width(154f));
+            GUILayout.Label($"Pending {interception.PendingCount}", EditorStyles.miniLabel);
+            var favoritesOnly = GUILayout.Toggle(_favoritesOnly,
+                new GUIContent("★", "Show favorite protocols only"),
+                EditorStyles.toolbarButton, GUILayout.Width(26f));
+            if (favoritesOnly != _favoritesOnly)
+            {
+                _favoritesOnly = favoritesOnly;
+                RebuildVisible();
+            }
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Discard all", EditorStyles.toolbarButton, GUILayout.Width(76f)))
+            {
+                interception.DiscardAll();
+                _selectedPendingId = 0;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (interception.Enabled)
+                EditorGUILayout.HelpBox("Request timeouts continue while packets are held. Release requests before their timeout when a response is needed.", MessageType.Info);
+
+            var packets = interception.Snapshot();
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.BeginVertical(GUILayout.Width(Mathf.Clamp(position.width * 0.45f, 300f, 580f)));
+            _listScroll = EditorGUILayout.BeginScrollView(_listScroll);
+            foreach (var packet in packets)
+            {
+                if (_favoritesOnly && !_favorites.Contains(FavoriteKey(packet.CatalogId, packet.Header.OpCode))) continue;
+                EditorGUILayout.BeginHorizontal();
+                var title = $"{packet.QueuedAtUtc.ToLocalTime():HH:mm:ss.fff}  {PendingMessageName(packet)}  seq {packet.Header.Seq}  {packet.Payload.Length} B";
+                if (GUILayout.Toggle(_selectedPendingId == packet.Id, title, "Button"))
+                {
+                    if (_selectedPendingId != packet.Id)
+                    {
+                        _selectedPendingId = packet.Id;
+                        _pendingHex = BitConverter.ToString(packet.Payload).Replace('-', ' ');
+                        _pendingError = string.Empty;
+                    }
+                }
+                DrawFavoriteButton(packet.CatalogId, packet.Header.OpCode);
+                EditorGUILayout.EndHorizontal();
+            }
+            EditorGUILayout.EndScrollView();
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
+            PendingNetworkPacket? selected = null;
+            foreach (var packet in packets)
+                if (packet.Id == _selectedPendingId) { selected = packet; break; }
+            if (selected != null)
+            {
+                EditorGUILayout.LabelField(PendingMessageName(selected), EditorStyles.boldLabel);
+                EditorGUILayout.LabelField($"Opcode {selected.Header.OpCode}  flags {selected.Header.Flags}");
+                EditorGUILayout.LabelField($"{selected.ConnectionId} / generation {selected.Generation}", EditorStyles.miniLabel);
+                EditorGUILayout.LabelField("Payload (hex)");
+                _pendingHex = EditorGUILayout.TextArea(_pendingHex, GUILayout.MinHeight(170f));
+                if (!string.IsNullOrEmpty(_pendingError))
+                    EditorGUILayout.HelpBox(_pendingError, MessageType.Error);
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("Release", GUILayout.Width(90f)))
+                {
+                    try
+                    {
+                        var bytes = ParseHex(_pendingHex);
+                        if (!interception.Release(selected.Id, bytes))
+                            _pendingError = "Packet is no longer pending or its connection ended.";
+                        else { _selectedPendingId = 0; _pendingError = string.Empty; }
+                    }
+                    catch (Exception exception) { _pendingError = exception.Message; }
+                }
+                if (GUILayout.Button("Discard", GUILayout.Width(90f)))
+                {
+                    interception.Discard(selected.Id);
+                    _selectedPendingId = 0;
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawFavoriteButton(string catalogId, uint opCode)
+        {
+            var key = FavoriteKey(catalogId, opCode);
+            var favorite = _favorites.Contains(key);
+            if (!GUILayout.Button(new GUIContent(favorite ? "★" : "☆", "Toggle protocol favorite"),
+                    EditorStyles.miniButton, GUILayout.Width(26f))) return;
+            if (favorite) _favorites.Remove(key);
+            else _favorites.Add(key);
+            EditorPrefs.SetString(FavoritesPreference, string.Join("|", _favorites));
+            RebuildVisible();
+        }
+
+        private static string FavoriteKey(string catalogId, uint opCode) =>
+            (catalogId ?? string.Empty) + ":" + opCode.ToString(CultureInfo.InvariantCulture);
+
+        private static string PendingMessageName(PendingNetworkPacket packet)
+        {
+            var kind = (packet.Header.Flags & AbilityKit.Network.Protocol.NetworkPacketFlags.Request) != 0
+                ? ProtocolPacketKind.Request : (ProtocolPacketKind?)null;
+            var messages = NetworkTrafficMonitor.Default.Catalogs.FindMessages(
+                packet.CatalogId, packet.Header.OpCode, ProtocolDirection.ClientToServer, kind);
+            return messages.Count == 1 ? messages[0].Id : $"Opcode {packet.Header.OpCode}";
+        }
+
+        private static byte[] ParseHex(string value)
+        {
+            var digits = new StringBuilder(value.Length);
+            foreach (var c in value)
+                if (!char.IsWhiteSpace(c) && c != '-') digits.Append(c);
+            if ((digits.Length & 1) != 0) throw new FormatException("Hex payload needs pairs of digits.");
+            var result = new byte[digits.Length / 2];
+            for (var i = 0; i < result.Length; i++)
+                result[i] = Convert.ToByte(digits.ToString(i * 2, 2), 16);
+            return result;
+        }
     }
 }
 

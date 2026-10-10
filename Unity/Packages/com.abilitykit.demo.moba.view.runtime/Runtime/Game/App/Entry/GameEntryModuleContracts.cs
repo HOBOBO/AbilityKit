@@ -1,6 +1,7 @@
 using AbilityKit.Game.Flow;
 using AbilityKit.Game.View.Modules;
 using AbilityKit.World.ECS;
+using System.Threading.Tasks;
 
 namespace AbilityKit.Game
 {
@@ -18,5 +19,10 @@ namespace AbilityKit.Game
 
     public interface IGameEntryModule : IGameModule<GameEntryModuleContext>, IGameModuleId
     {
+    }
+
+    public interface IAsyncGameEntryModuleTeardown
+    {
+        Task PendingTeardown { get; }
     }
 }

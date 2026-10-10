@@ -5,25 +5,25 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class ViewFeatureSubFeatureBuilder
     {
-        private readonly ViewSubFeatureFactory _factory;
+        private readonly ViewSubFeatureModuleFactory _modules;
 
-        public ViewFeatureSubFeatureBuilder(ViewSubFeatureFactory factory = null)
+        public ViewFeatureSubFeatureBuilder(ViewSubFeatureModuleFactory modules = null)
         {
-            _factory = factory ?? new ViewSubFeatureFactory();
+            _modules = modules ?? new ViewSubFeatureModuleFactory();
         }
 
         public void AddBattleViewSubFeatures(List<IViewSubFeature<BattleViewFeature>> subFeatures)
         {
             if (subFeatures == null) throw new ArgumentNullException(nameof(subFeatures));
 
-            _factory.AddDefaultViewSubFeatures(subFeatures);
+            AddModules(subFeatures, _modules.CreateDefaultModules<BattleViewFeature>());
         }
 
         public void AddConfirmedViewSubFeatures(List<IViewSubFeature<ConfirmedBattleViewFeature>> subFeatures)
         {
             if (subFeatures == null) throw new ArgumentNullException(nameof(subFeatures));
 
-            _factory.AddDefaultViewSubFeatures(subFeatures);
+            AddModules(subFeatures, _modules.CreateDefaultModules<ConfirmedBattleViewFeature>());
         }
 
         public void AddConfirmedViewSubFeatures(
@@ -31,33 +31,8 @@ namespace AbilityKit.Game.Flow
             BattleProjectionViewCapabilities capabilities, bool includeBuiltInEventAdapters)
         {
             if (subFeatures == null) throw new ArgumentNullException(nameof(subFeatures));
-            _factory.AddConfiguredViewSubFeatures(
-                subFeatures, capabilities, includeBuiltInEventAdapters);
-        }
-    }
-
-    internal sealed class ViewSubFeatureFactory
-    {
-        private readonly ViewSubFeatureModuleFactory _modules;
-
-        public ViewSubFeatureFactory(ViewSubFeatureModuleFactory modules = null)
-        {
-            _modules = modules ?? new ViewSubFeatureModuleFactory();
-        }
-
-        public void AddDefaultViewSubFeatures<TFeature>(List<IViewSubFeature<TFeature>> subFeatures)
-            where TFeature : class, IViewFeatureRuntime
-        {
-            var modules = _modules.CreateDefaultModules<TFeature>();
-            AddModules(subFeatures, modules);
-        }
-
-        public void AddConfiguredViewSubFeatures<TFeature>(List<IViewSubFeature<TFeature>> subFeatures,
-            BattleProjectionViewCapabilities capabilities, bool includeBuiltInEventAdapters)
-            where TFeature : class, IViewFeatureRuntime
-        {
-            var modules = _modules.CreateModules<TFeature>(capabilities, includeBuiltInEventAdapters);
-            AddModules(subFeatures, modules);
+            AddModules(subFeatures,
+                _modules.CreateModules<ConfirmedBattleViewFeature>(capabilities, includeBuiltInEventAdapters));
         }
 
         private static void AddModules<TFeature>(List<IViewSubFeature<TFeature>> subFeatures,

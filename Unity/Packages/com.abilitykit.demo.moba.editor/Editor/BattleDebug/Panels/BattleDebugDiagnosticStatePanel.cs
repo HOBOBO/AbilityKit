@@ -11,6 +11,7 @@ namespace AbilityKit.Game.Editor
     /// 持有查询/状态逻辑，本类只负责将 ViewModel 暴露的 DTO 渲染为 IMGUI。
     /// 只消费已定义的诊断查询契约，不建立旁路数据源。
     /// </summary>
+    [BattleDebugModule(BattleDebugModuleIds.DiagnosticState, "会话")]
     internal sealed class BattleDebugDiagnosticStatePanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "诊断状态";

@@ -2,46 +2,14 @@
   {
     "Id": 10000001,
     "Name": "通用-目标可受普通控制的位移",
-    "ActivationCondition": {
-      "Operator": "Not",
-      "Children": [
-        {
-          "Operator": "Any",
-          "Children": [
-            {
-              "Operator": "Tag",
-              "Tag": "State.ControlImmune",
-              "Exact": false
-            },
-            {
-              "Operator": "Tag",
-              "Tag": "State.SuperArmor",
-              "Exact": false
-            }
-          ]
-        }
-      ]
-    },
-    "OngoingCondition": {
-      "Operator": "Not",
-      "Children": [
-        {
-          "Operator": "Any",
-          "Children": [
-            {
-              "Operator": "Tag",
-              "Tag": "State.ControlImmune",
-              "Exact": false
-            },
-            {
-              "Operator": "Tag",
-              "Tag": "State.SuperArmor",
-              "Exact": false
-            }
-          ]
-        }
-      ]
-    },
+    "ActivationBlockedTags": [
+      "State.ControlImmune",
+      "State.SuperArmor"
+    ],
+    "OngoingBlockedTags": [
+      "State.ControlImmune",
+      "State.SuperArmor"
+    ],
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -88,197 +56,85 @@
   {
     "Id": 3005,
     "Name": "通用-普通控制-眩晕",
+    "ActivationBlockedTags": [
+      "State.ControlImmune",
+      "State.SuperArmor"
+    ],
     "ApplicationTags": [
       "State.Stunned"
     ],
-    "ActivationCondition": {
-      "Operator": "Not",
-      "Children": [
-        {
-          "Operator": "Any",
-          "Children": [
-            {
-              "Operator": "Tag",
-              "Tag": "State.ControlImmune",
-              "Exact": false
-            },
-            {
-              "Operator": "Tag",
-              "Tag": "State.SuperArmor",
-              "Exact": false
-            }
-          ]
-        }
-      ]
-    },
     "ExecutionBlockedResultMask": 0
   },
   {
     "Id": 3006,
     "Name": "通用-普通控制-禁锢",
+    "ActivationBlockedTags": [
+      "State.ControlImmune",
+      "State.SuperArmor"
+    ],
     "ApplicationTags": [
       "State.Rooted"
     ],
-    "ActivationCondition": {
-      "Operator": "Not",
-      "Children": [
-        {
-          "Operator": "Any",
-          "Children": [
-            {
-              "Operator": "Tag",
-              "Tag": "State.ControlImmune",
-              "Exact": false
-            },
-            {
-              "Operator": "Tag",
-              "Tag": "State.SuperArmor",
-              "Exact": false
-            }
-          ]
-        }
-      ]
-    },
     "ExecutionBlockedResultMask": 0
   },
   {
     "Id": 3007,
     "Name": "通用-普通控制-沉默",
+    "ActivationBlockedTags": [
+      "State.ControlImmune",
+      "State.SuperArmor"
+    ],
     "ApplicationTags": [
       "State.Silenced"
     ],
-    "ActivationCondition": {
-      "Operator": "Not",
-      "Children": [
-        {
-          "Operator": "Any",
-          "Children": [
-            {
-              "Operator": "Tag",
-              "Tag": "State.ControlImmune",
-              "Exact": false
-            },
-            {
-              "Operator": "Tag",
-              "Tag": "State.SuperArmor",
-              "Exact": false
-            }
-          ]
-        }
-      ]
-    },
     "ExecutionBlockedResultMask": 0
   },
   {
     "Id": 3008,
     "Name": "通用-普通控制-恐惧",
+    "ActivationBlockedTags": [
+      "State.ControlImmune",
+      "State.SuperArmor"
+    ],
     "ApplicationTags": [
       "State.Feared"
     ],
-    "ActivationCondition": {
-      "Operator": "Not",
-      "Children": [
-        {
-          "Operator": "Any",
-          "Children": [
-            {
-              "Operator": "Tag",
-              "Tag": "State.ControlImmune",
-              "Exact": false
-            },
-            {
-              "Operator": "Tag",
-              "Tag": "State.SuperArmor",
-              "Exact": false
-            }
-          ]
-        }
-      ]
-    },
     "ExecutionBlockedResultMask": 0
   },
   {
     "Id": 3009,
     "Name": "通用-普通控制-魅惑",
+    "ActivationBlockedTags": [
+      "State.ControlImmune",
+      "State.SuperArmor"
+    ],
     "ApplicationTags": [
       "State.Charmed"
     ],
-    "ActivationCondition": {
-      "Operator": "Not",
-      "Children": [
-        {
-          "Operator": "Any",
-          "Children": [
-            {
-              "Operator": "Tag",
-              "Tag": "State.ControlImmune",
-              "Exact": false
-            },
-            {
-              "Operator": "Tag",
-              "Tag": "State.SuperArmor",
-              "Exact": false
-            }
-          ]
-        }
-      ]
-    },
     "ExecutionBlockedResultMask": 0
   },
   {
     "Id": 3010,
     "Name": "通用-普通控制-睡眠",
+    "ActivationBlockedTags": [
+      "State.ControlImmune",
+      "State.SuperArmor"
+    ],
     "ApplicationTags": [
       "State.Asleep"
     ],
-    "ActivationCondition": {
-      "Operator": "Not",
-      "Children": [
-        {
-          "Operator": "Any",
-          "Children": [
-            {
-              "Operator": "Tag",
-              "Tag": "State.ControlImmune",
-              "Exact": false
-            },
-            {
-              "Operator": "Tag",
-              "Tag": "State.SuperArmor",
-              "Exact": false
-            }
-          ]
-        }
-      ]
-    },
     "ExecutionBlockedResultMask": 0
   },
   {
     "Id": 3011,
     "Name": "通用-普通控制-失能",
+    "ActivationBlockedTags": [
+      "State.ControlImmune",
+      "State.SuperArmor"
+    ],
     "ApplicationTags": [
       "State.Disabled"
     ],
-    "ActivationCondition": {
-      "Operator": "Not",
-      "Children": [
-        {
-          "Operator": "Any",
-          "Children": [
-            {
-              "Operator": "Tag",
-              "Tag": "State.ControlImmune",
-              "Exact": false
-            },
-            {
-              "Operator": "Tag",
-              "Tag": "State.SuperArmor",
-              "Exact": false
-            }
-          ]
-        }
-      ]
-    },
     "ExecutionBlockedResultMask": 0
   },
   {

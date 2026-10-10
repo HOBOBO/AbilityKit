@@ -38,8 +38,8 @@ namespace AbilityKit.Demo.Moba.Services
                 else if (op == (int)AbilityKit.Modifiers.ModifierOp.Mul)
                 {
                     var scaled = capture.HasUnitValue
-                        ? System.Math.Pow(capture.UnitValue, stack)
-                        : System.Math.Pow(capture.Value, (double)stack / capture.Stack);
+                        ? MobaContinuousModifierMath.IntegerPow(capture.UnitValue, stack)
+                        : DeterministicMathBridge.Pow(capture.Value, (float)stack / capture.Stack);
                     if (double.IsNaN(scaled) || double.IsInfinity(scaled) ||
                         scaled < float.MinValue || scaled > float.MaxValue)
                         throw new System.InvalidOperationException("Captured multiplier cannot be rescaled for the new stack count.");

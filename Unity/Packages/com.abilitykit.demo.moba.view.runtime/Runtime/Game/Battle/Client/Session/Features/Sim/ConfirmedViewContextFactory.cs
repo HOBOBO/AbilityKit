@@ -11,7 +11,7 @@ namespace AbilityKit.Game.Flow
         {
             var ctx = BattleContext.Rent();
             ctx.Plan = sourceCtx != null ? sourceCtx.Plan : default;
-            ctx.Session = null;
+            ctx.ClearRuntimeSession();
             ctx.RuntimeWorldId = authWorldId;
             ctx.HasRuntimeWorldId = true;
 

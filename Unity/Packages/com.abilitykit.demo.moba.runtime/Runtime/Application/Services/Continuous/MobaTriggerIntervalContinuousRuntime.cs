@@ -27,6 +27,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int SourceActorId { get; }
         public int TargetActorId { get; }
         public long SourceContextId { get; }
+        internal MobaContextSourceView SourceSnapshot => _source;
         public int ModifierSourceId => AllocatedModifierSourceId;
         public override IContinuousConfig Config => _config;
 

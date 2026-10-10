@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Demo.Common.Rooms;
+using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Network.Room;
 
 namespace AbilityKit.Game.Flow
@@ -53,6 +54,7 @@ namespace AbilityKit.Game.Flow
             MultiplayerRoomSnapshot snapshot,
             LobbyBattleEntrySelection selection,
             GatewayMultiplayerRoomSession session,
+            IMobaReliableBattleEventCheckpointStore checkpoints,
             DemoMultiplayerLaunchRequest launchRequest,
             uint localPlayerId,
             bool coldStartReconnect,
@@ -75,7 +77,7 @@ namespace AbilityKit.Game.Flow
                     snapshot.NumericRoomId,
                     snapshot.WorldId,
                     localPlayerId,
-                    session,
+                    checkpoints,
                     launchRequest,
                     snapshot.Players,
                     snapshot.SyncCapabilities,

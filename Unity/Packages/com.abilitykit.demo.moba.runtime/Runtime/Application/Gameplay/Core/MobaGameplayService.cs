@@ -9,6 +9,7 @@ using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
+using AbilityKit.Deterministic;
 using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Demo.Moba.Gameplay
@@ -18,9 +19,13 @@ namespace AbilityKit.Demo.Moba.Gameplay
         MobaGameplayPhase Phase { get; }
         bool IsRunning { get; }
         int CurrentGameplayId { get; }
+        string MatchId { get; }
         string LastStartFailureReason { get; }
         bool TryPrepareStart(int gameplayId, out string error);
+        bool TryPrepareStart(int gameplayId, string matchId, out string error);
         bool CommitPreparedStart();
+        bool CommitPreparedStartDeferred();
+        void PublishStarted();
         void CancelPreparedStart();
         void Reset();
     }
@@ -35,28 +40,60 @@ namespace AbilityKit.Demo.Moba.Gameplay
         [WorldInject(required: false)] private MobaGameplayConfigService _gameplayConfigs = null;
         [WorldInject(required: false)] private MobaGameplayTriggerBindingService _triggerBindings = null;
         [WorldInject(required: false)] private IWorldResolver _services = null;
+        [WorldInject(required: false)] private MobaGameplayVariableService _variables = null;
  
         private MobaGameplayPhase _phase = MobaGameplayPhase.NotStarted;
         // Q32.32 raw 累计；float 属性/事件参数是表现边界单次换算视图。
         private long _elapsedRaw;
+        private bool _timeExpired;
         private MobaGameplayResult _lastResult;
         private int _currentGameplayId;
         private GameplayMO _currentGameplay;
         private GameplayMO _preparedGameplay;
         private int _preparedStartFrame;
         private string _lastStartFailureReason;
+        private string _matchId = string.Empty;
+        private string _preparedMatchId;
+        private bool _startedNotificationPending;
+        private int _startNotificationFrame;
  
         public MobaGameplayPhase Phase => _phase;
 
         public bool IsRunning => _phase == MobaGameplayPhase.Running;
 
         public float ElapsedSeconds => AbilityKit.Deterministic.Fixed64.FromRaw(_elapsedRaw).ToSingle();
+        public long ElapsedRaw => _elapsedRaw;
+        public bool TimeExpired => _timeExpired;
 
         public MobaGameplayResult LastResult => _lastResult;
 
         public int CurrentGameplayId => _currentGameplayId;
+        public string MatchId => _matchId;
 
         public GameplayMO CurrentGameplay => _currentGameplay;
+
+        public MobaGameplayClockState GetClockState()
+        {
+            var durationMs = _currentGameplay?.DefaultDurationMs ?? 0;
+            var remainingRaw = durationMs > 0
+                ? Fixed64.FromRatio(durationMs, 1000).RawValue - _elapsedRaw
+                : 0L;
+            return new MobaGameplayClockState(
+                _currentGameplayId,
+                _phase,
+                durationMs,
+                ElapsedSeconds,
+                Fixed64.FromRaw(Math.Max(0L, remainingRaw)).ToSingle(),
+                Math.Min(durationMs, ToRemainingMilliseconds(Math.Max(0L, remainingRaw))));
+        }
+
+        private static int ToRemainingMilliseconds(long secondsRaw)
+        {
+            const long unit = 1L << 32;
+            var wholeMilliseconds = (secondsRaw / unit) * 1000L;
+            var fractionMilliseconds = ((secondsRaw % unit) * 1000L + unit - 1L) / unit;
+            return (int)Math.Min(int.MaxValue, wholeMilliseconds + fractionMilliseconds);
+        }
 
         public string LastStartFailureReason => _lastStartFailureReason;
  
@@ -89,6 +126,11 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
         public bool TryPrepareStart(int gameplayId, out string error)
         {
+            return TryPrepareStart(gameplayId, _matchId, out error);
+        }
+
+        public bool TryPrepareStart(int gameplayId, string matchId, out string error)
+        {
             error = null;
             if (_phase == MobaGameplayPhase.Running)
             {
@@ -116,7 +158,14 @@ namespace AbilityKit.Demo.Moba.Gameplay
                 }
 
                 var frame = GetCurrentFrame();
-                if (_triggerBindings != null && !_triggerBindings.Bind(gameplay))
+                if (_triggerBindings == null)
+                {
+                    error = $"gameplay trigger binding service is missing. gameplayId={gameplayId}";
+                    _lastStartFailureReason = error;
+                    return false;
+                }
+
+                if (!_triggerBindings.Bind(gameplay))
                 {
                     _triggerBindings.Unbind();
                     error = $"gameplay trigger binding failed. gameplayId={gameplayId}";
@@ -125,6 +174,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
                 }
 
                 _preparedGameplay = gameplay;
+                _preparedMatchId = matchId ?? string.Empty;
                 _preparedStartFrame = frame;
                 return true;
             }
@@ -140,6 +190,13 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
         public bool CommitPreparedStart()
         {
+            if (!CommitPreparedStartDeferred()) return false;
+            PublishStarted();
+            return true;
+        }
+
+        public bool CommitPreparedStartDeferred()
+        {
             if (_phase == MobaGameplayPhase.Running)
             {
                 return true;
@@ -154,12 +211,28 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
             var frame = _preparedStartFrame;
             _preparedGameplay = null;
+            _matchId = _preparedMatchId ?? string.Empty;
+            _preparedMatchId = null;
             _preparedStartFrame = 0;
             _elapsedRaw = 0L;
+            _timeExpired = false;
             _lastResult = default;
             _currentGameplayId = gameplay.Id;
             _currentGameplay = gameplay;
             _phase = MobaGameplayPhase.Running;
+            _variables?.Clear();
+
+            _startedNotificationPending = true;
+            _startNotificationFrame = frame;
+
+            return true;
+        }
+
+        public void PublishStarted()
+        {
+            if (!_startedNotificationPending || _phase != MobaGameplayPhase.Running) return;
+            _startedNotificationPending = false;
+            var frame = _startNotificationFrame;
 
             try
             {
@@ -168,7 +241,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, $"[MobaGameplayService] gameplay started notification failed. gameplayId={gameplay.Id}, frame={frame}");
+                Log.Exception(ex, $"[MobaGameplayService] gameplay started notification failed. gameplayId={_currentGameplayId}, frame={frame}");
             }
 
             if (MobaRuntimeLog.IsEnabled(
@@ -179,10 +252,9 @@ namespace AbilityKit.Demo.Moba.Gameplay
                     MobaRuntimeLogModule.Gameplay,
                     MobaRuntimeLogPurpose.Lifecycle,
                     nameof(MobaGameplayService),
-                    $"Gameplay started. gameplayId={gameplay.Id}, frame={frame}");
+                    $"Gameplay started. gameplayId={_currentGameplayId}, frame={frame}");
             }
 
-            return true;
         }
 
         public void CancelPreparedStart()
@@ -193,6 +265,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
             }
 
             _preparedGameplay = null;
+            _preparedMatchId = null;
             _preparedStartFrame = 0;
         }
 
@@ -205,24 +278,44 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
             _elapsedRaw += AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(deltaTime).RawValue;
             Publish(GameplayTriggerEvents.Tick, new GameplayLifecycleEventArgs(GetCurrentFrame(), ElapsedSeconds, deltaTime, null));
+            if (_phase == MobaGameplayPhase.Running && !_timeExpired && _currentGameplay.DefaultDurationMs > 0 &&
+                _elapsedRaw >= Fixed64.FromRatio(_currentGameplay.DefaultDurationMs, 1000).RawValue)
+            {
+                _timeExpired = true;
+                Publish(GameplayTriggerEvents.TimeExpired,
+                    new GameplayLifecycleEventArgs(GetCurrentFrame(), ElapsedSeconds, 0f, "time_expired"));
+            }
+        }
+
+        public void PublishScoreChanged(string reason, int teamId, double score)
+        {
+            if (!IsRunning) return;
+            Publish(GameplayTriggerEvents.ScoreChanged,
+                new GameplayLifecycleEventArgs(GetCurrentFrame(), ElapsedSeconds, 0f, reason,
+                    teamId: teamId, score: score));
         }
 
         public bool End(string reason, int winTeamId = 0)
         {
-            if (_phase == MobaGameplayPhase.Ended || _phase == MobaGameplayPhase.Ending)
+            if (_phase != MobaGameplayPhase.Running || winTeamId < 0)
             {
                 return false;
             }
 
-            _phase = MobaGameplayPhase.Ending;
             var result = new MobaGameplayResult(reason, winTeamId, GetCurrentFrame(), ElapsedSeconds);
+            _phase = MobaGameplayPhase.Ending;
             _lastResult = result;
 
-            Publish(GameplayTriggerEvents.Ended, new GameplayLifecycleEventArgs(result.EndFrame, result.ElapsedSeconds, 0f, result.Reason, result.WinTeamId));
-            _eventSink?.OnGameplayEnded(in result);
-
-            _triggerBindings?.Unbind();
-            _phase = MobaGameplayPhase.Ended;
+            try
+            {
+                Publish(GameplayTriggerEvents.Ended, new GameplayLifecycleEventArgs(result.EndFrame, result.ElapsedSeconds, 0f, result.Reason, result.WinTeamId));
+                _eventSink?.OnGameplayEnded(in result);
+            }
+            finally
+            {
+                try { _triggerBindings?.Unbind(); }
+                finally { _phase = MobaGameplayPhase.Ended; }
+            }
             if (MobaRuntimeLog.IsEnabled(
                     MobaRuntimeLogLevel.Info,
                     MobaRuntimeLogPurpose.Lifecycle))
@@ -251,17 +344,56 @@ namespace AbilityKit.Demo.Moba.Gameplay
         {
             CancelPreparedStart();
             _triggerBindings?.Unbind();
+            _variables?.Clear();
             _elapsedRaw = 0L;
+            _timeExpired = false;
             _lastResult = default;
             _currentGameplayId = 0;
+            _matchId = string.Empty;
             _currentGameplay = null;
             _lastStartFailureReason = null;
+            _startedNotificationPending = false;
+            _startNotificationFrame = 0;
             _phase = MobaGameplayPhase.NotStarted;
         }
 
         public void Dispose()
         {
             Reset();
+        }
+
+        public void RestoreState(int gameplayId, MobaGameplayPhase phase, long elapsedRaw, bool timeExpired,
+            string resultReason, int winTeamId, int endFrame, float resultElapsedSeconds)
+        {
+            if (elapsedRaw < 0 || !Enum.IsDefined(typeof(MobaGameplayPhase), phase) || phase == MobaGameplayPhase.Ending)
+                throw new InvalidOperationException("Invalid gameplay rollback state.");
+            var gameplay = gameplayId == 0 ? null : ResolveGameplay(gameplayId);
+            if ((phase == MobaGameplayPhase.NotStarted) != (gameplayId == 0) ||
+                (gameplayId != 0 && gameplay == null))
+                throw new InvalidOperationException($"Cannot restore gameplay {gameplayId} in phase {phase}.");
+
+            CancelPreparedStart();
+            if (phase == MobaGameplayPhase.Running)
+            {
+                if (_triggerBindings == null)
+                    throw new InvalidOperationException($"Cannot restore gameplay {gameplayId} without trigger bindings.");
+
+                if (!_triggerBindings.Bind(gameplay))
+                    throw new InvalidOperationException($"Cannot restore gameplay trigger bindings for {gameplayId}.");
+            }
+            else _triggerBindings?.Unbind();
+
+            _phase = phase;
+            _currentGameplayId = gameplayId;
+            _currentGameplay = gameplay;
+            _elapsedRaw = elapsedRaw;
+            _timeExpired = timeExpired;
+            _lastResult = phase == MobaGameplayPhase.Ended
+                ? new MobaGameplayResult(resultReason, winTeamId, endFrame, resultElapsedSeconds)
+                : default;
+            _lastStartFailureReason = null;
+            _startedNotificationPending = false;
+            _startNotificationFrame = 0;
         }
 
         private GameplayMO ResolveGameplay(int gameplayId)
@@ -346,6 +478,28 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
             var key = GameplayTriggerEvents.GetKey(eventName);
             _eventBus.Publish(key, in args);
+        }
+    }
+
+    public readonly struct MobaGameplayClockState
+    {
+        public int GameplayId { get; }
+        public MobaGameplayPhase Phase { get; }
+        public int DurationMilliseconds { get; }
+        public float ElapsedSeconds { get; }
+        public float RemainingSeconds { get; }
+        public int RemainingMilliseconds { get; }
+
+        public MobaGameplayClockState(int gameplayId, MobaGameplayPhase phase,
+            int durationMilliseconds, float elapsedSeconds, float remainingSeconds,
+            int remainingMilliseconds)
+        {
+            GameplayId = gameplayId;
+            Phase = phase;
+            DurationMilliseconds = durationMilliseconds;
+            ElapsedSeconds = elapsedSeconds;
+            RemainingSeconds = remainingSeconds;
+            RemainingMilliseconds = remainingMilliseconds;
         }
     }
 }

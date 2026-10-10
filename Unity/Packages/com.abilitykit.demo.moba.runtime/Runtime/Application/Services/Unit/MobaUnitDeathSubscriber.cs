@@ -71,6 +71,25 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        public int[] CaptureReportedDeaths()
+        {
+            var ids = new int[_reported.Count];
+            _reported.CopyTo(ids);
+            Array.Sort(ids);
+            return ids;
+        }
+
+        public void RestoreReportedDeaths(int[] actorIds)
+        {
+            _reported.Clear();
+            if (actorIds == null) return;
+            foreach (var actorId in actorIds)
+            {
+                if (actorId <= 0 || !_reported.Add(actorId))
+                    throw new InvalidOperationException("Invalid reported death snapshot.");
+            }
+        }
+
         public void OnDeinit(IWorldResolver services)
         {
             var s = _sub;

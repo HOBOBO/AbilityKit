@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.World.ECS;
 using UnityEngine;
@@ -7,7 +9,8 @@ namespace AbilityKit.Game.Flow
 {
     public sealed class BattleHudFeature : IGamePhaseFeature
     {
-        private BattleContext _ctx;
+        private readonly GameplayPresentationModuleRegistry _gameplayModules;
+        private IBattleHudPresentationPort _ctx;
         private IBattleHudInputSink _hudInput;
         private Camera _camera;
 
@@ -19,6 +22,9 @@ namespace AbilityKit.Game.Flow
         private BattleHudInputController _inputController;
         private BattleHudSnapshotController _snapshotController;
         private BattleHudSkillFailurePresenter _skillFailurePresenter;
+        private IGameplayHudModule _gameplayHud;
+        private string _gameplayHudModuleId;
+        private BattleGameplayPresentationState _gameplayHudState;
         private BattleHudEntityLifecycleBinding _entityLifecycle;
         private BattlePresentationSessionContext _presentation;
         private readonly BattlePresentationSessionResolver _presentationSessions = new BattlePresentationSessionResolver();
@@ -27,63 +33,76 @@ namespace AbilityKit.Game.Flow
 
         private BattleHudAimPreview _aimPreview;
 
+        public BattleHudFeature()
+            : this(null)
+        {
+        }
+
+        internal BattleHudFeature(GameplayPresentationModuleRegistry gameplayModules)
+        {
+            _gameplayModules = gameplayModules ?? GameplayPresentationModuleRegistry.Default;
+        }
+
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Features.TryGet(out _ctx);
-            _hudInput = _ctx;
-
-            _camera = Camera.main;
-            _config = BattleHudConfig.Default;
-            _presentation = _presentationSessions.Resolve(ctx);
-            SynchronizeSessionFromContext();
-
-            if (_ctx != null && _ctx.EntityNode.IsValid)
+            try
             {
-                _hudNode = _ctx.EntityNode.AddChild("BattleHud");
+                _ctx = ctx.RequireFeature<IBattleHudPresentationPort>(nameof(BattleHudFeature));
+                _hudInput = ctx.RequireFeature<IBattleHudInputSink>(nameof(BattleHudFeature));
+                _camera = Camera.main;
+                _config = BattleHudConfig.Default;
+                _presentation = _presentationSessions.Resolve(ctx);
+                SynchronizeSessionFromContext();
+
+                if (_ctx != null && _ctx.EntityNode.IsValid)
+                    _hudNode = _ctx.EntityNode.AddChild("BattleHud");
+
+                _canvasController = _controllers.CreateCanvas();
+                _canvasController.Create("BattleHudCanvas");
+                _binder = _controllers.CreateBinder(_config, _canvasController.Root, _camera, _ctx);
+                EnsureGameplayHudModule(ctx.GameplayPresentation);
+                _skillFailurePresenter = _controllers.CreateSkillFailures();
+                _skillFailurePresenter.Bind(_ctx, _canvasController.Root);
+                CreateInputController();
+                ApplyLaunchSpecSkillTemplates();
+                SubscribeEntityLifecycle();
+                SubscribeSnapshots();
             }
-
-            _canvasController = _controllers.CreateCanvas();
-            _canvasController.Create("BattleHudCanvas");
-
-            _binder = _controllers.CreateBinder(_config, _canvasController.Root, _camera, _ctx);
-            _skillFailurePresenter = _controllers.CreateSkillFailures();
-            _skillFailurePresenter.Bind(_ctx, _canvasController.Root);
-            CreateInputController();
-            ApplyLaunchSpecSkillTemplates();
-            SubscribeEntityLifecycle();
-            SubscribeSnapshots();
+            catch (Exception attachFailure)
+            {
+                Debug.LogWarning($"[BattleHudFeature] Attach failed: {attachFailure}");
+                try { OnDetach(ctx); }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException("HUD attach and rollback failed.",
+                        attachFailure, cleanupFailure);
+                }
+                throw;
+            }
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            _snapshotController?.Dispose();
-            _snapshotController = null;
-
-            _entityLifecycle?.Dispose();
-            _entityLifecycle = null;
-
-            _binder?.Clear();
-            _binder = null;
-
-            _skillFailurePresenter?.Dispose();
-            _skillFailurePresenter = null;
-
-            _inputController?.Dispose();
-            _inputController = null;
-
-            _aimPreview?.Clear();
-            _aimPreview = null;
-            _session.Reset();
-
-            _canvasController?.Dispose();
-            _canvasController = null;
-            _hudNode = default;
-
-            _presentationSessions.Release(ctx, _presentation);
-            _ctx = null;
-            _hudInput = null;
-            _camera = null;
-            _presentation = null;
+            var context = ctx;
+            BattleFeatureResourceCleanup.ReleaseAll(
+                () => { _snapshotController?.Dispose(); _snapshotController = null; },
+                () => { _entityLifecycle?.Dispose(); _entityLifecycle = null; },
+                () => { _binder?.Clear(); _binder = null; },
+                () => { _skillFailurePresenter?.Dispose(); _skillFailurePresenter = null; },
+                () =>
+                {
+                    _gameplayHud?.Dispose();
+                    _gameplayHud = null;
+                    _gameplayHudModuleId = null;
+                    _gameplayHudState = null;
+                },
+                () => { _inputController?.Dispose(); _inputController = null; },
+                () => { _aimPreview?.Clear(); _aimPreview = null; },
+                () => _session.Reset(),
+                () => { _canvasController?.Dispose(); _canvasController = null; },
+                () => { if (_hudNode.IsValid) _hudNode.Destroy(); _hudNode = default; },
+                () => { _presentationSessions.Release(context, _presentation); _presentation = null; },
+                () => { _ctx = null; _hudInput = null; _camera = null; });
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
@@ -92,6 +111,8 @@ namespace AbilityKit.Game.Flow
 
             EnsureSnapshotSubscription();
             EnsureLocalControlSkillTemplates();
+            EnsureGameplayHudModule(ctx.GameplayPresentation);
+            _gameplayHud?.SetLocalActorId(_session.LocalActorId);
             _skillFailurePresenter?.Tick(deltaTime);
             _binder.Tick(deltaTime);
             _aimPreview ??= _controllers.CreateAimPreview();
@@ -144,7 +165,7 @@ namespace AbilityKit.Game.Flow
                 launchSpec.TickRate,
                 launchSpec.InputDelayFrames,
                 playersLoadout: BattleEnterGameSnapshotMapper.MapLoadouts(
-                    _ctx.BuildEffectivePlayerLoadouts()));
+                _ctx.BuildEffectivePlayerLoadouts()));
 
             ApplySkillButtonTemplates(res);
         }
@@ -155,6 +176,30 @@ namespace AbilityKit.Game.Flow
             _entityLifecycle.Bind(_ctx, _binder);
         }
 
+        private void EnsureGameplayHudModule(BattleGameplayPresentationState state)
+        {
+            if (state == null || _canvasController == null) return;
+            var moduleId = state.HudModuleId;
+            if (string.IsNullOrWhiteSpace(moduleId)) return;
+            if (_gameplayHud != null && _gameplayHudModuleId == moduleId &&
+                ReferenceEquals(_gameplayHudState, state)) return;
+            var next = _gameplayModules.CreateHud(moduleId);
+            try
+            {
+                next.Bind(_canvasController.Root, state);
+                next.SetLocalActorId(_session.LocalActorId);
+            }
+            catch
+            {
+                next.Dispose();
+                throw;
+            }
+            _gameplayHud?.Dispose();
+            _gameplayHud = next;
+            _gameplayHudModuleId = moduleId;
+            _gameplayHudState = state;
+        }
+
         private void SubscribeSnapshots()
         {
             _snapshotController = _controllers.CreateSnapshots();
@@ -163,9 +208,10 @@ namespace AbilityKit.Game.Flow
 
         private void EnsureSnapshotSubscription()
         {
-            if (_snapshotController == null || _snapshotController.IsBound) return;
+            if (_snapshotController == null || _snapshotController.IsBoundTo(_ctx)) return;
 
-            _snapshotController.Bind(_ctx, OnEnterGameSnapshot, OnDamageEventSnapshot, OnSkillStateSnapshot, OnPresentationCueSnapshot);
+            _snapshotController.Bind(_ctx, OnEnterGameSnapshot, OnDamageEventSnapshot,
+                OnSkillStateSnapshot, OnPresentationCueSnapshot);
         }
 
         private void OnEnterGameSnapshot(BattleEnterGameSnapshot res)
@@ -259,7 +305,7 @@ namespace AbilityKit.Game.Flow
             BattleHudConfig config,
             RectTransform root,
             Camera camera,
-            BattleContext ctx)
+            IBattleEntityContext ctx)
         {
             return new BattleHudBinder(config, root, camera, ctx);
         }
@@ -292,6 +338,25 @@ namespace AbilityKit.Game.Flow
         public BattleHudSkillFailurePresenter CreateSkillFailures()
         {
             return new BattleHudSkillFailurePresenter();
+        }
+    }
+
+    internal static class BattleFeatureResourceCleanup
+    {
+        internal static void ReleaseAll(params Action[] releases)
+        {
+            List<Exception> failures = null;
+            foreach (var release in releases)
+            {
+                try { release(); }
+                catch (Exception exception)
+                {
+                    failures ??= new List<Exception>();
+                    failures.Add(exception);
+                }
+            }
+            if (failures != null)
+                throw new AggregateException("Battle feature cleanup failed.", failures);
         }
     }
 }

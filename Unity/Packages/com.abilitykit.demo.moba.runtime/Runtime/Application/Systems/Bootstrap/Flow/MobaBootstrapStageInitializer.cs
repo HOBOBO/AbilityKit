@@ -29,10 +29,16 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
                 }
 
                 _initializing = true;
+                var registeredBefore = MobaBootstrapStageRegistry.Count;
                 try
                 {
                     InitializeCore();
                     _initialized = true;
+                }
+                catch
+                {
+                    MobaBootstrapStageRegistry.RollbackPendingTo(registeredBefore);
+                    throw;
                 }
                 finally
                 {
@@ -64,6 +70,9 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
                     && t.GetCustomAttribute<MobaBootstrapStageAttribute>() != null)
                 .ToArray();
 
+            if (stageTypes.Length == 0)
+                throw new InvalidOperationException("No MOBA bootstrap stages were discovered.");
+
             foreach (var type in stageTypes)
             {
                 try
@@ -85,7 +94,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
                 }
                 catch (Exception ex)
                 {
-                    AbilityKit.Core.Logging.Log.Exception(ex, $"[MobaBootstrapStageInitializer] Failed to register stage: {type.Name}");
+                    throw new InvalidOperationException(
+                        $"Failed to register reflected MOBA bootstrap stage: {type.FullName}", ex);
                 }
             }
         }

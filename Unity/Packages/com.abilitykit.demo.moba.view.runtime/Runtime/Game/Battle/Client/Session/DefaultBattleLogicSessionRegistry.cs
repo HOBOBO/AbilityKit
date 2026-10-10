@@ -23,18 +23,42 @@ namespace AbilityKit.Game.Battle
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
 
-            Stop();
-            if (_publishDebugFacade)
+            try { Stop(); }
+            catch (Exception stopFailure)
             {
-                _debugFacade ??= new DefaultBattleDebugFacade(() => _current);
-                _debugScope = options.WorldId.Value ?? string.Empty;
-                BattleDebugFacadeProvider.Publish(_debugScope, _debugFacade);
-                BattleDebugFacadeProvider.Current = _debugFacade;
+                try { (remoteTransport as IDisposable)?.Dispose(); }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException("Previous session cleanup and new transport disposal failed.",
+                        stopFailure, cleanupFailure);
+                }
+                throw;
             }
+            var session = new BattleLogicSession(options, remoteTransport);
+            _current = session;
+            try
+            {
+                if (_publishDebugFacade)
+                {
+                    _debugFacade ??= new DefaultBattleDebugFacade(() => _current);
+                    _debugScope = options.WorldId.Value ?? string.Empty;
+                    BattleDebugFacadeProvider.Publish(_debugScope, _debugFacade);
+                    BattleDebugFacadeProvider.Current = _debugFacade;
+                }
 
-            _current = new BattleLogicSession(options, remoteTransport);
-            SessionChanged?.Invoke(_current);
-            return _current;
+                SessionChanged?.Invoke(session);
+                return session;
+            }
+            catch (Exception startupFailure)
+            {
+                try { Stop(); }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException("Battle session publication and cleanup failed.",
+                        startupFailure, cleanupFailure);
+                }
+                throw;
+            }
         }
 
         public void Stop()

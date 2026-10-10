@@ -1,8 +1,47 @@
 using System;
 using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Game.Flow
 {
+    internal sealed class BattleHudSkillFailureAckFeed
+    {
+        private int _actorId;
+        private long _lastSequence;
+
+        public bool TryReadLatest(MobaActionAckEntry[] entries, int actorId, out string message)
+        {
+            message = string.Empty;
+            if (actorId <= 0 || entries == null) return false;
+            if (_actorId != actorId)
+            {
+                _actorId = actorId;
+                _lastSequence = 0;
+            }
+
+            var latest = _lastSequence;
+            var reason = MobaActionAckReason.None;
+            for (var i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                if (entry.ActorId != actorId || entry.Accepted ||
+                    entry.AuthoritySequence <= latest) continue;
+                latest = entry.AuthoritySequence;
+                reason = (MobaActionAckReason)entry.Reason;
+            }
+            if (latest == _lastSequence) return false;
+            _lastSequence = latest;
+            message = BattleHudSkillFailureText.FormatAck(reason);
+            return true;
+        }
+
+        public void Reset()
+        {
+            _actorId = 0;
+            _lastSequence = 0;
+        }
+    }
+
     internal sealed class BattleHudSkillFailureFeed
     {
         private const int QueryLimit = 64;
@@ -98,6 +137,18 @@ namespace AbilityKit.Game.Flow
 
     internal static class BattleHudSkillFailureText
     {
+        public static string FormatAck(MobaActionAckReason reason)
+        {
+            switch (reason)
+            {
+                case MobaActionAckReason.ResourceInsufficient: return Format("not_enough_mana", null);
+                case MobaActionAckReason.Cooldown: return Format("cooldown", null);
+                case MobaActionAckReason.TargetInvalid: return Format("target_missing", null);
+                case MobaActionAckReason.Controlled: return Format("controlled", null);
+                default: return Format(null, null);
+            }
+        }
+
         public static string Format(string code, string message)
         {
             var detail = ((code ?? string.Empty) + " " + (message ?? string.Empty)).ToLowerInvariant();

@@ -282,6 +282,17 @@ public sealed class MobaEntitasRollbackTests
     }
 
     [Fact]
+    public void Battle_registry_rejects_missing_core_providers()
+    {
+        foreach (var worldType in new[] { "battle", "MobaBattle" })
+        {
+            using var world = new TestEntitasWorld(new Contexts(), new TestWorldResolver(), worldType);
+            var error = Assert.Throws<InvalidOperationException>(() => MobaRollbackRegistryBuilder.Create(world));
+            Assert.Contains("Missing provider keys", error.Message);
+        }
+    }
+
+    [Fact]
     public void Predicted_summon_owner_tracking_is_pruned_without_touching_confirmed_summons()
     {
         var summons = new MobaSummonService();
@@ -396,15 +407,18 @@ public sealed class MobaEntitasRollbackTests
 
     private sealed class TestEntitasWorld : IEntitasWorld
     {
-        public TestEntitasWorld(Contexts contexts, IWorldResolver services)
+        private readonly string _worldType;
+
+        public TestEntitasWorld(Contexts contexts, IWorldResolver services, string worldType = "moba")
         {
             Contexts = contexts;
             Services = services;
             Systems = new Entitas.Systems();
+            _worldType = worldType;
         }
 
         public WorldId Id => new("moba-actor-rollback-test");
-        public string WorldType => "moba";
+        public string WorldType => _worldType;
         public IWorldResolver Services { get; }
         public Entitas.IContexts Contexts { get; }
         public Entitas.Systems Systems { get; }

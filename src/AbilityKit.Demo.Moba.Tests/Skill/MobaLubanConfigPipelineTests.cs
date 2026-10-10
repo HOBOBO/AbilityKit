@@ -196,6 +196,10 @@ public sealed class MobaLubanConfigPipelineTests
         var protectedTarget = new GameplayTagContainer(armor);
         Assert.False(control.CanActivate(protectedTarget));
         Assert.False(control.IsOngoingSatisfied(protectedTarget));
+        Assert.True(MobaGameplayTagCatalog.TryGet("State.ControlImmune", out var immune));
+        var immuneTarget = new GameplayTagContainer(immune);
+        Assert.False(control.CanActivate(immuneTarget));
+        Assert.False(control.IsOngoingSatisfied(immuneTarget));
 
         Assert.True(registry.TryGet(10010001, out var caster));
         Assert.True(caster.ApplicationTags.HasTagExact(armor));
@@ -206,8 +210,18 @@ public sealed class MobaLubanConfigPipelineTests
         Assert.True(registry.TryGet(3005, out var stun));
         Assert.True(stun.CanActivate(empty));
         Assert.False(stun.CanActivate(protectedTarget));
+        Assert.False(stun.CanActivate(immuneTarget));
         Assert.True(MobaGameplayTagCatalog.TryGet("State.Stunned", out var stunned));
         Assert.True(stun.ApplicationTags.HasTagExact(stunned));
+        for (var templateId = 3005; templateId <= 3011; templateId++)
+        {
+            Assert.True(registry.TryGet(templateId, out var ordinaryControl));
+            Assert.True(ordinaryControl.CanActivate(empty));
+            Assert.False(ordinaryControl.CanActivate(protectedTarget));
+            Assert.False(ordinaryControl.CanActivate(immuneTarget));
+            Assert.True(ordinaryControl.IsOngoingSatisfied(protectedTarget));
+            Assert.False(ordinaryControl.ShouldRemove(protectedTarget));
+        }
 
         Assert.True(registry.TryGet(3013, out var slow));
         Assert.True(MobaGameplayTagCatalog.TryGet("Debuff.Slow", out var slowed));

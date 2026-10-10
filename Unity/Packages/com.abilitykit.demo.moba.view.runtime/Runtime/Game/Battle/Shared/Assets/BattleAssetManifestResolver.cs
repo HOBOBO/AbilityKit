@@ -30,7 +30,8 @@ namespace AbilityKit.Game.Battle.Shared.Assets
             new BattleAssetEntry("moba/models", "presentation:models", BattleAssetKind.Config),
             new BattleAssetEntry("vfx/vfx", "presentation:vfx", BattleAssetKind.Config),
             new BattleAssetEntry("moba/presentation_templates", "presentation:templates", BattleAssetKind.Config),
-            new BattleAssetEntry("moba/skill_button_templates", "presentation:skill-buttons", BattleAssetKind.Config)
+            new BattleAssetEntry("moba/skill_button_templates", "presentation:skill-buttons", BattleAssetKind.Config),
+            new BattleAssetEntry("moba/gameplay_presentation_profiles", "presentation:gameplay-profiles", BattleAssetKind.Config)
         };
 
         /// <summary>

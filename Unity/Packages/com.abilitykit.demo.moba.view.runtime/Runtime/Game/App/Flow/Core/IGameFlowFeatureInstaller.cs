@@ -4,4 +4,10 @@ namespace AbilityKit.Game.Flow
     {
         int AttachBootFeatures();
     }
+
+    public interface IBattleViewFeatureHost
+    {
+        void Attach(IGamePhaseFeature feature);
+        void Detach(IGamePhaseFeature feature);
+    }
 }

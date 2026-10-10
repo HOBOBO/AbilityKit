@@ -71,9 +71,9 @@ CONSUMER_CONTRACTS = {
     30004: ("Emitter", "DurationMs", "Launch", "ShootProjectilePlanActionModule"),
     30005: ("Emitter", "IntervalMs", "Launch", "MobaProjectileService"),
     40001: ("Projectile", "ProjectileId", "Launch", "ShootProjectilePlanActionModule"),
-    40002: ("Projectile", "Speed", "ProjectileSpawn", "MobaProjectileService"),
-    40003: ("Projectile", "LifetimeMs", "ProjectileSpawn", "MobaProjectileService"),
-    40004: ("Projectile", "PierceHits", "ProjectileSpawn", "MobaProjectileService"),
+    40002: ("Projectile", "Speed", "ProjectileSpawn", "MobaProjectileService,MobaModifierProjectileSpawnPatternProvider"),
+    40003: ("Projectile", "LifetimeMs", "ProjectileSpawn", "MobaProjectileService,MobaModifierProjectileSpawnPatternProvider"),
+    40004: ("Projectile", "PierceHits", "ProjectileSpawn", "MobaProjectileService,MobaModifierProjectileSpawnPatternProvider"),
     50001: ("Aoe", "Radius", "AreaSpawn", "SpawnAreaPlanActionModule"),
     50002: ("Aoe", "DurationMs", "AreaSpawn", "SpawnAreaPlanActionModule"),
     50003: ("Aoe", "IntervalMs", "AreaSpawn", "SpawnAreaPlanActionModule"),
@@ -144,6 +144,10 @@ def validate_consumer_contracts(rows):
         actual = (DOMAIN_NAMES.get(row["Domain"]), row["Key"], RESOLVE_PHASES.get(row["ResolveAt"]))
         if contract is None or actual != contract[:3]:
             raise ValueError(f"modifier_parameters/{identity}: no matching consumer contract for {actual}")
+        consumers = contract[3].split(",")
+        if len(consumers) != len(set(consumers)) or any(
+                re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) is None for name in consumers):
+            raise ValueError(f"modifier_parameters/{identity}: invalid consumer type names")
 
 
 def validate_modifier_template_ids(rows, parameters):
@@ -202,6 +206,12 @@ def generate_parameter_keys(rows):
         stage = RUNTIME_STAGES[RESOLVE_PHASES[row["ResolveAt"]]]
         lines.append(f"            if (key.Equals({DOMAIN_NAMES[row['Domain']]}.{row['Key']})) {{ stage = MobaParameterStage.{stage}; return true; }}")
     lines.extend(("            stage = MobaParameterStage.None; return false;", "        }", "",
+                  "        public static bool TryGetConsumerTypeName(int parameterId, out string typeName)",
+                  "        {", "            switch (parameterId)", "            {"))
+    for row in sorted(rows, key=lambda item: item["Id"]):
+        consumer = CONSUMER_CONTRACTS[row["Id"]][3]
+        lines.append(f'                case {row["Id"]}: typeName = "{consumer}"; return true;')
+    lines.extend(("                default: typeName = null; return false;", "            }", "        }", "",
                   "        public static bool IsTriggerWritable(int parameterId)", "        {",
                   "            switch (parameterId)", "            {"))
     for row in sorted(rows, key=lambda item: item["Id"]):

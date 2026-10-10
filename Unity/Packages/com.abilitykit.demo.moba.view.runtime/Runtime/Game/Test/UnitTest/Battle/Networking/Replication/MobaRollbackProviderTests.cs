@@ -103,6 +103,33 @@ namespace AbilityKit.Game.Tests
         }
 
         [Test]
+        public void BuffRollback_RejectsLifecycleChangeBeforeRestoringMutableState()
+        {
+            var context = new ActorContext();
+            try
+            {
+                var actor = context.CreateEntity();
+                var buff = CreateBuffRuntime(7001, 10, 101L, 1001L, 6f, 0.4f, 1);
+                actor.AddBuffs(new List<BuffRuntime> { buff });
+                var actors = new MobaActorRegistry();
+                actors.Register(42, actor);
+                var provider = new MobaBuffTimerRollbackProvider(actors);
+                var payload = provider.Export(new FrameIndex(12));
+
+                buff.Continuous.Pause();
+                buff.Remaining = 3f;
+                Assert.Throws<InvalidOperationException>(() =>
+                    provider.Import(new FrameIndex(12), payload));
+                Assert.That(buff.Remaining, Is.EqualTo(3f));
+                Assert.That(buff.Continuous.State, Is.EqualTo(ContinuousState.Paused));
+            }
+            finally
+            {
+                context.DestroyAllEntities();
+            }
+        }
+
+        [Test]
         public void BuffRollback_RejectsUnsupportedVersionBeforeMutation()
         {
             var context = new ActorContext();
@@ -148,7 +175,7 @@ namespace AbilityKit.Game.Tests
                 var provider = new MobaBuffTimerRollbackProvider(actors);
                 var snapshot = DeserializeBuffPayload(provider.Export(new FrameIndex(12)));
                 var payload = MemoryPackSerializer.Serialize(
-                    new MobaBuffTimerRollbackPayload(3, new[] { snapshot.Entries[0], snapshot.Entries[0] }));
+                    new MobaBuffTimerRollbackPayload(4, new[] { snapshot.Entries[0], snapshot.Entries[0] }));
                 first.Remaining = 3f;
 
                 var exception = Assert.Throws<InvalidOperationException>(

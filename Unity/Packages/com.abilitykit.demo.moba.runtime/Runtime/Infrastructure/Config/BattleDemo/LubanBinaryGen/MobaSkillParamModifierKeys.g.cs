@@ -178,6 +178,35 @@ namespace AbilityKit.Demo.Moba.Services
             stage = MobaParameterStage.None; return false;
         }
 
+        public static bool TryGetConsumerTypeName(int parameterId, out string typeName)
+        {
+            switch (parameterId)
+            {
+                case 10001: typeName = "MobaSkillSlotCandidateService"; return true;
+                case 10002: typeName = "SkillCastPreparationService"; return true;
+                case 10003: typeName = "SkillCastPreparationService"; return true;
+                case 10004: typeName = "SkillCastPreparationService"; return true;
+                case 20001: typeName = "BuffApplyFlow"; return true;
+                case 30001: typeName = "ShootProjectilePlanActionModule"; return true;
+                case 30002: typeName = "MobaModifierProjectileSpawnPatternProvider"; return true;
+                case 30003: typeName = "MobaModifierProjectileSpawnPatternProvider"; return true;
+                case 30004: typeName = "ShootProjectilePlanActionModule"; return true;
+                case 30005: typeName = "MobaProjectileService"; return true;
+                case 40001: typeName = "ShootProjectilePlanActionModule"; return true;
+                case 40002: typeName = "MobaProjectileService,MobaModifierProjectileSpawnPatternProvider"; return true;
+                case 40003: typeName = "MobaProjectileService,MobaModifierProjectileSpawnPatternProvider"; return true;
+                case 40004: typeName = "MobaProjectileService,MobaModifierProjectileSpawnPatternProvider"; return true;
+                case 50001: typeName = "SpawnAreaPlanActionModule"; return true;
+                case 50002: typeName = "SpawnAreaPlanActionModule"; return true;
+                case 50003: typeName = "SpawnAreaPlanActionModule"; return true;
+                case 60001: typeName = "SpawnSummonPlanActionModule"; return true;
+                case 60002: typeName = "MobaSummonService"; return true;
+                case 60003: typeName = "MobaSummonService"; return true;
+                case 70001: typeName = "GiveDamagePlanActionModule"; return true;
+                default: typeName = null; return false;
+            }
+        }
+
         public static bool IsTriggerWritable(int parameterId)
         {
             switch (parameterId)

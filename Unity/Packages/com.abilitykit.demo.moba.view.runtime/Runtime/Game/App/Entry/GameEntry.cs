@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using AbilityKit.World.ECS;
 using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Game.EntityCreation;
@@ -47,6 +48,7 @@ namespace AbilityKit.Game
         private GameEntryModuleContext _entryModuleContext;
         private GameEntryRuntimeGuiBridge _runtimeGuiBridge;
         private DemoMultiplayerLaunchRequest _multiplayerLaunchRequest;
+        private Task _shutdownTask;
 
         private void Awake()
         {
@@ -72,11 +74,13 @@ namespace AbilityKit.Game
                 Root.WithRef(flow);
                 Root.WithRef<IFlowCommandSink>(flow);
                 Root.WithRef<IGameFlowFeatureInstaller>(flow);
+                Root.WithRef<IBattleViewFeatureHost>(flow);
             }
             else
             {
                 Root.WithRef<IFlowCommandSink>(existingFlow);
                 Root.WithRef<IGameFlowFeatureInstaller>(existingFlow);
+                Root.WithRef<IBattleViewFeatureHost>(existingFlow);
             }
 
             var entrySelection = new LobbyBattleEntrySelection();
@@ -94,7 +98,7 @@ namespace AbilityKit.Game
 
         private void Start()
         {
-            if (!Root.IsValid) return;
+            if (_shutdownTask != null || !Root.IsValid) return;
             if (Root.TryGetRef<GameFlowDomain>(out var flow))
             {
                 flow.Start();
@@ -103,7 +107,7 @@ namespace AbilityKit.Game
 
         private void Update()
         {
-            if (!Root.IsValid) return;
+            if (_shutdownTask != null || !Root.IsValid) return;
 
             _entryModules?.Tick(in _entryModuleContext, Time.deltaTime);
 
@@ -141,15 +145,15 @@ namespace AbilityKit.Game
             ReliableEventCheckpointFlushTrigger trigger)
         {
             if (!Root.IsValid ||
-                !Root.TryGetRef<GatewayMultiplayerRoomSession>(out var session) ||
-                session == null)
+                !Root.TryGetRef<IMobaReliableEventCheckpointLifecycle>(out var checkpoints) ||
+                checkpoints == null)
             {
                 return;
             }
 
             try
             {
-                session.FlushReliableEventCheckpointsAsync(trigger).GetAwaiter().GetResult();
+                checkpoints.FlushAsync(trigger).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -194,55 +198,60 @@ namespace AbilityKit.Game
 
         private void OnDestroy()
         {
-            try
-            {
-                if (Root.IsValid && Root.TryGetRef<GameFlowDomain>(out var flow))
+            if (_instance == this) _instance = null;
+            _ = ObserveShutdownAsync(ShutdownAsync());
+        }
+
+        public Task ShutdownAsync()
+        {
+            if (_shutdownTask != null) return _shutdownTask;
+
+            var root = Root;
+            var world = World;
+            var modules = _entryModules;
+            var moduleContext = _entryModuleContext;
+            var flow = root.IsValid && root.TryGetRef<GameFlowDomain>(out var currentFlow)
+                ? currentFlow
+                : null;
+
+            _shutdownTask = GameEntryShutdownCoordinator.RunAsync(
+                () => flow?.ShutdownAsync() ?? Task.CompletedTask,
+                () =>
+                {
+                    if (modules?.IsAttached == true) modules.Detach(in moduleContext);
+                },
+                () =>
+                {
+                    if (modules == null) return Task.CompletedTask;
+                    var pending = new List<Task>();
+                    foreach (var module in modules.Modules)
+                    {
+                        if (module is IAsyncGameEntryModuleTeardown asyncModule)
+                            pending.Add(asyncModule.PendingTeardown ?? Task.CompletedTask);
+                    }
+                    return Task.WhenAll(pending);
+                },
+                () =>
                 {
                     try
                     {
-                        flow.Shutdown();
+                        if (root.IsValid) world?.DestroyRecursive(root.Id);
                     }
-                    catch (Exception ex)
+                    finally
                     {
-                        Debug.LogException(ex);
+                        _entryModules = null;
+                        _entryModuleContext = default;
+                        Root = default;
+                        World = null;
                     }
-                }
+                });
+            return _shutdownTask;
+        }
 
-                if (_entryModules != null && _entryModules.IsAttached)
-                {
-                    try
-                    {
-                        _entryModules.Detach(in _entryModuleContext);
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.LogException(ex);
-                    }
-                }
-            }
-            finally
-            {
-                _entryModules = null;
-                _entryModuleContext = default;
-
-                try
-                {
-                    if (Root.IsValid)
-                    {
-                        World?.DestroyRecursive(Root.Id);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogException(ex);
-                }
-                finally
-                {
-                    Root = default;
-                    World = null;
-                    if (_instance == this) _instance = null;
-                }
-            }
+        private static async Task ObserveShutdownAsync(Task shutdown)
+        {
+            try { await shutdown; }
+            catch (Exception exception) { Debug.LogException(exception); }
         }
 
         private ModuleHost<GameEntryModuleContext, IGameEntryModule> CreateEntryModules()
@@ -345,6 +354,28 @@ namespace AbilityKit.Game
         public void RunCoroutine(IEnumerator coroutine)
         {
             StartCoroutine(coroutine);
+        }
+    }
+
+    internal static class GameEntryShutdownCoordinator
+    {
+        internal static async Task RunAsync(
+            Func<Task> stopFlow,
+            Action detachModules,
+            Func<Task> waitForModules,
+            Action releaseRoot)
+        {
+            var failures = new List<Exception>();
+            try { await (stopFlow?.Invoke() ?? Task.CompletedTask); }
+            catch (Exception exception) { failures.Add(exception); }
+            try { detachModules?.Invoke(); }
+            catch (Exception exception) { failures.Add(exception); }
+            try { await (waitForModules?.Invoke() ?? Task.CompletedTask); }
+            catch (Exception exception) { failures.Add(exception); }
+            try { releaseRoot?.Invoke(); }
+            catch (Exception exception) { failures.Add(exception); }
+            if (failures.Count > 0)
+                throw new AggregateException("Game entry shutdown failed.", failures);
         }
     }
 

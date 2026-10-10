@@ -163,7 +163,9 @@ namespace AbilityKit.Game.Test.UnitTest
                                 RoomType = "moba",
                                 RoomTitle = "Unity single-client frame-sync acceptance",
                                 MaxPlayers = 1,
-                                MinPlayers = 1
+                                MinPlayers = 1,
+                                TagBundleVersion = AbilityKit.Demo.Moba.Services.MobaGameplayTagCatalog.VerifyPublishedBundle(
+                                    new AbilityKit.Demo.Moba.View.Config.ResourcesTextAssetLoader())
                             },
                             _lifetime.Token),
                         HeadlessStage.CreatingRoom,
@@ -243,9 +245,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
                     context.LocalActorId = _oldActorId;
                     _baselineRevision = context.RuntimePlayerLoadoutRevision;
+                    var plan = context.Plan;
                     _submittedFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(
                         context.LastFrame,
-                        in context.Plan);
+                        in plan);
                     var playerId = new PlayerId(_playerId);
                     var command = BattleInputCommandFactory.CreateDebugReplaceHero(
                         _submittedFrame,

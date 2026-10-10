@@ -7,6 +7,7 @@
 **/*.log
 **/node_modules
 **/.vscode
+**/__pycache__
 
 # Test artifact roots (gate runner output, headless snapshots, dotnet TRX,
 # Unity Library, per-project build artifacts). The historical archive under

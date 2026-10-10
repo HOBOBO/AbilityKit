@@ -3,9 +3,6 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Snapshots.Routing;
-using AbilityKit.Ability.Host.Extensions.Moba.Room;
-using AbilityKit.Demo.Moba.Diagnostics;
-using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba;
 using FrameSnapshotDispatcher = AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher;
@@ -15,33 +12,17 @@ namespace AbilityKit.Game.Flow
     public sealed class BattleSyncFeature : IGamePhaseFeature
     {
         private BattleContext _ctx;
-        private IMobaBattleDiagnosticEventSink _diagnosticSink;
+        private FrameSnapshotDispatcher _dispatcher;
 
         private readonly BattleSubscriptionGroup _subscriptions = new BattleSubscriptionGroup(4);
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Features.TryGet(out _ctx);
-            _diagnosticSink = ResolveDiagnosticSink(_ctx);
+            _ctx = ctx.RequireFeature<BattleContext>(nameof(BattleSyncFeature));
 
-            var syncMode = _ctx != null ? _ctx.Plan.Sync.SyncMode : BattleSyncMode.Lockstep;
-
-            if (_ctx != null && _ctx.TryGetFrameSnapshots(out var snapshots))
-            {
-                switch (syncMode)
-                {
-                    case BattleSyncMode.SnapshotAuthority:
-                    case BattleSyncMode.Lockstep:
-                    case BattleSyncMode.HybridPredictReconcile:
-                    default:
-                        SubscribeSnapshots(snapshots);
-                        break;
-                }
-            }
-            else
-            {
+            EnsureSnapshotSubscription();
+            if (_dispatcher == null)
                 Log.Warning("[BattleSyncFeature] FrameSnapshots is null");
-            }
 
             if (_ctx != null)
             {
@@ -53,6 +34,7 @@ namespace AbilityKit.Game.Flow
         public void OnDetach(in GamePhaseContext ctx)
         {
             _subscriptions.Clear();
+            _dispatcher = null;
 
             if (_ctx != null)
             {
@@ -60,12 +42,28 @@ namespace AbilityKit.Game.Flow
                 _ctx.HasRuntimeWorldId = false;
             }
 
-            _diagnosticSink = null;
             _ctx = null;
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
         {
+            EnsureSnapshotSubscription();
+        }
+
+        private void EnsureSnapshotSubscription()
+        {
+            var snapshots = _ctx != null && _ctx.TryGetFrameSnapshots(out var current)
+                ? current
+                : null;
+            if (ReferenceEquals(_dispatcher, snapshots)) return;
+            _subscriptions.Clear();
+            if (_dispatcher != null && _ctx != null)
+            {
+                _ctx.RuntimeWorldId = default;
+                _ctx.HasRuntimeWorldId = false;
+            }
+            _dispatcher = snapshots;
+            if (snapshots != null) SubscribeSnapshots(snapshots);
         }
 
         private void SubscribeSnapshots(FrameSnapshotDispatcher snapshots)
@@ -82,6 +80,10 @@ namespace AbilityKit.Game.Flow
                     snapshots.Subscribe<ActorDespawnData[]>(
                         MobaOpCodes.Snapshot.ActorDespawn,
                         OnActorDespawnSnapshot));
+                _subscriptions.Add(
+                    snapshots.Subscribe<CharacterActionData[]>(
+                        CharacterActionSnapshotRoute.OpCode,
+                        (_, entries) => BattleSnapshotEntityApplier.ApplyCharacterActions(_ctx, entries)));
             }
             catch (Exception ex)
             {
@@ -121,37 +123,7 @@ namespace AbilityKit.Game.Flow
                     new AbilityKit.Ability.FrameSync.Rollback.WorldStateHash(snap.StateHash));
             }
 
-            CollectStateHashSnapshot(snap.FrameIndex, snap.StateHash);
-        }
-
-        private void CollectStateHashSnapshot(int authoritativeFrame, uint stateHash)
-        {
-            try
-            {
-                if (_diagnosticSink == null) return;
-
-                var draft = MobaSyncDiagnosticProducer.CreateSnapshotReceivedDraft(
-                    authoritativeFrame,
-                    stateHash);
-                _diagnosticSink.TryCollect(in draft);
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[BattleSyncFeature] Failed to collect StateHash sync diagnostic");
-            }
-        }
-
-        private static IMobaBattleDiagnosticEventSink ResolveDiagnosticSink(BattleContext context)
-        {
-            if (context == null ||
-                !context.TryGetRuntimeWorld(out var world) ||
-                world.Services == null ||
-                !world.Services.TryResolve<IMobaBattleDiagnosticEventSink>(out var sink))
-            {
-                return null;
-            }
-
-            return sink;
+            _ctx?.NotifyStateHashSnapshot(snap.FrameIndex, snap.StateHash);
         }
 
         private void OnActorTransformSnapshot(ISnapshotEnvelope packet, ActorTransformData[] entries)

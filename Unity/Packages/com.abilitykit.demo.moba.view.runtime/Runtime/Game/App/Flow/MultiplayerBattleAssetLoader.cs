@@ -27,6 +27,7 @@ namespace AbilityKit.Game.Flow
         private readonly IBattleAssetDependencyProvider _dependencyProvider;
         private readonly ClientLoadingPipelineDefinition _pipelineDefinition;
         private readonly IDispatcher? _mainThreadDispatcher;
+        private readonly string _localTagBundleVersion;
         private readonly object _gate = new object();
         private IBattleAssetLease? _lease;
         private long _loadVersion;
@@ -43,12 +44,14 @@ namespace AbilityKit.Game.Flow
             IBattleAssetLoadService loadService,
             ClientLoadingPipelineDefinition pipelineDefinition = null,
             IBattleAssetDependencyProvider dependencyProvider = null,
-            IDispatcher mainThreadDispatcher = null)
+            IDispatcher mainThreadDispatcher = null,
+            string localTagBundleVersion = null)
         {
             _loadService = loadService ?? throw new ArgumentNullException(nameof(loadService));
             _pipelineDefinition = pipelineDefinition ?? DefaultPipeline;
             _dependencyProvider = dependencyProvider;
             _mainThreadDispatcher = mainThreadDispatcher;
+            _localTagBundleVersion = localTagBundleVersion ?? string.Empty;
         }
 
         public Task LoadAsync(
@@ -197,10 +200,14 @@ namespace AbilityKit.Game.Flow
             return $"Battle asset loading failed: {first.AssetKey} ({first.Reason}).";
         }
 
-        private static void ValidateManifest(
+        private void ValidateManifest(
             MultiplayerRoomSnapshot snapshot,
             BattleAssetManifest manifest)
         {
+            if (string.IsNullOrWhiteSpace(_localTagBundleVersion) ||
+                string.IsNullOrWhiteSpace(snapshot.TagBundleVersion) ||
+                !string.Equals(snapshot.TagBundleVersion, _localTagBundleVersion, StringComparison.Ordinal))
+                throw new InvalidOperationException("The room MOBA tag bundle differs from the local published bundle.");
             if (snapshot.LaunchGeneration <= 0 ||
                 snapshot.LaunchManifestVersion <= 0 ||
                 string.IsNullOrWhiteSpace(snapshot.LaunchManifestHash))
@@ -259,7 +266,7 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private sealed class SnapshotAssetSource : IBattleAssetManifestSource
+        private sealed class SnapshotAssetSource : IBattleAssetManifestSource, IBattleGameplayManifestSource
         {
             private readonly MultiplayerRoomSnapshot _snapshot;
 
@@ -289,6 +296,7 @@ namespace AbilityKit.Game.Flow
             }
 
             public int LaunchManifestVersion => _snapshot.LaunchManifestVersion;
+            public int GameplayId => _snapshot.GameplayId;
             public string LaunchManifestHash => _snapshot.LaunchManifestHash;
             public long LaunchGeneration => _snapshot.LaunchGeneration;
         }

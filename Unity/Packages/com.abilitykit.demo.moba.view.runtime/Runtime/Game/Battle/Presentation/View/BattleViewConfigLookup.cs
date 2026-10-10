@@ -9,26 +9,20 @@ namespace AbilityKit.Game.Flow
         private readonly BattleViewCharacterConfigResolver _characters;
         private readonly BattleViewProjectileConfigResolver _projectiles;
         private readonly BattleViewSummonConfigResolver _summons;
-        private readonly BattleViewTurretConfigResolver _turrets;
-        private readonly BattleViewMonsterConfigResolver _monsters;
-        private readonly BattleViewBuildingConfigResolver _buildings;
+        private readonly BattleViewModelResolverRegistry _otherModels;
         private readonly BattleViewAoeConfigResolver _aoes;
 
         public BattleViewConfigLookup(
             BattleViewCharacterConfigResolver characters = null,
             BattleViewProjectileConfigResolver projectiles = null,
             BattleViewSummonConfigResolver summons = null,
-            BattleViewTurretConfigResolver turrets = null,
-            BattleViewMonsterConfigResolver monsters = null,
-            BattleViewBuildingConfigResolver buildings = null,
+            BattleViewModelResolverRegistry otherModels = null,
             BattleViewAoeConfigResolver aoes = null)
         {
             _characters = characters ?? new BattleViewCharacterConfigResolver();
             _projectiles = projectiles ?? new BattleViewProjectileConfigResolver();
             _summons = summons ?? new BattleViewSummonConfigResolver();
-            _turrets = turrets ?? new BattleViewTurretConfigResolver();
-            _monsters = monsters ?? new BattleViewMonsterConfigResolver();
-            _buildings = buildings ?? new BattleViewBuildingConfigResolver();
+            _otherModels = otherModels ?? new BattleViewModelResolverRegistry();
             _aoes = aoes ?? new BattleViewAoeConfigResolver();
         }
 
@@ -44,9 +38,9 @@ namespace AbilityKit.Game.Flow
             {
                 case BattleEntityKind.Character:  return _characters.ResolveModelId(configs, meta);
                 case BattleEntityKind.Summon:     return _summons.ResolveModelId(configs, meta);
-                case BattleEntityKind.Turret:     return _turrets.ResolveModelId(configs, meta);
-                case BattleEntityKind.Monster:    return _monsters.ResolveModelId(configs, meta);
-                case BattleEntityKind.Building:   return _buildings.ResolveModelId(configs, meta);
+                case BattleEntityKind.Turret:
+                case BattleEntityKind.Monster:
+                case BattleEntityKind.Building:   return _otherModels.ResolveModelId(configs, meta);
                 case BattleEntityKind.Clone:       return _summons.ResolveModelId(configs, meta); // Clone shares Summon resolution
                 default:                           return 0;
             }

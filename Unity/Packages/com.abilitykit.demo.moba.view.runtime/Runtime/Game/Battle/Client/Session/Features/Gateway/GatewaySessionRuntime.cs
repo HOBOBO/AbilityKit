@@ -1,9 +1,15 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
+using AbilityKit.Network.Sdk;
+#if UNITY_EDITOR
+using AbilityKit.Network.Sdk.Observability;
+#endif
 
 namespace AbilityKit.Game.Flow
 {
@@ -20,10 +26,15 @@ namespace AbilityKit.Game.Flow
         private readonly NetworkConditionController _networkCondition;
         private readonly GatewayClockSynchronizer _clock = new GatewayClockSynchronizer();
         private readonly GatewayPreparationRuntime _preparation;
+        private readonly SemaphoreSlim _preparationGate = new SemaphoreSlim(1, 1);
 
         private readonly object _ownershipToken = new object();
         private IConnection _connection;
+        private IAbilityKitConnectionLease _connectionLease;
         private IGatewayRoomClient _client;
+#if UNITY_EDITOR
+        private IDisposable _packetInterception;
+#endif
 
         internal GatewaySessionRuntime(
             BattleSessionHandles handles,
@@ -64,12 +75,13 @@ namespace AbilityKit.Game.Flow
                     gateway.Port,
                     "tcp");
 
-                _connection = _connectionRegistry.GetOrCreate(
+                _connectionLease = _connectionRegistry.Acquire(
                     descriptor,
                     _ => _connectionFactory.CreateGatewayRoomConnection(
                         plan,
                         callbackDispatcher,
                         ioDispatcher));
+                _connection = _connectionLease.Connection;
                 if (_connection == null)
                 {
                     throw new InvalidOperationException("Gateway connection registry returned null.");
@@ -77,7 +89,14 @@ namespace AbilityKit.Game.Flow
 
                 _handles.GatewayRoom.ConnectionOwner = _ownershipToken;
                 _handles.GatewayRoom.Conn = _connection;
-                _connection.Open(gateway.Host, gateway.Port);
+#if UNITY_EDITOR
+                if (_connection is NetworkSdkClient sdkClient)
+                    _packetInterception = NetworkPacketInterception.Default.Attach(sdkClient, "abilitykit.room");
+                if (_connection is ConnectionManager manager)
+                    _packetInterception = NetworkPacketInterception.Default.Attach(manager, "abilitykit.room");
+#endif
+                if (_connectionLease.OwnsLifecycle)
+                    _connection.Open(gateway.Host, gateway.Port);
                 _networkCondition.Attach(_connection);
 
                 var opCodes = new GatewayRoomOpCodes(
@@ -100,7 +119,8 @@ namespace AbilityKit.Game.Flow
 
         internal void Tick(float deltaTime)
         {
-            _connection?.Tick(deltaTime);
+            if (_connectionLease != null && _connectionLease.OwnsLifecycle)
+                _connection?.Tick(deltaTime);
         }
 
         internal void StartPreparation(
@@ -125,6 +145,29 @@ namespace AbilityKit.Game.Flow
                 clockFailurePublished);
         }
 
+        internal async Task StartNewPreparationAsync(
+            BattleStartPlan plan,
+            IDispatcher callbackDispatcher,
+            IDispatcher ioDispatcher,
+            Action resetPreviousState,
+            Action<BattleStartPlan> planPublished,
+            Action<GatewayTimeSyncEwma, GatewayTimeSyncRuntimeOptions> clockSamplePublished,
+            Action<Exception> clockFailurePublished)
+        {
+            await _preparationGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                await StopAsync().ConfigureAwait(false);
+                resetPreviousState?.Invoke();
+                Build(plan, callbackDispatcher, ioDispatcher);
+                StartPreparation(plan, planPublished, clockSamplePublished, clockFailurePublished);
+            }
+            finally
+            {
+                _preparationGate.Release();
+            }
+        }
+
         internal bool TryGetWorldStartAnchor(
             AbilityKit.Ability.World.Abstractions.WorldId worldId,
             out GatewayWorldStartAnchor anchor)
@@ -132,14 +175,9 @@ namespace AbilityKit.Game.Flow
             return _preparation.TryGetWorldStartAnchor(worldId, out anchor);
         }
 
-        internal void CompletePreparation()
-        {
-            _preparation.StopWork();
-            DisposeConnection();
-        }
-
         internal async System.Threading.Tasks.Task CompletePreparationAsync()
         {
+            await _preparationGate.WaitAsync().ConfigureAwait(false);
             try
             {
                 await _preparation.StopWorkAsync().ConfigureAwait(false);
@@ -147,7 +185,15 @@ namespace AbilityKit.Game.Flow
             finally
             {
                 DisposeConnection();
+                _preparationGate.Release();
             }
+        }
+
+        internal async Task StopPreparationAsync()
+        {
+            await _preparationGate.WaitAsync().ConfigureAwait(false);
+            try { await StopAsync().ConfigureAwait(false); }
+            finally { _preparationGate.Release(); }
         }
 
         internal async System.Threading.Tasks.Task StopAsync()
@@ -172,8 +218,14 @@ namespace AbilityKit.Game.Flow
         {
             var client = _client;
             var connection = _connection;
+            var connectionLease = _connectionLease;
             _client = null;
             _connection = null;
+            _connectionLease = null;
+#if UNITY_EDITOR
+            _packetInterception?.Dispose();
+            _packetInterception = null;
+#endif
 
             var ownsPublishedConnection = ReferenceEquals(
                 _handles.GatewayRoom.ConnectionOwner,
@@ -197,16 +249,6 @@ namespace AbilityKit.Game.Flow
             {
                 if (ownsPublishedConnection)
                 {
-                    if (connection != null &&
-                        _connectionRegistry.TryGet(
-                            AbilityKitConnectionRole.GatewayReliable,
-                            out var current) &&
-                        ReferenceEquals(current, connection))
-                    {
-                        _connectionRegistry.Remove(
-                            AbilityKitConnectionRole.GatewayReliable);
-                    }
-
                     if (ReferenceEquals(_handles.GatewayRoom.Conn, connection))
                     {
                         _handles.GatewayRoom.Conn = null;
@@ -214,6 +256,8 @@ namespace AbilityKit.Game.Flow
 
                     _handles.GatewayRoom.ConnectionOwner = null;
                 }
+
+                connectionLease?.Dispose();
             }
         }
     }

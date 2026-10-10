@@ -69,6 +69,8 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         public IReadOnlyList<SkillStateData> SkillStates { get; }
 
+        public GameplayClockData GameplayClock { get; }
+
         /// <summary>
         /// 表现 Cue 数据列表
         /// </summary>
@@ -87,7 +89,8 @@ namespace AbilityKit.Demo.Moba.Share
             IReadOnlyList<ActorSpawnData> actorSpawns = null,
             IReadOnlyList<PresentationCueData> presentationCues = null,
             IReadOnlyList<ActorDespawnData> actorDespawns = null,
-            IReadOnlyList<SkillStateData> skillStates = null)
+            IReadOnlyList<SkillStateData> skillStates = null,
+            GameplayClockData gameplayClock = default)
         {
             FrameIndex = frameIndex;
             Timestamp = timestamp;
@@ -101,6 +104,7 @@ namespace AbilityKit.Demo.Moba.Share
             ActorSpawns = actorSpawns ?? Array.Empty<ActorSpawnData>();
             ActorDespawns = actorDespawns ?? Array.Empty<ActorDespawnData>();
             SkillStates = skillStates ?? Array.Empty<SkillStateData>();
+            GameplayClock = gameplayClock;
             PresentationCues = presentationCues ?? Array.Empty<PresentationCueData>();
         }
     }

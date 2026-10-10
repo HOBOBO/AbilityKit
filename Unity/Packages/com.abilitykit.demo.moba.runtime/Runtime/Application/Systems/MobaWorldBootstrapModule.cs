@@ -43,7 +43,9 @@ namespace AbilityKit.Demo.Moba.Systems
 
             var descriptors = new List<MobaGeneratedWorldSystemDescriptor>();
             AddGenerated(descriptors);
-            if (descriptors.Count == 0) return;
+            if (descriptors.Count == 0)
+                throw new InvalidOperationException(
+                    "The generated MOBA world system manifest is empty. Battle world systems cannot be installed.");
 
             var features = new Dictionary<WorldSystemPhase, global::Entitas.Systems>();
             for (var i = 0; i < descriptors.Count; i++)

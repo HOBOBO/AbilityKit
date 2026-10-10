@@ -913,12 +913,17 @@ namespace AbilityKit.Network.Room
             return new RoomGatewaySnapshot
             {
                 RoomId = summary.RoomId ?? string.Empty,
+                GameplayId = summary.Tags != null &&
+                    summary.Tags.TryGetValue(RoomTagKeys.GameplayId, out var gameplayIdText) &&
+                    int.TryParse(gameplayIdText, out var gameplayId) && gameplayId > 0 ? gameplayId : 1,
                 OwnerAccountId = summary.OwnerAccountId ?? string.Empty,
                 Phase = ToSessionPhase(wire.Phase),
                 PhaseReason = wire.PhaseReason ?? string.Empty,
                 LaunchGeneration = wire.LaunchGeneration,
                 LoadingDeadlineUnixMs = wire.LoadingDeadlineUnixMs,
                 LaunchManifestHash = wire.LaunchManifestHash ?? string.Empty,
+                TagBundleVersion = summary.Tags != null && summary.Tags.TryGetValue(RoomTagKeys.MobaTagBundleVersion, out var tagBundleVersion)
+                    ? tagBundleVersion : string.Empty,
                 LaunchManifestVersion = wire.LaunchManifestVersion,
                 LastStartFailureCode = wire.LastStartFailureCode ?? string.Empty,
                 RoomRevision = wire.RoomRevision,

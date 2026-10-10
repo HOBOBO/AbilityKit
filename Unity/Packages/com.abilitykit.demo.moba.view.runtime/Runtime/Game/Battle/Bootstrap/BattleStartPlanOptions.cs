@@ -1,4 +1,7 @@
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
+using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Network.Room;
+using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Game.Flow
 {
@@ -72,6 +75,7 @@ namespace AbilityKit.Game.Flow
         public readonly uint CreateRoomOpCode;
         public readonly uint JoinRoomOpCode;
         public readonly string BattleId;
+        public readonly int MaxPlayers;
 
         public BattleStartPlanGatewayOptions(
             bool useGatewayTransport,
@@ -86,8 +90,10 @@ namespace AbilityKit.Game.Flow
             string joinRoomId,
             uint createRoomOpCode,
             uint joinRoomOpCode,
-            string battleId = "")
+            string battleId = "",
+            int maxPlayers = 2)
         {
+            if (maxPlayers <= 0) throw new System.ArgumentOutOfRangeException(nameof(maxPlayers));
             UseGatewayTransport = useGatewayTransport;
             Host = host;
             Port = port;
@@ -101,6 +107,7 @@ namespace AbilityKit.Game.Flow
             CreateRoomOpCode = createRoomOpCode;
             JoinRoomOpCode = joinRoomOpCode;
             BattleId = battleId ?? string.Empty;
+            MaxPlayers = maxPlayers;
         }
     }
 
@@ -217,6 +224,8 @@ namespace AbilityKit.Game.Flow
         public readonly BattleStartPlanCreateWorldOptions CreateWorld;
         public readonly BattleStartPlanTimeSyncOptions TimeSync;
         public readonly MobaBattleLaunchSpec LaunchSpec;
+        public readonly MobaReliableBattleEventCheckpoint ReliableEventCheckpoint;
+        public readonly RoomGatewayNetworkSyncCapabilities RemoteSyncCapabilities;
 
         public BattleStartPlanOptions(
             in BattleStartPlanWorldOptions world,
@@ -228,7 +237,9 @@ namespace AbilityKit.Game.Flow
             in BattleStartPlanRunModeOptions runMode,
             in BattleStartPlanCreateWorldOptions createWorld,
             in BattleStartPlanTimeSyncOptions timeSync,
-            MobaBattleLaunchSpec launchSpec = default)
+            MobaBattleLaunchSpec launchSpec = default,
+            MobaReliableBattleEventCheckpoint reliableEventCheckpoint = default,
+            RoomGatewayNetworkSyncCapabilities remoteSyncCapabilities = null)
         {
             World = world;
             Sync = sync;
@@ -251,6 +262,8 @@ namespace AbilityKit.Game.Flow
             CreateWorld = createWorld;
             TimeSync = timeSync;
             LaunchSpec = launchSpec;
+            ReliableEventCheckpoint = reliableEventCheckpoint;
+            RemoteSyncCapabilities = remoteSyncCapabilities;
         }
 
         public BattleStartPlanOptions(
@@ -271,7 +284,9 @@ namespace AbilityKit.Game.Flow
             BattleStartPlanRunModeOptions runMode,
             BattleStartPlanCreateWorldOptions createWorld,
             BattleStartPlanTimeSyncOptions timeSync,
-            MobaBattleLaunchSpec launchSpec = default)
+            MobaBattleLaunchSpec launchSpec = default,
+            MobaReliableBattleEventCheckpoint reliableEventCheckpoint = default,
+            RoomGatewayNetworkSyncCapabilities remoteSyncCapabilities = null)
             : this(
                 new BattleStartPlanWorldOptions(
                     worldId,
@@ -288,7 +303,9 @@ namespace AbilityKit.Game.Flow
                 runMode,
                 createWorld,
                 timeSync,
-                launchSpec)
+                launchSpec,
+                reliableEventCheckpoint,
+                remoteSyncCapabilities)
         {
         }
     }

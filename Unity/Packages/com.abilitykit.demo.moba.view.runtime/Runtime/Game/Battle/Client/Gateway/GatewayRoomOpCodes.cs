@@ -18,12 +18,12 @@ namespace AbilityKit.Game.Battle.Agent
         // 阶段 5：资源加载屏障 / 状态查询 / 状态变更推送 opcodes
         public readonly uint BeginLoading;
         public readonly uint ReportAssetsLoaded;
-        public readonly uint ReportLoadingProgress;
+        public uint ReportLoadingProgress => RoomOpCodes.ReportLoadingProgress;
         public readonly uint CancelLoading;
         public readonly uint GetSnapshot;
         public readonly uint RestoreRoom;
         public readonly uint RoomStateChanged;
-        public readonly uint LeaveRoom;
+        public uint LeaveRoom => RoomOpCodes.LeaveRoom;
 
         public GatewayRoomOpCodes(uint createRoom, uint joinRoom)
             : this(createRoom, joinRoom, StateSyncOpCodes.SubscribeStateSync, RoomOpCodes.SetReady, RoomOpCodes.PickHero, RoomOpCodes.StartBattle, RoomOpCodes.SubmitBattleInput)
@@ -93,12 +93,10 @@ namespace AbilityKit.Game.Battle.Agent
             DeltaSnapshotPushed = deltaSnapshotPushed;
             BeginLoading = beginLoading;
             ReportAssetsLoaded = reportAssetsLoaded;
-            ReportLoadingProgress = RoomOpCodes.ReportLoadingProgress;
             CancelLoading = cancelLoading;
             GetSnapshot = getSnapshot;
             RestoreRoom = restoreRoom;
             RoomStateChanged = roomStateChanged;
-            LeaveRoom = RoomOpCodes.LeaveRoom;
         }
 
         /// <summary>

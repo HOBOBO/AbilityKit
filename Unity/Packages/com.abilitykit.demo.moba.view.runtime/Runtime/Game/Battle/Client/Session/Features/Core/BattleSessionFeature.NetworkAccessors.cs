@@ -17,10 +17,6 @@ namespace AbilityKit.Game.Flow
             set => _handles.Net.Ctx = value;
         }
 
-        private IConnection _gatewayConn => _runtime.GatewayRoom.Connection;
-
-        private IGatewayRoomClient _gatewayClient => _runtime.GatewayRoom.Client;
-
         private IDispatcher _unityDispatcher
         {
             get => _handles.Dispatchers.UnityDispatcher;

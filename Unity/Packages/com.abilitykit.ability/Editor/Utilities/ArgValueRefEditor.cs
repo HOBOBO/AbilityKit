@@ -273,6 +273,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 case "emit": return "发送表现事件";
                 case "set_gameplay_var": return "设置玩法变量";
                 case "add_gameplay_var": return "增加玩法变量";
+                case "award_team_kill_score": return "英雄击杀计分";
                 case "advance_gameplay_counter": return "推进玩法计数器";
                 case "end_game": return "结束游戏";
                 default: return string.IsNullOrWhiteSpace(fallback) ? type ?? "未选择类型" : fallback;

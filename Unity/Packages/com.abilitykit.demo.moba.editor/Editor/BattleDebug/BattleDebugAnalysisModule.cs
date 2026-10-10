@@ -38,24 +38,75 @@ namespace AbilityKit.Game.Editor
     {
         Actor = 0,
         Investigation = 1,
-        FrameSync = 2
+        FrameSync = 2,
+        Runtime = 3,
+        Session = 4
+    }
+
+    internal static class BattleDebugPaneLayout
+    {
+        public static bool ShowEntityPane(BattleDebugNavigationGroup group,
+            bool actorPane, bool diagnosticPane) =>
+            group == BattleDebugNavigationGroup.Actor ? actorPane : diagnosticPane;
+
+        public static bool ShowInspector(BattleDebugNavigationGroup group,
+            bool actorInspector, bool diagnosticInspector) =>
+            group == BattleDebugNavigationGroup.Actor ? actorInspector : diagnosticInspector;
     }
 
     internal static class BattleDebugNavigation
     {
+        private static readonly BattleDebugNavigationGroup[] Groups =
+        {
+            BattleDebugNavigationGroup.Actor,
+            BattleDebugNavigationGroup.Runtime,
+            BattleDebugNavigationGroup.Investigation,
+            BattleDebugNavigationGroup.FrameSync,
+            BattleDebugNavigationGroup.Session
+        };
+
+        private static readonly string[] GroupNames =
+        {
+            "角色", "技能与对象", "事件与 Trace", "帧同步", "会话"
+        };
+
+        public static IReadOnlyList<BattleDebugNavigationGroup> OrderedGroups => Groups;
+        public static string[] DisplayNames => GroupNames;
+        public static bool UseCompactNavigation(float windowWidth) => windowWidth < 620f;
+
+        public static int IndexOf(BattleDebugNavigationGroup group)
+        {
+            for (var i = 0; i < Groups.Length; i++)
+                if (Groups[i] == group) return i;
+            return 0;
+        }
+
         public static BattleDebugNavigationGroup GroupOf(IBattleDebugPanel panel)
         {
             if (!(panel is IBattleDebugPanelLayout layout) || layout.Workspace == BattleDebugWorkspace.Actor)
                 return BattleDebugNavigationGroup.Actor;
-            return string.Equals(BattleDebugModuleCatalog.Describe(panel).Category, "帧同步", StringComparison.Ordinal)
-                ? BattleDebugNavigationGroup.FrameSync
-                : BattleDebugNavigationGroup.Investigation;
+            switch (BattleDebugModuleCatalog.Describe(panel).Category)
+            {
+                case "运行时": return BattleDebugNavigationGroup.Runtime;
+                case "帧同步": return BattleDebugNavigationGroup.FrameSync;
+                case "会话": return BattleDebugNavigationGroup.Session;
+                default: return BattleDebugNavigationGroup.Investigation;
+            }
         }
 
-        public static BattleDebugNavigationGroup GroupOfModuleId(string moduleId) =>
-            moduleId != null && moduleId.StartsWith("diagnostics.framesync.", StringComparison.Ordinal)
-                ? BattleDebugNavigationGroup.FrameSync
-                : BattleDebugNavigationGroup.Investigation;
+        public static BattleDebugNavigationGroup GroupOfModuleId(string moduleId)
+        {
+            if (moduleId != null && moduleId.StartsWith("diagnostics.framesync.", StringComparison.Ordinal))
+                return BattleDebugNavigationGroup.FrameSync;
+            if (moduleId == BattleDebugModuleIds.RuntimeObjects ||
+                moduleId == BattleDebugModuleIds.SkillRuntimes ||
+                moduleId == BattleDebugModuleIds.ActiveObjects)
+                return BattleDebugNavigationGroup.Runtime;
+            if (moduleId == BattleDebugModuleIds.DiagnosticHealth ||
+                moduleId == BattleDebugModuleIds.DiagnosticState)
+                return BattleDebugNavigationGroup.Session;
+            return BattleDebugNavigationGroup.Investigation;
+        }
 
         public static string NavigationName(IBattleDebugPanel panel)
         {
@@ -78,8 +129,11 @@ namespace AbilityKit.Game.Editor
     {
         public const string DiagnosticEvents = "diagnostics.events";
         public const string DiagnosticHealth = "diagnostics.health";
+        public const string DiagnosticState = "diagnostics.state";
         public const string DiagnosticTrace = "diagnostics.trace";
         public const string RuntimeObjects = "diagnostics.runtime-objects";
+        public const string SkillRuntimes = "diagnostics.skill-runtimes";
+        public const string ActiveObjects = "diagnostics.active-objects";
         public const string FrameSyncOverview = "diagnostics.framesync.overview";
         public const string FrameSyncPrediction = "diagnostics.framesync.prediction";
         public const string FrameSyncRollback = "diagnostics.framesync.rollback";

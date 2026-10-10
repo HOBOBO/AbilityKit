@@ -12,6 +12,45 @@ using AbilityKit.Network.Sdk;
 
 namespace AbilityKit.Network.Client
 {
+    public sealed class GatewayBattleClientEnterOptions
+    {
+        public GatewayRoomConnectionOptions RoomConnection { get; set; } = new GatewayRoomConnectionOptions();
+        public GatewayRoomFlowOptions RoomFlow { get; set; } = new GatewayRoomFlowOptions();
+        public GatewayBattleAttachOptions Battle { get; set; } = new GatewayBattleAttachOptions();
+    }
+
+    public sealed class GatewayRoomConnectionOptions
+    {
+        public string Host { get; set; } = string.Empty;
+        public int Port { get; set; }
+        public string AccountId { get; set; } = string.Empty;
+        public RoomGatewayLaunchSpec LaunchSpec { get; set; }
+        public Func<ITransport>? TransportFactory { get; set; }
+        public IDispatcher? Dispatcher { get; set; }
+        public TimeSpan? Timeout { get; set; }
+        public CancellationToken CancellationToken { get; set; }
+    }
+
+    public sealed class GatewayRoomFlowOptions
+    {
+        public string? JoinRoomId { get; set; }
+        public Action<RoomGatewayWireSessionClient>? ConfigureClient { get; set; }
+        public uint PlayerId { get; set; } = 1;
+        public bool WaitForBattleStart { get; set; } = true;
+        public Func<RoomGatewaySessionFlow, string, string, TimeSpan?, CancellationToken, Task>? AfterJoinAndBeforeReady { get; set; }
+        public Func<RoomGatewaySessionFlow, string, string, TimeSpan?, CancellationToken, Task>? AfterReadyAndBeforeBattleStart { get; set; }
+        public bool JoinFallbackToCreate { get; set; }
+    }
+
+    public sealed class GatewayBattleAttachOptions
+    {
+        public bool Attach { get; set; } = true;
+        public Action<NetworkBattleConfig, GatewaySessionResult>? Configure { get; set; }
+        public Func<ITransport>? TransportFactory { get; set; }
+        public IDispatcher? Dispatcher { get; set; }
+        public IDispatcher? IoDispatcher { get; set; }
+    }
+
     /// <summary>
     /// Two-connection multiplayer battle client host. Owns the room control-plane connection
     /// (a <see cref="GatewayMultiplayerSession"/>: connect → login → create/join → ready →
@@ -33,6 +72,7 @@ namespace AbilityKit.Network.Client
         private readonly int _port;
         private readonly Func<ITransport>? _battleTransportFactory;
         private readonly IDispatcher? _battleDispatcher;
+        private readonly IDispatcher? _battleIoDispatcher;
         private readonly GatewayMultiplayerSession? _roomSession;
         private readonly NetworkSdkClient _roomConnection;
         private readonly GatewaySessionResult _session;
@@ -59,7 +99,8 @@ namespace AbilityKit.Network.Client
             string host,
             int port,
             Func<ITransport>? battleTransportFactory = null,
-            IDispatcher? battleDispatcher = null)
+            IDispatcher? battleDispatcher = null,
+            IDispatcher? battleIoDispatcher = null)
             : this(
                 roomSession?.SdkClient ?? throw new ArgumentNullException(nameof(roomSession)),
                 roomSession,
@@ -67,7 +108,8 @@ namespace AbilityKit.Network.Client
                 host,
                 port,
                 battleTransportFactory,
-                battleDispatcher)
+                battleDispatcher,
+                battleIoDispatcher)
         {
         }
 
@@ -82,8 +124,9 @@ namespace AbilityKit.Network.Client
             string host,
             int port,
             Func<ITransport>? battleTransportFactory = null,
-            IDispatcher? battleDispatcher = null)
-            : this(roomConnection, null, session, host, port, battleTransportFactory, battleDispatcher)
+            IDispatcher? battleDispatcher = null,
+            IDispatcher? battleIoDispatcher = null)
+            : this(roomConnection, null, session, host, port, battleTransportFactory, battleDispatcher, battleIoDispatcher)
         {
         }
 
@@ -94,7 +137,8 @@ namespace AbilityKit.Network.Client
             string host,
             int port,
             Func<ITransport>? battleTransportFactory,
-            IDispatcher? battleDispatcher)
+            IDispatcher? battleDispatcher,
+            IDispatcher? battleIoDispatcher)
         {
             _roomConnection = roomConnection ?? throw new ArgumentNullException(nameof(roomConnection));
             if (string.IsNullOrWhiteSpace(host)) throw new ArgumentException("Host is required.", nameof(host));
@@ -105,6 +149,7 @@ namespace AbilityKit.Network.Client
             _port = port;
             _battleTransportFactory = battleTransportFactory;
             _battleDispatcher = battleDispatcher;
+            _battleIoDispatcher = battleIoDispatcher ?? battleDispatcher;
         }
 
         /// <summary>
@@ -132,27 +177,58 @@ namespace AbilityKit.Network.Client
             bool waitForBattleStart = true,
             Func<RoomGatewaySessionFlow, string, string, TimeSpan?, CancellationToken, Task>? afterJoinAndBeforeReady = null,
             Func<RoomGatewaySessionFlow, string, string, TimeSpan?, CancellationToken, Task>? afterReadyAndBeforeBattleStart = null,
-            bool joinFallbackToCreate = false)
+            bool joinFallbackToCreate = false,
+            IDispatcher? battleIoDispatcher = null)
         {
-            if (attachBattle && configureBattle == null)
+            return await EnterAsync(new GatewayBattleClientEnterOptions
             {
-                throw new ArgumentNullException(nameof(configureBattle), "configureBattle is required when attachBattle is true.");
-            }
+                RoomConnection = new GatewayRoomConnectionOptions
+                {
+                    Host = host, Port = port, AccountId = accountId, LaunchSpec = launchSpec,
+                    TransportFactory = roomTransportFactory, Dispatcher = roomDispatcher,
+                    Timeout = timeout, CancellationToken = cancellationToken
+                },
+                RoomFlow = new GatewayRoomFlowOptions
+                {
+                    JoinRoomId = joinRoomId, ConfigureClient = configureRoomClient, PlayerId = playerId,
+                    WaitForBattleStart = waitForBattleStart,
+                    AfterJoinAndBeforeReady = afterJoinAndBeforeReady,
+                    AfterReadyAndBeforeBattleStart = afterReadyAndBeforeBattleStart,
+                    JoinFallbackToCreate = joinFallbackToCreate
+                },
+                Battle = new GatewayBattleAttachOptions
+                {
+                    Attach = attachBattle, Configure = configureBattle,
+                    TransportFactory = battleTransportFactory, Dispatcher = battleDispatcher,
+                    IoDispatcher = battleIoDispatcher
+                }
+            }).ConfigureAwait(false);
+        }
+
+        public static async Task<GatewayBattleClientHost> EnterAsync(GatewayBattleClientEnterOptions options)
+        {
+            if (options == null) throw new ArgumentNullException(nameof(options));
+            var room = options.RoomConnection ?? throw new ArgumentException("Room connection options are required.", nameof(options));
+            var flow = options.RoomFlow ?? throw new ArgumentException("Room flow options are required.", nameof(options));
+            var battle = options.Battle ?? throw new ArgumentException("Battle options are required.", nameof(options));
+            if (battle.Attach && battle.Configure == null)
+                throw new ArgumentException("Battle configuration is required when attach is enabled.", nameof(options));
 
             var session = await GatewayMultiplayerSession.CreateAsync(
-                host, port, accountId, launchSpec,
-                roomTransportFactory, roomDispatcher, timeout, cancellationToken,
-                joinRoomId, configureRoomClient, playerId, waitForBattleStart,
-                afterJoinAndBeforeReady, afterReadyAndBeforeBattleStart,
-                subscribeStateSync: !attachBattle,
-                joinFallbackToCreate: joinFallbackToCreate).ConfigureAwait(false);
+                room.Host, room.Port, room.AccountId, room.LaunchSpec,
+                room.TransportFactory, room.Dispatcher, room.Timeout, room.CancellationToken,
+                flow.JoinRoomId, flow.ConfigureClient, flow.PlayerId, flow.WaitForBattleStart,
+                flow.AfterJoinAndBeforeReady, flow.AfterReadyAndBeforeBattleStart,
+                subscribeStateSync: !battle.Attach,
+                joinFallbackToCreate: flow.JoinFallbackToCreate).ConfigureAwait(false);
 
-            var host2 = new GatewayBattleClientHost(session, host, port, battleTransportFactory, battleDispatcher);
+            var host2 = new GatewayBattleClientHost(
+                session, room.Host, room.Port, battle.TransportFactory, battle.Dispatcher, battle.IoDispatcher);
             try
             {
-                if (attachBattle)
+                if (battle.Attach)
                 {
-                    host2.AttachBattle(configureBattle!);
+                    host2.AttachBattle(battle.Configure!);
                 }
                 return host2;
             }
@@ -178,12 +254,33 @@ namespace AbilityKit.Network.Client
             if (configureBattle == null) throw new ArgumentNullException(nameof(configureBattle));
 
             var options = BuildBattleOptions(_session, _host, _port, _battleTransportFactory, configureBattle);
-            _battle = new NetworkTransport(options, _battleDispatcher);
-            if (connect)
-            {
-                _battle.Connect();
-            }
+            _battle = CreateBattleTransport(options, _battleDispatcher, _battleIoDispatcher, connect);
             return _battle;
+        }
+
+        /// <summary>
+        /// Creates a battle plane for a staged flow. The caller owns the returned transport and
+        /// may connect it after registering push consumers.
+        /// </summary>
+        public static NetworkTransport CreateBattleTransport(
+            NetworkTransportOptions options,
+            IDispatcher? callbackDispatcher = null,
+            IDispatcher? ioDispatcher = null,
+            bool connect = true)
+        {
+            var callbacks = callbackDispatcher ?? InlineDispatcher.Instance;
+            var transport = new NetworkTransport(options, callbacks, ioDispatcher ?? callbacks);
+            if (!connect) return transport;
+            try
+            {
+                transport.Connect();
+                return transport;
+            }
+            catch
+            {
+                transport.Dispose();
+                throw;
+            }
         }
 
         /// <summary>

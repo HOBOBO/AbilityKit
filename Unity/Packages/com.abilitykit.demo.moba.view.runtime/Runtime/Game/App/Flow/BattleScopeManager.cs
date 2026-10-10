@@ -4,6 +4,20 @@ using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Game.Flow
 {
+    internal interface IBattleScopeHost
+    {
+        void SetBattleRequested(bool requested);
+        void EnqueueRootEvent(MobaRootEvent evt);
+        void TriggerBattleFsm(MobaBattleEvent evt);
+        MobaBattleState GetActiveBattle();
+        void ClearGatewayConnectionFactory();
+        Func<BattleStartPlan, AbilityKit.Network.Abstractions.IConnection> GetGatewayConnectionFactory();
+        IBattleSessionFeature CreateBattleSessionFeature(IBattleBootstrapper bootstrapper,
+            Func<BattleStartPlan, AbilityKit.Network.Abstractions.IConnection> connectionFactory);
+        void DispatchSignal(Action signal);
+        void FailBattle(Exception error);
+    }
+
     /// <summary>
     /// 从 <c>GameFlowDomain</c> 提取的 Battle 作用域管理器。
     /// 负责 per-battle 的 BattleWorldScope 管理、BattleSessionFeature 创建、事件处理和 session 推进逻辑。
@@ -14,7 +28,7 @@ namespace AbilityKit.Game.Flow
         /// <summary>
         /// BattleScopeManager 需要的回调集合，由 Domain 提供。
         /// </summary>
-        internal sealed class Callbacks
+        internal sealed class Callbacks : IBattleScopeHost
         {
             /// <summary>设置 _battleRequested 标志。</summary>
             public Action<bool> SetBattleRequested { get; set; }
@@ -36,9 +50,28 @@ namespace AbilityKit.Game.Flow
 
             /// <summary>创建 Battle session feature，由 runtime 层提供具体实现。</summary>
             public Func<IBattleBootstrapper, Func<BattleStartPlan, AbilityKit.Network.Abstractions.IConnection>, IBattleSessionFeature> CreateBattleSessionFeature { get; set; }
+            public Action<Action> DispatchSignal { get; set; }
+            public Action<Exception> FailBattle { get; set; }
+
+            void IBattleScopeHost.SetBattleRequested(bool requested) => SetBattleRequested(requested);
+            void IBattleScopeHost.EnqueueRootEvent(MobaRootEvent evt) => EnqueueRootEvent(evt);
+            void IBattleScopeHost.TriggerBattleFsm(MobaBattleEvent evt) => TriggerBattleFsm(evt);
+            MobaBattleState IBattleScopeHost.GetActiveBattle() => GetActiveBattle();
+            void IBattleScopeHost.ClearGatewayConnectionFactory() => ClearGatewayConnectionFactory();
+            Func<BattleStartPlan, AbilityKit.Network.Abstractions.IConnection>
+                IBattleScopeHost.GetGatewayConnectionFactory() => GetGatewayConnectionFactory();
+            IBattleSessionFeature IBattleScopeHost.CreateBattleSessionFeature(IBattleBootstrapper bootstrapper,
+                Func<BattleStartPlan, AbilityKit.Network.Abstractions.IConnection> connectionFactory) =>
+                CreateBattleSessionFeature(bootstrapper, connectionFactory);
+            void IBattleScopeHost.DispatchSignal(Action signal)
+            {
+                if (DispatchSignal != null) DispatchSignal(signal);
+                else signal();
+            }
+            void IBattleScopeHost.FailBattle(Exception error) => FailBattle(error);
         }
 
-        private readonly Callbacks _callbacks;
+        private readonly IBattleScopeHost _callbacks;
         private readonly BattleWorldScopeHost _battleWorldScope;
         private readonly MobaBattleAdvanceDecider _advanceDecider;
         private readonly ILogSink _log;
@@ -51,7 +84,7 @@ namespace AbilityKit.Game.Flow
         private Action _assetsLoadCompletedHandler;
 
         internal BattleScopeManager(
-            Callbacks callbacks,
+            IBattleScopeHost callbacks,
             BattleWorldScopeHost battleWorldScope,
             MobaBattleAdvanceDecider advanceDecider,
             ILogSink log)
@@ -110,11 +143,11 @@ namespace AbilityKit.Game.Flow
             _battleWorldScope.TryResolve<IBattleBootstrapper>(out var bootstrapper);
             var generation = _battleWorldScope.ScopeGeneration;
             _battleSessionFeature = _callbacks.CreateBattleSessionFeature(bootstrapper, _callbacks.GetGatewayConnectionFactory());
-            _sessionStartedHandler = () => OnBattleSessionStarted(generation);
-            _worldReadyHandler = () => OnBattleWorldReady(generation);
-            _firstFrameReceivedHandler = () => OnBattleFirstFrameReceived(generation);
-            _sessionFailedHandler = ex => OnBattleSessionFailed(generation, ex);
-            _assetsLoadCompletedHandler = () => OnBattleAssetsLoadCompleted(generation);
+            _sessionStartedHandler = () => Dispatch(() => OnBattleSessionStarted(generation));
+            _worldReadyHandler = () => Dispatch(() => OnBattleWorldReady(generation));
+            _firstFrameReceivedHandler = () => Dispatch(() => OnBattleFirstFrameReceived(generation));
+            _sessionFailedHandler = ex => Dispatch(() => OnBattleSessionFailed(generation, ex));
+            _assetsLoadCompletedHandler = () => Dispatch(() => OnBattleAssetsLoadCompleted(generation));
             _battleSessionFeature.SessionStarted += _sessionStartedHandler;
             _battleSessionFeature.WorldReady += _worldReadyHandler;
             _battleSessionFeature.FirstFrameReceived += _firstFrameReceivedHandler;
@@ -145,6 +178,11 @@ namespace AbilityKit.Game.Flow
             _firstFrameReceivedHandler = null;
             _sessionFailedHandler = null;
             _assetsLoadCompletedHandler = null;
+        }
+
+        private void Dispatch(Action signal)
+        {
+            _callbacks.DispatchSignal(signal);
         }
 
         // --- Session 事件处理 ---
@@ -207,8 +245,8 @@ namespace AbilityKit.Game.Flow
 
             // 当前契约中 runtime state 仅跟踪 session start / first frame
             _log.Error($"[BattleScopeManager] Battle session failed: {ex}");
-            var next = _advanceDecider.OnSessionFailed(_callbacks.GetActiveBattle());
-            if (next.HasValue) _callbacks.TriggerBattleFsm(next.Value);
+            if (_callbacks.GetActiveBattle() != MobaBattleState.End)
+                _callbacks.FailBattle(ex);
         }
 
         /// <summary>

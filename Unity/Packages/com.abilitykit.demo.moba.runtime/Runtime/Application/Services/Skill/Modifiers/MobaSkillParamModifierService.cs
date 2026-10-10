@@ -28,6 +28,7 @@ namespace AbilityKit.Demo.Moba.Services
         private int _resolutionTraceCount;
         private long _evictedResolutionTraceCount;
         private IFrameTime _frameTime;
+        private IMobaModifierPrecisionPolicy _precision = PassThroughModifierPrecisionPolicy.Instance;
 
         public long EvictedResolutionTraceCount => _evictedResolutionTraceCount;
 
@@ -51,6 +52,9 @@ namespace AbilityKit.Demo.Moba.Services
         public void OnInit(IWorldResolver services)
         {
             services?.TryResolve(out _frameTime);
+            if (services != null && services.TryResolve(out IMobaModifierPrecisionPolicy precision) &&
+                precision != null)
+                _precision = precision;
         }
 
         internal void AddModifier(int actorId, in ModifierData modifier)
@@ -200,6 +204,7 @@ namespace AbilityKit.Demo.Moba.Services
             RequireActorOwner(owner);
             var resolved = ResolveRecorded(owner, key, baseValue, in record, context,
                 out var matchedCount, out var missingFields);
+            RequireFinite(key, baseValue, resolved);
             var result = RoundToInt(resolved);
             TrackResolution(owner, key, baseValue, result, in record, matchedCount, missingFields);
             return result;
@@ -211,8 +216,26 @@ namespace AbilityKit.Demo.Moba.Services
             RequireActorOwner(owner);
             var result = ResolveRecorded(owner, key, baseValue, in record, context,
                 out var matchedCount, out var missingFields);
+            RequireFinite(key, baseValue, result);
             TrackResolution(owner, key, baseValue, result, in record, matchedCount, missingFields);
             return result;
+        }
+
+        /// <summary>
+        /// 解析进入确定性模拟域的数值参数：在 float 解析结果上应用当前世界的精度策略。
+        /// 直通策略下与 <see cref="ResolveFloat"/> 位等价（零换算）；
+        /// 帧同步定点策略下对齐 Q32.32 权威网格，越界 fail-loud。
+        /// </summary>
+        public float ResolveSimFloat(MobaModifierOwnerRef owner, ModifierKey key, float baseValue,
+            in MobaParameterRecord record, IModifierContext context = null)
+        {
+            var result = ResolveFloat(owner, key, baseValue, in record, context);
+            return _precision.QuantizeSimFloat(result);
+        }
+
+        internal void UsePrecisionPolicyForTesting(IMobaModifierPrecisionPolicy policy)
+        {
+            _precision = policy ?? PassThroughModifierPrecisionPolicy.Instance;
         }
 
         public void CopyRecentResolutionsTo(List<MobaParameterResolutionTrace> destination)
@@ -244,6 +267,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             RequireActorOwner(owner);
             ValidateRecordStage(key, in record);
+            RequireFinite(key, baseValue, baseValue);
             if (!owner.IsValid ||
                 !_modifiersByOwner.TryGetValue(new OwnerKey(owner.Scope, owner.Id), out var modifiers))
                 return new MobaParameterResolutionExplanation(record, baseValue, baseValue,
@@ -267,6 +291,7 @@ namespace AbilityKit.Demo.Moba.Services
             var ordered = matched.ToArray();
             var recorder = new DefaultRecorder(ordered.Length);
             var result = _calculator.Calculate(ordered.AsSpan(), baseValue, recorder, context);
+            RequireFinite(key, baseValue, result.FinalValue);
             var contributions = new ModifierSourceEntry[recorder.Count];
             for (var i = 0; i < contributions.Length; i++)
                 contributions[i] = recorder.GetEntry(i);
@@ -358,6 +383,14 @@ namespace AbilityKit.Demo.Moba.Services
             return (int)Math.Round(value);
         }
 
+        private static void RequireFinite(ModifierKey key, float baseValue, float result)
+        {
+            if (float.IsNaN(baseValue) || float.IsInfinity(baseValue) ||
+                float.IsNaN(result) || float.IsInfinity(result))
+                throw new InvalidOperationException(
+                    $"Non-finite modifier parameter value for {key}: base={baseValue}, result={result}.");
+        }
+
         public void Dispose()
         {
             _modifiersByOwner.Clear();
@@ -367,6 +400,7 @@ namespace AbilityKit.Demo.Moba.Services
             _resolutionTraceCount = 0;
             _evictedResolutionTraceCount = 0;
             _frameTime = null;
+            _precision = PassThroughModifierPrecisionPolicy.Instance;
         }
 
         private static float Compose(ReadOnlySpan<ModifierData> modifiers, float baseValue,

@@ -16,6 +16,7 @@ class ExportContext:
     preview_rule: int | None = None
     preview_tags: str = ""
     explain_tags: bool = False
+    preview_template: int | None = None
     state: dict = field(default_factory=dict)
 
 

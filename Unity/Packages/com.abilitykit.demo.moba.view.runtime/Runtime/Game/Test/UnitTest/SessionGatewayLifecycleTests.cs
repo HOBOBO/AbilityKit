@@ -11,6 +11,7 @@ using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Flow;
 using AbilityKit.Game.Flow.Battle.Modules;
+using AbilityKit.Game.Flow.Modules;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Runtime;
@@ -27,6 +28,86 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class SessionGatewayLifecycleTests
     {
+        [Test]
+        public void EntryShutdown_WaitsForFlowAndModuleBeforeReleasingRoot()
+        {
+            var flow = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var module = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var steps = new List<string>();
+            var gate = new object();
+
+            var shutdown = Task.Run(() => GameEntryShutdownCoordinator.RunAsync(
+                () => flow.Task,
+                () => { lock (gate) steps.Add("detach"); },
+                () => module.Task,
+                () => { lock (gate) steps.Add("root"); }));
+            lock (gate) Assert.That(steps, Is.Empty);
+
+            flow.SetResult(true);
+            Assert.That(SpinWait.SpinUntil(() =>
+            {
+                lock (gate) return steps.Count == 1;
+            }, 2000), Is.True);
+            lock (gate) Assert.That(steps, Is.EqualTo(new[] { "detach" }));
+            Assert.That(shutdown.IsCompleted, Is.False);
+
+            module.SetResult(true);
+            Assert.That(shutdown.Wait(2000), Is.True);
+            Assert.That(shutdown.IsCompletedSuccessfully, Is.True);
+            lock (gate) Assert.That(steps, Is.EqualTo(new[] { "detach", "root" }));
+        }
+
+        [Test]
+        public void EntryShutdown_ContinuesCleanupAfterEarlierFailures()
+        {
+            var steps = new List<string>();
+            var error = Assert.Throws<AggregateException>(() =>
+                GameEntryShutdownCoordinator.RunAsync(
+                    () => Task.FromException(new InvalidOperationException("flow")),
+                    () => { steps.Add("detach"); throw new InvalidOperationException("module"); },
+                    () => { steps.Add("wait"); return Task.CompletedTask; },
+                    () => steps.Add("root")).GetAwaiter().GetResult());
+
+            Assert.That(error.InnerExceptions, Has.Count.EqualTo(2));
+            Assert.That(steps, Is.EqualTo(new[] { "detach", "wait", "root" }));
+        }
+
+        [Test]
+        public void BattleFeatureCleanup_ContinuesAfterReleaseFailure()
+        {
+            var steps = new List<string>();
+            var error = Assert.Throws<AggregateException>(() =>
+                BattleFeatureResourceCleanup.ReleaseAll(
+                    () => { steps.Add("first"); throw new InvalidOperationException("first"); },
+                    () => steps.Add("second")));
+
+            Assert.That(error.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(steps, Is.EqualTo(new[] { "first", "second" }));
+        }
+
+        [Test]
+        public void DefaultGatewayConnectionFactory_CreatesSdkClient()
+        {
+            var factory = new DefaultBattleSessionGatewayConnectionFactory();
+            using var connection = factory.CreateGatewayRoomConnection(
+                CreatePlan(), new InlineDispatcher(), new InlineDispatcher());
+
+            Assert.That(connection, Is.InstanceOf<NetworkSdkClient>());
+        }
+
+        [Test]
+        public void BattleTransportFactory_RejectsNonNumericWireIds()
+        {
+            Assert.That(
+                () => DefaultBattleSessionTransportFactory.ParsePlayerId(
+                    new AbilityKit.Ability.Host.PlayerId("player-a")),
+                Throws.TypeOf<FormatException>());
+            Assert.That(
+                () => DefaultBattleSessionTransportFactory.ParseWorldId(
+                    new AbilityKit.Ability.World.Abstractions.WorldId("world-a")),
+                Throws.TypeOf<FormatException>());
+        }
+
         [Test]
         public void GatewaySubFeature_WhenPreparationIsRequired_InterceptsImmediateSessionStart()
         {
@@ -52,6 +133,31 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.That(intercepted, Is.False);
             Assert.That(runtime.StartCount, Is.Zero);
+        }
+
+        [Test]
+        public void GatewaySubFeature_WaitsForPreparationCleanupBeforeStartingSession()
+        {
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var runtime = new StubSessionGatewayRuntime
+            {
+                PreparationRequired = true,
+                HasConnection = true,
+                CompletionTask = completion.Task,
+            };
+            var context = new FeatureModuleContext<ISessionRuntimeFeature>(default, runtime);
+            var subFeature = new SessionGatewayRoomSubFeature();
+            Assert.That(subFeature.TryStartGatewayRoomPreparation(runtime), Is.True);
+
+            subFeature.PreTick(context, 0f);
+            subFeature.PreTick(context, 0f);
+            Assert.That(runtime.CompleteCount, Is.EqualTo(1));
+            Assert.That(runtime.SessionStartCount, Is.Zero);
+
+            completion.SetResult(true);
+            subFeature.PreTick(context, 0f);
+            subFeature.PreTick(context, 0f);
+            Assert.That(runtime.SessionStartCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -89,6 +195,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var controller = CreateUninitialized<MultiplayerRoomFlowController>();
             var pushSynchronizer = CreateUninitialized<ClientRoomPushSynchronizer>();
             var assetLoader = CreateUninitialized<MultiplayerBattleAssetLoader>();
+            var checkpoints = new MobaReliableBattleEventCheckpointStore();
             var services = new MultiplayerGatewayRootServices(
                 config,
                 null,
@@ -102,6 +209,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 controller,
                 pushSynchronizer,
                 assetLoader,
+                checkpoints,
                 runtime,
                 runtime);
 
@@ -269,13 +377,14 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(handles.GatewayRoom.Client, Is.SameAs(activeClient));
             Assert.That(registry.GetRequired(AbilityKitConnectionRole.GatewayReliable), Is.SameAs(activeConnection));
             Assert.That(activeConnection.DisposeCount, Is.Zero);
-            Assert.That(activeConnection.TickCount, Is.EqualTo(1));
+            Assert.That(activeConnection.TickCount, Is.Zero);
             Assert.That(registry.RemoveCount, Is.Zero);
 
             activeOwner.Dispose();
             Assert.That(activeClient.DisposeCount, Is.EqualTo(1));
-            Assert.That(activeConnection.DisposeCount, Is.EqualTo(1));
-            Assert.That(registry.RemoveCount, Is.EqualTo(1));
+            Assert.That(activeConnection.DisposeCount, Is.Zero);
+            Assert.That(registry.RemoveCount, Is.Zero);
+            Assert.That(registry.GetRequired(AbilityKitConnectionRole.GatewayReliable), Is.SameAs(activeConnection));
         }
 
         [UnityTest]
@@ -316,7 +425,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 System.Diagnostics.Stopwatch.Frequency));
             await AwaitWithTimeoutAsync(clockPublished.Task);
 
-            owner.CompletePreparation();
+            await AwaitWithTimeoutAsync(owner.CompletePreparationAsync());
 
             Assert.That(owner.IsBuilt, Is.False);
             Assert.That(connectionFactory.Connections[0].DisposeCount, Is.EqualTo(1));
@@ -360,7 +469,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 client,
                 CreatePlan(
                     gatewaySessionToken: string.Empty,
-                    gatewayAutoCreateRoom: true),
+                    gatewayAutoCreateRoom: true,
+                    gatewayMaxPlayers: 4),
                 plan => publishedPlan = plan,
                 null,
                 null);
@@ -371,6 +481,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(client.GuestLoginToken.CanBeCanceled, Is.True);
             Assert.That(client.CreateRoomToken, Is.EqualTo(client.GuestLoginToken));
             Assert.That(client.JoinRoomToken, Is.EqualTo(client.GuestLoginToken));
+            Assert.That(client.CreateRoomMaxPlayers, Is.EqualTo(4));
             Assert.That(publishedPlan.Gateway.SessionToken, Is.EqualTo("guest-token"));
             Assert.That(publishedPlan.Gateway.NumericRoomId, Is.EqualTo(42UL));
             Assert.That(publishedPlan.World.WorldId, Is.EqualTo("42"));
@@ -618,7 +729,8 @@ namespace AbilityKit.Game.Test.UnitTest
             string gatewaySessionToken = "token",
             bool gatewayAutoCreateRoom = false,
             bool gatewayAutoJoinRoom = false,
-            int timeSyncIntervalMs = 1000)
+            int timeSyncIntervalMs = 1000,
+            int gatewayMaxPlayers = 2)
         {
             return new BattleStartPlan(
                 worldId: "world",
@@ -655,7 +767,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 runMode: BattleRunMode.Normal,
                 createWorldOpCode: 0,
                 createWorldPayload: null,
-                timeSyncIntervalMs: timeSyncIntervalMs);
+                timeSyncIntervalMs: timeSyncIntervalMs,
+                gatewayMaxPlayers: gatewayMaxPlayers);
         }
 
         private static void AssertConstructorDoesNotDependOnAggregateClient(Type type)
@@ -756,12 +869,18 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
-        private sealed class StubSessionGatewayRuntime : ISessionGatewayRuntime
+        private sealed class StubSessionGatewayRuntime : ISessionGatewayRuntime, ISessionRuntimeFeature
         {
             public bool PreparationRequired { get; set; }
+            public bool HasConnection { get; set; }
+            public Task CompletionTask { get; set; } = Task.CompletedTask;
             public int StartCount { get; private set; }
+            public int CompleteCount { get; private set; }
+            public int SessionStartCount { get; private set; }
+            public ISessionPlanHost PlanHost => null;
+            public ISessionEventsHost EventsHost => null;
             public BattleSessionHooks Hooks { get; } = new BattleSessionHooks();
-            public bool HasGatewayRoomConnection => false;
+            public bool HasGatewayRoomConnection => HasConnection;
             public Task GatewayRoomPreparationTask => Task.CompletedTask;
 
             public bool ShouldPrepareGatewayRoom() => PreparationRequired;
@@ -772,8 +891,10 @@ namespace AbilityKit.Game.Test.UnitTest
                 return Task.CompletedTask;
             }
 
-            public void CompleteGatewayRoomPreparation()
+            public Task CompleteGatewayRoomPreparationAsync()
             {
+                CompleteCount++;
+                return CompletionTask;
             }
 
             public Task StopGatewayRoomPreparationAsync() => Task.CompletedTask;
@@ -784,6 +905,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             public void OnStartSessionRequested()
             {
+                SessionStartCount++;
             }
 
             public void NotifySessionFailed(Exception exception)
@@ -829,6 +951,7 @@ namespace AbilityKit.Game.Test.UnitTest
             public CancellationToken GuestLoginToken { get; private set; }
             public CancellationToken CreateRoomToken { get; private set; }
             public CancellationToken JoinRoomToken { get; private set; }
+            public int CreateRoomMaxPlayers { get; private set; }
             public Exception AutomaticTimeSyncFailure { get; set; }
             public int TimeSyncCallCount { get; private set; }
             public int DisposeCount { get; private set; }
@@ -890,6 +1013,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 CancellationToken cancellationToken = default)
             {
                 lock (_gate) Calls.Add("create-room");
+                CreateRoomMaxPlayers = maxPlayers;
                 CreateRoomToken = cancellationToken;
                 return CreateRoomCompletion.Task;
             }
@@ -1008,6 +1132,16 @@ namespace AbilityKit.Game.Test.UnitTest
 
             public int RemoveCount { get; private set; }
 
+            public IAbilityKitConnectionLease Acquire(
+                AbilityKitConnectionDescriptor descriptor,
+                Func<AbilityKitConnectionDescriptor, IConnection> factory)
+            {
+                var ownsLifecycle = _connection == null;
+                var connection = GetOrCreate(descriptor, factory);
+                return new TrackingConnectionLease(connection, ownsLifecycle,
+                    () => { if (ownsLifecycle && ReferenceEquals(_connection, connection)) Remove(descriptor.Role); });
+            }
+
             public bool TryGet(AbilityKitConnectionRole role, out IConnection connection)
             {
                 connection = _connection;
@@ -1065,6 +1199,27 @@ namespace AbilityKit.Game.Test.UnitTest
             public void Dispose()
             {
                 Remove(AbilityKitConnectionRole.GatewayReliable);
+            }
+        }
+
+        private sealed class TrackingConnectionLease : IAbilityKitConnectionLease
+        {
+            private Action _release;
+
+            public TrackingConnectionLease(IConnection connection, bool ownsLifecycle, Action release)
+            {
+                Connection = connection;
+                OwnsLifecycle = ownsLifecycle;
+                _release = release;
+            }
+
+            public IConnection Connection { get; }
+            public bool OwnsLifecycle { get; }
+            public void Dispose()
+            {
+                var release = _release;
+                _release = null;
+                release?.Invoke();
             }
         }
 

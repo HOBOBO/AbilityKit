@@ -7,6 +7,7 @@ namespace AbilityKit.Game.Flow
 {
     internal interface ISessionPlanHost
     {
+        void ValidateModulesForPlan(BattleStartPlan plan);
         Task StartSessionAsync();
         Task StopSessionAsync();
         void ApplyAutoPlanActions();
@@ -23,11 +24,16 @@ namespace AbilityKit.Game.Flow
             BattleSessionState state,
             BattleSessionHandles handles,
             BattleSessionHooks hooks,
-            BattleContext ctx)
+            BattleContext ctx,
+            Func<bool> isCurrent = null)
         {
-            if (host == null || state == null || handles == null) return;
+            if (host == null) throw new ArgumentNullException(nameof(host));
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            if (handles == null) throw new ArgumentNullException(nameof(handles));
+            if (isCurrent != null && !isCurrent()) return;
 
             var plan = BuildPlan(bootstrapper);
+            host.ValidateModulesForPlan(plan);
             state.Plan = plan;
 
             LogPlan(plan);
@@ -35,14 +41,16 @@ namespace AbilityKit.Game.Flow
             var startedImmediately = false;
             if (!IsSessionStartIntercepted(host, hooks, plan))
             {
-                if (!await TryStartSessionAsync(host, plan).ConfigureAwait(false)) return;
+                if (!await TryStartSessionAsync(host, plan, isCurrent)) return;
                 startedImmediately = true;
             }
+            if (isCurrent != null && !isCurrent()) return;
 
             SessionContextBinder.BindSession(ctx, state, handles, hooks, plan);
+            if (isCurrent != null && !isCurrent()) return;
             if (startedImmediately &&
                 host is BattleSessionFeature feature &&
-                !await TryBeginColdStartRecoveryAsync(host, feature).ConfigureAwait(false))
+                !await TryBeginColdStartRecoveryAsync(host, feature, isCurrent))
             {
                 return;
             }
@@ -70,27 +78,32 @@ namespace AbilityKit.Game.Flow
 
         private static async Task<bool> TryStartSessionAsync(
             ISessionPlanHost host,
-            BattleStartPlan plan)
+            BattleStartPlan plan,
+            Func<bool> isCurrent)
         {
             try
             {
-                await host.StartSessionAsync().ConfigureAwait(false);
+                await host.StartSessionAsync();
+                if (isCurrent != null && !isCurrent()) return false;
                 host.NotifySessionStarted(plan);
-                host.ApplyAutoPlanActions();
+                if (isCurrent != null && !isCurrent()) return false;
+                if (plan.RunModeOptions.RunMode != BattleRunMode.Replay)
+                    host.ApplyAutoPlanActions();
                 return true;
             }
             catch (Exception ex)
             {
                 Log.Exception(ex, "[BattleSessionFeature] StartSession failed in OnAttach");
-                var failure = await StopAfterFailureAsync(host, ex).ConfigureAwait(false);
-                host.NotifySessionFailed(failure);
+                var failure = await StopAfterFailureAsync(host, ex);
+                if (isCurrent == null || isCurrent()) host.NotifySessionFailed(failure);
                 return false;
             }
         }
 
         private static async Task<bool> TryBeginColdStartRecoveryAsync(
             ISessionPlanHost host,
-            BattleSessionFeature feature)
+            BattleSessionFeature feature,
+            Func<bool> isCurrent)
         {
             try
             {
@@ -103,8 +116,8 @@ namespace AbilityKit.Game.Flow
             catch (Exception ex)
             {
                 Log.Exception(ex, "[BattleSessionFeature] Cold-start recovery failed in OnAttach");
-                var failure = await StopAfterFailureAsync(host, ex).ConfigureAwait(false);
-                host.NotifySessionFailed(failure);
+                var failure = await StopAfterFailureAsync(host, ex);
+                if (isCurrent == null || isCurrent()) host.NotifySessionFailed(failure);
                 return false;
             }
         }
@@ -115,7 +128,7 @@ namespace AbilityKit.Game.Flow
         {
             try
             {
-                await host.StopSessionAsync().ConfigureAwait(false);
+                await host.StopSessionAsync();
                 return failure;
             }
             catch (Exception cleanupFailure)

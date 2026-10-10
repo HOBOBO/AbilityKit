@@ -182,6 +182,9 @@ static AbilityKit.Core.Mathematics.DeterministicMathBridge.Cos(float radians) ->
 static AbilityKit.Core.Mathematics.DeterministicMathBridge.Sin(float radians) -> float
 static AbilityKit.Core.Mathematics.DeterministicMathBridge.Tan(float radians) -> float
 static AbilityKit.Core.Mathematics.DeterministicMathBridge.Atan2(float y, float x) -> float
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.Exp(float value) -> float
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.Ln(float value) -> float
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.Pow(float baseValue, float exponent) -> float
 AbilityKit.Core.Observability.IObservationSink<TEvent>
 AbilityKit.Core.Observability.IObservationSink<TEvent>.IsEnabled.get -> bool
 AbilityKit.Core.Observability.IObservationSink<TEvent>.TryWrite(in TEvent value) -> bool

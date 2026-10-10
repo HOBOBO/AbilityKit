@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.HFSM.Runtime;
 using AbilityKit.HFSM.Definition;
+using AbilityKit.Demo.Moba.Share;
 
 namespace AbilityKit.Game.Battle.Component
 {
@@ -12,6 +13,7 @@ namespace AbilityKit.Game.Battle.Component
         private readonly StateMachineDefinition _definition;
         private readonly CharacterPresentationActionRunner _actions;
         private readonly CharacterPresentationActionCatalog _catalog;
+        private int _snapshotFrame;
 
         public BattleCharacterHfsmComponent(StateMachineDefinition definition = null,
             CharacterPresentationActionCatalog catalog = null, int entityCode = 0)
@@ -27,7 +29,7 @@ namespace AbilityKit.Game.Battle.Component
         }
 
         public MobaCharacterActionState Action { get; private set; }
-        public int SnapshotFrame => _machine.CurrentFrame;
+        public int SnapshotFrame => _snapshotFrame;
         public long DefinitionHash => _machine.DefinitionHash;
         public int EntityCode { get; private set; }
 
@@ -45,7 +47,16 @@ namespace AbilityKit.Game.Battle.Component
                 snapshot.Action.LocalFrame != snapshot.Machine.Frame - snapshot.Action.StartFrame)
                 throw new InvalidOperationException("Character view action and HFSM hierarchy differ.");
             _machine.RestoreSnapshot(snapshot.Machine);
+            _snapshotFrame = snapshot.Machine.Frame;
             Action = snapshot.Action;
+        }
+
+        public void ApplyPresentation(in CharacterActionData data)
+        {
+            if (data.SnapshotFrame < _snapshotFrame) return;
+            _snapshotFrame = data.SnapshotFrame;
+            Action = new MobaCharacterActionState(data.Path, data.InstanceId,
+                data.StartFrame, data.LocalFrame, data.CastInstanceId, data.SkillId);
         }
 
         public CharacterPlaybackIntent? Evaluate(int frame, int tickRate,

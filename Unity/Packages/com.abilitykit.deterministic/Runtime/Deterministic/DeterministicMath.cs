@@ -6,7 +6,8 @@ namespace AbilityKit.Deterministic
     /// Deterministic math over <see cref="Fixed64"/>. All algorithms are implemented with
     /// integer-only operations (add/sub/shift/compare plus <see cref="Fixed64"/> arithmetic),
     /// so results are bit-identical across .NET, Mono, and IL2CPP.
-    /// Trigonometry uses CORDIC; square root uses a digit-by-digit restoring integer method.
+    /// Trigonometry uses CORDIC; square root uses a digit-by-digit restoring integer method;
+    /// exp/ln/pow use Cody-Waite ln(2) reduction with Taylor/atanh series in raw integer arithmetic.
     /// </summary>
     public static class DeterministicMath
     {
@@ -18,6 +19,21 @@ namespace AbilityKit.Deterministic
 
         // CORDIC gain compensation: prod(i >= 0, 1 / sqrt(1 + 2^-2i)) as Q32.32.
         private const long CordicGainRawValue = 2608131496L;
+
+        // ln(2) as Q32.32 rounded to nearest, plus its Cody-Waite split: the hi part has
+        // the low 12 bits cleared so k * ln2Hi stays exact in 64-bit arithmetic for the
+        // argument reduction used by Exp/Ln.
+        private const long Ln2RawValue = 2977044472L;
+        private const long Ln2HiRawValue = 2977042432L;
+        private const long Ln2LoRawValue = 2040L;
+
+        // exp saturates to zero below this input: exp(x) * 2^32 < 0.5 first happens at
+        // x < -33*ln(2), so -34*ln(2) guards the boundary (the rounded shift would
+        // produce 0 anyway inside that window).
+        private const long ExpSaturationRawValue = -34L * Ln2RawValue;
+
+        private const int ExpTaylorTerms = 12;
+        private const int LnAtanhTerms = 10;
 
         // atan(2^-i) as Q32.32, i = 0..31, rounded to nearest.
         private static readonly long[] AtanPowTable =
@@ -230,6 +246,172 @@ namespace AbilityKit.Deterministic
             return Fixed64.FromRaw(result);
         }
 
+        /// <summary>
+        /// Natural exponential e^x. Argument reduction by ln(2) with a Cody-Waite split,
+        /// then a Taylor series; every operation is 64-bit integer arithmetic with
+        /// explicit rounding, so the result is bit-identical across runtimes.
+        /// Inputs below -23*ln(2) saturate to zero; overflowing inputs throw.
+        /// </summary>
+        public static Fixed64 Exp(Fixed64 value)
+        {
+            var raw = value.RawValue;
+            if (raw < ExpSaturationRawValue)
+            {
+                return Fixed64.Zero;
+            }
+
+            // k = floor((x + ln2/2) / ln2) = round-half-up of x/ln2. C# integer
+            // division truncates toward zero, so negatives need an explicit floor fix.
+            var kScaled = raw + (Ln2RawValue >> 1);
+            var kLong = kScaled / Ln2RawValue;
+            if (kScaled % Ln2RawValue != 0 && kScaled < 0)
+            {
+                kLong--;
+            }
+
+            var k = (int)kLong;
+            if (k >= 62)
+            {
+                throw new OverflowException("Exp overflows the fixed-point range.");
+            }
+
+            // r = x - k*ln2, computed as x - k*ln2Hi - k*ln2Lo so k*ln2Hi is exact.
+            var r = raw - checked(k * Ln2HiRawValue) - checked(k * Ln2LoRawValue);
+
+            // Taylor series sum(r^n / n!) for |r| <= ln(2)/2; the 12th-order remainder
+            // is below 2^-50 of the result.
+            var term = r;
+            var sum = Fixed64.OneRaw + r;
+            for (var n = 2; n <= ExpTaylorTerms; n++)
+            {
+                term = DivRoundSmall(MulRoundSmall(term, r), n);
+                sum += term;
+            }
+
+            if (k >= 0)
+            {
+                // Shifts are never checked in C#, so scale by multiplication to keep
+                // the overflow fail-loud.
+                return Fixed64.FromRaw(checked(sum * (1L << k)));
+            }
+
+            return Fixed64.FromRaw(RightShiftRound(sum, -k));
+        }
+
+        /// <summary>
+        /// Natural logarithm for positive inputs; non-positive input throws (fixed point
+        /// has no NaN). ln(x) = e*ln2 + 2*atanh((f-1)/(f+1)) after normalizing x = f*2^e
+        /// with f in [1, 2), evaluated with a truncated atanh series.
+        /// </summary>
+        public static Fixed64 Ln(Fixed64 value)
+        {
+            var raw = value.RawValue;
+            if (raw <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "Natural log requires a positive fixed-point value.");
+            }
+
+            var e = 0;
+            while (raw >= (Fixed64.OneRaw << 1))
+            {
+                raw >>= 1;
+                e++;
+            }
+
+            while (raw < Fixed64.OneRaw)
+            {
+                raw <<= 1;
+                e--;
+            }
+
+            // f in [1, 2): u = (f-1)/(f+1) in [0, 1/3), and ln(f) = 2*atanh(u).
+            var u = DivPow2Round(raw - Fixed64.OneRaw, raw + Fixed64.OneRaw);
+            var uSquared = MulRoundSmall(u, u);
+            var term = u;
+            var sum = u;
+            for (var k = 1; k <= LnAtanhTerms; k++)
+            {
+                term = MulRoundSmall(term, uSquared);
+                sum += DivRoundSmall(term, 2 * k + 1);
+            }
+
+            var twoAtanh = checked(sum + sum);
+            return Fixed64.FromRaw(checked(twoAtanh + e * Ln2HiRawValue + e * Ln2LoRawValue));
+        }
+
+        /// <summary>
+        /// Power function. Integer exponents use square-and-multiply on the raw value
+        /// (sign is preserved; representable results are accurate to a few raw ULP, and
+        /// out-of-range results throw from the checked products). Fractional exponents go
+        /// through Exp(exponent * Ln(base)) and therefore require a positive base. A
+        /// negative base with a fractional exponent throws, matching the fail-loud
+        /// convention instead of returning NaN.
+        /// </summary>
+        public static Fixed64 Pow(Fixed64 baseValue, Fixed64 exponent)
+        {
+            var baseRaw = baseValue.RawValue;
+            var exponentRaw = exponent.RawValue;
+            if (baseRaw == 0)
+            {
+                if (exponentRaw > 0)
+                {
+                    return Fixed64.Zero;
+                }
+
+                if (exponentRaw == 0)
+                {
+                    return Fixed64.One;
+                }
+
+                throw new DivideByZeroException("Zero base with a negative exponent has no fixed-point value.");
+            }
+
+            var hasIntegerExponent = exponentRaw % Fixed64.OneRaw == 0;
+            if (baseRaw < 0 && !hasIntegerExponent)
+            {
+                throw new ArgumentOutOfRangeException(nameof(baseValue), "A negative base requires an integer exponent.");
+            }
+
+            if (hasIntegerExponent)
+            {
+                var integerExponent = exponent.ToInt64();
+                if (integerExponent < -int.MaxValue || integerExponent > int.MaxValue)
+                {
+                    throw new OverflowException("Integer exponent is outside the supported int32 range.");
+                }
+
+                var magnitudeRaw = IntegerPowRaw(baseRaw < 0 ? checked(-baseRaw) : baseRaw, (int)Math.Abs(integerExponent));
+                var negativeResult = baseRaw < 0 && (Math.Abs(integerExponent) & 1L) == 1L;
+                if (integerExponent >= 0)
+                {
+                    return Fixed64.FromRaw(negativeResult ? checked(-magnitudeRaw) : magnitudeRaw);
+                }
+
+                // Negative integer exponent: 1 / |base|^n as round(2^64 / m) computed
+                // through 2^63 remainders so every step fits in a ulong.
+                if (magnitudeRaw <= 1)
+                {
+                    // 1 / 2^-32 = 2^32 exceeds the positive Q32.32 range.
+                    throw new OverflowException("Pow with a negative exponent overflows the fixed-point range.");
+                }
+
+                var denominator = (ulong)magnitudeRaw;
+                var quotient63 = 0x8000000000000000UL / denominator;
+                var remainder63 = 0x8000000000000000UL % denominator;
+                var doubled = remainder63 * 2UL;
+                var resultRaw = quotient63 * 2UL + doubled / denominator;
+                if (doubled % denominator * 2UL >= denominator)
+                {
+                    resultRaw += 1UL;
+                }
+
+                return Fixed64.FromRaw(checked((long)resultRaw) * (negativeResult ? -1L : 1L));
+            }
+
+            var scaledRaw = MulRaw128Round(exponentRaw, Ln(Fixed64.FromRaw(baseRaw)).RawValue);
+            return Exp(Fixed64.FromRaw(scaledRaw));
+        }
+
         private static void ReduceForSinCos(long raw, out long reducedRaw, out long sinSign, out long cosSign)
         {
             var wrapped = raw % TwoPiRawValue;
@@ -364,6 +546,107 @@ namespace AbilityKit.Deterministic
                 rem -= trial;
                 root += 1UL;
             }
+        }
+
+        // ==== exp/ln/pow raw helpers ====
+        // These helpers use 64-bit integer operations only with explicit round-half
+        // reductions. They deliberately avoid the Fixed64 multiply/divide operators so
+        // their rounding never depends on the NET7_0_OR_GREATER compile path.
+
+        /// <summary>
+        /// Q32.32 product of two small raws (|operands| &lt; 2^31, so the 64-bit product
+        /// is exact), rounded half up at the shift.
+        /// </summary>
+        private static long MulRoundSmall(long leftRaw, long rightRaw)
+        {
+            return checked(leftRaw * rightRaw + (1L << (Fixed64.FractionalBits - 1))) >> Fixed64.FractionalBits;
+        }
+
+        /// <summary>Divides a raw by a small positive index, rounding half away from zero.</summary>
+        private static long DivRoundSmall(long numeratorRaw, int divisor)
+        {
+            return numeratorRaw >= 0
+                ? (numeratorRaw + (divisor >> 1)) / divisor
+                : (numeratorRaw - (divisor >> 1)) / divisor;
+        }
+
+        /// <summary>
+        /// u = (f-1)/(f+1) during Ln normalization: numerator &lt; 2^32 and denominator in
+        /// (2^33, 3*2^32], so the shifted numerator fits a ulong and the rounded quotient
+        /// stays below 2^31.
+        /// </summary>
+        private static long DivPow2Round(long numeratorRaw, long denominatorRaw)
+        {
+            return (long)((((ulong)numeratorRaw << Fixed64.FractionalBits) + ((ulong)denominatorRaw >> 1))
+                / (ulong)denominatorRaw);
+        }
+
+        /// <summary>Arithmetic shift right with round half up; shift must be in [1, 62].</summary>
+        private static long RightShiftRound(long valueRaw, int shift)
+        {
+            return (valueRaw + (1L << (shift - 1))) >> shift;
+        }
+
+        /// <summary>
+        /// Raw power by square-and-multiply using full-range rounded multiplies; checked
+        /// products fail loud when |base|^n leaves the representable range.
+        /// </summary>
+        private static long IntegerPowRaw(long baseRaw, int exponent)
+        {
+            var result = Fixed64.OneRaw;
+            var factor = baseRaw;
+            while (exponent > 0)
+            {
+                if ((exponent & 1) == 1)
+                {
+                    result = MulRaw128Round(result, factor);
+                }
+
+                factor = exponent > 1 ? MulRaw128Round(factor, factor) : factor;
+                exponent >>= 1;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Full-range Q32.32 product (round half away from zero) via an explicit
+        /// 64x64 -> 128 unsigned multiply; throws when the scaled result leaves the
+        /// signed 64-bit range. Same algorithm on every runtime.
+        /// </summary>
+        private static long MulRaw128Round(long leftRaw, long rightRaw)
+        {
+            var negative = leftRaw < 0 ^ rightRaw < 0;
+            var left = (ulong)(leftRaw < 0 ? checked(-leftRaw) : leftRaw);
+            var right = (ulong)(rightRaw < 0 ? checked(-rightRaw) : rightRaw);
+
+            var leftLow = left & 0xFFFFFFFFUL;
+            var leftHigh = left >> 32;
+            var rightLow = right & 0xFFFFFFFFUL;
+            var rightHigh = right >> 32;
+
+            var lowLow = leftLow * rightLow;
+            var lowHigh = leftLow * rightHigh;
+            var highLow = leftHigh * rightLow;
+            var highHigh = leftHigh * rightHigh;
+
+            var carry = ((lowHigh & 0xFFFFFFFFUL) + (highLow & 0xFFFFFFFFUL) + (lowLow >> 32)) >> 32;
+            var high = highHigh + (lowHigh >> 32) + (highLow >> 32) + carry;
+            var low = (lowHigh << 32) + (highLow << 32) + lowLow;
+
+            var resultHigh = high >> 32;
+            if (resultHigh != 0UL)
+            {
+                throw new OverflowException("Fixed-point product overflows the 64-bit raw range.");
+            }
+
+            var magnitude = (high << 32) | (low >> 32);
+            if ((low & 0x80000000UL) != 0UL)
+            {
+                magnitude += 1UL;
+            }
+
+            return negative ? checked(-(long)magnitude) : checked((long)magnitude);
         }
     }
 }

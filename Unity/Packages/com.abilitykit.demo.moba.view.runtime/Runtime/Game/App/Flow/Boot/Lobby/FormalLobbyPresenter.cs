@@ -24,48 +24,37 @@ namespace AbilityKit.Game.Flow
                 ? input.OperationError
                 : input.ControllerError;
 
-            return new FormalLobbyScreenSnapshot(
+            var status = new FormalLobbyScreenStatus(
                 content,
                 FormatConnection(input.ConnectionState),
                 input.ReconnectExhausted,
-                input.RecoveryInProgress
-                    ? "Restoring multiplayer session..."
-                    : string.Empty,
+                input.RecoveryInProgress ? "Restoring multiplayer session..." : string.Empty,
                 input.ConfigurationError,
                 error,
                 input.OperationBusy && !string.IsNullOrWhiteSpace(input.OperationLabel)
                     ? input.OperationLabel + "..."
                     : string.Empty,
                 input.Notice,
-                FormatStatus(content, input.FlowState),
-                rooms,
-                input.DirectoryLoaded,
-                input.AutoCreateWhenEmpty,
+                FormatStatus(content, input.FlowState));
+            var directory = new FormalLobbyScreenDirectory(
+                rooms, input.DirectoryLoaded, input.AutoCreateWhenEmpty);
+            var canUseRoomBrowser = content == FormalLobbyScreenContent.RoomBrowser &&
+                connected && !input.OperationBusy;
+            var actions = new FormalLobbyScreenActions(
                 canExit: !input.OperationBusy,
-                canCreateRoom:
-                    content == FormalLobbyScreenContent.RoomBrowser &&
-                    connected &&
-                    !input.OperationBusy,
-                canRefreshRooms:
-                    content == FormalLobbyScreenContent.RoomBrowser &&
-                    connected &&
-                    !input.OperationBusy,
-                canCancelLoading:
-                    content == FormalLobbyScreenContent.Loading &&
-                    input.IsLocalRoomOwner &&
-                    !input.OperationBusy,
-                canLeaveCurrentRoom:
-                    content == FormalLobbyScreenContent.Loading &&
-                    input.CanLeaveCurrentRoom &&
-                    !input.OperationBusy,
-                canReturnToRooms:
-                    content == FormalLobbyScreenContent.Failed &&
-                    !input.OperationBusy,
-                loadingProgress: Math.Max(0, Math.Min(100, input.LoadingProgress)),
-                input.LoadingAssetKey,
-                hasDeadline,
-                secondsRemaining,
-                input.Lobby);
+                canCreateRoom: canUseRoomBrowser,
+                canRefreshRooms: canUseRoomBrowser,
+                canCancelLoading: content == FormalLobbyScreenContent.Loading &&
+                    input.IsLocalRoomOwner && !input.OperationBusy,
+                canLeaveCurrentRoom: content == FormalLobbyScreenContent.Loading &&
+                    input.CanLeaveCurrentRoom && !input.OperationBusy,
+                canReturnToRooms: content == FormalLobbyScreenContent.Failed &&
+                    !input.OperationBusy);
+            var loading = new FormalLobbyScreenLoading(
+                Math.Max(0, Math.Min(100, input.LoadingProgress)),
+                input.LoadingAssetKey, hasDeadline, secondsRemaining);
+            return new FormalLobbyScreenSnapshot(
+                in status, in directory, in actions, in loading, input.Lobby);
         }
 
         public static FormalLobbyPresentationState Build(

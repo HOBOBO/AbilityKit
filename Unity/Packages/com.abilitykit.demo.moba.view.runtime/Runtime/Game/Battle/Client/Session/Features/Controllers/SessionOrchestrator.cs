@@ -93,7 +93,7 @@ namespace AbilityKit.Game.Flow
 
         private async Task StartSessionAfterStopAsync(Task precedingStop)
         {
-            await (precedingStop ?? Task.CompletedTask).ConfigureAwait(false);
+            await (precedingStop ?? Task.CompletedTask);
             _state.BeginStart();
             _cleanupRequired = true;
             _completedCleanupSteps = CleanupStep.None;
@@ -115,7 +115,7 @@ namespace AbilityKit.Game.Flow
             {
                 try
                 {
-                    await DisposeSessionResourcesAsync().ConfigureAwait(false);
+                    await DisposeSessionResourcesAsync();
                 }
                 catch (Exception cleanupEx)
                 {
@@ -169,7 +169,7 @@ namespace AbilityKit.Game.Flow
         {
             try
             {
-                await (pendingStart ?? Task.CompletedTask).ConfigureAwait(false);
+                await (pendingStart ?? Task.CompletedTask);
             }
             catch
             {
@@ -177,7 +177,7 @@ namespace AbilityKit.Game.Flow
                 // retry any cleanup step that failed during that rollback.
             }
 
-            await StopSessionCoreAsync().ConfigureAwait(false);
+            await StopSessionCoreAsync();
         }
 
         private async Task StopSessionCoreAsync()
@@ -201,7 +201,7 @@ namespace AbilityKit.Game.Flow
                 }
 
                 _state.BeginStop();
-                await DisposeSessionResourcesAsync().ConfigureAwait(false);
+                await DisposeSessionResourcesAsync();
                 _state.CompleteStop();
             }
             catch (Exception ex)
@@ -300,7 +300,7 @@ namespace AbilityKit.Game.Flow
 
                 try
                 {
-                    await (action?.Invoke() ?? Task.CompletedTask).ConfigureAwait(false);
+                    await (action?.Invoke() ?? Task.CompletedTask);
                     _completedCleanupSteps |= step;
                 }
                 catch (Exception ex)
@@ -324,32 +324,32 @@ namespace AbilityKit.Game.Flow
 
             // Reverse startup order. Each successful step is remembered so a later Stop can
             // resume only the failed work without repeating already-completed teardown.
-            await DisposeSyncStepAsync(CleanupStep.RecordWriter, _host.DisposeReplayRecordWriter, "input record writer").ConfigureAwait(false);
-            await DisposeSyncStepAsync(CleanupStep.BattleContext, ClearBattleContext, "battle context").ConfigureAwait(false);
+            await DisposeSyncStepAsync(CleanupStep.RecordWriter, _host.DisposeReplayRecordWriter, "input record writer");
+            await DisposeSyncStepAsync(CleanupStep.BattleContext, ClearBattleContext, "battle context");
 
             if (_sessionStartingPipelineEntered)
             {
-                await DisposeSyncStepAsync(CleanupStep.StoppingPipeline, _host.InvokeSessionStoppingPipeline, "session stopping pipeline").ConfigureAwait(false);
+                await DisposeSyncStepAsync(CleanupStep.StoppingPipeline, _host.InvokeSessionStoppingPipeline, "session stopping pipeline");
             }
             else
             {
                 _completedCleanupSteps |= CleanupStep.StoppingPipeline;
             }
 
-            await DisposeStepAsync(CleanupStep.Recovery, _host.StopRecoveryAsync, "authoritative recovery").ConfigureAwait(false);
-            await DisposeSyncStepAsync(CleanupStep.SnapshotRouting, _host.DisposeSnapshotRouting, "snapshot routing").ConfigureAwait(false);
-            await DisposeSyncStepAsync(CleanupStep.ConfirmedView, _host.DisposeConfirmedView, "confirmed view").ConfigureAwait(false);
-            await DisposeSyncStepAsync(CleanupStep.ProjectionViews, _host.DisposeProjectionViews, "projected views").ConfigureAwait(false);
-            await DisposeSyncStepAsync(CleanupStep.BattleWorlds, _host.TryDestroyBattleWorlds, "battle worlds").ConfigureAwait(false);
-            await DisposeSyncStepAsync(CleanupStep.ConfirmedWorld, _host.DisposeConfirmedWorld, "confirmed world").ConfigureAwait(false);
-            await DisposeSyncStepAsync(CleanupStep.RemoteDrivenWorld, _host.DisposeRemoteDrivenWorld, "remote-driven world").ConfigureAwait(false);
-            await DisposeSyncStepAsync(CleanupStep.RemoteInterpolation, _host.DisposeRemoteInterpolation, "remote interpolation").ConfigureAwait(false);
-            await DisposeSyncStepAsync(CleanupStep.FrameSubscription, _host.UnsubscribeFrameReceived, "unsubscribe frame receiver").ConfigureAwait(false);
-            await DisposeSyncStepAsync(CleanupStep.LogicSession, _host.StopBattleLogicSession, "battle logic session").ConfigureAwait(false);
+            await DisposeStepAsync(CleanupStep.Recovery, _host.StopRecoveryAsync, "authoritative recovery");
+            await DisposeSyncStepAsync(CleanupStep.SnapshotRouting, _host.DisposeSnapshotRouting, "snapshot routing");
+            await DisposeSyncStepAsync(CleanupStep.ConfirmedView, _host.DisposeConfirmedView, "confirmed view");
+            await DisposeSyncStepAsync(CleanupStep.ProjectionViews, _host.DisposeProjectionViews, "projected views");
+            await DisposeSyncStepAsync(CleanupStep.BattleWorlds, _host.TryDestroyBattleWorlds, "battle worlds");
+            await DisposeSyncStepAsync(CleanupStep.ConfirmedWorld, _host.DisposeConfirmedWorld, "confirmed world");
+            await DisposeSyncStepAsync(CleanupStep.RemoteDrivenWorld, _host.DisposeRemoteDrivenWorld, "remote-driven world");
+            await DisposeSyncStepAsync(CleanupStep.RemoteInterpolation, _host.DisposeRemoteInterpolation, "remote interpolation");
+            await DisposeSyncStepAsync(CleanupStep.FrameSubscription, _host.UnsubscribeFrameReceived, "unsubscribe frame receiver");
+            await DisposeSyncStepAsync(CleanupStep.LogicSession, _host.StopBattleLogicSession, "battle logic session");
 
             if (failures.Count == 0)
             {
-                await DisposeSyncStepAsync(CleanupStep.SessionHandles, _host.ResetSessionHandles, "session handles").ConfigureAwait(false);
+                await DisposeSyncStepAsync(CleanupStep.SessionHandles, _host.ResetSessionHandles, "session handles");
             }
 
             if (failures.Count > 0)

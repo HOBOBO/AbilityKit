@@ -21,9 +21,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
             }
             catch (global::System.Exception ex)
             {
-                AbilityKit.Core.Logging.Log.Exception(
-                    ex,
-                    $"[MobaBootstrapStageInitializer] Failed to register stage: {stageTypeName}");
+                throw new global::System.InvalidOperationException(
+                    $"Failed to register generated MOBA bootstrap stage: {stageTypeName}", ex);
             }
         }
 

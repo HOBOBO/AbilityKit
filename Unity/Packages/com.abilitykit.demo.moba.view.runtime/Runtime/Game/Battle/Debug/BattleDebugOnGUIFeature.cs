@@ -75,8 +75,10 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            var isPaused = MobaBattlePauseController.IsPaused;
-            var hasRecoveryError = !string.IsNullOrEmpty(MobaBattlePauseController.RecoveryError);
+            ctx.Entry.TryGet(out BattleContext battleContext);
+            var recovery = MobaBattlePauseController.For(battleContext);
+            var isPaused = recovery?.IsPaused == true;
+            var hasRecoveryError = !string.IsNullOrEmpty(recovery?.RecoveryError);
             var width = 248f;
             // IMGUI Window 的标题栏和内边距也占高度。暂停态比运行态多一行帧号，
             // 错误态还会多一行诊断；为当前状态只绘制一个主操作按钮，并保留足够高度，
@@ -89,22 +91,22 @@ namespace AbilityKit.Game.Flow
 
         private static void DrawPauseControlWindowContent(int windowId, MultiplayerRoomFlowController controller, in GamePhaseContext ctx)
         {
-            var isPaused = MobaBattlePauseController.IsPaused;
-            var isRecovering = MobaBattlePauseController.IsRecovering;
+            ctx.Entry.TryGet(out BattleContext battleContext);
+            var recovery = MobaBattlePauseController.For(battleContext);
+            var isPaused = recovery?.IsPaused == true;
+            var isRecovering = recovery?.IsRecovering == true;
             GUILayout.Label($"State: {(isRecovering ? "Reconnecting…" : isPaused ? "Paused (disconnected)" : "Running")}");
             GUILayout.Label($"Room: {controller.CurrentRoomId}");
             if (isPaused)
             {
-                GUILayout.Label($"Paused at confirmed frame: {MobaBattlePauseController.PausedAtConfirmedFrame}");
+                GUILayout.Label($"Paused at confirmed frame: {recovery?.PausedAtConfirmedFrame ?? 0}");
             }
 
-            var recoveryError = MobaBattlePauseController.RecoveryError;
+            var recoveryError = recovery?.RecoveryError;
             if (!string.IsNullOrEmpty(recoveryError))
             {
                 GUILayout.Label($"Error: {recoveryError}");
             }
-
-            ctx.Entry.TryGet(out BattleContext battleContext);
 
             // 暂停 = 断开战斗连接模拟断线：帧停推→服务器战斗继续。
             // 恢复 = 同一会话重连 + CatchUp 补帧历史注入 + 追上后重开输入（帧同步语义）。

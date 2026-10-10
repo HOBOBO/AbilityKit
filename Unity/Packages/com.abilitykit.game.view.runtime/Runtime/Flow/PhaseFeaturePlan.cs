@@ -49,7 +49,7 @@ namespace AbilityKit.Game.View.Flow
         {
             if (install == null) throw new ArgumentNullException(nameof(install));
 
-            if (ids == null || ids.Count == 0)
+            if (ids == null)
             {
                 return InstallAll(in ctx, install);
             }

@@ -1,8 +1,46 @@
 # MOBA 修改器正式上线与规模化扩展路线
 
-状态：实施中，2026-10-07。本文依据当前实现列出**尚需完成的上线门槛**，与 [正式设计基线](MobaModifierFormalDesign.md)、[配置作者指南](MobaModifierAuthoring.md) 和 [阶段评估](../local/docs/MobaModifierStageAssessment.md) 配套。下文 P0-P4 是新一轮工作优先级，不代表历史同名阶段尚未实施。
+状态：实施中，2026-10-08。本文依据当前实现列出**尚需完成的上线门槛**，与 [正式设计基线](MobaModifierFormalDesign.md)、[配置作者指南](MobaModifierAuthoring.md) 和 [阶段评估](../local/docs/MobaModifierStageAssessment.md) 配套。下文 P0-P4 是新一轮工作优先级，不代表历史同名阶段尚未实施。
+
+## 2026-10-08 第二批：定点 Exp/Ln/Pow 落地，漂移豁免清零
+
+上一批精度裁定遗留的三处 `determinism-allowlist:` 豁免全部撤销：
+
+- `DeterministicMath` 新增 `Exp`/`Ln`/`Pow`（Q32.32）：Cody-Waite ln(2) 归约 + Taylor/atanh 级数 + 64x64→128 位显式整数乘，全部运算只用 64 位整数与显式舍入——刻意不经 `Fixed64` 乘除运算符，避开其 `NET7_0_OR_GREATER`（Int128 截断）与 decimal（就近舍入）双路径在商整边界可能相差 1 raw 的既有语义分歧。整数指数走平方-乘快速路径（0.9^100 类精度 ~几 raw ULP）；负指数用 2^63 余数分解实现 round(2^64/m)；定义域违规（Ln(≤0)、负底数配分数指数、溢出）全部 fail-loud。`Exp` 饱和阈值为 -34·ln2；C# 移位不参与 checked 上下文，升格用 checked 乘法实现以保住溢出 fail-loud（测试抓到的真实缺陷）。
+- `DeterministicMathBridge` 新增 `Exp`/`Ln`/`Pow` float 边界成员（core），deterministic 与 core 两包 PublicAPI.Unshipped 清单已登记。
+- 迁移：`MagnitudeModifier` 内置 Exponential/Logarithmic 衰减（两份实现）改走桥接定点内核；`MobaContinuousRuntimeBase` 旧捕获分数指数重缩放由 `Math.Pow` 改为 `DeterministicMathBridge.Pow`。已发布配置 `MagnitudeDecayType` 全为 Linear（33 处全 0），迁移对生产数值零影响；Unity asmdef/package.json 原已声明 core 依赖，.NET 镜像工程补上 `AbilityKit.Core` ProjectReference（接线三件套缺的最后一处）。
+- `check_modifier_determinism.js` 全仓相关面零命中、零豁免；新增 MOBA golden 用例 `timedecay.exponential.float` 锁定衰减公式→桥→定点内核全链位值。
+- 测试中修掉的本批真实缺陷：负数输入的 ln2 归约 k 因 C# 整数除法向零截断而未取 floor，导致 r 逃出 ±ln2/2、级数运算溢出；已改显式 floor 除法。
+
+本批验证：Deterministic 全量 89/89（原 74+新增 15，含 16 例 golden raw 位锁）、Modifiers 108/108、Core 141/141、`moba-modifier-contracts` 门禁通过（147.1s）、MOBA .NET 全量 760/760。Unity EditMode（含两侧 golden 用例执行）仍因项目被既有进程占用未运行；IL2CPP/ARM64 补证与跨端重放维持既有门槛。Fixed64 乘除运算符的 Int128/decimal 双路径语义分歧是本批发现的全局性既有隐患（修改器路径已绕开，其余消费者未受影响），后续应单独裁定收敛。
+
+## 2026-10-08 数值精度裁定落地：float 内核 + Sim 出口策略 + golden 位锁
+
+按 [正式设计基线 §4](MobaModifierFormalDesign.md) 的悬置决策落地（裁定全文见该节“精度裁定（2026-10-08）”）。要点：组合内核维持 float（仅 IEEE 位一致运算）；进入模拟域的数值经世界级 `IMobaModifierPrecisionPolicy` 在解析出口处理——未注册策略的世界与非帧同步复用默认直通空实现（Sim 出口与普通出口位等价、零换算），帧同步世界注册 `Fixed64ModifierPrecisionPolicy`（`Fixed64` 单次精确换算对齐 Q32.32，常用域位等价、退化小值截断为零、|v| ≥ 2^31 fail-loud）。普通 `Shoot` 与发射器模式两条子弹速度路径已接 Sim 出口；需要定点组合内核时走框架既有 `IComposerStrategy` 替换缝。
+
+新增跨运行时 golden 位锁：共享用例 `MobaModifierNumericGoldenCases` 共 15 例（PercentAdd 连乘、Add/PercentAdd/Mul 混合分层、Override 优先级与同级 SourceId 决胜、Selector 命中/未命中、`Math.Round` 银行家舍入两个方向、TimeDecay 曲线插值、Sim 出口直通/定点往返/退化截断），.NET 侧 `MobaModifierNumericGoldenTests` 锁定期望位值，Unity EditMode 侧同名测试执行同一份用例；`MobaModifierPrecisionPolicyTests` 覆盖直通位等价、定点往返、截断、越界与 OnInit 解析/回退。
+
+漂移红线 `tools/check_modifier_determinism.js` 首跑即命中 13 处真实超线并已处理：叠层整数幂 `Math.Pow(value, stack)`（`MobaContinuousModifierMath.ApplyStackValue` 与捕获重缩放）改为连乘实现（位确定）；EaseIn/EaseOut/EaseInOut 衰减由 `MathF.Pow` 改为乘法（多项式本就无需 pow）。仅剩豁免（行内 `determinism-allowlist:`）：内置 Exponential/Logarithmic 衰减（无定点 exp/log 实现）与旧版捕获分数指数重缩放；帧同步内容应使用 CustomCurve/Linear 衰减。后续项：`DeterministicMath.Pow/Exp/Log`、导表拒绝帧同步内容使用内置超越衰减、Unity EditMode 执行 golden 用例（项目可独占时）。
+
+本批验证：`moba-modifier-contracts` 门禁通过（69.2s）、MOBA .NET 全量 760/760（原基线 754 + 新增 6）、`check_modifier_determinism.js` 全仓相关面零未豁免命中。叠层与衰减公式由 `Math.Pow`/`MathF.Pow` 改为连乘/乘法后数值可能相差末位，既有叠层/回滚/真实对象回归全部通过；Unity EditMode、IL2CPP/ARM64 golden 执行与跨端重放仍按上文既有门槛等待。
+
+## 2026-10-08 P0-P4 增量与上线判定
+
+| 优先级 | 本批落地及验证 | 尚未达到的放行条件 |
+|---|---|---|
+| P0 | Buff 正式回滚载荷升至 v4，记录持续行为分配的投影来源 ID；预检检查载荷与当前绑定一致，坏来源身份在任何提供者导入前被拒绝。前批已覆盖 Buff 成员缺失预检及 Trigger Interval 原位时间恢复。 | Buff 成员新增/结束、Pipeline、发射器、位移仍缺由领域所有者执行的结构恢复；Buff 暂停状态变化仍无法跨状态恢复。协调器在预检之后若导入执行失败，仍可能留下部分世界状态。 |
+| P1 | Excel 参数目录生成的代码包含每个参数允许的消费者类型集合；反射测试核对真实标注方法的类型、阶段和取样登记，双消费的直射/发射器子弹参数必须两处都存在。 | 基础值字段来源、零值语义、最终范围/整数舍入尚未成为逐参数可机检契约；方法标注仍不能证明每条调用分支都实际消费。 |
+| P2 | 数值解析与解释入口对非有限基础值和计算结果统一失败；同一持续来源改变真实子弹位移与命中 HP 并在结束后回退的回归已存在。 | 尚无“槽位选择 -> 发射器多轮 -> 子弹 -> 命中 -> AOE”单场景回滚闭环；Buff 层数、召唤继承及更多参数域尚需逐项真实对象结果证明。 |
+| P3 | 前批实际弹体负载报告使用 `moba-modifier-load.v2`，包含逐帧平均/P95/最大耗时与托管分配；本批避免将非法浮点值写入解析轨迹或诊断解释。 | 项目目标负载和 CPU/分配/快照/恢复预算未定，缺跨端同输入重放和完整历史 Artifact；当前报告是整帧信息性测量，不能作为性能放行。 |
+| P4 | `moba-modifier-contracts` 本地门禁通过 92/92 定向 .NET 测试及 12/12 参数目录测试，Luban `--check-published` 通过；MOBA .NET 全量 754/754。 | 仓库缺根目录自动 CI 工作流，当前门禁配置的 `runOnPullRequest` 为 false；Unity EditMode、跨端重放与产品高弹量预算均未在本批验证。旧 Trigger 兼容链仍有引用，不能直接删除。 |
+
+门禁记录：`local/Logs/test-gates/20261008-005432-moba-modifier-contracts/moba-modifier-contracts/gate-summary.json`。本批没有修改生产 Excel 参数值或模板；新增的消费者类型映射来自代码侧目录契约，由发布生成键文件携带，并在测试中对运行时代码进行反射校验。Unity 项目当前仍有另一批 EditMode 进程占用，未复用或终止该进程。**整模块仍未达到正式放量标准**；下一步优先处理领域结构回滚和跨端重放，然后补参数基础值/范围契约、完整纵向场景与目标负载预算。
 
 ## 2026-10-07 后续实施：回滚预检与重放
+
+捕获回滚载荷升至 v5，纳入 `MobaTriggerIntervalContinuousService` 持有的周期实例清单、来源上下文、暂停状态、定点累计/间隔时间与投影 ID。恢复时由服务结束快照后新增实例并重建旧实例及 `ownerContext` 索引，捕获提供者再恢复来源分配序号、公式捕获值并重投影；读取仍兼容 v2-v4。正式回滚协调器回归覆盖“旧实例结束、新实例加入、坏配置 ID 预检拒绝、旧帧恢复、再次 Upsert 和 EndOwnerProcesses”，并比较修改器检查点哈希。此支持仅覆盖该服务持有的 Trigger Interval 实例；Buff、Pipeline、位移和发射器等来源发生成员变化时仍明确拒绝，相关领域须由自身所有者补充结构恢复和服务索引协议。恢复阶段投影失败仍可能使整个世界处于部分恢复状态，不能以本回归替代完整战斗回滚验收。
+
+本批 `moba-modifier-contracts` 门禁 87/87，MOBA .NET 全量 749/749；门禁摘要为 `local/Logs/test-gates/20261007-224420-moba-modifier-contracts/moba-modifier-contracts/gate-summary.json`。Unity EditMode 未运行：同一 Unity 项目已有批处理实例占用。下一批应优先补 Buff、技能 Pipeline 和发射器各自的结构恢复及时间状态，再完成跨领域真实战斗重放、跨端哈希和目标高弹量预算。
 
 持续捕获、数值投影和旧 Trigger 桥接的回滚提供者现在实现 `IRollbackStatePreflightProvider`，在协调器导入任何提供者之前解析并校验各自载荷。持续捕获同时检查实例成员身份和分配序号；数值投影校验 owner、Selector 与完整载荷；旧桥接校验负数投影 ID 和配置条目。对应回归证明持续实例缺失或数值载荷损坏时，排在前面的状态提供者不会被部分导入。预检不能创建已结束的持续实例，也不能保证投影执行本身不会在导入阶段失败。
 

@@ -478,6 +478,30 @@ public sealed class MobaTagResultTests
     }
 
     [Fact]
+    public void Removal_condition_ends_a_continuous_while_it_is_paused_by_tag_rules()
+    {
+        using var manager = new MobaContinuousManager();
+        using var effective = new MobaEffectiveTagQueryService();
+        effective.OnInit(new Resolver(manager, new ConsoleTextAssetLoader()));
+        var evaluator = new MobaContinuousTagRuleEvaluator(effective);
+        using var rules = new MobaContinuousTagRuleService();
+        rules.OnInit(new Resolver(manager, effective, evaluator));
+        var prerequisite = new TaggedContinuous(1, "State.SuperArmor");
+        var subject = new TaggedContinuous(1, "Debuff.Slow", ongoingRequiredTag: "State.SuperArmor");
+        ((TaggedConfig)subject.Config).TagRequirements.RemovalRequired = GameplayTagRequirements.Require(
+            MobaGameplayTagCatalog.ToContainer(new[] { "State.Stunned" }).First());
+
+        Assert.True(manager.TryActivate(prerequisite));
+        Assert.True(manager.TryActivate(subject));
+        Assert.True(manager.TryEnd(prerequisite));
+        Assert.True(subject.IsPaused);
+
+        Assert.True(manager.TryActivate(new TaggedContinuous(1, "State.Stunned")));
+        Assert.True(subject.IsTerminated);
+        Assert.DoesNotContain(subject, manager.GetOwnerContinuous(1));
+    }
+
+    [Fact]
     public void Fast_rule_evaluation_matches_diagnostics_for_activation_removal_and_ongoing_conditions()
     {
         var manager = new DefaultContinuousManager();

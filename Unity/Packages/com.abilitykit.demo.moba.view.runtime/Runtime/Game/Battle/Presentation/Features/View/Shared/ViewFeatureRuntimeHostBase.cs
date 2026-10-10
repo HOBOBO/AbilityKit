@@ -32,6 +32,7 @@ namespace AbilityKit.Game.Flow
         private readonly ViewFeatureRuntimeOperations _operations = new ViewFeatureRuntimeOperations();
         private readonly BattlePresentationSessionResolver _presentationSessions = new BattlePresentationSessionResolver();
         private BattleViewHierarchyManager _hierarchy;
+        private ViewInstanceResources _instanceResourcesOwner;
 
         /// <summary>Shell pool shared by the view binder. Subclasses should initialize before OnAttach.</summary>
         protected BattleViewShellPool ShellPool { get; set; }
@@ -66,6 +67,31 @@ namespace AbilityKit.Game.Flow
             _presentationSessions.Release(ctx, _presentation);
             _presentation = null;
             _instanceResources = null;
+        }
+
+        protected void AttachViewResources(string role, string instanceKey,
+            BattleProjectionViewCapabilities capabilities)
+        {
+            if (_instanceResourcesOwner != null)
+                throw new InvalidOperationException("View resources are already attached.");
+            var worldId = RuntimeContext != null ? RuntimeContext.RuntimeWorldId.ToString() : "unknown";
+            var name = "[Battle:" + worldId + ":" + role + ":" + instanceKey + "]";
+            _instanceResourcesOwner = ViewInstanceResources.Create(name, PresentationResources, capabilities);
+            ShellPool = _instanceResourcesOwner.ShellPool;
+            AreaVfxPool = _instanceResourcesOwner.AreaVfxPool;
+            CameraController = _instanceResourcesOwner.CameraController;
+            _hierarchy = _instanceResourcesOwner.Hierarchy;
+        }
+
+        protected void ReleaseViewResources()
+        {
+            var owner = _instanceResourcesOwner;
+            _instanceResourcesOwner = null;
+            ShellPool = null;
+            AreaVfxPool = null;
+            CameraController = null;
+            _hierarchy = null;
+            owner?.Dispose();
         }
 
         IBattleRuntimeContext IViewSharedSubFeatureHost.RuntimeContext => RuntimeContext;
@@ -186,7 +212,9 @@ namespace AbilityKit.Game.Flow
         private BattleViewResourceProvider EnsureInstanceResources()
         {
             if (_instanceResources != null) return _instanceResources;
-            _presentation ??= BattlePresentationSessionContext.CreateFromDefaultResources();
+            if (_presentation == null)
+                throw new InvalidOperationException(
+                    "View resources require a bound battle presentation session.");
             return _instanceResources = _presentation.CreateViewResources();
         }
     }

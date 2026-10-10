@@ -52,6 +52,21 @@ public sealed class MobaRoomGameplayPersistenceTests
         Assert.Throws<System.InvalidOperationException>(() => adapter.RestorePersistentState(summary, invalid));
     }
 
+    [Fact]
+    public void LaunchManifest_RequiresAndHashesTagBundleVersion()
+    {
+        var adapter = new MobaRoomGameplayAdapter();
+        var missing = CreateSummary();
+        Assert.Throws<System.InvalidOperationException>(() =>
+            adapter.BuildLaunchManifest(adapter.CreateState(missing), missing));
+
+        var first = missing with { Tags = new Dictionary<string, string> { ["tagBundleVersion"] = "bundle-a" } };
+        var second = missing with { Tags = new Dictionary<string, string> { ["tagBundleVersion"] = "bundle-b" } };
+        var firstManifest = adapter.BuildLaunchManifest(adapter.CreateState(first), first);
+        var secondManifest = adapter.BuildLaunchManifest(adapter.CreateState(second), second);
+        Assert.NotEqual(firstManifest.ManifestHash, secondManifest.ManifestHash);
+    }
+
     [Theory]
     [InlineData(GameplayRoomTypes.Moba)]
     [InlineData(GameplayRoomTypes.LegacyMoba)]

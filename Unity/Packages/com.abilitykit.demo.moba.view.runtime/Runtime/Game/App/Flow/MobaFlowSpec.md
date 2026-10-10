@@ -5,6 +5,13 @@
 
 ---
 
+## 当前战斗组合契约
+
+- Root 与 Battle 的状态和转移固定在 `MobaFlowConfiguration`；玩法胜负、计时和事件由逻辑层产生，Flow 只消费结果。
+- `Resources/moba/battle_flow_profiles.json` 按 Profile ID 配置各阶段 Feature、保留策略和 Session 模块。`BattleStartConfig` 或 `BattleStartPresetSO` 的 `FlowProfileId` 决定本场组合；未指定时使用目录默认值。可选的 `AllowedHostModes` 限定 Local/GatewayRemote。每次入场前重新解析并校验，返回大厅后可选另一套 Profile。
+- Profile v4 可在阶段的 `EnterAfterActionIds` 与 `ExitActionIds` 声明扩展动作。宿主先通过 `MobaFlowExtensionRegistry.Register` 注册同步处理器；未注册的 ID 会在入场前失败。阶段转移、内置生命周期动作及其顺序不可由扩展动作替换。
+- 对局退出时暂停 Feature Tick 和 GUI，等待异步清理；清理失败会记录异常并返回大厅。配置校验不替代 Unity EditMode 的实际入场、结算及连续开局验收。
+
 ## 1. 当前实现
 
 当前 Unity MOBA view runtime 已实现的是一个最小可运行流程：

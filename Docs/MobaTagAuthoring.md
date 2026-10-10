@@ -2,6 +2,8 @@
 
 ## 行为门禁与可追溯预览
 
+导表报告的 `diagnostics` 列出暂无静态消费者的持续模板，以及暂无授予源的 Active 事实标签。这些是待核对提示，不会自动启用 Planned 词汇。`python LubanConfig/Moba/export_pipeline.py --preview-template 10000001 --preview-tags State.SuperArmor` 可逐阶段查看 Required、Blocked 与规则组的合并结果。
+
 `Production/Defines/strong_types.xml` 的 Luban `MobaTagBehaviorGate` enum 定义稳定的业务门禁名称与数值；`J-标签表.xlsx` 的“行为门禁”子表将 `Id` 声明为此 enum，并配置各门禁的 `BlockedFlagIds`。调试名称直接取枚举成员名。标签规则命中后得到结果位，门禁只对缓存结果位做掩码比较。战斗规则与 AI 直接引用 Luban 生成的 `moba_luban.MobaTagBehaviorGate`。`Targetable`、`Damageable`、`Cast`、`Stunned`、`Move`、`Attack` 和 `Controlled` 已覆盖现有消费点。强制位移仍使用自身持续对象的执行要求，不借用自主移动门禁。
 
 伤害结算入口检查目标存在、存活及 `Damageable` 行为门禁；目标查询单独检查 `Targetable`。因此不可选取不会自动免疫已经命中的伤害。需要免伤时在持续模板授予对应事实，并由“标签结果映射”配置 `Damageable` 所阻断的结果位；伤害业务不比较标签名或结果枚举。以后增加新的伤害阻断条件，优先修改规则组与门禁映射；来源与目标关系、伤害类型等上下文条件仍由伤害管线处理。
@@ -18,9 +20,11 @@ Battle Debug 的“活跃对象”面板保留持续对象授予标签及规则�
 
 运行 `python LubanConfig/Moba/export_pipeline.py --apply` 发布 Unity/Console 产物，再运行 `--check-published` 检查一致性。`migrations/migrate_tag_workbook.py`、`migrations/finish_tag_workbook.py` 及 `migrations/plan_tag_catalog.py` 记录一次性迁移，日常修改只编辑工作簿。
 
-发布同时生成 `luban/moba/tag_bundle_manifest.json`。其中 `bundleVersion` 是 7 张标签表以及 `buffs`、`continuous_processes`、`skills` 的 `.bytes` 文件 SHA-256 清单的整体 SHA-256；运行时注册标签目录前逐表校验，并拒绝在同一进程加载不同 bundle。`CatalogVersion` 仅标识标签定义目录，规则或授予源变化仍会改变 `BundleVersion`。这两个版本不能用整数 `ConfigVersion` 代替。现有多人房间协议尚未交换 `BundleVersion`，所以本地校验不能证明不同进程使用相同配置；跨进程标签协议启用前仍需增加完整版本握手。
+发布同时生成 `luban/moba/tag_bundle_manifest.json`。其中 `bundleVersion` 是 7 张标签表以及 `buffs`、`continuous_processes`、`skills` 的 `.bytes` 文件 SHA-256 清单的整体 SHA-256；运行时注册标签目录前逐表校验，并拒绝在同一进程加载不同 bundle。`CatalogVersion` 仅标识标签定义目录，规则或授予源变化仍会改变 `BundleVersion`。这两个版本不能用整数 `ConfigVersion` 代替。多人房间以 `tagBundleVersion` 标签交换版本，并在入战资源加载前完成比较；服务端独立验证发布包的边界见下文。
 
 ## 表结构
+
+正式多人房间创建时从已发布包验证并写入 `tagBundleVersion` 房间标签；服务端将该版本纳入启动 manifest hash，客户端从权威快照读取并在资源加载前与本地已验证 bundle 比较，缺失或不一致时拒绝入战。服务端当前使用创建者提交的版本，尚未独立加载本地标签 bundle；如果服务端运行依赖标签配置的权威战斗模拟，还需要比较服务端本地发布包版本。
 
 | 子 sheet | 字段与职责 |
 |---|---|
@@ -30,7 +34,9 @@ Battle Debug 的“活跃对象”面板保留持续对象授予标签及规则�
 | 结果标志定义 | `Id/Key/BitIndex/Name`；只为代码消费的结果生成 `MobaTagResultFlags : ulong` |
 | 标签结果映射 | `Id/FlagId/RuleGroupId`；命中规则时设置结果位，同一结果多个映射按 OR 合并 |
 | 行为门禁 | `Id/Name/BlockedFlagIds`；`Id` 是 Luban `MobaTagBehaviorGate` enum，Excel 填成员名，阻断位引用结果标志 ID |
-| 持续标签模板 | 激活、移除、持续分别引用规则组；授予、必需、禁止标签均引用标签 ID |
+| 持续标签模板 | 简单条件填各阶段 Required/Blocked 标签 ID；复合条件引用规则组；`ApplicationTagIds` 授予事实标签，`ExecutionBlockedFlagIds` 设置执行门禁 |
+
+持续模板的激活、移除、持续条件是三种**不同的生命周期判断**。激活 Required 必须全部存在、Blocked 任一存在即拒绝启动；移除 Required 全部存在且 Blocked 全部不存在时结束对象；持续 Required 全部存在且 Blocked 全部不存在时保持生效，否则暂停，条件恢复后继续。同一阶段的平铺标签与规则组按 AND 合并。简单的“不能有 A 或 B”填 `BlockedTagIds`；需要跨标签的 OR、Not 或组复用时才填规则组。没有激活或持续条件表示不额外限制；没有移除条件表示不自动移除。`ApplicationTagIds` 是对象生效时授予的事实，并非判断条件，所以纯授予模板的三个条件阶段留空是正确配置。
 
 `Tag` 节点填 `TagId`；`All/Any/Not` 通过同组 `ParentId` 组织子节点；`GroupRef` 填 `RefGroupId`，复用另一个规则组。每组必须有一个根；`Not` 必须有且仅有一个子节点。兄弟节点 `Order` 唯一。`Exact=false` 时后代标签满足祖先条件；`true` 时只匹配显式相同标签。空标签集合可以满足取反条件。
 
@@ -42,10 +48,10 @@ Battle Debug 的“活跃对象”面板保留持续对象授予标签及规则�
 
 | 模板 ID | 通用语义 | 授予标签/条件 | 使用边界 |
 |---|---|---|---|
-| `10000001` | 普通强制位移的目标可受控条件 | 激活及持续检查规则组 `10000001`：目标没有 `State.ControlImmune` 或 `State.SuperArmor` | 供对敌位移动作使用，不用于施法者自己的跳跃 |
+| `10000001` | 普通强制位移的目标可受控条件 | 激活与持续的 Blocked 标签均为 `State.ControlImmune`、`State.SuperArmor`；激活拒绝，持续出现时暂停 | 供对敌位移动作使用，不用于施法者自己的跳跃 |
 | `10010001` | 施法期间霸体 | `State.SuperArmor` | 廉颇现有三条 Pipeline 引用；新技能也可复用，施法执行门禁仍取技能表 |
 | `3001-3004` | 控制免疫、霸体且免伤、单独免伤、不可选取 | `State.ControlImmune`、`State.SuperArmor`、`State.Invulnerable`、`State.Untargetable` 的相应组合 | 只授予事实；伤害、目标筛选和控制服务读取已有结果规则 |
-| `3005-3011` | 眩晕、禁锢、沉默、恐惧、魅惑、睡眠、失能 | 各自授予一个已激活事实；激活前共用普通控制可施加规则 `10000001` | 只对普通控制适用；具体 Buff 时长、驱散和行为效果仍由效果表及触发器负责 |
+| `3005-3011` | 眩晕、禁锢、沉默、恐惧、魅惑、睡眠、失能 | 各自授予一个已激活事实；激活前阻断 `State.ControlImmune`、`State.SuperArmor` | 只对普通控制适用；施加后获得免疫是否驱散，由具体机制配置，不默认暂停或移除 |
 | `3012` | 压制标记 | `State.Suppressed`；无通用抵抗条件 | 压制与普通霸体交互必须在具体控制动作验收后配置，不应复用普通控制门禁 |
 | `3013` | 减速标记 | `Debuff.Slow` | 嬴政两个减速 Buff 已引用此模板；减速幅度继续由修饰器定义 |
 | `3014` | 不可选取且免伤 | `State.Untargetable`、`State.Invulnerable` | 仅用于确需两个结果同时存在的生命周期 |
@@ -117,7 +123,7 @@ Buff 的直接标签与所引模板授予标签合并；持续流程也可在模
 
 ## 持续行为执行门禁
 
-`持续标签模板` 的 `ExecutionBlockedFlagIds` 引用 `结果标志定义.Id`，逗号分隔，留空表示不设置执行阻断。发布器校验引用并编译为结果位掩码；运行时由持续对象持有该模板需求，统一执行入口按拥有者的有效标签结果位进行一次位运算。业务持续对象不比较具体标签，也不引用结果枚举。激活、移除和持续生效条件仍由模板中的标签规则组负责；执行阻断只冻结该对象的执行推进，不结束对象，也不撤销它授予的标签。
+`持续标签模板` 的 `ExecutionBlockedFlagIds` 引用 `结果标志定义.Id`，逗号分隔，留空表示不设置执行阻断。发布器校验引用并编译为结果位掩码；运行时由持续对象持有该模板需求，统一执行入口按拥有者的有效标签结果位进行一次位运算。业务持续对象不比较具体标签，也不引用结果枚举。激活、移除和持续生效条件由各阶段的平铺 Required/Blocked 标签与可选规则组共同判断；执行阻断只冻结该对象的执行推进，不结束对象，也不撤销它授予的标签。
 
 技能 Pipeline 使用相同门禁检查自身更新时间轴。Buff 与周期行为在阻断帧跳过计时和周期触发；位移及投射物发射的外部源不依赖持续管理器的 Tick，因此命中阻断位时结束对应持续对象，由其生命周期回调停止运动源或发射器。强制位移模板不配置“不能移动”，以免禁足误挡击飞。其他使用持续标签模板的行为可逐条配置自己的阻断结果位。
 

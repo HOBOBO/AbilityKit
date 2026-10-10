@@ -258,6 +258,15 @@ def compile_tag_tables(tables, compiled_rules=None):
         for identity, row in rows.items():
             if not row["Name"]:
                 raise ValueError(f"{table}/{identity}: empty name")
+            for phase in ("Activation", "Removal", "Ongoing"):
+                conflict = [(required, blocked)
+                            for required in row[phase + "RequiredTagIds"]
+                            for blocked in row[phase + "BlockedTagIds"]
+                            if required in tags and blocked in tags and
+                            (tags[required]["Name"] == tags[blocked]["Name"] or
+                             tags[required]["Name"].startswith(tags[blocked]["Name"] + "."))]
+                if conflict:
+                    raise ValueError(f"{table}/{identity}/{phase}: tag cannot be both Required and Blocked: {sorted(conflict)}")
             result = {"Id": identity, "Name": row["Name"]}
             for source, target in TEMPLATE_FIELDS[table]:
                 ids = row[source]
@@ -409,6 +418,29 @@ def preview_tag_rule(condition, sample_tags):
     raise ValueError(f"unknown tag rule operator: {operator}")
 
 
+def preview_tag_template(template, sample_tags):
+    sample = set(sample_tags)
+
+    def phase(prefix):
+        required = template.get(prefix + "RequiredTags", [])
+        blocked = template.get(prefix + "BlockedTags", [])
+        missing = [name for name in required if not any(
+            tag == name or tag.startswith(name + ".") for tag in sample)]
+        present = [name for name in blocked if any(
+            tag == name or tag.startswith(name + ".") for tag in sample)]
+        condition = template.get(prefix + "Condition")
+        rule_matches = condition is None or preview_tag_rule(condition, sample)
+        configured = bool(required or blocked or condition)
+        return {"configured": configured, "matches": not missing and not present and rule_matches,
+                "missingRequired": missing, "presentBlocked": present,
+                "ruleMatches": rule_matches}
+
+    return {"templateId": template["Id"], "tags": sorted(sample),
+            "activation": phase("Activation"), "removal": phase("Removal"),
+            "ongoing": phase("Ongoing"),
+            "applicationTags": template.get("ApplicationTags", [])}
+
+
 def build_tag_usage_report(tables, compiled_rules, sample_tags=()):
     """Trace configured grants and the results produced by a sample tag set."""
     tags = {row["Id"]: row for row in tables["tag_definitions"]}
@@ -489,7 +521,9 @@ def build_tag_usage_report(tables, compiled_rules, sample_tags=()):
             "behaviorGates": sorted(gate_names[row["Id"]] for row in tables["tag_behavior_gates"]
                                     if any(identity in flag_ids for identity in row["BlockedFlagIds"])),
         })
-    return {"sampleTags": sorted(sample), "grantTemplates": grants,
+    return {"sampleTags": sorted(sample),
+            "templateIds": sorted(row["Id"] for row in tables["continuous_tag_templates"]),
+            "grantTemplates": grants,
             "templateConsumers": template_consumers,
             "templateDependencies": dependencies,
             "positiveDependencyCycles": build_positive_dependency_cycles(tables, dependencies),
@@ -501,6 +535,20 @@ def build_tag_usage_report(tables, compiled_rules, sample_tags=()):
             "groupReferences": group_references,
             "resultMappings": mappings, "activeFlags": sorted(flags[identity]["Key"] for identity in active_flags),
             "behaviorGates": gates, "executionConsumers": consumers}
+
+
+def finalize_tag_usage_report(report):
+    consumers = {row["templateId"] for row in report["templateConsumers"]}
+    granted = {name for row in report.get("grantTemplates", []) for name in row["tags"]}
+    granted.update(name for row in report.get("directGrantCarriers", []) for name in row["tags"])
+    report["diagnostics"] = {
+        "unconsumedTemplateIds": sorted(identity for identity in report.get("templateIds", [])
+                                        if identity not in consumers),
+        "ungrantedActiveFacts": sorted(row["name"] for row in report.get("tagImpact", [])
+                                       if row["status"] == "Active" and row["kind"] == "Fact"
+                                       and row["name"] not in granted),
+    }
+    return report
 
 
 def generate_flags_code(rows):

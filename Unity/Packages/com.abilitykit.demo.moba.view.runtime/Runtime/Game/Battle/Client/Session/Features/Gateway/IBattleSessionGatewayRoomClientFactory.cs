@@ -1,5 +1,6 @@
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Sdk;
 
 namespace AbilityKit.Game.Flow
 {
@@ -12,7 +13,9 @@ namespace AbilityKit.Game.Flow
     {
         public IGatewayRoomClient CreateGatewayRoomClient(IConnection connection, GatewayRoomOpCodes opCodes)
         {
-            return new GatewayRoomClient(connection, opCodes);
+            return connection is NetworkSdkClient sdkClient
+                ? new GatewayRoomClient(sdkClient, opCodes)
+                : new GatewayRoomClient(connection, opCodes);
         }
     }
 }

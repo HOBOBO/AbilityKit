@@ -3,7 +3,6 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using AbilityKit.ActionSchema;
-using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Flow.Battle.Presentation.Timeline;
 
 namespace AbilityKit.Game.Flow
@@ -18,24 +17,14 @@ namespace AbilityKit.Game.Flow
         private BattleCharacterHfsmComponent _state;
         private Animator _animator;
         private float _secondsPerFrame;
-        private MobaActorRegistry _registry;
-        private int _actorId;
         private MobaSkillPresentationCastDriver _presentation;
         private readonly List<(GameObject Object, float EndSeconds)> _particles =
             new List<(GameObject, float)>();
 
         public void Bind(BattleCharacterHfsmComponent state, int tickRate)
         {
-            Bind(state, tickRate, null, 0);
-        }
-
-        public void Bind(BattleCharacterHfsmComponent state, int tickRate,
-            MobaActorRegistry registry, int actorId)
-        {
-            if (_registry != registry || _actorId != actorId || _state != state)
+            if (_state != state)
                 StopPresentation();
-            _registry = registry;
-            _actorId = actorId;
             _state = state;
             _secondsPerFrame = tickRate > 0 ? 1f / tickRate : 0f;
             if (_animator == null) _animator = GetComponentInChildren<Animator>(true);
@@ -45,12 +34,6 @@ namespace AbilityKit.Game.Flow
         public void SeekToFrame(int frameIndex, float secondsPerFrame)
         {
             if (_state == null) return;
-            if (_registry != null && _registry.TryGet(_actorId, out var actor) &&
-                actor.hasCharacterHfsm && actor.characterHfsm.Runtime != null)
-            {
-                var snapshot = actor.characterHfsm.Runtime.CaptureSnapshot();
-                if (snapshot.Machine.Frame <= frameIndex) _state.ApplySnapshot(snapshot);
-            }
             if (frameIndex < _state.SnapshotFrame)
             {
                 StopPresentation();

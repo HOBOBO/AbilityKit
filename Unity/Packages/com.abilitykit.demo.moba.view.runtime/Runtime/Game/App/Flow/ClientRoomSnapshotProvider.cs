@@ -46,6 +46,7 @@ namespace AbilityKit.Game.Flow
             return new MultiplayerRoomSnapshot
             {
                 RoomId = snapshot.RoomId,
+                GameplayId = snapshot.GameplayId,
                 OwnerAccountId = snapshot.OwnerAccountId,
                 NumericRoomId = snapshot.NumericRoomId,
                 Phase = (MultiplayerRoomPhase)snapshot.Phase,
@@ -56,6 +57,7 @@ namespace AbilityKit.Game.Flow
                 LaunchGeneration = snapshot.LaunchGeneration,
                 LaunchManifestVersion = snapshot.LaunchManifestVersion,
                 LaunchManifestHash = snapshot.LaunchManifestHash,
+                TagBundleVersion = snapshot.TagBundleVersion,
                 LoadingDeadlineUnixMs = snapshot.LoadingDeadlineUnixMs,
                 RoomRevision = snapshot.RoomRevision,
                 LastEventSequence = snapshot.LastEventSequence,

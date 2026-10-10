@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Game.Battle.Entity;
@@ -41,85 +43,41 @@ namespace AbilityKit.Game.Flow
         }
     }
 
-    /// <summary>
-    /// Resolves view-model parameters for <see cref="BattleEntityKind.Turret"/> entities.
-    /// Falls back to placeholder (TurretModel) when the turret config is unavailable.
-    /// TODO: Wire up Turret config lookup once <c>configs.TryGetTurret()</c> is available.
-    /// </summary>
-    internal sealed class BattleViewTurretConfigResolver
+    public sealed class BattleViewModelResolverRegistry
     {
-        public int ResolveModelId(MobaConfigDatabase configs, BattleEntityMetaComponent meta)
+        private readonly Dictionary<BattleEntityKind, Func<MobaConfigDatabase, int, int>> _resolvers =
+            new Dictionary<BattleEntityKind, Func<MobaConfigDatabase, int, int>>();
+
+        public BattleViewModelResolverRegistry Register(
+            BattleEntityKind kind, Func<MobaConfigDatabase, int, int> resolveModelId)
+        {
+            if ((kind != BattleEntityKind.Turret &&
+                 kind != BattleEntityKind.Monster &&
+                 kind != BattleEntityKind.Building) ||
+                resolveModelId == null || _resolvers.ContainsKey(kind))
+                throw new ArgumentException("Invalid or duplicate battle view model resolver: " + kind);
+            _resolvers.Add(kind, resolveModelId);
+            return this;
+        }
+
+        internal int ResolveModelId(MobaConfigDatabase configs, BattleEntityMetaComponent meta)
         {
             if (meta == null) return 0;
-            if (meta.Kind != BattleEntityKind.Turret) return 0;
-
-            // TODO: Replace with configs.TryGetTurret(meta.EntityCode, out var turret) once available.
-            int modelId = ResolveFromConfig(configs, meta.EntityCode);
+            var modelId = _resolvers.TryGetValue(meta.Kind, out var resolve)
+                ? resolve(configs, meta.EntityCode)
+                : 0;
             return modelId > 0
                 ? modelId
                 : BattleViewFallbackPolicy.DevelopmentOnly(
-                    BattleViewPlaceholderIds.TurretModel,
-                    "turret:" + meta.EntityCode);
+                    PlaceholderFor(meta.Kind), meta.Kind + ":" + meta.EntityCode);
         }
 
-        private static int ResolveFromConfig(MobaConfigDatabase configs, int entityCode)
+        private static int PlaceholderFor(BattleEntityKind kind) => kind switch
         {
-            // Placeholder: configs.TryGetTurret(entityCode, out var turret) → turret.ModelId
-            return 0;
-        }
-    }
-
-    /// <summary>
-    /// Resolves view-model parameters for <see cref="BattleEntityKind.Monster"/> entities.
-    /// Falls back to placeholder (MonsterModel) when the monster config is unavailable.
-    /// TODO: Wire up Monster config lookup once <c>configs.TryGetMonster()</c> is available.
-    /// </summary>
-    internal sealed class BattleViewMonsterConfigResolver
-    {
-        public int ResolveModelId(MobaConfigDatabase configs, BattleEntityMetaComponent meta)
-        {
-            if (meta == null) return 0;
-            if (meta.Kind != BattleEntityKind.Monster) return 0;
-
-            int modelId = ResolveFromConfig(configs, meta.EntityCode);
-            return modelId > 0
-                ? modelId
-                : BattleViewFallbackPolicy.DevelopmentOnly(
-                    BattleViewPlaceholderIds.MonsterModel,
-                    "monster:" + meta.EntityCode);
-        }
-
-        private static int ResolveFromConfig(MobaConfigDatabase configs, int entityCode)
-        {
-            // Placeholder: configs.TryGetMonster(entityCode, out var monster) → monster.ModelId
-            return 0;
-        }
-    }
-
-    /// <summary>
-    /// Resolves view-model parameters for <see cref="BattleEntityKind.Building"/> entities.
-    /// Falls back to placeholder (BuildingModel) when the building config is unavailable.
-    /// TODO: Wire up Building config lookup once <c>configs.TryGetBuilding()</c> is available.
-    /// </summary>
-    internal sealed class BattleViewBuildingConfigResolver
-    {
-        public int ResolveModelId(MobaConfigDatabase configs, BattleEntityMetaComponent meta)
-        {
-            if (meta == null) return 0;
-            if (meta.Kind != BattleEntityKind.Building) return 0;
-
-            int modelId = ResolveFromConfig(configs, meta.EntityCode);
-            return modelId > 0
-                ? modelId
-                : BattleViewFallbackPolicy.DevelopmentOnly(
-                    BattleViewPlaceholderIds.BuildingModel,
-                    "building:" + meta.EntityCode);
-        }
-
-        private static int ResolveFromConfig(MobaConfigDatabase configs, int entityCode)
-        {
-            // Placeholder: configs.TryGetBuilding(entityCode, out var building) → building.ModelId
-            return 0;
-        }
+            BattleEntityKind.Turret => BattleViewPlaceholderIds.TurretModel,
+            BattleEntityKind.Monster => BattleViewPlaceholderIds.MonsterModel,
+            BattleEntityKind.Building => BattleViewPlaceholderIds.BuildingModel,
+            _ => 0,
+        };
     }
 }

@@ -11,8 +11,8 @@ namespace AbilityKit.Game.Flow
         {
             if (_subFeatureHost != null)
             {
-                var fctx = new FeatureModuleContext<BattleSessionFeature>(_phaseCtx, this);
-                _subFeatureHost.ForEach<ISessionFramePacketTransformSubFeature<BattleSessionFeature>>(m => packet = m.TransformFramePacket(fctx, packet));
+                var fctx = new FeatureModuleContext<ISessionRuntimeFeature>(_phaseCtx, _moduleRuntime);
+                _subFeatureHost.ForEach<ISessionFramePacketTransformSubFeature<ISessionRuntimeFeature>>(m => packet = m.TransformFramePacket(fctx, packet));
             }
 
             if (packet.Frame.Value > _lastFrame)
@@ -25,8 +25,8 @@ namespace AbilityKit.Game.Flow
 
             if (_subFeatureHost != null)
             {
-                var fctx = new FeatureModuleContext<BattleSessionFeature>(_phaseCtx, this);
-                _subFeatureHost.ForEach<ISessionFrameReceivedSubFeature<BattleSessionFeature>>(m => m.OnFrameReceived(fctx, packet));
+                var fctx = new FeatureModuleContext<ISessionRuntimeFeature>(_phaseCtx, _moduleRuntime);
+                _subFeatureHost.ForEach<ISessionFrameReceivedSubFeature<ISessionRuntimeFeature>>(m => m.OnFrameReceived(fctx, packet));
             }
         }
 
@@ -39,9 +39,5 @@ namespace AbilityKit.Game.Flow
             _eventsCtrl.NotifyFirstFrameReceived(this);
         }
 
-        internal static bool CompletesAssetBarrierOnFirstFrame(BattleHostMode hostMode)
-        {
-            return false;
-        }
     }
 }

@@ -1,6 +1,9 @@
 using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.Flow;
+using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Room;
+using AbilityKit.Protocol.Room;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.View.Runtime.Tests;
@@ -8,12 +11,33 @@ namespace AbilityKit.Demo.Moba.View.Runtime.Tests;
 public sealed class MultiplayerBattleAssetLoaderTests
 {
     [Fact]
+    public void RoomTagBundleVersion_SurvivesWireAndGatewaySnapshotProjection()
+    {
+        var wire = new WireRoomSnapshot
+        {
+            Summary = new WireRoomSummary
+            {
+                RoomId = "room-1",
+                Tags = new Dictionary<string, string>
+                    { [RoomTagKeys.MobaTagBundleVersion] = "bundle-a" }
+            }
+        };
+        var client = ClientRoomSnapshotMapper.ToClientSnapshot(wire);
+        var gateway = new RoomGatewaySnapshot { RoomId = client.RoomId,
+            TagBundleVersion = client.TagBundleVersion };
+        var projected = GatewayRoomProtocolMapper.ToClientSnapshot(gateway, 1);
+
+        Assert.Equal("bundle-a", client.TagBundleVersion);
+        Assert.Equal("bundle-a", projected.TagBundleVersion);
+    }
+
+    [Fact]
     public async Task OlderGenerationCompletingLate_CannotReplaceCurrentLease()
     {
         var service = new DeferredLoadService();
         var loader = new MultiplayerBattleAssetLoader(
             service,
-            dependencyProvider: new FixedDependencyProvider());
+            dependencyProvider: new FixedDependencyProvider(), localTagBundleVersion: "bundle-a");
         using var oldCancellation = new CancellationTokenSource();
 
         var oldLoad = loader.LoadAsync(Snapshot(7), progress: null!, oldCancellation.Token);
@@ -41,7 +65,7 @@ public sealed class MultiplayerBattleAssetLoaderTests
         var service = new DeferredLoadService();
         var loader = new MultiplayerBattleAssetLoader(
             service,
-            dependencyProvider: new FixedDependencyProvider());
+            dependencyProvider: new FixedDependencyProvider(), localTagBundleVersion: "bundle-a");
         var load = loader.LoadAsync(Snapshot(9), progress: null!, CancellationToken.None);
         var lease = service.Complete(9);
         await load;
@@ -65,7 +89,7 @@ public sealed class MultiplayerBattleAssetLoaderTests
         var loader = new MultiplayerBattleAssetLoader(
             service,
             dependencyProvider: new FixedDependencyProvider(),
-            mainThreadDispatcher: dispatcher);
+            mainThreadDispatcher: dispatcher, localTagBundleVersion: "bundle-a");
 
         var load = loader.LoadAsync(Snapshot(10), progress: null!, CancellationToken.None);
 
@@ -79,6 +103,21 @@ public sealed class MultiplayerBattleAssetLoaderTests
         Assert.Same(lease, loader.TakeLease());
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("bundle-b")]
+    public async Task LoadAsync_RejectsMissingOrDifferentRoomTagBundleBeforeAssetLoading(string roomVersion)
+    {
+        var service = new DeferredLoadService();
+        var loader = new MultiplayerBattleAssetLoader(service, localTagBundleVersion: "bundle-a");
+        var snapshot = Snapshot(11);
+        snapshot.TagBundleVersion = roomVersion;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            loader.LoadAsync(snapshot, progress: null!, CancellationToken.None));
+        Assert.Null(service.LastManifest);
+    }
+
     private static MultiplayerRoomSnapshot Snapshot(long generation)
     {
         return new MultiplayerRoomSnapshot
@@ -87,7 +126,8 @@ public sealed class MultiplayerBattleAssetLoaderTests
             Phase = MultiplayerRoomPhase.Loading,
             LaunchGeneration = generation,
             LaunchManifestVersion = 3,
-            LaunchManifestHash = $"manifest-{generation}"
+            LaunchManifestHash = $"manifest-{generation}",
+            TagBundleVersion = "bundle-a"
         };
     }
 

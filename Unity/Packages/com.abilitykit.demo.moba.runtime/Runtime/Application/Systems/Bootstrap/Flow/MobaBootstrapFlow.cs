@@ -14,20 +14,19 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
     {
         public const int InitOpCode = 2000;
 
-        private readonly IEnumerable<MobaBootstrapStageBase> _configureStages;
-        private readonly IEnumerable<MobaBootstrapStageBase> _installStages;
+        private readonly MobaBootstrapStagePlan _plan;
 
         public MobaBootstrapFlow()
         {
-            _configureStages = MobaBootstrapStageRegistry.GetConfigureStages();
-            _installStages = MobaBootstrapStageRegistry.GetInstallStages();
+            MobaBootstrapStageInitializer.Initialize();
+            _plan = MobaBootstrapStageRegistry.Freeze();
         }
 
         public void Configure(WorldContainerBuilder builder)
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-            foreach (var stage in _configureStages)
+            foreach (var stage in _plan.OrderedStages)
             {
                 stage.ExecuteConfigure(builder);
             }
@@ -39,7 +38,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
             if (systems == null) throw new ArgumentNullException(nameof(systems));
             if (services == null) throw new ArgumentNullException(nameof(services));
 
-            foreach (var stage in _installStages)
+            foreach (var stage in _plan.OrderedStages)
             {
                 stage.ExecuteInstall(contexts, systems, services);
             }

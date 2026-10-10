@@ -22,6 +22,21 @@ public sealed class PhaseFeaturePlanTests
     }
 
     [Fact]
+    public void InstallByIdsOrAll_WithEmptyIds_InstallsNothing()
+    {
+        var events = new List<string>();
+        var plan = new PhaseFeaturePlan<TestContext, IPhaseFeature<TestContext>>()
+            .Add("first", (in TestContext ctx) => new PlanFeature("first", ctx.Value, events));
+        var ctx = new TestContext(7);
+
+        var installed = plan.InstallByIdsOrAll(System.Array.Empty<string>(), in ctx,
+            feature => feature.OnAttach(in ctx));
+
+        Assert.Equal(0, installed);
+        Assert.Empty(events);
+    }
+
+    [Fact]
     public void InstallByIdsOrAll_WithIds_InstallsSelectedFeaturesInRequestedOrder()
     {
         var events = new List<string>();

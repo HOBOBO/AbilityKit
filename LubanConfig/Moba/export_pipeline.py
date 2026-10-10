@@ -352,6 +352,7 @@ def main():
     parser.add_argument("--check-baseline", action="store_true")
     parser.add_argument("--check-published", action="store_true")
     parser.add_argument("--preview-rule", type=int, metavar="GROUP_ID")
+    parser.add_argument("--preview-template", type=int, metavar="TEMPLATE_ID")
     parser.add_argument("--preview-tags", default="", metavar="TAG1,TAG2")
     parser.add_argument("--explain-tags", action="store_true")
     parser.add_argument("--impact-tag", metavar="TAG_NAME")
@@ -374,10 +375,13 @@ def main():
         rows = json.loads((STAGE / "json" / f"{name}.json").read_text(encoding="utf-8"))
         normalized_tables[name] = [normalize_row(row, complex_columns, rules, name) for row in rows]
     context = ExportContext(normalized_tables, STAGE, (UNITY, CONSOLE),
-                            args.preview_rule, args.preview_tags, args.explain_tags)
+                            args.preview_rule, args.preview_tags, args.explain_tags,
+                            args.preview_template)
     rules.run("project", context)
     rules.run("transform", context)
     rules.run("validate", context)
+    if args.explain_tags:
+        print((STAGE / "tag-usage-report.json").read_text(encoding="utf-8"))
     rules.run("generate", context)
     for name, normalized in normalized_tables.items():
         (STAGE / "normalized-json" / f"{name}.json").write_text(

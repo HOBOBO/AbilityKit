@@ -38,6 +38,9 @@ namespace ET.Logic
                 case MobaOpCodes.Snapshot.StateHash:
                     return TryConvertStateHash(in snapshot, frameIndex, timestamp, out frameSnapshot);
 
+                case GameplayClockSnapshotCodec.OpCode:
+                    return TryConvertGameplayClock(in snapshot, frameIndex, timestamp, out frameSnapshot);
+
                 default:
                     frameSnapshot = default;
                     return false;
@@ -188,6 +191,22 @@ namespace ET.Logic
                 timestamp: timestamp,
                 type: SnapshotType.Delta,
                 stateHash: stateHash);
+            return true;
+        }
+
+        private static bool TryConvertGameplayClock(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
+        {
+            if (!GameplayClockSnapshotRoute.TryDecode(in snapshot, out var clock))
+            {
+                frameSnapshot = default;
+                return false;
+            }
+
+            frameSnapshot = new FrameSnapshotData(
+                frameIndex: frameIndex,
+                timestamp: timestamp,
+                type: SnapshotType.Delta,
+                gameplayClock: clock);
             return true;
         }
     }

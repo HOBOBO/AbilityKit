@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Game.Flow;
 using UnityEngine;
 
 namespace AbilityKit.Game.Battle.Shared.Assets
@@ -36,7 +37,24 @@ namespace AbilityKit.Game.Battle.Shared.Assets
                     _cached = BuildDependencies();
                 }
 
-                return _cached;
+                var gameplayId = (source as IBattleGameplayManifestSource)?.GameplayId ?? 0;
+                if (gameplayId <= 0) return _cached;
+
+                var entries = new List<BattleAssetEntry>(_cached);
+                var profile = GameplayPresentationProfileCatalog.Load(_provider).Get(gameplayId);
+                var paths = profile.AssetPaths ?? Array.Empty<string>();
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var path in paths)
+                {
+                    var normalized = path.Trim();
+                    if (!seen.Add(normalized)) continue;
+                    entries.Add(new BattleAssetEntry(normalized,
+                        "presentation:gameplay:" + gameplayId + ":" + normalized,
+                        BattleAssetKind.Presentation));
+                }
+
+                entries.Sort(DependencyEntryComparer.Instance);
+                return entries;
             }
         }
 

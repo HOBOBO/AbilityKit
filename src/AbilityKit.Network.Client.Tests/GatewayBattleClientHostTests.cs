@@ -1,8 +1,10 @@
 using System;
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Battle.Config;
+using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Client;
 using AbilityKit.Network.Room;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Protocol.Room;
 using Xunit;
 
@@ -15,6 +17,25 @@ namespace AbilityKit.Network.Client.Tests;
 /// </summary>
 public sealed class GatewayBattleClientHostTests
 {
+    [Fact]
+    public void RoomSdkPreset_EnablesKickAndReconnect()
+    {
+        var options = new ConnectionOptions();
+        GatewayRoomSdkConnectionPreset.Configure(options);
+
+        Assert.True(options.EnableKickHandling);
+        Assert.Equal(RoomGatewayOpCodes.SessionKicked, options.KickPushOpCode);
+        Assert.True(options.EnableReconnect);
+        Assert.True(options.ReconnectMaxAttempts > 0);
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task GroupedEntry_RejectsMissingBattleConfigurationBeforeConnecting()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            GatewayBattleClientHost.EnterAsync(new GatewayBattleClientEnterOptions()));
+    }
+
     private static readonly GatewaySessionResult Session = new(
         sessionToken: "token-1",
         roomId: "room-1",
@@ -73,5 +94,21 @@ public sealed class GatewayBattleClientHostTests
     {
         Assert.Throws<ArgumentNullException>(() =>
             GatewayBattleClientHost.BuildBattleOptions(in Session, "gw", 1, null, null!));
+    }
+
+    [Fact]
+    public void CreateBattleTransport_DeferredConnection_IsCallerOwned()
+    {
+        var options = GatewayBattleClientHost.BuildBattleOptions(
+            in Session, "gw.example", 41001,
+            battleTransportFactory: () => throw new InvalidOperationException("Connection started during staging."),
+            configureBattle: (config, _) => config.WithInputSerializer(
+                _ => default,
+                _ => new NetworkSubmitInputResponse(true, 1, 0, false, "ok")));
+
+        using var transport = GatewayBattleClientHost.CreateBattleTransport(
+            options, InlineDispatcher.Instance, InlineDispatcher.Instance, connect: false);
+
+        Assert.NotNull(transport);
     }
 }

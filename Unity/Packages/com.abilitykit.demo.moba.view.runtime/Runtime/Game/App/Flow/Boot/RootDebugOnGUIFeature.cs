@@ -28,16 +28,17 @@ namespace AbilityKit.Game.Flow
 
             var sink = ctx.Entry.Get<IFlowCommandSink>();
             if (sink == null) return;
+            var state = sink.CurrentState;
 
             // Battle.InMatch 期间隐藏，避免遮挡战斗 HUD
-            if (sink.CurrentRootPhase == MobaRootState.Battle
-                && sink.CurrentBattlePhase == MobaBattleState.InMatch)
+            if (state.RootPhase == MobaRootState.Battle
+                && state.BattlePhase == MobaBattleState.InMatch)
             {
                 return;
             }
 
             GUILayout.BeginArea(new Rect(350, 10, 420, 140), GUI.skin.window);
-            GUILayout.Label($"HFSM Root={sink.CurrentRootPhase}, Battle={sink.CurrentBattlePhase}");
+            GUILayout.Label($"HFSM Root={state.RootPhase}, Battle={state.BattlePhase?.ToString() ?? "-"}");
 
             if (GUILayout.Button("Enter Battle", GUILayout.Height(28)))
             {

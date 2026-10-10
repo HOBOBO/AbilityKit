@@ -9,9 +9,36 @@ namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleSessionFeature
     {
+        private IReadOnlyList<string> _sessionModuleIds = SessionSubFeaturePipeline.StandardModuleIds;
+        private Func<string, IReadOnlyList<string>> _sessionModuleCapabilities =
+            MobaBattleFlowProfile.GetBuiltInModuleCapabilities;
+        private readonly Func<string, ISessionSubFeature<ISessionRuntimeFeature>> _sessionModuleFactory;
+
+        internal void ConfigureSessionModules(IReadOnlyList<string> moduleIds,
+            Func<string, IReadOnlyList<string>> getCapabilities = null)
+        {
+            if (moduleIds == null) throw new ArgumentNullException(nameof(moduleIds));
+            if (moduleIds.Count == 0) throw new ArgumentException("At least one session module is required.", nameof(moduleIds));
+            if (_subFeatureHost != null || _featureLifecycle.State != BattleSessionFeatureLifecycleState.Idle)
+                throw new InvalidOperationException("Session modules must be configured before attach.");
+            var copy = new string[moduleIds.Count];
+            for (var i = 0; i < copy.Length; i++) copy[i] = moduleIds[i];
+            var modules = new List<ISessionSubFeature<ISessionRuntimeFeature>>(copy.Length);
+            SessionSubFeaturePipeline.AddConfiguredSessionSubFeatures(
+                modules, copy, _sessionModuleFactory);
+            var host = SessionSubFeaturePipeline.CreateHost(
+                modules, message => throw new InvalidOperationException(message));
+            if (!host.TrySortByDependencies())
+                throw new InvalidOperationException("Battle session module dependencies are invalid.");
+            _sessionModuleIds = Array.AsReadOnly(copy);
+            _sessionModuleCapabilities = getCapabilities ?? MobaBattleFlowProfile.GetBuiltInModuleCapabilities;
+            _subFeatures = modules;
+            _subFeatureHost = host;
+        }
+
         private void EnsureSubFeaturesCreated()
         {
-            _subFeatures ??= new List<ISessionSubFeature<BattleSessionFeature>>(capacity: 8);
+            _subFeatures ??= new List<ISessionSubFeature<ISessionRuntimeFeature>>(capacity: 8);
             if (_subFeatureHost != null && _subFeatures.Count > 0) return;
 
             void Fail(string message)
@@ -33,12 +60,12 @@ namespace AbilityKit.Game.Flow
 
             if (_subFeatures.Count == 0)
             {
-                SessionSubFeaturePipeline.AddStandardSessionSubFeatures(_subFeatures);
-                SessionSubFeaturePipeline.AddLateSessionSubFeatures(_subFeatures);
+                SessionSubFeaturePipeline.AddConfiguredSessionSubFeatures(
+                    _subFeatures, _sessionModuleIds, _sessionModuleFactory);
 
                 if (!_subFeatureHost.TrySortByDependencies())
                 {
-                    return;
+                    throw new InvalidOperationException("Battle session module dependencies are invalid.");
                 }
             }
         }

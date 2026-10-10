@@ -82,6 +82,7 @@ namespace AbilityKit.Demo.Moba.Systems
         public const int OngoingTriggerPlansReconcile = Base + WorldSystemOrder.Normal + 312;
         /// <summary>玩法规则 Tick</summary>
         public const int GameplayTick = Base + WorldSystemOrder.Normal + 320;
+        public const int GameplayRespawnTick = GameplayTick + 1;
 
         // ========== 清理系统 (PostExecute/Late) ==========
         /// <summary>实体管理器清理</summary>
@@ -158,6 +159,11 @@ namespace AbilityKit.Demo.Moba.Systems
             if (!RunsBefore(ContinuousTick, BuffLifecycleReconcile) || !RunsBefore(BuffLifecycleReconcile, OngoingTriggerPlansReconcile) || !RunsBefore(OngoingTriggerPlansReconcile, GameplayTick))
             {
                 return new OrderCheckResult(false, "Continuous order must be ContinuousTick < BuffLifecycleReconcile < OngoingTriggerPlansReconcile < GameplayTick.");
+            }
+
+            if (!RunsBefore(GameplayTick, GameplayRespawnTick))
+            {
+                return Fail(nameof(GameplayTick), nameof(GameplayRespawnTick));
             }
 
             if (!RunsBefore(ProjectileSync, ProjectileLauncherCleanup) || !RunsBefore(ProjectileLauncherCleanup, ShieldLifecycle) || !RunsBefore(ShieldLifecycle, SummonLifecycle) || !RunsBefore(SummonLifecycle, ActorDespawnCleanup))

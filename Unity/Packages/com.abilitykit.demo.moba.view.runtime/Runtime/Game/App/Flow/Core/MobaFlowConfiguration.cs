@@ -17,6 +17,8 @@ namespace AbilityKit.Game.Flow
             PhaseStateFeatureSpec battleLoadAssetsFeatures,
             PhaseStateFeatureSpec battleInMatchFeatures,
             PhaseStateFeatureSpec battleEndFeatures,
+            string battleProfileId,
+            IReadOnlyDictionary<MobaBattleState, IReadOnlyList<string>> battleRetainedFeatureIds,
             IReadOnlyDictionary<MobaRootState, string> rootStateDescriptions,
             IReadOnlyDictionary<MobaBattleState, string> battleStateDescriptions)
         {
@@ -30,6 +32,17 @@ namespace AbilityKit.Game.Flow
             BattleLoadAssetsFeatures = battleLoadAssetsFeatures ?? throw new ArgumentNullException(nameof(battleLoadAssetsFeatures));
             BattleInMatchFeatures = battleInMatchFeatures ?? throw new ArgumentNullException(nameof(battleInMatchFeatures));
             BattleEndFeatures = battleEndFeatures ?? throw new ArgumentNullException(nameof(battleEndFeatures));
+            BattleFeatureSpecs = new Dictionary<MobaBattleState, PhaseStateFeatureSpec>
+            {
+                [MobaBattleState.Prepare] = BattlePrepareFeatures,
+                [MobaBattleState.Connect] = BattleConnectFeatures,
+                [MobaBattleState.CreateOrJoinWorld] = BattleCreateOrJoinWorldFeatures,
+                [MobaBattleState.LoadAssets] = BattleLoadAssetsFeatures,
+                [MobaBattleState.InMatch] = BattleInMatchFeatures,
+                [MobaBattleState.End] = BattleEndFeatures
+            };
+            BattleProfileId = battleProfileId ?? throw new ArgumentNullException(nameof(battleProfileId));
+            BattleRetainedFeatureIds = battleRetainedFeatureIds ?? throw new ArgumentNullException(nameof(battleRetainedFeatureIds));
             RootStateDescriptions = rootStateDescriptions ?? throw new ArgumentNullException(nameof(rootStateDescriptions));
             BattleStateDescriptions = battleStateDescriptions ?? throw new ArgumentNullException(nameof(battleStateDescriptions));
         }
@@ -44,14 +57,21 @@ namespace AbilityKit.Game.Flow
         public PhaseStateFeatureSpec BattleLoadAssetsFeatures { get; }
         public PhaseStateFeatureSpec BattleInMatchFeatures { get; }
         public PhaseStateFeatureSpec BattleEndFeatures { get; }
+        public IReadOnlyDictionary<MobaBattleState, PhaseStateFeatureSpec> BattleFeatureSpecs { get; }
+        public string BattleProfileId { get; }
+        public IReadOnlyDictionary<MobaBattleState, IReadOnlyList<string>> BattleRetainedFeatureIds { get; }
         public IReadOnlyDictionary<MobaRootState, string> RootStateDescriptions { get; }
         public IReadOnlyDictionary<MobaBattleState, string> BattleStateDescriptions { get; }
 
         public string GetRootStateDescription(MobaRootState state) => RootStateDescriptions[state];
         public string GetBattleStateDescription(MobaBattleState state) => BattleStateDescriptions[state];
 
-        public static MobaFlowConfiguration CreateDefault()
+        public static MobaFlowConfiguration CreateDefault(MobaBattleFlowProfile profile = null) =>
+            CreateResolved((profile ?? MobaBattleFlowProfile.CreateStandard()).Resolve());
+
+        internal static MobaFlowConfiguration CreateResolved(MobaBattleFlowComposition composition)
         {
+            if (composition == null) throw new ArgumentNullException(nameof(composition));
             var configuration = new MobaFlowConfiguration(
                 BuildRootMachine(),
                 BuildBattleMachine(),
@@ -59,37 +79,42 @@ namespace AbilityKit.Game.Flow
                 new PhaseStateFeatureSpec("Lobby", clearBeforeEnter: true)
                     .AddFeature("demo_lobby")
                     .AddFeature("formal_lobby"),
-                new PhaseStateFeatureSpec("Battle.Prepare", clearBeforeEnter: true)
-                    .AddEnterBeforeAction(MobaFlowActionIds.ResetBattleSessionRuntimeState)
-                    .AddFeature("context")
-                    .AddFeature("entity")
-                    .AddFeature("session"),
-                new PhaseStateFeatureSpec("Battle.Connect")
-                    .AddFeature("debug_ongui")
+                AddFeatures(new PhaseStateFeatureSpec("Battle.Prepare", clearBeforeEnter: true)
+                    .AddEnterBeforeAction(MobaFlowActionIds.ResetBattleSessionRuntimeState), composition),
+                AddFeatures(new PhaseStateFeatureSpec("Battle.Connect"), composition)
                     .AddSwitchFlow(MobaFlowSwitchIds.AdvanceOnConnectEnter),
-                new PhaseStateFeatureSpec("Battle.CreateOrJoinWorld")
-                    .AddFeature("debug_ongui")
+                AddFeatures(new PhaseStateFeatureSpec("Battle.CreateOrJoinWorld"), composition)
                     .AddSwitchFlow(MobaFlowSwitchIds.AdvanceOnCreateOrJoinWorldEnter),
-                new PhaseStateFeatureSpec("Battle.LoadAssets")
-                    .AddFeature("loading_screen")
-                    .AddFeature("debug_ongui")
+                AddFeatures(new PhaseStateFeatureSpec("Battle.LoadAssets"), composition)
                     .AddSwitchFlow(MobaFlowSwitchIds.AdvanceOnLoadAssetsEnter),
-                new PhaseStateFeatureSpec("Battle.InMatch")
-                    .AddFeature("sync")
-                    .AddFeature("input")
-                    .AddFeature("view")
-                    .AddFeature("hud")
-                    .AddFeature("end_recorder")
-                    .AddFeature("debug_ongui"),
-                new PhaseStateFeatureSpec("Battle.End", clearBeforeEnter: true)
-                    .AddFeature("end_settlement")
-                    .AddFeature("debug_ongui")
+                AddFeatures(new PhaseStateFeatureSpec("Battle.InMatch"), composition),
+                AddFeatures(new PhaseStateFeatureSpec("Battle.End", clearBeforeEnter: true), composition)
                     .AddEnterAfterAction(MobaFlowActionIds.ReturnLobbyAfterBattleEnd),
+                composition.ProfileId,
+                BuildRetainedFeatureIds(composition),
                 BuildRootStateDescriptions(),
                 BuildBattleStateDescriptions());
 
             MobaFlowConfigurationValidator.ValidateOrThrow(configuration);
             return configuration;
+        }
+
+        private static PhaseStateFeatureSpec AddFeatures(
+            PhaseStateFeatureSpec spec, MobaBattleFlowComposition composition)
+        {
+            foreach (var featureId in composition.GetFeatures(spec.StateId)) spec.AddFeature(featureId);
+            foreach (var actionId in composition.GetEnterActions(spec.StateId)) spec.AddEnterAfterAction(actionId);
+            foreach (var actionId in composition.GetExitActions(spec.StateId)) spec.AddExitAction(actionId);
+            return spec;
+        }
+
+        private static IReadOnlyDictionary<MobaBattleState, IReadOnlyList<string>> BuildRetainedFeatureIds(
+            MobaBattleFlowComposition composition)
+        {
+            var result = new Dictionary<MobaBattleState, IReadOnlyList<string>>();
+            foreach (MobaBattleState state in Enum.GetValues(typeof(MobaBattleState)))
+                result[state] = composition.GetRetainedFeatures("Battle." + state);
+            return result;
         }
 
         private static IReadOnlyDictionary<MobaRootState, string> BuildRootStateDescriptions()

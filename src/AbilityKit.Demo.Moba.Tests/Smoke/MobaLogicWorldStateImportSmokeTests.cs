@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Attributes;
@@ -44,6 +46,11 @@ public sealed class MobaLogicWorldStateImportSmokeTests
 
             var services = bootstrapper.RuntimeServices;
             Assert.NotNull(services);
+            var runtimeWorld = (IWorld)typeof(ConsoleBattleBootstrapper)
+                .GetField("_runtimeWorld", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(bootstrapper)!;
+            var rollbackRegistry = MobaRollbackRegistryBuilder.Create(runtimeWorld);
+            Assert.NotEmpty(rollbackRegistry.Providers);
             Assert.True(services.TryResolve<MobaActorRegistry>(out var registry) && registry != null,
                 "MobaActorRegistry not resolved from world services.");
             Assert.True(services.TryResolve<MobaLogicWorldStateImporter>(out var importer) && importer != null,
@@ -51,6 +58,27 @@ public sealed class MobaLogicWorldStateImportSmokeTests
 
             var originals = CaptureStates(registry);
             Assert.NotEmpty(originals);
+            var firstImport = originals.Values.First();
+            Assert.True(registry.TryGet(firstImport.ActorId, out var firstActor));
+            var positionBeforeInvalidImport = firstActor.transform.Value.Position;
+            var invalidImport = importer.Import(
+                new[] { firstImport, firstImport },
+                bootstrapper.Context.LastFrame,
+                isFullSnapshot: true);
+            Assert.Equal(1, invalidImport.Failed);
+            Assert.Equal(0, invalidImport.Updated);
+            Assert.Equal(positionBeforeInvalidImport, firstActor.transform.Value.Position);
+            var legacyExistingActor = new MobaActorStateImport(
+                firstImport.ActorId,
+                firstImport.PosX, firstImport.PosY, firstImport.PosZ,
+                firstImport.Yaw, firstImport.Hp, firstImport.HpMax,
+                firstImport.TeamId, kind: 0, firstImport.Code, firstImport.OwnerNetId);
+            var legacyImport = importer.Import(
+                new[] { legacyExistingActor },
+                bootstrapper.Context.LastFrame,
+                isFullSnapshot: false);
+            Assert.Equal(1, legacyImport.Updated);
+            Assert.Equal(0, legacyImport.Failed);
 
             var moveActor = registry.Entries
                 .Select(pair => pair.Value)

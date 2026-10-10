@@ -123,7 +123,7 @@ namespace AbilityKit.Game.Flow
         internal void StartConfirmedAuthority(
             BattleStartPlan plan,
             BattleContext context,
-            GameFlowDomain flow,
+            IBattleViewFeatureHost flow,
             bool hasSession,
             float fixedDeltaSeconds,
             Func<WorldId, int> resolveIdealFrameLimit,
@@ -212,7 +212,7 @@ namespace AbilityKit.Game.Flow
                 () => Confirmed.DestroyWorld(ConfirmedAuthorityWorldId.Create(plan)));
         }
 
-        internal void DisposeConfirmedView(GameFlowDomain flow, Action<IEntity> destroyEntityTree)
+        internal void DisposeConfirmedView(IBattleViewFeatureHost flow, Action<IEntity> destroyEntityTree)
         {
             _presentation.DisposeConfirmedView(flow, destroyEntityTree);
         }
@@ -273,7 +273,7 @@ namespace AbilityKit.Game.Flow
         private void RollbackConfirmedStart(
             BattleStartPlan plan,
             BattleContext context,
-            GameFlowDomain flow,
+            IBattleViewFeatureHost flow,
             Action<IEntity> destroyEntityTree,
             Exception startFailure)
         {

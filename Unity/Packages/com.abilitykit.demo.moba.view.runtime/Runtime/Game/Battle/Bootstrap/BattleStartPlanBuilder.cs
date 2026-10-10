@@ -147,7 +147,8 @@ namespace AbilityKit.Game.Flow
             bool autoJoinRoom,
             string joinRoomId,
             uint createRoomOpCode,
-            uint joinRoomOpCode)
+            uint joinRoomOpCode,
+            int maxPlayers = 2)
         {
             _gateway = new BattleStartPlanGatewayOptions(
                 useGatewayTransport,
@@ -161,7 +162,8 @@ namespace AbilityKit.Game.Flow
                 autoJoinRoom,
                 joinRoomId,
                 createRoomOpCode,
-                joinRoomOpCode);
+                joinRoomOpCode,
+                maxPlayers: maxPlayers);
             return this;
         }
 

@@ -7,13 +7,14 @@ using AbilityKit.Game.Flow.Modules;
 namespace AbilityKit.Game.Flow
 {
     internal sealed class SessionGatewayRoomSubFeature :
-        ISessionSubFeature<BattleSessionFeature>,
-        ISessionPreTickSubFeature<BattleSessionFeature>,
+        ISessionSubFeature<ISessionRuntimeFeature>,
+        ISessionPreTickSubFeature<ISessionRuntimeFeature>,
         IGameModuleId,
         IGameModuleDependencies
     {
         private Func<BattleStartPlan, bool> _planBuiltHandler;
         private Task _gatewayStartTask = Task.CompletedTask;
+        private Task _gatewayCompletionTask;
         private bool _sessionRequested;
         private bool _failureNotified;
 
@@ -21,12 +22,13 @@ namespace AbilityKit.Game.Flow
 
         public System.Collections.Generic.IEnumerable<string> Dependencies => new[] { "session_events" };
 
-        public void OnAttach(in FeatureModuleContext<BattleSessionFeature> ctx)
+        public void OnAttach(in FeatureModuleContext<ISessionRuntimeFeature> ctx)
         {
-            if (!BattleSessionFeatureRuntimeAccess.TryGet<ISessionGatewayRuntime>(ctx, out var runtime)) return;
+            var runtime = BattleSessionFeatureRuntimeAccess.Require<ISessionGatewayRuntime>(ctx, Id);
 
             _sessionRequested = false;
             _failureNotified = false;
+            _gatewayCompletionTask = null;
             _planBuiltHandler = plan =>
             {
                 return TryStartGatewayRoomPreparation(runtime);
@@ -35,7 +37,7 @@ namespace AbilityKit.Game.Flow
             runtime.Hooks?.PlanBuilt.Add(_planBuiltHandler);
         }
 
-        public void OnDetach(in FeatureModuleContext<BattleSessionFeature> ctx)
+        public void OnDetach(in FeatureModuleContext<ISessionRuntimeFeature> ctx)
         {
             BattleSessionFeatureRuntimeAccess.TryGet<ISessionGatewayRuntime>(ctx, out var runtime);
             if (_planBuiltHandler != null && runtime != null)
@@ -44,11 +46,12 @@ namespace AbilityKit.Game.Flow
             }
             _planBuiltHandler = null;
             _gatewayStartTask = Task.CompletedTask;
+            _gatewayCompletionTask = null;
             _sessionRequested = false;
             _failureNotified = false;
         }
 
-        public void PreTick(in FeatureModuleContext<BattleSessionFeature> ctx, float deltaTime)
+        public void PreTick(in FeatureModuleContext<ISessionRuntimeFeature> ctx, float deltaTime)
         {
             if (!BattleSessionFeatureRuntimeAccess.TryGet<ISessionGatewayRuntime>(ctx, out var runtime)) return;
             if (!_gatewayStartTask.IsCompleted) return;
@@ -56,6 +59,22 @@ namespace AbilityKit.Game.Flow
             if (_gatewayStartTask.IsFaulted)
             {
                 NotifyPreparationFailure(runtime, _gatewayStartTask);
+                return;
+            }
+            if (_gatewayCompletionTask != null)
+            {
+                if (!_gatewayCompletionTask.IsCompleted) return;
+                if (_gatewayCompletionTask.IsFaulted)
+                {
+                    NotifyPreparationFailure(runtime, _gatewayCompletionTask);
+                    return;
+                }
+                if (_gatewayCompletionTask.IsCanceled) return;
+                if (!_sessionRequested)
+                {
+                    _sessionRequested = true;
+                    runtime.OnStartSessionRequested();
+                }
                 return;
             }
             if (!runtime.HasGatewayRoomConnection) return;
@@ -71,18 +90,12 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            runtime.CompleteGatewayRoomPreparation();
-
-            if (!_sessionRequested)
-            {
-                _sessionRequested = true;
-                runtime.OnStartSessionRequested();
-            }
+            _gatewayCompletionTask = runtime.CompleteGatewayRoomPreparationAsync() ?? Task.CompletedTask;
         }
 
-        public void Tick(in FeatureModuleContext<BattleSessionFeature> ctx, float deltaTime) { }
+        public void Tick(in FeatureModuleContext<ISessionRuntimeFeature> ctx, float deltaTime) { }
 
-        public void RebindAll(in FeatureModuleContext<BattleSessionFeature> ctx) { }
+        public void RebindAll(in FeatureModuleContext<ISessionRuntimeFeature> ctx) { }
 
         internal bool TryStartGatewayRoomPreparation(ISessionGatewayRuntime runtime)
         {
@@ -90,6 +103,7 @@ namespace AbilityKit.Game.Flow
 
             _sessionRequested = false;
             _failureNotified = false;
+            _gatewayCompletionTask = null;
             _gatewayStartTask = runtime.StartGatewayRoomPreparation() ?? Task.CompletedTask;
             return true;
         }

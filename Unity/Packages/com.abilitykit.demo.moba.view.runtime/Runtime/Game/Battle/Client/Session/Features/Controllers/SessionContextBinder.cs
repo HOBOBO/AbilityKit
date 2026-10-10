@@ -1,4 +1,7 @@
 using AbilityKit.Game.Flow.Battle.Modules;
+using AbilityKit.Game.Flow.Battle.ViewEvents;
+using AbilityKit.Game.Flow.Battle.ViewEvents.Triggering;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Game.Flow
 {
@@ -11,14 +14,17 @@ namespace AbilityKit.Game.Flow
         {
             if (ctx == null) return;
 
-            ctx.Session = handles.Session;
-            ctx.RuntimeWorld = handles.RemoteDriven.World;
-            if (ctx.RuntimeWorld == null &&
+            var triggerSource = handles.Session != null
+                ? new BattleSessionTriggerViewEventSource(handles.Session)
+                : null;
+            var world = handles.RemoteDriven.World;
+            if (world == null &&
                 handles.Session != null &&
                 handles.Session.TryGetWorld(out var sessionWorld))
             {
-                ctx.RuntimeWorld = sessionWorld;
+                world = sessionWorld;
             }
+            ctx.BindRuntimeSession(handles.Session, triggerSource, world);
 
             BindLastFrame(ctx, state);
         }
@@ -51,16 +57,34 @@ namespace AbilityKit.Game.Flow
 
             ctx.Plan = plan;
             BindRuntimeSession(ctx, state, handles);
-            ctx.Hooks = hooks;
+            ctx.BindSessionHooks(hooks);
         }
 
         public static void ClearSession(BattleContext ctx)
         {
             if (ctx == null) return;
 
-            ctx.Session = null;
-            ctx.RuntimeWorld = null;
-            ctx.Hooks = null;
+            ctx.ClearRuntimeSession();
+        }
+    }
+
+    internal sealed class BattleSessionTriggerViewEventSource : IBattleTriggerViewEventSource
+    {
+        private readonly AbilityKit.Game.Battle.BattleLogicSession _session;
+
+        public BattleSessionTriggerViewEventSource(AbilityKit.Game.Battle.BattleLogicSession session)
+        {
+            _session = session ?? throw new System.ArgumentNullException(nameof(session));
+        }
+
+        public System.IDisposable Subscribe(IBattleViewEventSink sink)
+        {
+            if (sink == null || !_session.TryGetWorld(out var world) ||
+                world?.Services == null ||
+                !world.Services.TryResolve(out IEventBus bus) || bus == null)
+                return null;
+
+            return new BattleTriggerEventViewBridge(bus, sink);
         }
     }
 }

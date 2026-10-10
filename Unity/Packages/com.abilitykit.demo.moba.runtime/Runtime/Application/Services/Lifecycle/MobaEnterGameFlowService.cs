@@ -205,7 +205,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return bindResult;
             }
 
-            var gameplayPreparation = PrepareGameplay(effectiveReq.GameplayId);
+            var gameplayPreparation = PrepareGameplay(effectiveReq.GameplayId, effectiveReq.MatchId);
             if (!gameplayPreparation.Succeeded)
             {
                 RollbackPreparedStart(in built, cancelGameplay: false);
@@ -496,7 +496,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             try
             {
-                if (!_gameplayStart.CommitPreparedStart())
+                if (!_gameplayStart.CommitPreparedStartDeferred())
                 {
                     throw new InvalidOperationException(
                         _gameplayStart.LastStartFailureReason ??
@@ -506,6 +506,7 @@ namespace AbilityKit.Demo.Moba.Services
                 _actorSpawns.PublishBatch(built.SpawnResults);
                 _snapshots.Commit(in snapshotBatch);
                 MarkGameStarted();
+                _gameplayStart.PublishStarted();
                 return MobaGameStartResult.Success;
             }
             catch (Exception ex)
@@ -595,7 +596,7 @@ namespace AbilityKit.Demo.Moba.Services
             Log.Exception(exception, $"[MobaEnterGameFlowService] {operation} failed. {detail}");
         }
 
-        private MobaGameStartResult PrepareGameplay(int gameplayId)
+        private MobaGameStartResult PrepareGameplay(int gameplayId, string matchId)
         {
             if (_gameplayStart == null)
             {
@@ -607,7 +608,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return Fail(MobaGameStartFailureCode.InvalidGameplayId, $"gameplay id must be positive for formal battle start. gameplayId={gameplayId}");
             }
 
-            if (!_gameplayStart.TryPrepareStart(gameplayId, out var error))
+            if (!_gameplayStart.TryPrepareStart(gameplayId, matchId, out var error))
             {
                 var detail = string.IsNullOrEmpty(error)
                     ? string.Empty

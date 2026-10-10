@@ -6,6 +6,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Core.Logging;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Flow
 {
@@ -14,8 +15,6 @@ namespace AbilityKit.Game.Flow
     /// </summary>
     internal sealed class GatewayPreparationRuntime : IDisposable
     {
-        private const uint GuestLoginOpCode = 100;
-
         private readonly object _gate = new object();
         private readonly GatewayClockSynchronizer _clock;
         private readonly Dictionary<WorldId, GatewayWorldStartAnchor> _worldStartAnchors =
@@ -147,7 +146,7 @@ namespace AbilityKit.Game.Flow
                     string.IsNullOrEmpty(preparedPlan.World.WorldType) ? "battle" : preparedPlan.World.WorldType,
                     string.Empty,
                     true,
-                    10,
+                    gateway.MaxPlayers,
                     null,
                     cancellationToken: token);
                 ThrowIfStale(generation, token);
@@ -251,7 +250,7 @@ namespace AbilityKit.Game.Flow
             if (!string.IsNullOrWhiteSpace(plan.Gateway.SessionToken)) return plan;
 
             var sessionToken = await authentication.GuestLoginAsync(
-                GuestLoginOpCode,
+                RoomGatewayOpCodes.GuestLogin,
                 cancellationToken: token);
             token.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(sessionToken))

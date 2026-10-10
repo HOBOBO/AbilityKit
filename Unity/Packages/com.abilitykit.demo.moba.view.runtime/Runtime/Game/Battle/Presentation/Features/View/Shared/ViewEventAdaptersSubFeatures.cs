@@ -22,8 +22,14 @@ namespace AbilityKit.Game.Flow
             _lifecycle.Detach(ctx.Feature);
         }
 
-        public void Tick(in FeatureModuleContext<TFeature> ctx, float deltaTime) { }
+        public void Tick(in FeatureModuleContext<TFeature> ctx, float deltaTime)
+        {
+            _lifecycle.Refresh(ctx.Feature);
+        }
 
-        public void RebindAll(in FeatureModuleContext<TFeature> ctx) { }
+        public void RebindAll(in FeatureModuleContext<TFeature> ctx)
+        {
+            _lifecycle.Refresh(ctx.Feature);
+        }
     }
 }

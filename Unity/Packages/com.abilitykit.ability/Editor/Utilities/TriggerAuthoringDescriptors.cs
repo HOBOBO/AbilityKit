@@ -682,6 +682,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Required("key_id", TriggerValueType.Integer), Optional("value", TriggerValueType.Number)));
             catalog.Register(Action("add_gameplay_var", "增加玩法变量", "Action/Gameplay",
                 Required("key_id", TriggerValueType.Integer), Optional("delta", TriggerValueType.Number)));
+            catalog.Register(Action("award_team_kill_score", "Hero kill score", "Action/Gameplay",
+                Required("key_base_id", TriggerValueType.Integer), Optional("points", TriggerValueType.Number)));
+            catalog.Register(Action("schedule_hero_respawn", "Schedule hero respawn", "Action/Gameplay",
+                Required("delay_ms", TriggerValueType.Integer), Optional("spawn_index", TriggerValueType.Integer),
+                Optional("health_ratio", TriggerValueType.Number), Optional("max_respawns", TriggerValueType.Integer)));
             catalog.Register(Action("advance_gameplay_counter", "推进玩法计数器", "Action/Gameplay",
                 Required("key_id", TriggerValueType.Integer),
                 Required("scope_payload_field_id", TriggerValueType.Integer),
@@ -691,7 +696,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Required("trigger_id", TriggerValueType.Integer)));
             catalog.Register(Action("end_game", "结束游戏", "Action/Gameplay",
                 Optional("reason_id", TriggerValueType.Integer),
-                Optional("win_team_id", TriggerValueType.Integer)));
+                Optional("win_team_id", TriggerValueType.Integer),
+                Optional("win_team_from_event", TriggerValueType.Integer)));
         }
 
         private static TriggerTypeDescriptor Condition(

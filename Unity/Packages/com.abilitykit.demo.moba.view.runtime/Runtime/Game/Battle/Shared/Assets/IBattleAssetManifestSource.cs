@@ -39,6 +39,11 @@ namespace AbilityKit.Game.Battle.Shared.Assets
         long LaunchGeneration { get; }
     }
 
+    public interface IBattleGameplayManifestSource
+    {
+        int GameplayId { get; }
+    }
+
     /// <summary>
     /// Expands aggregate battle configuration into concrete presentation assets.
     /// Implementations must return deterministic entries for the same source and

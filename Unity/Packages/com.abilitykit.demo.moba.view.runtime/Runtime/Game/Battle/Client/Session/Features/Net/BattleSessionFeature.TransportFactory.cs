@@ -46,12 +46,20 @@ namespace AbilityKit.Game.Flow
                     roomId,
                     _unityDispatcher,
                     _networkIoDispatcher);
-                if (transport is NetworkTransport networkTransport)
+                try
                 {
-                    NetworkCondition.Attach(networkTransport.Connection);
-                    _runtime.InputSubmissionDiagnostics.Bind(
-                        networkTransport,
-                        _plan.World.WorldId);
+                    if (transport is NetworkTransport networkTransport)
+                    {
+                        NetworkCondition.Attach(networkTransport.Connection);
+                        _runtime.InputSubmissionDiagnostics.Bind(
+                            networkTransport,
+                            _plan.World.WorldId);
+                    }
+                }
+                catch
+                {
+                    (transport as IDisposable)?.Dispose();
+                    throw;
                 }
 
                 return _sessionRegistry.Start(opts, remoteTransport: transport);

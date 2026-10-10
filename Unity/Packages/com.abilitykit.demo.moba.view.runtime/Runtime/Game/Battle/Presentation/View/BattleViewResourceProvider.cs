@@ -19,6 +19,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleViewModelFactory _models;
         private readonly BattleViewVfxFactory _vfx;
         private readonly IBattleAssetLookup _assets;
+        private readonly BattleViewModelResolverRegistry _modelResolvers;
 
         internal static BattleViewResourceProvider OrDefault(BattleViewResourceProvider resources)
         {
@@ -39,7 +40,16 @@ namespace AbilityKit.Game.Flow
             MobaConfigDatabase configs,
             VfxDatabase vfxDb,
             IBattleAssetLookup assets)
-            : this(configs, vfxDb, null, null, null, null, null, assets)
+            : this(configs, vfxDb, assets, null)
+        {
+        }
+
+        public BattleViewResourceProvider(
+            MobaConfigDatabase configs,
+            VfxDatabase vfxDb,
+            IBattleAssetLookup assets,
+            BattleViewModelResolverRegistry modelResolvers)
+            : this(configs, vfxDb, null, null, null, null, null, assets, modelResolvers)
         {
         }
 
@@ -51,15 +61,17 @@ namespace AbilityKit.Game.Flow
             BattleViewModelFactory models,
             BattleViewVfxFactory vfx,
             BattleViewResourceProviderComponentFactory components = null,
-            IBattleAssetLookup assets = null)
+            IBattleAssetLookup assets = null,
+            BattleViewModelResolverRegistry modelResolvers = null)
         {
             components ??= new BattleViewResourceProviderComponentFactory();
 
             _configs = configs;
             _vfxDb = vfxDb;
             _assets = assets;
+            _modelResolvers = modelResolvers ?? new BattleViewModelResolverRegistry();
             _cache = cache ?? components.CreateCache(assets);
-            _configLookup = configLookup ?? components.CreateConfigLookup();
+            _configLookup = configLookup ?? components.CreateConfigLookup(_modelResolvers);
 
             var primitives = components.CreatePrimitives();
             _models = models ?? components.CreateModels(primitives, assets);
@@ -89,6 +101,7 @@ namespace AbilityKit.Game.Flow
         }
 
         internal IBattleAssetLookup AssetLookup => _assets;
+        public BattleViewModelResolverRegistry ModelResolvers => _modelResolvers;
 
         public MobaConfigDatabase GetOrLoadConfigs()
         {
@@ -183,9 +196,9 @@ namespace AbilityKit.Game.Flow
             return new BattleViewResourceCache(assets);
         }
 
-        public BattleViewConfigLookup CreateConfigLookup()
+        public BattleViewConfigLookup CreateConfigLookup(BattleViewModelResolverRegistry modelResolvers = null)
         {
-            return new BattleViewConfigLookup();
+            return new BattleViewConfigLookup(otherModels: modelResolvers);
         }
 
         public BattleViewPrimitiveFactory CreatePrimitives()

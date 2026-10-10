@@ -6,7 +6,7 @@ using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Game.Battle.Presentation.Features.Loading
 {
-    internal sealed class BattlePlanManifestSource : IBattleAssetManifestSource
+    internal sealed class BattlePlanManifestSource : IBattleAssetManifestSource, IBattleGameplayManifestSource
     {
         private readonly BattleStartPlan _plan;
         private readonly IReadOnlyList<IBattleAssetManifestPlayer> _players;
@@ -30,6 +30,7 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Loading
         }
 
         public IReadOnlyList<IBattleAssetManifestPlayer> Players => _players;
+        public int GameplayId => _plan.LaunchSpec.GameplayId;
         public int LaunchManifestVersion => Math.Max(1, _plan.LaunchSpec.ConfigVersion);
         public string LaunchManifestHash =>
             "plan:" + (_plan.LaunchSpec.MatchId ?? _plan.World.WorldId ?? string.Empty) +

@@ -65,12 +65,23 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (stack <= 1 || op == (int)ModifierOp.Override) return value;
             var result = op == (int)ModifierOp.Mul
-                ? Math.Pow(value, stack)
+                ? IntegerPow(value, stack)
                 : (double)value * stack;
             if (double.IsNaN(result) || double.IsInfinity(result) ||
                 result < float.MinValue || result > float.MaxValue)
                 throw new InvalidOperationException("Continuous modifier stack magnitude is not finite.");
             return (float)result;
+        }
+
+        /// <summary>
+        /// 整数幂用连乘实现：IEEE 位一致、跨运行时确定。Math.Pow 的实现依运行时而异，
+        /// 整数指数也可能在末位漂移，帧同步下禁止用于叠层（见 MobaModifierFormalDesign §4）。
+        /// </summary>
+        internal static double IntegerPow(double value, int exponent)
+        {
+            var result = 1.0;
+            for (var i = 0; i < exponent; i++) result *= value;
+            return result;
         }
 
         private static MagnitudeSource ApplyStack(MagnitudeSource magnitude, int stack, int op)

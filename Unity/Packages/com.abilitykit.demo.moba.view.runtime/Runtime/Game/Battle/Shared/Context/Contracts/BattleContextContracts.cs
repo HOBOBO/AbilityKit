@@ -1,17 +1,30 @@
 using System.Collections.Generic;
+using System;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Game.Flow.Battle.Modules;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba;
+using RoutingFrameSnapshotDispatcher = AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher;
+using ViewEventSink = AbilityKit.Game.Flow.Battle.ViewEvents.IBattleViewEventSink;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
+    internal interface IBattleGameplayPresentationSource
+    {
+        MobaBattleLaunchSpec LaunchSpec { get; }
+        bool TryGetFrameSnapshots(out RoutingFrameSnapshotDispatcher snapshots);
+        string ResolveLocalControlPlayerId();
+    }
+
     /// <summary>
     /// 会话运行期只读上下文契约，避免功能模块直接依赖完整的 BattleContext 大对象。
     /// </summary>
@@ -23,6 +36,16 @@ namespace AbilityKit.Game.Flow
         double LogicTimeSeconds { get; }
         int LocalActorId { get; }
         BattleSessionHooks Hooks { get; }
+    }
+
+    internal interface IBattleCharacterActionReadPort
+    {
+        bool TryGetCharacterAction(int actorId, out CharacterActionData action);
+    }
+
+    internal interface IBattleTriggerViewEventSource
+    {
+        IDisposable Subscribe(ViewEventSink sink);
     }
 
     /// <summary>
@@ -85,12 +108,24 @@ namespace AbilityKit.Game.Flow
             out float z);
     }
 
+    internal interface IBattleHudPresentationPort :
+        IBattleGameplayPresentationSource,
+        IBattleEntityContext,
+        IBattleHudAimPreviewReadPort
+    {
+        BattleStartPlan Plan { get; }
+        int LocalActorId { get; set; }
+        string LocalControlPlayerId { get; }
+        int RuntimePlayerLoadoutRevision { get; }
+        MobaPlayerLoadout[] BuildEffectivePlayerLoadouts();
+    }
+
     /// <summary>
     /// 快照路由上下文契约。
     /// </summary>
     public interface IBattleSnapshotRoutingContext
     {
-        FrameSnapshotDispatcher FrameSnapshots { get; }
+        RoutingFrameSnapshotDispatcher FrameSnapshots { get; }
         SnapshotPipeline SnapshotPipeline { get; }
         SnapshotCmdHandler CmdHandler { get; }
     }

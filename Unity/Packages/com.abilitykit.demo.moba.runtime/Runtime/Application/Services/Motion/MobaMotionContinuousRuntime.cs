@@ -8,6 +8,74 @@ using AbilityKit.GameplayTags;
 
 namespace AbilityKit.Demo.Moba.Services.Motion
 {
+    public readonly struct MobaMotionContinuousIdentity
+    {
+        public MobaMotionContinuousIdentity(string kind, int configId, int sourceActorId,
+            int targetActorId, int ownerActorId, long sourceContextId, MobaContextSourceView source)
+        {
+            Kind = kind;
+            ConfigId = configId;
+            SourceActorId = sourceActorId;
+            TargetActorId = targetActorId;
+            OwnerActorId = ownerActorId;
+            SourceContextId = sourceContextId;
+            Source = source;
+        }
+
+        public string Kind { get; }
+        public int ConfigId { get; }
+        public int SourceActorId { get; }
+        public int TargetActorId { get; }
+        public int OwnerActorId { get; }
+        public long SourceContextId { get; }
+        public MobaContextSourceView Source { get; }
+    }
+
+    public readonly struct MobaMotionContinuousResolvedConfig
+    {
+        public MobaMotionContinuousResolvedConfig(int configId, float durationSeconds,
+            ContinuousTagRequirements requirements, IReadOnlyList<IMobaContinuousModifierSpec> modifiers,
+            IReadOnlyList<int> triggerIds, float intervalSeconds, IReadOnlyList<int> intervalTriggerIds)
+        {
+            ConfigId = configId;
+            DurationSeconds = durationSeconds;
+            Requirements = requirements;
+            Modifiers = modifiers;
+            TriggerIds = triggerIds;
+            IntervalSeconds = intervalSeconds;
+            IntervalTriggerIds = intervalTriggerIds;
+        }
+
+        public int ConfigId { get; }
+        public float DurationSeconds { get; }
+        public ContinuousTagRequirements Requirements { get; }
+        public IReadOnlyList<IMobaContinuousModifierSpec> Modifiers { get; }
+        public IReadOnlyList<int> TriggerIds { get; }
+        public float IntervalSeconds { get; }
+        public IReadOnlyList<int> IntervalTriggerIds { get; }
+    }
+
+    public readonly struct MobaMotionContinuousDependencies
+    {
+        public MobaMotionContinuousDependencies(MobaActorRegistry actors, IMotionSource motionSource,
+            MobaMotionHitTriggerRuntime hitTriggerRuntime,
+            MobaMotionLandingTriggerRuntime landingTriggerRuntime,
+            MobaMotionLandingTriggerService landingTriggerService)
+        {
+            Actors = actors;
+            MotionSource = motionSource;
+            HitTriggerRuntime = hitTriggerRuntime;
+            LandingTriggerRuntime = landingTriggerRuntime;
+            LandingTriggerService = landingTriggerService;
+        }
+
+        public MobaActorRegistry Actors { get; }
+        public IMotionSource MotionSource { get; }
+        public MobaMotionHitTriggerRuntime HitTriggerRuntime { get; }
+        public MobaMotionLandingTriggerRuntime LandingTriggerRuntime { get; }
+        public MobaMotionLandingTriggerService LandingTriggerService { get; }
+    }
+
     public sealed class MobaMotionContinuousRuntime : MobaContinuousRuntimeBase,
         IMobaTickableContinuous,
         IMobaContinuousIntervalState,
@@ -28,45 +96,30 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         private bool _landingTriggered;
 
         public MobaMotionContinuousRuntime(
-            string kind,
-            int configId,
-            int sourceActorId,
-            int targetActorId,
-            int ownerActorId,
-            long sourceContextId,
-            MobaActorRegistry actors,
-            IMotionSource motionSource,
-            float durationSeconds,
-            ContinuousTagRequirements requirements,
-            IReadOnlyList<IMobaContinuousModifierSpec> modifiers,
-            IReadOnlyList<int> triggerIds,
-            float intervalSeconds,
-            IReadOnlyList<int> intervalTriggerIds,
-            MobaContextSourceView source = default,
-            MobaMotionHitTriggerRuntime hitTriggerRuntime = default,
-            MobaMotionLandingTriggerRuntime landingTriggerRuntime = default,
-            MobaMotionLandingTriggerService landingTriggerService = null)
+            in MobaMotionContinuousIdentity identity,
+            in MobaMotionContinuousResolvedConfig config,
+            in MobaMotionContinuousDependencies dependencies)
         {
-            Kind = string.IsNullOrEmpty(kind) ? "MotionContinuous" : kind;
-            ConfigId = configId;
-            SourceActorId = sourceActorId;
-            TargetActorId = targetActorId > 0 ? targetActorId : sourceActorId;
-            OwnerActorId = ownerActorId > 0 ? ownerActorId : TargetActorId;
-            SourceContextId = sourceContextId;
-            _actors = actors;
-            _motionSource = motionSource;
-            _source = source;
-            _hitTriggerRuntime = hitTriggerRuntime;
-            _landingTriggerRuntime = landingTriggerRuntime;
-            _landingTriggerService = landingTriggerService;
+            Kind = string.IsNullOrEmpty(identity.Kind) ? "MotionContinuous" : identity.Kind;
+            ConfigId = config.ConfigId;
+            SourceActorId = identity.SourceActorId;
+            TargetActorId = identity.TargetActorId > 0 ? identity.TargetActorId : identity.SourceActorId;
+            OwnerActorId = identity.OwnerActorId > 0 ? identity.OwnerActorId : TargetActorId;
+            SourceContextId = identity.SourceContextId;
+            _actors = dependencies.Actors;
+            _motionSource = dependencies.MotionSource;
+            _source = identity.Source;
+            _hitTriggerRuntime = dependencies.HitTriggerRuntime;
+            _landingTriggerRuntime = dependencies.LandingTriggerRuntime;
+            _landingTriggerService = dependencies.LandingTriggerService;
             _config = new MobaMotionContinuousConfig(
                 this,
-                durationSeconds,
-                requirements ?? new ContinuousTagRequirements(),
-                modifiers,
-                triggerIds,
-                intervalSeconds,
-                intervalTriggerIds);
+                config.DurationSeconds,
+                config.Requirements ?? new ContinuousTagRequirements(),
+                config.Modifiers,
+                config.TriggerIds,
+                config.IntervalSeconds,
+                config.IntervalTriggerIds);
             IntervalRemainingSeconds = _config.IntervalSeconds;
         }
 

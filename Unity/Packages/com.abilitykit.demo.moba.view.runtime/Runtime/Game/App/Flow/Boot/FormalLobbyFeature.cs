@@ -13,8 +13,6 @@ namespace AbilityKit.Game.Flow
     public sealed class FormalLobbyFeature : IGamePhaseFeature, IOnGUIFeature
     {
         private const long RoomNoticeDurationMilliseconds = 6000L;
-        private const long RoomListAutoRefreshIntervalMilliseconds = 3000L;
-        private const long RoomSnapshotRecoveryIntervalMilliseconds = 5000L;
 
         private readonly FormalLobbyRuntime _runtime = new FormalLobbyRuntime();
         private readonly LobbyRoomDirectoryRuntime _directoryRuntime = new LobbyRoomDirectoryRuntime();
@@ -22,10 +20,12 @@ namespace AbilityKit.Game.Flow
             new LobbyRoomStoreSubscription();
         private readonly LobbyBattleEntryCoordinator _battleEntry = new LobbyBattleEntryCoordinator();
         private readonly LobbySceneExitLifecycle _sceneExit = new LobbySceneExitLifecycle();
+        private readonly FormalLobbyAutomationRuntime _automation = new FormalLobbyAutomationRuntime();
 
         private MultiplayerRoomFlowController _controller;
         private FormalLobbyCommandCoordinator _commands;
         private GatewayMultiplayerRoomSession _session;
+        private IMobaReliableEventCheckpointLifecycle _checkpoints;
         private LobbyBattleEntrySelection _selection;
         private IMultiplayerGatewayDiagnostics _gatewayDiagnostics;
         private IMultiplayerGatewayRecoveryControl _gatewayRecoveryControl;
@@ -38,7 +38,6 @@ namespace AbilityKit.Game.Flow
         private string _roomNotice = string.Empty;
         private long _roomNoticeExpiresAtUnixMs;
         private long _lastSnapshotReceivedAtUnixMs;
-        private long _nextRoomSnapshotRecoveryUnixMs;
         private ClientRoomSnapshot _lastObservedRoomSnapshot;
 
         private bool IsOperationBusy => _runtime.IsOperationBusy;
@@ -64,12 +63,13 @@ namespace AbilityKit.Game.Flow
             _roomNotice = string.Empty;
             _roomNoticeExpiresAtUnixMs = 0L;
             _lastSnapshotReceivedAtUnixMs = 0L;
-            _nextRoomSnapshotRecoveryUnixMs = 0L;
+            _automation.Reset();
             _lastObservedRoomSnapshot = null;
 
             _gatewayConfig = null;
             _commands = null;
             _session = null;
+            _checkpoints = null;
             _selection = null;
             _gatewayDiagnostics = null;
             _gatewayRecoveryControl = null;
@@ -85,6 +85,7 @@ namespace AbilityKit.Game.Flow
             {
                 ctx.Entry.TryGet(out _gatewayConfig);
                 ctx.Entry.TryGet(out _session);
+                ctx.Entry.TryGet(out _checkpoints);
                 ctx.Entry.TryGet(out _selection);
                 ctx.Entry.TryGet(out _gatewayDiagnostics);
                 ctx.Entry.TryGet(out _gatewayRecoveryControl);
@@ -130,7 +131,7 @@ namespace AbilityKit.Game.Flow
             _roomNotice = string.Empty;
             _roomNoticeExpiresAtUnixMs = 0L;
             _lastSnapshotReceivedAtUnixMs = 0L;
-            _nextRoomSnapshotRecoveryUnixMs = 0L;
+            _automation.Reset();
             _lastObservedRoomSnapshot = null;
         }
 
@@ -150,11 +151,20 @@ namespace AbilityKit.Game.Flow
                     }
                 }
 
-                TryStartAutomaticPreparation();
-                TryStartAutomaticMatch();
-                TryRecoverCurrentRoomSnapshot();
-                TryRefreshRoomsAutomatically();
-                TryStartAutomaticCreate();
+                _automation.Tick(new FormalLobbyAutomationContext
+                {
+                    Runtime = _runtime,
+                    Directory = _directoryRuntime,
+                    Controller = _controller,
+                    Commands = _commands,
+                    PushSynchronizer = _pushSynchronizer,
+                    Gateway = _gatewayDiagnostics,
+                    Config = _gatewayConfig,
+                    LaunchRequest = _launchRequest,
+                    StartOperation = StartOperation,
+                    RefreshRooms = RefreshRoomsCoreAsync,
+                    CreateRoom = CreateRoomAsync
+                });
             }
 
             if (!ShouldEnterBattle(_selection, _controller) ||
@@ -183,6 +193,7 @@ namespace AbilityKit.Game.Flow
                 snapshot,
                 _selection,
                 _session,
+                _checkpoints,
                 _launchRequest,
                 _controller.LocalPlayerId,
                 coldStartReconnect,
@@ -380,118 +391,6 @@ namespace AbilityKit.Game.Flow
                 operationContext);
         }
 
-        private void TryStartAutomaticPreparation()
-        {
-            if (_launchRequest?.SuppressAutomaticLobbyActions == true ||
-                _gatewayConfig?.AutoReadyDefaultLoadout != true ||
-                _controller?.CurrentState != MultiplayerRoomFlowState.InLobby ||
-                IsOperationBusy)
-            {
-                return;
-            }
-
-            var roomId = _controller.CurrentRoomId;
-            if (string.IsNullOrWhiteSpace(roomId) ||
-                string.Equals(_runtime.PreparedRoomId, roomId, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            var localPlayer = FindLocalPlayer(
-                _controller.CurrentSnapshot,
-                _controller.LocalPlayerId,
-                _launchRequest?.AccountId);
-            if (localPlayer?.LobbyReady == true && localPlayer.HeroId > 0)
-            {
-                _runtime.MarkPrepared(roomId);
-                return;
-            }
-
-            _runtime.MarkPrepared(roomId);
-            StartOperation("Preparing player", PrepareDefaultLoadoutAsync);
-        }
-
-        private void TryStartAutomaticMatch()
-        {
-            var snapshot = _controller?.CurrentSnapshot;
-            if (!ShouldStartAutomatically(
-                    _launchRequest?.SuppressAutomaticLobbyActions != true &&
-                    _gatewayConfig?.AutoStartWhenReady == true,
-                    _controller?.CurrentState ?? MultiplayerRoomFlowState.Idle,
-                    _controller?.IsLocalRoomOwner == true,
-                    snapshot,
-                    _gatewayConfig?.MinPlayers ?? 0,
-                    _runtime.AutomaticStartRoomId,
-                    IsOperationBusy))
-            {
-                return;
-            }
-
-            _runtime.MarkAutomaticStart(snapshot.RoomId);
-            StartOperation("Starting match", BeginAutomaticLoadingAsync);
-        }
-
-        private void TryRecoverCurrentRoomSnapshot()
-        {
-            var nowUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            if (_pushSynchronizer == null ||
-                _controller?.CurrentState != MultiplayerRoomFlowState.InLobby ||
-                _gatewayDiagnostics?.ConnectionState != ConnectionState.Connected ||
-                IsOperationBusy ||
-                nowUnixMs < _nextRoomSnapshotRecoveryUnixMs)
-            {
-                return;
-            }
-
-            _nextRoomSnapshotRecoveryUnixMs = nowUnixMs + RoomSnapshotRecoveryIntervalMilliseconds;
-            StartOperation(
-                "Synchronizing room",
-                context => _pushSynchronizer.TryRefreshAfterSilenceAsync(
-                    TimeSpan.FromMilliseconds(RoomSnapshotRecoveryIntervalMilliseconds),
-                    context.CancellationToken));
-        }
-
-        private void TryRefreshRoomsAutomatically()
-        {
-            var nowUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            if (!LobbyAutomationPolicy.ShouldRefreshDirectory(
-                    _controller?.CurrentState ?? MultiplayerRoomFlowState.Idle,
-                    _gatewayDiagnostics?.ConnectionState == ConnectionState.Connected,
-                    IsOperationBusy,
-                    _directoryRuntime.IsBusy,
-                    _directoryRuntime.LastRefreshUnixMs,
-                    nowUnixMs,
-                    RoomListAutoRefreshIntervalMilliseconds))
-            {
-                return;
-            }
-
-            StartOperation("Refreshing rooms", RefreshRoomsCoreAsync);
-        }
-
-        private void TryStartAutomaticCreate()
-        {
-            if (!LobbyAutomationPolicy.ShouldCreateRoom(
-                    _gatewayConfig?.AutoCreateWhenEmpty == true,
-                    _controller?.CurrentState ?? MultiplayerRoomFlowState.Idle,
-                    _gatewayDiagnostics?.ConnectionState == ConnectionState.Connected,
-                    IsOperationBusy,
-                    _directoryRuntime.IsLoaded,
-                    _directoryRuntime.Rooms.Count,
-                    _runtime.AutomaticCreateAttempted))
-            {
-                return;
-            }
-
-            _runtime.MarkAutomaticCreateAttempted();
-            StartOperation("Creating room", CreateRoomAsync);
-        }
-
-        private Task BeginAutomaticLoadingAsync(LobbyOperationContext operationContext)
-        {
-            return _commands.BeginAutomaticLoadingAsync(operationContext);
-        }
-
         private Task PrepareDefaultLoadoutAsync(LobbyOperationContext operationContext)
         {
             return _commands.PrepareDefaultLoadoutAsync(
@@ -576,30 +475,34 @@ namespace AbilityKit.Game.Flow
             var controller = _controller;
             var roomSnapshot = controller?.CurrentSnapshot;
             var recoveryState = _gatewayDiagnostics?.RecoveryState ?? MultiplayerRecoveryState.None;
-            var input = new FormalLobbyScreenInput(
+            var connection = new FormalLobbyConnectionInput(
                 _configurationError,
                 _gatewayDiagnostics?.ConnectionState ?? ConnectionState.Disconnected,
                 recoveryState == MultiplayerRecoveryState.ReconnectExhausted,
                 recoveryState != MultiplayerRecoveryState.None &&
                 recoveryState != MultiplayerRecoveryState.Recovered &&
-                recoveryState != MultiplayerRecoveryState.ReconnectExhausted,
+                recoveryState != MultiplayerRecoveryState.ReconnectExhausted);
+            var operation = new FormalLobbyOperationInput(
                 _runtime.OperationError,
                 controller?.LastError,
                 _runtime.OperationLabel,
                 ResolveActiveNotice(nowUnixMs),
                 IsOperationBusy,
-                controller != null,
+                controller != null);
+            var room = new FormalLobbyRoomInput(
                 controller?.CurrentState ?? MultiplayerRoomFlowState.Idle,
                 _directoryRuntime.IsLoaded,
                 _gatewayConfig?.AutoCreateWhenEmpty == true,
                 _directoryRuntime.Rooms,
                 controller?.IsLocalRoomOwner == true,
                 controller?.CanLeaveCurrentRoom == true,
+                BuildLobbySnapshot(roomSnapshot, nowUnixMs));
+            var loading = new FormalLobbyLoadingInput(
                 controller?.LocalLoadingProgress ?? 0,
                 controller?.CurrentLoadingAssetKey,
                 roomSnapshot?.LoadingDeadlineUnixMs ?? 0L,
-                nowUnixMs,
-                BuildLobbySnapshot(roomSnapshot, nowUnixMs));
+                nowUnixMs);
+            var input = new FormalLobbyScreenInput(in connection, in operation, in room, in loading);
             return FormalLobbyPresenter.BuildScreen(in input);
         }
 

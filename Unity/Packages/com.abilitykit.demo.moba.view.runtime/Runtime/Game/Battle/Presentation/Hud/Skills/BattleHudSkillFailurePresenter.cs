@@ -1,5 +1,7 @@
 using System;
-using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Core.Snapshots.Routing;
+using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,19 +12,20 @@ namespace AbilityKit.Game.Flow
         private const float VisibleDurationSeconds = 1.1f;
         private const float FadeDurationSeconds = 0.35f;
 
-        private readonly BattleHudSkillFailureFeed _feed = new BattleHudSkillFailureFeed();
-        private BattleContext _context;
-        private IBattleDiagnosticEventReadStore _store;
+        private readonly BattleHudSkillFailureAckFeed _feed = new BattleHudSkillFailureAckFeed();
+        private IBattleHudPresentationPort _context;
+        private FrameSnapshotDispatcher _snapshots;
+        private IDisposable _subscription;
         private GameObject _root;
         private Text _text;
         private CanvasGroup _canvasGroup;
         private float _remainingSeconds;
 
-        public void Bind(BattleContext context, RectTransform hudRoot)
+        public void Bind(IBattleHudPresentationPort context, RectTransform hudRoot)
         {
             Dispose();
             _context = context;
-            _store = ResolveStore(context);
+            TryBindSnapshots();
             if (hudRoot == null) return;
 
             _root = new GameObject("SkillFailurePrompt", typeof(RectTransform), typeof(CanvasGroup));
@@ -56,7 +59,7 @@ namespace AbilityKit.Game.Flow
 
         public void Tick(float deltaTime)
         {
-            ReadLatestFailure();
+            TryBindSnapshots();
 
             if (_canvasGroup == null || _remainingSeconds <= 0f) return;
             _remainingSeconds = Mathf.Max(0f, _remainingSeconds - Mathf.Max(0f, deltaTime));
@@ -69,11 +72,14 @@ namespace AbilityKit.Game.Flow
         {
             if (_root != null)
             {
-                UnityEngine.Object.Destroy(_root);
+                if (Application.isPlaying) UnityEngine.Object.Destroy(_root);
+                else UnityEngine.Object.DestroyImmediate(_root);
             }
 
             _context = null;
-            _store = null;
+            _subscription?.Dispose();
+            _subscription = null;
+            _snapshots = null;
             _feed.Reset();
             _root = null;
             _text = null;
@@ -81,30 +87,27 @@ namespace AbilityKit.Game.Flow
             _remainingSeconds = 0f;
         }
 
-        private void ReadLatestFailure()
+        private void TryBindSnapshots()
         {
-            var actorId = _context?.LocalActorId ?? 0;
-            if (actorId <= 0 || _store == null)
-            {
-                _feed.Reset();
-                return;
-            }
-
-            _feed.Bind(_store, actorId);
-            if (_feed.TryReadLatest(out var message)) Show(message);
+            var snapshots = _context != null && _context.TryGetFrameSnapshots(out var current)
+                ? current
+                : null;
+            if (ReferenceEquals(_snapshots, snapshots)) return;
+            _subscription?.Dispose();
+            _subscription = null;
+            _snapshots = snapshots;
+            _feed.Reset();
+            _remainingSeconds = 0f;
+            if (_canvasGroup != null) _canvasGroup.alpha = 0f;
+            if (snapshots != null)
+                _subscription = snapshots.Subscribe<MobaActionAckEntry[]>(
+                    MobaOpCodes.Snapshot.ActionAck, (_, entries) => ApplyAcks(entries));
         }
 
-        private static IBattleDiagnosticEventReadStore ResolveStore(BattleContext context)
+        private void ApplyAcks(MobaActionAckEntry[] entries)
         {
-            if (context == null ||
-                !context.TryGetRuntimeWorld(out var world) ||
-                world.Services == null ||
-                !world.Services.TryResolve<IBattleDiagnosticEventReadStore>(out var store))
-            {
-                return null;
-            }
-
-            return store;
+            var actorId = _context?.LocalActorId ?? 0;
+            if (_feed.TryReadLatest(entries, actorId, out var message)) Show(message);
         }
 
         private void Show(string message)

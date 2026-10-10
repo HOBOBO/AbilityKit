@@ -50,6 +50,9 @@ namespace AbilityKit.Game.Flow
                 [RoomTagKeys.ClientId] = spec.ClientId,
                 [RoomTagKeys.MinPlayers] = spec.MinPlayers.ToString(CultureInfo.InvariantCulture)
             };
+            if (string.IsNullOrWhiteSpace(spec.TagBundleVersion))
+                throw new InvalidOperationException("MOBA launch spec is missing its tag bundle version.");
+            tags[RoomTagKeys.MobaTagBundleVersion] = spec.TagBundleVersion;
             if (!string.IsNullOrWhiteSpace(spec.SyncTemplateId))
             {
                 tags[SyncTemplateIdTag] = spec.SyncTemplateId.Trim();
@@ -115,6 +118,7 @@ namespace AbilityKit.Game.Flow
                 LaunchGeneration = snapshot.LaunchGeneration,
                 LoadingDeadlineUnixMs = snapshot.LoadingDeadlineUnixMs,
                 LaunchManifestHash = snapshot.LaunchManifestHash,
+                TagBundleVersion = snapshot.TagBundleVersion,
                 LaunchManifestVersion = snapshot.LaunchManifestVersion,
                 LastStartFailureCode = snapshot.LastStartFailureCode,
                 RoomRevision = snapshot.RoomRevision,

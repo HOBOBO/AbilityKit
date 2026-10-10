@@ -18,8 +18,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         {
             var reasonId = ReadInt(namedArgs, ctx, 0, "reason_id", "reasonid", "id");
             var winTeamId = ReadInt(namedArgs, ctx, 0, "win_team_id", "team_id", "win_team");
+            var winTeamFromEvent = ReadBool(namedArgs, ctx, false, "win_team_from_event");
 
-            return new EndGameArgs(reasonId, winTeamId);
+            return new EndGameArgs(reasonId, winTeamId, winTeamFromEvent);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

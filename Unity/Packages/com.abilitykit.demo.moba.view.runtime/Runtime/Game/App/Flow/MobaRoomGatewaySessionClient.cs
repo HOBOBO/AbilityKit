@@ -297,6 +297,7 @@ namespace AbilityKit.Game.Flow
                 LaunchGeneration = snapshot.LaunchGeneration,
                 LoadingDeadlineUnixMs = snapshot.LoadingDeadlineUnixMs,
                 LaunchManifestHash = snapshot.LaunchManifestHash,
+                TagBundleVersion = snapshot.TagBundleVersion,
                 LaunchManifestVersion = snapshot.LaunchManifestVersion,
                 LastStartFailureCode = snapshot.LastStartFailureCode,
                 RoomRevision = snapshot.RoomRevision,

@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from modifier_parameters import (DOMAIN_NAMES, EMITTER_LEGACY_IDS, LEGACY_KEYS,
-                                 PARAMETER_ID_MIGRATION, PARAMETER_ID_RANGES, generate_parameter_keys,
+                                 CONSUMER_CONTRACTS, PARAMETER_ID_MIGRATION, PARAMETER_ID_RANGES, generate_parameter_keys,
                                  validate_consumer_contracts, validate_modifier_parameters,
                                  validate_modifier_template_ids)
 from business.modifiers import Rule as ModifierRule, project_modifier_bindings
@@ -28,6 +28,7 @@ class ModifierParameterCatalogTests(unittest.TestCase):
         generated = generate_parameter_keys(self.rows)
         for row in self.rows:
             self.assertIn(f"case {row['Id']}: key =", generated)
+            self.assertIn(f'case {row["Id"]}: typeName = ', generated)
 
     def test_unregistered_or_wrong_stage_consumer_is_rejected(self):
         rows = copy.deepcopy(self.rows)
@@ -38,6 +39,18 @@ class ModifierParameterCatalogTests(unittest.TestCase):
         rows[0]["ResolveAt"] = 7
         with self.assertRaisesRegex(ValueError, "no matching consumer contract"):
             validate_consumer_contracts(rows)
+
+    def test_duplicate_or_invalid_consumer_type_is_rejected(self):
+        original = CONSUMER_CONTRACTS[40002]
+        try:
+            CONSUMER_CONTRACTS[40002] = (*original[:3], "MobaProjectileService,MobaProjectileService")
+            with self.assertRaisesRegex(ValueError, "invalid consumer type names"):
+                validate_consumer_contracts(self.rows)
+            CONSUMER_CONTRACTS[40002] = (*original[:3], "MobaProjectileService,")
+            with self.assertRaisesRegex(ValueError, "invalid consumer type names"):
+                validate_consumer_contracts(self.rows)
+        finally:
+            CONSUMER_CONTRACTS[40002] = original
 
     def test_duplicate_id_and_key_are_rejected(self):
         rows = copy.deepcopy(self.rows)

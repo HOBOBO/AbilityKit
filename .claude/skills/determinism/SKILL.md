@@ -9,8 +9,8 @@ description: AbilityKit 定点数与确定性栈——com.abilitykit.determinist
 
 ## 核心包与边界
 
-- **`com.abilitykit.deterministic`**：Fixed64/FixedVec2/FixedVec3、DeterministicMath（Sqrt/Floor/Ceiling/Round/全套三角函数 CORDIC）、DeterministicRandom、DeterministicHash(FNV-1a 64)。74 测试含 golden 位锁定。块命名空间（Unity 2022.3/C# 9 兼容），公共字段/const 全部是**静态属性**（PublicApiAnalyzers 3.3.4 不吃公共字段）。
-- **`DeterministicMathBridge`**（`AbilityKit.Core.Mathematics`，公开唯一实现）：ToFixed/ToSingle（NaN/Inf→0 守卫）+ Cos/Sin/Tan/Atan2 float 边界成员。三份 internal bridge（collision/motion/demo.moba）已删除收敛到此。
+- **`com.abilitykit.deterministic`**：Fixed64/FixedVec2/FixedVec3、DeterministicMath（Sqrt/Floor/Ceiling/Round/全套三角函数 CORDIC/Exp/Ln/Pow——2026-10-08 新增，Cody-Waite+Taylor/atanh 纯整数实现）、DeterministicRandom、DeterministicHash(FNV-1a 64)。89 测试含 golden 位锁定。块命名空间（Unity 2022.3/C# 9 兼容），公共字段/const 全部是**静态属性**（PublicApiAnalyzers 3.3.4 不吃公共字段）；新增公共 API 要同步 `src/AbilityKit.<Pkg>/PublicAPI.Unshipped.txt`（文件带 BOM，编辑别重写）。
+- **`DeterministicMathBridge`**（`AbilityKit.Core.Mathematics`，公开唯一实现）：ToFixed/ToSingle（NaN/Inf→0 守卫）+ Cos/Sin/Tan/Atan2 + Exp/Ln/Pow float 边界成员。三份 internal bridge（collision/motion/demo.moba）已删除收敛到此。漂移敏感的 exp/log/pow 一律走它，禁止直接 Math/MathF（修改器路径由 `tools/check_modifier_determinism.js` 红线扫描）。
 - **`MathUtil.Sqrt` 已路由到定点内核**：Vec2/Vec3.Magnitude 与 Quat 的 MathF.Sqrt 全走它，**全仓库一切 Normalized/Magnitude/Distance 自动确定**（含未逐点改造的调用）。[0,2e9) 确定域位一致；负数→NaN、超大→回退硬件 sqrt。
 
 ## 确定性分层（铁律）
@@ -31,9 +31,10 @@ description: AbilityKit 定点数与确定性栈——com.abilitykit.determinist
 
 | 类别 | 例子 |
 |------|------|
-| System.Math 超越函数 | targeting `CommonRules.cs` SectorShapeRule 的 cos、弹丸碰撞挤出方向、连击衰减 `Math.Pow`、ability `DefaultNumericRpnFunctions`（exp/log 无确定性实现且零配置使用，已从注册表删除） |
+| System.Math 超越函数 | targeting `CommonRules.cs` SectorShapeRule 的 cos、弹丸碰撞挤出方向（均已走 bridge）；连击衰减 `Math.Pow` 与修改器衰减 exp/log 已于 2026-10-08 迁移到定点 Exp/Ln/Pow；ability `DefaultNumericRpnFunctions` 已从注册表删除 |
 | 遍历序 | `BehaviorManager.cs` foreach Dictionary、`MobaEntityManager` HashSet、快照输出序 5 处——应排序视图/List 化 |
 | float 时间累加 | 已清零的主体见下；`MobaBattleDriverHost.LogicTimeSeconds` double 是会话/表现域豁免 |
+| Fixed64 乘除双路径 | `Fixed64` 乘/除在 `NET7_0_OR_GREATER`（Int128 截断）与 Unity（decimal 就近舍入）两条编译路径在商整边界可能差 1 raw（2026-10-08 发现，既有隐患，未单独收敛）；新写的定点算法优先用自控的 64 位整数运算（参考 `DeterministicMath` 的 exp/ln/pow 辅助），别依赖运算符路径 |
 
 ## 剩余 float 计时（已清零/保留裁定）
 

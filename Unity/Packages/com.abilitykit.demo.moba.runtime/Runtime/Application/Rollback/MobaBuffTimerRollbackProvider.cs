@@ -17,11 +17,12 @@ namespace AbilityKit.Demo.Moba.Rollback
     /// shape change fails fast instead of silently producing a partial restoration.
     /// </summary>
     [MobaRollbackProvider(DefaultKey)]
-    public sealed class MobaBuffTimerRollbackProvider : IRollbackStateProvider
+    public sealed class MobaBuffTimerRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider
     {
         public const int DefaultKey = 10003;
         // v3 (2026-08-15): 剩余/间隔剩余以 Q32.32 raw long 存储（无限期时长用 long.MinValue 哨兵）。
-        private const int CurrentPayloadVersion = 3;
+        // v4: Bind the snapshot to the Continuous projection source identity.
+        private const int CurrentPayloadVersion = 4;
         private const long InfiniteRemainingRaw = long.MinValue;
 
         private static readonly ObjectPool<List<MobaBuffTimerRollbackEntry>> s_entryListPool = Pools.GetPool(
@@ -49,6 +50,11 @@ namespace AbilityKit.Demo.Moba.Rollback
         public void Import(FrameIndex frame, byte[] payload)
         {
             ImportState(frame, payload);
+        }
+
+        public void ValidateImport(FrameIndex frame, byte[] payload)
+        {
+            ReadAndValidate(payload, out _);
         }
 
         public byte[] ExportState(FrameIndex frame)
@@ -106,7 +112,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                             buff.RuntimeContextVersion,
                             continuous != null,
                             continuous != null ? (int)continuous.State : 0,
-                            maxStack));
+                            maxStack,
+                            continuous?.ModifierSourceId ?? 0));
                     }
                 }
 
@@ -125,6 +132,12 @@ namespace AbilityKit.Demo.Moba.Rollback
         }
 
         public void ImportState(FrameIndex frame, byte[] payload)
+        {
+            var entries = ReadAndValidate(payload, out var matches);
+            for (var i = 0; i < entries.Length; i++) Apply(entries[i], matches[i]);
+        }
+
+        private MobaBuffTimerRollbackEntry[] ReadAndValidate(byte[] payload, out BuffRuntime[] matches)
         {
             if (payload == null || payload.Length == 0)
             {
@@ -149,11 +162,20 @@ namespace AbilityKit.Demo.Moba.Rollback
                     "Rollback cannot rebuild lifecycle-owned Buff instances safely.");
             }
 
-            var matches = new BuffRuntime[entries.Length];
+            matches = new BuffRuntime[entries.Length];
             for (var i = 0; i < entries.Length; i++)
             {
                 var entry = entries[i];
                 var identity = BuffIdentity.FromEntry(entry);
+                if (entry.ActorId <= 0 || entry.BuffId <= 0 || entry.StackCount <= 0 ||
+                    entry.RemainingRaw < 0 && entry.RemainingRaw != InfiniteRemainingRaw ||
+                    entry.IntervalRemainingRaw < 0 || entry.ContinuousMaxStack <= 0 ||
+                    entry.HasContinuous && entry.ContinuousState != (int)ContinuousState.Active &&
+                    entry.ContinuousState != (int)ContinuousState.Paused ||
+                    !entry.HasContinuous && entry.ContinuousState != 0 ||
+                    entry.HasContinuous && entry.ModifierSourceId < 0 ||
+                    !entry.HasContinuous && entry.ModifierSourceId != 0)
+                    throw new InvalidOperationException($"Invalid Buff rollback state. {identity}.");
                 if (!current.TryGetValue(identity, out var runtime))
                 {
                     throw new InvalidOperationException(
@@ -164,12 +186,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 ValidateContinuousBinding(entry, runtime, identity);
                 matches[i] = runtime;
             }
-
-            // All shape and binding checks complete before the first mutation.
-            for (var i = 0; i < entries.Length; i++)
-            {
-                Apply(entries[i], matches[i]);
-            }
+            return entries;
         }
 
         private Dictionary<BuffIdentity, BuffRuntime> BuildCurrentIndex()
@@ -235,7 +252,8 @@ namespace AbilityKit.Demo.Moba.Rollback
 
             if (continuous.BuffId != entry.BuffId ||
                 continuous.TargetActorId != entry.ActorId ||
-                continuous.SourceContextId != entry.SourceContextId)
+                continuous.SourceContextId != entry.SourceContextId ||
+                continuous.ModifierSourceId != entry.ModifierSourceId)
             {
                 throw new InvalidOperationException($"Buff Continuous identity changed since capture. {identity}.");
             }
@@ -368,6 +386,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(9)] public readonly bool HasContinuous;
         [MemoryPackOrder(10)] public readonly int ContinuousState;
         [MemoryPackOrder(11)] public readonly int ContinuousMaxStack;
+        [MemoryPackOrder(12)] public readonly int ModifierSourceId;
 
         public MobaBuffTimerRollbackEntry(
             int actorId,
@@ -381,7 +400,8 @@ namespace AbilityKit.Demo.Moba.Rollback
             long runtimeContextVersion,
             bool hasContinuous,
             int continuousState,
-            int continuousMaxStack)
+            int continuousMaxStack,
+            int modifierSourceId)
         {
             ActorId = actorId;
             BuffId = buffId;
@@ -395,6 +415,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             HasContinuous = hasContinuous;
             ContinuousState = continuousState;
             ContinuousMaxStack = continuousMaxStack;
+            ModifierSourceId = modifierSourceId;
         }
 
         public MobaBuffTimerRollbackEntry(
@@ -403,7 +424,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             long remainingRaw,
             long intervalRemainingRaw,
             int stackCount)
-            : this(actorId, buffId, remainingRaw, intervalRemainingRaw, stackCount, 0, 0L, 0L, 0L, false, 0, 1)
+            : this(actorId, buffId, remainingRaw, intervalRemainingRaw, stackCount, 0, 0L, 0L, 0L, false, 0, 1, 0)
         {
         }
     }

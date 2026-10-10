@@ -4,6 +4,11 @@ namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleContext
     {
+        internal event System.Action<int, uint> StateHashSnapshotReceived;
+
+        internal void NotifyStateHashSnapshot(int frame, uint hash) =>
+            StateHashSnapshotReceived?.Invoke(frame, hash);
+
         private readonly ReferenceBindingOwner<BattlePredictionRuntime>
             _predictionRuntimeBinding =
                 new ReferenceBindingOwner<BattlePredictionRuntime>();

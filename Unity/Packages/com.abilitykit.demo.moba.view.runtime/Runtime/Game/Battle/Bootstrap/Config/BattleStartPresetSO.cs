@@ -63,6 +63,9 @@ namespace AbilityKit.Game.Flow
         public BattleGatewayConfigSO GatewaySO;
 
         [Header("Composition")]
+        [LabelText("Flow Profile ID")]
+        public string FlowProfileId = "moba.standard";
+
         [LabelText("FeatureSet(战斗阶段Feature组合)")]
         public BattleFeatureSetConfig FeatureSet;
     }

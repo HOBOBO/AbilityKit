@@ -7,6 +7,7 @@ using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
 using AbilityKit.Demo.Moba.Services.EntityManager;
@@ -216,6 +217,35 @@ public sealed class MobaModifierAttributeSourceTests
             baseSkillId: 1001, projectileTemplateId: 3002);
         Assert.Equal(10f, modifiers.ResolveFloat(MobaModifierOwnerRef.Actor(10), key, 10f,
             in otherProjectile));
+    }
+
+    [Fact]
+    public void Parameter_resolution_rejects_non_finite_values_before_recording_them()
+    {
+        using var modifiers = new MobaSkillParamModifierService();
+        var owner = MobaModifierOwnerRef.Actor(10);
+        var key = MobaSkillParamModifierKeys.Projectile.Speed;
+        var record = new MobaParameterRecord(MobaParameterStage.ProjectileSpawn);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            modifiers.ResolveFloat(owner, key, float.NaN, in record));
+        Assert.Throws<InvalidOperationException>(() =>
+            modifiers.ResolveFloat(owner, key, float.PositiveInfinity, in record));
+        var overflow = new ModifierData
+        {
+            Key = key,
+            Op = ModifierOp.Mul,
+            Magnitude = MagnitudeSource.Fixed(float.MaxValue),
+            SourceId = 17,
+        };
+        modifiers.AddModifier(owner, in overflow);
+        Assert.Throws<InvalidOperationException>(() =>
+            modifiers.ResolveFloat(owner, key, float.MaxValue, in record));
+        Assert.Throws<InvalidOperationException>(() =>
+            modifiers.ExplainRecorded(owner, key, float.MaxValue, in record));
+        var recent = new List<MobaParameterResolutionTrace>();
+        modifiers.CopyRecentResolutionsTo(recent);
+        Assert.Empty(recent);
     }
 
     [Fact]
@@ -560,6 +590,23 @@ public sealed class MobaModifierAttributeSourceTests
     }
 
     [Fact]
+    public void Empty_continuous_modifier_snapshot_has_stable_named_sections()
+    {
+        using var manager = new MobaContinuousManager();
+        var rollback = new MobaContinuousModifierCaptureRollbackProvider(manager);
+        var payload = rollback.ExportState(new FrameIndex(0));
+
+        Assert.Equal(
+            "060000000300000009616C6C6F6361746F720400000001000000" +
+            "09696E74657276616C730400000000000000" +
+            "0863617074757265730400000000000000",
+            Convert.ToHexString(payload));
+        rollback.ImportState(new FrameIndex(0), payload);
+        rollback.ImportState(new FrameIndex(0),
+            Convert.FromHexString("05000000010000000000000000000000"));
+    }
+
+    [Fact]
     public void Runtime_source_ids_distinguish_identical_contexts_and_replay_after_rollback()
     {
         var process = new ContinuousProcessMO(new ContinuousProcessDTO
@@ -593,13 +640,33 @@ public sealed class MobaModifierAttributeSourceTests
         var snapshot = rollback.ExportState(new FrameIndex(1));
         var invalidSnapshot = (byte[])snapshot.Clone();
         BitConverter.GetBytes(1).CopyTo(invalidSnapshot, 4);
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.Throws<InvalidDataException>(() =>
             rollback.ImportState(new FrameIndex(1), invalidSnapshot));
+        using var encoded = new MemoryStream(snapshot);
+        using var reader = new BinaryReader(encoded);
+        Assert.Equal(6, reader.ReadInt32());
+        Assert.Equal(3, reader.ReadInt32());
+        var sections = new Dictionary<string, byte[]>();
+        for (var i = 0; i < 3; i++)
+        {
+            var name = reader.ReadString();
+            sections.Add(name, reader.ReadBytes(reader.ReadInt32()));
+        }
+        Assert.Equal(new[] { "allocator", "intervals", "captures" }, sections.Keys);
+        using var legacyStream = new MemoryStream();
+        using (var writer = new BinaryWriter(legacyStream, System.Text.Encoding.UTF8, leaveOpen: true))
+        {
+            writer.Write(5);
+            writer.Write(sections["allocator"]);
+            writer.Write(sections["intervals"]);
+            writer.Write(sections["captures"]);
+        }
         var third = new MobaTriggerIntervalContinuousRuntime(process, 10, 10, 701L, null);
         Assert.True(manager.TryActivate(third));
         var thirdId = third.ModifierSourceId;
         Assert.True(manager.TryEnd(third));
         rollback.ImportState(new FrameIndex(1), snapshot);
+        rollback.ImportState(new FrameIndex(1), legacyStream.ToArray());
         var replayed = new MobaTriggerIntervalContinuousRuntime(process, 10, 10, 701L, null);
         Assert.True(manager.TryActivate(replayed));
         Assert.Equal(thirdId, replayed.ModifierSourceId);
@@ -1275,6 +1342,122 @@ public sealed class MobaModifierAttributeSourceTests
         var snapshot = rollback.ExportState(new FrameIndex(1));
         Assert.True(manager.TryActivate(new SnapshotContinuous(new SnapshotConfig(Array.Empty<IMobaContinuousModifierSpec>()))));
         rollback.ImportState(new FrameIndex(1), snapshot);
+    }
+
+    [Fact]
+    public void Trigger_interval_rollback_restores_service_membership_and_modifier_projection()
+    {
+        var configs = new MobaConfigDatabase();
+        var loaded = configs.ReloadFromDtoArrays(new Dictionary<Type, Array>
+        {
+            [typeof(ContinuousProcessDTO)] = new[]
+            {
+                new ContinuousProcessDTO
+                {
+                    Id = 701,
+                    DurationMs = 5000,
+                    Modifiers = new[]
+                    {
+                        new ContinuousModifierDTO
+                        {
+                            TargetKind = MobaContinuousModifierTargetKind.SkillParameter,
+                            TargetId = MobaSkillParamModifierKeys.Projectile.Ids.Speed,
+                            Op = (int)ModifierOp.Add,
+                            Value = 2f,
+                        }
+                    }
+                }
+            }
+        }, strict: false);
+        Assert.True(loaded.Succeeded, loaded.Error);
+        using var parameters = new MobaSkillParamModifierService();
+        using var manager = new MobaContinuousManager();
+        var resolver = new Resolver(null, parameters, manager, configs: configs);
+        manager.OnInit(resolver);
+        var processes = new MobaTriggerIntervalContinuousService();
+        processes.OnInit(resolver);
+        var frame = new FrameIndex(1);
+        var provider = new MobaContinuousModifierCaptureRollbackProvider(manager, processes);
+        var probe = new RollbackImportProbe { Value = 1 };
+        var registry = new RollbackRegistry();
+        registry.Register(probe);
+        registry.Register(new MobaSkillParamModifierRollbackProvider(parameters));
+        registry.Register(provider);
+        var coordinator = new RollbackCoordinator(registry, new RollbackSnapshotRingBuffer(2));
+        var record = new MobaParameterRecord(MobaParameterStage.ProjectileSpawn);
+        var source = new MobaContextSourceView(MobaContextSourceResolveKind.DirectProvider,
+            MobaContextSourceBoundary.Execution, EffectContextKind.ContinuousPeriodic,
+            MobaExecutionKind.EffectExecution, 10, 10, 111L, 101L, 100L, 111L,
+            701, 77, 3, "RollbackTest", 701, false, default);
+        var unrelated = new SnapshotContinuous(new SnapshotConfig(
+            new IMobaContinuousModifierSpec[] { SpeedModifier(5f) }, 40, 20));
+        Assert.True(manager.TryActivate(unrelated));
+
+        Assert.True(processes.UpsertProcess(701, 10, 10, 111L, source));
+        var original = Assert.IsType<MobaTriggerIntervalContinuousRuntime>(
+            Assert.Single(manager.GetOwnerActiveContinuous(10)));
+        original.TickManaged(0.5f);
+        original.IntervalRemainingSeconds = 0.75f;
+        Assert.True(manager.TryPause(original));
+        var elapsed = original.ElapsedSeconds;
+        var snapshot = provider.ExportState(frame);
+        var worldSnapshot = coordinator.Capture(frame);
+        var hash = new MobaStateHashBuilder(2166136261u);
+        provider.AddStateHash(frame, ref hash);
+        var expectedHash = hash.Value;
+
+        processes.EndOwnerProcesses(111L);
+        Assert.True(processes.UpsertProcess(701, 10, 10, 222L, default));
+        Assert.Equal(12f, parameters.Projectile.ResolveSpeed(10, 10f, in record));
+        var invalidEntries = (WorldRollbackSnapshotEntry[])worldSnapshot.Entries.Clone();
+        var captureIndex = Array.FindIndex(invalidEntries,
+            entry => entry.Key == MobaContinuousModifierCaptureRollbackProvider.DefaultKey);
+        var invalidPayload = (byte[])invalidEntries[captureIndex].Payload.Clone();
+        BitConverter.GetBytes(999999).CopyTo(invalidPayload, 12);
+        invalidEntries[captureIndex] = new WorldRollbackSnapshotEntry(
+            invalidEntries[captureIndex].Key, invalidPayload);
+        probe.Value = 2;
+        Assert.False(coordinator.TryRestore(new WorldRollbackSnapshot(worldSnapshot.Version,
+            worldSnapshot.Frame, invalidEntries), out var invalidResult));
+        Assert.Equal(RollbackOperationStatus.ProviderFailed, invalidResult.Status);
+        Assert.Equal(2, probe.Value);
+        Assert.Equal(222L, Assert.IsType<MobaTriggerIntervalContinuousRuntime>(
+            Assert.Single(manager.GetOwnerActiveContinuous(10))).SourceContextId);
+        Assert.Equal(12f, parameters.Projectile.ResolveSpeed(10, 10f, in record));
+        provider.ValidateImport(frame, snapshot);
+        Assert.True(coordinator.TryRestore(worldSnapshot, out var result), result.Message);
+
+        var restored = Assert.IsType<MobaTriggerIntervalContinuousRuntime>(
+            Assert.Single(manager.GetOwnerContinuous(10)));
+        Assert.Equal(111L, restored.SourceContextId);
+        Assert.Equal(elapsed, restored.ElapsedSeconds);
+        Assert.Equal(0.75f, restored.IntervalRemainingSeconds);
+        Assert.True(restored.IsPaused);
+        Assert.True(restored.TryGetContextSource(out var restoredSource));
+        Assert.Equal(101L, restoredSource.ParentContextId);
+        Assert.Equal(100L, restoredSource.RootContextId);
+        Assert.Equal(77, restoredSource.TriggerId);
+        Assert.Equal(3, restoredSource.Frame);
+        Assert.Equal(original.ModifierSourceId, restored.ModifierSourceId);
+        Assert.Equal(10f, parameters.Projectile.ResolveSpeed(10, 10f, in record));
+        Assert.Equal(15f, parameters.Projectile.ResolveSpeed(20, 10f, in record));
+        Assert.Same(unrelated, Assert.Single(manager.GetOwnerActiveContinuous(20)));
+        hash = new MobaStateHashBuilder(2166136261u);
+        provider.AddStateHash(frame, ref hash);
+        Assert.Equal(expectedHash, hash.Value);
+        restored.IntervalRemainingSeconds = 0.25f;
+        provider.ImportState(frame, snapshot);
+        Assert.Same(restored, Assert.Single(manager.GetOwnerContinuous(10)));
+        Assert.Equal(0.75f, restored.IntervalRemainingSeconds);
+        Assert.True(manager.TryResume(restored));
+        Assert.Equal(12f, parameters.Projectile.ResolveSpeed(10, 10f, in record));
+        Assert.True(processes.UpsertProcess(701, 10, 10, 111L, default));
+        Assert.Single(manager.GetOwnerActiveContinuous(10));
+        processes.EndOwnerProcesses(111L);
+        Assert.Empty(manager.GetOwnerActiveContinuous(10));
+        Assert.Equal(10f, parameters.Projectile.ResolveSpeed(10, 10f, in record));
+        Assert.Equal(15f, parameters.Projectile.ResolveSpeed(20, 10f, in record));
+        processes.Dispose();
     }
 
     [Fact]
@@ -2218,12 +2401,13 @@ public sealed class MobaModifierAttributeSourceTests
         private readonly MobaReferenceCandidateService _references;
         private readonly IMobaEffectiveTagQueryService _tags;
         private readonly IFrameTime _frameTime;
+        private readonly MobaConfigDatabase _configs;
         private readonly MobaContinuousModifierCaptureStore _captureStore = new MobaContinuousModifierCaptureStore();
         public MobaContinuousModifierCaptureStore CaptureStore => _captureStore;
         public Resolver(MobaActorLookupService lookup, MobaSkillParamModifierService skillParams = null,
             MobaContinuousManager manager = null, MobaSkillSlotCandidateService candidates = null,
             MobaReferenceCandidateService references = null, IMobaEffectiveTagQueryService tags = null,
-            IFrameTime frameTime = null)
+            IFrameTime frameTime = null, MobaConfigDatabase configs = null)
         {
             _lookup = lookup;
             _skillParams = skillParams;
@@ -2232,6 +2416,7 @@ public sealed class MobaModifierAttributeSourceTests
             _references = references;
             _tags = tags;
             _frameTime = frameTime;
+            _configs = configs;
         }
         public object Resolve(Type type) => TryResolve(type, out var value) ? value : throw new InvalidOperationException();
         public T Resolve<T>() => (T)Resolve(typeof(T));
@@ -2244,6 +2429,7 @@ public sealed class MobaModifierAttributeSourceTests
             if (type == typeof(MobaReferenceCandidateService)) instance = _references;
             if (type == typeof(IMobaEffectiveTagQueryService)) instance = _tags;
             if (type == typeof(IFrameTime)) instance = _frameTime;
+            if (type == typeof(MobaConfigDatabase)) instance = _configs;
             if (type == typeof(MobaContinuousModifierCaptureStore)) instance = _captureStore;
             return instance != null;
         }

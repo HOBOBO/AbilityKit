@@ -5,7 +5,8 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
-    public sealed class ConfiguredBattleBootstrapper : IBattleBootstrapper, IBattleStartConfigProvider
+    public sealed class ConfiguredBattleBootstrapper : IBattleBootstrapper, IBattleStartConfigProvider,
+        IBattleFlowProfileProvider, IBattleFlowModeProvider
     {
         private readonly BattleStartConfig _sourceConfig;
         private readonly BattleStartPresetSO _preset;
@@ -18,6 +19,11 @@ namespace AbilityKit.Game.Flow
         }
 
         public BattleStartConfig Config => _config;
+        public string FlowProfileId => _preset != null ? _preset.FlowProfileId :
+            _sourceConfig?.Preset != null ? _sourceConfig.Preset.FlowProfileId : _sourceConfig?.FlowProfileId;
+        public string FlowHostMode => (_preset != null ? _preset.HostMode :
+            _sourceConfig?.Preset != null ? _sourceConfig.Preset.HostMode :
+            _sourceConfig != null ? _sourceConfig.HostMode : BattleHostMode.Local).ToString();
 
         public BattleStartPlan Build()
         {

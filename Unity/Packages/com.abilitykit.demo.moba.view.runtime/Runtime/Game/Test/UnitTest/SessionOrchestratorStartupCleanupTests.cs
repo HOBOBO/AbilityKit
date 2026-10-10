@@ -503,6 +503,43 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(thrown.InnerExceptions[1].InnerException.Message, Is.EqualTo("second failed"));
         }
 
+        [UnityTest]
+        public IEnumerator SessionLifecycle_RetriesFailedStepBeforeReleasingLaterResources()
+        {
+            yield return AwaitTask(SessionLifecycle_RetriesFailedStepBeforeReleasingLaterResourcesCore());
+        }
+
+        private static async Task SessionLifecycle_RetriesFailedStepBeforeReleasingLaterResourcesCore()
+        {
+            var calls = new List<string>();
+            var attempts = 0;
+            var lifecycle = new BattleSessionLifecycleController<int>(_ => new[]
+            {
+                new AsyncSessionTeardownStep("module", (Action)(() =>
+                {
+                    calls.Add("module");
+                    if (++attempts == 1) throw new InvalidOperationException("transient");
+                })),
+                new AsyncSessionTeardownStep("context", () => calls.Add("context"))
+            });
+            lifecycle.Attach();
+
+            try
+            {
+                await lifecycle.DetachAsync(0);
+                Assert.Fail("Expected the first teardown attempt to fail.");
+            }
+            catch (SessionTeardownException)
+            {
+            }
+            Assert.That(lifecycle.State, Is.EqualTo(BattleSessionFeatureLifecycleState.DetachFailed));
+            Assert.That(calls, Is.EqualTo(new[] { "module" }));
+
+            await lifecycle.DetachAsync(0);
+            Assert.That(lifecycle.State, Is.EqualTo(BattleSessionFeatureLifecycleState.Detached));
+            Assert.That(calls, Is.EqualTo(new[] { "module", "module", "context" }));
+        }
+
         [Test]
         public void ResetSessionResources_PreservesAttachmentOwnedPhaseAndGatewayBindings()
         {

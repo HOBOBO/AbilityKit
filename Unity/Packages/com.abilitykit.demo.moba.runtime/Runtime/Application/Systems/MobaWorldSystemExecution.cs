@@ -71,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Systems
             Exception exception,
             string owner,
             string operation,
-            MobaBattleExceptionSeverity severity = MobaBattleExceptionSeverity.Recoverable,
+            MobaBattleExceptionSeverity severity = MobaBattleExceptionSeverity.Fatal,
             int actorId = 0,
             int skillId = 0,
             long runtimeId = 0L,
@@ -91,6 +91,8 @@ namespace AbilityKit.Demo.Moba.Systems
                         runtimeId: runtimeId,
                         detail: detail),
                     severity);
+                if (severity >= MobaBattleExceptionSeverity.Critical)
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception).Throw();
                 return;
             }
 
@@ -103,10 +105,11 @@ namespace AbilityKit.Demo.Moba.Systems
             if (services.Diagnostics != null)
             {
                 services.Diagnostics.Exception(operation, exception, message);
-                return;
             }
-
-            AbilityKit.Core.Logging.Log.Exception(exception, message);
+            else
+                AbilityKit.Core.Logging.Log.Exception(exception, message);
+            if (severity >= MobaBattleExceptionSeverity.Critical)
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception).Throw();
         }
 
         public static void Sample(in MobaWorldSystemServices services, string metricName, double value)

@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;
@@ -5,6 +6,7 @@ using AbilityKit.Network.Battle;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Client;
 using AbilityKit.Network.Sdk.Observability;
 using AbilityKit.Protocol.Moba;
 
@@ -34,9 +36,9 @@ namespace AbilityKit.Game.Flow
                 host: gateway.Host,
                 port: gateway.Port,
                 transportFactory: () => new TcpTransport(),
-                playerIdToUInt: pid => uint.TryParse(pid.Value, out var n) ? n : localPlayerId,
+                playerIdToUInt: ParsePlayerId,
                 playerIdFromUInt: n => new PlayerId(n.ToString()),
-                worldIdToUlong: wid => ulong.TryParse(wid.Value, out var n) ? n : roomId,
+                worldIdToUlong: ParseWorldId,
                 worldIdFromUlong: n => new WorldId(n.ToString()),
                 roomId: roomId,
                 sessionToken: gateway.SessionToken,
@@ -58,7 +60,22 @@ namespace AbilityKit.Game.Flow
             };
 #endif
 
-            return new NetworkTransport(gatewayOptions, callbackDispatcher, ioDispatcher);
+            return GatewayBattleClientHost.CreateBattleTransport(
+                gatewayOptions, callbackDispatcher, ioDispatcher, connect: false);
+        }
+
+        internal static uint ParsePlayerId(PlayerId playerId)
+        {
+            return uint.TryParse(playerId.Value, out var value)
+                ? value
+                : throw new FormatException($"PlayerId '{playerId.Value}' is not a valid unsigned integer.");
+        }
+
+        internal static ulong ParseWorldId(WorldId worldId)
+        {
+            return ulong.TryParse(worldId.Value, out var value)
+                ? value
+                : throw new FormatException($"WorldId '{worldId.Value}' is not a valid unsigned integer.");
         }
     }
 }

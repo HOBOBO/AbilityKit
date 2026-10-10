@@ -7,7 +7,7 @@ using AbilityKit.Game.Flow.Modules;
 namespace AbilityKit.Game.Flow
 {
     internal sealed class SessionPlanSubFeature :
-        ISessionSubFeature<BattleSessionFeature>,
+        ISessionSubFeature<ISessionRuntimeFeature>,
         IGameModuleId,
         IGameModuleDependencies
     {
@@ -17,17 +17,24 @@ namespace AbilityKit.Game.Flow
 
         public System.Collections.Generic.IEnumerable<string> Dependencies => new[] { "session_events" };
 
-        public void OnAttach(in FeatureModuleContext<BattleSessionFeature> ctx)
+        public void OnAttach(in FeatureModuleContext<ISessionRuntimeFeature> ctx)
         {
-            if (!BattleSessionFeatureRuntimeAccess.TryGet<ISessionPlanRuntime>(ctx, out var runtime)) return;
+            var runtime = BattleSessionFeatureRuntimeAccess.Require<ISessionPlanRuntime>(ctx, Id);
+            var host = ctx.Feature.PlanHost;
 
-            _attachTask = runtime.PlanController.OnAttachAsync(
-                host: (ISessionPlanHost)ctx.Feature,
-                bootstrapper: runtime.Bootstrapper,
-                state: runtime.State,
-                handles: runtime.Handles,
-                hooks: runtime.Hooks,
-                ctx: runtime.Context);
+            _attachTask = runtime.StartupTasks.TrackPlanAttach(async generation =>
+            {
+                try
+                {
+                    await runtime.AttachPlanAsync(
+                        () => runtime.StartupTasks.IsCurrent(generation));
+                }
+                catch (Exception exception)
+                {
+                    if (runtime.StartupTasks.IsCurrent(generation)) host.NotifySessionFailed(exception);
+                    throw;
+                }
+            });
             if (_attachTask.IsCompleted)
             {
                 SessionAsyncOperation.RequireCompleted(
@@ -40,13 +47,13 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        public void OnDetach(in FeatureModuleContext<BattleSessionFeature> ctx)
+        public void OnDetach(in FeatureModuleContext<ISessionRuntimeFeature> ctx)
         {
         }
 
-        public void Tick(in FeatureModuleContext<BattleSessionFeature> ctx, float deltaTime) { }
+        public void Tick(in FeatureModuleContext<ISessionRuntimeFeature> ctx, float deltaTime) { }
 
-        public void RebindAll(in FeatureModuleContext<BattleSessionFeature> ctx) { }
+        public void RebindAll(in FeatureModuleContext<ISessionRuntimeFeature> ctx) { }
 
         private static async Task ObserveAttachFailureAsync(Task attachTask)
         {

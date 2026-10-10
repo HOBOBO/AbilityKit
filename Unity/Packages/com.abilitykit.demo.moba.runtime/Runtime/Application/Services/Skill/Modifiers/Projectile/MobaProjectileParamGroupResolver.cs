@@ -60,6 +60,16 @@ namespace AbilityKit.Demo.Moba.Services
                 MobaSkillParamModifierKeys.Projectile.Speed, speed, in record, context);
         }
 
+        /// <summary>速度进入确定性模拟域的 Sim 出口：应用世界精度策略（直通位等价 / 帧同步对齐 Q32.32）。</summary>
+        public float ResolveSpeedSim(int ownerActorId, float speed, in MobaParameterRecord record,
+            IModifierContext context = null)
+        {
+            if (record.Stage != MobaParameterStage.ProjectileSpawn)
+                throw new ArgumentException("Projectile speed requires ProjectileSpawn stage.", nameof(record));
+            return _service.ResolveSimFloat(MobaModifierOwnerRef.Actor(ownerActorId),
+                MobaSkillParamModifierKeys.Projectile.Speed, speed, in record, context);
+        }
+
         public int ResolveCountPerShot(int ownerActorId, int countPerShot,
             in MobaParameterRecord record, IModifierContext context = null)
         {

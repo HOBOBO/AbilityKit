@@ -506,6 +506,7 @@ using MotionGroupMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.MotionGroupMO;
         public bool TryGetEmitter(int id, out EmitterMO mo) => GetTable<EmitterMO>().TryGet(id, out mo);
         public bool TryGetSearchQueryTemplate(int id, out SearchQueryTemplateMO mo) => GetTable<SearchQueryTemplateMO>().TryGet(id, out mo);
         public bool TryGetGameplay(int id, out GameplayMO mo) => GetTable<GameplayMO>().TryGet(id, out mo);
+        public IEnumerable<GameplayMO> GetAllGameplays() => GetTable<GameplayMO>().All();
         public MotionGroupMO GetMotionGroup(int id) => GetTable<MotionGroupMO>().Get(id);
         public bool TryGetMotionGroup(int id, out MotionGroupMO mo) => GetTable<MotionGroupMO>().TryGet(id, out mo);
         public IEnumerable<MotionGroupMO> GetAllMotionGroups() => GetTable<MotionGroupMO>().All();

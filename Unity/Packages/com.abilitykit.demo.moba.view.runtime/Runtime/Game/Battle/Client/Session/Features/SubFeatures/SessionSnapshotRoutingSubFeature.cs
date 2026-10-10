@@ -5,7 +5,7 @@ using AbilityKit.Game.Flow.Modules;
 namespace AbilityKit.Game.Flow
 {
     internal sealed class SessionSnapshotRoutingSubFeature :
-        ISessionSubFeature<BattleSessionFeature>,
+        ISessionSubFeature<ISessionRuntimeFeature>,
         IGameModuleId,
         IGameModuleDependencies
     {
@@ -16,9 +16,9 @@ namespace AbilityKit.Game.Flow
 
         public System.Collections.Generic.IEnumerable<string> Dependencies => new[] { "session_events" };
 
-        public void OnAttach(in FeatureModuleContext<BattleSessionFeature> ctx)
+        public void OnAttach(in FeatureModuleContext<ISessionRuntimeFeature> ctx)
         {
-            if (!BattleSessionFeatureRuntimeAccess.TryGet<ISessionSnapshotRoutingRuntime>(ctx, out var runtime)) return;
+            var runtime = BattleSessionFeatureRuntimeAccess.Require<ISessionSnapshotRoutingRuntime>(ctx, Id);
 
             _onSessionStarting = () => runtime.EnsureSnapshotRoutingBuilt();
             _onSessionStopping = () => runtime.DisposeSnapshotRoutingIfAny();
@@ -27,7 +27,7 @@ namespace AbilityKit.Game.Flow
             runtime.Hooks?.SessionStopping.Add(_onSessionStopping);
         }
 
-        public void OnDetach(in FeatureModuleContext<BattleSessionFeature> ctx)
+        public void OnDetach(in FeatureModuleContext<ISessionRuntimeFeature> ctx)
         {
             BattleSessionFeatureRuntimeAccess.TryGet<ISessionSnapshotRoutingRuntime>(ctx, out var runtime);
             if (_onSessionStarting != null && runtime != null)
@@ -43,8 +43,8 @@ namespace AbilityKit.Game.Flow
             _onSessionStopping = null;
         }
 
-        public void Tick(in FeatureModuleContext<BattleSessionFeature> ctx, float deltaTime) { }
+        public void Tick(in FeatureModuleContext<ISessionRuntimeFeature> ctx, float deltaTime) { }
 
-        public void RebindAll(in FeatureModuleContext<BattleSessionFeature> ctx) { }
+        public void RebindAll(in FeatureModuleContext<ISessionRuntimeFeature> ctx) { }
     }
 }

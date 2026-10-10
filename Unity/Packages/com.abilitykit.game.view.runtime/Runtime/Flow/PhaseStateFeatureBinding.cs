@@ -17,6 +17,7 @@ namespace AbilityKit.Game.View.Flow
         private readonly PhaseEnterCompleteAction? _afterEnter;
         private readonly PhaseEnterCompleteAction? _switchFlow;
         private readonly PhaseContextAction? _onExit;
+        private readonly PhaseContextAction? _onEnterFailure;
         private readonly Action<string>? _fail;
 
         public PhaseStateFeatureBinding(
@@ -30,7 +31,8 @@ namespace AbilityKit.Game.View.Flow
             PhaseEnterCompleteAction? afterEnter = null,
             PhaseContextAction? onExit = null,
             Action<string>? fail = null,
-            PhaseEnterCompleteAction? switchFlow = null)
+            PhaseEnterCompleteAction? switchFlow = null,
+            PhaseContextAction? onEnterFailure = null)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentException("State binding name is required.", nameof(name));
             Name = name;
@@ -43,6 +45,7 @@ namespace AbilityKit.Game.View.Flow
             _afterEnter = afterEnter;
             _switchFlow = switchFlow;
             _onExit = onExit;
+            _onEnterFailure = onEnterFailure;
             _fail = fail;
         }
 
@@ -52,27 +55,43 @@ namespace AbilityKit.Game.View.Flow
 
         public int Enter(in TContext ctx)
         {
-            _beforeEnter?.Invoke(in ctx);
-
-            if (ClearBeforeEnter)
+            try
             {
-                if (_clear == null)
+                _beforeEnter?.Invoke(in ctx);
+
+                if (ClearBeforeEnter)
                 {
-                    throw new InvalidOperationException($"State binding '{Name}' requires a clear callback.");
+                    if (_clear == null)
+                    {
+                        throw new InvalidOperationException($"State binding '{Name}' requires a clear callback.");
+                    }
+
+                    _clear(in ctx);
                 }
 
-                _clear(in ctx);
-            }
+                var installed = 0;
+                if (_plan != null)
+                {
+                    installed = _plan.InstallByIdsOrAll(_featureIds, in ctx, _install, _fail);
+                }
 
-            var installed = 0;
-            if (_plan != null)
+                _afterEnter?.Invoke(in ctx, installed);
+                _switchFlow?.Invoke(in ctx, installed);
+                return installed;
+            }
+            catch (Exception enterException)
             {
-                installed = _plan.InstallByIdsOrAll(_featureIds, in ctx, _install, _fail);
+                if (_onEnterFailure != null)
+                {
+                    try { _onEnterFailure(in ctx); }
+                    catch (Exception rollbackException)
+                    {
+                        throw new AggregateException("State entry failed and feature rollback failed.",
+                            enterException, rollbackException);
+                    }
+                }
+                throw;
             }
-
-            _afterEnter?.Invoke(in ctx, installed);
-            _switchFlow?.Invoke(in ctx, installed);
-            return installed;
         }
  
         public void Exit(in TContext ctx)

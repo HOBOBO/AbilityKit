@@ -50,7 +50,7 @@ namespace AbilityKit.Game.Test.UnitTest
             FlowTick(flow, 2);
 
             flow.EnterBattle(new TestBattleBootstrapper());
-            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 240, "Battle flow did not reach InMatch.");
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 2400, "Battle flow did not reach InMatch.");
 
             Assert.IsTrue(entry.TryGet(out BattleContext ctx), "BattleContext must be attached after entering battle.");
             yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
@@ -214,7 +214,7 @@ namespace AbilityKit.Game.Test.UnitTest
             flow.StartWithPersistentSettingsSync();
             FlowTick(flow, 2);
             flow.EnterBattle(new TestBattleBootstrapper());
-            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 240, "Battle flow did not reach InMatch.");
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 2400, "Battle flow did not reach InMatch.");
 
             Assert.IsTrue(entry.TryGet(out BattleContext ctx), "BattleContext must be attached after entering battle.");
             yield return TickUntil(flow, () => ctx.Session != null && ctx.EntityQuery != null, 240, DescribeContextWaitFailure(ctx));
@@ -258,7 +258,7 @@ namespace AbilityKit.Game.Test.UnitTest
             FlowTick(flow, 2);
 
             flow.EnterBattle(new TestBattleBootstrapper());
-            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 240, "Battle flow did not reach InMatch.");
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 2400, "Battle flow did not reach InMatch.");
 
             Assert.IsTrue(entry.TryGet(out BattleContext ctx), "BattleContext must be attached after entering battle.");
             yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));

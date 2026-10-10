@@ -27,7 +27,7 @@ namespace AbilityKit.Game.Battle.Agent
                     commandId),
                 timeout,
                 cancellationToken).ConfigureAwait(false);
-            return ToOperationResult(
+            return GatewayRoomResponseMapper.ToOperationResult(
                 result.Success,
                 result.Applied,
                 result.ErrorCode,
@@ -59,7 +59,7 @@ namespace AbilityKit.Game.Battle.Agent
                     commandId),
                 timeout,
                 cancellationToken).ConfigureAwait(false);
-            return ToOperationResult(
+            return GatewayRoomResponseMapper.ToOperationResult(
                 result.Success,
                 result.Applied,
                 result.ErrorCode,
@@ -92,7 +92,7 @@ namespace AbilityKit.Game.Battle.Agent
                     progress),
                 timeout,
                 cancellationToken).ConfigureAwait(false);
-            return ToOperationResult(
+            return GatewayRoomResponseMapper.ToOperationResult(
                 result.Success,
                 result.Applied,
                 result.ErrorCode,
@@ -120,7 +120,7 @@ namespace AbilityKit.Game.Battle.Agent
                     commandId),
                 timeout,
                 cancellationToken).ConfigureAwait(false);
-            return ToOperationResult(
+            return GatewayRoomResponseMapper.ToOperationResult(
                 result.Success,
                 result.Applied,
                 result.ErrorCode,
@@ -148,7 +148,7 @@ namespace AbilityKit.Game.Battle.Agent
                     commandId),
                 timeout,
                 cancellationToken).ConfigureAwait(false);
-            return ToOperationResult(
+            return GatewayRoomResponseMapper.ToOperationResult(
                 result.Success,
                 result.Applied,
                 result.ErrorCode,
@@ -170,7 +170,7 @@ namespace AbilityKit.Game.Battle.Agent
                 new RoomGatewayGetSnapshotRequest(sessionToken, roomId),
                 timeout,
                 cancellationToken).ConfigureAwait(false);
-            var snapshot = ToClientSnapshot(result.Snapshot);
+            var snapshot = GatewayRoomResponseMapper.ToClientSnapshot(result.Snapshot);
             return new GatewayGetSnapshotResult(
                 result.Success,
                 result.RoomId,
@@ -194,8 +194,8 @@ namespace AbilityKit.Game.Battle.Agent
                 new RoomGatewayRestoreRoomRequest(sessionToken, region, serverId),
                 timeout,
                 cancellationToken).ConfigureAwait(false);
-            var snapshot = ToClientSnapshot(result.Snapshot);
-            var anchor = ToGatewayAnchor(in result.WorldStartAnchor);
+            var snapshot = GatewayRoomResponseMapper.ToClientSnapshot(result.Snapshot);
+            var anchor = GatewayRoomResponseMapper.ToGatewayAnchor(in result.WorldStartAnchor);
             return new GatewayRestoreRoomResult(
                 result.Success,
                 result.HasActiveRoom,
@@ -205,7 +205,7 @@ namespace AbilityKit.Game.Battle.Agent
                 snapshot,
                 in anchor,
                 result.Message,
-                ToJoinKind(result.JoinKind),
+                GatewayRoomResponseMapper.ToJoinKind(result.JoinKind),
                 result.ServerNowTicks,
                 result.CurrentPlayerId);
         }

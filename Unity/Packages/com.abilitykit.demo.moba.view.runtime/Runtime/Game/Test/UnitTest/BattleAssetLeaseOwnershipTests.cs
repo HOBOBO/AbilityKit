@@ -308,6 +308,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
     internal sealed class TestFlowCommandSink : IFlowCommandSink
     {
+        public MobaFlowStateSnapshot CurrentState => default;
         public MobaRootState CurrentRootPhase => default;
         public MobaBattleState CurrentBattlePhase => default;
         public void RequestEnterBattle() { }

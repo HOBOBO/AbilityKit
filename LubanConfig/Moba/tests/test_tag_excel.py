@@ -1,9 +1,34 @@
 import unittest
+from pathlib import Path
 
-from tag_excel import TAG_TABLES, build_tag_usage_report, compile_tag_tables, gate_enum_members, generate_flags_code, preview_tag_rule, validate_flag_abi, validate_gate_abi, validate_tag_definitions, validate_tag_abi
+from openpyxl import load_workbook
+
+from tag_excel import TAG_TABLES, build_tag_usage_report, compile_tag_tables, finalize_tag_usage_report, gate_enum_members, generate_flags_code, preview_tag_rule, preview_tag_template, validate_flag_abi, validate_gate_abi, validate_tag_definitions, validate_tag_abi
 
 
 class TagWorkbookTests(unittest.TestCase):
+    def test_production_control_templates_use_flat_lifecycle_conditions(self):
+        path = Path(__file__).resolve().parents[1] / "Production/Datas/J-标签表.xlsx"
+        book = load_workbook(path, read_only=True, data_only=True)
+        try:
+            sheet = book["持续标签模板"]
+            fields = {cell.value: cell.column for cell in sheet[1] if cell.value}
+            rows = {sheet.cell(index, fields["Id"]).value: index
+                    for index in range(4, sheet.max_row + 1)}
+            for template_id in (10000001, *range(3005, 3012)):
+                row = rows[template_id]
+                self.assertEqual("1001,1002", sheet.cell(row, fields["ActivationBlockedTagIds"]).value)
+                self.assertEqual(0, sheet.cell(row, fields["ActivationRuleGroupId"]).value)
+            motion = rows[10000001]
+            self.assertEqual("1001,1002", sheet.cell(motion, fields["OngoingBlockedTagIds"]).value)
+            self.assertEqual(0, sheet.cell(motion, fields["OngoingRuleGroupId"]).value)
+            for template_id in range(3005, 3012):
+                row = rows[template_id]
+                self.assertIsNone(sheet.cell(row, fields["OngoingBlockedTagIds"]).value)
+                self.assertIsNone(sheet.cell(row, fields["RemovalRequiredTagIds"]).value)
+        finally:
+            book.close()
+
     def setUp(self):
         self.tables = {name: [] for name in TAG_TABLES}
         self.tables["tag_definitions"] = [
@@ -46,6 +71,17 @@ class TagWorkbookTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "ExecutionBlockedFlagIds"):
                 compile_tag_tables(self.tables)
 
+    def test_lifecycle_phase_rejects_required_and_blocked_same_tag(self):
+        self.test_rule_reference_expands_and_continuous_template_uses_tag_ids()
+        template = self.tables["continuous_tag_templates"][0]
+        template["OngoingRequiredTagIds"] = [1100]
+        template["OngoingBlockedTagIds"] = [1100]
+        with self.assertRaisesRegex(ValueError, "both Required and Blocked"):
+            compile_tag_tables(self.tables)
+        template["OngoingBlockedTagIds"] = [1000]
+        with self.assertRaisesRegex(ValueError, "both Required and Blocked"):
+            compile_tag_tables(self.tables)
+
     def test_behavior_gate_references_and_report(self):
         rules = {}
         self.tables["buffs"] = [{"Id": 9, "ContinuousTagTemplateId": 7}]
@@ -61,6 +97,7 @@ class TagWorkbookTests(unittest.TestCase):
         self.assertEqual("Move", report["behaviorGates"][0]["key"])
         self.assertEqual([{"table": "buffs", "id": 9, "field": "ContinuousTagTemplateId", "templateId": 7}], report["templateConsumers"])
         self.assertEqual("Move", gate_enum_members()[5])
+        self.assertEqual([], finalize_tag_usage_report(report)["diagnostics"]["unconsumedTemplateIds"])
         self.tables["tag_behavior_gates"][0]["Id"] = 999
         with self.assertRaisesRegex(ValueError, "ID missing from Luban enum"):
             compile_tag_tables(self.tables)
@@ -69,6 +106,34 @@ class TagWorkbookTests(unittest.TestCase):
             self.tables["tag_behavior_gates"][0]["BlockedFlagIds"] = blocked
             with self.assertRaisesRegex(ValueError, "BlockedFlagIds"):
                 compile_tag_tables(self.tables)
+
+    def test_template_preview_combines_flat_tags_and_complex_rule_by_phase(self):
+        template = {"Id": 7, "ActivationRequiredTags": ["State.Ready"],
+                    "ActivationBlockedTags": ["State.Stunned"],
+                    "OngoingCondition": {"Operator": "Tag", "Tag": "State.Ready", "Exact": False},
+                    "ApplicationTags": ["Debuff.Slow"]}
+        before = preview_tag_template(template, [])
+        self.assertFalse(before["activation"]["matches"])
+        self.assertEqual(["State.Ready"], before["activation"]["missingRequired"])
+        active = preview_tag_template(template, ["State.Ready"])
+        self.assertTrue(active["activation"]["matches"])
+        self.assertTrue(active["ongoing"]["matches"])
+        self.assertFalse(active["removal"]["configured"])
+        blocked = preview_tag_template(template, ["State.Ready", "State.Stunned"])
+        self.assertEqual(["State.Stunned"], blocked["activation"]["presentBlocked"])
+        self.assertFalse(blocked["activation"]["matches"])
+
+    def test_usage_diagnostics_do_not_activate_unconsumed_templates(self):
+        self.tables["tag_rule_nodes"][0]["TagId"] = 1100
+        self.tables["continuous_tag_templates"] = [{"Id": 7, "Name": "grant", "ApplicationTagIds": [1100],
+            "ActivationRequiredTagIds": [], "ActivationBlockedTagIds": [],
+            "RemovalRequiredTagIds": [], "RemovalBlockedTagIds": [],
+            "OngoingRequiredTagIds": [], "OngoingBlockedTagIds": [],
+            "ActivationRuleGroupId": 0, "RemovalRuleGroupId": 0, "OngoingRuleGroupId": 0}]
+        report = finalize_tag_usage_report(build_tag_usage_report(self.tables, {2001: {
+            "Operator": "Tag", "Tag": "State.Ready", "Exact": False}}))
+        self.assertEqual([7], report["diagnostics"]["unconsumedTemplateIds"])
+        self.assertEqual([], report["diagnostics"]["ungrantedActiveFacts"])
 
     def test_duplicate_result_mapping_pair_is_rejected(self):
         self.tables["tag_result_mappings"].append({"Id": 2, "FlagId": 1, "RuleGroupId": 2001})

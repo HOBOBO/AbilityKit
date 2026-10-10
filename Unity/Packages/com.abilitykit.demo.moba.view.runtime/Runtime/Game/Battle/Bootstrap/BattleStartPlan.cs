@@ -24,53 +24,19 @@ namespace AbilityKit.Game.Flow
         public readonly MobaBattleLaunchSpec LaunchSpec;
 
         public BattleStartPlan(in BattleStartPlanOptions options)
-            : this(
-                worldId: options.WorldId,
-                worldType: options.WorldType,
-                clientId: options.ClientId,
-                playerId: options.PlayerId,
-                tickRate: options.TickRate,
-                inputDelayFrames: options.InputDelayFrames,
-                hostMode: options.HostMode,
-                useGatewayTransport: options.Gateway.UseGatewayTransport,
-                gatewayHost: options.Gateway.Host,
-                gatewayPort: options.Gateway.Port,
-                numericRoomId: options.Gateway.NumericRoomId,
-                gatewaySessionToken: options.Gateway.SessionToken,
-                gatewayRegion: options.Gateway.Region,
-                gatewayServerId: options.Gateway.ServerId,
-                gatewayAutoCreateRoom: options.Gateway.AutoCreateRoom,
-                gatewayAutoJoinRoom: options.Gateway.AutoJoinRoom,
-                gatewayJoinRoomId: options.Gateway.JoinRoomId,
-                gatewayCreateRoomOpCode: options.Gateway.CreateRoomOpCode,
-                gatewayJoinRoomOpCode: options.Gateway.JoinRoomOpCode,
-                autoConnect: options.Auto.AutoConnect,
-                autoCreateWorld: options.Auto.AutoCreateWorld,
-                autoJoin: options.Auto.AutoJoin,
-                autoReady: options.Auto.AutoReady,
-                syncMode: options.SyncMode,
-                viewEventSourceMode: options.ViewEventSourceMode,
-                enableClientPrediction: options.EnableClientPrediction,
-                enableConfirmedAuthorityWorld: options.EnableConfirmedAuthorityWorld,
-                enableInputRecording: options.RunMode.EnableInputRecording,
-                inputRecordOutputPath: options.RunMode.InputRecordOutputPath,
-                enableInputReplay: options.RunMode.EnableInputReplay,
-                inputReplayPath: options.RunMode.InputReplayPath,
-                runMode: options.RunMode.RunMode,
-                createWorldOpCode: options.CreateWorld.OpCode,
-                createWorldPayload: options.CreateWorld.Payload,
-                timeSyncOpCode: options.TimeSync.OpCode,
-                timeSyncIntervalMs: options.TimeSync.IntervalMs,
-                timeSyncAlpha: options.TimeSync.Alpha,
-                timeSyncTimeoutMs: options.TimeSync.TimeoutMs,
-                idealFrameSafetyConstMarginFrames: options.TimeSync.IdealFrameSafetyConstMarginFrames,
-                idealFrameSafetyRttFactor: options.TimeSync.IdealFrameSafetyRttFactor,
-                idealFrameSafetyMinMarginFrames: options.TimeSync.IdealFrameSafetyMinMarginFrames,
-                idealFrameSafetyMaxMarginFrames: options.TimeSync.IdealFrameSafetyMaxMarginFrames,
-                enabledSnapshotRegistryIds: options.EnabledSnapshotRegistryIds,
-                launchSpec: options.LaunchSpec,
-                gatewayBattleId: options.Gateway.BattleId)
         {
+            World = options.World;
+            Sync = options.Sync;
+            Authority = options.Authority;
+            Gateway = options.Gateway;
+            Auto = options.Auto;
+            RunModeOptions = options.RunMode;
+            CreateWorld = options.CreateWorld;
+            TimeSync = options.TimeSync;
+            ReliableEventCheckpoint = options.ReliableEventCheckpoint;
+            RemoteSyncCapabilities = options.RemoteSyncCapabilities;
+            HostMode = options.HostMode;
+            LaunchSpec = options.LaunchSpec;
         }
 
         public bool HasCanonicalLaunchSpec => !string.IsNullOrEmpty(LaunchSpec.MatchId) || LaunchSpec.Players != null;
@@ -97,160 +63,55 @@ namespace AbilityKit.Game.Flow
 
         public BattleStartPlan WithGatewaySessionToken(string gatewaySessionToken)
         {
-            return new BattleStartPlan(
-                worldId: World.WorldId,
-                worldType: World.WorldType,
-                clientId: World.ClientId,
-                playerId: World.PlayerId,
-                tickRate: World.TickRate,
-                inputDelayFrames: World.InputDelayFrames,
-                hostMode: HostMode,
-                useGatewayTransport: Gateway.UseGatewayTransport,
-                gatewayHost: Gateway.Host,
-                gatewayPort: Gateway.Port,
-                numericRoomId: Gateway.NumericRoomId,
-                gatewaySessionToken: gatewaySessionToken,
-                gatewayRegion: Gateway.Region,
-                gatewayServerId: Gateway.ServerId,
-                gatewayAutoCreateRoom: Gateway.AutoCreateRoom,
-                gatewayAutoJoinRoom: Gateway.AutoJoinRoom,
-                gatewayJoinRoomId: Gateway.JoinRoomId,
-                gatewayCreateRoomOpCode: Gateway.CreateRoomOpCode,
-                gatewayJoinRoomOpCode: Gateway.JoinRoomOpCode,
-                autoConnect: Auto.AutoConnect,
-                autoCreateWorld: Auto.AutoCreateWorld,
-                autoJoin: Auto.AutoJoin,
-                autoReady: Auto.AutoReady,
-                syncMode: Sync.SyncMode,
-                viewEventSourceMode: Sync.ViewEventSourceMode,
-                enableClientPrediction: Authority.EnableClientPrediction,
-                enableConfirmedAuthorityWorld: Authority.EnableConfirmedAuthorityWorld,
-                enableInputRecording: RunModeOptions.EnableInputRecording,
-                inputRecordOutputPath: RunModeOptions.InputRecordOutputPath,
-                enableInputReplay: RunModeOptions.EnableInputReplay,
-                inputReplayPath: RunModeOptions.InputReplayPath,
-                runMode: RunModeOptions.RunMode,
-                createWorldOpCode: CreateWorld.OpCode,
-                createWorldPayload: CreateWorld.Payload,
-                timeSyncOpCode: TimeSync.OpCode,
-                timeSyncIntervalMs: TimeSync.IntervalMs,
-                timeSyncAlpha: TimeSync.Alpha,
-                timeSyncTimeoutMs: TimeSync.TimeoutMs,
-                idealFrameSafetyConstMarginFrames: TimeSync.IdealFrameSafetyConstMarginFrames,
-                idealFrameSafetyRttFactor: TimeSync.IdealFrameSafetyRttFactor,
-                idealFrameSafetyMinMarginFrames: TimeSync.IdealFrameSafetyMinMarginFrames,
-                idealFrameSafetyMaxMarginFrames: TimeSync.IdealFrameSafetyMaxMarginFrames,
-                enabledSnapshotRegistryIds: Sync.EnabledSnapshotRegistryIds,
-                launchSpec: LaunchSpec,
-                gatewayBattleId: Gateway.BattleId,
-                reliableEventCheckpoint: ReliableEventCheckpoint,
-                remoteSyncCapabilities: RemoteSyncCapabilities);
+            var gateway = new BattleStartPlanGatewayOptions(
+                Gateway.UseGatewayTransport, Gateway.Host, Gateway.Port, Gateway.NumericRoomId,
+                gatewaySessionToken, Gateway.Region, Gateway.ServerId, Gateway.AutoCreateRoom,
+                Gateway.AutoJoinRoom, Gateway.JoinRoomId, Gateway.CreateRoomOpCode,
+                Gateway.JoinRoomOpCode, Gateway.BattleId, Gateway.MaxPlayers);
+            return Rebuild(World, gateway, Sync, Authority, RunModeOptions);
         }
 
         public BattleStartPlan WithGatewayRoom(string worldId, ulong numericRoomId)
         {
-            return new BattleStartPlan(
-                worldId: worldId,
-                worldType: World.WorldType,
-                clientId: World.ClientId,
-                playerId: World.PlayerId,
-                tickRate: World.TickRate,
-                inputDelayFrames: World.InputDelayFrames,
-                hostMode: HostMode,
-                useGatewayTransport: Gateway.UseGatewayTransport,
-                gatewayHost: Gateway.Host,
-                gatewayPort: Gateway.Port,
-                numericRoomId: numericRoomId,
-                gatewaySessionToken: Gateway.SessionToken,
-                gatewayRegion: Gateway.Region,
-                gatewayServerId: Gateway.ServerId,
-                gatewayAutoCreateRoom: Gateway.AutoCreateRoom,
-                gatewayAutoJoinRoom: Gateway.AutoJoinRoom,
-                gatewayJoinRoomId: Gateway.JoinRoomId,
-                gatewayCreateRoomOpCode: Gateway.CreateRoomOpCode,
-                gatewayJoinRoomOpCode: Gateway.JoinRoomOpCode,
-                autoConnect: Auto.AutoConnect,
-                autoCreateWorld: Auto.AutoCreateWorld,
-                autoJoin: Auto.AutoJoin,
-                autoReady: Auto.AutoReady,
-                syncMode: Sync.SyncMode,
-                viewEventSourceMode: Sync.ViewEventSourceMode,
-                enableClientPrediction: Authority.EnableClientPrediction,
-                enableConfirmedAuthorityWorld: Authority.EnableConfirmedAuthorityWorld,
-                enableInputRecording: RunModeOptions.EnableInputRecording,
-                inputRecordOutputPath: RunModeOptions.InputRecordOutputPath,
-                enableInputReplay: RunModeOptions.EnableInputReplay,
-                inputReplayPath: RunModeOptions.InputReplayPath,
-                runMode: RunModeOptions.RunMode,
-                createWorldOpCode: CreateWorld.OpCode,
-                createWorldPayload: CreateWorld.Payload,
-                timeSyncOpCode: TimeSync.OpCode,
-                timeSyncIntervalMs: TimeSync.IntervalMs,
-                timeSyncAlpha: TimeSync.Alpha,
-                timeSyncTimeoutMs: TimeSync.TimeoutMs,
-                idealFrameSafetyConstMarginFrames: TimeSync.IdealFrameSafetyConstMarginFrames,
-                idealFrameSafetyRttFactor: TimeSync.IdealFrameSafetyRttFactor,
-                idealFrameSafetyMinMarginFrames: TimeSync.IdealFrameSafetyMinMarginFrames,
-                idealFrameSafetyMaxMarginFrames: TimeSync.IdealFrameSafetyMaxMarginFrames,
-                enabledSnapshotRegistryIds: Sync.EnabledSnapshotRegistryIds,
-                launchSpec: LaunchSpec,
-                gatewayBattleId: Gateway.BattleId,
-                reliableEventCheckpoint: ReliableEventCheckpoint,
-                remoteSyncCapabilities: RemoteSyncCapabilities);
+            var world = new BattleStartPlanWorldOptions(
+                worldId, World.WorldType, World.ClientId, World.PlayerId,
+                World.TickRate, World.InputDelayFrames);
+            var gateway = new BattleStartPlanGatewayOptions(
+                Gateway.UseGatewayTransport, Gateway.Host, Gateway.Port, numericRoomId,
+                Gateway.SessionToken, Gateway.Region, Gateway.ServerId, Gateway.AutoCreateRoom,
+                Gateway.AutoJoinRoom, Gateway.JoinRoomId, Gateway.CreateRoomOpCode,
+                Gateway.JoinRoomOpCode, Gateway.BattleId, Gateway.MaxPlayers);
+            return Rebuild(world, gateway, Sync, Authority, RunModeOptions);
         }
 
         public BattleStartPlan WithInputReplay(string inputReplayPath)
         {
-            return new BattleStartPlan(
-                worldId: World.WorldId,
-                worldType: World.WorldType,
-                clientId: World.ClientId,
-                playerId: World.PlayerId,
-                tickRate: World.TickRate,
-                inputDelayFrames: World.InputDelayFrames,
-                hostMode: HostMode,
-                useGatewayTransport: false,
-                gatewayHost: Gateway.Host,
-                gatewayPort: Gateway.Port,
-                numericRoomId: Gateway.NumericRoomId,
-                gatewaySessionToken: Gateway.SessionToken,
-                gatewayRegion: Gateway.Region,
-                gatewayServerId: Gateway.ServerId,
-                gatewayAutoCreateRoom: false,
-                gatewayAutoJoinRoom: false,
-                gatewayJoinRoomId: Gateway.JoinRoomId,
-                gatewayCreateRoomOpCode: Gateway.CreateRoomOpCode,
-                gatewayJoinRoomOpCode: Gateway.JoinRoomOpCode,
-                autoConnect: Auto.AutoConnect,
-                autoCreateWorld: Auto.AutoCreateWorld,
-                autoJoin: Auto.AutoJoin,
-                autoReady: Auto.AutoReady,
-                syncMode: BattleSyncMode.Lockstep,
-                viewEventSourceMode: Sync.ViewEventSourceMode,
-                enableClientPrediction: false,
-                enableConfirmedAuthorityWorld: false,
-                enableInputRecording: false,
-                inputRecordOutputPath: string.Empty,
-                enableInputReplay: true,
-                inputReplayPath: inputReplayPath,
-                runMode: BattleRunMode.Replay,
-                createWorldOpCode: CreateWorld.OpCode,
-                createWorldPayload: CreateWorld.Payload,
-                timeSyncOpCode: TimeSync.OpCode,
-                timeSyncIntervalMs: TimeSync.IntervalMs,
-                timeSyncAlpha: TimeSync.Alpha,
-                timeSyncTimeoutMs: TimeSync.TimeoutMs,
-                idealFrameSafetyConstMarginFrames: TimeSync.IdealFrameSafetyConstMarginFrames,
-                idealFrameSafetyRttFactor: TimeSync.IdealFrameSafetyRttFactor,
-                idealFrameSafetyMinMarginFrames: TimeSync.IdealFrameSafetyMinMarginFrames,
-                idealFrameSafetyMaxMarginFrames: TimeSync.IdealFrameSafetyMaxMarginFrames,
-                enabledSnapshotRegistryIds: Sync.EnabledSnapshotRegistryIds,
-                launchSpec: LaunchSpec,
-                gatewayBattleId: Gateway.BattleId,
-                reliableEventCheckpoint: ReliableEventCheckpoint,
-                remoteSyncCapabilities: RemoteSyncCapabilities);
+            var gateway = new BattleStartPlanGatewayOptions(
+                false, Gateway.Host, Gateway.Port, Gateway.NumericRoomId,
+                Gateway.SessionToken, Gateway.Region, Gateway.ServerId, false, false,
+                Gateway.JoinRoomId, Gateway.CreateRoomOpCode, Gateway.JoinRoomOpCode,
+                Gateway.BattleId, Gateway.MaxPlayers);
+            var sync = new BattleStartPlanSyncOptions(
+                BattleSyncMode.Lockstep, Sync.ViewEventSourceMode, Sync.EnabledSnapshotRegistryIds);
+            var authority = new BattleStartPlanAuthorityOptions(false, false);
+            var runMode = new BattleStartPlanRunModeOptions(
+                BattleRunMode.Replay, false, string.Empty, true, inputReplayPath);
+            return Rebuild(World, gateway, sync, authority, runMode);
         }
 
+        private BattleStartPlan Rebuild(
+            in BattleStartPlanWorldOptions world,
+            in BattleStartPlanGatewayOptions gateway,
+            in BattleStartPlanSyncOptions sync,
+            in BattleStartPlanAuthorityOptions authority,
+            in BattleStartPlanRunModeOptions runMode)
+        {
+            var options = new BattleStartPlanOptions(
+                in world, HostMode, in sync, in authority, in gateway, in Auto,
+                in runMode, in CreateWorld, in TimeSync, LaunchSpec,
+                ReliableEventCheckpoint, RemoteSyncCapabilities);
+            return new BattleStartPlan(in options);
+        }
         public BattleStartPlan(
             string worldId,
             string worldType,
@@ -298,53 +159,28 @@ namespace AbilityKit.Game.Flow
             MobaBattleLaunchSpec launchSpec = default,
             string gatewayBattleId = "",
             MobaReliableBattleEventCheckpoint reliableEventCheckpoint = default,
-            RoomGatewayNetworkSyncCapabilities remoteSyncCapabilities = null)
+            RoomGatewayNetworkSyncCapabilities remoteSyncCapabilities = null,
+            int gatewayMaxPlayers = 2)
+            : this(new BattleStartPlanOptions(
+                new BattleStartPlanWorldOptions(worldId, worldType, clientId, playerId, tickRate, inputDelayFrames),
+                hostMode,
+                new BattleStartPlanSyncOptions(syncMode, viewEventSourceMode, enabledSnapshotRegistryIds),
+                new BattleStartPlanAuthorityOptions(enableClientPrediction, enableConfirmedAuthorityWorld),
+                new BattleStartPlanGatewayOptions(
+                    useGatewayTransport, gatewayHost, gatewayPort, numericRoomId, gatewaySessionToken,
+                    gatewayRegion, gatewayServerId, gatewayAutoCreateRoom, gatewayAutoJoinRoom,
+                    gatewayJoinRoomId, gatewayCreateRoomOpCode, gatewayJoinRoomOpCode,
+                    gatewayBattleId, gatewayMaxPlayers),
+                new BattleStartPlanAutoOptions(autoConnect, autoCreateWorld, autoJoin, autoReady),
+                new BattleStartPlanRunModeOptions(
+                    runMode, enableInputRecording, inputRecordOutputPath, enableInputReplay, inputReplayPath),
+                new BattleStartPlanCreateWorldOptions(createWorldOpCode, createWorldPayload),
+                new BattleStartPlanTimeSyncOptions(
+                    timeSyncOpCode, timeSyncIntervalMs, timeSyncAlpha, timeSyncTimeoutMs,
+                    idealFrameSafetyConstMarginFrames, idealFrameSafetyRttFactor,
+                    idealFrameSafetyMinMarginFrames, idealFrameSafetyMaxMarginFrames),
+                launchSpec, reliableEventCheckpoint, remoteSyncCapabilities))
         {
-            World = new BattleStartPlanWorldOptions(
-                worldId,
-                worldType,
-                clientId,
-                playerId,
-                tickRate,
-                inputDelayFrames);
-            Sync = new BattleStartPlanSyncOptions(syncMode, viewEventSourceMode, enabledSnapshotRegistryIds);
-            Authority = new BattleStartPlanAuthorityOptions(enableClientPrediction, enableConfirmedAuthorityWorld);
-            Gateway = new BattleStartPlanGatewayOptions(
-                useGatewayTransport,
-                gatewayHost,
-                gatewayPort,
-                numericRoomId,
-                gatewaySessionToken,
-                gatewayRegion,
-                gatewayServerId,
-                gatewayAutoCreateRoom,
-                gatewayAutoJoinRoom,
-                gatewayJoinRoomId,
-                gatewayCreateRoomOpCode,
-                gatewayJoinRoomOpCode,
-                gatewayBattleId);
-            Auto = new BattleStartPlanAutoOptions(autoConnect, autoCreateWorld, autoJoin, autoReady);
-            RunModeOptions = new BattleStartPlanRunModeOptions(
-                runMode,
-                enableInputRecording,
-                inputRecordOutputPath,
-                enableInputReplay,
-                inputReplayPath);
-            CreateWorld = new BattleStartPlanCreateWorldOptions(createWorldOpCode, createWorldPayload);
-            TimeSync = new BattleStartPlanTimeSyncOptions(
-                timeSyncOpCode,
-                timeSyncIntervalMs,
-                timeSyncAlpha,
-                timeSyncTimeoutMs,
-                idealFrameSafetyConstMarginFrames,
-                idealFrameSafetyRttFactor,
-                idealFrameSafetyMinMarginFrames,
-                idealFrameSafetyMaxMarginFrames);
-
-            HostMode = hostMode;
-            LaunchSpec = launchSpec;
-            ReliableEventCheckpoint = reliableEventCheckpoint;
-            RemoteSyncCapabilities = remoteSyncCapabilities;
         }
 
         public BattleStartPlan(

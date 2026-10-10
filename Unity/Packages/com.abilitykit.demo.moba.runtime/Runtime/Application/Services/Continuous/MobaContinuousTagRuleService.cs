@@ -289,7 +289,8 @@ namespace AbilityKit.Demo.Moba.Services
                 if (!CanEvaluate(continuous) || !HasReactiveRequirements(continuous)) continue;
 
                 var result = _evaluator.EvaluateFast(continuous);
-                if (continuous.IsActive && result.Action == MobaContinuousTagRuleAction.Remove)
+                if ((continuous.IsActive || continuous.IsPaused) &&
+                    result.Action == MobaContinuousTagRuleAction.Remove)
                 {
                     _pausedByTags.Remove(continuous);
                     SetResult(continuous, result);

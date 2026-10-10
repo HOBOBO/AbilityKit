@@ -41,7 +41,8 @@ namespace AbilityKit.Game.Flow.Tests
             runtime.StartOperation("second", _ => secondCompletion.Task);
 
             firstCompletion.SetException(new InvalidOperationException("stale failure"));
-            for (var i = 0; i < 20 && !firstExited.Task.IsCompleted; i++) yield return null;
+            for (var i = 0; i < 100 && !firstExited.Task.IsCompleted; i++)
+                yield return new UnityEngine.WaitForSecondsRealtime(0.01f);
             yield return null;
 
             Assert.That(firstExited.Task.IsCompleted, Is.True);
@@ -50,7 +51,8 @@ namespace AbilityKit.Game.Flow.Tests
             Assert.That(runtime.OperationError, Is.Empty);
 
             secondCompletion.SetResult(true);
-            for (var i = 0; i < 20 && runtime.IsOperationBusy; i++) yield return null;
+            for (var i = 0; i < 100 && runtime.IsOperationBusy; i++)
+                yield return new UnityEngine.WaitForSecondsRealtime(0.01f);
 
             Assert.That(runtime.IsOperationBusy, Is.False);
             Assert.That(runtime.OperationLabel, Is.Empty);
@@ -85,7 +87,8 @@ namespace AbilityKit.Game.Flow.Tests
             Assert.That(runtime.OperationError, Is.Empty);
 
             completion.SetException(new InvalidOperationException("late failure"));
-            for (var i = 0; i < 20 && !exited.Task.IsCompleted; i++) yield return null;
+            for (var i = 0; i < 100 && !exited.Task.IsCompleted; i++)
+                yield return new UnityEngine.WaitForSecondsRealtime(0.01f);
             yield return null;
 
             Assert.That(exited.Task.IsCompleted, Is.True);
@@ -277,7 +280,8 @@ namespace AbilityKit.Game.Flow.Tests
                 },
                 nextOffset: 0,
                 message: string.Empty));
-            for (var i = 0; i < 20 && !refresh.IsCompleted; i++) yield return null;
+            for (var i = 0; i < 100 && !refresh.IsCompleted; i++)
+                yield return new UnityEngine.WaitForSecondsRealtime(0.01f);
 
             Assert.That(refresh.IsCompleted, Is.True);
             Assert.That(runtime.IsLoaded, Is.False);

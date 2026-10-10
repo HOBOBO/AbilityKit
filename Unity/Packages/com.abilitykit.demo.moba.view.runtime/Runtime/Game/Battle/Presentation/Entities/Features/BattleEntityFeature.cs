@@ -24,53 +24,62 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            if (ctx.BattleEntities == null) return;
-            if (!ctx.Features.TryGet(out BattleContext battleCtx)) return;
-
-            if (!ctx.BattleEntities.TryGetWorld(out EC.IECWorld world)) return;
-            if (!ctx.BattleEntities.TryCreateNode("BattleEntity", out EC.IEntity node)) return;
-
-            _world = world;
-
-            _lookup = new BattleEntityLookup();
-            _node = node;
-            _factory = new BattleEntityFactory(_world, _lookup, _node);
-            _query = new BattleEntityQuery(_world, _lookup);
-            if (_node.IsValid)
+            try
             {
-                _node.WithRef(_lookup);
-                _node.WithRef(_factory);
-                _node.WithRef(_query);
-            }
+                if (ctx.BattleEntities == null)
+                    throw new InvalidOperationException("BattleEntityFeature requires a battle entity runtime.");
+                var battleCtx = ctx.RequireFeature<BattleContext>(nameof(BattleEntityFeature));
 
-            _bindingGeneration = battleCtx.BindEntityRuntime(
-                _node,
-                _world,
-                _lookup,
-                _factory,
-                _query);
+                if (!ctx.BattleEntities.TryGetWorld(out EC.IECWorld world))
+                    throw new InvalidOperationException("BattleEntityFeature requires an ECS world.");
+                if (!ctx.BattleEntities.TryCreateNode("BattleEntity", out EC.IEntity node))
+                    throw new InvalidOperationException("BattleEntityFeature could not create its entity node.");
+
+                _world = world;
+                _lookup = new BattleEntityLookup();
+                _node = node;
+                _factory = new BattleEntityFactory(_world, _lookup, _node);
+                _query = new BattleEntityQuery(_world, _lookup);
+                if (_node.IsValid)
+                {
+                    _node.WithRef(_lookup);
+                    _node.WithRef(_factory);
+                    _node.WithRef(_query);
+                }
+
+                _bindingGeneration = battleCtx.BindEntityRuntime(
+                    _node, _world, _lookup, _factory, _query);
+            }
+            catch (Exception attachFailure)
+            {
+                try { OnDetach(ctx); }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException("Entity feature attach and rollback failed.",
+                        attachFailure, cleanupFailure);
+                }
+                throw;
+            }
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            if (_bindingGeneration != 0 &&
-                ctx.Features.TryGet(out BattleContext battleCtx))
-            {
-                battleCtx.ClearEntityRuntime(_bindingGeneration);
-            }
-
-            if (_node.IsValid)
-            {
-                ctx.BattleEntities?.DestroyTree(_node);
-            }
-
-            _lookup?.Clear();
-            _bindingGeneration = 0;
-            _world = null;
-            _lookup = null;
-            _factory = null;
-            _query = null;
-            _node = default;
+            var context = ctx;
+            BattleFeatureResourceCleanup.ReleaseAll(
+                () =>
+                {
+                    if (_bindingGeneration != 0 &&
+                        context.Features.TryGet(out BattleContext battleCtx))
+                        battleCtx.ClearEntityRuntime(_bindingGeneration);
+                    _bindingGeneration = 0;
+                },
+                () =>
+                {
+                    if (_node.IsValid) context.BattleEntities?.DestroyTree(_node);
+                    _node = default;
+                },
+                () => { _lookup?.Clear(); _lookup = null; },
+                () => { _world = null; _factory = null; _query = null; });
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)

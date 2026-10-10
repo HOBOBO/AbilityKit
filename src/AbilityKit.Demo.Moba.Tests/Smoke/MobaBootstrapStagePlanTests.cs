@@ -28,6 +28,19 @@ public sealed class MobaBootstrapStagePlanTests
     }
 
     [Fact]
+    public void Freeze_UsesOnePlanAndRejectsLateRegistrations()
+    {
+        MobaBootstrapStageInitializer.Initialize();
+        var first = MobaBootstrapStageRegistry.Freeze();
+        var second = MobaBootstrapStageRegistry.Freeze();
+
+        Assert.Same(first, second);
+        Assert.Equal(first.OrderedStages, MobaBootstrapStageRegistry.GetInstallStages());
+        Assert.Throws<InvalidOperationException>(() =>
+            MobaBootstrapStageRegistry.Register(new TestStage("late")));
+    }
+
+    [Fact]
     public void Create_PreservesSourceOrderForIndependentStages()
     {
         var first = new TestStage("first");

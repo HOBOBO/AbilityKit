@@ -22,6 +22,156 @@ namespace AbilityKit.Demo.Moba.Services
         private IContinuousManager _continuous;
         private IMobaContinuousTagTemplateRegistry _tagTemplates;
         private MobaCombatActivityService _combatActivity;
+
+        internal readonly struct RollbackEntry
+        {
+            public RollbackEntry(int processId, int sourceActorId, int targetActorId,
+                long ownerContextId, int modifierSourceId, long elapsedRaw, long intervalRemainingRaw,
+                bool paused, MobaContextSourceView source)
+            {
+                ProcessId = processId;
+                SourceActorId = sourceActorId;
+                TargetActorId = targetActorId;
+                OwnerContextId = ownerContextId;
+                ModifierSourceId = modifierSourceId;
+                ElapsedRaw = elapsedRaw;
+                IntervalRemainingRaw = intervalRemainingRaw;
+                Paused = paused;
+                Source = source;
+            }
+
+            public int ProcessId { get; }
+            public int SourceActorId { get; }
+            public int TargetActorId { get; }
+            public long OwnerContextId { get; }
+            public int ModifierSourceId { get; }
+            public long ElapsedRaw { get; }
+            public long IntervalRemainingRaw { get; }
+            public bool Paused { get; }
+            public MobaContextSourceView Source { get; }
+        }
+
+        internal List<RollbackEntry> CaptureRollbackEntries()
+        {
+            var entries = new List<RollbackEntry>(_activeByKey.Count);
+            var registered = (ResolveContinuous() as DefaultContinuousManager)?.GetAllContinuous();
+            if (registered == null)
+                throw new InvalidOperationException("Trigger interval rollback requires a continuous manager with registration order.");
+            foreach (var continuous in registered)
+            {
+                if (!(continuous is MobaTriggerIntervalContinuousRuntime runtime) ||
+                    runtime.IsTerminated || !OwnsRuntime(runtime)) continue;
+                entries.Add(new RollbackEntry(runtime.ProcessId, runtime.SourceActorId,
+                    runtime.TargetActorId, runtime.SourceContextId, runtime.ModifierSourceId,
+                    runtime.ElapsedRaw, runtime.IntervalRemainingRaw, runtime.IsPaused,
+                    runtime.SourceSnapshot));
+            }
+            return entries;
+        }
+
+        internal void ValidateRollbackEntries(IReadOnlyList<RollbackEntry> entries)
+        {
+            if (_configs == null || ResolveContinuous() == null)
+                throw new InvalidOperationException("Trigger interval rollback dependencies are unavailable.");
+            var keys = new HashSet<ProcessKey>();
+            var sourceIds = new HashSet<int>();
+            foreach (var entry in entries)
+            {
+                if (entry.ProcessId <= 0 || entry.SourceActorId <= 0 || entry.TargetActorId <= 0 ||
+                    entry.OwnerContextId == 0 || entry.ElapsedRaw < 0 || entry.IntervalRemainingRaw < 0 ||
+                    !keys.Add(new ProcessKey(entry.OwnerContextId, entry.ProcessId,
+                        entry.SourceActorId, entry.TargetActorId)) ||
+                    !_configs.TryGetContinuousProcess(entry.ProcessId, out var process) || process == null)
+                    throw new InvalidOperationException("Invalid trigger interval rollback entry.");
+                var hasModifiers = process.Modifiers != null && process.Modifiers.Count > 0;
+                if (hasModifiers != (entry.ModifierSourceId > 0) ||
+                    entry.ModifierSourceId > 0 && !sourceIds.Add(entry.ModifierSourceId))
+                    throw new InvalidOperationException("Invalid trigger interval modifier source identity.");
+                ResolveRequirements(process);
+            }
+        }
+
+        internal int GetRollbackModifierCount(int processId)
+        {
+            if (_configs == null || !_configs.TryGetContinuousProcess(processId, out var process) || process == null)
+                throw new InvalidOperationException($"Trigger interval rollback config is missing: {processId}.");
+            return process.Modifiers?.Count ?? 0;
+        }
+
+        internal bool OwnsRuntime(MobaTriggerIntervalContinuousRuntime runtime)
+        {
+            if (runtime == null) return false;
+            var key = new ProcessKey(runtime.SourceContextId, runtime.ProcessId,
+                runtime.SourceActorId, runtime.TargetActorId);
+            return _activeByKey.TryGetValue(key, out var owned) && ReferenceEquals(owned, runtime);
+        }
+
+        internal void RestoreRollbackEntries(IReadOnlyList<RollbackEntry> entries)
+        {
+            ValidateRollbackEntries(entries);
+            if (TryRestoreExistingEntries(entries)) return;
+            var previous = CaptureRollbackEntries();
+            try { ApplyRollbackEntries(entries); }
+            catch (Exception failure)
+            {
+                try { ApplyRollbackEntries(previous); }
+                catch (Exception rollbackFailure)
+                {
+                    throw new AggregateException("Trigger interval restore and rollback both failed.",
+                        failure, rollbackFailure);
+                }
+                throw new InvalidOperationException("Trigger interval restore failed; previous instances were restored.", failure);
+            }
+        }
+
+        private bool TryRestoreExistingEntries(IReadOnlyList<RollbackEntry> entries)
+        {
+            var current = CaptureRollbackEntries();
+            if (current.Count != entries.Count) return false;
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                var key = new ProcessKey(entry.OwnerContextId, entry.ProcessId,
+                    entry.SourceActorId, entry.TargetActorId);
+                if (!_activeByKey.TryGetValue(key, out var runtime) || runtime == null ||
+                    runtime.IsTerminated || runtime.ModifierSourceId != entry.ModifierSourceId ||
+                    runtime.IsPaused != entry.Paused || !runtime.SourceSnapshot.Equals(entry.Source))
+                    return false;
+            }
+            foreach (var entry in entries)
+            {
+                var key = new ProcessKey(entry.OwnerContextId, entry.ProcessId,
+                    entry.SourceActorId, entry.TargetActorId);
+                var runtime = _activeByKey[key];
+                runtime.SetElapsedRaw(entry.ElapsedRaw);
+                runtime.IntervalRemainingRaw = entry.IntervalRemainingRaw;
+            }
+            return true;
+        }
+
+        private void ApplyRollbackEntries(IReadOnlyList<RollbackEntry> entries)
+        {
+            var previous = new List<ProcessKey>(_activeByKey.Keys);
+            foreach (var key in previous) EndProcess(key, ContinuousEndReason.CleanedUp);
+            _activeByKey.Clear();
+            _keysByOwnerContext.Clear();
+            foreach (var entry in entries)
+            {
+                _configs.TryGetContinuousProcess(entry.ProcessId, out var process);
+                var runtime = new MobaTriggerIntervalContinuousRuntime(process, entry.SourceActorId,
+                    entry.TargetActorId, entry.OwnerContextId, ResolveRequirements(process), entry.Source);
+                if (entry.ModifierSourceId > 0) runtime.AssignModifierSourceId(entry.ModifierSourceId);
+                runtime.SetElapsedRaw(entry.ElapsedRaw);
+                runtime.IntervalRemainingRaw = entry.IntervalRemainingRaw;
+                if (!_continuous.TryActivate(runtime))
+                    throw new InvalidOperationException("Trigger interval rollback activation failed.");
+                if (entry.Paused) _continuous.TryPause(runtime);
+                var key = new ProcessKey(entry.OwnerContextId, entry.ProcessId,
+                    entry.SourceActorId, entry.TargetActorId);
+                _activeByKey.Add(key, runtime);
+                AddOwnerIndex(entry.OwnerContextId, key);
+            }
+        }
  
         public void OnInit(IWorldResolver services)
         {

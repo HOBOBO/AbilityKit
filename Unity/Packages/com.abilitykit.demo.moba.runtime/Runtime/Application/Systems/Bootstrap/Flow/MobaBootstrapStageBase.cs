@@ -133,7 +133,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
                 ordered[i] = byName[graph.OrderedStages[i].Id];
             }
 
-            return new MobaBootstrapStagePlan(ordered);
+            return new MobaBootstrapStagePlan(Array.AsReadOnly(ordered));
         }
     }
 
@@ -144,21 +144,67 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
     public static class MobaBootstrapStageRegistry
     {
         private static readonly List<MobaBootstrapStageBase> _stages = new();
+        private static readonly object Sync = new object();
+        private static MobaBootstrapStagePlan _plan;
+        private static readonly string[] RequiredStages =
+        {
+            MobaBootstrapStageNames.CoreState,
+            MobaBootstrapStageNames.Config,
+            MobaBootstrapStageNames.WorldModules,
+            MobaBootstrapStageNames.TriggerPlans,
+            MobaBootstrapStageNames.TargetingAndSkills,
+            MobaBootstrapStageNames.WorldInit,
+            MobaBootstrapStageNames.MapRuntime,
+            MobaBootstrapStageNames.StartGame,
+            MobaBootstrapStageNames.PlanTriggering,
+            "Tags"
+        };
         /// <summary>
         /// 注册 Stage
         /// </summary>
         public static void Register(MobaBootstrapStageBase stage)
         {
-            if (stage == null) return;
+            if (stage == null) throw new ArgumentNullException(nameof(stage));
 
             var name = stage.Name;
             if (string.IsNullOrEmpty(name))
             {
-                Log.Warning("[MobaBootstrapStageRegistry] Stage has no name, skipping registration");
-                return;
+                throw new InvalidOperationException("MOBA bootstrap stage has no name.");
             }
 
-            _stages.Add(stage);
+            lock (Sync)
+            {
+                if (_plan != null)
+                    throw new InvalidOperationException("MOBA bootstrap stage registry is frozen.");
+                _stages.Add(stage);
+            }
+        }
+
+        internal static void RollbackPendingTo(int count)
+        {
+            lock (Sync)
+            {
+                if (_plan != null) return;
+                if (count < 0 || count > _stages.Count)
+                    throw new InvalidOperationException("Cannot roll back frozen MOBA bootstrap stages.");
+                _stages.RemoveRange(count, _stages.Count - count);
+            }
+        }
+
+        public static MobaBootstrapStagePlan Freeze()
+        {
+            lock (Sync)
+            {
+                if (_plan != null) return _plan;
+                var plan = MobaBootstrapStagePlan.Create(_stages);
+                var names = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var stage in plan.OrderedStages) names.Add(stage.Name);
+                foreach (var required in RequiredStages)
+                    if (!names.Contains(required))
+                        throw new InvalidOperationException("Required MOBA bootstrap stage is missing: " + required);
+                _plan = plan;
+                return _plan;
+            }
         }
 
         /// <summary>
@@ -166,7 +212,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
         /// </summary>
         public static IEnumerable<MobaBootstrapStageBase> GetAllStages()
         {
-            return _stages;
+            lock (Sync) return _stages.ToArray();
         }
 
         /// <summary>
@@ -174,7 +220,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
         /// </summary>
         public static IEnumerable<MobaBootstrapStageBase> GetConfigureStages()
         {
-            return GetSortedStages();
+            return Freeze().OrderedStages;
         }
 
         /// <summary>
@@ -182,18 +228,16 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
         /// </summary>
         public static IEnumerable<MobaBootstrapStageBase> GetInstallStages()
         {
-            return GetSortedStages();
-        }
-
-        private static IReadOnlyList<MobaBootstrapStageBase> GetSortedStages()
-        {
-            return MobaBootstrapStagePlan.Create(_stages).OrderedStages;
+            return Freeze().OrderedStages;
         }
 
         /// <summary>
         /// 获取 Stage 数量
         /// </summary>
-        public static int Count => _stages.Count;
+        public static int Count
+        {
+            get { lock (Sync) return _stages.Count; }
+        }
     }
 
     /// <summary>

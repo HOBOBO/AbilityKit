@@ -31,6 +31,21 @@ namespace AbilityKit.Game.Flow
             comp.Hash = payload.StateHash;
         }
 
+        public static void ApplyCharacterActions(BattleContext ctx, CharacterActionData[] entries)
+        {
+            if (ctx == null || entries == null) return;
+            ctx.ApplyCharacterActions(entries);
+            if (ctx.EntityWorld == null || ctx.EntityLookup == null) return;
+            var dirty = GetDirtyEntities(ctx, entries.Length);
+            for (var i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                if (ctx.GetActorEntityVersion(entry.ActorId) != entry.EntityVersion) continue;
+                if (ctx.EntityLookup.TryResolve(ctx.EntityWorld, new BattleNetId(entry.ActorId), out var entity))
+                    dirty.Add(entity.Id);
+            }
+        }
+
         public static void ApplyTransform(
             BattleContext ctx,
             ActorTransformData[] entries,

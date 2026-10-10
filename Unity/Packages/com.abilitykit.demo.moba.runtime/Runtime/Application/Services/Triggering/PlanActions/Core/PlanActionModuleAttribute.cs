@@ -24,6 +24,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int DebugLog = 0;
         public const int SetGameplayVar = 0;
         public const int AddGameplayVar = 0;
+        public const int AwardTeamKillScore = 0;
+        public const int ScheduleHeroRespawn = 0;
         public const int SetNumericBlackboard = 0;
         public const int AddNumericBlackboard = 0;
         public const int SetBlackboardVariable = 0;

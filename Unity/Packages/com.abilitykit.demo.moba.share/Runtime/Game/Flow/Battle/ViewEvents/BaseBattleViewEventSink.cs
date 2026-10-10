@@ -7,7 +7,7 @@ namespace AbilityKit.Demo.Moba.Share
     /// 提供通用的视图事件处理逻辑
     /// 平台层（如 Unity/Console）可以继承此类并实现抽象方法
     /// </summary>
-    public abstract class BaseBattleViewEventSink : IBattleViewEventSink
+    public abstract class BaseBattleViewEventSink : IBattleViewEventSink, IGameplayClockViewEventSink
     {
         /// <summary>
         /// 本地角色 ID
@@ -210,6 +210,11 @@ namespace AbilityKit.Demo.Moba.Share
                 OnSkillState(in state);
             }
 
+            LastProcessedFrame = snapshot.FrameIndex;
+        }
+
+        public virtual void OnGameplayClockSnapshot(in FrameSnapshotData snapshot)
+        {
             LastProcessedFrame = snapshot.FrameIndex;
         }
 

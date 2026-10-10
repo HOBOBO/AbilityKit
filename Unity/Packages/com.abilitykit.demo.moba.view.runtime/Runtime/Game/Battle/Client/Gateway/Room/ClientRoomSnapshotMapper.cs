@@ -21,12 +21,17 @@ namespace AbilityKit.Game.Battle.Agent
             var snapshot = new ClientRoomSnapshot
             {
                 RoomId = ResolveRoomId(wire),
+                GameplayId = wire.Summary.Tags != null &&
+                    wire.Summary.Tags.TryGetValue(RoomTagKeys.GameplayId, out var gameplayIdText) &&
+                    int.TryParse(gameplayIdText, out var gameplayId) && gameplayId > 0 ? gameplayId : 1,
                 OwnerAccountId = wire.Summary.OwnerAccountId ?? string.Empty,
                 Phase = ToClientPhase(wire.Phase),
                 PhaseReason = wire.PhaseReason ?? string.Empty,
                 LaunchGeneration = wire.LaunchGeneration,
                 LoadingDeadlineUnixMs = wire.LoadingDeadlineUnixMs,
                 LaunchManifestHash = wire.LaunchManifestHash ?? string.Empty,
+                TagBundleVersion = wire.Summary.Tags != null && wire.Summary.Tags.TryGetValue(RoomTagKeys.MobaTagBundleVersion, out var tagBundleVersion)
+                    ? tagBundleVersion : string.Empty,
                 LaunchManifestVersion = wire.LaunchManifestVersion,
                 LastStartFailureCode = wire.LastStartFailureCode ?? string.Empty,
                 RoomRevision = wire.RoomRevision,
@@ -48,12 +53,14 @@ namespace AbilityKit.Game.Battle.Agent
             return new ClientRoomSnapshot
             {
                 RoomId = source.RoomId ?? string.Empty,
+                GameplayId = source.GameplayId,
                 OwnerAccountId = source.OwnerAccountId ?? string.Empty,
                 Phase = ToClientPhase((int)source.Phase),
                 PhaseReason = source.PhaseReason ?? string.Empty,
                 LaunchGeneration = source.LaunchGeneration,
                 LoadingDeadlineUnixMs = source.LoadingDeadlineUnixMs,
                 LaunchManifestHash = source.LaunchManifestHash ?? string.Empty,
+                TagBundleVersion = source.TagBundleVersion ?? string.Empty,
                 LaunchManifestVersion = source.LaunchManifestVersion,
                 LastStartFailureCode = source.LastStartFailureCode ?? string.Empty,
                 RoomRevision = source.RoomRevision,

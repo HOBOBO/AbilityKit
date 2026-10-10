@@ -4,8 +4,8 @@ import json
 import math
 
 from tag_excel import (build_tag_usage_report, compile_tag_tables,
-                       generate_flags_code, gate_enum_members,
-                       preview_tag_rule, validate_flag_abi, validate_gate_abi,
+                       finalize_tag_usage_report, generate_flags_code, gate_enum_members,
+                       preview_tag_rule, preview_tag_template, validate_flag_abi, validate_gate_abi,
                        validate_tag_abi)
 
 
@@ -158,7 +158,7 @@ class Rule:
                                                             "actionId": action.get("ActionId"),
                                                             "field": "continuous_tag_template_id",
                                                             "templateId": int(arg["ConstValue"])})
-            report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            report_path.write_text(json.dumps(finalize_tag_usage_report(report), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     def transform(self, context):
         source = dict(context.tables)
@@ -166,19 +166,23 @@ class Rule:
         context.tables.update(compile_tag_tables(context.tables, compiled))
         context.state["compiled_tag_rules"] = compiled
         sample = set(filter(None, (tag.strip() for tag in context.preview_tags.split(","))))
+        known = {row["Name"] for row in source["tag_definitions"] if row["Namespace"] == 1}
+        unknown = sample - known
+        if unknown:
+            raise ValueError(f"unknown sample gameplay tags: {sorted(unknown)}")
         report = build_tag_usage_report(source, compiled, sample)
         (context.stage / "tag-usage-report.json").write_text(
-            json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        if context.explain_tags:
-            print(json.dumps(report, ensure_ascii=False, indent=2))
+            json.dumps(finalize_tag_usage_report(report), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        if context.preview_template is not None:
+            template = next((row for row in context.tables["continuous_tag_templates"]
+                             if row["Id"] == context.preview_template), None)
+            if template is None:
+                raise ValueError(f"missing continuous tag template: {context.preview_template}")
+            print(json.dumps(preview_tag_template(template, sample), ensure_ascii=False, indent=2))
         if context.preview_rule is None:
             return
         if context.preview_rule not in compiled:
             raise ValueError(f"missing tag rule group: {context.preview_rule}")
-        known = {row["Name"] for row in context.tables["tag_definitions"] if row["Namespace"] == 1}
-        unknown = sample - known
-        if unknown:
-            raise ValueError(f"unknown sample gameplay tags: {sorted(unknown)}")
         print(json.dumps({"ruleGroupId": context.preview_rule, "tags": sorted(sample),
                           "tree": compiled[context.preview_rule],
                           "matches": preview_tag_rule(compiled[context.preview_rule], sample)},

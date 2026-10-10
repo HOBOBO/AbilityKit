@@ -56,8 +56,11 @@ namespace AbilityKit.Game.Editor
         private float _refreshIntervalSeconds = DefaultRefreshIntervalSeconds;
         private bool _renderReplayPresentation = true;
         private bool _showEntityPane = true;
+        private bool _showDiagnosticEntityPane;
         private bool _showStatusArea = true;
         private bool _showSelectionInspector = true;
+        private bool _showActorSelectionInspector;
+        private int _narrowInspectorTab;
         private readonly BattleDebugDiagnosticSource _diagnosticSource = new BattleDebugDiagnosticSource();
         private readonly BattleDiagnosticWorkspaceState _diagnosticWorkspaceState =
             new BattleDiagnosticWorkspaceState();
@@ -72,6 +75,8 @@ namespace AbilityKit.Game.Editor
         private BattleDebugNavigationGroup _navigationGroup;
         private string _lastInvestigationModuleId = string.Empty;
         private string _lastFrameSyncModuleId = string.Empty;
+        private string _lastRuntimeModuleId = string.Empty;
+        private string _lastSessionModuleId = string.Empty;
         private int _selectedActorPanelIndex;
         private int _selectedDiagnosticsPanelIndex;
         private int _selectedSecondaryDiagnosticsPanelIndex = 1;
@@ -126,11 +131,15 @@ namespace AbilityKit.Game.Editor
                 PreferencesPrefix + "LastInvestigationModuleId", string.Empty);
             _lastFrameSyncModuleId = EditorPrefs.GetString(
                 PreferencesPrefix + "LastFrameSyncModuleId", string.Empty);
+            _lastRuntimeModuleId = EditorPrefs.GetString(
+                PreferencesPrefix + "LastRuntimeModuleId", string.Empty);
+            _lastSessionModuleId = EditorPrefs.GetString(
+                PreferencesPrefix + "LastSessionModuleId", string.Empty);
             var defaultGroup = _workspace == BattleDebugWorkspace.Actor
                 ? BattleDebugNavigationGroup.Actor
                 : BattleDebugNavigation.GroupOfModuleId(_primaryDiagnosticModuleId);
             _navigationGroup = (BattleDebugNavigationGroup)Mathf.Clamp(
-                EditorPrefs.GetInt(PreferencesPrefix + "NavigationGroup", (int)defaultGroup), 0, 2);
+                EditorPrefs.GetInt(PreferencesPrefix + "NavigationGroup", (int)defaultGroup), 0, 4);
             _workspace = _navigationGroup == BattleDebugNavigationGroup.Actor
                 ? BattleDebugWorkspace.Actor : BattleDebugWorkspace.Diagnostics;
             _secondaryDiagnosticModuleId = EditorPrefs.GetString(
@@ -151,8 +160,10 @@ namespace AbilityKit.Game.Editor
                 MinRefreshIntervalSeconds,
                 MaxRefreshIntervalSeconds);
             _showEntityPane = EditorPrefs.GetBool(PreferencesPrefix + "ShowEntityPane", true);
+            _showDiagnosticEntityPane = EditorPrefs.GetBool(PreferencesPrefix + "ShowDiagnosticEntityPane", false);
             _showStatusArea = EditorPrefs.GetBool(PreferencesPrefix + "ShowStatusArea", true);
             _showSelectionInspector = EditorPrefs.GetBool(PreferencesPrefix + "ShowSelectionInspector", true);
+            _showActorSelectionInspector = EditorPrefs.GetBool(PreferencesPrefix + "ShowActorSelectionInspector", false);
             _nextRefreshAt = EditorApplication.timeSinceStartup;
             wantsMouseMove = true;
             EditorApplication.update += OnEditorUpdate;
@@ -181,6 +192,8 @@ namespace AbilityKit.Game.Editor
             EditorPrefs.SetInt(PreferencesPrefix + "NavigationGroup", (int)_navigationGroup);
             EditorPrefs.SetString(PreferencesPrefix + "LastInvestigationModuleId", _lastInvestigationModuleId);
             EditorPrefs.SetString(PreferencesPrefix + "LastFrameSyncModuleId", _lastFrameSyncModuleId);
+            EditorPrefs.SetString(PreferencesPrefix + "LastRuntimeModuleId", _lastRuntimeModuleId);
+            EditorPrefs.SetString(PreferencesPrefix + "LastSessionModuleId", _lastSessionModuleId);
             EditorPrefs.SetInt(PreferencesPrefix + "ActorPanelIndex", _selectedActorPanelIndex);
             EditorPrefs.SetInt(PreferencesPrefix + "DiagnosticsPanelIndex", _selectedDiagnosticsPanelIndex);
             EditorPrefs.SetInt(
@@ -205,8 +218,10 @@ namespace AbilityKit.Game.Editor
                 _activeWorkspacePresetId ?? string.Empty);
             EditorPrefs.SetBool(PreferencesPrefix + "RenderReplayPresentation", _renderReplayPresentation);
             EditorPrefs.SetBool(PreferencesPrefix + "ShowEntityPane", _showEntityPane);
+            EditorPrefs.SetBool(PreferencesPrefix + "ShowDiagnosticEntityPane", _showDiagnosticEntityPane);
             EditorPrefs.SetBool(PreferencesPrefix + "ShowStatusArea", _showStatusArea);
             EditorPrefs.SetBool(PreferencesPrefix + "ShowSelectionInspector", _showSelectionInspector);
+            EditorPrefs.SetBool(PreferencesPrefix + "ShowActorSelectionInspector", _showActorSelectionInspector);
         }
 
         private void OnDestroy()
@@ -297,7 +312,7 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
-            DrawWorkspace(in ctx, facade);
+            DrawWorkspace(in ctx);
 
             AutoRefresh();
         }
@@ -305,52 +320,39 @@ namespace AbilityKit.Game.Editor
         private void DrawToolbar(in BattleDebugContext ctx)
         {
             DrawViewToolbar(in ctx);
-            DrawDataToolbar(in ctx);
         }
 
         private void DrawViewToolbar(in BattleDebugContext ctx)
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 
-            GUILayout.Label("过滤", GUILayout.Width(35));
-            var newFilter = GUILayout.TextField(
-                _filter ?? string.Empty,
-                EditorStyles.toolbarSearchField,
-                GUILayout.MinWidth(100),
-                GUILayout.MaxWidth(260));
-            if (!string.Equals(newFilter, _filter, StringComparison.Ordinal))
-            {
-                _filter = newFilter;
-                RefreshEntities();
-            }
-            EditorGUI.BeginDisabledGroup(string.IsNullOrEmpty(_filter));
-            if (GUILayout.Button(new GUIContent("×", "清除实体过滤"), EditorStyles.toolbarButton, GUILayout.Width(24)))
-            {
-                _filter = string.Empty;
-                RefreshEntities();
-                GUI.FocusControl(null);
-            }
-            EditorGUI.EndDisabledGroup();
-            GUILayout.Label(
-                $"{_visibleEntities.Count}/{_totalEntityCount}",
-                EditorStyles.miniLabel,
-                GUILayout.Width(58));
+            var replay = BattleReplayControlProvider.Current;
+            var sourceName = _diagnosticSource.IsOffline ? "离线"
+                : replay != null && replay.IsReplaySession ? "回放" : "实时";
+            GUILayout.Label(sourceName, EditorStyles.miniBoldLabel, GUILayout.Width(34));
+            if (_selectedActorId > 0 && position.width >= 720f &&
+                GUILayout.Button(new GUIContent($"Actor #{_selectedActorId}", "返回所选角色"),
+                    EditorStyles.toolbarButton, GUILayout.Width(100)))
+                SwitchNavigationGroup(BattleDebugNavigationGroup.Actor);
 
-            _showEntityPane = GUILayout.Toggle(
-                _showEntityPane,
-                new GUIContent("实体", "显示或收起 Actor 实体侧栏"),
-                EditorStyles.toolbarButton,
-                GUILayout.Width(42));
-            _showStatusArea = GUILayout.Toggle(
-                _showStatusArea,
-                new GUIContent("状态", "显示或收起数据源、现场和回放控制区"),
-                EditorStyles.toolbarButton,
-                GUILayout.Width(42));
-            _showSelectionInspector = GUILayout.Toggle(
-                _showSelectionInspector,
-                new GUIContent("检查器", "显示或收起常驻选择检查器"),
-                EditorStyles.toolbarButton,
-                GUILayout.Width(54));
+            var showEntityPane = BattleDebugPaneLayout.ShowEntityPane(
+                _navigationGroup, _showEntityPane, _showDiagnosticEntityPane);
+            showEntityPane = GUILayout.Toggle(showEntityPane,
+                new GUIContent("实体", "显示或收起当前工作区的 Actor 导航"),
+                EditorStyles.toolbarButton, GUILayout.Width(42));
+            if (_navigationGroup == BattleDebugNavigationGroup.Actor)
+                _showEntityPane = showEntityPane;
+            else
+                _showDiagnosticEntityPane = showEntityPane;
+            var showInspector = BattleDebugPaneLayout.ShowInspector(
+                _navigationGroup, _showActorSelectionInspector, _showSelectionInspector);
+            showInspector = GUILayout.Toggle(showInspector,
+                new GUIContent("检查器", "显示或收起当前工作区的选择检查器"),
+                EditorStyles.toolbarButton, GUILayout.Width(54));
+            if (_navigationGroup == BattleDebugNavigationGroup.Actor)
+                _showActorSelectionInspector = showInspector;
+            else
+                _showSelectionInspector = showInspector;
 
             EditorGUI.BeginDisabledGroup(!_diagnosticWorkspaceState.Navigation.CanGoBack);
             if (GUILayout.Button(new GUIContent("◀", "返回上一个诊断选择"), EditorStyles.toolbarButton, GUILayout.Width(26)))
@@ -377,70 +379,67 @@ namespace AbilityKit.Game.Editor
                 Repaint();
             }
 
+            _autoRefresh = GUILayout.Toggle(_autoRefresh,
+                new GUIContent("自动", "窗口定时刷新；不改变底层诊断采集"),
+                EditorStyles.toolbarButton, GUILayout.Width(42));
+            if (!BattleDebugNavigation.UseCompactNavigation(position.width))
+                DrawRefreshIntervalControl();
+            if (EditorGUILayout.DropdownButton(
+                    new GUIContent("数据与工具", "导入导出、回放与窗口设置"),
+                    FocusType.Passive, EditorStyles.toolbarDropDown, GUILayout.Width(86)))
+                ShowDataMenu(in ctx);
+
             EditorGUILayout.EndHorizontal();
         }
 
-        private void DrawDataToolbar(in BattleDebugContext ctx)
+        private void ShowDataMenu(in BattleDebugContext ctx)
         {
-            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-
-            GUILayout.Label(new GUIContent("数据", "诊断数据源、回放和导入导出操作"), GUILayout.Width(28));
-
-            _renderReplayPresentation = GUILayout.Toggle(
-                _renderReplayPresentation,
-                new GUIContent("渲染表现", "关闭后回放仅运行逻辑世界，不创建或驱动画面、界面、特效和相机"),
-                EditorStyles.toolbarButton,
-                GUILayout.Width(68));
-
-            EditorGUI.BeginDisabledGroup(!EditorApplication.isPlaying || _diagnosticSource.IsOffline && BattleReplayControlProvider.Current == null);
-            if (GUILayout.Button(new GUIContent("录像", "加载标准帧录像并驱动当前逻辑世界"), EditorStyles.toolbarButton, GUILayout.Width(44)))
+            var menu = new GenericMenu();
+            menu.AddItem(new GUIContent("数据/打开诊断 Artifact"), false, OpenArtifact);
+            if (CanExportLiveSnapshot())
+                menu.AddItem(new GUIContent("数据/导出实时诊断"), false, ExportLiveArtifact);
+            else
+                menu.AddDisabledItem(new GUIContent("数据/导出实时诊断"));
+            if (_diagnosticSource.IsOffline)
+                menu.AddItem(new GUIContent("数据/返回实时会话"), false, ReturnToLive);
+            if (EditorApplication.isPlaying &&
+                (!_diagnosticSource.IsOffline || BattleReplayControlProvider.Current != null))
+                menu.AddItem(new GUIContent("回放/加载录像"), false, OpenReplay);
+            else
+                menu.AddDisabledItem(new GUIContent("回放/加载录像"));
+            menu.AddItem(new GUIContent("回放/渲染表现"), _renderReplayPresentation,
+                () => _renderReplayPresentation = !_renderReplayPresentation);
+            menu.AddItem(new GUIContent("视图/显示状态区"), _showStatusArea,
+                () => { _showStatusArea = !_showStatusArea; Repaint(); });
+            if (BattleDebugNavigation.UseCompactNavigation(position.width))
             {
-                OpenReplay();
-            }
-            EditorGUI.EndDisabledGroup();
-
-            if (GUILayout.Button(new GUIContent("打开", "打开 abilitykit-analysis.v1 诊断 Artifact"), EditorStyles.toolbarButton, GUILayout.Width(44)))
-            {
-                OpenArtifact();
-            }
-
-            EditorGUI.BeginDisabledGroup(!CanExportLiveSnapshot());
-            if (GUILayout.Button(new GUIContent("导出", "捕获并导出当前实时战斗诊断"), EditorStyles.toolbarButton, GUILayout.Width(44)))
-            {
-                ExportLiveArtifact();
-            }
-            EditorGUI.EndDisabledGroup();
-
-            if (_diagnosticSource.IsOffline &&
-                GUILayout.Button(new GUIContent("返回实时", "关闭离线 Artifact 并返回实时会话"), EditorStyles.toolbarButton, GUILayout.Width(64)))
-            {
-                ReturnToLive();
+                var selectedInterval = FindRefreshIntervalOption(_refreshIntervalSeconds);
+                for (var i = 0; i < RefreshIntervalOptions.Length; i++)
+                {
+                    var option = i;
+                    menu.AddItem(new GUIContent("刷新频率/" + RefreshIntervalLabels[i]),
+                        i == selectedInterval, () =>
+                        {
+                            _refreshIntervalSeconds = RefreshIntervalOptions[option];
+                            _nextRefreshAt = EditorApplication.timeSinceStartup;
+                            Repaint();
+                        });
+                }
             }
 
+            var menuContext = ctx;
             var cmds = BattleDebugToolbarCommandRegistry.GetAll();
             for (int i = 0; i < cmds.Count; i++)
             {
                 var cmd = cmds[i];
-                if (cmd == null) continue;
-                if (!cmd.IsVisible(in ctx)) continue;
-
-                EditorGUI.BeginDisabledGroup(!cmd.IsEnabled(in ctx));
-                if (GUILayout.Button(cmd.Label, EditorStyles.toolbarButton))
-                {
-                    cmd.Execute(in ctx);
-                }
-                EditorGUI.EndDisabledGroup();
+                if (cmd == null || !cmd.IsVisible(in ctx)) continue;
+                if (cmd.IsEnabled(in ctx))
+                    menu.AddItem(new GUIContent("工具/" + cmd.Label), false,
+                        () => cmd.Execute(in menuContext));
+                else
+                    menu.AddDisabledItem(new GUIContent("工具/" + cmd.Label));
             }
-
-            GUILayout.FlexibleSpace();
-            _autoRefresh = GUILayout.Toggle(
-                _autoRefresh,
-                new GUIContent("自动刷新", "仅控制此窗口的周期轮询，不影响底层诊断采集"),
-                EditorStyles.toolbarButton,
-                GUILayout.Width(70));
-            DrawRefreshIntervalControl();
-
-            EditorGUILayout.EndHorizontal();
+            menu.ShowAsContext();
         }
 
         private void DrawFrameCursor(in BattleDebugContext ctx)
@@ -805,9 +804,30 @@ namespace AbilityKit.Game.Editor
             Repaint();
         }
 
-        private void DrawEntityList(in BattleDebugContext ctx)
+        private void DrawEntityList()
         {
             EditorGUILayout.BeginVertical(GUILayout.Width(_entityPaneWidth));
+
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            GUILayout.Label($"Actor {_visibleEntities.Count}/{_totalEntityCount}",
+                EditorStyles.miniBoldLabel, GUILayout.Width(88));
+            var newFilter = GUILayout.TextField(_filter ?? string.Empty,
+                EditorStyles.toolbarSearchField, GUILayout.MinWidth(40));
+            if (!string.Equals(newFilter, _filter, StringComparison.Ordinal))
+            {
+                _filter = newFilter;
+                RefreshEntities();
+            }
+            EditorGUI.BeginDisabledGroup(string.IsNullOrEmpty(_filter));
+            if (GUILayout.Button(new GUIContent("×", "清除实体过滤"),
+                    EditorStyles.toolbarButton, GUILayout.Width(22)))
+            {
+                _filter = string.Empty;
+                RefreshEntities();
+                GUI.FocusControl(null);
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.BeginHorizontal();
             GUILayout.Label("ID", GUILayout.Width(22));
@@ -824,6 +844,9 @@ namespace AbilityKit.Game.Editor
                     _selectionStatus = "请输入有效的 Actor ID。";
                 }
             }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginDisabledGroup(_visibleEntities.Count == 0);
             if (GUILayout.Button(new GUIContent("<", "选择上一个可见 Actor"), GUILayout.Width(24)))
             {
@@ -859,24 +882,8 @@ namespace AbilityKit.Game.Editor
                 {
                     var id = _visibleEntities[i];
                     var selected = id.ActorId == _selectedActorId;
-                    var label = id.ToString();
-
-                    var session = ctx.DiagnosticSession;
-                    if (session != null && session.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorTags))
-                    {
-                        var tags = session.QueryActorTags(1, 0, id.ActorId);
-                        if (IsCountSnapshotAvailable(tags.Status.Phase) && tags.Items != null)
-                            label += $"  标签 {tags.Items.Count}";
-                    }
-                    if (session != null && session.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorEffects))
-                    {
-                        var effects = session.QueryActorEffects(1, 0, id.ActorId);
-                        if (IsCountSnapshotAvailable(effects.Status.Phase) && effects.Items != null)
-                            label += $"  效果 {effects.Items.Count}";
-                    }
-
                     var style = selected ? EditorStyles.toolbarButton : EditorStyles.miniButton;
-                    if (GUILayout.Button(label, style))
+                    if (GUILayout.Button(id.ToString(), style))
                     {
                         SelectActor(id.ActorId);
                         GUI.FocusControl(null);
@@ -888,11 +895,6 @@ namespace AbilityKit.Game.Editor
 
             EditorGUILayout.EndVertical();
         }
-
-        private static bool IsCountSnapshotAvailable(BattleDiagnosticQueryPhase phase) =>
-            phase == BattleDiagnosticQueryPhase.Ready ||
-            phase == BattleDiagnosticQueryPhase.Empty ||
-            phase == BattleDiagnosticQueryPhase.Partial;
 
         private void DrawEntityPaneSplitter()
         {
@@ -929,49 +931,96 @@ namespace AbilityKit.Game.Editor
             }
         }
 
-        private void DrawWorkspace(in BattleDebugContext ctx, IBattleDebugFacade facade)
+        private void DrawWorkspace(in BattleDebugContext ctx)
         {
-            var useInspectorColumn = _showSelectionInspector && position.width >= InspectorColumnThreshold;
+            var currentGroupIndex = BattleDebugNavigation.IndexOf(_navigationGroup);
+            int nextGroupIndex;
+            if (BattleDebugNavigation.UseCompactNavigation(position.width))
+            {
+                EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+                GUILayout.Label("工作区", GUILayout.Width(42));
+                nextGroupIndex = EditorGUILayout.Popup(currentGroupIndex,
+                    BattleDebugNavigation.DisplayNames, EditorStyles.toolbarPopup,
+                    GUILayout.MinWidth(120f), GUILayout.MaxWidth(220f));
+                GUILayout.FlexibleSpace();
+                EditorGUILayout.EndHorizontal();
+            }
+            else
+            {
+                nextGroupIndex = GUILayout.Toolbar(currentGroupIndex,
+                    BattleDebugNavigation.DisplayNames, GUILayout.Height(24));
+            }
+            var nextGroup = BattleDebugNavigation.OrderedGroups[nextGroupIndex];
+            if (nextGroup != _navigationGroup)
+                SwitchNavigationGroup(nextGroup);
+
+            var showEntityPane = IsEntityPaneVisible();
+            var showInspector = BattleDebugPaneLayout.ShowInspector(
+                _navigationGroup, _showActorSelectionInspector, _showSelectionInspector);
+            var workspaceCtx = ctx.WithAvailableContentWidth(ResolveAvailableContentWidth());
+            var useInspectorColumn = showInspector && CanDockInspector(showEntityPane);
             if (useInspectorColumn)
             {
                 EditorGUILayout.BeginHorizontal();
-                if (_showEntityPane)
+                if (showEntityPane)
                 {
-                    DrawEntityList(in ctx);
+                    DrawEntityList();
                     DrawEntityPaneSplitter();
                 }
-                DrawEntityDetails(in ctx);
+                DrawEntityDetails(in workspaceCtx);
                 DrawInspectorPaneSplitter();
                 EditorGUILayout.BeginVertical(GUILayout.Width(_inspectorPaneWidth));
-                _selectionInspector.Draw(in ctx);
+                _selectionInspector.Draw(in workspaceCtx);
                 EditorGUILayout.EndVertical();
                 EditorGUILayout.EndHorizontal();
                 return;
             }
 
             EditorGUILayout.BeginVertical();
-            EditorGUILayout.BeginHorizontal();
-            if (_showEntityPane)
+            if (showInspector)
             {
-                DrawEntityList(in ctx);
+                _narrowInspectorTab = GUILayout.Toolbar(_narrowInspectorTab,
+                    new[] { "主视图", "检查器" }, GUILayout.Height(22));
+            }
+            else
+            {
+                _narrowInspectorTab = 0;
+            }
+            if (showInspector && _narrowInspectorTab == 1)
+            {
+                _selectionInspector.Draw(in workspaceCtx);
+                EditorGUILayout.EndVertical();
+                return;
+            }
+            EditorGUILayout.BeginHorizontal();
+            if (showEntityPane)
+            {
+                DrawEntityList();
                 DrawEntityPaneSplitter();
             }
-            DrawEntityDetails(in ctx);
+            DrawEntityDetails(in workspaceCtx);
             EditorGUILayout.EndHorizontal();
-            if (_showSelectionInspector)
-            {
-                EditorGUILayout.Space(3f);
-                _selectionInspector.Draw(in ctx);
-            }
             EditorGUILayout.EndVertical();
         }
+
+        private bool IsEntityPaneVisible() => BattleDebugPaneLayout.ShowEntityPane(
+            _navigationGroup, _showEntityPane, _showDiagnosticEntityPane);
+
+        private bool CanDockInspector(bool showEntityPane) =>
+            position.width >= Mathf.Max(InspectorColumnThreshold,
+                _inspectorPaneWidth + (showEntityPane ? _entityPaneWidth + SplitterWidth : 0f) +
+                360f + SplitterWidth);
 
         private float ResolveAvailableContentWidth()
         {
             var width = position.width;
-            if (_showEntityPane)
+            var showEntityPane = IsEntityPaneVisible();
+            var showInspector = BattleDebugPaneLayout.ShowInspector(
+                _navigationGroup, _showActorSelectionInspector, _showSelectionInspector);
+            var dockInspector = showInspector && CanDockInspector(showEntityPane);
+            if (showEntityPane && (dockInspector || !showInspector || _narrowInspectorTab == 0))
                 width -= _entityPaneWidth + SplitterWidth;
-            if (_showSelectionInspector && position.width >= InspectorColumnThreshold)
+            if (dockInspector)
                 width -= _inspectorPaneWidth + SplitterWidth;
             return Mathf.Max(260f, width - 8f);
         }
@@ -1014,16 +1063,6 @@ namespace AbilityKit.Game.Editor
         private void DrawEntityDetails(in BattleDebugContext ctx)
         {
             EditorGUILayout.BeginVertical();
-
-            var groupNames = new[] { "Actor 检查", "事件调查", "帧同步" };
-            var nextGroup = (BattleDebugNavigationGroup)GUILayout.Toolbar(
-                (int)_navigationGroup,
-                groupNames,
-                GUILayout.Height(22));
-            if (nextGroup != _navigationGroup)
-            {
-                SwitchNavigationGroup(nextGroup);
-            }
 
             CollectVisiblePanels(in ctx);
             if (_visiblePanels.Count == 0)
@@ -1169,6 +1208,7 @@ namespace AbilityKit.Game.Editor
             in BattleDebugContext ctx,
             string[] names)
         {
+            var compact = ctx.AvailableContentWidth < 620f;
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 
             var groupNames = new string[_groupPanelIndices.Count];
@@ -1196,7 +1236,7 @@ namespace AbilityKit.Game.Editor
                 presetIndex,
                 presetNames,
                 EditorStyles.toolbarPopup,
-                GUILayout.Width(100));
+                GUILayout.Width(compact ? 82f : 100f));
             if (nextPresetIndex != presetIndex)
             {
                 if (nextPresetIndex == 0)
@@ -1222,11 +1262,17 @@ namespace AbilityKit.Game.Editor
                 primaryGroupIndex,
                 groupNames,
                 EditorStyles.toolbarPopup,
-                GUILayout.MinWidth(100),
-                GUILayout.MaxWidth(190));
+                GUILayout.MinWidth(compact ? 70f : 100f),
+                GUILayout.MaxWidth(compact ? 120f : 190f));
             if (nextPrimaryIndex != primaryGroupIndex)
             {
                 SelectPrimaryDiagnosticPanel(_groupPanelIndices[nextPrimaryIndex], true);
+            }
+
+            if (compact)
+            {
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             }
 
             var nextShowSecondary = GUILayout.Toggle(
@@ -1250,15 +1296,16 @@ namespace AbilityKit.Game.Editor
             for (var i = 0; i < names.Length; i++)
             {
                 var group = BattleDebugNavigation.GroupOf(_visiblePanels[i]);
-                secondaryNames[i] = (group == BattleDebugNavigationGroup.FrameSync ? "帧同步 / " : "调查 / ") +
-                                    BattleDebugNavigation.NavigationName(_visiblePanels[i]);
+                secondaryNames[i] = BattleDebugNavigation.DisplayNames[
+                    BattleDebugNavigation.IndexOf(group)] + " / " +
+                    BattleDebugNavigation.NavigationName(_visiblePanels[i]);
             }
             var nextSecondaryIndex = EditorGUILayout.Popup(
                 secondaryIndex,
                 secondaryNames,
                 EditorStyles.toolbarPopup,
-                GUILayout.MinWidth(100),
-                GUILayout.MaxWidth(190));
+                GUILayout.MinWidth(compact ? 70f : 100f),
+                GUILayout.MaxWidth(compact ? 150f : 190f));
             if (nextSecondaryIndex != secondaryIndex)
             {
                 _selectedSecondaryDiagnosticsPanelIndex = nextSecondaryIndex;
@@ -1309,8 +1356,8 @@ namespace AbilityKit.Game.Editor
                 GUILayout.Width(42));
 
             GUILayout.FlexibleSpace();
-            if (_navigationGroup == BattleDebugNavigationGroup.Investigation &&
-                EditorGUIUtility.currentViewWidth >= 760f)
+            if (ctx.AvailableContentWidth >= 620f &&
+                _navigationGroup == BattleDebugNavigationGroup.Investigation)
             {
                 selectedIndex = DrawDiagnosticsShortcut<IBattleDebugEventsTarget>(
                     selectedIndex,
@@ -1320,6 +1367,14 @@ namespace AbilityKit.Game.Editor
                     selectedIndex,
                     "Trace",
                     "打开 Trace 调查");
+            }
+            else if (ctx.AvailableContentWidth >= 620f &&
+                     _navigationGroup == BattleDebugNavigationGroup.Runtime)
+            {
+                selectedIndex = DrawDiagnosticsShortcut<BattleDebugSkillRuntimesPanel>(
+                    selectedIndex, "技能", "查看当前技能运行时");
+                selectedIndex = DrawDiagnosticsShortcut<BattleDebugActiveObjectsPanel>(
+                    selectedIndex, "活跃", "查看投射物、区域和持续对象");
                 selectedIndex = DrawDiagnosticsShortcut<BattleDebugRuntimeObjectsPanel>(
                     selectedIndex,
                     "对象",
@@ -1715,18 +1770,42 @@ namespace AbilityKit.Game.Editor
             _workspace = group == BattleDebugNavigationGroup.Actor
                 ? BattleDebugWorkspace.Actor : BattleDebugWorkspace.Diagnostics;
             if (group != BattleDebugNavigationGroup.Actor)
-                _primaryDiagnosticModuleId = group == BattleDebugNavigationGroup.FrameSync
-                    ? _lastFrameSyncModuleId : _lastInvestigationModuleId;
+                _primaryDiagnosticModuleId = GetRememberedModule(group);
+            _showSecondaryDiagnostics = false;
             _detailScroll = Vector2.zero;
+            _secondaryDetailScroll = Vector2.zero;
+            _narrowInspectorTab = 0;
+        }
+
+        private string GetRememberedModule(BattleDebugNavigationGroup group)
+        {
+            switch (group)
+            {
+                case BattleDebugNavigationGroup.Runtime: return _lastRuntimeModuleId;
+                case BattleDebugNavigationGroup.FrameSync: return _lastFrameSyncModuleId;
+                case BattleDebugNavigationGroup.Session: return _lastSessionModuleId;
+                default: return _lastInvestigationModuleId;
+            }
         }
 
         private void RememberDiagnosticModule()
         {
             if (_workspace != BattleDebugWorkspace.Diagnostics) return;
-            if (_navigationGroup == BattleDebugNavigationGroup.FrameSync)
-                _lastFrameSyncModuleId = _primaryDiagnosticModuleId;
-            else if (_navigationGroup == BattleDebugNavigationGroup.Investigation)
-                _lastInvestigationModuleId = _primaryDiagnosticModuleId;
+            switch (_navigationGroup)
+            {
+                case BattleDebugNavigationGroup.Runtime:
+                    _lastRuntimeModuleId = _primaryDiagnosticModuleId;
+                    break;
+                case BattleDebugNavigationGroup.Investigation:
+                    _lastInvestigationModuleId = _primaryDiagnosticModuleId;
+                    break;
+                case BattleDebugNavigationGroup.FrameSync:
+                    _lastFrameSyncModuleId = _primaryDiagnosticModuleId;
+                    break;
+                case BattleDebugNavigationGroup.Session:
+                    _lastSessionModuleId = _primaryDiagnosticModuleId;
+                    break;
+            }
         }
 
         private int GetSelectedPanelIndex()
@@ -1941,6 +2020,8 @@ namespace AbilityKit.Game.Editor
             }
 
             _selectedActorId = (int)actorId;
+            if (_navigationGroup != BattleDebugNavigationGroup.Actor)
+                SwitchNavigationGroup(BattleDebugNavigationGroup.Actor);
             RefreshEntities();
             for (var i = 0; i < _visibleEntities.Count; i++)
             {
@@ -2092,8 +2173,8 @@ namespace AbilityKit.Game.Editor
             var panels = BattleDebugPanelRegistry.GetAll();
             if (panels == null) return;
 
-            _workspace = BattleDebugWorkspace.Diagnostics;
-            _navigationGroup = BattleDebugNavigationGroup.Investigation;
+            if (_navigationGroup != BattleDebugNavigationGroup.Investigation)
+                SwitchNavigationGroup(BattleDebugNavigationGroup.Investigation);
             for (var i = 0; i < panels.Count; i++)
             {
                 var panel = panels[i];
@@ -2122,7 +2203,11 @@ namespace AbilityKit.Game.Editor
         {
             var sourceSelection = _diagnosticWorkspaceState.Selection;
             _selectionInspector.SelectConfig(in reference, in sourceSelection);
-            _showSelectionInspector = true;
+            if (_navigationGroup == BattleDebugNavigationGroup.Actor)
+                _showActorSelectionInspector = true;
+            else
+                _showSelectionInspector = true;
+            _narrowInspectorTab = 1;
 
             if (!BattleDebugConfigSourceIndex.TryLocate(in reference, out var location, out var error))
             {
@@ -2290,8 +2375,8 @@ namespace AbilityKit.Game.Editor
                 if (panel is IBattleDebugTraceTarget target)
                 {
                     target.OpenTrace(rootContextId, contextId);
-                    _workspace = BattleDebugWorkspace.Diagnostics;
-                    _navigationGroup = BattleDebugNavigationGroup.Investigation;
+                    if (_navigationGroup != BattleDebugNavigationGroup.Investigation)
+                        SwitchNavigationGroup(BattleDebugNavigationGroup.Investigation);
                     _selectedDiagnosticsPanelIndex = diagnosticsIndex;
                     _primaryDiagnosticModuleId = BattleDebugModuleCatalog.GetStableId(panel);
                     RememberDiagnosticModule();
@@ -2385,8 +2470,8 @@ namespace AbilityKit.Game.Editor
                     continue;
                 }
 
-                _workspace = BattleDebugWorkspace.Diagnostics;
-                _navigationGroup = BattleDebugNavigationGroup.Investigation;
+                if (_navigationGroup != BattleDebugNavigationGroup.Investigation)
+                    SwitchNavigationGroup(BattleDebugNavigationGroup.Investigation);
                 _selectedDiagnosticsPanelIndex = CountDiagnosticsPanelsBefore(panels, i);
                 _primaryDiagnosticModuleId = BattleDebugModuleCatalog.GetStableId(panels[i]);
                 RememberDiagnosticModule();

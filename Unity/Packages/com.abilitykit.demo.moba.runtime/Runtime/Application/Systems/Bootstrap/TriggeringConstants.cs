@@ -51,6 +51,8 @@ namespace AbilityKit.Demo.Moba.Systems
             public const string EndGame = "end_game";
             public const string SetGameplayVar = "set_gameplay_var";
             public const string AddGameplayVar = "add_gameplay_var";
+            public const string AwardTeamKillScore = "award_team_kill_score";
+            public const string ScheduleHeroRespawn = "schedule_hero_respawn";
             public const string AdvanceGameplayCounter = "advance_gameplay_counter";
             public const string ExecuteTrigger = "execute_trigger";
             public const string QueryTargetCollection = "query_target_collection";

@@ -7,8 +7,21 @@ using AbilityKit.Network.Sdk;
 
 namespace AbilityKit.Game.Flow
 {
+    public interface IRoomDepartureObserver
+    {
+        Task OnRoomLeftAsync(string battleId);
+    }
+
+    public interface IMobaReliableEventCheckpointLifecycle : IMobaReliableBattleEventCheckpointStore
+    {
+        Task<ReliableEventCheckpointFlushResult> FlushAsync(
+            ReliableEventCheckpointFlushTrigger trigger,
+            CancellationToken cancellationToken = default);
+    }
+
     internal sealed class MobaReliableBattleEventCheckpointStore :
-        IMobaReliableBattleEventCheckpointStore,
+        IMobaReliableEventCheckpointLifecycle,
+        IRoomDepartureObserver,
         IDisposable
     {
         private readonly IReliableEventCheckpointStore _store;
@@ -61,6 +74,13 @@ namespace AbilityKit.Game.Flow
         public bool Remove(string battleId)
         {
             return _store.Remove(battleId);
+        }
+
+        public Task OnRoomLeftAsync(string battleId)
+        {
+            if (!string.IsNullOrWhiteSpace(battleId)) Remove(battleId);
+            return FlushAsync(ReliableEventCheckpointFlushTrigger.RoomLeave,
+                CancellationToken.None);
         }
 
         /// <summary>等待底层检查点存储完成已排队写入。</summary>

@@ -13,13 +13,15 @@ namespace AbilityKit.Game.Flow
             _gatewayConnectionFactory = gatewayConnectionFactory;
         }
 
+        public IBattleBootstrapper Bootstrapper => _bootstrapper;
+        public Func<BattleStartPlan, AbilityKit.Network.Abstractions.IConnection> GatewayConnectionFactory =>
+            _gatewayConnectionFactory;
+
         public void Enter(in GamePhaseContext ctx)
         {
             var flow = ctx.Entry.Get<GameFlowDomain>();
 
-            var cfg = (_bootstrapper as IBattleStartConfigProvider)?.Config;
-            var set = cfg != null ? cfg.EffectiveFeatureSet : null;
-            flow.AttachBattleFeatures(set?.FeatureIds, _gatewayConnectionFactory);
+            flow.EnterBattle(_bootstrapper, _gatewayConnectionFactory);
         }
 
         public void Exit(in GamePhaseContext ctx)

@@ -12,7 +12,7 @@ namespace AbilityKit.Game.Battle.Agent
     /// 该适配器位于 View.Runtime（依赖 Shared.Assets），
     /// 使 Shared.Assets 无需反向引用上层快照类型，打破程序集循环依赖。
     /// </remarks>
-    public sealed class ClientRoomSnapshotAssetSource : IBattleAssetManifestSource
+    public sealed class ClientRoomSnapshotAssetSource : IBattleAssetManifestSource, IBattleGameplayManifestSource
     {
         private readonly ClientRoomSnapshot _snapshot;
 
@@ -43,6 +43,7 @@ namespace AbilityKit.Game.Battle.Agent
 
         /// <inheritdoc />
         public int LaunchManifestVersion => _snapshot.LaunchManifestVersion;
+        public int GameplayId => _snapshot.GameplayId;
 
         /// <inheritdoc />
         public string LaunchManifestHash => _snapshot.LaunchManifestHash;

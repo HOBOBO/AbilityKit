@@ -22,6 +22,7 @@ namespace AbilityKit.Game
         private readonly MultiplayerRoomFlowController _controller;
         private readonly ClientRoomPushSynchronizer _pushSynchronizer;
         private readonly IBattleAssetLeaseTransferSource _assetLoader;
+        private readonly IMobaReliableEventCheckpointLifecycle _checkpoints;
         private readonly IMultiplayerGatewayDiagnostics _diagnostics;
         private readonly IMultiplayerGatewayRecoveryControl _recoveryControl;
         private IEntity _root;
@@ -39,6 +40,7 @@ namespace AbilityKit.Game
             MultiplayerRoomFlowController controller,
             ClientRoomPushSynchronizer pushSynchronizer,
             IBattleAssetLeaseTransferSource assetLoader,
+            IMobaReliableEventCheckpointLifecycle checkpoints,
             IMultiplayerGatewayDiagnostics diagnostics,
             IMultiplayerGatewayRecoveryControl recoveryControl)
         {
@@ -54,6 +56,7 @@ namespace AbilityKit.Game
             _controller = controller ?? throw new ArgumentNullException(nameof(controller));
             _pushSynchronizer = pushSynchronizer ?? throw new ArgumentNullException(nameof(pushSynchronizer));
             _assetLoader = assetLoader ?? throw new ArgumentNullException(nameof(assetLoader));
+            _checkpoints = checkpoints ?? throw new ArgumentNullException(nameof(checkpoints));
             _diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
             _recoveryControl = recoveryControl ?? throw new ArgumentNullException(nameof(recoveryControl));
         }
@@ -81,6 +84,7 @@ namespace AbilityKit.Game
             root.WithRef(_controller);
             root.WithRef(_pushSynchronizer);
             root.WithRef<IBattleAssetLeaseTransferSource>(_assetLoader);
+            root.WithRef<IMobaReliableEventCheckpointLifecycle>(_checkpoints);
             root.WithRef<IMultiplayerGatewayDiagnostics>(_diagnostics);
             root.WithRef<IMultiplayerGatewayRecoveryControl>(_recoveryControl);
         }
@@ -94,6 +98,7 @@ namespace AbilityKit.Game
             root.RemoveComponent(typeof(IMultiplayerGatewayRecoveryControl));
             root.RemoveComponent(typeof(IMultiplayerGatewayDiagnostics));
             root.RemoveComponent(typeof(IBattleAssetLeaseTransferSource));
+            root.RemoveComponent(typeof(IMobaReliableEventCheckpointLifecycle));
             root.RemoveComponent(typeof(ClientRoomPushSynchronizer));
             root.RemoveComponent(typeof(MultiplayerRoomFlowController));
             root.RemoveComponent(typeof(IRoomSnapshotProvider));

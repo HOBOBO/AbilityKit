@@ -1,0 +1,35 @@
+{
+  "DefaultProfileId": "moba.standard",
+  "Profiles": [
+    {
+      "ProfileId": "moba.standard",
+      "Version": 3,
+      "SessionModuleIds": ["session_events", "gateway_room", "snapshot_routing", "session_dispatchers", "session_editor_hooks", "session_lifecycle", "session_net_adapter", "session_replay", "session_tick_loop", "session_plan"],
+      "Groups": [
+        { "GroupId": "debug_overlay", "FeatureIds": ["debug_ongui"] }
+      ],
+      "Phases": [
+        { "StateId": "Battle.Prepare", "FeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation"], "RetainOnExitFeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation"] },
+        { "StateId": "Battle.Connect", "FeatureRefs": [{ "GroupId": "debug_overlay" }] },
+        { "StateId": "Battle.CreateOrJoinWorld", "FeatureRefs": [{ "GroupId": "debug_overlay" }] },
+        { "StateId": "Battle.LoadAssets", "FeatureRefs": [{ "FeatureId": "loading_screen" }, { "GroupId": "debug_overlay" }] },
+        { "StateId": "Battle.InMatch", "FeatureRefs": [{ "FeatureId": "sync" }, { "FeatureId": "input" }, { "FeatureId": "view" }, { "FeatureId": "hud" }, { "GroupId": "debug_overlay" }] },
+        { "StateId": "Battle.End", "FeatureRefs": [{ "FeatureId": "end_settlement" }, { "GroupId": "debug_overlay" }] }
+      ]
+    },
+    {
+      "ProfileId": "moba.quiet",
+      "Version": 3,
+      "AllowedHostModes": ["Local"],
+      "SessionModuleIds": ["session_events", "gateway_room", "snapshot_routing", "session_dispatchers", "session_lifecycle", "session_net_adapter", "session_replay", "session_tick_loop", "session_plan"],
+      "Phases": [
+        { "StateId": "Battle.Prepare", "FeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation"], "RetainOnExitFeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation"] },
+        { "StateId": "Battle.Connect" },
+        { "StateId": "Battle.CreateOrJoinWorld" },
+        { "StateId": "Battle.LoadAssets", "FeatureIds": ["loading_screen"] },
+        { "StateId": "Battle.InMatch", "FeatureIds": ["sync", "input", "view", "hud"] },
+        { "StateId": "Battle.End", "FeatureIds": ["end_settlement"] }
+      ]
+    }
+  ]
+}

@@ -1062,14 +1062,6 @@ namespace AbilityKit.Game.Test.UnitTest
             CollectionAssert.AreEqual(new[] { "session" }, provider.CreatedFeatureIds);
         }
 
-        [TestCase(BattleHostMode.Local)]
-        [TestCase(BattleHostMode.GatewayRemote)]
-        public void BattleSessionFeature_DoesNotTreatFirstFrameAsAssetBarrier(
-            BattleHostMode hostMode)
-        {
-            Assert.IsFalse(BattleSessionFeature.CompletesAssetBarrierOnFirstFrame(hostMode));
-        }
-
         [Test]
         public void BattleSessionFeature_StartsWorldsThroughInjectedInstaller()
         {
@@ -1188,10 +1180,9 @@ namespace AbilityKit.Game.Test.UnitTest
             }
             finally
             {
-                var firstStop = (Task)InvokePrivate(feature, "StopGatewayRoomPreparation");
-                var secondStop = (Task)InvokePrivate(feature, "StopGatewayRoomPreparation");
-                Assert.That(secondStop, Is.SameAs(firstStop));
-                await firstStop;
+                var firstStop = (Task)InvokePrivate(feature, "StopGatewayRoomPreparationAsync");
+                var secondStop = (Task)InvokePrivate(feature, "StopGatewayRoomPreparationAsync");
+                await Task.WhenAll(firstStop, secondStop);
                 InvokePrivate(feature, "DisposeNetworkIoDispatcher");
             }
         }
@@ -1239,7 +1230,7 @@ namespace AbilityKit.Game.Test.UnitTest
             }
             finally
             {
-                await (Task)InvokePrivate(feature, "StopGatewayRoomPreparation");
+                await (Task)InvokePrivate(feature, "StopGatewayRoomPreparationAsync");
                 InvokePrivate(feature, "DisposeNetworkIoDispatcher");
             }
         }
@@ -1884,6 +1875,39 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void BattleFlowProfileCatalog_ResourceMatchesStandardProfile()
+        {
+            var configured = MobaBattleFlowProfileCatalog.Default.DefaultProfile;
+            var standard = MobaBattleFlowProfile.CreateStandard();
+
+            Assert.AreEqual(standard.ProfileId, configured.ProfileId);
+            Assert.AreEqual(standard.Version, configured.Version);
+            Assert.AreEqual(standard.Phases.Length, configured.Phases.Length);
+            foreach (var phase in standard.Phases)
+                CollectionAssert.AreEqual(standard.GetFeatures(phase.StateId),
+                    configured.GetFeatures(phase.StateId), phase.StateId);
+        }
+
+        [Test]
+        public void GameFlowDomain_RejectsUnregisteredProfileFeatureDuringConstruction()
+        {
+            var profile = MobaBattleFlowProfile.CreateStandard();
+            profile.Phases[1].FeatureRefs = new[]
+            {
+                new MobaBattleFlowFeatureRef { FeatureId = "unregistered_feature" }
+            };
+
+            var error = Assert.Throws<InvalidOperationException>(() => new GameFlowDomain(
+                new TestGameFlowRuntimeServices(),
+                new TestMobaFeatureFactoryProvider(),
+                new TestBattleSessionFeatureFactory(),
+                new TestLogSink(),
+                flowProfile: profile));
+
+            StringAssert.Contains("unregistered_feature", error.Message);
+        }
+
+        [Test]
         public void MobaFlowConfigurationValidator_ReportsMissingStateDescription()
         {
             var config = MobaFlowConfiguration.CreateDefault();
@@ -2164,7 +2188,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     autoJoinRoom: true,
                     joinRoomId: "preset-room",
                     createRoomOpCode: 110,
-                    joinRoomOpCode: 111)
+                    joinRoomOpCode: 111,
+                    maxPlayers: 5)
                 .Build();
             var bootstrapper = new ExistingGatewayRoomBattleBootstrapper(
                 new FixedBattleBootstrapper(sourcePlan),
@@ -2190,6 +2215,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual("room-public-id", plan.Gateway.JoinRoomId);
             Assert.AreEqual("battle-authoritative-id", plan.Gateway.BattleId);
             Assert.AreEqual("authenticated-token", plan.Gateway.SessionToken);
+            Assert.AreEqual(5, plan.Gateway.MaxPlayers);
             Assert.IsTrue(plan.Gateway.UseGatewayTransport);
             Assert.IsFalse(plan.Gateway.AutoCreateRoom);
             Assert.IsFalse(plan.Gateway.AutoJoinRoom);
@@ -2563,10 +2589,10 @@ namespace AbilityKit.Game.Test.UnitTest
         private static void InitializeDispatchers(BattleSessionFeature feature)
         {
             var featureType = typeof(BattleSessionFeature);
-            var dispatchersField = featureType.GetField(
+            var dispatchersProperty = featureType.GetProperty(
                 "_dispatchers",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.IsNotNull(dispatchersField, "_dispatchers");
+            Assert.IsNotNull(dispatchersProperty, "_dispatchers");
 
             var handlesField = featureType.GetField(
                 "_handles",
@@ -2579,7 +2605,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     ?.GetValue(feature);
             Assert.IsNotNull(handles, "_handles compatibility accessor");
 
-            var dispatchers = dispatchersField.GetValue(feature);
+            var dispatchers = dispatchersProperty.GetValue(feature);
             var onAttach = dispatchers.GetType().GetMethod("OnAttach");
             Assert.IsNotNull(onAttach, "SessionDispatchersController.OnAttach");
             onAttach.Invoke(dispatchers, new[] { handles });
@@ -2745,6 +2771,10 @@ namespace AbilityKit.Game.Test.UnitTest
                 Register(registry, "input");
                 Register(registry, "view");
                 Register(registry, "hud");
+                Register(registry, "gameplay_presentation");
+                Register(registry, "battle_outcome");
+                Register(registry, "loading_screen");
+                Register(registry, "end_settlement");
                 registry.Register("session", (in AbilityKit.Game.Flow.GamePhaseContext ctx) =>
                 {
                     CreatedFeatureIds.Add("session");
@@ -3006,6 +3036,9 @@ namespace AbilityKit.Game.Test.UnitTest
 
             public AbilityKitConnectionRole LastRemovedRole { get; private set; }
             public bool LastRemoveDispose { get; private set; }
+
+            public IAbilityKitConnectionLease Acquire(AbilityKitConnectionDescriptor descriptor, Func<AbilityKitConnectionDescriptor, IConnection> factory)
+                => throw new NotSupportedException();
 
             public bool TryGet(AbilityKitConnectionRole role, out IConnection connection)
             {

@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Flow
             _subscriptions = subscriptions ?? new BattleHudEntityLifecycleSubscriptionFactory();
         }
 
-        public void Bind(BattleContext ctx, BattleHudBinder binder)
+        public void Bind(IBattleEntityContext ctx, BattleHudBinder binder)
         {
             Dispose();
 

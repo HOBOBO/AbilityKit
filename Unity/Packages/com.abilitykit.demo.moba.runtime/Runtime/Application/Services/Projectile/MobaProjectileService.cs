@@ -74,7 +74,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 var skillHandle = sourceContext.SkillRuntimeHandle;
                 var record = MobaParameterRecord.FromSkillRuntime(MobaParameterStage.ProjectileSpawn,
                     _skillRuntimes, in skillHandle, projectileTemplateId: projectileCode);
-                speed = _skillParamModifiers.Projectile.ResolveSpeed(casterActorId, speed, in record);
+                speed = _skillParamModifiers.Projectile.ResolveSpeedSim(casterActorId, speed, in record);
                 if (hitPolicyKind == ProjectileHitPolicyKind.Pierce)
                     hitPolicyParam = _skillParamModifiers.Projectile.ResolvePierceHits(
                         casterActorId, hitPolicyParam, in record);
@@ -619,7 +619,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 var skillHandle = request.SourceContext.SkillRuntimeHandle;
                 var skillRecord = MobaParameterRecord.FromSkillRuntime(
                     MobaParameterStage.LauncherCreate, _skillRuntimes, in skillHandle);
-                var context = new MobaProjectileLaunchContext(
+                var facts = new MobaProjectileLaunchFacts(
                     in request,
                     launcher,
                     projectile,
@@ -627,19 +627,22 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     launcherEntity,
                     in baseSpawn,
                     in launcherSource,
+                    skillRecord);
+                var schedule = new MobaProjectileLaunchSchedule(
                     startFrame,
                     endTimeMs,
                     intervalFrames,
                     count,
                     bulletsPerShot,
                     requestFanAngleDeg,
+                    frameTime.DeltaTime * 1000f);
+                var services = new MobaProjectileLaunchServices(
                     _projectiles,
                     _links,
                     _skillParamModifiers,
                     _random,
-                    this,
-                    skillRecord,
-                    frameTime.DeltaTime * 1000f);
+                    this);
+                var context = new MobaProjectileLaunchContext(in facts, in schedule, in services);
 
                 var started = sequence.TryStart(in context, out sequenceResult);
                 result = sequenceResult;

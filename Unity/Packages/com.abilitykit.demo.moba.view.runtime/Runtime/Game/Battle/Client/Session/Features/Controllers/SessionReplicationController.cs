@@ -66,7 +66,7 @@ namespace AbilityKit.Game.Flow
             _disposeReplication();
             _disposeInputDiagnostics();
             var context = _getContext();
-            if (context != null) context.CanSubmitGameplayInput = true;
+            context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, false);
         }
     }
 }

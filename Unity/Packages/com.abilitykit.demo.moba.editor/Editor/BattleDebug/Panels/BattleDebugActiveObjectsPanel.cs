@@ -14,6 +14,8 @@ namespace AbilityKit.Game.Editor
     /// <summary>
     /// Displays live temporary objects and continuous effects with their immutable provenance data.
     /// </summary>
+    [BattleDebugModule(BattleDebugModuleIds.ActiveObjects, "运行时",
+        Sources = BattleDebugModuleSourceSupport.Live)]
     internal sealed class BattleDebugActiveObjectsPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         private readonly List<MobaProjectileLinkDiagnostics> _projectiles = new List<MobaProjectileLinkDiagnostics>(32);

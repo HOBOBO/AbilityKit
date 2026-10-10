@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Moba.Share.Prediction;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Protocol.Moba;
@@ -10,8 +11,24 @@ using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Game.Flow
 {
+    [Flags]
+    internal enum BattleGameplayInputBlockReason
+    {
+        None = 0,
+        PauseRecovery = 1,
+        AuthoritativeRecovery = 2,
+    }
+
     public sealed partial class BattleContext
     {
+        int IBattleHudPresentationPort.LocalActorId
+        {
+            get => LocalActorId;
+            set => LocalActorId = value;
+        }
+
+        AbilityKit.Ability.Host.Extensions.Moba.CreateWorld.MobaBattleLaunchSpec
+            IBattleGameplayPresentationSource.LaunchSpec => Plan.LaunchSpec;
         BattleHostMode IBattleInputSessionIdentityPort.HostMode => Plan.HostMode;
 
         string IBattleInputSessionIdentityPort.ResolveLocalControlPlayerId() =>
@@ -23,17 +40,45 @@ namespace AbilityKit.Game.Flow
         private readonly BattlePlayerLoadoutStore _playerLoadouts =
             new BattlePlayerLoadoutStore();
         private readonly Dictionary<int, int> _actorEntityVersions = new Dictionary<int, int>();
+        private readonly Dictionary<int, CharacterActionData> _characterActions =
+            new Dictionary<int, CharacterActionData>();
         private MobaActionAckTracker _localActionAckTracker;
+        private BattleGameplayInputBlockReason _inputBlockReasons;
 
-        public BattleLogicSession Session;
-        public IWorld RuntimeWorld;
-        public BattleStartPlan Plan;
-        public int LastFrame;
-        public double LogicTimeSeconds;
-        public int LocalActorId;
-        public string LocalControlPlayerId;
-        public BattleSessionHooks Hooks;
-        public bool CanSubmitGameplayInput = true;
+        public BattleLogicSession Session { get; internal set; }
+        internal IBattleTriggerViewEventSource TriggerViewEventSource { get; set; }
+        public IWorld RuntimeWorld { get; private set; }
+        public BattleStartPlan Plan { get; internal set; }
+        public int LastFrame { get; internal set; }
+        public double LogicTimeSeconds { get; internal set; }
+        public int LocalActorId { get; internal set; }
+        public string LocalControlPlayerId { get; internal set; }
+        public BattleSessionHooks Hooks { get; private set; }
+        public bool CanSubmitGameplayInput => _inputBlockReasons == BattleGameplayInputBlockReason.None;
+
+        internal void BindRuntimeSession(BattleLogicSession session,
+            IBattleTriggerViewEventSource triggerViewEventSource, IWorld world)
+        {
+            Session = session;
+            TriggerViewEventSource = triggerViewEventSource;
+            RuntimeWorld = world;
+        }
+
+        internal void BindSessionHooks(BattleSessionHooks hooks) => Hooks = hooks;
+
+        internal void ClearRuntimeSession()
+        {
+            Session = null;
+            TriggerViewEventSource = null;
+            RuntimeWorld = null;
+            Hooks = null;
+        }
+
+        internal void SetGameplayInputBlocked(BattleGameplayInputBlockReason reason, bool blocked)
+        {
+            if (blocked) _inputBlockReasons |= reason;
+            else _inputBlockReasons &= ~reason;
+        }
         public int RuntimePlayerLoadoutRevision => _playerLoadouts.Revision;
         public int ActionInterruptEpoch => _localActionAckTracker?.LatestInterruptEpoch ?? 0;
         public long AcceptedActionAckCount => _localActionAckTracker?.AcceptedCount ?? 0L;
@@ -69,9 +114,19 @@ namespace AbilityKit.Game.Flow
                     entry.PlayerId,
                     StringComparison.OrdinalIgnoreCase))
             {
-                LocalActorId = entry.ActorId;
+                ApplyLocalActorIdentity(entry.ActorId);
                 EnsureLocalActionAckTracker();
             }
+        }
+
+        private int _snapshotLocalActorId;
+
+        public void ApplyLocalActorIdentity(int actorId)
+        {
+            if (actorId <= 0) return;
+            _snapshotLocalActorId = actorId;
+            LocalActorId = actorId;
+            EnsureLocalActionAckTracker();
         }
 
         public void ObserveActorSpawnIdentity(int actorId, int entityVersion)
@@ -85,6 +140,8 @@ namespace AbilityKit.Game.Flow
         {
             if (actorId <= 0) return;
             _actorEntityVersions.Remove(actorId);
+            if (_snapshotLocalActorId == actorId) _snapshotLocalActorId = 0;
+            _characterActions.Remove(actorId);
             if (actorId == LocalActorId) _localActionAckTracker = null;
         }
 
@@ -93,6 +150,29 @@ namespace AbilityKit.Game.Flow
             return actorId > 0 && _actorEntityVersions.TryGetValue(actorId, out var version)
                 ? version
                 : 0;
+        }
+
+        internal void ApplyCharacterActions(CharacterActionData[] entries)
+        {
+            if (entries == null) return;
+            for (var i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                if (entry.ActorId <= 0 || entry.EntityVersion <= 0 ||
+                    (_characterActions.TryGetValue(entry.ActorId, out var existing) &&
+                     (entry.EntityVersion < existing.EntityVersion ||
+                      (entry.EntityVersion == existing.EntityVersion &&
+                       entry.SnapshotFrame <= existing.SnapshotFrame)))) continue;
+                _characterActions[entry.ActorId] = entry;
+            }
+        }
+
+        bool IBattleCharacterActionReadPort.TryGetCharacterAction(int actorId, out CharacterActionData action)
+        {
+            if (_characterActions.TryGetValue(actorId, out action) &&
+                GetActorEntityVersion(actorId) == action.EntityVersion) return true;
+            action = default;
+            return false;
         }
 
         public void ApplyActionAcks(MobaActionAckEntry[] entries)

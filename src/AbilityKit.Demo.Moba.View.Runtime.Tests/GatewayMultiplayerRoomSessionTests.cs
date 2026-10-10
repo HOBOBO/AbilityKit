@@ -29,6 +29,7 @@ public sealed class GatewayMultiplayerRoomSessionTests
         await session.CreateRoomAsync(spec, CancellationToken.None);
 
         Assert.Equal("11", client.CreateTags[RoomTagKeys.GameplayId]);
+        Assert.Equal("test-bundle", client.CreateTags[RoomTagKeys.MobaTagBundleVersion]);
         Assert.Equal("12", client.CreateTags[RoomTagKeys.RuleSetId]);
         Assert.Equal("13", client.CreateTags[RoomTagKeys.ConfigVersion]);
         Assert.Equal("14", client.CreateTags[RoomTagKeys.ProtocolVersion]);
@@ -91,20 +92,18 @@ public sealed class GatewayMultiplayerRoomSessionTests
     [Fact]
     public void ReliableEventCheckpointStore_IsScopedByBattleIdentity()
     {
-        var session = NewSession(
-            new StubGatewayRoomClient(),
-            new ClientRoomStore());
+        using var checkpoints = new MobaReliableBattleEventCheckpointStore();
         var checkpoint = new MobaReliableBattleEventCheckpoint(
             "battle-1",
             "epoch-7",
             19);
 
-        session.Save(in checkpoint);
+        checkpoints.Save(in checkpoint);
 
-        Assert.True(session.TryLoad("battle-1", out var restored));
+        Assert.True(checkpoints.TryLoad("battle-1", out var restored));
         Assert.Equal("epoch-7", restored.Epoch);
         Assert.Equal(19, restored.LastAcknowledgedSequence);
-        Assert.False(session.TryLoad("battle-2", out _));
+        Assert.False(checkpoints.TryLoad("battle-2", out _));
     }
 
     [Fact]
@@ -213,9 +212,10 @@ public sealed class GatewayMultiplayerRoomSessionTests
             worldId: 42));
         var roomStore = new ClientRoomStore();
         var checkpointStore = new TrackingCheckpointStore();
+        using var checkpoints = new MobaReliableBattleEventCheckpointStore(checkpointStore);
         var checkpoint = new ReliableEventCheckpoint("battle-1", "epoch-1", 9);
         checkpointStore.Save(in checkpoint);
-        var session = NewSession(client, roomStore, checkpointStore);
+        var session = NewSession(client, roomStore, checkpoints);
         await session.JoinRoomAsync(NewSpec(), "room-1", CancellationToken.None);
 
         await session.LeaveRoomAsync("room-1", CancellationToken.None);
@@ -224,10 +224,10 @@ public sealed class GatewayMultiplayerRoomSessionTests
         Assert.Equal(1, checkpointStore.FlushCount);
         Assert.Equal(
             ReliableEventCheckpointFlushTrigger.RoomLeave,
-            session.ReliableEventCheckpointLifecycleDiagnostics.LastTrigger);
+            checkpoints.LifecycleDiagnostics.LastTrigger);
         Assert.Equal(
             ReliableEventCheckpointFlushStatus.Succeeded,
-            session.ReliableEventCheckpointLifecycleDiagnostics.LastStatus);
+            checkpoints.LifecycleDiagnostics.LastStatus);
     }
 
     [Fact]
@@ -471,7 +471,7 @@ public sealed class GatewayMultiplayerRoomSessionTests
     private static GatewayMultiplayerRoomSession NewSession(
         StubGatewayRoomClient client,
         ClientRoomStore store,
-        IReliableEventCheckpointStore checkpointStore = null)
+        IRoomDepartureObserver roomDeparture = null)
     {
         return new GatewayMultiplayerRoomSession(
             client,
@@ -479,7 +479,7 @@ public sealed class GatewayMultiplayerRoomSessionTests
             requestTimeout: TimeSpan.FromSeconds(1),
             pollInterval: TimeSpan.FromMilliseconds(1),
             battleStartTimeout: TimeSpan.FromSeconds(1),
-            reliableEventCheckpointStore: checkpointStore);
+            roomDeparture: roomDeparture);
     }
 
     private sealed class TrackingCheckpointStore :
@@ -516,7 +516,8 @@ public sealed class GatewayMultiplayerRoomSessionTests
             ServerId = "server-1",
             RoomType = "moba",
             RoomTitle = "test",
-            MaxPlayers = 2
+            MaxPlayers = 2,
+            TagBundleVersion = "test-bundle"
         };
     }
 

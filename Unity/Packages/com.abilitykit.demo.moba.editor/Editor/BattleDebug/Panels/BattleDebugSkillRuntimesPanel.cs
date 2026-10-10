@@ -9,6 +9,8 @@ namespace AbilityKit.Game.Editor
     /// <summary>
     /// Displays live skill cast runtime snapshots from the active logic world.
     /// </summary>
+    [BattleDebugModule(BattleDebugModuleIds.SkillRuntimes, "运行时",
+        Sources = BattleDebugModuleSourceSupport.Live)]
     internal sealed class BattleDebugSkillRuntimesPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         private readonly List<MobaSkillRuntimeDiagnostics> _items = new List<MobaSkillRuntimeDiagnostics>(32);

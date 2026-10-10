@@ -3,6 +3,8 @@
   "rootNamespace": "AbilityKit.Demo.Moba",
   "references": [
     "AbilityKit.Demo.Moba.Share",
+    "AbilityKit.Demo.Moba.Presentation.Contracts",
+    "AbilityKit.Demo.Moba.Presentation.ProtocolAdapter",
     "AbilityKit.AI.Abstractions",
     "AbilityKit.ThirdParty.Luban.Runtime",
     "AbilityKit.GameplayTags",

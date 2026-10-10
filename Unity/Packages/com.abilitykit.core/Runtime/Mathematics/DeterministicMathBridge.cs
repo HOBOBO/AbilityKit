@@ -95,5 +95,26 @@ namespace AbilityKit.Core.Mathematics
         {
             return DeterministicMath.Atan2(ToFixed(y), ToFixed(x)).ToSingle();
         }
+
+        /// <summary>
+        /// 确定性指数/对数/幂（float 边界；内核为 Cody-Waite 归约 + Taylor/atanh 级数的
+        /// 纯整数实现）。漂移敏感的 exp/log/pow 一律走这里，禁止直接调用 Math/MathF。
+        /// 非有限输入由 <see cref="ToFixed(float)"/> 归零守卫；Ln/Pow 的定义域违规按定点内核的
+        /// fail-loud 语义抛出。
+        /// </summary>
+        public static float Exp(float value)
+        {
+            return DeterministicMath.Exp(ToFixed(value)).ToSingle();
+        }
+
+        public static float Ln(float value)
+        {
+            return DeterministicMath.Ln(ToFixed(value)).ToSingle();
+        }
+
+        public static float Pow(float baseValue, float exponent)
+        {
+            return DeterministicMath.Pow(ToFixed(baseValue), ToFixed(exponent)).ToSingle();
+        }
     }
 }

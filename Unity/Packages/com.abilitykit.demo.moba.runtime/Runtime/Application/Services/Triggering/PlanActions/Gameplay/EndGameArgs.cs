@@ -4,11 +4,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     {
         public readonly int ReasonId;
         public readonly int WinTeamId;
+        public readonly bool WinTeamFromEvent;
 
-        public EndGameArgs(int reasonId, int winTeamId)
+        public EndGameArgs(int reasonId, int winTeamId, bool winTeamFromEvent = false)
         {
             ReasonId = reasonId;
             WinTeamId = winTeamId;
+            WinTeamFromEvent = winTeamFromEvent;
         }
     }
 }

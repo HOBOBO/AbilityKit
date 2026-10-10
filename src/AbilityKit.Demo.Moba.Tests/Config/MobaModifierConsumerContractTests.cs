@@ -38,6 +38,8 @@ public sealed class MobaModifierConsumerContractTests
             Assert.True(MobaSkillParamModifierKeys.TryResolve(id, out var key));
             Assert.True(MobaSkillParamModifierKeys.TryGetResolveStage(key, out var stage));
             Assert.Equal(stage, consumer.Contract.Stage);
+            Assert.True(MobaSkillParamModifierKeys.TryGetConsumerTypeName(id, out var typeName));
+            Assert.Contains(consumer.Method.DeclaringType?.Name, typeName.Split(','));
             Assert.True(Enum.IsDefined(typeof(MobaModifierSampleTiming), consumer.Contract.Timing));
         }
 
@@ -50,6 +52,10 @@ public sealed class MobaModifierConsumerContractTests
                 .ToArray();
             Assert.True(registrations.Length > 0,
                 $"Published modifier parameter {id} ({row.Value<string>("Key")}) has no runtime consumer.");
+            Assert.True(MobaSkillParamModifierKeys.TryGetConsumerTypeName(id, out var typeName));
+            Assert.Equal(typeName.Split(',').OrderBy(name => name, StringComparer.Ordinal),
+                registrations.Select(registration => registration.Method.DeclaringType?.Name)
+                    .Distinct().OrderBy(name => name, StringComparer.Ordinal));
             foreach (var registration in registrations)
                 _output.WriteLine($"{id} {row.Value<string>("Key")} {registration.Contract.Stage} " +
                     $"{registration.Contract.Timing} {registration.Method.DeclaringType?.FullName}." +

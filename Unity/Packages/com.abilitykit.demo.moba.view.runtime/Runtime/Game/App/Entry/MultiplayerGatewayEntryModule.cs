@@ -9,6 +9,7 @@ using AbilityKit.Game.Flow;
 using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.View.Modules;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Client;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Sync;
@@ -301,6 +302,7 @@ namespace AbilityKit.Game
     public sealed class MultiplayerGatewayEntryModule :
         IGameEntryModule,
         IGameModuleTick<GameEntryModuleContext>,
+        IAsyncGameEntryModuleTeardown,
         IMultiplayerGatewayRuntime
     {
         private readonly BattleGatewayConfigSO _config;
@@ -336,6 +338,7 @@ namespace AbilityKit.Game
         }
 
         public string Id => "game.entry.multiplayer-gateway";
+        public Task PendingTeardown => _entryRuntime.PendingTask;
 
         public void OnAttach(in GameEntryModuleContext ctx)
         {
@@ -364,18 +367,7 @@ namespace AbilityKit.Game
                 var callbackDispatcher = UnityMainThreadDispatcher.CaptureCurrent();
                 var sdkBuilder = new NetworkSdkBuilder()
                     .UseTransportFactory(() => new TcpTransport())
-                    .ConfigureConnection(options =>
-                    {
-                        options.FrameCodec = LengthPrefixedFrameCodec.Instance;
-                        options.EnableKickHandling = true;
-                        options.KickPushOpCode = RoomGatewayOpCodes.SessionKicked;
-                        options.EnableReconnect = true;
-                        options.ReconnectInitialDelay = TimeSpan.FromSeconds(1);
-                        options.ReconnectMaxDelay = TimeSpan.FromSeconds(15);
-                        options.ReconnectBackoffMultiplier = 2d;
-                        options.ReconnectMaxAttempts =
-                            AbilityKit.Network.Runtime.Sync.ReconnectBackoffPolicy.MaxAttempts;
-                    })
+                    .ConfigureConnection(GatewayRoomSdkConnectionPreset.Configure)
                     .UseDispatchers(callbackDispatcher, resources.IoDispatcher);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 RoomProtocolDecoderModule.Register(NetworkTrafficMonitor.Default.Decoders);
@@ -388,7 +380,9 @@ namespace AbilityKit.Game
                     options.CatalogId = "abilitykit.room";
                     options.TransportName = "tcp";
                     options.MaximumPayloadPreviewBytes = 65536;
+#if !UNITY_EDITOR
                     options.FilterFactory = NetworkTrafficMonitor.Default.CreateSamplingFilter;
+#endif
                 });
 #endif
                 resources.SdkClientKey = new NetworkSdkClientKey(
@@ -399,6 +393,11 @@ namespace AbilityKit.Game
                     resources.SdkClientKey,
                     sdkBuilder);
                 resources.SdkClient = resources.SdkClientLease.Client;
+#if UNITY_EDITOR
+                var packetInterception = NetworkPacketInterception.Default.Attach(
+                    resources.SdkClient, "abilitykit.room");
+                attachment.Register(packetInterception.Dispose);
+#endif
                 attachment.Register(() =>
                 {
                     resources.SdkClientLease.Dispose();
@@ -410,17 +409,17 @@ namespace AbilityKit.Game
                     GatewayRoomOpCodes.Default);
                 attachment.Register(resources.Client.Dispose);
 #if UNITY_5_3_OR_NEWER
+                resources.Checkpoints = new MobaReliableBattleEventCheckpointStore(
+                    MobaUnityReliableEventCheckpointStores.CreateBufferedFile(),
+                    ownsStore: true);
+#else
+                resources.Checkpoints = new MobaReliableBattleEventCheckpointStore();
+#endif
+                attachment.Register(resources.Checkpoints.Dispose);
                 resources.Session = new GatewayMultiplayerRoomSession(
                     resources.Client,
                     resources.Store,
-                    reliableEventCheckpointStore:
-                        MobaUnityReliableEventCheckpointStores.CreateBufferedFile(),
-                    ownsReliableEventCheckpointStore: true);
-#else
-                resources.Session = new GatewayMultiplayerRoomSession(
-                    resources.Client,
-                    resources.Store);
-#endif
+                    roomDeparture: resources.Checkpoints);
                 attachment.Register(resources.Session.Dispose);
                 resources.SnapshotProvider =
                     new ClientRoomSnapshotProvider(resources.Store);
@@ -428,7 +427,9 @@ namespace AbilityKit.Game
                 resources.AssetLoader = new MultiplayerBattleAssetLoader(
                     ResourcesBattleAssetLoadService.Default,
                     dependencyProvider: ResourcesBattleAssetDependencyProvider.Default,
-                    mainThreadDispatcher: callbackDispatcher);
+                    mainThreadDispatcher: callbackDispatcher,
+                    localTagBundleVersion: AbilityKit.Demo.Moba.Services.MobaGameplayTagCatalog.VerifyPublishedBundle(
+                        new AbilityKit.Demo.Moba.View.Config.ResourcesTextAssetLoader()));
                 resources.Controller = new MultiplayerRoomFlowController(
                     resources.Session,
                     resources.SnapshotProvider,
@@ -511,6 +512,7 @@ namespace AbilityKit.Game
                     resources.Controller,
                     resources.PushSynchronizer,
                     resources.AssetLoader,
+                    resources.Checkpoints,
                     this,
                     this);
                 resources.RootServices.Publish(root);
@@ -584,7 +586,7 @@ namespace AbilityKit.Game
             // 断线仅提交当前位置，不删除检查点；后续重连仍需从该位置恢复。
             try
             {
-                _resources?.Session?.FlushReliableEventCheckpointsAsync(
+                _resources?.Checkpoints?.FlushAsync(
                     ReliableEventCheckpointFlushTrigger.Disconnect).GetAwaiter().GetResult();
             }
             catch (Exception ex)
@@ -762,6 +764,7 @@ namespace AbilityKit.Game
             public ClientRoomStore Store;
             public GatewayRoomClient Client;
             public GatewayMultiplayerRoomSession Session;
+            public MobaReliableBattleEventCheckpointStore Checkpoints;
             public ClientRoomSnapshotProvider SnapshotProvider;
             public MultiplayerRoomFlowController Controller;
             public MultiplayerBattleAssetLoader AssetLoader;

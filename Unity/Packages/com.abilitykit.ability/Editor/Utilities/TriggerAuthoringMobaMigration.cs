@@ -158,6 +158,28 @@ namespace AbilityKit.Ability.Editor.Utilities
             Debug.Log("[TriggerAuthoringMobaMigration] Imported production Trigger Authoring sources.");
         }
 
+        public static void ImportGameplaySourceBatch()
+        {
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            var sourcePath = ResolveProjectPath(SourceRoot + "/moba-gameplay.trigger.json");
+            var assetPath = PackageRoot + "/gameplay_moba_rules.Module.asset";
+            var asset = AssetDatabase.LoadAssetAtPath<TriggerAuthoringModuleAsset>(assetPath);
+            if (asset == null) throw new FileNotFoundException("MOBA gameplay module is missing", assetPath);
+            if (!File.Exists(sourcePath)) throw new FileNotFoundException("MOBA gameplay source is missing", sourcePath);
+            var import = TriggerAuthoringSourceSync.Import(asset, sourcePath, force: true);
+            if (!import.Success) throw new InvalidDataException("gameplay.moba.rules: " + import.Message);
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+            Debug.Log("[TriggerAuthoringMobaMigration] Imported gameplay Trigger Authoring source.");
+        }
+
+        public static void PublishGameplaySourceBatch()
+        {
+            ImportGameplaySourceBatch();
+            PublishRuntimeBatch();
+            CheckRuntimeBatch();
+        }
+
         private static string[] RuntimeOutputPaths()
         {
             var repositoryRoot = RepositoryRoot();

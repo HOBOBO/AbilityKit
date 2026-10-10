@@ -3,7 +3,6 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Game.Battle.Requests;
-using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Entity;
 using UnityEngine;
 
@@ -160,22 +159,8 @@ namespace AbilityKit.Game.Flow
 
         bool IBattleLocalActorResolutionPort.TryResolveMappedActorId(out int actorId)
         {
-            actorId = 0;
-            if (!TryGetRuntimeWorld(out var world) ||
-                world.Services == null ||
-                !world.Services.TryResolve<MobaPlayerActorMapService>(out var playerActors) ||
-                playerActors == null)
-            {
-                return false;
-            }
-
-            var playerIdValue = ResolveLocalControlPlayerId();
-            if (string.IsNullOrEmpty(playerIdValue))
-            {
-                return false;
-            }
-
-            return playerActors.TryGetActorId(new PlayerId(playerIdValue), out actorId) && actorId > 0;
+            actorId = _snapshotLocalActorId;
+            return actorId > 0;
         }
 
         bool IBattleLocalActorResolutionPort.TryResolveActorWorldPosition(int actorId, out Vector3 position)

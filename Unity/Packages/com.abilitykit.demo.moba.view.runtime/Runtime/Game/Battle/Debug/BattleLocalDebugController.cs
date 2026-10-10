@@ -544,8 +544,9 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            var worldId = BattleInputSessionIdentity.ResolveWorldId(in ctx.Plan);
-            var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(ctx.LastFrame, in ctx.Plan);
+            var plan = ctx.Plan;
+            var worldId = BattleInputSessionIdentity.ResolveWorldId(in plan);
+            var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(ctx.LastFrame, in plan);
             var command = BattleInputCommandFactory.CreateDebugReplaceHero(
                 nextFrame,
                 playerId,
@@ -584,8 +585,9 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            var worldId = BattleInputSessionIdentity.ResolveWorldId(in ctx.Plan);
-            var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(ctx.LastFrame, in ctx.Plan);
+            var plan = ctx.Plan;
+            var worldId = BattleInputSessionIdentity.ResolveWorldId(in plan);
+            var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(ctx.LastFrame, in plan);
             var command = BattleInputCommandFactory.CreateDebugSpawnUnit(nextFrame, playerId, relation);
             var submitter = new BattleInputSubmitter(ctx, playerId, worldId);
             submitter.Submit(in command);

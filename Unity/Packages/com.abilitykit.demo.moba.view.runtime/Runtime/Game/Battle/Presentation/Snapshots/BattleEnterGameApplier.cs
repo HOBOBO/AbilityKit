@@ -38,7 +38,7 @@ namespace AbilityKit.Game.Flow.Battle.Snapshot
 
             if (res.LocalActorId > 0)
             {
-                ctx.LocalActorId = res.LocalActorId;
+                ctx.ApplyLocalActorIdentity(res.LocalActorId);
             }
 
             var world = ctx.EntityWorld;

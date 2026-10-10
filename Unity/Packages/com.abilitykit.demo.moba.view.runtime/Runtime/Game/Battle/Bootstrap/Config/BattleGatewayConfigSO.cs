@@ -163,6 +163,8 @@ namespace AbilityKit.Game.Flow
                 GameplayId = GameplayId,
                 RuleSetId = RuleSetId,
                 ConfigVersion = ConfigVersion,
+                TagBundleVersion = AbilityKit.Demo.Moba.Services.MobaGameplayTagCatalog.VerifyPublishedBundle(
+                    new AbilityKit.Demo.Moba.View.Config.ResourcesTextAssetLoader()),
                 ProtocolVersion = ProtocolVersion,
                 WorldType = WorldType.Trim(),
                 ClientId = ClientId?.Trim() ?? string.Empty,

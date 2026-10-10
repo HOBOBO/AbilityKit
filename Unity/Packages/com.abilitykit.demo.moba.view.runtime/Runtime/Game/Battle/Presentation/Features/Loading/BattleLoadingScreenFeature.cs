@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.Flow;
 
@@ -33,42 +34,47 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Loading
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            _flowSink = ctx.Entry.Get<IFlowCommandSink>();
-            ctx.Features.TryGet(out IBattleAssetLoadSessionPort sessionPort);
-            _runtime.Attach(sessionPort, null);
+            try
+            {
+                _flowSink = ctx.Entry.Get<IFlowCommandSink>();
+                ctx.Features.TryGet(out IBattleAssetLoadSessionPort sessionPort);
+                _runtime.Attach(sessionPort, null);
 
-            if (!_runtime.HasCoordinator &&
-                TryTakePreloadedLease(in ctx, out var preloadedLease) &&
-                _runtime.TryAdoptPreloadedLease(preloadedLease))
-            {
-                return;
-            }
+                if (!_runtime.HasCoordinator &&
+                    TryTakePreloadedLease(in ctx, out var preloadedLease) &&
+                    _runtime.TryAdoptPreloadedLease(preloadedLease))
+                    return;
 
-            if (!_runtime.HasCoordinator && sessionPort != null)
-            {
-                var manifest = BattleAssetManifestResolver.Resolve(
-                    new BattlePlanManifestSource(sessionPort.Plan),
-                    ResourcesBattleAssetDependencyProvider.Default);
-                _runtime.SetCoordinator(new BattleAssetLoadCoordinator(
-                    ResourcesBattleAssetLoadService.Default,
-                    () => manifest,
-                    new InlineProgress<BattleAssetLoadProgress>(_runtime.OnProgress)));
-            }
+                if (!_runtime.HasCoordinator && sessionPort != null)
+                {
+                    var manifest = BattleAssetManifestResolver.Resolve(
+                        new BattlePlanManifestSource(sessionPort.Plan),
+                        ResourcesBattleAssetDependencyProvider.Default);
+                    _runtime.SetCoordinator(new BattleAssetLoadCoordinator(
+                        ResourcesBattleAssetLoadService.Default,
+                        () => manifest,
+                        new InlineProgress<BattleAssetLoadProgress>(_runtime.OnProgress)));
+                }
 
-            if (_runtime.HasCoordinator)
-            {
-                _runtime.Start();
+                if (_runtime.HasCoordinator) _runtime.Start();
+                else _runtime.MarkUnavailable();
             }
-            else
+            catch (Exception attachFailure)
             {
-                _runtime.MarkUnavailable();
+                try { OnDetach(ctx); }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException("Loading feature attach and rollback failed.",
+                        attachFailure, cleanupFailure);
+                }
+                throw;
             }
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            _runtime.Dispose();
-            _flowSink = null;
+            try { _runtime.Dispose(); }
+            finally { _flowSink = null; }
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)

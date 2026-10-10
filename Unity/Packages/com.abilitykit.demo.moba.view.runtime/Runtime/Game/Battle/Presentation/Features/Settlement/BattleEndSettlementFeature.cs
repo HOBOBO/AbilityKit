@@ -7,11 +7,11 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
 {
     /// <summary>
     /// 战斗结算界面 Feature。挂载在 <c>Battle.End</c> 阶段：
-    /// - 在 OnAttach 时读取 <see cref="BattleEndSummaryCache"/>（由 recorder 在 InMatch.OnDetach 写入）
+    /// - 在 OnAttach 时读取权威玩法快照形成的本场对局投影
     /// - 在 OnGUI 渲染居中结算卡片：
     ///   * 胜负横幅（VICTORY / DEFEAT）
     ///   * 时长
-    ///   * 按队伍分组的玩家列表（PlayerId / Hero / K/D/A / HP）
+    ///   * 按队伍分组的玩家名单
     ///   * 返回大厅按钮
     /// </summary>
     public sealed class BattleEndSettlementFeature : IGamePhaseFeature, IOnGUIFeature
@@ -25,13 +25,12 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
         public void OnAttach(in GamePhaseContext ctx)
         {
             _flowSink = ctx.Entry.Get<IFlowCommandSink>();
-            _summary = BattleEndSummaryCache.Current ?? BattleEndSummary.Empty;
+            _summary = BattleEndSummaryProjector.Build(ctx.GameplayPresentation);
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            // End 阶段退出时清理缓存，避免下一次战斗残留。
-            BattleEndSummaryCache.Reset();
+            _summary = BattleEndSummary.Empty;
             _flowSink = null;
         }
 
@@ -79,10 +78,10 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
         {
             var localPlayer = _summary.Players.Find(r => r.IsLocalPlayer);
             bool victory = localPlayer != null && _summary.LocalPlayerVictory;
-            var label = localPlayer == null
+            var label = !_summary.HasAuthoritativeResult || localPlayer == null || _summary.WinningTeamId == 0
                 ? "MATCH OVER"
                 : (victory ? "VICTORY" : "DEFEAT");
-            var color = localPlayer == null
+            var color = !_summary.HasAuthoritativeResult || localPlayer == null || _summary.WinningTeamId == 0
                 ? Color.gray
                 : (victory ? new Color(1f, 0.85f, 0.2f, 1f) : new Color(0.85f, 0.25f, 0.25f, 1f));
 
@@ -98,7 +97,7 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
             var style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 14 };
             var mins = _summary.MatchDurationSeconds / 60;
             var secs = _summary.MatchDurationSeconds % 60;
-            GUILayout.Label($"Duration: {mins:00}:{secs:00}    |    Frames: {_summary.MatchDurationFrames}    |    Players: {_summary.Players.Count}",
+            GUILayout.Label($"Duration: {mins:00}:{secs:00}    |    Score: {_summary.Team1Score:0.##} : {_summary.Team2Score:0.##}    |    Players: {_summary.Players.Count}",
                 style, GUILayout.Height(20f));
         }
 
@@ -142,9 +141,6 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
             GUILayout.BeginHorizontal();
             GUILayout.Label("Player", GUI.skin.box, GUILayout.Width(140f));
             GUILayout.Label("Hero", GUI.skin.box, GUILayout.Width(80f));
-            GUILayout.Label("K/D/A", GUI.skin.box, GUILayout.Width(110f));
-            GUILayout.Label("HP", GUI.skin.box, GUILayout.Width(120f));
-            GUILayout.Label("Status", GUI.skin.box, GUILayout.Width(80f));
             GUILayout.EndHorizontal();
 
             foreach (var row in rows)
@@ -153,9 +149,6 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
                 var label = row.IsLocalPlayer ? $"* {row.PlayerId}" : row.PlayerId;
                 GUILayout.Label(label, GUILayout.Width(140f));
                 GUILayout.Label(row.HeroId.ToString(), GUILayout.Width(80f));
-                GUILayout.Label($"{row.Kills}/{row.Deaths}/{row.Assists}", GUILayout.Width(110f));
-                GUILayout.Label($"{row.FinalHp} / {row.MaxHp}", GUILayout.Width(120f));
-                GUILayout.Label(row.IsAlive ? "Alive" : "Dead", GUILayout.Width(80f));
                 GUILayout.EndHorizontal();
             }
         }

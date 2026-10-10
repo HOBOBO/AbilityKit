@@ -1,0 +1,11 @@
+{
+  "Profiles": [
+    {
+      "GameplayId": 1,
+      "HudModuleId": "team_deathmatch",
+      "ProjectionModuleId": "team_deathmatch",
+      "SettlementModuleId": "team_deathmatch",
+      "AssetPaths": []
+    }
+  ]
+}

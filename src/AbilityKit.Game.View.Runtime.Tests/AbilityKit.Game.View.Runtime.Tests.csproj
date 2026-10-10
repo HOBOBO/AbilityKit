@@ -9,7 +9,13 @@
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Game.View.Runtime\AbilityKit.Game.View.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.Game.Flow.Core\AbilityKit.Game.Flow.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Presentation.Contracts\AbilityKit.Demo.Moba.Presentation.Contracts.csproj" />
     <ProjectReference Include="..\AbilityKit.World.DI\AbilityKit.World.DI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Resources\moba\battle_flow_profiles.json"
+          Link="battle_flow_profiles.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

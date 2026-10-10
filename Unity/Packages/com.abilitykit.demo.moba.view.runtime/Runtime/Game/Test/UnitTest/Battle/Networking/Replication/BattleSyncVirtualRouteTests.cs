@@ -16,12 +16,80 @@ using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.BattleScenario;
 using AbilityKit.Demo.Moba.EnvironmentModel;
+using AbilityKit.Demo.Moba.Share;
+using FrameSnapshotDispatcher = AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher;
+using BattleLogicSessionOptions = AbilityKit.Game.Battle.BattleLogicSessionOptions;
+using BattleViewEventSourceMode = AbilityKit.Game.Flow.BattleViewEventSourceMode;
+using GamePhaseContext = AbilityKit.Game.Flow.GamePhaseContext;
 using NUnit.Framework;
 
 namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class BattleSyncVirtualRouteTests
     {
+        [Test]
+        public void BattleSyncFeature_RebindsAfterSnapshotRouteReplacement()
+        {
+            var context = BattleContext.Rent();
+            var features = new TestFeatureStore();
+            features.Set(context);
+            var phase = new GamePhaseContext(null, features, null);
+            var feature = new BattleSyncFeature();
+            var first = CreateSyncDispatcher();
+            var second = CreateSyncDispatcher();
+            var received = new List<uint>();
+            context.StateHashSnapshotReceived += (_, hash) => received.Add(hash);
+            try
+            {
+                feature.OnAttach(phase);
+                var generation = context.BindSnapshotRouting(first, null, null);
+                feature.Tick(phase, 0f);
+                FeedHash(first, "first-world", 1, 11);
+                Assert.That(received, Is.EqualTo(new uint[] { 11 }));
+                Assert.IsTrue(context.HasRuntimeWorldId);
+
+                Assert.IsTrue(context.ClearSnapshotRouting(generation, first));
+                feature.Tick(phase, 0f);
+                Assert.IsFalse(context.HasRuntimeWorldId);
+                FeedHash(first, "first-world", 2, 22);
+                Assert.That(received, Is.EqualTo(new uint[] { 11 }));
+
+                generation = context.BindSnapshotRouting(second, null, null);
+                feature.Tick(phase, 0f);
+                FeedHash(second, "second-world", 3, 33);
+                Assert.That(received, Is.EqualTo(new uint[] { 11, 33 }));
+                Assert.AreEqual("second-world", context.RuntimeWorldId.Value);
+                context.ClearSnapshotRouting(generation, second);
+            }
+            finally
+            {
+                feature.OnDetach(phase);
+                BattleContext.Return(context);
+                first.Dispose();
+                second.Dispose();
+            }
+        }
+
+        private static FrameSnapshotDispatcher CreateSyncDispatcher()
+        {
+            var dispatcher = new FrameSnapshotDispatcher();
+            dispatcher.Register<ActorSpawnData[]>(MobaOpCodes.Snapshot.ActorSpawn,
+                (in WorldStateSnapshot _, out ActorSpawnData[] value) => { value = null; return false; });
+            dispatcher.Register<ActorDespawnData[]>(MobaOpCodes.Snapshot.ActorDespawn,
+                (in WorldStateSnapshot _, out ActorDespawnData[] value) => { value = null; return false; });
+            ActorTransformSnapshotRoute.RegisterDecoder(dispatcher);
+            CharacterActionSnapshotRoute.RegisterDecoder(dispatcher);
+            StateHashSnapshotRoute.RegisterDecoder(dispatcher);
+            return dispatcher;
+        }
+
+        private static void FeedHash(FrameSnapshotDispatcher dispatcher, string worldId, int frame, uint hash)
+        {
+            dispatcher.Feed(new FramePacket(new WorldId(worldId), new FrameIndex(frame),
+                Array.Empty<PlayerInputCommand>(), new WorldStateSnapshot(
+                    MobaOpCodes.Snapshot.StateHash, MobaStateHashSnapshotCodec.Serialize(frame, hash))));
+        }
+
         [Test]
         public void SharedDsl_UnityRouteUsesRealPredictionAndMatchesHeadlessState()
         {

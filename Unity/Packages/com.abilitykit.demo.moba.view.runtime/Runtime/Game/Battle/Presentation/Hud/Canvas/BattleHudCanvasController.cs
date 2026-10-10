@@ -55,7 +55,8 @@ namespace AbilityKit.Game.Flow
         {
             if (_ownsCanvas && Canvas != null)
             {
-                UnityEngine.Object.Destroy(Canvas.gameObject);
+                if (Application.isPlaying) UnityEngine.Object.Destroy(Canvas.gameObject);
+                else UnityEngine.Object.DestroyImmediate(Canvas.gameObject);
             }
 
             Canvas = null;

@@ -11,13 +11,17 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         private static readonly int ElapsedSecondsId = StableStringId.Get("payload:" + GameplayTriggerEvents.ElapsedSecondsField);
         private static readonly int DeltaSecondsId = StableStringId.Get("payload:" + GameplayTriggerEvents.DeltaSecondsField);
         private static readonly int WinTeamIdId = StableStringId.Get("payload:" + GameplayTriggerEvents.WinTeamIdField);
+        private static readonly int TeamIdId = StableStringId.Get("payload:" + GameplayTriggerEvents.TeamIdField);
+        private static readonly int ScoreId = StableStringId.Get("payload:" + GameplayTriggerEvents.ScoreField);
 
         public static bool SupportsField(int fieldId)
         {
             return fieldId == FrameIndexId
                 || fieldId == ElapsedSecondsId
                 || fieldId == DeltaSecondsId
-                || fieldId == WinTeamIdId;
+                || fieldId == WinTeamIdId
+                || fieldId == TeamIdId
+                || fieldId == ScoreId;
         }
 
         public bool TryGet(in GameplayLifecycleEventArgs args, int fieldId, out int value)
@@ -31,6 +35,12 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
             if (fieldId == WinTeamIdId)
             {
                 value = args.WinTeamId;
+                return true;
+            }
+
+            if (fieldId == TeamIdId)
+            {
+                value = args.TeamId;
                 return true;
             }
 
@@ -49,6 +59,12 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
             if (fieldId == DeltaSecondsId)
             {
                 value = args.DeltaSeconds;
+                return true;
+            }
+
+            if (fieldId == ScoreId)
+            {
+                value = args.Score;
                 return true;
             }
 

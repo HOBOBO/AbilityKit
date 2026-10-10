@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
@@ -9,7 +10,10 @@ using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.HFSM.Definition;
 using AbilityKit.Ability.World;
+using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
+using AbilityKit.Demo.Moba.Gameplay;
+using AbilityKit.Demo.Moba.Worlds.Blueprints;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
@@ -68,7 +72,8 @@ namespace AbilityKit.Demo.Moba.Rollback
         public static RollbackRegistry Create(IWorld world)
         {
             var registry = new RollbackRegistry();
-            if (world?.Services == null) return registry;
+            if (world?.Services == null)
+                throw new ArgumentException("Rollback world and services are required.", nameof(world));
 
             if (world is IEntitasWorld entitasWorld && entitasWorld.Contexts is global::Contexts contexts &&
                 world.Services.TryResolve<ActorIdAllocator>(out var actorIds) && actorIds != null &&
@@ -119,6 +124,17 @@ namespace AbilityKit.Demo.Moba.Rollback
                 frameTime is FrameTime mutableFrameTime)
             {
                 registry.Register(new FrameTimeRollbackStateProvider(mutableFrameTime));
+            }
+
+            if (world.Services.TryResolve<IWorldRandom>(out var worldRandom) &&
+                worldRandom is RollbackWorldRandom rollbackRandom)
+                registry.Register(rollbackRandom);
+
+            if (world.Services.TryResolve<MobaGameplayService>(out var gameplay) && gameplay != null &&
+                world.Services.TryResolve<MobaGameplayVariableService>(out var gameplayVariables) && gameplayVariables != null)
+            {
+                world.Services.TryResolve<MobaUnitDeathSubscriber>(out var deaths);
+                registry.Register(new MobaGameplayRollbackProvider(gameplay, gameplayVariables, deaths));
             }
 
             if (world.Services.TryResolve<MobaActorRegistry>(out var actorRegistry) &&
@@ -176,7 +192,9 @@ namespace AbilityKit.Demo.Moba.Rollback
 
             if (world.Services.TryResolve<MobaContinuousManager>(out var modifierContinuous) && modifierContinuous != null)
             {
-                registry.Register(new MobaContinuousModifierCaptureRollbackProvider(modifierContinuous));
+                world.Services.TryResolve<MobaTriggerIntervalContinuousService>(out var triggerIntervals);
+                registry.Register(new MobaContinuousModifierCaptureRollbackProvider(modifierContinuous,
+                    triggerIntervals));
             }
 
             if (world.Services.TryResolve<MobaTriggerModifierContinuousService>(out var triggerModifiers) && triggerModifiers != null)
@@ -191,7 +209,50 @@ namespace AbilityKit.Demo.Moba.Rollback
 
             MobaGeneratedRollbackProviderManifest.RegisterResolved(world, registry);
 
+            if (string.Equals(world.WorldType, MobaBattleWorldBlueprint.Type, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(world.WorldType, "MobaBattle", StringComparison.OrdinalIgnoreCase))
+                ValidateBattleRegistry(registry);
+
             return registry;
+        }
+
+        private static void ValidateBattleRegistry(RollbackRegistry registry)
+        {
+            var requiredKeys = new[]
+            {
+                MobaEntitasEntityRollbackProvider.DefaultKey,
+                MobaEntitasComponentRollbackProvider.DefaultKey,
+                MobaActorTransformRollbackProvider.DefaultKey,
+                MobaActorHpRollbackProvider.DefaultKey,
+                MobaActorResourceRollbackProvider.DefaultKey,
+                MobaBuffTimerRollbackProvider.DefaultKey,
+                MobaSkillCooldownRollbackProvider.DefaultKey,
+                MobaCharacterHfsmRollbackProvider.DefaultKey,
+                MobaGameplayRollbackProvider.DefaultKey,
+                MobaOwnerBlackboardRollbackProvider.DefaultKey,
+                MobaContextEntityRollbackProvider.DefaultKey,
+                MobaSkillRuntimeRollbackProvider.DefaultKey,
+                MobaSkillEconomyRollbackProvider.DefaultKey,
+                MobaSkillParamModifierRollbackProvider.DefaultKey,
+                MobaDerivedSkillRollbackProvider.DefaultKey,
+                MobaContinuousModifierCaptureRollbackProvider.DefaultKey,
+                MobaTriggerExecutionRuntimeService.DefaultKey,
+                CommandRollbackStateProvider.DefaultKey,
+                FrameTimeRollbackStateProvider.DefaultKey,
+                RollbackWorldRandom.DefaultKey,
+            };
+            var missing = new List<int>();
+            foreach (var key in requiredKeys)
+            {
+                if (!registry.TryGet(key, out _)) missing.Add(key);
+            }
+
+            if (MobaGeneratedRollbackProviderManifest.CreateDescriptors().Length == 0)
+                throw new InvalidOperationException("MOBA rollback provider manifest is empty.");
+
+            if (missing.Count != 0)
+                throw new InvalidOperationException(
+                    $"Battle rollback registry is incomplete. Missing provider keys: {string.Join(", ", missing)}");
         }
     }
 }

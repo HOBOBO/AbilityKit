@@ -8,6 +8,15 @@ using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Game.Flow
 {
+    internal interface IFeatureSchedulerHost
+    {
+        void AttachFeatureBinding(object feature);
+        void DetachFeatureBinding(object feature);
+        void ClearBattleSessionEvents();
+        void ExecuteFlowAction(string actionId, int installedCount);
+        void ExecuteSwitchFlow(string switchFlowId, int installedCount);
+    }
+
     /// <summary>
     /// 从 <c>GameFlowDomain</c> 提取的 Feature 调度器（Step 4.7b）。
     /// 负责 PhaseFeatureHost 管理、Plan/Registry 构建、Attach/Detach/Tick/Clear 调度。
@@ -18,7 +27,7 @@ namespace AbilityKit.Game.Flow
         /// <summary>
         /// FeatureScheduler 需要的回调集合，由 Domain 提供。
         /// </summary>
-        internal sealed class Callbacks
+        internal sealed class Callbacks : IFeatureSchedulerHost
         {
             /// <summary>Feature 挂载到实体绑定器（IFeatureBinder.AttachFeature）。</summary>
             public Action<object> FeatureBinderAttach { get; set; }
@@ -34,22 +43,32 @@ namespace AbilityKit.Game.Flow
 
             /// <summary>执行 switch flow action（Domain 负责 _switchExecutor + MobaFlowActionContext）。</summary>
             public Action<string, int> ExecuteSwitchFlow { get; set; }
+
+            void IFeatureSchedulerHost.AttachFeatureBinding(object feature) => FeatureBinderAttach(feature);
+            void IFeatureSchedulerHost.DetachFeatureBinding(object feature) => FeatureBinderDetach(feature);
+            void IFeatureSchedulerHost.ClearBattleSessionEvents() => ClearBattleSessionEvents();
+            void IFeatureSchedulerHost.ExecuteFlowAction(string actionId, int count) => ExecuteFlowAction(actionId, count);
+            void IFeatureSchedulerHost.ExecuteSwitchFlow(string actionId, int count) => ExecuteSwitchFlow(actionId, count);
         }
 
         private readonly ILogSink _log;
-        private readonly Callbacks _callbacks;
+        private readonly IFeatureSchedulerHost _callbacks;
         private readonly GamePhaseContext _ctx;
         private readonly MobaFlowConfiguration _flowConfig;
+        private readonly List<IGamePhaseFeature> _failedAttachments = new List<IGamePhaseFeature>();
+        private readonly List<List<IGamePhaseFeature>> _battleScopes = new List<List<IGamePhaseFeature>>();
+        private readonly List<IGamePhaseFeature> _disableAfterTick = new List<IGamePhaseFeature>();
+        private readonly HashSet<IGamePhaseFeature> _reportedTickFailures = new HashSet<IGamePhaseFeature>();
 
         internal readonly PhaseFeatureHost<GamePhaseContext, IGamePhaseFeature> Features;
         internal readonly PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature> BootFeaturePlan;
-        internal readonly PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature> BattleFeaturePlan;
+        internal PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature> BattleFeaturePlan;
         internal readonly PhaseStateFeatureRegistry<MobaRootState, GamePhaseContext, IGamePhaseFeature> RootStateBindings;
         internal readonly PhaseStateFeatureRegistry<MobaBattleState, GamePhaseContext, IGamePhaseFeature> BattleStateBindings;
 
         internal FeatureScheduler(
             ILogSink log,
-            Callbacks callbacks,
+            IFeatureSchedulerHost callbacks,
             GamePhaseContext ctx,
             MobaFlowConfiguration flowConfig,
             PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature> bootFeaturePlan,
@@ -82,25 +101,20 @@ namespace AbilityKit.Game.Flow
 
         private void AttachFeatureCore(IGamePhaseFeature feature, in GamePhaseContext ctx)
         {
-            feature.OnAttach(ctx);
+            try { feature.OnAttach(ctx); }
+            catch
+            {
+                // The feature may have published resources before OnAttach failed.
+                _failedAttachments.Add(feature);
+                throw;
+            }
             try
             {
-                _callbacks.FeatureBinderAttach(feature);
+                _callbacks.AttachFeatureBinding(feature);
             }
-            catch (Exception attachException)
+            catch
             {
-                try
-                {
-                    feature.OnDetach(ctx);
-                }
-                catch (Exception rollbackException)
-                {
-                    throw new AggregateException(
-                        "Feature binder attach failed and feature rollback encountered an error.",
-                        attachException,
-                        rollbackException);
-                }
-
+                _failedAttachments.Add(feature);
                 throw;
             }
         }
@@ -119,7 +133,7 @@ namespace AbilityKit.Game.Flow
 
             try
             {
-                _callbacks.FeatureBinderDetach(feature);
+                _callbacks.DetachFeatureBinding(feature);
             }
             catch (Exception binderException)
             {
@@ -149,7 +163,7 @@ namespace AbilityKit.Game.Flow
             {
                 if (feature is IAsyncPhaseFeature<GamePhaseContext> asyncFeature)
                 {
-                    await (asyncFeature.DetachAsync(ctx) ?? Task.CompletedTask).ConfigureAwait(false);
+                    await (asyncFeature.DetachAsync(ctx) ?? Task.CompletedTask);
                 }
                 else
                 {
@@ -163,7 +177,7 @@ namespace AbilityKit.Game.Flow
 
             try
             {
-                _callbacks.FeatureBinderDetach(feature);
+                _callbacks.DetachFeatureBinding(feature);
             }
             catch (Exception binderException)
             {
@@ -186,13 +200,20 @@ namespace AbilityKit.Game.Flow
 
         private void TickFeatureCore(IGamePhaseFeature feature, in GamePhaseContext ctx, float deltaTime)
         {
-            try
-            {
-                feature.Tick(ctx, deltaTime);
-            }
+            try { feature.Tick(ctx, deltaTime); }
             catch (Exception ex)
             {
-                _log.Exception(ex, $"[FeatureScheduler] Feature.Tick failed: feature={feature?.GetType().FullName}");
+                var mode = (feature as IGamePhaseFeatureTickFailurePolicy)?.TickFailureMode ??
+                    GamePhaseFeatureTickFailureMode.FaultFlow;
+                if (mode == GamePhaseFeatureTickFailureMode.FaultFlow ||
+                    (mode == GamePhaseFeatureTickFailureMode.DisableFeature &&
+                     feature is IAsyncPhaseFeature<GamePhaseContext>))
+                    throw new InvalidOperationException(
+                        $"Feature Tick failed: {feature.GetType().FullName}", ex);
+                if (_reportedTickFailures.Add(feature))
+                    _log.Exception(ex, $"[FeatureScheduler] Feature.Tick failed: feature={feature.GetType().FullName}");
+                if (mode == GamePhaseFeatureTickFailureMode.DisableFeature)
+                    _disableAfterTick.Add(feature);
             }
         }
 
@@ -201,6 +222,13 @@ namespace AbilityKit.Game.Flow
         public void Tick(in GamePhaseContext ctx, float deltaTime)
         {
             Features.Tick(in ctx, deltaTime);
+            for (var i = 0; i < _disableAfterTick.Count; i++)
+            {
+                var feature = _disableAfterTick[i];
+                DetachFeature(feature);
+                foreach (var scope in _battleScopes) scope.Remove(feature);
+            }
+            _disableAfterTick.Clear();
         }
 
         public void OnGUI(in GamePhaseContext ctx)
@@ -241,23 +269,54 @@ namespace AbilityKit.Game.Flow
 
         public void ClearFeatures()
         {
-            Features.Clear(in _ctx);
-            Features.AttachAll(in _ctx);
+            try
+            {
+                for (var i = _failedAttachments.Count - 1; i >= 0; i--)
+                {
+                    DetachFeatureCore(_failedAttachments[i], in _ctx);
+                    _failedAttachments.RemoveAt(i);
+                }
+                for (var i = Features.Features.Count - 1; i >= 0; i--)
+                    Features.Remove(Features.Features[i], in _ctx);
+            }
+            catch (Exception ex) { throw new AggregateException("Feature cleanup failed.", ex); }
+            CompleteClear();
+        }
 
-            _callbacks.ClearBattleSessionEvents();
+        internal void ConfigureBattle(MobaFlowConfiguration configuration,
+            PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature> plan)
+        {
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (plan == null) throw new ArgumentNullException(nameof(plan));
+            BattleFeaturePlan = plan;
+            _battleScopes.Clear();
+            foreach (var state in configuration.BattleMachine.States)
+                BattleStateBindings.Set(state, BuildBattleStateBinding(state,
+                    configuration.BattleFeatureSpecs[state], configuration.BattleRetainedFeatureIds[state]));
         }
 
         public async Task ClearFeaturesAsync()
         {
             try
             {
-                await Features.ClearAsync(_ctx).ConfigureAwait(false);
-                Features.AttachAll(in _ctx);
+                for (var i = _failedAttachments.Count - 1; i >= 0; i--)
+                {
+                    await DetachFeatureCoreAsync(_failedAttachments[i], _ctx);
+                    _failedAttachments.RemoveAt(i);
+                }
+                for (var i = Features.Features.Count - 1; i >= 0; i--)
+                    await Features.RemoveAsync(Features.Features[i], _ctx);
             }
-            finally
-            {
-                _callbacks.ClearBattleSessionEvents();
-            }
+            catch (Exception ex) { throw new AggregateException("Feature cleanup failed.", ex); }
+            CompleteClear();
+        }
+
+        private void CompleteClear()
+        {
+            foreach (var scope in _battleScopes) scope.Clear();
+            _disableAfterTick.Clear();
+            _reportedTickFailures.Clear();
+            _callbacks.ClearBattleSessionEvents();
         }
 
         // --- State Binding 构建 ---
@@ -273,15 +332,12 @@ namespace AbilityKit.Game.Flow
 
         private PhaseStateFeatureRegistry<MobaBattleState, GamePhaseContext, IGamePhaseFeature> BuildMobaBattleStateBindings(int capacity)
         {
-            return new PhaseStateFeatureRegistry<MobaBattleState, GamePhaseContext, IGamePhaseFeature>(
-                    message => _log.Error($"[FeatureScheduler] {message}"),
-                    initialCapacity: capacity)
-                .Add(MobaBattleState.Prepare, BuildBattlePrepareBinding())
-                .Add(MobaBattleState.Connect, BuildBattleDebugBinding(_flowConfig.BattleConnectFeatures))
-                .Add(MobaBattleState.CreateOrJoinWorld, BuildBattleDebugBinding(_flowConfig.BattleCreateOrJoinWorldFeatures))
-                .Add(MobaBattleState.LoadAssets, BuildBattleDebugBinding(_flowConfig.BattleLoadAssetsFeatures))
-                .Add(MobaBattleState.InMatch, BuildBattleInMatchBinding())
-                .Add(MobaBattleState.End, BuildBattleEndBinding());
+            var bindings = new PhaseStateFeatureRegistry<MobaBattleState, GamePhaseContext, IGamePhaseFeature>(
+                message => _log.Error($"[FeatureScheduler] {message}"), initialCapacity: capacity);
+            foreach (var state in _flowConfig.BattleMachine.States)
+                bindings.Add(state, BuildBattleStateBinding(state, _flowConfig.BattleFeatureSpecs[state],
+                    _flowConfig.BattleRetainedFeatureIds[state]));
+            return bindings;
         }
 
         private PhaseStateFeatureBinding<GamePhaseContext, IGamePhaseFeature> BuildBootStateBinding(PhaseStateFeatureSpec spec)
@@ -295,49 +351,68 @@ namespace AbilityKit.Game.Flow
                 fail: message => _log.Error($"[FeatureScheduler] {message}"));
         }
 
-        private PhaseStateFeatureBinding<GamePhaseContext, IGamePhaseFeature> BuildBattlePrepareBinding()
+        private PhaseStateFeatureBinding<GamePhaseContext, IGamePhaseFeature> BuildBattleStateBinding(
+            MobaBattleState state,
+            PhaseStateFeatureSpec spec,
+            IReadOnlyList<string> retainedFeatureIds)
         {
-            return PhaseStateFeatureBindingFactory.Create<GamePhaseContext, IGamePhaseFeature>(
-                _flowConfig.BattlePrepareFeatures,
-                AttachFeature,
-                BattleFeaturePlan,
-                clear: (in GamePhaseContext ctx) => ClearFeatures(),
-                enterBeforeAction: ExecuteFlowActionWrapper,
-                exitAction: ExecuteFlowActionWrapper,
-                fail: message => _log.Error($"[FeatureScheduler] {message}"));
-        }
-
-        private PhaseStateFeatureBinding<GamePhaseContext, IGamePhaseFeature> BuildBattleDebugBinding(PhaseStateFeatureSpec spec)
-        {
+            var retained = new HashSet<string>(retainedFeatureIds, StringComparer.Ordinal);
+            var scopedFeatures = new List<IGamePhaseFeature>();
+            var enteredFeatures = new List<IGamePhaseFeature>();
+            _battleScopes.Add(scopedFeatures);
+            var installIndex = 0;
             return PhaseStateFeatureBindingFactory.Create<GamePhaseContext, IGamePhaseFeature>(
                 spec,
-                AttachFeature,
-                BattleFeaturePlan,
-                exitAction: ExecuteFlowActionWrapper,
-                fail: message => _log.Error($"[FeatureScheduler] {message}"),
-                switchFlowAction: ExecuteSwitchFlowWrapper);
-        }
-
-        private PhaseStateFeatureBinding<GamePhaseContext, IGamePhaseFeature> BuildBattleInMatchBinding()
-        {
-            return PhaseStateFeatureBindingFactory.Create<GamePhaseContext, IGamePhaseFeature>(
-                _flowConfig.BattleInMatchFeatures,
-                AttachFeature,
-                BattleFeaturePlan,
-                exitAction: ExecuteFlowActionWrapper,
-                fail: message => _log.Error($"[FeatureScheduler] {message}"));
-        }
-
-        private PhaseStateFeatureBinding<GamePhaseContext, IGamePhaseFeature> BuildBattleEndBinding()
-        {
-            return PhaseStateFeatureBindingFactory.Create<GamePhaseContext, IGamePhaseFeature>(
-                _flowConfig.BattleEndFeatures,
-                AttachFeature,
+                feature =>
+                {
+                    if (installIndex >= spec.FeatureIds.Count)
+                        throw new InvalidOperationException($"Unexpected feature installation in {spec.StateId}.");
+                    var featureId = spec.FeatureIds[installIndex++];
+                    AttachFeature(feature);
+                    enteredFeatures.Add(feature);
+                    if (!retained.Contains(featureId)) scopedFeatures.Add(feature);
+                },
                 BattleFeaturePlan,
                 clear: (in GamePhaseContext ctx) => ClearFeatures(),
+                beforeEnter: (in GamePhaseContext ctx) =>
+                {
+                    installIndex = 0;
+                    enteredFeatures.Clear();
+                },
+                onExit: (in GamePhaseContext ctx) =>
+                {
+                    List<Exception> failures = null;
+                    for (var i = scopedFeatures.Count - 1; i >= 0; i--)
+                    {
+                        try { DetachFeature(scopedFeatures[i]); }
+                        catch (Exception ex) { (failures ??= new List<Exception>()).Add(ex); }
+                    }
+                    scopedFeatures.Clear();
+                    enteredFeatures.Clear();
+                    if (failures != null)
+                        throw new AggregateException($"Failed to detach {spec.StateId} features.", failures);
+                },
+                enterBeforeAction: ExecuteFlowActionWrapper,
                 enterAfterAction: ExecuteFlowActionWrapper,
                 exitAction: ExecuteFlowActionWrapper,
-                fail: message => _log.Error($"[FeatureScheduler] {message}"));
+                fail: message => _log.Error($"[FeatureScheduler] {message}"),
+                switchFlowAction: ExecuteSwitchFlowWrapper,
+                onEnterFailure: (in GamePhaseContext ctx) =>
+                {
+                    List<Exception> failures = null;
+                    for (var i = enteredFeatures.Count - 1; i >= 0; i--)
+                    {
+                        var feature = enteredFeatures[i];
+                        // Asynchronous teardown is completed by the domain's fault shutdown.
+                        if (feature is IAsyncPhaseFeature<GamePhaseContext>) continue;
+                        try { DetachFeature(feature); }
+                        catch (Exception ex) { (failures ??= new List<Exception>()).Add(ex); }
+                    }
+                    enteredFeatures.Clear();
+                    scopedFeatures.Clear();
+                    if (failures != null)
+                        throw new AggregateException($"Failed to roll back {spec.StateId}.", failures);
+                });
         }
 
         // --- Flow Action 包装 ---

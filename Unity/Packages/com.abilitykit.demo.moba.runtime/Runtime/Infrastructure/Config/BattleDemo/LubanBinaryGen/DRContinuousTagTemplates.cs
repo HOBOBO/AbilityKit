@@ -45,43 +45,43 @@ public sealed partial class DRContinuousTagTemplates : Luban.BeanBase
     /// </summary>
     public readonly string Name;
     /// <summary>
-    /// 激活必需标签定义 ID 列表，逗号分隔。
+    /// 激活前必须全部具备的标签 ID；与激活规则组同时配置时两者都要满足。空表示无此要求。
     /// </summary>
     public readonly System.Collections.Generic.List<int> ActivationRequiredTagIds;
     /// <summary>
-    /// 激活阻断标签定义 ID 列表，逗号分隔。
+    /// 激活前任一命中即阻断的标签 ID；简单 OR 条件优先填此列。空表示无此阻断。
     /// </summary>
     public readonly System.Collections.Generic.List<int> ActivationBlockedTagIds;
     /// <summary>
-    /// 应用标签定义 ID 列表，逗号分隔。
+    /// 持续对象处于生效状态时授予的事实标签 ID；暂停或结束后不再授予。空表示只配置门禁。
     /// </summary>
     public readonly System.Collections.Generic.List<int> ApplicationTagIds;
     /// <summary>
-    /// 移除必需标签定义 ID 列表，逗号分隔。
+    /// 持续期间全部具备时触发移除的标签 ID；与移除规则组同时配置时两者都要满足。
     /// </summary>
     public readonly System.Collections.Generic.List<int> RemovalRequiredTagIds;
     /// <summary>
-    /// 移除阻断标签定义 ID 列表，逗号分隔。
+    /// 持续期间这些标签全部不存在时才满足移除条件；不是“遇到这些标签就移除”。
     /// </summary>
     public readonly System.Collections.Generic.List<int> RemovalBlockedTagIds;
     /// <summary>
-    /// 持续中必需标签定义 ID 列表，逗号分隔。
+    /// 持续期间必须全部具备的标签 ID；不满足时暂停，恢复后继续。空表示无此要求。
     /// </summary>
     public readonly System.Collections.Generic.List<int> OngoingRequiredTagIds;
     /// <summary>
-    /// 持续中阻断标签定义 ID 列表，逗号分隔。
+    /// 持续期间任一命中即暂停的标签 ID；标签消失后可恢复。空表示无此阻断。
     /// </summary>
     public readonly System.Collections.Generic.List<int> OngoingBlockedTagIds;
     /// <summary>
-    /// 激活条件规则组 ID；0 表示不使用。
+    /// 复合激活条件规则组 ID；与平铺条件按 AND 合并。简单 Required/Blocked 优先使用标签列；0 表示不使用。
     /// </summary>
     public readonly int ActivationRuleGroupId;
     /// <summary>
-    /// 移除条件规则组 ID；0 表示不使用。
+    /// 复合移除条件规则组 ID；与平铺条件按 AND 合并。整组留空时不会自动移除；0 表示不使用。
     /// </summary>
     public readonly int RemovalRuleGroupId;
     /// <summary>
-    /// 持续中条件规则组 ID；0 表示不使用。
+    /// 复合持续条件规则组 ID；与平铺条件按 AND 合并。不满足时暂停而非移除；0 表示不使用。
     /// </summary>
     public readonly int OngoingRuleGroupId;
     /// <summary>

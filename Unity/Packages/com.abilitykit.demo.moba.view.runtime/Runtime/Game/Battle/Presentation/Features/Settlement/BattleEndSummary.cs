@@ -4,9 +4,7 @@ using System.Collections.Generic;
 namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
 {
     /// <summary>
-    /// 单个玩家结算数据。来源：<see cref="BattleStartPlan.LaunchSpec.Players"/> + 实时死亡次数 / 击杀数 / 助攻数。
-    /// 由 <c>BattleEndSummaryRecorder</c> 在 <c>Battle.InMatch.OnDetach</c> 时聚合，
-    /// 由 <c>BattleEndSettlementFeature</c> 在 <c>Battle.End.OnAttach</c> 时读取。
+    /// 玩家身份来自启动信息；战斗结果由权威玩法快照提供。
     /// </summary>
     public sealed class BattleEndPlayerRow
     {
@@ -29,7 +27,13 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
     /// </summary>
     public sealed class BattleEndSummary
     {
+        public string MatchId { get; set; } = string.Empty;
+        public int GameplayId { get; set; }
+        public bool HasAuthoritativeResult { get; set; }
         public int WinningTeamId { get; set; }       // 0 = 平局
+        public double Team1Score { get; set; }
+        public double Team2Score { get; set; }
+        public string EndReason { get; set; } = string.Empty;
         public bool LocalPlayerVictory { get; set; }
         public int MatchDurationFrames { get; set; }
         public int MatchDurationSeconds { get; set; }
@@ -40,24 +44,4 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
         public static BattleEndSummary Empty { get; } = new BattleEndSummary();
     }
 
-    /// <summary>
-    /// 静态缓存：跨阶段持久化的结算数据。
-    /// 因为 <c>Battle.End</c> 配置了 <c>clearBeforeEnter: true</c>，所有 Battle.InMatch feature 都会被
-    /// 卸载，<c>IGameFeatureStore</c> 也会被清空；这里用静态注册中心让 recorder → settlement 跨阶段通信。
-    /// </summary>
-    public static class BattleEndSummaryCache
-    {
-        private static BattleEndSummary _current = BattleEndSummary.Empty;
-
-        public static BattleEndSummary Current
-        {
-            get => _current;
-            set => _current = value ?? BattleEndSummary.Empty;
-        }
-
-        public static void Reset()
-        {
-            _current = BattleEndSummary.Empty;
-        }
-    }
 }

@@ -8,21 +8,32 @@ namespace AbilityKit.Game.Flow
     {
         private void OnStartSessionRequested()
         {
-            _ = StartSessionAfterGatewayPreparationAsync();
+            _ = _startupTasks.RequestStart(StartSessionAfterGatewayPreparationAsync);
         }
 
-        private async Task StartSessionAfterGatewayPreparationAsync()
+        private Task StartPlannedSessionAsync()
+        {
+            if (_plan.RunModeOptions.RunMode != BattleRunMode.Replay)
+                return StartSessionAsync();
+            StartIsolatedReplaySession();
+            return Task.CompletedTask;
+        }
+
+        private async Task StartSessionAfterGatewayPreparationAsync(int generation)
         {
             try
             {
+                if (!_startupTasks.IsCurrent(generation)) return;
                 if (_plan.RunModeOptions.RunMode == BattleRunMode.Replay)
                 {
                     StartIsolatedReplaySession();
+                    _eventsCtrl.NotifySessionStarted(this, _plan);
                     return;
                 }
 
                 Log.Info("[BattleSessionFeature] Starting session");
-                await StartSessionAsync().ConfigureAwait(false);
+                await StartSessionAsync();
+                if (!_startupTasks.IsCurrent(generation)) return;
                 _eventsCtrl.NotifySessionStarted(this, _plan);
                 ApplyAutoPlanActions();
                 SessionContextBinder.BindSession(_ctx, _state, _handles, Hooks, _plan);
@@ -36,7 +47,7 @@ namespace AbilityKit.Game.Flow
                 var failure = ex;
                 try
                 {
-                    await StopSessionAsync().ConfigureAwait(false);
+                    await StopSessionAsync();
                 }
                 catch (Exception cleanupFailure)
                 {
@@ -46,7 +57,8 @@ namespace AbilityKit.Game.Flow
                         cleanupFailure);
                 }
 
-                _eventsCtrl.NotifySessionFailed(this, failure);
+                if (_startupTasks.IsCurrent(generation))
+                    _eventsCtrl.NotifySessionFailed(this, failure);
             }
         }
 
@@ -74,7 +86,7 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            if (!MobaBattlePauseController.BeginColdStartRecovery(_ctx))
+            if (!_runtime.LockstepRecovery.BeginColdStartRecovery(_ctx))
             {
                 throw new InvalidOperationException(
                     "Unable to start lockstep cold-start recovery for the restored battle.");
@@ -92,7 +104,6 @@ namespace AbilityKit.Game.Flow
             }
 
             Log.Info($"[BattleSessionFeature] Started isolated replay session: {path}");
-            _eventsCtrl.NotifySessionStarted(this, _plan);
         }
     }
 }

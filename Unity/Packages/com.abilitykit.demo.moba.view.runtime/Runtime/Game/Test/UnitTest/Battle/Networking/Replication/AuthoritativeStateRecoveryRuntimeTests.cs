@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using AbilityKit.Ability.World.Abstractions;
@@ -10,11 +11,33 @@ using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Network.Sdk;
 using NUnit.Framework;
 using UnityEngine.TestTools;
+using UnityEngine;
 
 namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class AuthoritativeStateRecoveryRuntimeTests
     {
+        [Test]
+        public void RecoveryGenerationOperation_CancelsAndWaitsForReservedExecution()
+        {
+            var operation = new RecoveryGenerationOperation();
+            operation.Begin();
+            var generation = operation.Generation;
+            Assert.That(operation.TryReserve(out var token, out var reservation), Is.True);
+
+            var stopped = operation.EndAsync();
+            Assert.That(token.IsCancellationRequested, Is.True);
+            Assert.That(operation.IsCurrent(generation), Is.False);
+            Assert.That(stopped.IsCompleted, Is.False);
+
+            operation.Begin();
+            Assert.That(operation.IsCurrent(operation.Generation), Is.True);
+            reservation.SetResult(true);
+            stopped.GetAwaiter().GetResult();
+            Assert.That(operation.IsCurrent(operation.Generation), Is.True);
+            operation.EndAsync().GetAwaiter().GetResult();
+        }
+
         [Test]
         public void FullBaseline_ImportsWorldAndEnablesGameplayInput()
         {
@@ -253,11 +276,11 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(fixture.Runtime.PendingStateImport, Is.True);
             Assert.That(fixture.Context.CanSubmitGameplayInput, Is.False);
             Assert.That(activeTransport.FullStateRequests, Is.Empty);
-            Assert.That(fixture.World.ResetCount, Is.Zero);
+            Assert.That(fixture.World.ResetCount, Is.EqualTo(1));
         }
 
-        [Test]
-        public async Task StopAsync_WaitsForGenerationOwnedRecoveryExecution()
+        [UnityTest]
+        public IEnumerator StopAsync_WaitsForGenerationOwnedRecoveryExecution()
         {
             using var fixture = new Fixture();
             var completion = fixture.Transport.EnqueuePendingFullStateRequest();
@@ -273,7 +296,8 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(stopTask.IsCompleted, Is.False);
 
             completion.SetResult(false);
-            await stopTask;
+            yield return new WaitUntil(() => stopTask.IsCompleted);
+            stopTask.GetAwaiter().GetResult();
 
             Assert.That(pendingExecution.IsCompleted, Is.True);
             Assert.That(fixture.Runtime.PendingExecution.IsCompleted, Is.True);

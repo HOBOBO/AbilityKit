@@ -1,8 +1,9 @@
-using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.StateMachine;
+using AbilityKit.Demo.Moba.View.Config;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
-using UnityEngine;
 using AbilityKit.HFSM.Definition;
+using UnityEngine;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
@@ -12,6 +13,8 @@ namespace AbilityKit.Game.Flow
         private readonly BattleViewEntitySyncInputFactory _inputs;
         private readonly BattleViewModelSyncController _models;
         private readonly BattleViewAttachedVfxController _attachedVfx;
+        private StateMachineDefinition _definition;
+        private CharacterPresentationActionCatalog _catalog;
 
         public BattleViewEntitySyncController(
             BattleViewHandleStore handles,
@@ -44,29 +47,31 @@ namespace AbilityKit.Game.Flow
             _attachedVfx.SyncProjectileVfx(entity, handle, input.Meta);
         }
 
-        private static void SyncCharacterHfsm(in BattleViewEntitySyncInput input,
+        private void SyncCharacterHfsm(in BattleViewEntitySyncInput input,
             BattleViewHandle handle, IBattleRuntimeContext context)
         {
             if (handle.GameObject == null || input.Meta == null ||
-                input.Meta.Kind != BattleEntityKind.Character || context?.Session == null ||
-                !context.Session.TryGetWorld(out var world) || world?.Services == null ||
-                !world.Services.TryResolve<MobaActorRegistry>(out var registry) ||
-                registry == null || !registry.TryGet(input.ActorId, out var actor) ||
-                !actor.hasCharacterHfsm) return;
+                input.Meta.Kind != BattleEntityKind.Character ||
+                !(context is IBattleCharacterActionReadPort actions) ||
+                !actions.TryGetCharacterAction(input.ActorId, out var action)) return;
 
             if (!input.Entity.TryGetRef(out BattleCharacterHfsmComponent state) || state == null ||
                 state.EntityCode != input.Meta.EntityCode)
             {
-                world.Services.TryResolve<StateMachineDefinition>(out var definition);
-                world.Services.TryResolve<CharacterPresentationActionCatalog>(out var catalog);
-                state = new BattleCharacterHfsmComponent(definition, catalog, input.Meta.EntityCode);
+                if (_definition == null)
+                {
+                    var loader = new ResourcesTextAssetLoader();
+                    _definition = MobaCharacterHfsmProfile.LoadDefinition(loader);
+                    _catalog = CharacterPresentationActionCatalog.Load(loader);
+                }
+                state = new BattleCharacterHfsmComponent(_definition, _catalog, input.Meta.EntityCode);
                 input.Entity.WithRef(state);
             }
-            state.ApplySnapshot(actor.characterHfsm.Runtime.CaptureSnapshot());
+            state.ApplyPresentation(in action);
 
             var mono = handle.GameObject.GetComponent<MonoCharacterHfsmView>();
             if (mono == null) mono = handle.GameObject.AddComponent<MonoCharacterHfsmView>();
-            mono.Bind(state, context.Plan.World.TickRate, registry, input.ActorId);
+            mono.Bind(state, context.Plan.World.TickRate);
         }
     }
 

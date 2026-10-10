@@ -74,18 +74,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return false;
             }
 
-            int configId;
-            float resolvedDurationSeconds;
-            ContinuousTagRequirements requirements;
-            IReadOnlyList<IMobaContinuousModifierSpec> modifiers;
-            IReadOnlyList<int> triggerIds;
-            float intervalSeconds;
-            IReadOnlyList<int> intervalTriggerIds;
+            MobaMotionContinuousResolvedConfig config;
             try
             {
-                ResolveContinuousConfig(ctx.Context, settings, durationSeconds,
-                    out configId, out resolvedDurationSeconds, out requirements, out modifiers,
-                    out triggerIds, out intervalSeconds, out intervalTriggerIds);
+                config = ResolveContinuousConfig(ctx.Context, settings, durationSeconds);
             }
             catch (InvalidOperationException error)
             {
@@ -93,32 +85,19 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return false;
             }
 
-            var source = ResolveContextSource(input, sourceActorId, targetActorId, configId);
+            var source = ResolveContextSource(input, sourceActorId, targetActorId, config.ConfigId);
             var sourceContextId = source.SourceContextId != 0
                 ? source.SourceContextId
                 : input.ActionInput.HasExecutionScope
                     ? input.ActionInput.ExecutionScope.EffectContextId
                     : 0L;
 
-            var runtime = new MobaMotionContinuousRuntime(
-                kind,
-                configId,
-                sourceActorId,
-                targetActorId,
-                ownerActorId,
-                sourceContextId,
-                actors,
-                motionSource,
-                resolvedDurationSeconds,
-                requirements,
-                modifiers,
-                triggerIds,
-                intervalSeconds,
-                intervalTriggerIds,
-                source,
-                hitTriggerRuntime,
-                landingTriggerRuntime,
+            var identity = new MobaMotionContinuousIdentity(
+                kind, config.ConfigId, sourceActorId, targetActorId, ownerActorId, sourceContextId, source);
+            var dependencies = new MobaMotionContinuousDependencies(
+                actors, motionSource, hitTriggerRuntime, landingTriggerRuntime,
                 ResolveLandingTriggerService(ctx.Context, landingTriggerRuntime));
+            var runtime = new MobaMotionContinuousRuntime(in identity, in config, in dependencies);
 
             if (continuous.TryActivate(runtime))
             {
@@ -132,33 +111,27 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return false;
         }
 
-        private static void ResolveContinuousConfig(
+        private static MobaMotionContinuousResolvedConfig ResolveContinuousConfig(
             IWorldResolver services,
             MobaMotionContinuousSettings settings,
-            float fallbackDurationSeconds,
-            out int configId,
-            out float durationSeconds,
-            out ContinuousTagRequirements requirements,
-            out IReadOnlyList<IMobaContinuousModifierSpec> modifiers,
-            out IReadOnlyList<int> triggerIds,
-            out float intervalSeconds,
-            out IReadOnlyList<int> intervalTriggerIds)
+            float fallbackDurationSeconds)
         {
             if (settings.ContinuousProcessId > 0 && settings.ContinuousTagTemplateId > 0)
                 throw new InvalidOperationException("Motion cannot reference both a continuous process and a tag template.");
 
-            configId = settings.ContinuousProcessId > 0 ? settings.ContinuousProcessId : settings.ContinuousTagTemplateId;
-            durationSeconds = fallbackDurationSeconds;
-            requirements = new ContinuousTagRequirements();
-            modifiers = Array.Empty<IMobaContinuousModifierSpec>();
-            triggerIds = settings.TriggerIds ?? Array.Empty<int>();
-            intervalSeconds = settings.IntervalMs > 0 ? settings.IntervalMs / 1000f : 0f;
-            intervalTriggerIds = settings.IntervalTriggerIds ?? Array.Empty<int>();
+            var configId = settings.ContinuousProcessId > 0 ? settings.ContinuousProcessId : settings.ContinuousTagTemplateId;
+            var durationSeconds = fallbackDurationSeconds;
+            var requirements = new ContinuousTagRequirements();
+            IReadOnlyList<IMobaContinuousModifierSpec> modifiers = Array.Empty<IMobaContinuousModifierSpec>();
+            IReadOnlyList<int> triggerIds = settings.TriggerIds ?? Array.Empty<int>();
+            var intervalSeconds = settings.IntervalMs > 0 ? settings.IntervalMs / 1000f : 0f;
+            IReadOnlyList<int> intervalTriggerIds = settings.IntervalTriggerIds ?? Array.Empty<int>();
 
             if (settings.ContinuousProcessId <= 0)
             {
                 requirements = ResolveTemplateRequirements(services, settings.ContinuousTagTemplateId);
-                return;
+                return new MobaMotionContinuousResolvedConfig(configId, durationSeconds,
+                    requirements, modifiers, triggerIds, intervalSeconds, intervalTriggerIds);
             }
             if (services == null || !services.TryResolve<MobaConfigDatabase>(out var configs) || configs == null ||
                 !configs.TryGetContinuousProcess(settings.ContinuousProcessId, out var process) || process == null)
@@ -175,6 +148,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             triggerIds = process.TriggerIds ?? Array.Empty<int>();
             intervalSeconds = process.IntervalMs > 0 ? process.IntervalMs / 1000f : 0f;
             intervalTriggerIds = process.IntervalTriggerIds ?? Array.Empty<int>();
+            return new MobaMotionContinuousResolvedConfig(configId, durationSeconds,
+                requirements, modifiers, triggerIds, intervalSeconds, intervalTriggerIds);
         }
 
         private static MobaMotionLandingTriggerService ResolveLandingTriggerService(IWorldResolver services, in MobaMotionLandingTriggerRuntime runtime)

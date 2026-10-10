@@ -9,6 +9,7 @@ namespace AbilityKit.Protocol.Room
         public const string GameplayId = "gameplayId";
         public const string RuleSetId = "ruleSetId";
         public const string ConfigVersion = "configVersion";
+        public const string MobaTagBundleVersion = "tagBundleVersion";
         public const string ProtocolVersion = "protocolVersion";
         public const string WorldType = "worldType";
         public const string ClientId = "clientId";

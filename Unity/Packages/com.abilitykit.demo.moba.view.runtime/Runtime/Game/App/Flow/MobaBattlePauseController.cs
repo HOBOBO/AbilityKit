@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
@@ -26,7 +27,7 @@ namespace AbilityKit.Game.Flow
     /// FillDefault 填出的临时偏差由既有预测回滚-重放调和纠正。消费到固定补帧目标且重放结束后
     /// 才恢复输入提交。不拆战斗作用域、不回大厅。
     /// </summary>
-    public static class MobaBattlePauseController
+    internal sealed class MobaBattleRecoveryRuntime
     {
 
         private enum RecoveryPhase
@@ -36,55 +37,59 @@ namespace AbilityKit.Game.Flow
             CatchingUp,
         }
 
-        private static bool _isPaused;
-        private static int _pausedAtConfirmedFrame;
-        private static long _pausedAtUnixMs;
-        private static long _resumedAtUnixMs;
-        private static RecoveryPhase _recoveryPhase;
-        private static BattleLogicSession? _recoverySession;
-        private static NetworkTransport? _recoveryTransport;
-        private static int _catchUpTargetFrame;
-        private static int _latestLiveFrame;
-        private static bool _catchUpPayloadConsumed;
-        private static int _catchUpPayloadCount;
-        private static int _catchUpFrameCount;
-        private static bool _catchUpRequestStarted;
-        private static bool _catchUpRequestCompleted;
-        private static string? _recoveryError;
-        private static string? _coldStartBattleId;
+        private bool _isPaused;
+        private int _pausedAtConfirmedFrame;
+        private long _pausedAtUnixMs;
+        private long _resumedAtUnixMs;
+        private RecoveryPhase _recoveryPhase;
+        private BattleLogicSession? _recoverySession;
+        private NetworkTransport? _recoveryTransport;
+        private int _catchUpTargetFrame;
+        private int _latestLiveFrame;
+        private bool _catchUpPayloadConsumed;
+        private int _catchUpPayloadCount;
+        private int _catchUpFrameCount;
+        private bool _catchUpRequestStarted;
+        private bool _catchUpRequestCompleted;
+        private string? _recoveryError;
+        private string? _coldStartBattleId;
+        private int _generation;
 
-        public static bool IsPaused => _isPaused;
+        public bool IsPaused => _isPaused;
 
         /// <summary>恢复流程是否在途（重连/补帧/追帧中）。恢复完成后回 false。</summary>
-        public static bool IsRecovering => _recoveryPhase != RecoveryPhase.None;
+        public bool IsRecovering => _recoveryPhase != RecoveryPhase.None;
 
-        public static int PausedAtConfirmedFrame => _pausedAtConfirmedFrame;
-        public static long PausedAtUnixMs => _pausedAtUnixMs;
-        public static long ResumedAtUnixMs => _resumedAtUnixMs;
-        public static string RecoveryPhaseName => _recoveryPhase.ToString();
-        public static bool RecoveryTransportAuthenticated => _recoverySession?.NetworkTransport?.IsAuthenticated == true;
-        public static int RecoveryTargetFrame => _catchUpTargetFrame;
-        public static int LatestLiveFrame => _latestLiveFrame;
-        public static int CatchUpPayloadCount => _catchUpPayloadCount;
-        public static int CatchUpFrameCount => _catchUpFrameCount;
-        public static bool CatchUpRequestStarted => _catchUpRequestStarted;
-        public static bool CatchUpRequestCompleted => _catchUpRequestCompleted;
-        public static string? RecoveryError => _recoveryError;
+        public int PausedAtConfirmedFrame => _pausedAtConfirmedFrame;
+        public long PausedAtUnixMs => _pausedAtUnixMs;
+        public long ResumedAtUnixMs => _resumedAtUnixMs;
+        public string RecoveryPhaseName => _recoveryPhase.ToString();
+        public bool RecoveryTransportAuthenticated => _recoverySession?.NetworkTransport?.IsAuthenticated == true;
+        public int RecoveryTargetFrame => _catchUpTargetFrame;
+        public int LatestLiveFrame => _latestLiveFrame;
+        public int CatchUpPayloadCount => _catchUpPayloadCount;
+        public int CatchUpFrameCount => _catchUpFrameCount;
+        public bool CatchUpRequestStarted => _catchUpRequestStarted;
+        public bool CatchUpRequestCompleted => _catchUpRequestCompleted;
+        public string? RecoveryError => _recoveryError;
 
-        public static void Reset()
+        public void Reset()
         {
+            _generation++;
             _isPaused = false;
             _pausedAtConfirmedFrame = 0;
             _pausedAtUnixMs = 0;
             _resumedAtUnixMs = 0;
             _coldStartBattleId = null;
+            _cachedNumericRoomId = 0;
+            _cachedWorldId = 0;
             ClearRecovery();
         }
 
         /// <summary>
         /// 暂停：断开战斗连接模拟断线。要求战斗上下文携带在线战斗会话。失败多为无会话（本地/未开局）。
         /// </summary>
-        public static bool Pause(BattleContext context)
+        public bool Pause(BattleContext context)
         {
             var session = context?.Session;
             if (_isPaused || session == null)
@@ -93,7 +98,7 @@ namespace AbilityKit.Game.Flow
             }
 
             Configure(context);
-            context.CanSubmitGameplayInput = false;
+            context.SetGameplayInputBlocked(BattleGameplayInputBlockReason.PauseRecovery, true);
             _pausedAtConfirmedFrame = TryGetConfirmedFrame(context, out var confirmed) ? confirmed : context.LastFrame;
             session.Disconnect();
             _isPaused = true;
@@ -106,7 +111,7 @@ namespace AbilityKit.Game.Flow
         /// 冷启动同场重连：新本地世界刚按房间配置创建时冻结输入，从第 0 帧之前（-1）请求
         /// 完整的已保留锁步输入历史。该入口只允许每个 battleId 发起一次，避免恢复完成后重复追帧。
         /// </summary>
-        public static bool BeginColdStartRecovery(BattleContext context)
+        public bool BeginColdStartRecovery(BattleContext context)
         {
             if (context?.Session == null ||
                 context.Plan.HostMode != BattleHostMode.GatewayRemote ||
@@ -118,7 +123,7 @@ namespace AbilityKit.Game.Flow
 
             _coldStartBattleId = context.Plan.Gateway.BattleId;
             Configure(context);
-            context.CanSubmitGameplayInput = false;
+            context.SetGameplayInputBlocked(BattleGameplayInputBlockReason.PauseRecovery, true);
             _isPaused = true;
             _pausedAtConfirmedFrame = -1;
             _pausedAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -130,7 +135,7 @@ namespace AbilityKit.Game.Flow
         /// 恢复：同一会话重连 + 帧历史补帧 + 追上后重开输入。只发起（Connect），
         /// 后续推进由 <see cref="TickRecovery"/> 在正式 Battle Session 生命周期中逐帧驱动。
         /// </summary>
-        public static bool Resume(BattleContext context)
+        public bool Resume(BattleContext context)
         {
             if (!_isPaused || context == null)
             {
@@ -147,8 +152,9 @@ namespace AbilityKit.Game.Flow
             return StartRecovery(session);
         }
 
-        private static bool StartRecovery(BattleLogicSession session)
+        private bool StartRecovery(BattleLogicSession session)
         {
+            _generation++;
             ClearRecovery();
             _recoverySession = session;
             _recoveryPhase = RecoveryPhase.ReconnectPending;
@@ -158,7 +164,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>恢复流程逐帧推进：等待鉴权 → 请求补帧并重订阅 → 注入历史输入 → 回滚重放追上固定目标 → 重开输入。</summary>
-        public static void TickRecovery(BattleContext context)
+        public void TickRecovery(BattleContext context)
         {
             if (_recoveryPhase == RecoveryPhase.None)
             {
@@ -190,7 +196,7 @@ namespace AbilityKit.Game.Flow
                         // CatchUpRequest 形成死锁。int.MaxValue 表示“截至服务端当前帧”，由 grain clamp。
                         _recoveryPhase = RecoveryPhase.CatchingUp;
                         _catchUpRequestStarted = true;
-                        _ = SendCatchUpRequestAsync(transport);
+                        _ = SendCatchUpRequestAsync(transport, _generation);
                         return;
 
                     case RecoveryPhase.CatchingUp:
@@ -219,8 +225,8 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private static async System.Threading.Tasks.Task SendCatchUpRequestAsync(
-            NetworkTransport transport)
+        private async System.Threading.Tasks.Task SendCatchUpRequestAsync(
+            NetworkTransport transport, int generation)
         {
             try
             {
@@ -236,15 +242,17 @@ namespace AbilityKit.Game.Flow
                     OpCodes.CatchUpRequest,
                     payload.Array ?? Array.Empty<byte>(),
                     TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                _catchUpRequestCompleted = true;
+                if (_generation == generation && ReferenceEquals(_recoveryTransport, transport))
+                    _catchUpRequestCompleted = true;
             }
             catch (Exception ex)
             {
-                FailRecovery("Catch-up request failed (history may be incomplete): " + ex.Message);
+                if (_generation == generation && ReferenceEquals(_recoveryTransport, transport))
+                    FailRecovery("Catch-up request failed (history may be incomplete): " + ex.Message);
             }
         }
 
-        private static void HandleRecoveryFramePushed(FramePacket packet)
+        private void HandleRecoveryFramePushed(FramePacket packet)
         {
             var frame = packet.Frame.Value;
             if (frame > _latestLiveFrame)
@@ -253,7 +261,7 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private static void HandleRecoveryRawPush(uint opCode, ArraySegment<byte> payload)
+        private void HandleRecoveryRawPush(uint opCode, ArraySegment<byte> payload)
         {
             if (opCode != OpCodes.CatchUpPayloadPush)
             {
@@ -327,7 +335,7 @@ namespace AbilityKit.Game.Flow
             _catchUpPayloadConsumed = true;
         }
 
-        private static void CompleteRecovery(BattleContext context)
+        private void CompleteRecovery(BattleContext context)
         {
             DetachRecoveryHandlers();
             _recoveryPhase = RecoveryPhase.None;
@@ -336,10 +344,10 @@ namespace AbilityKit.Game.Flow
             _isPaused = false;
             _resumedAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             _recoveryError = null;
-            context.CanSubmitGameplayInput = true;
+            context.SetGameplayInputBlocked(BattleGameplayInputBlockReason.PauseRecovery, false);
         }
 
-        private static void FailRecovery(string message)
+        private void FailRecovery(string message)
         {
             DetachRecoveryHandlers();
             _recoveryPhase = RecoveryPhase.None;
@@ -352,7 +360,7 @@ namespace AbilityKit.Game.Flow
             Debug.LogError("[MobaBattlePauseController] Resume recovery failed: " + message);
         }
 
-        private static void DetachRecoveryHandlers()
+        private void DetachRecoveryHandlers()
         {
             var transport = _recoveryTransport;
             if (transport != null)
@@ -362,7 +370,7 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private static void ClearRecovery()
+        private void ClearRecovery()
         {
             DetachRecoveryHandlers();
             _recoveryPhase = RecoveryPhase.None;
@@ -378,10 +386,10 @@ namespace AbilityKit.Game.Flow
             _recoveryError = null;
         }
 
-        private static ulong _cachedNumericRoomId;
-        private static ulong _cachedWorldId;
+        private ulong _cachedNumericRoomId;
+        private ulong _cachedWorldId;
 
-        internal static void Configure(BattleContext context)
+        internal void Configure(BattleContext context)
         {
             _cachedNumericRoomId = context.Plan.Gateway.NumericRoomId;
             _cachedWorldId = ulong.TryParse(context.Plan.World.WorldId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var worldId)
@@ -389,8 +397,8 @@ namespace AbilityKit.Game.Flow
                 : 0UL;
         }
 
-        private static ulong ResolveNumericRoomId() => _cachedNumericRoomId;
-        private static ulong ResolveWorldId() => _cachedWorldId;
+        private ulong ResolveNumericRoomId() => _cachedNumericRoomId;
+        private ulong ResolveWorldId() => _cachedWorldId;
 
         private static bool TryGetConfirmedFrame(BattleContext context, out int confirmedFrame)
         {
@@ -403,5 +411,74 @@ namespace AbilityKit.Game.Flow
                        out _) &&
                    (confirmedFrame = confirmed.Value) >= 0;
         }
+    }
+
+    // Compatibility entry for debug tools. BattleSessionRuntime owns the recovery state.
+    public static class MobaBattlePauseController
+    {
+        private static readonly object Gate = new object();
+        private static readonly Dictionary<BattleContext, MobaBattleRecoveryRuntime> Sessions =
+            new Dictionary<BattleContext, MobaBattleRecoveryRuntime>();
+        private static MobaBattleRecoveryRuntime _active;
+
+        internal static void Register(BattleContext context, MobaBattleRecoveryRuntime recovery)
+        {
+            if (context == null || recovery == null) throw new ArgumentNullException(context == null ? nameof(context) : nameof(recovery));
+            lock (Gate)
+            {
+                Sessions[context] = recovery;
+                _active = recovery;
+            }
+        }
+
+        internal static void Unregister(BattleContext context, MobaBattleRecoveryRuntime recovery)
+        {
+            if (context == null || recovery == null) return;
+            lock (Gate)
+            {
+                if (Sessions.TryGetValue(context, out var current) && ReferenceEquals(current, recovery))
+                    Sessions.Remove(context);
+                if (ReferenceEquals(_active, recovery))
+                {
+                    _active = null;
+                    foreach (var remaining in Sessions.Values) _active = remaining;
+                }
+            }
+            recovery.Reset();
+        }
+
+        private static MobaBattleRecoveryRuntime Find(BattleContext context)
+        {
+            lock (Gate) return context != null && Sessions.TryGetValue(context, out var recovery) ? recovery : null;
+        }
+
+        internal static MobaBattleRecoveryRuntime For(BattleContext context) => Find(context);
+
+        private static MobaBattleRecoveryRuntime Active
+        {
+            get { lock (Gate) return _active; }
+        }
+
+        public static bool IsPaused => Active?.IsPaused == true;
+        public static bool IsRecovering => Active?.IsRecovering == true;
+        public static int PausedAtConfirmedFrame => Active?.PausedAtConfirmedFrame ?? 0;
+        public static long PausedAtUnixMs => Active?.PausedAtUnixMs ?? 0;
+        public static long ResumedAtUnixMs => Active?.ResumedAtUnixMs ?? 0;
+        public static string RecoveryPhaseName => Active?.RecoveryPhaseName ?? "None";
+        public static bool RecoveryTransportAuthenticated => Active?.RecoveryTransportAuthenticated == true;
+        public static int RecoveryTargetFrame => Active?.RecoveryTargetFrame ?? 0;
+        public static int LatestLiveFrame => Active?.LatestLiveFrame ?? 0;
+        public static int CatchUpPayloadCount => Active?.CatchUpPayloadCount ?? 0;
+        public static int CatchUpFrameCount => Active?.CatchUpFrameCount ?? 0;
+        public static bool CatchUpRequestStarted => Active?.CatchUpRequestStarted == true;
+        public static bool CatchUpRequestCompleted => Active?.CatchUpRequestCompleted == true;
+        public static string? RecoveryError => Active?.RecoveryError;
+
+        public static void Reset() => Active?.Reset();
+        public static bool Pause(BattleContext context) => Find(context)?.Pause(context) == true;
+        public static bool Resume(BattleContext context) => Find(context)?.Resume(context) == true;
+        public static bool BeginColdStartRecovery(BattleContext context) =>
+            Find(context)?.BeginColdStartRecovery(context) == true;
+        public static void TickRecovery(BattleContext context) => Find(context)?.TickRecovery(context);
     }
 }

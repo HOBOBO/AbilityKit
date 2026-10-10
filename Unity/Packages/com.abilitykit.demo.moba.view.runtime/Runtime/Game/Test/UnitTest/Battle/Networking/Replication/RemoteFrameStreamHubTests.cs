@@ -64,8 +64,34 @@ namespace AbilityKit.Game.Test.UnitTest
                 streams);
 
             session.Dispose();
+            session.Dispose();
 
             Assert.That(streams.DisposeCount, Is.EqualTo(1));
+        }
+
+        [TestCase(StartupFailure.Connect)]
+        [TestCase(StartupFailure.CreateWorld)]
+        [TestCase(StartupFailure.Join)]
+        public void BattleLogicSession_StartupFailure_ReleasesTransportAndStreams(StartupFailure failure)
+        {
+            var streams = new RecordingRemoteFrameStreams();
+            var transport = new FailingBattleLogicTransport(failure);
+            Assert.Throws<InvalidOperationException>(() => new BattleLogicSession(
+                new BattleLogicSessionOptions
+                {
+                    Mode = BattleLogicMode.Remote,
+                    AutoConnect = true,
+                    AutoCreateWorld = true,
+                    AutoJoin = true,
+                },
+                transport,
+                new MobaRollbackRegistryFactory(),
+                new MobaBattleLogicRuntimeFactory(),
+                streams));
+
+            Assert.That(streams.DisposeCount, Is.EqualTo(1));
+            Assert.That(transport.DisposeCount, Is.EqualTo(1));
+            Assert.That(transport.SubscriberCount, Is.EqualTo(0));
         }
 
         [Test]
@@ -211,6 +237,38 @@ namespace AbilityKit.Game.Test.UnitTest
             public void SendJoin(JoinWorldRequest request) { }
             public void SendLeave(LeaveWorldRequest request) { }
             public void SendInput(SubmitInputRequest request) { }
+        }
+
+        public enum StartupFailure { Connect, CreateWorld, Join }
+
+        private sealed class FailingBattleLogicTransport : IBattleLogicTransport, IDisposable
+        {
+            private Action<FramePacket> _framePushed;
+            private readonly StartupFailure _failure;
+            public FailingBattleLogicTransport(StartupFailure failure) => _failure = failure;
+            public int DisposeCount { get; private set; }
+            public int SubscriberCount => _framePushed?.GetInvocationList().Length ?? 0;
+            public event Action<FramePacket> FramePushed
+            {
+                add => _framePushed += value;
+                remove => _framePushed -= value;
+            }
+            public void Connect()
+            {
+                if (_failure == StartupFailure.Connect) throw new InvalidOperationException("connect failed");
+            }
+            public void Disconnect() { }
+            public void SendCreateWorld(CreateWorldRequest request)
+            {
+                if (_failure == StartupFailure.CreateWorld) throw new InvalidOperationException("create failed");
+            }
+            public void SendJoin(JoinWorldRequest request)
+            {
+                if (_failure == StartupFailure.Join) throw new InvalidOperationException("join failed");
+            }
+            public void SendLeave(LeaveWorldRequest request) { }
+            public void SendInput(SubmitInputRequest request) { }
+            public void Dispose() => DisposeCount++;
         }
     }
 }

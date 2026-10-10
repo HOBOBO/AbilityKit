@@ -272,13 +272,15 @@ namespace AbilityKit.Game.View.Runtime.Tests
         }
 
         [Fact]
-        public void BattlePrepareFeatures_3Features_ContextEntitySession()
+        public void BattlePrepareFeatures_ContextEntitySessionAndGameplayPresentation()
         {
             var ids = _config.BattlePrepareFeatures.FeatureIds;
-            Assert.Equal(3, ids.Count);
+            Assert.Equal(5, ids.Count);
             Assert.Equal("context", ids[0]);
             Assert.Equal("entity", ids[1]);
             Assert.Equal("session", ids[2]);
+            Assert.Equal("battle_outcome", ids[3]);
+            Assert.Equal("gameplay_presentation", ids[4]);
         }
 
         [Fact]
@@ -353,20 +355,19 @@ namespace AbilityKit.Game.View.Runtime.Tests
         // ====================================================================
 
         [Fact]
-        public void BattleInMatchFeatures_NoClear_6Features_NoActions()
+        public void BattleInMatchFeatures_NoClear_5Features_NoActions()
         {
             var f = _config.BattleInMatchFeatures;
             Assert.Equal("Battle.InMatch", f.StateId);
             Assert.False(f.ClearBeforeEnter);
 
             var ids = f.FeatureIds;
-            Assert.Equal(6, ids.Count);
+            Assert.Equal(5, ids.Count);
             Assert.Equal("sync", ids[0]);
             Assert.Equal("input", ids[1]);
             Assert.Equal("view", ids[2]);
             Assert.Equal("hud", ids[3]);
-            Assert.Equal("end_recorder", ids[4]);
-            Assert.Equal("debug_ongui", ids[5]);
+            Assert.Equal("debug_ongui", ids[4]);
 
             Assert.Empty(f.EnterBeforeActionIds);
             Assert.Empty(f.EnterAfterActionIds);

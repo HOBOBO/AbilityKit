@@ -8,6 +8,7 @@ namespace AbilityKit.Network.Room
 {
     public sealed class RoomGatewaySnapshot
     {
+        public int GameplayId { get; set; } = 1;
         public string RoomId { get; set; } = string.Empty;
         public string OwnerAccountId { get; set; } = string.Empty;
         public RoomGatewaySessionPhase Phase { get; set; }
@@ -15,6 +16,7 @@ namespace AbilityKit.Network.Room
         public long LaunchGeneration { get; set; }
         public long LoadingDeadlineUnixMs { get; set; }
         public string LaunchManifestHash { get; set; } = string.Empty;
+        public string TagBundleVersion { get; set; } = string.Empty;
         public int LaunchManifestVersion { get; set; }
         public string LastStartFailureCode { get; set; } = string.Empty;
         public long RoomRevision { get; set; }

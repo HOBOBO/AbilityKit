@@ -21,22 +21,31 @@ namespace AbilityKit.Game.Battle
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
             if (rollbackRegistryFactory == null) throw new ArgumentNullException(nameof(rollbackRegistryFactory));
-            if (options.Mode == BattleLogicMode.Remote) return null;
+            if (options.Mode != BattleLogicMode.Local)
+                throw new InvalidOperationException("A local runtime requires local battle logic mode.");
 
             var worldManager = CreateWorldManager();
-            var profile = new MobaHostRuntimeProfile(
-                enableFrameSync: true,
-                enableServerFrameTime: true,
-                enableWorldAutoStart: true,
-                enableRollback: options.EnableRollback,
-                rollbackHistoryFrames: options.RollbackHistoryFrames,
-                rollbackCaptureEveryNFrames: options.RollbackCaptureEveryNFrames);
-            var runtime = MobaHostRuntimeBuilder.CreateRuntime(
-                worldManager,
-                in profile,
-                world => rollbackRegistryFactory.Create(world));
+            try
+            {
+                var profile = new MobaHostRuntimeProfile(
+                    enableFrameSync: true,
+                    enableServerFrameTime: true,
+                    enableWorldAutoStart: true,
+                    enableRollback: options.EnableRollback,
+                    rollbackHistoryFrames: options.RollbackHistoryFrames,
+                    rollbackCaptureEveryNFrames: options.RollbackCaptureEveryNFrames);
+                var runtime = MobaHostRuntimeBuilder.CreateRuntime(
+                    worldManager,
+                    in profile,
+                    world => rollbackRegistryFactory.Create(world));
 
-            return new BattleLogicSessionRuntime(worldManager, runtime.Runtime, runtime.RollbackModule);
+                return new BattleLogicSessionRuntime(worldManager, runtime.Runtime, runtime.RollbackModule);
+            }
+            catch
+            {
+                worldManager.DisposeAll();
+                throw;
+            }
         }
 
         public WorldContainerBuilder CreateWorldServices(BattleLogicSessionOptions options)

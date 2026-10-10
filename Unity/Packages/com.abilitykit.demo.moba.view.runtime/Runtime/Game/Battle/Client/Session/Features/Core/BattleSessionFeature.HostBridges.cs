@@ -4,7 +4,11 @@ namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleSessionFeature
     {
-        Task ISessionPlanHost.StartSessionAsync() => StartSessionAsync();
+        void ISessionPlanHost.ValidateModulesForPlan(BattleStartPlan plan) =>
+            SessionSubFeaturePipeline.ValidateCapabilitiesForPlan(
+                _sessionModuleIds, plan, _sessionModuleCapabilities);
+
+        Task ISessionPlanHost.StartSessionAsync() => StartPlannedSessionAsync();
 
         Task ISessionPlanHost.StopSessionAsync() => StopSessionAsync();
 

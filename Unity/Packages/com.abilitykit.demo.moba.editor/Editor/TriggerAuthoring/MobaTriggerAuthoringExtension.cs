@@ -442,13 +442,19 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Required("key_id", TriggerValueType.Integer), Optional("value", TriggerValueType.Number)));
             context.RegisterAction(Action("add_gameplay_var", "增加玩法变量", "Action/Gameplay",
                 Required("key_id", TriggerValueType.Integer), Optional("delta", TriggerValueType.Number)));
+            context.RegisterAction(Action("award_team_kill_score", "英雄击杀计分", "Action/Gameplay",
+                Required("key_base_id", TriggerValueType.Integer), Optional("points", TriggerValueType.Number)));
+            context.RegisterAction(Action("schedule_hero_respawn", "安排英雄复活", "Action/Gameplay",
+                Required("delay_ms", TriggerValueType.Integer), Optional("spawn_index", TriggerValueType.Integer),
+                Optional("health_ratio", TriggerValueType.Number), Optional("max_respawns", TriggerValueType.Integer)));
             context.RegisterAction(Action("advance_gameplay_counter", "推进玩法计数器", "Action/Gameplay",
                 Required("key_id", TriggerValueType.Integer),
                 Required("scope_payload_field_id", TriggerValueType.Integer),
                 Required("threshold", TriggerValueType.Number), Optional("delta", TriggerValueType.Number),
                 Optional("reset_value", TriggerValueType.Number), Required("trigger_id", TriggerValueType.Integer)));
             context.RegisterAction(Action("end_game", "结束游戏", "Action/Gameplay",
-                Optional("reason_id", TriggerValueType.Integer), Optional("win_team_id", TriggerValueType.Integer)));
+                Optional("reason_id", TriggerValueType.Integer), Optional("win_team_id", TriggerValueType.Integer),
+                Optional("win_team_from_event", TriggerValueType.Integer)));
         }
 
         private static TriggerTypeDescriptor Condition(

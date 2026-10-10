@@ -3,7 +3,7 @@ using AbilityKit.Game.Flow.Modules;
 namespace AbilityKit.Game.Flow
 {
     internal sealed class SessionEditorHooksSubFeature :
-        ISessionSubFeature<BattleSessionFeature>,
+        ISessionSubFeature<ISessionRuntimeFeature>,
         IGameModuleId,
         IGameModuleDependencies
     {
@@ -11,15 +11,15 @@ namespace AbilityKit.Game.Flow
 
         public System.Collections.Generic.IEnumerable<string> Dependencies => new[] { "session_events" };
 
-        public void OnAttach(in FeatureModuleContext<BattleSessionFeature> ctx)
+        public void OnAttach(in FeatureModuleContext<ISessionRuntimeFeature> ctx)
         {
 #if UNITY_EDITOR
-            if (!BattleSessionFeatureRuntimeAccess.TryGet<ISessionEditorHooksRuntime>(ctx, out var runtime)) return;
+            var runtime = BattleSessionFeatureRuntimeAccess.Require<ISessionEditorHooksRuntime>(ctx, Id);
             runtime.TryInstallEditorPlayModeStopHook();
 #endif
         }
 
-        public void OnDetach(in FeatureModuleContext<BattleSessionFeature> ctx)
+        public void OnDetach(in FeatureModuleContext<ISessionRuntimeFeature> ctx)
         {
 #if UNITY_EDITOR
             if (!BattleSessionFeatureRuntimeAccess.TryGet<ISessionEditorHooksRuntime>(ctx, out var runtime)) return;
@@ -27,8 +27,8 @@ namespace AbilityKit.Game.Flow
 #endif
         }
 
-        public void Tick(in FeatureModuleContext<BattleSessionFeature> ctx, float deltaTime) { }
+        public void Tick(in FeatureModuleContext<ISessionRuntimeFeature> ctx, float deltaTime) { }
 
-        public void RebindAll(in FeatureModuleContext<BattleSessionFeature> ctx) { }
+        public void RebindAll(in FeatureModuleContext<ISessionRuntimeFeature> ctx) { }
     }
 }

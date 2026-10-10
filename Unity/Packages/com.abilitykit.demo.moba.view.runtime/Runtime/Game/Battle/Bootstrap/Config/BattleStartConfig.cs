@@ -18,6 +18,9 @@ namespace AbilityKit.Game.Flow
         [LabelText("Preset(妯℃澘/瀹屽叏瑕嗙洊)")]
         public BattleStartPresetSO Preset;
 
+        [LabelText("Flow Profile ID")]
+        public string FlowProfileId = "moba.standard";
+
         [LabelText("RuntimeOverrides(灏戦噺杩愯鏃惰鐩?")]
         public BattleStartRuntimeOverrides RuntimeOverrides;
 

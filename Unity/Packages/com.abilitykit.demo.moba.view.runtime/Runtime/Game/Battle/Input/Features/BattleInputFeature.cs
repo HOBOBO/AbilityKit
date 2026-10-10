@@ -28,7 +28,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Features.TryGet(out _ctx);
+            _ctx = ctx.RequireFeature<BattleContext>(nameof(BattleInputFeature));
         }
 
         public void OnDetach(in GamePhaseContext ctx)

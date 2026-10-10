@@ -97,6 +97,24 @@ namespace AbilityKit.Demo.Moba.Services.StateImport
             var result = new MobaStateImportResult();
             if (actors == null) return result;
 
+            // Reject malformed baselines before changing any actor or queuing despawns.
+            var ids = new HashSet<int>();
+            for (var i = 0; i < actors.Count; i++)
+            {
+                var actor = actors[i];
+                var exists = _registry.TryGet(actor.ActorId, out _);
+                if (actor.ActorId <= 0 || !ids.Add(actor.ActorId) ||
+                    (actor.Kind != KindCharacter && actor.Kind != KindProjectile &&
+                     !(actor.Kind == 0 && exists)) ||
+                    !IsFinite(actor.PosX) || !IsFinite(actor.PosY) || !IsFinite(actor.PosZ) ||
+                    !IsFinite(actor.Yaw) || !IsFinite(actor.Hp) || !IsFinite(actor.HpMax) ||
+                    (!exists && _spawn == null))
+                {
+                    result.Failed = 1;
+                    return result;
+                }
+            }
+
             HashSet<int> seen = isFullSnapshot ? new HashSet<int>() : null;
 
             for (int i = 0; i < actors.Count; i++)
@@ -137,6 +155,8 @@ namespace AbilityKit.Demo.Moba.Services.StateImport
             Log.Info($"[MobaLogicWorldStateImporter] Import frame={frame} full={isFullSnapshot} {result}");
             return result;
         }
+
+        private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
         public int ApplyRemovedActors(IReadOnlyList<int> actorIds, int frame)
         {

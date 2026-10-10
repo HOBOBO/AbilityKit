@@ -288,14 +288,8 @@ namespace AbilityKit.Game.Test.UnitTest
         public void BattleSessionRuntime_ConfiguresSimulationControllerOnceAfterSimulation()
         {
             var runtime = new BattleSessionRuntime();
-            Action configure = () => runtime.ConfigureSimulationController(
-                () => CreatePlan(),
-                () => null,
-                () => null,
-                () => false,
-                () => 1f / 30f,
-                _ => 1,
-                _ => { });
+            var host = new TestSimulationHost { Plan = CreatePlan(), FixedDeltaSeconds = 1f / 30f };
+            Action configure = () => runtime.ConfigureSimulationController(host);
 
             Assert.Throws<InvalidOperationException>(() => configure());
 
@@ -316,14 +310,14 @@ namespace AbilityKit.Game.Test.UnitTest
             var initialContext = new BattleContext();
             var currentContext = new BattleContext();
             var fixedDeltaSeconds = 0.05f;
-            runtime.ConfigureSimulationController(
-                () => plan,
-                () => currentContext,
-                () => null,
-                () => false,
-                () => fixedDeltaSeconds,
-                _ => 17,
-                _ => { });
+            var host = new TestSimulationHost
+            {
+                Plan = plan,
+                Context = currentContext,
+                FixedDeltaSeconds = fixedDeltaSeconds,
+                IdealFrameLimit = 17
+            };
+            runtime.ConfigureSimulationController(host);
             var port = new SessionRuntimeResourcesPort(runtime);
             var world = CreateWorld(new TrackingProjectionProducer(), "remote");
             runtime.Handles.RemoteDriven.BindWorldRuntime(new RemoteDrivenWorldRuntime(
@@ -334,6 +328,8 @@ namespace AbilityKit.Game.Test.UnitTest
 
             currentContext = initialContext;
             fixedDeltaSeconds = 0.125f;
+            host.Context = currentContext;
+            host.FixedDeltaSeconds = fixedDeltaSeconds;
             port.StartRemoteDrivenLocalWorld();
 
             Assert.That(installer.LastRemoteDrivenOptions.Context, Is.SameAs(initialContext));
@@ -368,7 +364,8 @@ namespace AbilityKit.Game.Test.UnitTest
         public void SessionReplicationController_DisposesInOwnershipOrderAndRestoresInput()
         {
             var calls = new List<string>();
-            var context = new BattleContext { CanSubmitGameplayInput = false };
+            var context = new BattleContext();
+            context.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
             var controller = new SessionReplicationController(
                 () => Task.CompletedTask,
                 () => calls.Add("recovery"),
@@ -397,7 +394,8 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var calls = new List<string>();
             var failRecovery = true;
-            var context = new BattleContext { CanSubmitGameplayInput = false };
+            var context = new BattleContext();
+            context.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
             var controller = new SessionReplicationController(
                 () => Task.CompletedTask,
                 () =>
@@ -885,6 +883,18 @@ namespace AbilityKit.Game.Test.UnitTest
             }
 
             public ActorProjectionData ExtractSpawn(int actorId) => default;
+        }
+
+        private sealed class TestSimulationHost : ISessionSimulationHost
+        {
+            public BattleStartPlan Plan { get; set; }
+            public BattleContext Context { get; set; }
+            public IBattleViewFeatureHost Flow => null;
+            public bool HasLogicSession => false;
+            public float FixedDeltaSeconds { get; set; }
+            public int IdealFrameLimit { get; set; }
+            public int ResolveIdealFrameLimit(WorldId worldId) => IdealFrameLimit;
+            public void DestroyEntityTree(AbilityKit.World.ECS.IEntity root) { }
         }
 
         private sealed class TrackingSimulationInstaller : IBattleSessionWorldInstaller

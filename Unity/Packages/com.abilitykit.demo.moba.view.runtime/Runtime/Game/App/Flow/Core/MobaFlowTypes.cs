@@ -7,6 +7,23 @@ namespace AbilityKit.Game.Flow
         Battle = 2
     }
 
+    public enum MobaBattleEntryState
+    {
+        Idle,
+        Pending,
+        Accepted,
+        Rejected
+    }
+
+    public enum MobaBattleExitKind
+    {
+        None,
+        Completed,
+        Requested,
+        SessionFailed,
+        CleanupFailed
+    }
+
     internal enum MobaRootEvent
     {
         BootCompleted = 0,

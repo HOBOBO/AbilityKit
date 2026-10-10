@@ -5,6 +5,12 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class MobaFeaturePlanFactory
     {
+        private static readonly string[] DefaultBattleOrder =
+        {
+            "context", "input", "session", "gameplay_presentation", "entity", "sync",
+            "view", "hud", "loading_screen", "end_settlement", "debug_ongui"
+        };
+
         private readonly MobaFeatureFactoryRegistry _featureFactories;
 
         public MobaFeaturePlanFactory(MobaFeatureFactoryRegistry featureFactories)
@@ -20,20 +26,28 @@ namespace AbilityKit.Game.Flow
                 .Add("root_debug", (in GamePhaseContext ctx) => _featureFactories.Create("root_debug", in ctx));
         }
 
-        public PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature> CreateBattleFeaturePlan(int capacity = 10)
+        public PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature> CreateBattleFeaturePlan(int capacity = 10) =>
+            CreateBattleFeaturePlan(MobaBattleFlowProfile.CreateStandard().Resolve(), capacity);
+
+        public PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature> CreateBattleFeaturePlan(
+            MobaBattleFlowComposition composition, int capacity = 10)
         {
-            return new PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature>(capacity)
-                .Add("context", (in GamePhaseContext ctx) => _featureFactories.Create("context", in ctx))
-                .Add("input", (in GamePhaseContext ctx) => _featureFactories.Create("input", in ctx))
-                .Add("session", (in GamePhaseContext ctx) => _featureFactories.Create("session", in ctx))
-                .Add("entity", (in GamePhaseContext ctx) => _featureFactories.Create("entity", in ctx))
-                .Add("sync", (in GamePhaseContext ctx) => _featureFactories.Create("sync", in ctx))
-                .Add("view", (in GamePhaseContext ctx) => _featureFactories.Create("view", in ctx))
-                .Add("hud", (in GamePhaseContext ctx) => _featureFactories.Create("hud", in ctx))
-                .Add("loading_screen", (in GamePhaseContext ctx) => _featureFactories.Create("loading_screen", in ctx))
-                .Add("end_recorder", (in GamePhaseContext ctx) => _featureFactories.Create("end_recorder", in ctx))
-                .Add("end_settlement", (in GamePhaseContext ctx) => _featureFactories.Create("end_settlement", in ctx))
-                .Add("debug_ongui", (in GamePhaseContext ctx) => _featureFactories.Create("debug_ongui", in ctx));
+            if (composition == null) throw new ArgumentNullException(nameof(composition));
+            var remaining = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+            foreach (var stateId in composition.StateOrder)
+                foreach (var featureId in composition.GetFeatures(stateId))
+                    remaining.Add(featureId);
+
+            var plan = new PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature>(Math.Max(capacity, remaining.Count));
+            foreach (var featureId in DefaultBattleOrder)
+                if (remaining.Remove(featureId)) Add(featureId);
+            foreach (var stateId in composition.StateOrder)
+                foreach (var featureId in composition.GetFeatures(stateId))
+                    if (remaining.Remove(featureId)) Add(featureId);
+            return plan;
+
+            void Add(string featureId) =>
+                plan.Add(featureId, (in GamePhaseContext ctx) => _featureFactories.Create(featureId, in ctx));
         }
     }
 }

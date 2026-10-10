@@ -272,13 +272,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
             try
             {
-                Assert.IsTrue(session.TryGetWorld(out var logicWorld));
-                Assert.IsTrue(logicWorld.Services.TryResolve<MobaPlayerActorMapService>(out var playerActors));
-                playerActors.Bind(new PlayerId("p1"), 1001);
-
                 ctx.Session = session;
                 ctx.LocalControlPlayerId = "p1";
                 ctx.LocalActorId = 0;
+                ctx.ApplyLocalActorIdentity(1001);
                 ctx.EntityQuery = new BattleEntityQuery(world, lookup);
                 ctx.SetHudSkillAim(3, 2f, 0f, aiming: true);
 

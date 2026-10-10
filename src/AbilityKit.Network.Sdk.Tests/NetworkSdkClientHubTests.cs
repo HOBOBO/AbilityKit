@@ -7,6 +7,14 @@ namespace AbilityKit.Network.Sdk.Tests;
 public sealed class NetworkSdkClientHubTests
 {
     [Fact]
+    public void BuiltClient_ExposesConnectionContract()
+    {
+        using var client = Build(new HubTransport());
+
+        Assert.IsAssignableFrom<IConnection>(client);
+    }
+
+    [Fact]
     public void ClientKey_RequiresProjectRoleAndInstanceIdentity()
     {
         Assert.Throws<ArgumentException>(() => new NetworkSdkClientKey("", "room"));

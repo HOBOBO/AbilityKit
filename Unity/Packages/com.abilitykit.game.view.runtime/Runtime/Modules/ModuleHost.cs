@@ -8,6 +8,8 @@ namespace AbilityKit.Game.View.Modules
     {
         private readonly Action<string>? _fail;
         private readonly List<TModule> _modules;
+        private readonly HashSet<TModule> _attachedModules =
+            new HashSet<TModule>(ReferenceEqualityComparer<TModule>.Instance);
         private bool _isAttached;
 
         public ModuleHost(List<TModule>? modules = null, Action<string>? fail = null)
@@ -185,6 +187,8 @@ namespace AbilityKit.Game.View.Modules
                 for (; attachedCount < _modules.Count; attachedCount++)
                 {
                     _modules[attachedCount]?.OnAttach(ctx);
+                    if (_modules[attachedCount] != null)
+                        _attachedModules.Add(_modules[attachedCount]);
                 }
 
                 _isAttached = true;
@@ -192,12 +196,22 @@ namespace AbilityKit.Game.View.Modules
             catch (Exception attachException)
             {
                 var exceptions = new List<Exception> { attachException };
+                if (attachedCount < _modules.Count && _modules[attachedCount] != null)
+                {
+                    try { _modules[attachedCount].OnDetach(ctx); }
+                    catch (Exception rollbackException)
+                    {
+                        _attachedModules.Add(_modules[attachedCount]);
+                        exceptions.Add(rollbackException);
+                    }
+                }
                 for (var i = attachedCount - 1; i >= 0; i--)
                 {
                     if (_modules[i] == null) continue;
                     try
                     {
                         _modules[i].OnDetach(ctx);
+                        _attachedModules.Remove(_modules[i]);
                     }
                     catch (Exception rollbackException)
                     {
@@ -205,6 +219,7 @@ namespace AbilityKit.Game.View.Modules
                     }
                 }
 
+                _isAttached = _attachedModules.Count > 0;
                 if (exceptions.Count == 1) throw;
                 throw new AggregateException("Module attach failed and rollback encountered errors.", exceptions);
             }
@@ -223,10 +238,11 @@ namespace AbilityKit.Game.View.Modules
             {
                 for (var i = _modules.Count - 1; i >= 0; i--)
                 {
-                    if (_modules[i] == null) continue;
+                    if (_modules[i] == null || !_attachedModules.Contains(_modules[i])) continue;
                     try
                     {
                         _modules[i].OnDetach(ctx);
+                        _attachedModules.Remove(_modules[i]);
                     }
                     catch (Exception exception)
                     {
@@ -236,7 +252,7 @@ namespace AbilityKit.Game.View.Modules
             }
             finally
             {
-                _isAttached = false;
+                _isAttached = _attachedModules.Count > 0;
             }
 
             if (exceptions != null)

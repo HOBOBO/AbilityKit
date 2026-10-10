@@ -84,6 +84,46 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        [Test]
+        public void ViewInstanceResources_ReleasesOnlyItsOwnHierarchyAndCapabilityResources()
+        {
+            const string actorsName = "[Battle:test:Actors]";
+            const string fullName = "[Battle:test:Full]";
+            var actors = ViewInstanceResources.Create(
+                actorsName, null, BattleProjectionViewCapabilities.Actors);
+            var full = ViewInstanceResources.Create(
+                fullName, null, BattleProjectionViewCapabilities.Full);
+            var actorsRoot = BattleViewHierarchyRoot.CreateOrFind(actorsName);
+            var fullRoot = BattleViewHierarchyRoot.CreateOrFind(fullName);
+            try
+            {
+                Assert.IsNotNull(actors.ShellPool);
+                Assert.IsNull(actors.AreaVfxPool);
+                Assert.IsNull(actors.CameraController);
+                Assert.IsNotNull(full.AreaVfxPool);
+                Assert.IsNotNull(full.CameraController);
+
+                actors.Dispose();
+                Assert.AreEqual(1, fullRoot.LeaseCount);
+            }
+            finally
+            {
+                actors.Dispose();
+                full.Dispose();
+            }
+
+            if (Application.isPlaying)
+            {
+                Assert.AreEqual(0, actorsRoot.LeaseCount);
+                Assert.AreEqual(0, fullRoot.LeaseCount);
+            }
+            else
+            {
+                Assert.IsTrue(actorsRoot == null);
+                Assert.IsTrue(fullRoot == null);
+            }
+        }
+
         private sealed class NamedStatsProvider : IPoolStatsProvider
         {
             private readonly string _name;

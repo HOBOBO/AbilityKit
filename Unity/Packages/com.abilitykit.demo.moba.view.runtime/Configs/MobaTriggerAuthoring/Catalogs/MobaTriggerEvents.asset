@@ -27,7 +27,7 @@ MonoBehaviour:
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 59
+      Data: 61
     - Name: 
       Entry: 7
       Data: 1|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
@@ -1210,7 +1210,7 @@ MonoBehaviour:
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 4
+      Data: 6
     - Name: 
       Entry: 7
       Data: 65|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
@@ -1284,6 +1284,42 @@ MonoBehaviour:
       Entry: 8
       Data: 
     - Name: 
+      Entry: 7
+      Data: 69|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: team_id
+    - Name: DisplayName
+      Entry: 1
+      Data: team_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 70|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: score
+    - Name: DisplayName
+      Entry: 1
+      Data: score
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
       Entry: 13
       Data: 
     - Name: 
@@ -1303,7 +1339,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 69|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 71|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: presentation.
@@ -1321,14 +1357,14 @@ MonoBehaviour:
       Data: PresentationEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 70|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 72|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 4
     - Name: 
       Entry: 7
-      Data: 71|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 73|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: event_id
@@ -1338,42 +1374,6 @@ MonoBehaviour:
     - Name: Type
       Entry: 3
       Data: 4
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 72|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: source_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: source_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 73|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -1383,6 +1383,42 @@ MonoBehaviour:
     - Name: 
       Entry: 7
       Data: 74|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: source_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: source_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 75|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: target_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: target_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 76|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: presentation_id
@@ -1418,7 +1454,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 75|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 77|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: damage.attack.created
@@ -1436,59 +1472,23 @@ MonoBehaviour:
       Data: AttackInfo
     - Name: PayloadFields
       Entry: 7
-      Data: 76|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 78|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 10
     - Name: 
       Entry: 7
-      Data: 77|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 78|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 79|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -1500,13 +1500,13 @@ MonoBehaviour:
       Data: 80|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -1518,10 +1518,10 @@ MonoBehaviour:
       Data: 81|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: DisplayName
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -1536,6 +1536,42 @@ MonoBehaviour:
       Data: 82|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: damage_rate
+    - Name: DisplayName
+      Entry: 1
+      Data: damage_rate
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 83|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: flat_bonus
+    - Name: DisplayName
+      Entry: 1
+      Data: flat_bonus
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 84|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: final_damage
     - Name: DisplayName
       Entry: 1
@@ -1551,49 +1587,13 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 83|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: damage_type
-    - Name: DisplayName
-      Entry: 1
-      Data: damage_type
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 84|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: crit_type
-    - Name: DisplayName
-      Entry: 1
-      Data: crit_type
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 85|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: DisplayName
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: Type
       Entry: 3
       Data: 1
@@ -1606,6 +1606,42 @@ MonoBehaviour:
     - Name: 
       Entry: 7
       Data: 86|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: crit_type
+    - Name: DisplayName
+      Entry: 1
+      Data: crit_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 87|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason_kind
+    - Name: DisplayName
+      Entry: 1
+      Data: reason_kind
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 88|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: reason_param
@@ -1641,7 +1677,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 87|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 89|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: damage.attack.before_calc
@@ -1659,59 +1695,23 @@ MonoBehaviour:
       Data: AttackInfo
     - Name: PayloadFields
       Entry: 7
-      Data: 88|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 90|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 10
     - Name: 
       Entry: 7
-      Data: 89|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 90|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 91|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -1723,13 +1723,13 @@ MonoBehaviour:
       Data: 92|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -1741,10 +1741,10 @@ MonoBehaviour:
       Data: 93|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: DisplayName
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -1759,6 +1759,42 @@ MonoBehaviour:
       Data: 94|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: damage_rate
+    - Name: DisplayName
+      Entry: 1
+      Data: damage_rate
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 95|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: flat_bonus
+    - Name: DisplayName
+      Entry: 1
+      Data: flat_bonus
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 96|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: final_damage
     - Name: DisplayName
       Entry: 1
@@ -1774,49 +1810,13 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 95|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: damage_type
-    - Name: DisplayName
-      Entry: 1
-      Data: damage_type
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 96|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: crit_type
-    - Name: DisplayName
-      Entry: 1
-      Data: crit_type
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 97|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: DisplayName
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: Type
       Entry: 3
       Data: 1
@@ -1829,6 +1829,42 @@ MonoBehaviour:
     - Name: 
       Entry: 7
       Data: 98|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: crit_type
+    - Name: DisplayName
+      Entry: 1
+      Data: crit_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 99|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason_kind
+    - Name: DisplayName
+      Entry: 1
+      Data: reason_kind
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 100|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: reason_param
@@ -1864,7 +1900,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 99|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 101|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: damage.calc.begin
@@ -1882,59 +1918,23 @@ MonoBehaviour:
       Data: AttackCalcInfo
     - Name: PayloadFields
       Entry: 7
-      Data: 100|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 102|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 14
     - Name: 
       Entry: 7
-      Data: 101|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 102|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 103|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -1946,13 +1946,13 @@ MonoBehaviour:
       Data: 104|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -1964,10 +1964,10 @@ MonoBehaviour:
       Data: 105|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: DisplayName
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -1982,10 +1982,10 @@ MonoBehaviour:
       Data: 106|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: final_damage
+      Data: damage_rate
     - Name: DisplayName
       Entry: 1
-      Data: final_damage
+      Data: damage_rate
     - Name: Type
       Entry: 3
       Data: 2
@@ -2000,13 +2000,13 @@ MonoBehaviour:
       Data: 107|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_type
+      Data: flat_bonus
     - Name: DisplayName
       Entry: 1
-      Data: damage_type
+      Data: flat_bonus
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -2018,13 +2018,13 @@ MonoBehaviour:
       Data: 108|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: crit_type
+      Data: final_damage
     - Name: DisplayName
       Entry: 1
-      Data: crit_type
+      Data: final_damage
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -2036,10 +2036,10 @@ MonoBehaviour:
       Data: 109|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: DisplayName
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: Type
       Entry: 3
       Data: 1
@@ -2054,6 +2054,42 @@ MonoBehaviour:
       Data: 110|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: crit_type
+    - Name: DisplayName
+      Entry: 1
+      Data: crit_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 111|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason_kind
+    - Name: DisplayName
+      Entry: 1
+      Data: reason_kind
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 112|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: reason_param
     - Name: DisplayName
       Entry: 1
@@ -2069,49 +2105,13 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 111|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: raw_damage
-    - Name: DisplayName
-      Entry: 1
-      Data: raw_damage
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 112|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: mitigated_damage
-    - Name: DisplayName
-      Entry: 1
-      Data: mitigated_damage
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 113|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: shield_absorb
+      Data: raw_damage
     - Name: DisplayName
       Entry: 1
-      Data: shield_absorb
+      Data: raw_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -2124,6 +2124,42 @@ MonoBehaviour:
     - Name: 
       Entry: 7
       Data: 114|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: mitigated_damage
+    - Name: DisplayName
+      Entry: 1
+      Data: mitigated_damage
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 115|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: shield_absorb
+    - Name: DisplayName
+      Entry: 1
+      Data: shield_absorb
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 116|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: hp_damage
@@ -2159,7 +2195,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 115|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 117|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: damage.calc.after_base
@@ -2177,59 +2213,23 @@ MonoBehaviour:
       Data: AttackCalcInfo
     - Name: PayloadFields
       Entry: 7
-      Data: 116|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 118|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 14
     - Name: 
       Entry: 7
-      Data: 117|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 118|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 119|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -2241,13 +2241,13 @@ MonoBehaviour:
       Data: 120|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -2259,10 +2259,10 @@ MonoBehaviour:
       Data: 121|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: DisplayName
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -2277,10 +2277,10 @@ MonoBehaviour:
       Data: 122|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: final_damage
+      Data: damage_rate
     - Name: DisplayName
       Entry: 1
-      Data: final_damage
+      Data: damage_rate
     - Name: Type
       Entry: 3
       Data: 2
@@ -2295,13 +2295,13 @@ MonoBehaviour:
       Data: 123|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_type
+      Data: flat_bonus
     - Name: DisplayName
       Entry: 1
-      Data: damage_type
+      Data: flat_bonus
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -2313,13 +2313,13 @@ MonoBehaviour:
       Data: 124|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: crit_type
+      Data: final_damage
     - Name: DisplayName
       Entry: 1
-      Data: crit_type
+      Data: final_damage
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -2331,10 +2331,10 @@ MonoBehaviour:
       Data: 125|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: DisplayName
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: Type
       Entry: 3
       Data: 1
@@ -2349,6 +2349,42 @@ MonoBehaviour:
       Data: 126|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: crit_type
+    - Name: DisplayName
+      Entry: 1
+      Data: crit_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 127|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason_kind
+    - Name: DisplayName
+      Entry: 1
+      Data: reason_kind
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 128|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: reason_param
     - Name: DisplayName
       Entry: 1
@@ -2364,49 +2400,13 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 127|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: raw_damage
-    - Name: DisplayName
-      Entry: 1
-      Data: raw_damage
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 128|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: mitigated_damage
-    - Name: DisplayName
-      Entry: 1
-      Data: mitigated_damage
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 129|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: shield_absorb
+      Data: raw_damage
     - Name: DisplayName
       Entry: 1
-      Data: shield_absorb
+      Data: raw_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -2419,6 +2419,42 @@ MonoBehaviour:
     - Name: 
       Entry: 7
       Data: 130|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: mitigated_damage
+    - Name: DisplayName
+      Entry: 1
+      Data: mitigated_damage
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 131|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: shield_absorb
+    - Name: DisplayName
+      Entry: 1
+      Data: shield_absorb
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 132|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: hp_damage
@@ -2454,7 +2490,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 131|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 133|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: damage.calc.after_mitigate
@@ -2472,59 +2508,23 @@ MonoBehaviour:
       Data: AttackCalcInfo
     - Name: PayloadFields
       Entry: 7
-      Data: 132|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 134|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 14
     - Name: 
       Entry: 7
-      Data: 133|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 134|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 135|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -2536,13 +2536,13 @@ MonoBehaviour:
       Data: 136|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -2554,10 +2554,10 @@ MonoBehaviour:
       Data: 137|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: DisplayName
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -2572,10 +2572,10 @@ MonoBehaviour:
       Data: 138|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: final_damage
+      Data: damage_rate
     - Name: DisplayName
       Entry: 1
-      Data: final_damage
+      Data: damage_rate
     - Name: Type
       Entry: 3
       Data: 2
@@ -2590,13 +2590,13 @@ MonoBehaviour:
       Data: 139|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_type
+      Data: flat_bonus
     - Name: DisplayName
       Entry: 1
-      Data: damage_type
+      Data: flat_bonus
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -2608,13 +2608,13 @@ MonoBehaviour:
       Data: 140|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: crit_type
+      Data: final_damage
     - Name: DisplayName
       Entry: 1
-      Data: crit_type
+      Data: final_damage
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -2626,10 +2626,10 @@ MonoBehaviour:
       Data: 141|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: DisplayName
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: Type
       Entry: 3
       Data: 1
@@ -2644,6 +2644,42 @@ MonoBehaviour:
       Data: 142|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: crit_type
+    - Name: DisplayName
+      Entry: 1
+      Data: crit_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 143|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason_kind
+    - Name: DisplayName
+      Entry: 1
+      Data: reason_kind
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 144|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: reason_param
     - Name: DisplayName
       Entry: 1
@@ -2659,49 +2695,13 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 143|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: raw_damage
-    - Name: DisplayName
-      Entry: 1
-      Data: raw_damage
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 144|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: mitigated_damage
-    - Name: DisplayName
-      Entry: 1
-      Data: mitigated_damage
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 145|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: shield_absorb
+      Data: raw_damage
     - Name: DisplayName
       Entry: 1
-      Data: shield_absorb
+      Data: raw_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -2714,6 +2714,42 @@ MonoBehaviour:
     - Name: 
       Entry: 7
       Data: 146|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: mitigated_damage
+    - Name: DisplayName
+      Entry: 1
+      Data: mitigated_damage
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 147|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: shield_absorb
+    - Name: DisplayName
+      Entry: 1
+      Data: shield_absorb
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 148|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: hp_damage
@@ -2749,7 +2785,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 147|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 149|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: damage.calc.after_shield
@@ -2767,59 +2803,23 @@ MonoBehaviour:
       Data: AttackCalcInfo
     - Name: PayloadFields
       Entry: 7
-      Data: 148|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 150|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 14
     - Name: 
       Entry: 7
-      Data: 149|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 150|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 151|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -2831,13 +2831,13 @@ MonoBehaviour:
       Data: 152|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -2849,10 +2849,10 @@ MonoBehaviour:
       Data: 153|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: DisplayName
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -2867,10 +2867,10 @@ MonoBehaviour:
       Data: 154|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: final_damage
+      Data: damage_rate
     - Name: DisplayName
       Entry: 1
-      Data: final_damage
+      Data: damage_rate
     - Name: Type
       Entry: 3
       Data: 2
@@ -2885,13 +2885,13 @@ MonoBehaviour:
       Data: 155|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_type
+      Data: flat_bonus
     - Name: DisplayName
       Entry: 1
-      Data: damage_type
+      Data: flat_bonus
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -2903,13 +2903,13 @@ MonoBehaviour:
       Data: 156|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: crit_type
+      Data: final_damage
     - Name: DisplayName
       Entry: 1
-      Data: crit_type
+      Data: final_damage
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -2921,10 +2921,10 @@ MonoBehaviour:
       Data: 157|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: DisplayName
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: Type
       Entry: 3
       Data: 1
@@ -2939,6 +2939,42 @@ MonoBehaviour:
       Data: 158|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: crit_type
+    - Name: DisplayName
+      Entry: 1
+      Data: crit_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 159|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason_kind
+    - Name: DisplayName
+      Entry: 1
+      Data: reason_kind
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 160|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: reason_param
     - Name: DisplayName
       Entry: 1
@@ -2954,49 +2990,13 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 159|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: raw_damage
-    - Name: DisplayName
-      Entry: 1
-      Data: raw_damage
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 160|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: mitigated_damage
-    - Name: DisplayName
-      Entry: 1
-      Data: mitigated_damage
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 161|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: shield_absorb
+      Data: raw_damage
     - Name: DisplayName
       Entry: 1
-      Data: shield_absorb
+      Data: raw_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -3009,6 +3009,42 @@ MonoBehaviour:
     - Name: 
       Entry: 7
       Data: 162|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: mitigated_damage
+    - Name: DisplayName
+      Entry: 1
+      Data: mitigated_damage
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 163|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: shield_absorb
+    - Name: DisplayName
+      Entry: 1
+      Data: shield_absorb
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 164|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: hp_damage
@@ -3044,7 +3080,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 163|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 165|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: damage.calc.final
@@ -3062,59 +3098,23 @@ MonoBehaviour:
       Data: AttackCalcInfo
     - Name: PayloadFields
       Entry: 7
-      Data: 164|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 166|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 14
     - Name: 
       Entry: 7
-      Data: 165|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 166|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 167|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -3126,13 +3126,13 @@ MonoBehaviour:
       Data: 168|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -3144,10 +3144,10 @@ MonoBehaviour:
       Data: 169|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: DisplayName
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -3162,10 +3162,10 @@ MonoBehaviour:
       Data: 170|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: final_damage
+      Data: damage_rate
     - Name: DisplayName
       Entry: 1
-      Data: final_damage
+      Data: damage_rate
     - Name: Type
       Entry: 3
       Data: 2
@@ -3180,13 +3180,13 @@ MonoBehaviour:
       Data: 171|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_type
+      Data: flat_bonus
     - Name: DisplayName
       Entry: 1
-      Data: damage_type
+      Data: flat_bonus
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -3198,13 +3198,13 @@ MonoBehaviour:
       Data: 172|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: crit_type
+      Data: final_damage
     - Name: DisplayName
       Entry: 1
-      Data: crit_type
+      Data: final_damage
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -3216,10 +3216,10 @@ MonoBehaviour:
       Data: 173|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: DisplayName
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: Type
       Entry: 3
       Data: 1
@@ -3234,6 +3234,42 @@ MonoBehaviour:
       Data: 174|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: crit_type
+    - Name: DisplayName
+      Entry: 1
+      Data: crit_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 175|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason_kind
+    - Name: DisplayName
+      Entry: 1
+      Data: reason_kind
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 176|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: reason_param
     - Name: DisplayName
       Entry: 1
@@ -3249,49 +3285,13 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 175|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: raw_damage
-    - Name: DisplayName
-      Entry: 1
-      Data: raw_damage
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 176|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: mitigated_damage
-    - Name: DisplayName
-      Entry: 1
-      Data: mitigated_damage
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 177|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: shield_absorb
+      Data: raw_damage
     - Name: DisplayName
       Entry: 1
-      Data: shield_absorb
+      Data: raw_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -3304,6 +3304,42 @@ MonoBehaviour:
     - Name: 
       Entry: 7
       Data: 178|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: mitigated_damage
+    - Name: DisplayName
+      Entry: 1
+      Data: mitigated_damage
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 179|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: shield_absorb
+    - Name: DisplayName
+      Entry: 1
+      Data: shield_absorb
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 180|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: hp_damage
@@ -3339,7 +3375,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 179|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 181|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: damage.apply.before
@@ -3357,59 +3393,23 @@ MonoBehaviour:
       Data: AttackCalcInfo
     - Name: PayloadFields
       Entry: 7
-      Data: 180|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 182|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 14
     - Name: 
       Entry: 7
-      Data: 181|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 182|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 183|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: base_damage
+      Data: attacker_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -3421,13 +3421,13 @@ MonoBehaviour:
       Data: 184|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: damage_rate
+      Data: target_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -3439,10 +3439,10 @@ MonoBehaviour:
       Data: 185|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: DisplayName
       Entry: 1
-      Data: flat_bonus
+      Data: base_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -3457,10 +3457,10 @@ MonoBehaviour:
       Data: 186|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: final_damage
+      Data: damage_rate
     - Name: DisplayName
       Entry: 1
-      Data: final_damage
+      Data: damage_rate
     - Name: Type
       Entry: 3
       Data: 2
@@ -3475,13 +3475,13 @@ MonoBehaviour:
       Data: 187|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_type
+      Data: flat_bonus
     - Name: DisplayName
       Entry: 1
-      Data: damage_type
+      Data: flat_bonus
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -3493,13 +3493,13 @@ MonoBehaviour:
       Data: 188|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: crit_type
+      Data: final_damage
     - Name: DisplayName
       Entry: 1
-      Data: crit_type
+      Data: final_damage
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -3511,10 +3511,10 @@ MonoBehaviour:
       Data: 189|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: DisplayName
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: Type
       Entry: 3
       Data: 1
@@ -3529,6 +3529,42 @@ MonoBehaviour:
       Data: 190|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: crit_type
+    - Name: DisplayName
+      Entry: 1
+      Data: crit_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 191|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason_kind
+    - Name: DisplayName
+      Entry: 1
+      Data: reason_kind
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 192|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: reason_param
     - Name: DisplayName
       Entry: 1
@@ -3544,49 +3580,13 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 191|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: raw_damage
-    - Name: DisplayName
-      Entry: 1
-      Data: raw_damage
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 192|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: mitigated_damage
-    - Name: DisplayName
-      Entry: 1
-      Data: mitigated_damage
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 193|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: shield_absorb
+      Data: raw_damage
     - Name: DisplayName
       Entry: 1
-      Data: shield_absorb
+      Data: raw_damage
     - Name: Type
       Entry: 3
       Data: 2
@@ -3599,6 +3599,42 @@ MonoBehaviour:
     - Name: 
       Entry: 7
       Data: 194|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: mitigated_damage
+    - Name: DisplayName
+      Entry: 1
+      Data: mitigated_damage
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 195|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: shield_absorb
+    - Name: DisplayName
+      Entry: 1
+      Data: shield_absorb
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 196|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: hp_damage
@@ -3634,7 +3670,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 195|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 197|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: damage.apply.after
@@ -3652,59 +3688,23 @@ MonoBehaviour:
       Data: DamageResult
     - Name: PayloadFields
       Entry: 7
-      Data: 196|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 198|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 9
     - Name: 
       Entry: 7
-      Data: 197|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: attacker_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 198|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 199|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_value
+      Data: attacker_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: damage_value
+      Data: attacker_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -3716,13 +3716,13 @@ MonoBehaviour:
       Data: 200|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: target_hp
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: target_hp
+      Data: target_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -3734,10 +3734,10 @@ MonoBehaviour:
       Data: 201|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: target_max_hp
+      Data: damage_value
     - Name: DisplayName
       Entry: 1
-      Data: target_max_hp
+      Data: damage_value
     - Name: Type
       Entry: 3
       Data: 2
@@ -3752,13 +3752,13 @@ MonoBehaviour:
       Data: 202|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: damage_type
+      Data: target_hp
     - Name: DisplayName
       Entry: 1
-      Data: damage_type
+      Data: target_hp
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -3770,13 +3770,13 @@ MonoBehaviour:
       Data: 203|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: crit_type
+      Data: target_max_hp
     - Name: DisplayName
       Entry: 1
-      Data: crit_type
+      Data: target_max_hp
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -3788,10 +3788,10 @@ MonoBehaviour:
       Data: 204|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: DisplayName
       Entry: 1
-      Data: reason_kind
+      Data: damage_type
     - Name: Type
       Entry: 3
       Data: 1
@@ -3804,6 +3804,42 @@ MonoBehaviour:
     - Name: 
       Entry: 7
       Data: 205|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: crit_type
+    - Name: DisplayName
+      Entry: 1
+      Data: crit_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 206|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason_kind
+    - Name: DisplayName
+      Entry: 1
+      Data: reason_kind
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 207|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: reason_param
@@ -3839,7 +3875,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 206|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 208|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: health.change.committed
@@ -3857,56 +3893,20 @@ MonoBehaviour:
       Data: MobaHealthChangeResult
     - Name: PayloadFields
       Entry: 7
-      Data: 207|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 209|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 12
     - Name: 
       Entry: 7
-      Data: 208|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: change_kind
-    - Name: DisplayName
-      Entry: 1
-      Data: change_kind
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 209|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: source_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: source_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 210|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: target_actor_id
+      Data: change_kind
     - Name: DisplayName
       Entry: 1
-      Data: target_actor_id
+      Data: change_kind
     - Name: Type
       Entry: 3
       Data: 1
@@ -3921,10 +3921,10 @@ MonoBehaviour:
       Data: 211|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: value_type
+      Data: source_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: value_type
+      Data: source_actor_id
     - Name: Type
       Entry: 3
       Data: 1
@@ -3939,13 +3939,13 @@ MonoBehaviour:
       Data: 212|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: requested_value
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: requested_value
+      Data: target_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -3957,13 +3957,13 @@ MonoBehaviour:
       Data: 213|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: applied_value
+      Data: value_type
     - Name: DisplayName
       Entry: 1
-      Data: applied_value
+      Data: value_type
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -3975,10 +3975,10 @@ MonoBehaviour:
       Data: 214|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: overheal_value
+      Data: requested_value
     - Name: DisplayName
       Entry: 1
-      Data: overheal_value
+      Data: requested_value
     - Name: Type
       Entry: 3
       Data: 2
@@ -3993,10 +3993,10 @@ MonoBehaviour:
       Data: 215|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: old_hp
+      Data: applied_value
     - Name: DisplayName
       Entry: 1
-      Data: old_hp
+      Data: applied_value
     - Name: Type
       Entry: 3
       Data: 2
@@ -4011,6 +4011,42 @@ MonoBehaviour:
       Data: 216|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: overheal_value
+    - Name: DisplayName
+      Entry: 1
+      Data: overheal_value
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 217|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: old_hp
+    - Name: DisplayName
+      Entry: 1
+      Data: old_hp
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 218|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: target_hp
     - Name: DisplayName
       Entry: 1
@@ -4026,7 +4062,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 217|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 219|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: target_max_hp
@@ -4044,7 +4080,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 218|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 220|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: reason_kind
@@ -4062,7 +4098,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 219|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 221|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: reason_param
@@ -4098,7 +4134,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 220|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 222|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: heal.apply.before
@@ -4116,56 +4152,20 @@ MonoBehaviour:
       Data: MobaHealRequest
     - Name: PayloadFields
       Entry: 7
-      Data: 221|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 223|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 7
     - Name: 
       Entry: 7
-      Data: 222|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: healer_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: healer_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 223|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 224|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: heal_type
+      Data: healer_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: heal_type
+      Data: healer_actor_id
     - Name: Type
       Entry: 3
       Data: 1
@@ -4178,6 +4178,42 @@ MonoBehaviour:
     - Name: 
       Entry: 7
       Data: 225|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: target_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: target_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 226|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: heal_type
+    - Name: DisplayName
+      Entry: 1
+      Data: heal_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 227|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: requested_value
@@ -4195,43 +4231,43 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 226|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: reason_kind
-    - Name: DisplayName
-      Entry: 1
-      Data: reason_kind
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 227|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: reason_param
-    - Name: DisplayName
-      Entry: 1
-      Data: reason_param
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 228|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason_kind
+    - Name: DisplayName
+      Entry: 1
+      Data: reason_kind
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 229|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason_param
+    - Name: DisplayName
+      Entry: 1
+      Data: reason_param
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 230|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: allow_dead_target
@@ -4267,7 +4303,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 229|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 231|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: heal.apply.after
@@ -4285,56 +4321,20 @@ MonoBehaviour:
       Data: MobaHealthChangeResult
     - Name: PayloadFields
       Entry: 7
-      Data: 230|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 232|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 12
     - Name: 
       Entry: 7
-      Data: 231|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: change_kind
-    - Name: DisplayName
-      Entry: 1
-      Data: change_kind
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 232|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: source_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: source_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 233|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: target_actor_id
+      Data: change_kind
     - Name: DisplayName
       Entry: 1
-      Data: target_actor_id
+      Data: change_kind
     - Name: Type
       Entry: 3
       Data: 1
@@ -4349,10 +4349,10 @@ MonoBehaviour:
       Data: 234|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: value_type
+      Data: source_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: value_type
+      Data: source_actor_id
     - Name: Type
       Entry: 3
       Data: 1
@@ -4367,13 +4367,13 @@ MonoBehaviour:
       Data: 235|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: requested_value
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: requested_value
+      Data: target_actor_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -4385,13 +4385,13 @@ MonoBehaviour:
       Data: 236|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: applied_value
+      Data: value_type
     - Name: DisplayName
       Entry: 1
-      Data: applied_value
+      Data: value_type
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -4403,10 +4403,10 @@ MonoBehaviour:
       Data: 237|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: overheal_value
+      Data: requested_value
     - Name: DisplayName
       Entry: 1
-      Data: overheal_value
+      Data: requested_value
     - Name: Type
       Entry: 3
       Data: 2
@@ -4421,10 +4421,10 @@ MonoBehaviour:
       Data: 238|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: old_hp
+      Data: applied_value
     - Name: DisplayName
       Entry: 1
-      Data: old_hp
+      Data: applied_value
     - Name: Type
       Entry: 3
       Data: 2
@@ -4439,6 +4439,42 @@ MonoBehaviour:
       Data: 239|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: overheal_value
+    - Name: DisplayName
+      Entry: 1
+      Data: overheal_value
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 240|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: old_hp
+    - Name: DisplayName
+      Entry: 1
+      Data: old_hp
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 241|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: target_hp
     - Name: DisplayName
       Entry: 1
@@ -4454,7 +4490,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 240|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 242|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: target_max_hp
@@ -4472,7 +4508,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 241|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 243|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: reason_kind
@@ -4490,7 +4526,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 242|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 244|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: reason_param
@@ -4526,7 +4562,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 243|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 245|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: skill.precast.start
@@ -4544,56 +4580,20 @@ MonoBehaviour:
       Data: SkillCastContext
     - Name: PayloadFields
       Entry: 7
-      Data: 244|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 246|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 14
     - Name: 
       Entry: 7
-      Data: 245|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: skill.id
-    - Name: DisplayName
-      Entry: 1
-      Data: skill.id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 246|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: skill.slot
-    - Name: DisplayName
-      Entry: 1
-      Data: skill.slot
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 247|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: skill.level
+      Data: skill.id
     - Name: DisplayName
       Entry: 1
-      Data: skill.level
+      Data: skill.id
     - Name: Type
       Entry: 3
       Data: 1
@@ -4608,13 +4608,13 @@ MonoBehaviour:
       Data: 248|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: skill.cost
+      Data: skill.slot
     - Name: DisplayName
       Entry: 1
-      Data: skill.cost
+      Data: skill.slot
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -4626,13 +4626,13 @@ MonoBehaviour:
       Data: 249|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: skill.cooldown_ms
+      Data: skill.level
     - Name: DisplayName
       Entry: 1
-      Data: skill.cooldown_ms
+      Data: skill.level
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -4644,10 +4644,10 @@ MonoBehaviour:
       Data: 250|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: skill.cooldown_remaining_ms
+      Data: skill.cost
     - Name: DisplayName
       Entry: 1
-      Data: skill.cooldown_remaining_ms
+      Data: skill.cost
     - Name: Type
       Entry: 3
       Data: 2
@@ -4662,13 +4662,13 @@ MonoBehaviour:
       Data: 251|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: caster.actor_id
+      Data: skill.cooldown_ms
     - Name: DisplayName
       Entry: 1
-      Data: caster.actor_id
+      Data: skill.cooldown_ms
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -4680,6 +4680,42 @@ MonoBehaviour:
       Data: 252|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: skill.cooldown_remaining_ms
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.cooldown_remaining_ms
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 253|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: caster.actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: caster.actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 254|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: target.actor_id
     - Name: DisplayName
       Entry: 1
@@ -4695,49 +4731,13 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 253|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: caster.mana
-    - Name: DisplayName
-      Entry: 1
-      Data: caster.mana
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 254|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: caster.mana.max
-    - Name: DisplayName
-      Entry: 1
-      Data: caster.mana.max
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 255|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: caster.mana.percent
+      Data: caster.mana
     - Name: DisplayName
       Entry: 1
-      Data: caster.mana.percent
+      Data: caster.mana
     - Name: Type
       Entry: 3
       Data: 2
@@ -4752,6 +4752,42 @@ MonoBehaviour:
       Data: 256|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: caster.mana.max
+    - Name: DisplayName
+      Entry: 1
+      Data: caster.mana.max
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 257|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: caster.mana.percent
+    - Name: DisplayName
+      Entry: 1
+      Data: caster.mana.percent
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 258|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: aim.pos
     - Name: DisplayName
       Entry: 1
@@ -4767,7 +4803,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 257|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 259|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: aim.dir
@@ -4785,7 +4821,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 258|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 260|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: fail.reason
@@ -4801,91 +4837,6 @@ MonoBehaviour:
     - Name: 
       Entry: 8
       Data: 
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: true
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 259|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: skill.precast.complete
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: skill.precast.complete
-    - Name: Category
-      Entry: 1
-      Data: "\u6280\u80FD"
-    - Name: PayloadType
-      Entry: 1
-      Data: SkillCastContext
-    - Name: PayloadFields
-      Entry: 7
-      Data: 260|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 14
-    - Name: 
-      Entry: 9
-      Data: 245
-    - Name: 
-      Entry: 9
-      Data: 246
-    - Name: 
-      Entry: 9
-      Data: 247
-    - Name: 
-      Entry: 9
-      Data: 248
-    - Name: 
-      Entry: 9
-      Data: 249
-    - Name: 
-      Entry: 9
-      Data: 250
-    - Name: 
-      Entry: 9
-      Data: 251
-    - Name: 
-      Entry: 9
-      Data: 252
-    - Name: 
-      Entry: 9
-      Data: 253
-    - Name: 
-      Entry: 9
-      Data: 254
-    - Name: 
-      Entry: 9
-      Data: 255
-    - Name: 
-      Entry: 9
-      Data: 256
-    - Name: 
-      Entry: 9
-      Data: 257
-    - Name: 
-      Entry: 9
-      Data: 258
     - Name: 
       Entry: 13
       Data: 
@@ -4909,13 +4860,13 @@ MonoBehaviour:
       Data: 261|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: skill.precast.fail
+      Data: skill.precast.complete
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: skill.precast.fail
+      Data: skill.precast.complete
     - Name: Category
       Entry: 1
       Data: "\u6280\u80FD"
@@ -4929,12 +4880,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 14
-    - Name: 
-      Entry: 9
-      Data: 245
-    - Name: 
-      Entry: 9
-      Data: 246
     - Name: 
       Entry: 9
       Data: 247
@@ -4971,6 +4916,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 258
+    - Name: 
+      Entry: 9
+      Data: 259
+    - Name: 
+      Entry: 9
+      Data: 260
     - Name: 
       Entry: 13
       Data: 
@@ -4994,13 +4945,13 @@ MonoBehaviour:
       Data: 263|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: skill.precast.interrupt
+      Data: skill.precast.fail
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: skill.precast.interrupt
+      Data: skill.precast.fail
     - Name: Category
       Entry: 1
       Data: "\u6280\u80FD"
@@ -5014,12 +4965,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 14
-    - Name: 
-      Entry: 9
-      Data: 245
-    - Name: 
-      Entry: 9
-      Data: 246
     - Name: 
       Entry: 9
       Data: 247
@@ -5056,6 +5001,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 258
+    - Name: 
+      Entry: 9
+      Data: 259
+    - Name: 
+      Entry: 9
+      Data: 260
     - Name: 
       Entry: 13
       Data: 
@@ -5079,13 +5030,13 @@ MonoBehaviour:
       Data: 265|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: skill.cast.start
+      Data: skill.precast.interrupt
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: skill.cast.start
+      Data: skill.precast.interrupt
     - Name: Category
       Entry: 1
       Data: "\u6280\u80FD"
@@ -5099,12 +5050,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 14
-    - Name: 
-      Entry: 9
-      Data: 245
-    - Name: 
-      Entry: 9
-      Data: 246
     - Name: 
       Entry: 9
       Data: 247
@@ -5141,6 +5086,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 258
+    - Name: 
+      Entry: 9
+      Data: 259
+    - Name: 
+      Entry: 9
+      Data: 260
     - Name: 
       Entry: 13
       Data: 
@@ -5164,13 +5115,13 @@ MonoBehaviour:
       Data: 267|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: skill.cast.complete
+      Data: skill.cast.start
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: skill.cast.complete
+      Data: skill.cast.start
     - Name: Category
       Entry: 1
       Data: "\u6280\u80FD"
@@ -5184,12 +5135,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 14
-    - Name: 
-      Entry: 9
-      Data: 245
-    - Name: 
-      Entry: 9
-      Data: 246
     - Name: 
       Entry: 9
       Data: 247
@@ -5226,6 +5171,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 258
+    - Name: 
+      Entry: 9
+      Data: 259
+    - Name: 
+      Entry: 9
+      Data: 260
     - Name: 
       Entry: 13
       Data: 
@@ -5249,13 +5200,13 @@ MonoBehaviour:
       Data: 269|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: skill.cast.fail
+      Data: skill.cast.complete
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: skill.cast.fail
+      Data: skill.cast.complete
     - Name: Category
       Entry: 1
       Data: "\u6280\u80FD"
@@ -5269,12 +5220,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 14
-    - Name: 
-      Entry: 9
-      Data: 245
-    - Name: 
-      Entry: 9
-      Data: 246
     - Name: 
       Entry: 9
       Data: 247
@@ -5311,6 +5256,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 258
+    - Name: 
+      Entry: 9
+      Data: 259
+    - Name: 
+      Entry: 9
+      Data: 260
     - Name: 
       Entry: 13
       Data: 
@@ -5334,13 +5285,13 @@ MonoBehaviour:
       Data: 271|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: skill.cast.interrupt
+      Data: skill.cast.fail
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: skill.cast.interrupt
+      Data: skill.cast.fail
     - Name: Category
       Entry: 1
       Data: "\u6280\u80FD"
@@ -5354,12 +5305,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 14
-    - Name: 
-      Entry: 9
-      Data: 245
-    - Name: 
-      Entry: 9
-      Data: 246
     - Name: 
       Entry: 9
       Data: 247
@@ -5397,6 +5342,12 @@ MonoBehaviour:
       Entry: 9
       Data: 258
     - Name: 
+      Entry: 9
+      Data: 259
+    - Name: 
+      Entry: 9
+      Data: 260
+    - Name: 
       Entry: 13
       Data: 
     - Name: 
@@ -5419,6 +5370,91 @@ MonoBehaviour:
       Data: 273|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
+      Data: skill.cast.interrupt
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.cast.interrupt
+    - Name: Category
+      Entry: 1
+      Data: "\u6280\u80FD"
+    - Name: PayloadType
+      Entry: 1
+      Data: SkillCastContext
+    - Name: PayloadFields
+      Entry: 7
+      Data: 274|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 14
+    - Name: 
+      Entry: 9
+      Data: 247
+    - Name: 
+      Entry: 9
+      Data: 248
+    - Name: 
+      Entry: 9
+      Data: 249
+    - Name: 
+      Entry: 9
+      Data: 250
+    - Name: 
+      Entry: 9
+      Data: 251
+    - Name: 
+      Entry: 9
+      Data: 252
+    - Name: 
+      Entry: 9
+      Data: 253
+    - Name: 
+      Entry: 9
+      Data: 254
+    - Name: 
+      Entry: 9
+      Data: 255
+    - Name: 
+      Entry: 9
+      Data: 256
+    - Name: 
+      Entry: 9
+      Data: 257
+    - Name: 
+      Entry: 9
+      Data: 258
+    - Name: 
+      Entry: 9
+      Data: 259
+    - Name: 
+      Entry: 9
+      Data: 260
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: true
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 275|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
       Data: buff.apply
     - Name: MatchMode
       Entry: 3
@@ -5434,14 +5470,14 @@ MonoBehaviour:
       Data: BuffEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 274|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 276|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 9
     - Name: 
       Entry: 7
-      Data: 275|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 277|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: event_id
@@ -5459,49 +5495,13 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 276|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: source_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: source_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 277|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 278|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: buff_id
+      Data: source_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: buff_id
+      Data: source_actor_id
     - Name: Type
       Entry: 3
       Data: 1
@@ -5516,6 +5516,42 @@ MonoBehaviour:
       Data: 279|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: target_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: target_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 280|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: buff_id
+    - Name: DisplayName
+      Entry: 1
+      Data: buff_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 281|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: effect_id
     - Name: DisplayName
       Entry: 1
@@ -5531,7 +5567,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 280|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 282|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: stage
@@ -5549,7 +5585,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 281|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 283|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: stack_count
@@ -5567,7 +5603,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 282|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 284|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: duration_seconds
@@ -5585,7 +5621,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 283|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 285|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: source_context_id
@@ -5601,76 +5637,6 @@ MonoBehaviour:
     - Name: 
       Entry: 8
       Data: 
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 284|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: buff.remove
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: buff.remove
-    - Name: Category
-      Entry: 1
-      Data: "\u589E\u76CA\u6548\u679C"
-    - Name: PayloadType
-      Entry: 1
-      Data: BuffEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 285|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 9
-      Data: 275
-    - Name: 
-      Entry: 9
-      Data: 276
-    - Name: 
-      Entry: 9
-      Data: 277
-    - Name: 
-      Entry: 9
-      Data: 278
-    - Name: 
-      Entry: 9
-      Data: 279
-    - Name: 
-      Entry: 9
-      Data: 280
-    - Name: 
-      Entry: 9
-      Data: 281
-    - Name: 
-      Entry: 9
-      Data: 282
-    - Name: 
-      Entry: 9
-      Data: 283
     - Name: 
       Entry: 13
       Data: 
@@ -5694,13 +5660,13 @@ MonoBehaviour:
       Data: 286|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: buff.interval
+      Data: buff.remove
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: buff.interval
+      Data: buff.remove
     - Name: Category
       Entry: 1
       Data: "\u589E\u76CA\u6548\u679C"
@@ -5714,12 +5680,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 9
-    - Name: 
-      Entry: 9
-      Data: 275
-    - Name: 
-      Entry: 9
-      Data: 276
     - Name: 
       Entry: 9
       Data: 277
@@ -5741,6 +5701,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
     - Name: 
       Entry: 13
       Data: 
@@ -5764,13 +5730,13 @@ MonoBehaviour:
       Data: 288|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: buff.stack
+      Data: buff.interval
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: buff.stack
+      Data: buff.interval
     - Name: Category
       Entry: 1
       Data: "\u589E\u76CA\u6548\u679C"
@@ -5784,12 +5750,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 9
-    - Name: 
-      Entry: 9
-      Data: 275
-    - Name: 
-      Entry: 9
-      Data: 276
     - Name: 
       Entry: 9
       Data: 277
@@ -5811,6 +5771,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
     - Name: 
       Entry: 13
       Data: 
@@ -5834,13 +5800,13 @@ MonoBehaviour:
       Data: 290|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: buff.refresh
+      Data: buff.stack
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: buff.refresh
+      Data: buff.stack
     - Name: Category
       Entry: 1
       Data: "\u589E\u76CA\u6548\u679C"
@@ -5854,12 +5820,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 9
-    - Name: 
-      Entry: 9
-      Data: 275
-    - Name: 
-      Entry: 9
-      Data: 276
     - Name: 
       Entry: 9
       Data: 277
@@ -5881,6 +5841,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
     - Name: 
       Entry: 13
       Data: 
@@ -5904,13 +5870,13 @@ MonoBehaviour:
       Data: 292|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: buff.tick
+      Data: buff.refresh
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: buff.tick
+      Data: buff.refresh
     - Name: Category
       Entry: 1
       Data: "\u589E\u76CA\u6548\u679C"
@@ -5924,12 +5890,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 9
-    - Name: 
-      Entry: 9
-      Data: 275
-    - Name: 
-      Entry: 9
-      Data: 276
     - Name: 
       Entry: 9
       Data: 277
@@ -5951,6 +5911,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
     - Name: 
       Entry: 13
       Data: 
@@ -5974,13 +5940,13 @@ MonoBehaviour:
       Data: 294|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: buff.end
+      Data: buff.tick
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: buff.end
+      Data: buff.tick
     - Name: Category
       Entry: 1
       Data: "\u589E\u76CA\u6548\u679C"
@@ -5994,12 +5960,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 9
-    - Name: 
-      Entry: 9
-      Data: 275
-    - Name: 
-      Entry: 9
-      Data: 276
     - Name: 
       Entry: 9
       Data: 277
@@ -6021,6 +5981,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
     - Name: 
       Entry: 13
       Data: 
@@ -6044,13 +6010,13 @@ MonoBehaviour:
       Data: 296|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: buff.added
+      Data: buff.end
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: buff.added
+      Data: buff.end
     - Name: Category
       Entry: 1
       Data: "\u589E\u76CA\u6548\u679C"
@@ -6064,12 +6030,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 9
-    - Name: 
-      Entry: 9
-      Data: 275
-    - Name: 
-      Entry: 9
-      Data: 276
     - Name: 
       Entry: 9
       Data: 277
@@ -6091,6 +6051,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
     - Name: 
       Entry: 13
       Data: 
@@ -6114,13 +6080,13 @@ MonoBehaviour:
       Data: 298|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: buff.removed
+      Data: buff.added
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: buff.removed
+      Data: buff.added
     - Name: Category
       Entry: 1
       Data: "\u589E\u76CA\u6548\u679C"
@@ -6134,12 +6100,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 9
-    - Name: 
-      Entry: 9
-      Data: 275
-    - Name: 
-      Entry: 9
-      Data: 276
     - Name: 
       Entry: 9
       Data: 277
@@ -6161,6 +6121,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
     - Name: 
       Entry: 13
       Data: 
@@ -6184,13 +6150,13 @@ MonoBehaviour:
       Data: 300|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: buff.stack_changed
+      Data: buff.removed
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: buff.stack_changed
+      Data: buff.removed
     - Name: Category
       Entry: 1
       Data: "\u589E\u76CA\u6548\u679C"
@@ -6204,12 +6170,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 9
-    - Name: 
-      Entry: 9
-      Data: 275
-    - Name: 
-      Entry: 9
-      Data: 276
     - Name: 
       Entry: 9
       Data: 277
@@ -6231,6 +6191,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
     - Name: 
       Entry: 13
       Data: 
@@ -6254,13 +6220,13 @@ MonoBehaviour:
       Data: 302|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: buff.effect_tick
+      Data: buff.stack_changed
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: buff.effect_tick
+      Data: buff.stack_changed
     - Name: Category
       Entry: 1
       Data: "\u589E\u76CA\u6548\u679C"
@@ -6274,12 +6240,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 9
-    - Name: 
-      Entry: 9
-      Data: 275
-    - Name: 
-      Entry: 9
-      Data: 276
     - Name: 
       Entry: 9
       Data: 277
@@ -6301,6 +6261,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
     - Name: 
       Entry: 13
       Data: 
@@ -6324,13 +6290,13 @@ MonoBehaviour:
       Data: 304|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: on_buff_added
+      Data: buff.effect_tick
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: on_buff_added
+      Data: buff.effect_tick
     - Name: Category
       Entry: 1
       Data: "\u589E\u76CA\u6548\u679C"
@@ -6344,12 +6310,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 9
-    - Name: 
-      Entry: 9
-      Data: 275
-    - Name: 
-      Entry: 9
-      Data: 276
     - Name: 
       Entry: 9
       Data: 277
@@ -6371,6 +6331,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
     - Name: 
       Entry: 13
       Data: 
@@ -6394,170 +6360,53 @@ MonoBehaviour:
       Data: 306|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: projectile.spawn
+      Data: on_buff_added
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: projectile.spawn
+      Data: on_buff_added
     - Name: Category
       Entry: 1
-      Data: "\u6295\u5C04\u7269"
+      Data: "\u589E\u76CA\u6548\u679C"
     - Name: PayloadType
       Entry: 1
-      Data: ProjectileEventArgs
+      Data: BuffEventArgs
     - Name: PayloadFields
       Entry: 7
       Data: 307|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 8
+      Data: 9
     - Name: 
-      Entry: 7
-      Data: 308|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: source_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: source_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 277
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 278
     - Name: 
-      Entry: 7
-      Data: 309|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 279
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 280
     - Name: 
-      Entry: 7
-      Data: 310|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: projectile_template_id
-    - Name: DisplayName
-      Entry: 1
-      Data: projectile_template_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 281
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 282
     - Name: 
-      Entry: 7
-      Data: 311|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: projectile_id
-    - Name: DisplayName
-      Entry: 1
-      Data: projectile_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 283
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 284
     - Name: 
-      Entry: 7
-      Data: 312|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: frame
-    - Name: DisplayName
-      Entry: 1
-      Data: frame
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 313|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: position
-    - Name: DisplayName
-      Entry: 1
-      Data: position
-    - Name: Type
-      Entry: 3
-      Data: 8
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 314|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: direction
-    - Name: DisplayName
-      Entry: 1
-      Data: direction
-    - Name: Type
-      Entry: 3
-      Data: 8
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 315|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: exit_reason
-    - Name: DisplayName
-      Entry: 1
-      Data: exit_reason
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 285
     - Name: 
       Entry: 13
       Data: 
@@ -6578,16 +6427,16 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 316|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 308|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: projectile.tick
+      Data: projectile.spawn
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: projectile.tick
+      Data: projectile.spawn
     - Name: Category
       Entry: 1
       Data: "\u6295\u5C04\u7269"
@@ -6596,35 +6445,155 @@ MonoBehaviour:
       Data: ProjectileEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 317|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 309|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 8
     - Name: 
-      Entry: 9
-      Data: 308
+      Entry: 7
+      Data: 310|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: source_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: source_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 309
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 310
+      Entry: 7
+      Data: 311|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: target_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: target_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 311
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 312
+      Entry: 7
+      Data: 312|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: projectile_template_id
+    - Name: DisplayName
+      Entry: 1
+      Data: projectile_template_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 313
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 314
+      Entry: 7
+      Data: 313|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: projectile_id
+    - Name: DisplayName
+      Entry: 1
+      Data: projectile_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 315
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 314|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: frame
+    - Name: DisplayName
+      Entry: 1
+      Data: frame
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 315|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: position
+    - Name: DisplayName
+      Entry: 1
+      Data: position
+    - Name: Type
+      Entry: 3
+      Data: 8
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 316|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: direction
+    - Name: DisplayName
+      Entry: 1
+      Data: direction
+    - Name: Type
+      Entry: 3
+      Data: 8
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 317|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: exit_reason
+    - Name: DisplayName
+      Entry: 1
+      Data: exit_reason
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
     - Name: 
       Entry: 13
       Data: 
@@ -6648,13 +6617,13 @@ MonoBehaviour:
       Data: 318|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: projectile.hit
+      Data: projectile.tick
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: projectile.hit
+      Data: projectile.tick
     - Name: Category
       Entry: 1
       Data: "\u6295\u5C04\u7269"
@@ -6668,12 +6637,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 8
-    - Name: 
-      Entry: 9
-      Data: 308
-    - Name: 
-      Entry: 9
-      Data: 309
     - Name: 
       Entry: 9
       Data: 310
@@ -6692,6 +6655,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 315
+    - Name: 
+      Entry: 9
+      Data: 316
+    - Name: 
+      Entry: 9
+      Data: 317
     - Name: 
       Entry: 13
       Data: 
@@ -6715,13 +6684,13 @@ MonoBehaviour:
       Data: 320|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: projectile.exit
+      Data: projectile.hit
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: projectile.exit
+      Data: projectile.hit
     - Name: Category
       Entry: 1
       Data: "\u6295\u5C04\u7269"
@@ -6735,12 +6704,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 8
-    - Name: 
-      Entry: 9
-      Data: 308
-    - Name: 
-      Entry: 9
-      Data: 309
     - Name: 
       Entry: 9
       Data: 310
@@ -6759,6 +6722,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 315
+    - Name: 
+      Entry: 9
+      Data: 316
+    - Name: 
+      Entry: 9
+      Data: 317
     - Name: 
       Entry: 13
       Data: 
@@ -6782,19 +6751,19 @@ MonoBehaviour:
       Data: 322|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: area.spawn
+      Data: projectile.exit
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: area.spawn
+      Data: projectile.exit
     - Name: Category
       Entry: 1
-      Data: "\u533A\u57DF"
+      Data: "\u6295\u5C04\u7269"
     - Name: PayloadType
       Entry: 1
-      Data: AreaEventArgs
+      Data: ProjectileEventArgs
     - Name: PayloadFields
       Entry: 7
       Data: 323|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
@@ -6803,149 +6772,29 @@ MonoBehaviour:
       Entry: 12
       Data: 8
     - Name: 
-      Entry: 7
-      Data: 324|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: area_id
-    - Name: DisplayName
-      Entry: 1
-      Data: area_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 310
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 311
     - Name: 
-      Entry: 7
-      Data: 325|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: template_id
-    - Name: DisplayName
-      Entry: 1
-      Data: template_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 312
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 313
     - Name: 
-      Entry: 7
-      Data: 326|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: owner_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: owner_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 314
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 315
     - Name: 
-      Entry: 7
-      Data: 327|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 316
     - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 328|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: frame
-    - Name: DisplayName
-      Entry: 1
-      Data: frame
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 329|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: center
-    - Name: DisplayName
-      Entry: 1
-      Data: center
-    - Name: Type
-      Entry: 3
-      Data: 8
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 330|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: radius
-    - Name: DisplayName
-      Entry: 1
-      Data: radius
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 331|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: max_targets
-    - Name: DisplayName
-      Entry: 1
-      Data: max_targets
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 317
     - Name: 
       Entry: 13
       Data: 
@@ -6966,16 +6815,16 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 332|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 324|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: area.tick
+      Data: area.spawn
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: area.tick
+      Data: area.spawn
     - Name: Category
       Entry: 1
       Data: "\u533A\u57DF"
@@ -6984,35 +6833,155 @@ MonoBehaviour:
       Data: AreaEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 333|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 325|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 8
     - Name: 
-      Entry: 9
-      Data: 324
+      Entry: 7
+      Data: 326|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: area_id
+    - Name: DisplayName
+      Entry: 1
+      Data: area_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 325
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 326
+      Entry: 7
+      Data: 327|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: template_id
+    - Name: DisplayName
+      Entry: 1
+      Data: template_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 327
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 328
+      Entry: 7
+      Data: 328|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: owner_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: owner_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 329
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 330
+      Entry: 7
+      Data: 329|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: target_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: target_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 331
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 330|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: frame
+    - Name: DisplayName
+      Entry: 1
+      Data: frame
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 331|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: center
+    - Name: DisplayName
+      Entry: 1
+      Data: center
+    - Name: Type
+      Entry: 3
+      Data: 8
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 332|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: radius
+    - Name: DisplayName
+      Entry: 1
+      Data: radius
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 333|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: max_targets
+    - Name: DisplayName
+      Entry: 1
+      Data: max_targets
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
     - Name: 
       Entry: 13
       Data: 
@@ -7036,13 +7005,13 @@ MonoBehaviour:
       Data: 334|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: area.enter
+      Data: area.tick
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: area.enter
+      Data: area.tick
     - Name: Category
       Entry: 1
       Data: "\u533A\u57DF"
@@ -7056,12 +7025,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 8
-    - Name: 
-      Entry: 9
-      Data: 324
-    - Name: 
-      Entry: 9
-      Data: 325
     - Name: 
       Entry: 9
       Data: 326
@@ -7080,6 +7043,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 331
+    - Name: 
+      Entry: 9
+      Data: 332
+    - Name: 
+      Entry: 9
+      Data: 333
     - Name: 
       Entry: 13
       Data: 
@@ -7103,13 +7072,13 @@ MonoBehaviour:
       Data: 336|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: area.exit
+      Data: area.enter
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: area.exit
+      Data: area.enter
     - Name: Category
       Entry: 1
       Data: "\u533A\u57DF"
@@ -7123,12 +7092,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 8
-    - Name: 
-      Entry: 9
-      Data: 324
-    - Name: 
-      Entry: 9
-      Data: 325
     - Name: 
       Entry: 9
       Data: 326
@@ -7147,6 +7110,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 331
+    - Name: 
+      Entry: 9
+      Data: 332
+    - Name: 
+      Entry: 9
+      Data: 333
     - Name: 
       Entry: 13
       Data: 
@@ -7170,13 +7139,13 @@ MonoBehaviour:
       Data: 338|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: area.end
+      Data: area.exit
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: area.end
+      Data: area.exit
     - Name: Category
       Entry: 1
       Data: "\u533A\u57DF"
@@ -7190,12 +7159,6 @@ MonoBehaviour:
     - Name: 
       Entry: 12
       Data: 8
-    - Name: 
-      Entry: 9
-      Data: 324
-    - Name: 
-      Entry: 9
-      Data: 325
     - Name: 
       Entry: 9
       Data: 326
@@ -7214,6 +7177,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 331
+    - Name: 
+      Entry: 9
+      Data: 332
+    - Name: 
+      Entry: 9
+      Data: 333
     - Name: 
       Entry: 13
       Data: 
@@ -7237,116 +7206,50 @@ MonoBehaviour:
       Data: 340|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: summon.spawn
+      Data: area.end
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: summon.spawn
+      Data: area.end
     - Name: Category
       Entry: 1
-      Data: "\u53EC\u5524\u7269"
+      Data: "\u533A\u57DF"
     - Name: PayloadType
       Entry: 1
-      Data: SummonEventPayload
+      Data: AreaEventArgs
     - Name: PayloadFields
       Entry: 7
       Data: 341|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 5
+      Data: 8
     - Name: 
-      Entry: 7
-      Data: 342|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: summon_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: summon_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 326
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 327
     - Name: 
-      Entry: 7
-      Data: 343|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: summon_id
-    - Name: DisplayName
-      Entry: 1
-      Data: summon_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 328
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 329
     - Name: 
-      Entry: 7
-      Data: 344|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: owner_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: owner_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 330
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 331
     - Name: 
-      Entry: 7
-      Data: 345|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: root_owner_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: root_owner_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 332
     - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 346|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: reason
-    - Name: DisplayName
-      Entry: 1
-      Data: reason
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 333
     - Name: 
       Entry: 13
       Data: 
@@ -7367,16 +7270,16 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 347|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 342|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: summon.despawn
+      Data: summon.spawn
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: summon.despawn
+      Data: summon.spawn
     - Name: Category
       Entry: 1
       Data: "\u53EC\u5524\u7269"
@@ -7385,26 +7288,101 @@ MonoBehaviour:
       Data: SummonEventPayload
     - Name: PayloadFields
       Entry: 7
-      Data: 348|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 343|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 5
     - Name: 
-      Entry: 9
-      Data: 342
+      Entry: 7
+      Data: 344|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: summon_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: summon_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 343
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 344
+      Entry: 7
+      Data: 345|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: summon_id
+    - Name: DisplayName
+      Entry: 1
+      Data: summon_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 345
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 346
+      Entry: 7
+      Data: 346|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: owner_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: owner_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 347|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: root_owner_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: root_owner_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 348|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason
+    - Name: DisplayName
+      Entry: 1
+      Data: reason
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
     - Name: 
       Entry: 13
       Data: 
@@ -7428,13 +7406,13 @@ MonoBehaviour:
       Data: 349|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: summon.die
+      Data: summon.despawn
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: summon.die
+      Data: summon.despawn
     - Name: Category
       Entry: 1
       Data: "\u53EC\u5524\u7269"
@@ -7450,12 +7428,6 @@ MonoBehaviour:
       Data: 5
     - Name: 
       Entry: 9
-      Data: 342
-    - Name: 
-      Entry: 9
-      Data: 343
-    - Name: 
-      Entry: 9
       Data: 344
     - Name: 
       Entry: 9
@@ -7463,6 +7435,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 346
+    - Name: 
+      Entry: 9
+      Data: 347
+    - Name: 
+      Entry: 9
+      Data: 348
     - Name: 
       Entry: 13
       Data: 
@@ -7486,134 +7464,41 @@ MonoBehaviour:
       Data: 351|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: unit.spawn
+      Data: summon.die
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: unit.spawn
+      Data: summon.die
     - Name: Category
       Entry: 1
-      Data: "\u5355\u4F4D"
+      Data: "\u53EC\u5524\u7269"
     - Name: PayloadType
       Entry: 1
-      Data: UnitEventPayload
+      Data: SummonEventPayload
     - Name: PayloadFields
       Entry: 7
       Data: 352|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 6
+      Data: 5
     - Name: 
-      Entry: 7
-      Data: 353|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: unit_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: unit_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 344
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 345
     - Name: 
-      Entry: 7
-      Data: 354|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: team
-    - Name: DisplayName
-      Entry: 1
-      Data: team
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 346
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 347
     - Name: 
-      Entry: 7
-      Data: 355|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: main_type
-    - Name: DisplayName
-      Entry: 1
-      Data: main_type
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 356|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: unit_sub_type
-    - Name: DisplayName
-      Entry: 1
-      Data: unit_sub_type
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 357|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: owner_player_id
-    - Name: DisplayName
-      Entry: 1
-      Data: owner_player_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 358|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: killer_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: killer_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 348
     - Name: 
       Entry: 13
       Data: 
@@ -7634,16 +7519,16 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 359|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 353|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: unit.despawn
+      Data: unit.spawn
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: unit.despawn
+      Data: unit.spawn
     - Name: Category
       Entry: 1
       Data: "\u5355\u4F4D"
@@ -7652,29 +7537,119 @@ MonoBehaviour:
       Data: UnitEventPayload
     - Name: PayloadFields
       Entry: 7
-      Data: 360|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 354|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 6
     - Name: 
-      Entry: 9
-      Data: 353
+      Entry: 7
+      Data: 355|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: unit_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: unit_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 354
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 355
+      Entry: 7
+      Data: 356|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: team
+    - Name: DisplayName
+      Entry: 1
+      Data: team
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 356
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 357
+      Entry: 7
+      Data: 357|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: main_type
+    - Name: DisplayName
+      Entry: 1
+      Data: main_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 358
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 358|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: unit_sub_type
+    - Name: DisplayName
+      Entry: 1
+      Data: unit_sub_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 359|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: owner_player_id
+    - Name: DisplayName
+      Entry: 1
+      Data: owner_player_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 360|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: killer_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: killer_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
     - Name: 
       Entry: 13
       Data: 
@@ -7698,13 +7673,13 @@ MonoBehaviour:
       Data: 361|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: unit.die
+      Data: unit.despawn
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: unit.die
+      Data: unit.despawn
     - Name: Category
       Entry: 1
       Data: "\u5355\u4F4D"
@@ -7720,12 +7695,6 @@ MonoBehaviour:
       Data: 6
     - Name: 
       Entry: 9
-      Data: 353
-    - Name: 
-      Entry: 9
-      Data: 354
-    - Name: 
-      Entry: 9
       Data: 355
     - Name: 
       Entry: 9
@@ -7736,6 +7705,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 358
+    - Name: 
+      Entry: 9
+      Data: 359
+    - Name: 
+      Entry: 9
+      Data: 360
     - Name: 
       Entry: 13
       Data: 
@@ -7759,13 +7734,13 @@ MonoBehaviour:
       Data: 363|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: unit.respawn
+      Data: unit.die
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: unit.respawn
+      Data: unit.die
     - Name: Category
       Entry: 1
       Data: "\u5355\u4F4D"
@@ -7781,12 +7756,6 @@ MonoBehaviour:
       Data: 6
     - Name: 
       Entry: 9
-      Data: 353
-    - Name: 
-      Entry: 9
-      Data: 354
-    - Name: 
-      Entry: 9
       Data: 355
     - Name: 
       Entry: 9
@@ -7797,6 +7766,12 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 358
+    - Name: 
+      Entry: 9
+      Data: 359
+    - Name: 
+      Entry: 9
+      Data: 360
     - Name: 
       Entry: 13
       Data: 
@@ -7820,6 +7795,67 @@ MonoBehaviour:
       Data: 365|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
+      Data: unit.respawn
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: unit.respawn
+    - Name: Category
+      Entry: 1
+      Data: "\u5355\u4F4D"
+    - Name: PayloadType
+      Entry: 1
+      Data: UnitEventPayload
+    - Name: PayloadFields
+      Entry: 7
+      Data: 366|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 6
+    - Name: 
+      Entry: 9
+      Data: 355
+    - Name: 
+      Entry: 9
+      Data: 356
+    - Name: 
+      Entry: 9
+      Data: 357
+    - Name: 
+      Entry: 9
+      Data: 358
+    - Name: 
+      Entry: 9
+      Data: 359
+    - Name: 
+      Entry: 9
+      Data: 360
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 367|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
       Data: gameplay.started
     - Name: MatchMode
       Entry: 3
@@ -7835,14 +7871,14 @@ MonoBehaviour:
       Data: GameplayLifecycleEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 366|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 368|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 4
+      Data: 6
     - Name: 
       Entry: 7
-      Data: 367|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 369|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: frame_index
@@ -7852,42 +7888,6 @@ MonoBehaviour:
     - Name: Type
       Entry: 3
       Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 368|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: elapsed_seconds
-    - Name: DisplayName
-      Entry: 1
-      Data: elapsed_seconds
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 369|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: delta_seconds
-    - Name: DisplayName
-      Entry: 1
-      Data: delta_seconds
-    - Name: Type
-      Entry: 3
-      Data: 2
     - Name: Description
       Entry: 6
       Data: 
@@ -7899,6 +7899,42 @@ MonoBehaviour:
       Data: 370|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: elapsed_seconds
+    - Name: DisplayName
+      Entry: 1
+      Data: elapsed_seconds
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 371|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: delta_seconds
+    - Name: DisplayName
+      Entry: 1
+      Data: delta_seconds
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 372|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: win_team_id
     - Name: DisplayName
       Entry: 1
@@ -7913,6 +7949,42 @@ MonoBehaviour:
       Entry: 8
       Data: 
     - Name: 
+      Entry: 7
+      Data: 373|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: team_id
+    - Name: DisplayName
+      Entry: 1
+      Data: team_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 374|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: score
+    - Name: DisplayName
+      Entry: 1
+      Data: score
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
       Entry: 13
       Data: 
     - Name: 
@@ -7932,7 +8004,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 371|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 375|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: gameplay.tick
@@ -7950,23 +8022,29 @@ MonoBehaviour:
       Data: GameplayLifecycleEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 372|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 376|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 4
-    - Name: 
-      Entry: 9
-      Data: 367
-    - Name: 
-      Entry: 9
-      Data: 368
+      Data: 6
     - Name: 
       Entry: 9
       Data: 369
     - Name: 
       Entry: 9
       Data: 370
+    - Name: 
+      Entry: 9
+      Data: 371
+    - Name: 
+      Entry: 9
+      Data: 372
+    - Name: 
+      Entry: 9
+      Data: 373
+    - Name: 
+      Entry: 9
+      Data: 374
     - Name: 
       Entry: 13
       Data: 
@@ -7987,7 +8065,129 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 373|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 377|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: gameplay.time_expired
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: gameplay.time_expired
+    - Name: Category
+      Entry: 1
+      Data: "\u73A9\u6CD5"
+    - Name: PayloadType
+      Entry: 1
+      Data: GameplayLifecycleEventArgs
+    - Name: PayloadFields
+      Entry: 7
+      Data: 378|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 6
+    - Name: 
+      Entry: 9
+      Data: 369
+    - Name: 
+      Entry: 9
+      Data: 370
+    - Name: 
+      Entry: 9
+      Data: 371
+    - Name: 
+      Entry: 9
+      Data: 372
+    - Name: 
+      Entry: 9
+      Data: 373
+    - Name: 
+      Entry: 9
+      Data: 374
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: true
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 379|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: gameplay.score_changed
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: gameplay.score_changed
+    - Name: Category
+      Entry: 1
+      Data: "\u73A9\u6CD5"
+    - Name: PayloadType
+      Entry: 1
+      Data: GameplayLifecycleEventArgs
+    - Name: PayloadFields
+      Entry: 7
+      Data: 380|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 6
+    - Name: 
+      Entry: 9
+      Data: 369
+    - Name: 
+      Entry: 9
+      Data: 370
+    - Name: 
+      Entry: 9
+      Data: 371
+    - Name: 
+      Entry: 9
+      Data: 372
+    - Name: 
+      Entry: 9
+      Data: 373
+    - Name: 
+      Entry: 9
+      Data: 374
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: true
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 381|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: gameplay.ended
@@ -8005,23 +8205,29 @@ MonoBehaviour:
       Data: GameplayLifecycleEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 374|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 382|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 4
-    - Name: 
-      Entry: 9
-      Data: 367
-    - Name: 
-      Entry: 9
-      Data: 368
+      Data: 6
     - Name: 
       Entry: 9
       Data: 369
     - Name: 
       Entry: 9
       Data: 370
+    - Name: 
+      Entry: 9
+      Data: 371
+    - Name: 
+      Entry: 9
+      Data: 372
+    - Name: 
+      Entry: 9
+      Data: 373
+    - Name: 
+      Entry: 9
+      Data: 374
     - Name: 
       Entry: 13
       Data: 

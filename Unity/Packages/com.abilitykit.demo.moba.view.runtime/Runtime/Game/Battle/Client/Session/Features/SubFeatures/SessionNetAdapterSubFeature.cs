@@ -4,8 +4,8 @@ using AbilityKit.Game.Flow.Modules;
 namespace AbilityKit.Game.Flow
 {
     internal sealed class SessionNetAdapterSubFeature :
-        ISessionSubFeature<BattleSessionFeature>,
-        ISessionFramePacketTransformSubFeature<BattleSessionFeature>,
+        ISessionSubFeature<ISessionRuntimeFeature>,
+        ISessionFramePacketTransformSubFeature<ISessionRuntimeFeature>,
         IGameModuleId,
         IGameModuleDependencies
     {
@@ -13,19 +13,20 @@ namespace AbilityKit.Game.Flow
 
         public System.Collections.Generic.IEnumerable<string> Dependencies => new[] { "session_events" };
 
-        public void OnAttach(in FeatureModuleContext<BattleSessionFeature> ctx) { }
+        public void OnAttach(in FeatureModuleContext<ISessionRuntimeFeature> ctx) =>
+            BattleSessionFeatureRuntimeAccess.Require<ISessionNetAdapterRuntime>(ctx, Id);
 
-        public void OnDetach(in FeatureModuleContext<BattleSessionFeature> ctx) { }
+        public void OnDetach(in FeatureModuleContext<ISessionRuntimeFeature> ctx) { }
 
-        public FramePacket TransformFramePacket(in FeatureModuleContext<BattleSessionFeature> ctx, FramePacket packet)
+        public FramePacket TransformFramePacket(in FeatureModuleContext<ISessionRuntimeFeature> ctx, FramePacket packet)
         {
-            if (!BattleSessionFeatureRuntimeAccess.TryGet<ISessionNetAdapterRuntime>(ctx, out var runtime)) return packet;
+            var runtime = BattleSessionFeatureRuntimeAccess.Require<ISessionNetAdapterRuntime>(ctx, Id);
 
-            return runtime.Net.TransformFramePacket(runtime.Session, runtime.NetAdapter, packet);
+            return runtime.TransformFramePacket(packet);
         }
 
-        public void Tick(in FeatureModuleContext<BattleSessionFeature> ctx, float deltaTime) { }
+        public void Tick(in FeatureModuleContext<ISessionRuntimeFeature> ctx, float deltaTime) { }
 
-        public void RebindAll(in FeatureModuleContext<BattleSessionFeature> ctx) { }
+        public void RebindAll(in FeatureModuleContext<ISessionRuntimeFeature> ctx) { }
     }
 }

@@ -121,7 +121,7 @@ namespace AbilityKit.Game.Flow
             try
             {
                 var steps = pendingSteps ?? _createTeardownSteps(context);
-                await SessionTeardownPolicy.ExecuteAsync(steps).ConfigureAwait(false);
+                await SessionTeardownPolicy.ExecuteUntilFailureAsync(steps);
                 Complete(generation, completion, null, null);
             }
             catch (SessionTeardownException exception)

@@ -396,6 +396,12 @@ namespace ET.Logic
                     snapshot.FrameIndex,
                     ToArray(snapshot.SkillStates));
             }
+
+            if (snapshot.GameplayClock.HasValue)
+            {
+                dispatcher.Dispatch(snapshot.FrameIndex,
+                    GameplayClockSnapshotCodec.OpCode, snapshot.GameplayClock);
+            }
         }
 
         private void DispatchViewSnapshot(in MobaFrameSnapshotData snapshot)
@@ -418,6 +424,11 @@ namespace ET.Logic
             if (snapshot.SkillStates != null && snapshot.SkillStates.Count > 0)
             {
                 ViewSink?.OnSkillStateSnapshot(in snapshot);
+            }
+
+            if (snapshot.GameplayClock.HasValue && ViewSink is IGameplayClockViewEventSink clockSink)
+            {
+                clockSink.OnGameplayClockSnapshot(in snapshot);
             }
 
             if (snapshot.DamageEvents != null && snapshot.DamageEvents.Count > 0)

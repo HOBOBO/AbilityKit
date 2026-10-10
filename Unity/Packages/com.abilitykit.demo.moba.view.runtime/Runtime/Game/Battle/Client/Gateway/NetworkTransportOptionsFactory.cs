@@ -22,9 +22,8 @@ namespace AbilityKit.Game.Battle
     /// <see cref="GatewayBattleClientHost.BuildBattleOptions"/> — the same assembly step the shooter
     /// and console demos use — so all three converge on one protocol-setup source of truth. Only the
     /// MOBA-specific callbacks (framesync/statesync input, snapshot+frame deserializers, reliable-event
-    /// cursor) are added here. MOBA keeps its own <see cref="NetworkTransport"/> construction with dual
-    /// dispatchers (its battle session owns the lifecycle), so only the static options-assembly step is
-    /// shared, not the host's lifecycle.
+    /// cursor) are added here. The shared host builds MOBA's transport with dual dispatchers;
+    /// the battle session owns the returned transport.
     /// </summary>
     public static class NetworkTransportOptionsFactory
     {

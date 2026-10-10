@@ -723,7 +723,7 @@
           "name": "Modifier lifecycle and stage resolution",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
-            "filter": "FullyQualifiedName~MobaModifierAttributeSourceTests|FullyQualifiedName~MobaModifierConsumerContractTests|FullyQualifiedName~MobaModifierRealObjectSmokeTests"
+            "filter": "FullyQualifiedName~MobaModifierAttributeSourceTests|FullyQualifiedName~MobaModifierConsumerContractTests|FullyQualifiedName~MobaModifierRealObjectSmokeTests|FullyQualifiedName~MobaBuffTimerRollbackPreflightTests"
         }
       ]
     },

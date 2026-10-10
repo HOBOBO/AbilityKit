@@ -3,8 +3,6 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Rollback;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Network.Abstractions;
 
@@ -12,12 +10,13 @@ namespace AbilityKit.Game.Battle
 {
     public sealed class BattleLogicSession : IDisposable
     {
-        private readonly BattleLogicSessionOptions _options;
         private readonly IBattleLogicClient _client;
         private readonly IBattleLogicTransport _transport;
         private readonly IRemoteFrameStreams _remoteFrameStreams;
-        private readonly IBattleLogicRuntimeFactory _runtimeFactory;
         private readonly BattleLogicSessionRuntime _runtime;
+        private bool _streamHandlerSubscribed;
+        private bool _broadcastHandlerSubscribed;
+        private int _disposed;
 
         public ServerRollbackModule RollbackModule => _runtime?.RollbackModule;
 
@@ -50,48 +49,52 @@ namespace AbilityKit.Game.Battle
             IBattleLogicRuntimeFactory runtimeFactory,
             IRemoteFrameStreams remoteFrameStreams)
         {
-            _options = options ?? throw new ArgumentNullException(nameof(options));
+            if (options == null) throw new ArgumentNullException(nameof(options));
             if (rollbackRegistryFactory == null) throw new ArgumentNullException(nameof(rollbackRegistryFactory));
-            _runtimeFactory = runtimeFactory ?? throw new ArgumentNullException(nameof(runtimeFactory));
-            _remoteFrameStreams = remoteFrameStreams ?? RemoteFrameStreamsFactory.Create();
-            _runtime = _runtimeFactory.CreateRuntime(_options, rollbackRegistryFactory);
-
-            if (_options.Mode == BattleLogicMode.Remote)
+            if (runtimeFactory == null) throw new ArgumentNullException(nameof(runtimeFactory));
+            if (options.Mode == BattleLogicMode.Remote && remoteTransport == null)
+                throw new ArgumentNullException(nameof(remoteTransport));
+            // A supplied remote transport transfers ownership to this session.
+            if (options.Mode == BattleLogicMode.Remote) _transport = remoteTransport;
+            try
             {
-                if (remoteTransport == null) throw new ArgumentNullException(nameof(remoteTransport));
-                _transport = remoteTransport;
-                _client = BattleLogicClientFactory.CreateRemote(remoteTransport);
-            }
-            else
-            {
-                var runtime = _runtime ?? throw new InvalidOperationException("Local battle logic runtime factory returned null.");
-                var transport = new InMemoryBattleLogicTransport(runtime.Server, _options.ClientId);
-                _transport = transport;
-                _client = BattleLogicClientFactory.CreateRemote(transport);
-            }
-
-            if (_options.AutoConnect)
-            {
-                _client.Connect();
-            }
-
-            if (_options.AutoCreateWorld)
-            {
-                var create = new WorldCreateOptions(_options.WorldId, _options.WorldType)
+                _remoteFrameStreams = remoteFrameStreams ?? RemoteFrameStreamsFactory.Create();
+                if (options.Mode == BattleLogicMode.Local)
                 {
-                    ServiceBuilder = _runtimeFactory.CreateWorldServices(_options),
-                };
+                    _runtime = runtimeFactory.CreateRuntime(options, rollbackRegistryFactory)
+                        ?? throw new InvalidOperationException("Local battle logic runtime factory returned null.");
+                    _transport = new InMemoryBattleLogicTransport(_runtime.Server, options.ClientId);
+                }
 
-                _client.CreateWorld(new CreateWorldRequest(create));
+                _client = BattleLogicClientFactory.CreateRemote(_transport);
+                if (options.AutoConnect) _client.Connect();
+                if (options.AutoCreateWorld)
+                {
+                    var create = new WorldCreateOptions(options.WorldId, options.WorldType)
+                    {
+                        ServiceBuilder = runtimeFactory.CreateWorldServices(options),
+                    };
+                    _client.CreateWorld(new CreateWorldRequest(create));
+                }
+
+                if (options.AutoJoin)
+                    _client.Join(new JoinWorldRequest(options.WorldId, new PlayerId(options.PlayerId)));
+
+                _client.FrameReceived += OnFrameReceivedForStreams;
+                _streamHandlerSubscribed = true;
+                _client.FrameReceived += BroadcastFrameReceived;
+                _broadcastHandlerSubscribed = true;
             }
-
-            if (_options.AutoJoin)
+            catch (Exception startupFailure)
             {
-                _client.Join(new JoinWorldRequest(_options.WorldId, new PlayerId(_options.PlayerId)));
+                try { Dispose(); }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException("Battle session startup and cleanup failed.",
+                        startupFailure, cleanupFailure);
+                }
+                throw;
             }
-
-            _client.FrameReceived += OnFrameReceivedForStreams;
-            _client.FrameReceived += BroadcastFrameReceived;
         }
 
         private event Action<FramePacket>? _frameReceivedBroadcast;
@@ -176,12 +179,26 @@ namespace AbilityKit.Game.Battle
 
         public void Dispose()
         {
-            _client.FrameReceived -= OnFrameReceivedForStreams;
-            _client.FrameReceived -= BroadcastFrameReceived;
-            _client?.Dispose();
-            (_transport as IDisposable)?.Dispose();
-            _runtime?.Dispose();
-            _remoteFrameStreams.Dispose();
+            if (System.Threading.Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            System.Collections.Generic.List<Exception> failures = null;
+            void Release(Action action)
+            {
+                try { action(); }
+                catch (Exception exception)
+                {
+                    (failures ??= new System.Collections.Generic.List<Exception>()).Add(exception);
+                }
+            }
+
+            if (_broadcastHandlerSubscribed)
+                Release(() => _client.FrameReceived -= BroadcastFrameReceived);
+            if (_streamHandlerSubscribed)
+                Release(() => _client.FrameReceived -= OnFrameReceivedForStreams);
+            if (_client != null) Release(_client.Dispose);
+            if (_transport is IDisposable transport) Release(transport.Dispose);
+            if (_runtime != null) Release(_runtime.Dispose);
+            if (_remoteFrameStreams != null) Release(_remoteFrameStreams.Dispose);
+            if (failures != null) throw new AggregateException("Battle session cleanup failed.", failures);
         }
 
         private void OnFrameReceivedForStreams(FramePacket packet)

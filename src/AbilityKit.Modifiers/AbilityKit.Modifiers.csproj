@@ -13,4 +13,9 @@
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.modifiers/Runtime/**/*.cs" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- 衰减曲线的 exp/ln 走 DeterministicMathBridge（float 进出、定点内核） -->
+    <ProjectReference Include="../AbilityKit.Core/AbilityKit.Core.csproj" />
+  </ItemGroup>
 </Project>

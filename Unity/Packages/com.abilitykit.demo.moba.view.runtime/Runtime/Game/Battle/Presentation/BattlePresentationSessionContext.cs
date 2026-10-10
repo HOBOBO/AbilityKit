@@ -1,4 +1,5 @@
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.Battle.Vfx;
 
@@ -13,21 +14,13 @@ namespace AbilityKit.Game.Flow
     {
         public BattlePresentationSessionContext Create(in GamePhaseContext ctx)
         {
-            MobaConfigDatabase configs = null;
-            if (ctx.Features.TryGet(out BattleContext battleContext) &&
-                battleContext != null &&
-                battleContext.TryGetRuntimeWorld(out var runtimeWorld) &&
-                runtimeWorld?.Services != null)
-            {
-                runtimeWorld.Services.TryResolve(out configs);
-            }
-
             IBattleAssetLookup assets = null;
             if (ctx.Features.TryGet(out IBattleAssetLoadSessionPort assetSession))
             {
                 assets = assetSession?.AssetLookup;
             }
 
+            var configs = assets != null ? MobaConfigLoader.LoadDefault() : null;
             return BattlePresentationSessionContext.CreateDefault(configs, null, assets);
         }
     }
@@ -44,7 +37,8 @@ namespace AbilityKit.Game.Flow
         public BattleViewResourceProvider Resources { get; }
 
         internal BattleViewResourceProvider CreateViewResources() =>
-            new BattleViewResourceProvider(Resources.Configs, Resources.VfxDb, Resources.AssetLookup);
+            new BattleViewResourceProvider(Resources.Configs, Resources.VfxDb,
+                Resources.AssetLookup, Resources.ModelResolvers);
 
         internal void Retain()
         {
@@ -64,15 +58,12 @@ namespace AbilityKit.Game.Flow
         public static BattlePresentationSessionContext CreateDefault(
             MobaConfigDatabase configs = null,
             VfxDatabase vfxDb = null,
-            IBattleAssetLookup assets = null)
+            IBattleAssetLookup assets = null,
+            BattleViewModelResolverRegistry modelResolvers = null)
         {
             return new BattlePresentationSessionContext(
-                new BattleViewResourceProvider(configs, vfxDb, assets));
+                new BattleViewResourceProvider(configs, vfxDb, assets, modelResolvers));
         }
 
-        internal static BattlePresentationSessionContext CreateFromDefaultResources()
-        {
-            return CreateDefault();
-        }
     }
 }

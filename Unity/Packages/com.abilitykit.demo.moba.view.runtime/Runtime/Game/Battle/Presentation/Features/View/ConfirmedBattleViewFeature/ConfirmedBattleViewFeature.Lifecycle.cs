@@ -1,22 +1,15 @@
-using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Game.Flow.Modules;
-using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
     public partial class ConfirmedBattleViewFeature
     {
-        /// <summary>Hierarchy root that owns all categorized view sub-roots.</summary>
-        private BattleViewHierarchyRoot _hierarchyRoot;
-        private BattleViewShellPoolStatsProvider _shellStatsProvider;
-        private BattleAreaVfxPoolStatsProvider _areaStatsProvider;
-
         public void OnAttach(in GamePhaseContext ctx)
         {
-            BindPresentationSession(ctx);
             try
             {
+                BindPresentationSession(ctx);
                 AttachCore(ctx);
             }
             catch (System.Exception attachFailure)
@@ -36,43 +29,7 @@ namespace AbilityKit.Game.Flow
 
         private void AttachCore(in GamePhaseContext ctx)
         {
-            // Each feature instance owns its hierarchy and releases it on detach.
-            var hierarchyName = "[Battle:" +
-                                (_confirmedCtx != null ? _confirmedCtx.RuntimeWorldId.ToString() : "unknown") +
-                                ":" + _viewRole + ":" + _instanceKey + "]";
-            _hierarchyRoot = BattleViewHierarchyRoot.Acquire(hierarchyName);
-            var hierarchy = _hierarchyRoot.Manager;
-
-            var resources = PresentationResources;
-            // Make the hierarchy available to the resource provider so newly created
-            // shells are parented under the matching active category root.
-            resources?.SetHierarchyManager(hierarchy);
-            // Expose the hierarchy to sub-features (VFX, binders, etc.).
-            IViewFeatureRuntime runtime = this;
-            runtime.Hierarchy = hierarchy;
-
-            ShellPool = new BattleViewShellPool(
-                factory: modelId => resources?.CreateShellGameObject(actorId: 0, modelId) ?? CreateFallbackShell(modelId),
-                defaultCapacity: 8,
-                maxSize: 16,
-                hierarchy: hierarchy);
-
-            if ((_capabilities & BattleProjectionViewCapabilities.AreaEffects) != 0)
-                AreaVfxPool = BattleAreaVfxPool.UsingFactory(
-                    (templateId, kind) => BattleAreaPoolObjectFactory.Create(resources, templateId, kind),
-                    hierarchy: hierarchy,
-                    capacityPerKindPerTemplate: 8);
-            if ((_capabilities & BattleProjectionViewCapabilities.Camera) != 0)
-                CameraController = new BattleViewCameraController(BattleCameraConfig.Default);
-
-            var overlay = _hierarchyRoot.GetOrAddStatsOverlay();
-            _shellStatsProvider = new BattleViewShellPoolStatsProvider(ShellPool);
-            overlay.RegisterProvider(_shellStatsProvider);
-            if (AreaVfxPool != null)
-            {
-                _areaStatsProvider = new BattleAreaVfxPoolStatsProvider(AreaVfxPool);
-                overlay.RegisterProvider(_areaStatsProvider);
-            }
+            AttachViewResources(_viewRole, _instanceKey, _capabilities);
 
             EnsureSubFeaturesCreated();
             _subFeatureHost?.Attach(new FeatureModuleContext<ConfirmedBattleViewFeature>(ctx, this));
@@ -88,40 +45,18 @@ namespace AbilityKit.Game.Flow
             CameraController?.SetCamera(null);
         }
 
-        private static GameObject CreateFallbackShell(int modelId)
-        {
-            return new BattleViewPrimitiveFactory().CreateActorFallback(actorId: 0, modelId);
-        }
-
         public void OnDetach(in GamePhaseContext ctx)
         {
-            if (_subFeatureHost?.IsAttached == true)
-                _subFeatureHost.Detach(new FeatureModuleContext<ConfirmedBattleViewFeature>(ctx, this));
-
-            ShellPool?.Clear();
-            ShellPool = null;
-
-            AreaVfxPool?.Clear();
-            AreaVfxPool = null;
-
-            CameraController?.Reset();
-            CameraController = null;
-
-            if (_hierarchyRoot != null)
+            try
             {
-                var overlay = _hierarchyRoot.GetComponent<BattleViewPoolStatsOverlay>();
-                overlay?.UnregisterProvider(_shellStatsProvider);
-                overlay?.UnregisterProvider(_areaStatsProvider);
+                if (_subFeatureHost?.IsAttached == true)
+                    _subFeatureHost.Detach(new FeatureModuleContext<ConfirmedBattleViewFeature>(ctx, this));
             }
-            _shellStatsProvider = null;
-            _areaStatsProvider = null;
-
-            // Release this feature's lease. The shared root survives until the last
-            // predicted/confirmed view feature has detached.
-            _hierarchyRoot?.Release();
-            _hierarchyRoot = null;
-
-            ClearPresentationSession(ctx);
+            finally
+            {
+                try { ReleaseViewResources(); }
+                finally { ClearPresentationSession(ctx); }
+            }
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)

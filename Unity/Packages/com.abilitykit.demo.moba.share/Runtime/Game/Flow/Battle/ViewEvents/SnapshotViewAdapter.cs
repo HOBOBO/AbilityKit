@@ -42,6 +42,7 @@ namespace AbilityKit.Demo.Moba.Share
             _subscriptions.Add(_snapshots.Subscribe<DamageEventData[]>(MobaOpCodes.Snapshot.DamageEvent, OnDamageEventSnapshot));
             _subscriptions.Add(_snapshots.Subscribe<PresentationCueData[]>(MobaOpCodes.Snapshot.PresentationCue, OnPresentationCueSnapshot));
             _subscriptions.Add(_snapshots.Subscribe<StateHashData>(MobaOpCodes.Snapshot.StateHash, OnStateHashSnapshot));
+            _subscriptions.Add(_snapshots.Subscribe<GameplayClockData>(GameplayClockSnapshotCodec.OpCode, OnGameplayClockSnapshot));
         }
 
         private void OnEnterGameSnapshot(int frameIndex, EnterGameData data)
@@ -132,6 +133,14 @@ namespace AbilityKit.Demo.Moba.Share
                 SnapshotType.Delta, 
                 stateHash: data);
             _sink.OnStateHashSnapshot(in snapshot);
+        }
+
+        private void OnGameplayClockSnapshot(int frameIndex, GameplayClockData data)
+        {
+            if (_sink is not IGameplayClockViewEventSink sink) return;
+            var snapshot = new FrameSnapshotData(
+                frameIndex, timestamp: 0, SnapshotType.Delta, gameplayClock: data);
+            sink.OnGameplayClockSnapshot(in snapshot);
         }
 
         /// <summary>

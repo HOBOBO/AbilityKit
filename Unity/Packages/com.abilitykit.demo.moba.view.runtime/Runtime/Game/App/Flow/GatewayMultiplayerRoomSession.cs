@@ -18,7 +18,6 @@ namespace AbilityKit.Game.Flow
     /// </summary>
     public sealed class GatewayMultiplayerRoomSession :
         IMultiplayerRoomSession,
-        IMobaReliableBattleEventCheckpointStore,
         IDisposable
     {
         private readonly IGatewayRoomClient _client;
@@ -26,7 +25,7 @@ namespace AbilityKit.Game.Flow
         private readonly IDisposable? _sessionClient;
         private readonly ClientRoomStore _store;
         private readonly GatewayRoomMembership _membership = new GatewayRoomMembership();
-        private readonly MobaReliableBattleEventCheckpointStore _checkpointStore;
+        private readonly IRoomDepartureObserver? _roomDeparture;
         private readonly uint _guestLoginOpCode;
         private readonly TimeSpan _requestTimeout;
         private readonly TimeSpan _pollInterval;
@@ -38,18 +37,6 @@ namespace AbilityKit.Game.Flow
         public ulong CurrentNumericRoomId => _membership.NumericRoomId;
         public uint CurrentPlayerId => _membership.PlayerId;
 
-        public bool TryLoad(
-            string battleId,
-            out MobaReliableBattleEventCheckpoint checkpoint)
-        {
-            return _checkpointStore.TryLoad(battleId, out checkpoint);
-        }
-
-        public void Save(in MobaReliableBattleEventCheckpoint checkpoint)
-        {
-            _checkpointStore.Save(in checkpoint);
-        }
-
         public GatewayMultiplayerRoomSession(
             IGatewayRoomClient client,
             ClientRoomStore store,
@@ -57,16 +44,11 @@ namespace AbilityKit.Game.Flow
             TimeSpan? requestTimeout = null,
             TimeSpan? pollInterval = null,
             TimeSpan? battleStartTimeout = null,
-            IReliableEventCheckpointStore reliableEventCheckpointStore = null,
-            bool ownsReliableEventCheckpointStore = false,
-            ReliableEventCheckpointLifecycleOptions reliableEventCheckpointLifecycleOptions = null)
+            IRoomDepartureObserver? roomDeparture = null)
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _store = store ?? throw new ArgumentNullException(nameof(store));
-            _checkpointStore = new MobaReliableBattleEventCheckpointStore(
-                reliableEventCheckpointStore,
-                ownsReliableEventCheckpointStore,
-                reliableEventCheckpointLifecycleOptions);
+            _roomDeparture = roomDeparture;
 
             IRoomGatewaySessionClientBase sessionClient;
             if (client is IGatewayRoomSessionClientProvider provider)
@@ -259,40 +241,9 @@ namespace AbilityKit.Game.Flow
 
             ClearMembership();
             _store.Reset();
-            if (!string.IsNullOrWhiteSpace(completedBattleId))
-            {
-                _checkpointStore.Remove(completedBattleId);
-            }
-            // 远端离房已不可逆完成，后续本地持久化不能再被原操作取消令牌中断。
-            await _checkpointStore.FlushAsync(
-                ReliableEventCheckpointFlushTrigger.RoomLeave,
-                CancellationToken.None).ConfigureAwait(false);
-        }
-
-        /// <summary>等待可靠战斗事件检查点完成持久化。</summary>
-        public Task FlushReliableEventCheckpointsAsync(
-            CancellationToken cancellationToken = default)
-        {
-            return _checkpointStore.FlushAsync(cancellationToken);
-        }
-
-        /// <summary>按指定生命周期原因等待可靠战斗事件检查点完成持久化。</summary>
-        public Task<ReliableEventCheckpointFlushResult> FlushReliableEventCheckpointsAsync(
-            ReliableEventCheckpointFlushTrigger trigger,
-            CancellationToken cancellationToken = default)
-        {
-            return _checkpointStore.FlushAsync(trigger, cancellationToken);
-        }
-
-        /// <summary>获取可靠事件检查点生命周期的累计诊断。</summary>
-        public ReliableEventCheckpointLifecycleDiagnostics ReliableEventCheckpointLifecycleDiagnostics =>
-            _checkpointStore.LifecycleDiagnostics;
-
-        /// <summary>可靠事件检查点 flush 失败且完成诊断记录后触发。</summary>
-        public event Action<ReliableEventCheckpointLifecycleFailure> ReliableEventCheckpointLifecycleFailure
-        {
-            add => _checkpointStore.LifecycleFailure += value;
-            remove => _checkpointStore.LifecycleFailure -= value;
+            // The remote departure is committed; local persistence must finish even if the request is cancelled.
+            if (_roomDeparture != null)
+                await _roomDeparture.OnRoomLeftAsync(completedBattleId).ConfigureAwait(false);
         }
 
         public async Task ConfigureLoadoutAsync(
@@ -562,14 +513,7 @@ namespace AbilityKit.Game.Flow
 
         public void Dispose()
         {
-            try
-            {
-                _checkpointStore.Dispose();
-            }
-            finally
-            {
-                _sessionClient?.Dispose();
-            }
+            _sessionClient?.Dispose();
         }
 
         internal static IReadOnlyDictionary<string, string> BuildLaunchTags(

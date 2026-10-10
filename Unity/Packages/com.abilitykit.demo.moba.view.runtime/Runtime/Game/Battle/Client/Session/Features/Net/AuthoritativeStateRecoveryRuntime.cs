@@ -89,6 +89,7 @@ namespace AbilityKit.Game.Flow
                 Log.Warning(
                     $"[BattleAuthoritativeWorldRecoveryPort] Import incomplete. " +
                     $"frame={snapshot.Frame} failed={result.Failed}");
+                ResetAfterReconnect();
                 return false;
             }
 
@@ -101,6 +102,7 @@ namespace AbilityKit.Game.Flow
                 Log.Warning(
                     $"[BattleAuthoritativeWorldRecoveryPort] Prediction rebase failed. " +
                     $"frame={snapshot.Frame} worldId={world.Id.Value}");
+                ResetAfterReconnect();
                 return false;
             }
 
@@ -125,6 +127,7 @@ namespace AbilityKit.Game.Flow
             Log.Warning(
                 $"[BattleAuthoritativeWorldRecoveryPort] Authoritative state apply incomplete. " +
                 $"frame={snapshot.Frame} failed={result.Failed}");
+            ResetAfterReconnect();
             return false;
         }
 
@@ -167,29 +170,40 @@ namespace AbilityKit.Game.Flow
                     actor.OwnerNetId);
             }
 
-            var result = importer.Import(imports, snapshot.Frame, isFullSnapshot: true);
-            if (result.Failed != 0) return result;
-
-            if (world?.Services != null &&
-                world.Services.TryResolve<MobaActorRegistry>(out var registry) && registry != null)
-            {
-                world.Services.TryResolve<StateMachineDefinition>(out var definition);
-                try
-                {
-                    if (!CharacterHfsmGatewayStateImporter.TryApply(in snapshot, registry, definition))
-                        result.Failed++;
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning("[BattleAuthoritativeWorldRecoveryPort] Character HFSM import failed: " + ex.Message);
-                    result.Failed++;
-                }
-            }
-            else if (snapshot.SchemaVersion >= 2 ||
+            var requiresHfsm = snapshot.SchemaVersion >= 2 ||
                 snapshot.PayloadOpCode == MobaCharacterHfsmRollbackProvider.DefaultKey ||
-                snapshot.PayloadOpCode == MobaCharacterHfsmWireCodec.CompressedOpCode)
+                snapshot.PayloadOpCode == MobaCharacterHfsmWireCodec.CompressedOpCode;
+            MobaActorRegistry registry = null;
+            StateMachineDefinition definition = null;
+            if (world?.Services != null)
+            {
+                world.Services.TryResolve(out registry);
+                world.Services.TryResolve(out definition);
+            }
+            var result = new MobaStateImportResult();
+            if (requiresHfsm && registry == null)
             {
                 Log.Warning("[BattleAuthoritativeWorldRecoveryPort] Character HFSM baseline is missing.");
+                result.Failed++;
+                return result;
+            }
+
+            try
+            {
+                if (requiresHfsm && !CharacterHfsmGatewayStateImporter.TryApply(
+                        in snapshot, new MobaActorRegistry(), definition))
+                {
+                    result.Failed++;
+                    return result;
+                }
+                result = importer.Import(imports, snapshot.Frame, isFullSnapshot: true);
+                if (result.Failed == 0 && registry != null &&
+                    !CharacterHfsmGatewayStateImporter.TryApply(in snapshot, registry, definition))
+                    result.Failed++;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("[BattleAuthoritativeWorldRecoveryPort] State import failed: " + ex.Message);
                 result.Failed++;
             }
             return result;
@@ -205,20 +219,16 @@ namespace AbilityKit.Game.Flow
         INetworkSessionRecoverySignalSink
     {
         private const string RecoveryCorrelationPrefix = "moba-recovery-generation:";
-        private readonly object _recoveryGate = new object();
+        private readonly RecoveryGenerationOperation _operation = new RecoveryGenerationOperation();
         private readonly BattleReplicationRuntime _replication;
         private readonly ReliableBattleEventDeliveryRuntime _reliableEvents;
         private readonly IBattleAuthoritativeWorldRecoveryPort _worldRecovery;
         private readonly NetworkSessionRecoveryCoordinator _sessionRecovery;
         private readonly NetworkSessionRecoveryActionRouter<bool> _recoveryActions;
-        private System.Threading.CancellationTokenSource _recoveryCancellation;
-        private Task _pendingExecution = Task.CompletedTask;
-        private int _generation;
         private IBattleRecoveryTransportOperations _transport;
         private BattleContext _context;
         private long _remoteInterpolationGeneration;
         private Action _firstFrameReceived;
-        private bool _connectionRecoveryPending;
 
         internal AuthoritativeStateRecoveryRuntime(
             BattleReplicationRuntime replication,
@@ -253,13 +263,7 @@ namespace AbilityKit.Game.Flow
         }
 
         internal bool PendingStateImport => _replication.PendingStateImport;
-        internal Task PendingExecution
-        {
-            get
-            {
-                lock (_recoveryGate) return _pendingExecution;
-            }
-        }
+        internal Task PendingExecution => _operation.PendingExecution;
         internal NetworkSessionRecoveryDecision RecoveryDecision =>
             _sessionRecovery.CurrentDecision;
         internal NetworkSessionRecoveryDiagnostics RecoveryDiagnostics =>
@@ -295,10 +299,7 @@ namespace AbilityKit.Game.Flow
                 throw new InvalidOperationException("Replication runtime must be built before recovery.");
 
             EndGeneration();
-            lock (_recoveryGate)
-            {
-                _recoveryCancellation = new System.Threading.CancellationTokenSource();
-            }
+            _operation.Begin();
 
             try
             {
@@ -319,8 +320,8 @@ namespace AbilityKit.Game.Flow
                     eventSink,
                     HandleReliableTimelineInvalidated);
                 _replication.PendingStateImport = true;
-                _connectionRecoveryPending = false;
-                context.CanSubmitGameplayInput = false;
+                _operation.ConnectionRecoveryPending = false;
+                context.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
                 _remoteInterpolationGeneration = context.BeginRemoteInterpolation();
             }
             catch
@@ -335,7 +336,7 @@ namespace AbilityKit.Game.Flow
                 }
 
                 _replication.PendingStateImport = true;
-                context.CanSubmitGameplayInput = false;
+                context.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
                 throw;
             }
         }
@@ -378,6 +379,10 @@ namespace AbilityKit.Game.Flow
                         snapshot.EventEpoch,
                         snapshot.EventWatermark))
                 {
+                    _worldRecovery.ResetAfterReconnect();
+                    _replication.PendingStateImport = true;
+                    _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
+                    _replication.SnapshotAdmission?.RequireFullBaseline();
                     ReportAndExecute(
                         NetworkSessionRecoverySignalKind.SnapshotResyncRequired,
                         SyncHealthSeverity.Error,
@@ -387,12 +392,12 @@ namespace AbilityKit.Game.Flow
                 }
 
                 _replication.PendingStateImport = false;
-                if (_context != null) _context.CanSubmitGameplayInput = true;
+                _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, false);
                 var recovered = new NetworkSessionRecoverySignal(
                     NetworkSessionRecoverySignalKind.Recovered,
                     SyncHealthSeverity.Info,
                     snapshot.Frame,
-                    correlationContext: CreateRecoveryCorrelationContext(_generation),
+                    correlationContext: CreateRecoveryCorrelationContext(_operation.Generation),
                     detail: "authoritative-baseline-adopted");
                 _sessionRecovery.TryReport(in recovered, out _);
             }
@@ -400,6 +405,9 @@ namespace AbilityKit.Game.Flow
             var materialized = _replication.AuthoritativeSnapshotState?.Apply(in snapshot) ?? snapshot;
             if (!pendingStateImport && !_worldRecovery.TryApplyAuthoritativeState(in materialized))
             {
+                _replication.PendingStateImport = true;
+                _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
+                _replication.SnapshotAdmission?.RequireFullBaseline();
                 ReportAndExecute(
                     NetworkSessionRecoverySignalKind.SnapshotResyncRequired,
                     SyncHealthSeverity.Error,
@@ -427,7 +435,7 @@ namespace AbilityKit.Game.Flow
         internal void HandleConnectionClosed()
         {
             if (!_replication.IsBuilt) return;
-            _connectionRecoveryPending = true;
+            _operation.ConnectionRecoveryPending = true;
             Log.Warning(
                 "[AuthoritativeStateRecoveryRuntime] Battle connection lost; " +
                 "transport recovery is pending.");
@@ -440,8 +448,8 @@ namespace AbilityKit.Game.Flow
 
         internal void HandleConnectionEstablished()
         {
-            if (!_replication.IsBuilt || !_connectionRecoveryPending) return;
-            _connectionRecoveryPending = false;
+            if (!_replication.IsBuilt || !_operation.ConnectionRecoveryPending) return;
+            _operation.ConnectionRecoveryPending = false;
             ReportAndExecute(
                 NetworkSessionRecoverySignalKind.ConnectionRestored,
                 SyncHealthSeverity.Info,
@@ -462,7 +470,7 @@ namespace AbilityKit.Game.Flow
             Log.Warning(
                 $"[AuthoritativeStateRecoveryRuntime] Authentication failed: {exception?.Message}. " +
                 "Disconnecting for transport re-authentication.");
-            _connectionRecoveryPending = true;
+            _operation.ConnectionRecoveryPending = true;
             ReportAndExecute(
                 NetworkSessionRecoverySignalKind.ConnectionError,
                 SyncHealthSeverity.Error,
@@ -505,7 +513,7 @@ namespace AbilityKit.Game.Flow
             System.Threading.CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var generation = _generation;
+            var generation = _operation.Generation;
             var transport = _transport;
             if (transport == null || !IsCurrentRecoveryDecision(execution.Decision, generation))
             {
@@ -513,7 +521,7 @@ namespace AbilityKit.Game.Flow
             }
 
             _replication.PendingStateImport = true;
-            if (_context != null) _context.CanSubmitGameplayInput = false;
+            _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
             _replication.SnapshotAdmission?.RequireFullBaseline();
             _replication.AuthoritativeSnapshotState?.Reset();
             _replication.InterpolationController?.Reset();
@@ -545,7 +553,7 @@ namespace AbilityKit.Game.Flow
             }
             catch (Exception ex)
             {
-                if (generation != _generation || !ReferenceEquals(transport, _transport)) return false;
+                if (!_operation.IsCurrent(generation) || !ReferenceEquals(transport, _transport)) return false;
                 Log.Exception(
                     ex,
                     $"[AuthoritativeStateRecoveryRuntime] Full-state request failed. " +
@@ -553,7 +561,7 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            if (generation != _generation || !ReferenceEquals(transport, _transport)) return false;
+            if (!_operation.IsCurrent(generation) || !ReferenceEquals(transport, _transport)) return false;
             if (!accepted)
             {
                 Log.Warning(
@@ -576,21 +584,11 @@ namespace AbilityKit.Game.Flow
                 severity,
                 frame,
                 exception,
-                CreateRecoveryCorrelationContext(_generation),
+                CreateRecoveryCorrelationContext(_operation.Generation),
                 detail: detail);
             if (!_sessionRecovery.TryReport(in signal, out var decision)) return;
 
-            TaskCompletionSource<bool> reservation;
-            System.Threading.CancellationToken token;
-            lock (_recoveryGate)
-            {
-                if (_recoveryCancellation == null) return;
-
-                token = _recoveryCancellation.Token;
-                reservation = new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
-                _pendingExecution = Task.WhenAll(_pendingExecution, reservation.Task);
-            }
+            if (!_operation.TryReserve(out var token, out var reservation)) return;
 
             _ = ExecuteAndCompleteReservationAsync(decision, token, reservation);
         }
@@ -658,23 +656,26 @@ namespace AbilityKit.Game.Flow
             }
         }
 
+        private Task _pendingTeardown = Task.CompletedTask;
+
         private void EndGeneration()
         {
-            _ = EndGenerationAsync();
+            _ = ObserveEndGenerationAsync(EndGenerationAsync());
+        }
+
+        private static async Task ObserveEndGenerationAsync(Task completion)
+        {
+            try { await completion.ConfigureAwait(false); }
+            catch (Exception exception)
+            {
+                Log.Exception(exception,
+                    "[AuthoritativeStateRecoveryRuntime] Recovery teardown failed.");
+            }
         }
 
         private Task EndGenerationAsync()
         {
-            System.Threading.CancellationTokenSource cancellation;
-            Task pendingExecution;
-            lock (_recoveryGate)
-            {
-                _generation++;
-                cancellation = _recoveryCancellation;
-                _recoveryCancellation = null;
-                pendingExecution = _pendingExecution;
-                _pendingExecution = Task.CompletedTask;
-            }
+            var pendingExecution = _operation.EndAsync();
 
             var context = _context;
             var remoteInterpolationGeneration = _remoteInterpolationGeneration;
@@ -682,7 +683,6 @@ namespace AbilityKit.Game.Flow
             _context = null;
             _remoteInterpolationGeneration = 0;
             _firstFrameReceived = null;
-            _connectionRecoveryPending = false;
             _sessionRecovery.Reset();
 
             Exception cleanupFailure = null;
@@ -709,16 +709,13 @@ namespace AbilityKit.Game.Flow
                     : new AggregateException(cleanupFailure, exception);
             }
 
-            Cancel(cancellation);
-            return CompleteEndGenerationAsync(
-                pendingExecution,
-                cancellation,
-                cleanupFailure);
+            return _pendingTeardown = Task.WhenAll(
+                _pendingTeardown,
+                CompleteEndGenerationAsync(pendingExecution, cleanupFailure));
         }
 
         private static async Task CompleteEndGenerationAsync(
             Task pendingExecution,
-            System.Threading.CancellationTokenSource cancellation,
             Exception cleanupFailure)
         {
             Exception pendingFailure = null;
@@ -730,10 +727,6 @@ namespace AbilityKit.Game.Flow
             {
                 pendingFailure = exception;
             }
-            finally
-            {
-                cancellation?.Dispose();
-            }
 
             if (cleanupFailure != null && pendingFailure != null)
             {
@@ -744,13 +737,83 @@ namespace AbilityKit.Game.Flow
             if (pendingFailure != null) throw pendingFailure;
         }
 
-        private static void Cancel(
+    }
+
+    internal sealed class RecoveryGenerationOperation
+    {
+        private readonly object _gate = new object();
+        private System.Threading.CancellationTokenSource _cancellation;
+        private Task _pending = Task.CompletedTask;
+        private int _generation;
+        private bool _connectionRecoveryPending;
+
+        public int Generation { get { lock (_gate) return _generation; } }
+        public Task PendingExecution { get { lock (_gate) return _pending; } }
+        public bool ConnectionRecoveryPending
+        {
+            get { lock (_gate) return _connectionRecoveryPending; }
+            set { lock (_gate) _connectionRecoveryPending = value; }
+        }
+
+        public void Begin()
+        {
+            lock (_gate)
+            {
+                if (_cancellation != null)
+                    throw new InvalidOperationException("Recovery generation is already active.");
+                _cancellation = new System.Threading.CancellationTokenSource();
+            }
+        }
+
+        public bool IsCurrent(int generation)
+        {
+            lock (_gate) return _cancellation != null && _generation == generation;
+        }
+
+        public bool TryReserve(out System.Threading.CancellationToken token,
+            out TaskCompletionSource<bool> reservation)
+        {
+            lock (_gate)
+            {
+                if (_cancellation == null)
+                {
+                    token = default;
+                    reservation = null;
+                    return false;
+                }
+
+                token = _cancellation.Token;
+                reservation = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                _pending = Task.WhenAll(_pending, reservation.Task);
+                return true;
+            }
+        }
+
+        public Task EndAsync()
+        {
+            System.Threading.CancellationTokenSource cancellation;
+            Task pending;
+            lock (_gate)
+            {
+                _generation++;
+                cancellation = _cancellation;
+                _cancellation = null;
+                pending = _pending;
+                _pending = Task.CompletedTask;
+                _connectionRecoveryPending = false;
+            }
+
+            if (cancellation != null && !cancellation.IsCancellationRequested)
+                cancellation.Cancel();
+            return CompleteAsync(pending, cancellation);
+        }
+
+        private static async Task CompleteAsync(Task pending,
             System.Threading.CancellationTokenSource cancellation)
         {
-            if (cancellation != null && !cancellation.IsCancellationRequested)
-            {
-                cancellation.Cancel();
-            }
+            try { await pending.ConfigureAwait(false); }
+            finally { cancellation?.Dispose(); }
         }
     }
 }
