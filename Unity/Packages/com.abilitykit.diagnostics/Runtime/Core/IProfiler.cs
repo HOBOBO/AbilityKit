@@ -12,18 +12,21 @@ namespace AbilityKit.Diagnostics
         private readonly IProfiler _profiler;
         private readonly string _name;
         private readonly long _startTimestamp;
+        private readonly long _contextId;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal ProbeToken(IProfiler profiler, string name, long startTimestamp)
+        internal ProbeToken(IProfiler profiler, string name, long startTimestamp, long contextId = 0L)
         {
             _profiler = profiler;
             _name = name;
             _startTimestamp = startTimestamp;
+            _contextId = contextId;
         }
 
         internal IProfiler Profiler => _profiler;
         internal string Name => _name;
         internal long StartTimestamp => _startTimestamp;
+        internal long ContextId => _contextId;
 
         /// <summary>
         /// 完成本次探针采样。
@@ -63,6 +66,14 @@ namespace AbilityKit.Diagnostics
         /// </summary>
         /// <param name="name">探针名称，建议使用点分隔格式，例如 "pipeline.execute"。</param>
         ProbeToken Begin(string name);
+
+        /// <summary>
+        /// 开始一次携带关联上下文 ID 的作用域探针采样。
+        /// 上下文 ID 用于与 Trace / 分析工件中的 ContextId 关联（0 表示无关联）。
+        /// </summary>
+        /// <param name="name">探针名称。</param>
+        /// <param name="contextId">可选的关联上下文 ID。</param>
+        ProbeToken Begin(string name, long contextId);
 
         /// <summary>
         /// 完成由 <see cref="Begin"/> 返回的作用域探针采样。

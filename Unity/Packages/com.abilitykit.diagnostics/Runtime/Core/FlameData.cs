@@ -415,6 +415,11 @@ namespace AbilityKit.Diagnostics
         public int MaxDiagnosticEvents = 256;
 
         /// <summary>
+        /// 时间线 span 环形缓冲容量（按完成顺序保留最近 N 条）。0 表示禁用时间线记录。
+        /// </summary>
+        public int MaxSpanEvents = 16384;
+
+        /// <summary>
         /// 已禁用的指标分类。
         /// </summary>
         public HashSet<string> DisabledCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -448,6 +453,7 @@ namespace AbilityKit.Diagnostics
                 DefaultSampleRate = DefaultSampleRate,
                 MaxSamplesPerMetric = MaxSamplesPerMetric,
                 MaxDiagnosticEvents = MaxDiagnosticEvents,
+                MaxSpanEvents = MaxSpanEvents,
                 DisabledCategories = new HashSet<string>(DisabledCategories ?? new HashSet<string>(), StringComparer.OrdinalIgnoreCase),
                 CategorySampleRates = new Dictionary<string, double>(CategorySampleRates ?? new Dictionary<string, double>(), StringComparer.OrdinalIgnoreCase),
                 MetricSampleRates = new Dictionary<string, double>(MetricSampleRates ?? new Dictionary<string, double>(), StringComparer.OrdinalIgnoreCase)

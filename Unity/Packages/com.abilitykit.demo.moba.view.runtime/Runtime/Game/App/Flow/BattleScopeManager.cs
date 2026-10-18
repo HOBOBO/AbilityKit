@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.Flow;
 using AbilityKit.Core.Logging;
+using AbilityKit.Game.Flow.Dungeons;
 
 namespace AbilityKit.Game.Flow
 {
@@ -76,6 +77,12 @@ namespace AbilityKit.Game.Flow
         private readonly MobaBattleAdvanceDecider _advanceDecider;
         private readonly ILogSink _log;
 
+        /// <summary>
+        /// 副本解析入口。注入后 <see cref="EnterBattle"/> 才会做副本 dry-run 校验与 scope 播种；
+        /// 为 null 时保持原有行为（纯逻辑测试与无配置环境）。
+        /// </summary>
+        private IBattleDungeonResolver _dungeonResolver;
+
         private IBattleSessionFeature _battleSessionFeature;
         private Action _sessionStartedHandler;
         private Action _worldReadyHandler;
@@ -97,22 +104,74 @@ namespace AbilityKit.Game.Flow
 
         // --- Battle 作用域生命周期 ---
 
+        /// <summary>注入副本解析器；必须在首次进入副本前设置。</summary>
+        public void SetDungeonResolver(IBattleDungeonResolver resolver) =>
+            _dungeonResolver = resolver;
+
+        /// <summary>
+        /// 解析并全量校验副本。校验不通过时抛异常，
+        /// 使调用方在创建 scope 之前就失败，不会留下半开局的副本。
+        /// </summary>
+        public MobaDungeonDef ResolveAndValidateDungeon(IBattleBootstrapper bootstrapper, string hostMode)
+        {
+            if (_dungeonResolver == null) return null;
+            if (!(bootstrapper is IBattleDungeonProvider provider)) return null;
+
+            var dungeon = _dungeonResolver.Resolve(provider.DungeonId);
+            if (dungeon == null)
+                throw new InvalidOperationException(
+                    $"副本定义不存在：{provider.DungeonId}");
+
+            var playerCount = (bootstrapper as IBattlePlayerCountProvider)?.PlayerCount ?? 1;
+            if (playerCount <= 0) playerCount = 1;
+            var validator = new MobaDungeonValidator(
+                _dungeonResolver.CreateRegistry(),
+                profileId => ProfileExists(profileId));
+            validator.ValidateOrThrow(dungeon, hostMode, playerCount);
+            return dungeon;
+        }
+
+        private static bool ProfileExists(string profileId)
+        {
+            if (string.IsNullOrWhiteSpace(profileId)) return false;
+            try { MobaBattleFlowProfileCatalog.Default.Get(profileId); return true; }
+            catch (InvalidOperationException) { return false; }
+        }
+
         public void EnterBattle(IBattleBootstrapper bootstrapper)
+            => EnterBattle(bootstrapper, null, 1);
+
+        public void EnterBattle(IBattleBootstrapper bootstrapper, string hostMode, int playerCount)
+        {
+            // 副本先解析并全量校验；失败时不创建 scope、不建连接。
+            var dungeon = ResolveAndValidateDungeon(
+                bootstrapper, hostMode ?? (bootstrapper as IBattleFlowModeProvider)?.FlowHostMode);
+            EnterBattle(bootstrapper, hostMode, playerCount, dungeon);
+        }
+
+        /// <summary>
+        /// 已在上层解析并校验过副本的入场路径。副本定义在进入流程装配时就要用到，
+        /// 因此这里复用同一个结果，避免二次解析。
+        /// </summary>
+        public void EnterBattle(IBattleBootstrapper bootstrapper, string hostMode, int playerCount,
+            MobaDungeonDef dungeon)
         {
             _callbacks.SetBattleRequested(true);
-            // Per-battle inputs are seeded before the root transition is evaluated.
-            // A bootstrapper may override the module's local/default gate policy by implementing
-            // IFlowGateProvider; seeded services remain caller-owned.
+            // 每局输入在评估根状态转移之前播种。
+            // bootstrapper 可以通过实现 IFlowGateProvider 覆盖模块的本地/默认闸门策略；
+            // 播种进来的服务生命周期仍归调用方所有。
             if (bootstrapper != null)
             {
                 _battleWorldScope.BeginBattle(seeder =>
                 {
                     seeder.Seed<IBattleBootstrapper>(bootstrapper);
+                    if (dungeon != null) seeder.Seed(dungeon);
                     if (bootstrapper is IFlowGateProvider gates)
                     {
                         seeder.Seed<IFlowGateProvider>(gates);
                     }
                 });
+                _battleWorldScope.SeedPlayerCount(playerCount);
             }
             else
             {

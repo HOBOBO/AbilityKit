@@ -10,13 +10,15 @@ using AbilityKit.Triggering.Payload;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    internal sealed class SkillAwaitEventPhase : AbilityPipelinePhaseBase<SkillPipelineContext>,
-        IInterruptiblePhase<SkillPipelineContext>, IAbilityPipelinePhaseInstanceFactory<SkillPipelineContext>
+    internal sealed class SkillAwaitEventPhase : SkillRollbackPhaseBase,
+        IInterruptiblePhase<SkillPipelineContext>, IAbilityPipelinePhaseInstanceFactory<SkillPipelineContext>,
+        IAbilityPhaseRollbackRebind<SkillPipelineContext>, IAbilityPhaseRollbackDetach
     {
         private readonly SkillAwaitEventPhaseDTO _specification;
         private double _elapsedMs;
         private bool _received;
         private IDisposable _subscription;
+        private bool _rebindSubscription;
 
         public SkillAwaitEventPhase(AbilityPipelinePhaseId phaseId, SkillAwaitEventPhaseDTO specification)
             : base(phaseId)
@@ -72,6 +74,46 @@ namespace AbilityKit.Demo.Moba.Services
             _received = false;
             DisposeSubscription();
         }
+
+        public override PipelinePhaseRollbackState CaptureRollbackState()
+        {
+            var state = base.CaptureRollbackState();
+            state.Numbers = new[] { _elapsedMs };
+            state.Integers = new[] { _received ? 1 : 0, _subscription != null ? 1 : 0 };
+            return state;
+        }
+
+        public override void ValidateRollbackState(PipelinePhaseRollbackState state)
+        {
+            base.ValidateRollbackState(state);
+            if (state?.Numbers == null || state.Numbers.Length != 1 ||
+                double.IsNaN(state.Numbers[0]) || double.IsInfinity(state.Numbers[0]) ||
+                state.Numbers[0] < 0 || state.Integers == null || state.Integers.Length != 2 ||
+                state.Integers[0] is < 0 or > 1 || state.Integers[1] is < 0 or > 1)
+                throw new InvalidOperationException("Invalid skill event wait rollback state.");
+        }
+
+        public override void RestoreRollbackState(PipelinePhaseRollbackState state)
+        {
+            ValidateRollbackState(state);
+            base.RestoreRollbackState(state);
+            _elapsedMs = state.Numbers[0];
+            _received = state.Integers[0] == 1;
+            _rebindSubscription = state.Integers[1] == 1;
+        }
+
+        public void RebindAfterRollback(SkillPipelineContext context)
+        {
+            DisposeSubscription();
+            if (!_rebindSubscription || IsComplete || _received) return;
+            if (context?.EventBus == null)
+                throw new InvalidOperationException("Skill event bus is unavailable during rollback restore.");
+            var key = new EventKey<object>(TriggeringIdUtil.GetEventEid(_specification.EventId));
+            _subscription = context.EventBus.Subscribe(key, payload => OnEvent(context, payload));
+            _rebindSubscription = false;
+        }
+
+        public void DetachForRollback() => DisposeSubscription();
 
         protected override void OnExit(SkillPipelineContext context)
         {

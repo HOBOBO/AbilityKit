@@ -14,7 +14,7 @@ namespace AbilityKit.Game.Tests
         public void PresentationActionProjectsWithoutLogicWorld()
         {
             var view = new BattleCharacterHfsmComponent();
-            var action = new CharacterActionData(41, 1, 105, "life/alive/action/casting",
+            var action = new CharacterActionData(41, 1, 105, "life/alive/action/idle",
                 ((long)41 << 32) | 100u, 100, 5, 77, 7001);
             view.ApplyPresentation(in action);
 

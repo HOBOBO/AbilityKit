@@ -37,6 +37,8 @@
     <ProjectReference Include="..\AbilityKit.HFSM.Core\AbilityKit.HFSM.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Flow\AbilityKit.Flow.csproj" />
     <ProjectReference Include="..\AbilityKit.Combat.Collision.Abstractions\AbilityKit.Combat.Collision.Abstractions.csproj" />
+    <ProjectReference Include="..\AbilityKit.Diagnostics\AbilityKit.Diagnostics.csproj" />
+    <ProjectReference Include="..\AbilityKit.Diagnostics.Exporters\AbilityKit.Diagnostics.Exporters.csproj" />
   </ItemGroup>
 
   <!-- NuGet Dependencies -->

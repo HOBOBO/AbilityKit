@@ -322,5 +322,105 @@
     ],
     "Radius": 4,
     "VfxId": 90006002
+  },
+  {
+    "Id": 40070101,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 250,
+    "DurationMs": 1400,
+    "IntervalMs": 500,
+    "MaxTargets": 10,
+    "ModelId": 90000101,
+    "Name": "嬴政-王者惩戒-目标点剑阵区域",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [
+      10070111
+    ],
+    "OnIntervalTriggerIds": [
+      10070111
+    ],
+    "Radius": 4,
+    "VfxId": 90006001
+  },
+  {
+    "Id": 40070201,
+    "AttachMode": 1,
+    "CollisionLayerMask": 1,
+    "DelayMs": 0,
+    "DurationMs": 300,
+    "MaxTargets": 10,
+    "ModelId": 90000101,
+    "Name": "嬴政-王者守御-自身清场区域",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [
+      10070211
+    ],
+    "Radius": 4,
+    "VfxId": 90006002
+  },
+  {
+    "Id": 40070202,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 0,
+    "DurationMs": 2000,
+    "IntervalMs": 500,
+    "MaxTargets": 10,
+    "ModelId": 90000101,
+    "Name": "墨子-机关重炮-弹坑持续伤害区域",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [
+      10070212
+    ],
+    "OnIntervalTriggerIds": [
+      10070212
+    ],
+    "Radius": 3.5,
+    "VfxId": 90004004
+  },
+  {
+    "Id": 40070203,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 0,
+    "DurationMs": 2000,
+    "IntervalMs": 0,
+    "MaxTargets": 10,
+    "ModelId": 90000101,
+    "Name": "SunShangxiang Skill2 Explosion Area",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [
+      10070212
+    ],
+    "Radius": 4,
+    "VfxId": 90003002
+  },
+  {
+    "Id": 40080101,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 0,
+    "DurationMs": 300,
+    "IntervalMs": 0,
+    "MaxTargets": 10,
+    "ModelId": 90000101,
+    "Name": "鲁班七号-河豚手雷-爆炸区域",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [
+      10080112
+    ],
+    "Radius": 4,
+    "VfxId": 90003002
   }
 ]

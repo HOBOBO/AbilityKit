@@ -4,7 +4,8 @@ using AbilityKit.Pipeline;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    internal sealed class SkillEconomyPhase : AbilityInstantPhaseBase<SkillPipelineContext>
+    internal sealed class SkillEconomyPhase : AbilityInstantPhaseBase<SkillPipelineContext>,
+        IAbilityPipelinePhaseInstanceFactory<SkillPipelineContext>
     {
         private readonly SkillEconomyPhaseDTO _specification;
 
@@ -13,6 +14,9 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _specification = specification ?? throw new ArgumentNullException(nameof(specification));
         }
+
+        public IAbilityPipelinePhase<SkillPipelineContext> CreateRunPhase()
+            => new SkillEconomyPhase(PhaseId, _specification);
 
         protected override void OnInstantExecute(SkillPipelineContext context)
         {

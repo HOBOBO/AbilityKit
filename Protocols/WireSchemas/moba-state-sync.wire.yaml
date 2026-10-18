@@ -357,6 +357,36 @@ types:
       - { id: 56, name: predictionState, scalarType: int32, required: true }
       - { id: 57, name: predictedFrame, scalarType: int32, required: true }
       - { id: 58, name: confirmedFrame, scalarType: int32, required: true }
+      # P0/P1/P2 extensions are append-only so older sequential readers keep
+      # their existing field order and new readers can safely default them.
+      - { id: 59, name: lifetime, scalarType: int32, required: true }
+      - { id: 60, name: domain, scalarType: int32, required: true }
+      - { id: 61, name: parameterSchemaVersion, scalarType: int32, required: true }
+      - { id: 62, name: snapshotKind, scalarType: int32, required: true }
+      - { id: 63, name: worldId, scalarType: int64, required: true }
+      - { id: 64, name: generation, scalarType: int64, required: true }
+      - { id: 65, name: sourceFrame, scalarType: int32, required: true }
+      - { id: 66, name: sequence, scalarType: int64, required: true }
+      - { id: 67, name: revision, scalarType: int32, required: true }
+      - id: 68
+        name: parameters
+        type: AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueParameter
+        array: true
+        required: true
+      - { id: 69, name: eventKey, scalarType: string, required: true }
+
+  - name: MobaPresentationCueParameter
+    fields:
+      - { id: 0, name: key, scalarType: int32, required: true }
+      - { id: 1, name: valueKind, scalarType: int32, required: true }
+      - { id: 2, name: integerValue, scalarType: int64, required: true }
+      - { id: 3, name: floatValue, scalarType: float, required: true }
+      - { id: 4, name: stringValue, scalarType: string, required: true }
+      - { id: 5, name: boolValue, scalarType: bool, required: true }
+      - { id: 6, name: vectorX, scalarType: float, required: true }
+      - { id: 7, name: vectorY, scalarType: float, required: true }
+      - { id: 8, name: vectorZ, scalarType: float, required: true }
+      - { id: 9, name: vectorW, scalarType: float, required: true }
 
   - name: MobaPresentationCueSnapshotPayload
     fields:

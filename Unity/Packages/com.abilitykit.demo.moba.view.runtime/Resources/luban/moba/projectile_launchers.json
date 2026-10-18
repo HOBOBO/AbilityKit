@@ -133,5 +133,95 @@
     "FanAngleDeg": 0,
     "IntervalMs": 0,
     "Name": "嬴政-普通攻击-单发飞剑发射器"
+  },
+  {
+    "Id": 31070001,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "嬴政-普通攻击-单发飞剑发射器"
+  },
+  {
+    "Id": 31070301,
+    "CountPerShot": 5,
+    "DurationMs": 2500,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 250,
+    "Name": "嬴政-至尊王权-飞剑发射器"
+  },
+  {
+    "Id": 31070201,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "墨子-机关重炮-单发炮弹发射器"
+  },
+  {
+    "Id": 31070202,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "SunShangxiang Skill2 Launcher"
+  },
+  {
+    "Id": 31070302,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "SunShangxiang Skill3 Launcher"
+  },
+  {
+    "Id": 31080001,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "鲁班七号-普通攻击发射器"
+  },
+  {
+    "Id": 31080101,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "鲁班七号-河豚手雷发射器"
+  },
+  {
+    "Id": 31080201,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "鲁班七号-无敌鲨嘴炮发射器"
+  },
+  {
+    "Id": 31080301,
+    "CountPerShot": 3,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 35,
+    "IntervalMs": 0,
+    "Name": "鲁班七号-扫射发射器"
+  },
+  {
+    "Id": 31080401,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "鲁班七号-召唤物投弹发射器"
   }
 ]

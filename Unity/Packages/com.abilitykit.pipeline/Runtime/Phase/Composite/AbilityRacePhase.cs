@@ -11,6 +11,20 @@ namespace AbilityKit.Pipeline
         private readonly List<int> _activePhases = new List<int>(8);
         private int _debugExecutingPhaseIndex = -1;
 
+        public IReadOnlyList<int> ActivePhaseIndices => _activePhases;
+
+        public void SetActivePhases(IReadOnlyList<int> indices)
+        {
+            if (indices == null) throw new System.ArgumentNullException(nameof(indices));
+            var seen = new HashSet<int>();
+            for (int i = 0; i < indices.Count; i++)
+                if (indices[i] < 0 || indices[i] >= _subPhases.Count || !seen.Add(indices[i]))
+                    throw new System.ArgumentOutOfRangeException(nameof(indices));
+            _activePhases.Clear();
+            for (int i = 0; i < indices.Count; i++) _activePhases.Add(indices[i]);
+            _debugExecutingPhaseIndex = -1;
+        }
+
         public AbilityRacePhase(AbilityPipelinePhaseId phaseId) : base(phaseId)
         {
         }
@@ -88,6 +102,7 @@ namespace AbilityKit.Pipeline
             _activePhases.Clear();
             _debugExecutingPhaseIndex = -1;
         }
+
 
         private void CompleteRace(TCtx context, int winnerIndex)
         {

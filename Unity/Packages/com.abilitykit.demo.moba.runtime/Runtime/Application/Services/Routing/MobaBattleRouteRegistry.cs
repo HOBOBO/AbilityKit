@@ -19,9 +19,14 @@ namespace AbilityKit.Demo.Moba.Services
             var registry = new MobaBattleRouteRegistry();
             if (RegisterGeneratedAndExternalRoutes(registry) == 0)
             {
-                if (AppContext.TryGetSwitch(
+                var reflectionFallbackDisabled =
+                    AppContext.TryGetSwitch(
                         "AbilityKit.Moba.DisableBattleRouteReflectionFallback",
-                        out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+                        out var configuredFallbackDisabled) && configuredFallbackDisabled;
+#if !UNITY_EDITOR && !DEVELOPMENT_BUILD
+                reflectionFallbackDisabled = true;
+#endif
+                if (reflectionFallbackDisabled)
                 {
                     throw new InvalidOperationException(
                         "The generated MOBA battle route manifest is empty and reflection fallback is disabled.");

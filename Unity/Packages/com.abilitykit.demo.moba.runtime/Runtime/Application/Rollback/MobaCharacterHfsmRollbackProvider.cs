@@ -6,6 +6,7 @@ using System.Text;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Deterministic;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Demo.Moba.Services.StateSync;
@@ -102,7 +103,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             {
                 if (restored.Contains(id)) continue;
                 if (_actors.TryGet(id, out var actor) && actor.hasCharacterHfsm)
-                    actor.RemoveCharacterHfsm();
+                    actor.RemoveAndDisposeCharacterHfsm();
             }
         }
 

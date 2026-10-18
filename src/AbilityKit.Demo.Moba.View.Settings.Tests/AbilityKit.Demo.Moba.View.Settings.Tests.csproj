@@ -10,8 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Flow/Core/Settings/FlatJsonSettings.cs" Link="Production/FlatJsonSettings.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Flow/Core/Settings/LayeredJsonSettingsStore.cs" Link="Production/LayeredJsonSettingsStore.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Logic/Flow/Settings/FlatJsonSettings.cs" Link="Production/FlatJsonSettings.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Logic/Flow/Settings/LayeredJsonSettingsStore.cs" Link="Production/LayeredJsonSettingsStore.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Settings/JsonSettingsFiles.cs" Link="Production/JsonSettingsFiles.cs" />
   </ItemGroup>
 

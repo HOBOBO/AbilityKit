@@ -41,6 +41,8 @@ public sealed class MobaModifierConsumerContractTests
             Assert.True(MobaSkillParamModifierKeys.TryGetConsumerTypeName(id, out var typeName));
             Assert.Contains(consumer.Method.DeclaringType?.Name, typeName.Split(','));
             Assert.True(Enum.IsDefined(typeof(MobaModifierSampleTiming), consumer.Contract.Timing));
+            Assert.True(MobaSkillParamModifierKeys.TryGetConsumerSampleTiming(id, out var publishedTiming));
+            Assert.Equal(publishedTiming, consumer.Contract.Timing);
         }
 
         foreach (var row in rows)
@@ -54,12 +56,28 @@ public sealed class MobaModifierConsumerContractTests
                 $"Published modifier parameter {id} ({row.Value<string>("Key")}) has no runtime consumer.");
             Assert.True(MobaSkillParamModifierKeys.TryGetConsumerTypeName(id, out var typeName));
             Assert.Equal(typeName.Split(',').OrderBy(name => name, StringComparer.Ordinal),
-                registrations.Select(registration => registration.Method.DeclaringType?.Name)
-                    .Distinct().OrderBy(name => name, StringComparer.Ordinal));
+                    registrations.Select(registration => registration.Method.DeclaringType?.Name)
+                        .Distinct().OrderBy(name => name, StringComparer.Ordinal));
+            Assert.True(MobaSkillParamModifierKeys.TryGetConsumerSampleTiming(id, out _));
             foreach (var registration in registrations)
                 _output.WriteLine($"{id} {row.Value<string>("Key")} {registration.Contract.Stage} " +
                     $"{registration.Contract.Timing} {registration.Method.DeclaringType?.FullName}." +
                     registration.Method.Name);
         }
+    }
+
+    [Fact]
+    public void Generated_parameter_schema_enforces_declared_value_bounds()
+    {
+        Assert.True(MobaSkillParamModifierKeys.TryValidateValue(
+            MobaSkillParamModifierKeys.Emitter.Ids.FanAngleDeg, 360f, out _));
+        Assert.False(MobaSkillParamModifierKeys.TryValidateValue(
+            MobaSkillParamModifierKeys.Emitter.Ids.FanAngleDeg, 360.01f, out _));
+        Assert.True(MobaSkillParamModifierKeys.TryValidateValue(
+            MobaSkillParamModifierKeys.Emitter.Ids.CountPerShot, 1f, out _));
+        Assert.False(MobaSkillParamModifierKeys.TryValidateValue(
+            MobaSkillParamModifierKeys.Emitter.Ids.CountPerShot, 0f, out _));
+        Assert.False(MobaSkillParamModifierKeys.TryValidateValue(
+            MobaSkillParamModifierKeys.Skill.Ids.ResourceCost, float.NaN, out _));
     }
 }

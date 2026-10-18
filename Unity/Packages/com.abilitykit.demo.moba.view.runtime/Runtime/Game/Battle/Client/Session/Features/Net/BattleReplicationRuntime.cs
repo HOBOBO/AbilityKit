@@ -35,10 +35,6 @@ namespace AbilityKit.Game.Flow
             SyncControllerRegistry = CreateSyncControllerRegistry();
 
         private readonly object _inputSubmissionStatsGate = new object();
-#if UNITY_5_3_OR_NEWER
-        private readonly BattleRemoteInterpolationApplier.Session _actorView =
-            new BattleRemoteInterpolationApplier.Session();
-#endif
         private readonly Action _beforeInputSubmissionStatsBind;
         private int _generation;
         private Action<object> _snapshotPushed;
@@ -254,8 +250,8 @@ namespace AbilityKit.Game.Flow
 #if UNITY_5_3_OR_NEWER
         internal void TickPresentation(
             BattleContext context,
-            bool enableClientPrediction,
-            float deltaTime)
+            float deltaTime,
+            Action<GatewayStateSyncSnapshot> onProjected)
         {
             if (InterpolationController == null || ReplicationPipeline == null || context == null)
             {
@@ -266,19 +262,12 @@ namespace AbilityKit.Game.Flow
             TickSynchronizationHealth(context, deltaTime);
 
             if (!InterpolationController.TryProjectRemoteFrame(out var projected)) return;
-
-            var localActorId = BattleRemoteInterpolationApplier.ResolveExcludedLocalActorId(
-                enableClientPrediction,
-                context.LocalActorId);
-            _actorView.Apply(context, in projected, localActorId);
+            onProjected?.Invoke(projected);
         }
 #endif
 
         public void Dispose()
         {
-#if UNITY_5_3_OR_NEWER
-            _actorView.Reset();
-#endif
             _generation++;
             var transport = Transport;
             Transport = null;

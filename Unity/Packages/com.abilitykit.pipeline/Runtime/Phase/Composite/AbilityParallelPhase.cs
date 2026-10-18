@@ -12,6 +12,20 @@ namespace AbilityKit.Pipeline
         private readonly List<int> _activePhases = new List<int>(8);
         private int _debugExecutingPhaseIndex = -1;
 
+        public IReadOnlyList<int> ActivePhaseIndices => _activePhases;
+
+        public void SetActivePhases(IReadOnlyList<int> indices)
+        {
+            if (indices == null) throw new System.ArgumentNullException(nameof(indices));
+            var seen = new HashSet<int>();
+            for (int i = 0; i < indices.Count; i++)
+                if (indices[i] < 0 || indices[i] >= _subPhases.Count || !seen.Add(indices[i]))
+                    throw new System.ArgumentOutOfRangeException(nameof(indices));
+            _activePhases.Clear();
+            for (int i = 0; i < indices.Count; i++) _activePhases.Add(indices[i]);
+            _debugExecutingPhaseIndex = -1;
+        }
+
         internal bool DebugIsChildActive(int index)
         {
             return index == _debugExecutingPhaseIndex || _activePhases.Contains(index);
@@ -97,5 +111,6 @@ namespace AbilityKit.Pipeline
             _activePhases.Clear();
             _debugExecutingPhaseIndex = -1;
         }
+
     }
 }

@@ -10,7 +10,6 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public string Name { get; }
         public IReadOnlyList<int> TriggerIds { get; }
         public int DefaultDurationMs { get; }
-        public int WinPolicy { get; }
         public IReadOnlyList<int> Tags { get; }
 
         public GameplayMO(GameplayDTO dto)
@@ -20,7 +19,6 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             Name = dto.Name;
             TriggerIds = dto.TriggerIds ?? Array.Empty<int>();
             DefaultDurationMs = dto.DefaultDurationMs;
-            WinPolicy = dto.WinPolicy;
             Tags = dto.Tags ?? Array.Empty<int>();
         }
     }

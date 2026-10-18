@@ -52,6 +52,13 @@ namespace AbilityKit.Demo.Moba.CodeGen
             }
 
             emitters.Sort(CompareEmitters);
+            if (emitters.Count == 0)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MobaDiagnosticRules.EmptySnapshotEmitterManifestRule,
+                    manifestType!.Locations.FirstOrDefault(location => location.IsInSource) ?? Location.None));
+            }
+
             context.AddSource("MobaGeneratedSnapshotEmitterManifest.g.cs", GenerateSource(emitters));
         }
 

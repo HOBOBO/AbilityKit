@@ -24,7 +24,8 @@ namespace AbilityKit.Game.Flow
         internal static ViewInstanceResources Create(
             string hierarchyName,
             BattleViewResourceProvider resources,
-            BattleProjectionViewCapabilities capabilities)
+            BattleProjectionViewCapabilities capabilities,
+            bool allowMainCameraFallback = false)
         {
             var owner = new ViewInstanceResources(resources);
             try
@@ -44,7 +45,8 @@ namespace AbilityKit.Game.Flow
                         hierarchy: hierarchy,
                         capacityPerKindPerTemplate: 8);
                 if ((capabilities & BattleProjectionViewCapabilities.Camera) != 0)
-                    owner.CameraController = new BattleViewCameraController(BattleCameraConfig.Default);
+                    owner.CameraController = new BattleViewCameraController(
+                        BattleCameraConfig.Default, allowMainCameraFallback);
 
                 var overlay = owner._hierarchyRoot.GetOrAddStatsOverlay();
                 owner._shellStats = new BattleViewShellPoolStatsProvider(owner.ShellPool);

@@ -54,6 +54,13 @@ namespace AbilityKit.Demo.Moba.CodeGen
                 modules.Add(new ModuleInfo(type, MobaPlanActionContract.ResolveOrder(attribute)));
             }
 
+            if (modules.Count == 0)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MobaDiagnosticRules.EmptyPlanActionManifestRule,
+                    manifestType.Locations.FirstOrDefault(location => location.IsInSource) ?? Location.None));
+            }
+
             modules.Sort((left, right) =>
             {
                 var order = left.Order.CompareTo(right.Order);

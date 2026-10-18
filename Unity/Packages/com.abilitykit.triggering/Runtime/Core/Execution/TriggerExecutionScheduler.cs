@@ -26,9 +26,9 @@ namespace AbilityKit.Triggering.Runtime
         Failed = 3,
     }
 
-    public readonly struct TriggerScheduledExecutionSnapshot
+    public readonly struct TriggerScheduledExecutionInfo
     {
-        public TriggerScheduledExecutionSnapshot(
+        public TriggerScheduledExecutionInfo(
             long id,
             TriggerScheduledExecutionState state,
             double elapsedMs,
@@ -52,18 +52,6 @@ namespace AbilityKit.Triggering.Runtime
         public string FailureReason { get; }
     }
 
-    public readonly struct TriggerExecutionSchedulerSnapshot
-    {
-        public TriggerExecutionSchedulerSnapshot(long nextId, TriggerScheduledExecutionSnapshot[] entries)
-        {
-            NextId = nextId;
-            Entries = entries ?? Array.Empty<TriggerScheduledExecutionSnapshot>();
-        }
-
-        public long NextId { get; }
-        public TriggerScheduledExecutionSnapshot[] Entries { get; }
-    }
-
     public interface ITriggerExecutionScheduler
     {
         TriggerScheduledExecutionHandle Schedule<TCtx>(
@@ -78,8 +66,7 @@ namespace AbilityKit.Triggering.Runtime
     }
 
     /// <summary>
-    /// Frame-driven scheduler for executable subtrees. Definitions are retained until
-    /// Clear so an in-process rollback can reactivate an instance completed after the checkpoint.
+    /// Frame-driven scheduler for executable subtrees.
     /// </summary>
     public sealed class TriggerExecutionScheduler : ITriggerExecutionScheduler
     {
@@ -100,10 +87,18 @@ namespace AbilityKit.Triggering.Runtime
 
         private readonly Dictionary<long, Entry> _definitions = new Dictionary<long, Entry>();
         private readonly List<Entry> _ordered = new List<Entry>();
+        private readonly bool _retainFinishedEntries;
         private long _nextId = 1L;
+        private int _tickDepth;
+
+        public TriggerExecutionScheduler(bool retainFinishedEntries = false)
+        {
+            _retainFinishedEntries = retainFinishedEntries;
+        }
 
         public int ActiveCount { get; private set; }
         public int DefinitionCount => _definitions.Count;
+        public long NextExecutionId => _nextId;
 
         public TriggerScheduledExecutionHandle Schedule<TCtx>(
             ITriggerPlanExecutable executable,
@@ -142,31 +137,40 @@ namespace AbilityKit.Triggering.Runtime
         public void Tick(float deltaTimeMs)
         {
             var delta = Math.Max(0d, deltaTimeMs);
-            for (var i = 0; i < _ordered.Count; i++)
+            _tickDepth++;
+            try
             {
-                var entry = _ordered[i];
-                if (entry.State != TriggerScheduledExecutionState.Waiting) continue;
-
-                entry.ElapsedMs += delta;
-                if (!IsDue(entry)) continue;
-
-                try
+                for (var i = 0; i < _ordered.Count; i++)
                 {
-                    var result = entry.Execute();
-                    if (result.IsFailed)
+                    var entry = _ordered[i];
+                    if (entry.State != TriggerScheduledExecutionState.Waiting) continue;
+
+                    entry.ElapsedMs += delta;
+                    if (!IsDue(entry)) continue;
+
+                    try
                     {
-                        Complete(entry, TriggerScheduledExecutionState.Failed, result.Reason);
-                        continue;
-                    }
+                        var result = entry.Execute();
+                        if (result.IsFailed)
+                        {
+                            Complete(entry, TriggerScheduledExecutionState.Failed, result.Reason);
+                            continue;
+                        }
 
-                    entry.ExecutionCount++;
-                    entry.LastExecutionMs = entry.ElapsedMs;
-                    if (ShouldComplete(entry)) Complete(entry, TriggerScheduledExecutionState.Completed, null);
+                        entry.ExecutionCount++;
+                        entry.LastExecutionMs = entry.ElapsedMs;
+                        if (ShouldComplete(entry)) Complete(entry, TriggerScheduledExecutionState.Completed, null);
+                    }
+                    catch (Exception ex)
+                    {
+                        Complete(entry, TriggerScheduledExecutionState.Failed, ex.Message);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Complete(entry, TriggerScheduledExecutionState.Failed, ex.Message);
-                }
+            }
+            finally
+            {
+                _tickDepth--;
+                if (_tickDepth == 0 && !_retainFinishedEntries) PruneFinishedEntries();
             }
         }
 
@@ -179,18 +183,23 @@ namespace AbilityKit.Triggering.Runtime
                 if (result.IsFailed)
                 {
                     Complete(entry, TriggerScheduledExecutionState.Failed, result.Reason);
+                    if (!_retainFinishedEntries && _tickDepth == 0) Remove(entry.Id);
                     return false;
                 }
 
                 entry.ExecutionCount++;
                 entry.LastExecutionMs = entry.ElapsedMs;
                 if (entry.MaxExecutions > 0 && entry.ExecutionCount >= entry.MaxExecutions)
+                {
                     Complete(entry, TriggerScheduledExecutionState.Completed, null);
+                    if (!_retainFinishedEntries && _tickDepth == 0) Remove(entry.Id);
+                }
                 return true;
             }
             catch (Exception ex)
             {
                 Complete(entry, TriggerScheduledExecutionState.Failed, ex.Message);
+                if (!_retainFinishedEntries && _tickDepth == 0) Remove(entry.Id);
                 return false;
             }
         }
@@ -199,16 +208,17 @@ namespace AbilityKit.Triggering.Runtime
         {
             if (!TryGetWaiting(handle, out var entry) || !entry.CanBeInterrupted) return false;
             Complete(entry, TriggerScheduledExecutionState.Interrupted, reason);
+            if (!_retainFinishedEntries && _tickDepth == 0) Remove(entry.Id);
             return true;
         }
 
-        public TriggerExecutionSchedulerSnapshot CaptureSnapshot()
+        public TriggerScheduledExecutionInfo[] GetExecutions()
         {
-            var entries = new TriggerScheduledExecutionSnapshot[_ordered.Count];
+            var entries = new TriggerScheduledExecutionInfo[_ordered.Count];
             for (var i = 0; i < _ordered.Count; i++)
             {
                 var entry = _ordered[i];
-                entries[i] = new TriggerScheduledExecutionSnapshot(
+                entries[i] = new TriggerScheduledExecutionInfo(
                     entry.Id,
                     entry.State,
                     entry.ElapsedMs,
@@ -217,40 +227,48 @@ namespace AbilityKit.Triggering.Runtime
                     entry.FailureReason);
             }
 
-            return new TriggerExecutionSchedulerSnapshot(_nextId, entries);
+            return entries;
         }
 
-        public void RestoreSnapshot(in TriggerExecutionSchedulerSnapshot snapshot)
+        public bool ContainsDefinition(long id) => _definitions.ContainsKey(id);
+
+        public void SetExecutionProgress(in TriggerScheduledExecutionInfo progress)
         {
-            var states = snapshot.Entries ?? Array.Empty<TriggerScheduledExecutionSnapshot>();
-            var restoredIds = new HashSet<long>();
-            for (var i = 0; i < states.Length; i++)
-            {
-                var state = states[i];
-                if (!_definitions.TryGetValue(state.Id, out var entry))
-                    throw new InvalidOperationException($"Cannot restore scheduled execution '{state.Id}' because its executable definition is unavailable.");
-                restoredIds.Add(state.Id);
-                entry.State = state.State;
-                entry.ElapsedMs = Math.Max(0d, state.ElapsedMs);
-                entry.LastExecutionMs = Math.Max(0d, state.LastExecutionMs);
-                entry.ExecutionCount = Math.Max(0, state.ExecutionCount);
-                entry.FailureReason = state.FailureReason;
-            }
-
-            // Definitions created after the checkpoint must be removed. Replay is allowed to
-            // allocate their IDs again after NextId is restored.
-            for (var i = _ordered.Count - 1; i >= 0; i--)
-            {
-                var entry = _ordered[i];
-                if (!restoredIds.Contains(entry.Id))
-                {
-                    _ordered.RemoveAt(i);
-                    _definitions.Remove(entry.Id);
-                }
-            }
-
-            _nextId = Math.Max(1L, snapshot.NextId);
+            if (!_definitions.TryGetValue(progress.Id, out var entry))
+                throw new ArgumentOutOfRangeException(nameof(progress));
+            if (progress.State < TriggerScheduledExecutionState.Waiting ||
+                progress.State > TriggerScheduledExecutionState.Failed ||
+                progress.ElapsedMs < 0 || double.IsNaN(progress.ElapsedMs) || double.IsInfinity(progress.ElapsedMs) ||
+                progress.LastExecutionMs < 0 || double.IsNaN(progress.LastExecutionMs) ||
+                double.IsInfinity(progress.LastExecutionMs) || progress.ExecutionCount < 0)
+                throw new ArgumentOutOfRangeException(nameof(progress));
+            entry.State = progress.State;
+            entry.ElapsedMs = progress.ElapsedMs;
+            entry.LastExecutionMs = progress.LastExecutionMs;
+            entry.ExecutionCount = progress.ExecutionCount;
+            entry.FailureReason = progress.FailureReason;
             RecountActive();
+            if (!_retainFinishedEntries && _tickDepth == 0 &&
+                progress.State != TriggerScheduledExecutionState.Waiting)
+                Remove(progress.Id);
+        }
+
+        public bool Remove(long id)
+        {
+            if (_tickDepth != 0) throw new InvalidOperationException("Cannot remove an execution during a scheduler tick.");
+            if (!_definitions.TryGetValue(id, out var entry)) return false;
+            _definitions.Remove(id);
+            _ordered.Remove(entry);
+            if (entry.State == TriggerScheduledExecutionState.Waiting) ActiveCount--;
+            return true;
+        }
+
+        public void SetNextExecutionId(long nextId)
+        {
+            if (nextId <= 0) throw new ArgumentOutOfRangeException(nameof(nextId));
+            for (var i = 0; i < _ordered.Count; i++)
+                if (_ordered[i].Id >= nextId) throw new ArgumentOutOfRangeException(nameof(nextId));
+            _nextId = nextId;
         }
 
         public void Clear()
@@ -305,6 +323,16 @@ namespace AbilityKit.Triggering.Runtime
             for (var i = 0; i < _ordered.Count; i++)
             {
                 if (_ordered[i].State == TriggerScheduledExecutionState.Waiting) ActiveCount++;
+            }
+        }
+
+        private void PruneFinishedEntries()
+        {
+            for (var i = _ordered.Count - 1; i >= 0; i--)
+            {
+                if (_ordered[i].State == TriggerScheduledExecutionState.Waiting) continue;
+                _definitions.Remove(_ordered[i].Id);
+                _ordered.RemoveAt(i);
             }
         }
     }

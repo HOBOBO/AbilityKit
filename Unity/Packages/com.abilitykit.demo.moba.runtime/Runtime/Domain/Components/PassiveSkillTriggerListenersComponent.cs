@@ -5,6 +5,7 @@ using Entitas.CodeGeneration.Attributes;
 namespace AbilityKit.Demo.Moba.Components
 {
     [Actor]
+    [EntitasBlob]
     public sealed class PassiveSkillTriggerListenersComponent : IComponent
     {
         public List<PassiveSkillTriggerListenerRuntime> Active;

@@ -307,6 +307,7 @@ namespace AbilityKit.Game
     {
         private readonly BattleGatewayConfigSO _config;
         private readonly DemoMultiplayerLaunchRequest _launchRequest;
+        private readonly MultiplayerBattleAssetLoadingOptions _assetLoading;
         private readonly GatewayPushOperationRuntime _pushOperations =
             new GatewayPushOperationRuntime();
         private readonly MultiplayerGatewayEntryRuntime _entryRuntime =
@@ -331,9 +332,11 @@ namespace AbilityKit.Game
 
         public MultiplayerGatewayEntryModule(
             BattleGatewayConfigSO config,
+            MultiplayerBattleAssetLoadingOptions assetLoading,
             DemoMultiplayerLaunchRequest launchRequest = null)
         {
             _config = config;
+            _assetLoading = assetLoading ?? throw new ArgumentNullException(nameof(assetLoading));
             _launchRequest = launchRequest;
         }
 
@@ -425,11 +428,10 @@ namespace AbilityKit.Game
                     new ClientRoomSnapshotProvider(resources.Store);
                 attachment.Register(resources.SnapshotProvider.Dispose);
                 resources.AssetLoader = new MultiplayerBattleAssetLoader(
-                    ResourcesBattleAssetLoadService.Default,
-                    dependencyProvider: ResourcesBattleAssetDependencyProvider.Default,
+                    _assetLoading.LoadService,
+                    dependencyProvider: _assetLoading.DependencyProvider,
                     mainThreadDispatcher: callbackDispatcher,
-                    localTagBundleVersion: AbilityKit.Demo.Moba.Services.MobaGameplayTagCatalog.VerifyPublishedBundle(
-                        new AbilityKit.Demo.Moba.View.Config.ResourcesTextAssetLoader()));
+                    localTagBundleVersion: _assetLoading.LocalTagBundleVersion);
                 resources.Controller = new MultiplayerRoomFlowController(
                     resources.Session,
                     resources.SnapshotProvider,

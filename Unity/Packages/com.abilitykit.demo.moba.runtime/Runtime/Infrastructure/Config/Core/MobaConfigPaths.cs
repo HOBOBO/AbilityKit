@@ -43,6 +43,8 @@
 
         public const string GameplaysFile = "gameplays";
 
+        public const string DungeonsFile = "dungeons";
+
         public const string MotionGroupsFile = "motion_groups";
     }
 }

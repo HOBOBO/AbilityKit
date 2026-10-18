@@ -6,7 +6,7 @@ using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    public sealed class SkillRunnerRegistry
+    public sealed partial class SkillRunnerRegistry
     {
         private readonly Dictionary<int, SkillPipelineRunner> _runners = new();
         private readonly IWorldClock _clock;

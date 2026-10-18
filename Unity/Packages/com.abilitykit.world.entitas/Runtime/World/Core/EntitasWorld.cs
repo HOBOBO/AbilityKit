@@ -3,6 +3,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Logging;
+using AbilityKit.Diagnostics;
 
 namespace AbilityKit.Ability.World
 {
@@ -18,6 +19,7 @@ namespace AbilityKit.Ability.World
         private WorldScope _scope;
         private bool _initialized;
         private IWorldClock _clock;
+        private long _profileFrame;
 
         private global::Entitas.IContexts _contexts;
 
@@ -116,6 +118,12 @@ namespace AbilityKit.Ability.World
             }
             _clock?.Tick(deltaTime);
 
+            // 世界 tick 根作用域：Profiler 关闭时零开销（NullProfiler），
+            // 开启时让全部系统执行在火焰图中挂到同一棵 per-frame 树下。
+            // 帧号同步给时间线导出（span.Frame）。
+            _profileFrame++;
+            ProfilerHub.SetFrame(_profileFrame);
+            using var tickScope = ProfilerHub.Begin("world.tick").ToScope();
             Systems.Execute();
             Systems.Cleanup();
         }

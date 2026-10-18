@@ -56,9 +56,11 @@ namespace AbilityKit.Game.Test.UnitTest
             var context = phase.RequireFeature<BattleContext>(nameof(BattleContextInputGateTests));
             Assert.AreSame(context, phase.RequireFeature<IBattleRuntimeContext>(nameof(BattleContextInputGateTests)));
             Assert.AreSame(context, phase.RequireFeature<IBattleEntityContext>(nameof(BattleContextInputGateTests)));
+            Assert.AreSame(context, phase.RequireFeature<IBattleEntityRuntimeBindingPort>(nameof(BattleContextInputGateTests)));
             feature.OnDetach(phase);
 
             Assert.IsFalse(store.TryGet(out IBattleRuntimeContext _));
+            Assert.IsFalse(store.TryGet(out IBattleEntityRuntimeBindingPort _));
             Assert.IsFalse(store.TryGet(out BattleContext _));
         }
 

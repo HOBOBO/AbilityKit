@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly IMobaBattleDiagnosticEventSink _eventCollector;
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly MobaCombatTransactionPipeline _transactions;
+        private readonly IMobaHealStageProvider _healStages;
         [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
 
@@ -34,7 +35,8 @@ namespace AbilityKit.Demo.Moba.Services
             IMobaBattleDiagnosticEventSink eventCollector = null,
             AbilityKit.Triggering.Eventing.IEventBus eventBus = null,
             MobaCombatTransactionPipeline transactions = null,
-            MobaExecutionContextRegistry executionContexts = null)
+            MobaExecutionContextRegistry executionContexts = null,
+            IMobaHealStageProvider healStages = null)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _snapshots = snapshots ?? throw new ArgumentNullException(nameof(snapshots));
@@ -42,6 +44,7 @@ namespace AbilityKit.Demo.Moba.Services
             _eventCollector = eventCollector;
             _eventBus = eventBus;
             _transactions = transactions;
+            _healStages = healStages;
             _executionContexts = executionContexts;
         }
 
@@ -82,7 +85,12 @@ namespace AbilityKit.Demo.Moba.Services
                 MobaResourceFixedConvert.ToSingle(oldHp),
                 MobaResourceFixedConvert.ToSingle(newHp),
                 attrs.MaxHp,
-                in origin);
+                in origin,
+                value > oldHp && actual < value
+                    ? MobaHealthChangeFlags.Clamped | MobaHealthChangeFlags.Overkill
+                    : actual < value
+                        ? MobaHealthChangeFlags.Clamped
+                        : MobaHealthChangeFlags.None);
             _snapshots.ReportDamage(attackerActorId, targetActorId, damageType, MobaResourceFixedConvert.ToSingle(actual), reasonKind, reasonParam, MobaResourceFixedConvert.ToSingle(newHp), attrs.MaxHp);
             if (collectDiagnostic)
                 CollectDirectDamage(in result);
@@ -124,7 +132,7 @@ namespace AbilityKit.Demo.Moba.Services
                 reasonParam,
                 origin,
                 allowDeadTarget);
-            return HealPipelineService.Execute(this, _eventBus, _transactions, in request, onCommitted);
+            return HealPipelineService.Execute(this, _eventBus, _transactions, in request, onCommitted, _healStages);
         }
 
         internal MobaHealthChangeResult CommitHealCore(

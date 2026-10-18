@@ -128,11 +128,12 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var dependencies = ResourcesBattleAssetDependencyProvider.Default.ResolveDependencies(NewSnapshot());
 
-            Assert.AreEqual(9, dependencies.Count(entry =>
+            Assert.AreEqual(10, dependencies.Count(entry =>
                 entry.AssetKey.StartsWith("presentation:model-prefab:", StringComparison.Ordinal)));
             Assert.AreEqual(23, dependencies.Count(entry =>
                 entry.AssetKey.StartsWith("presentation:vfx-prefab:", StringComparison.Ordinal)));
             Assert.IsTrue(dependencies.Any(entry => entry.AssetPath == "character/character1"));
+            Assert.IsTrue(dependencies.Any(entry => entry.AssetPath == "character/character8"));
             Assert.IsTrue(dependencies.Any(entry => entry.AssetPath == "effect/bullet_1"));
             Assert.IsTrue(dependencies.All(entry =>
                 UnityEngine.Resources.Load<UnityEngine.Object>(entry.AssetPath) != null),

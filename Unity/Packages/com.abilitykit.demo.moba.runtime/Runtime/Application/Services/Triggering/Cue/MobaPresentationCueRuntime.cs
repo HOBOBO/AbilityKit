@@ -5,6 +5,8 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Triggering.Runtime;
+using PresentationCueSemantics = AbilityKit.Demo.Moba.Share.PresentationCueSemantics;
+using PresentationCueTransition = AbilityKit.Demo.Moba.Share.PresentationCueTransition;
 
 namespace AbilityKit.Demo.Moba.Triggering
 {
@@ -166,6 +168,16 @@ namespace AbilityKit.Demo.Moba.Triggering
         public int Revision { get; }
     }
 
+    public enum MobaPresentationCueObserveResult : byte
+    {
+        Ignored = 0,
+        Transient = 1,
+        Started = 2,
+        Updated = 3,
+        Stopped = 4,
+        MissingStableKey = 5,
+    }
+
     public sealed class MobaActivePresentationCueStore
     {
         private readonly Dictionary<string, MobaActivePresentationCue> _active = new Dictionary<string, MobaActivePresentationCue>(StringComparer.Ordinal);
@@ -174,22 +186,37 @@ namespace AbilityKit.Demo.Moba.Triggering
         public IReadOnlyDictionary<string, MobaActivePresentationCue> Active => _active;
         public int Count => _active.Count;
 
-        public void Observe(in MobaPresentationCueSnapshotEntry entry)
+        public MobaPresentationCueObserveResult Observe(in MobaPresentationCueSnapshotEntry entry)
         {
-            var key = MobaPresentationCueKeys.GetStableKey(in entry);
-            if (string.IsNullOrWhiteSpace(key)) return;
-
             var stage = (MobaPresentationCueStage)entry.Stage;
+            if (PresentationCueSemantics.Classify((int)stage) == PresentationCueTransition.None)
+            {
+                return MobaPresentationCueObserveResult.Ignored;
+            }
+
+            var lifetime = MobaPresentationCueKeys.ResolveLifetime(in entry);
+            if (lifetime == AbilityKit.Demo.Moba.Share.PresentationCueLifetime.TransientEvent)
+            {
+                return MobaPresentationCueObserveResult.Transient;
+            }
+
+            var key = MobaPresentationCueKeys.GetStableKey(in entry);
+            if (string.IsNullOrWhiteSpace(key)) return MobaPresentationCueObserveResult.MissingStableKey;
+
             if (MobaPresentationCueStages.ShouldStop(stage))
             {
                 _active.Remove(key);
-                return;
+                return MobaPresentationCueObserveResult.Stopped;
             }
 
             if (MobaPresentationCueStages.ShouldStart(stage) || MobaPresentationCueStages.ShouldKeepActive(stage))
             {
+                var wasActive = _active.ContainsKey(key);
                 _active[key] = new MobaActivePresentationCue(key, entry, ++_revision);
+                return wasActive ? MobaPresentationCueObserveResult.Updated : MobaPresentationCueObserveResult.Started;
             }
+
+            return MobaPresentationCueObserveResult.Ignored;
         }
 
         public bool TryGet(string key, out MobaActivePresentationCue active)
@@ -347,40 +374,58 @@ namespace AbilityKit.Demo.Moba.Triggering
 
     public static class MobaPresentationCueStages
     {
+        // 迁移分类的唯一权威在 AbilityKit.Demo.Moba.Share.PresentationCueSemantics。
+        // 这里保留转发，供逻辑侧既有的 MobaPresentationCueStage 枚举类型使用；
+        // 客户端的三份镜像枚举同样转发到那一份实现，因此不再存在多表不同步的可能。
         public static bool ShouldStart(MobaPresentationCueStage stage)
         {
-            return stage == MobaPresentationCueStage.ConditionPassed
-                || stage == MobaPresentationCueStage.BeforeAction
-                || stage == MobaPresentationCueStage.Executed
-                || stage == MobaPresentationCueStage.Started;
+            return AbilityKit.Demo.Moba.Share.PresentationCueSemantics.Classify((int)stage)
+                == AbilityKit.Demo.Moba.Share.PresentationCueTransition.Start;
         }
 
         public static bool ShouldKeepActive(MobaPresentationCueStage stage)
         {
-            return stage == MobaPresentationCueStage.Ticked
-                || stage == MobaPresentationCueStage.Refreshed
-                || stage == MobaPresentationCueStage.StackChanged;
+            return AbilityKit.Demo.Moba.Share.PresentationCueSemantics.Classify((int)stage)
+                == AbilityKit.Demo.Moba.Share.PresentationCueTransition.KeepActive;
         }
 
         public static bool ShouldStop(MobaPresentationCueStage stage)
         {
-            return stage == MobaPresentationCueStage.ConditionFailed
-                || stage == MobaPresentationCueStage.Interrupted
-                || stage == MobaPresentationCueStage.Skipped
-                || stage == MobaPresentationCueStage.Expired
-                || stage == MobaPresentationCueStage.Removed
-                || stage == MobaPresentationCueStage.Completed;
+            return PresentationCueSemantics.Classify((int)stage)
+                == PresentationCueTransition.Stop;
         }
     }
 
     public static class MobaPresentationCueKeys
     {
+        public static AbilityKit.Demo.Moba.Share.PresentationCueLifetime ResolveLifetime(in MobaPresentationCueSnapshotEntry entry)
+        {
+            if (entry.Lifetime != 0)
+            {
+                return (AbilityKit.Demo.Moba.Share.PresentationCueLifetime)entry.Lifetime;
+            }
+
+            var domain = entry.Domain != 0
+                ? (AbilityKit.Demo.Moba.Share.PresentationCueDomain)entry.Domain
+                : PresentationCueSemantics.ResolveDomain(entry.OwnerKind ?? entry.CueKind);
+            // Pre-P0 payloads did not carry domain/lifetime. A stable key is
+            // the compatibility signal that the producer intended a retained
+            // presentation object rather than a one-shot event.
+            if (domain == AbilityKit.Demo.Moba.Share.PresentationCueDomain.None &&
+                !string.IsNullOrWhiteSpace(GetStableKey(in entry)))
+            {
+                return AbilityKit.Demo.Moba.Share.PresentationCueLifetime.PersistentState;
+            }
+            return PresentationCueSemantics.ResolveLifetime(
+                domain,
+                (AbilityKit.Demo.Moba.Share.PresentationCueStage)entry.Stage);
+        }
+
         public static string GetStableKey(in MobaPresentationCueSnapshotEntry entry)
         {
-            if (!string.IsNullOrWhiteSpace(entry.RequestKey)) return entry.RequestKey;
             if (!string.IsNullOrWhiteSpace(entry.InstanceKey)) return entry.InstanceKey;
-            if (!string.IsNullOrWhiteSpace(entry.ReplicationId)) return entry.ReplicationId;
-            return $"cue:{entry.TriggerEventId}:{entry.TriggerId}:{entry.ActionIndex}:{entry.Order}:{entry.SourceActorId}:{entry.TargetActorId}";
+            if (!string.IsNullOrWhiteSpace(entry.RequestKey)) return entry.RequestKey;
+            return null;
         }
 
         public static int StableHash(string value)

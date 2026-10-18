@@ -51,10 +51,6 @@ namespace AbilityKit.Game.Flow.Battle.Snapshot
                 dirty = new System.Collections.Generic.List<EC.IEntityId>(8);
                 ctx.DirtyEntities = dirty;
             }
-            else
-            {
-                dirty.Clear();
-            }
 
             if (!res.HasLocalActorPosition)
             {

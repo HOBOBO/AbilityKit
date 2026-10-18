@@ -26,4 +26,5 @@ using AbilityKit.Demo.Moba.Share.Config;
 [assembly: MobaConfigTable(MobaConfigPaths.PresentationTemplatesFile, typeof(PresentationTemplateDTO), typeof(PresentationTemplateMO), ConfigGroupNames.LegacyJson, 220)]
 [assembly: MobaConfigTable(MobaConfigPaths.BattleMapsFile, typeof(BattleMapDTO), typeof(BattleMapMO), ConfigGroupNames.LegacyJson, 230)]
 [assembly: MobaConfigTable(MobaConfigPaths.GameplaysFile, typeof(GameplayDTO), typeof(GameplayMO), ConfigGroupNames.LegacyJson, 240)]
+[assembly: MobaConfigTable(MobaConfigPaths.DungeonsFile, typeof(DungeonDTO), typeof(DungeonMO), ConfigGroupNames.LegacyJson, 245)]
 [assembly: MobaConfigTable(MobaConfigPaths.MotionGroupsFile, typeof(MotionGroupDTO), typeof(MotionGroupMO), ConfigGroupNames.LegacyJson, 250)]

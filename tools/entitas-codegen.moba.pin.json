@@ -1,0 +1,309 @@
+{
+  "contexts": {
+    "Actor": {
+      "components": [
+        {
+          "name": "ActorId",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "immutable"
+        },
+        {
+          "name": "AttributeGroup",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "provider:MobaActorHpRollbackProvider"
+        },
+        {
+          "name": "Buffs",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "provider:MobaBuffTimerRollbackProvider"
+        },
+        {
+          "name": "Collider",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "immutable"
+        },
+        {
+          "name": "CollisionId",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "immutable"
+        },
+        {
+          "name": "CollisionLayer",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "immutable"
+        },
+        {
+          "name": "EffectListeners",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "EntityMainType",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "immutable"
+        },
+        {
+          "name": "FlyingProjectileTag",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "immutable"
+        },
+        {
+          "name": "Lifetime",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": null
+        },
+        {
+          "name": "ModelId",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "immutable"
+        },
+        {
+          "name": "Motion",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "provider:MobaActorTransformRollbackProvider"
+        },
+        {
+          "name": "MoveInput",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "provider:MobaActorTransformRollbackProvider"
+        },
+        {
+          "name": "OngoingTriggerPlans",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "OwnerLink",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "immutable"
+        },
+        {
+          "name": "OwnerPlayerId",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "immutable"
+        },
+        {
+          "name": "PassiveSkillTriggerListeners",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "ProjectileEffectSnapshot",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": null
+        },
+        {
+          "name": "ProjectileLauncher",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": null
+        },
+        {
+          "name": "ResourceContainer",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "provider:MobaActorResourceRollbackProvider"
+        },
+        {
+          "name": "SkillCastAim",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "SkillCastCancelRequest",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": null
+        },
+        {
+          "name": "SkillCastDestroyRequest",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": null
+        },
+        {
+          "name": "SkillCastInstanceId",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "SkillCastOwnerActorId",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "SkillCastRunningTag",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": null
+        },
+        {
+          "name": "SkillCastSequence",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "SkillCastSkillId",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "SkillCastSkillLevel",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "SkillCastSlot",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "SkillCastStage",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "SkillCastStartFrame",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "SkillCastTargetActorId",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "projection"
+        },
+        {
+          "name": "SkillCastTimelineRuntime",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": null
+        },
+        {
+          "name": "SkillLoadout",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": null
+        },
+        {
+          "name": "SummonMeta",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": null
+        },
+        {
+          "name": "Team",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "immutable"
+        },
+        {
+          "name": "Transform",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "provider:MobaActorTransformRollbackProvider"
+        },
+        {
+          "name": "UnitSubType",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "immutable"
+        },
+        {
+          "name": "ActorDespawnRequest",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": null
+        },
+        {
+          "name": "ActorBrain",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "provider:MobaBrainRollbackProvider"
+        },
+        {
+          "name": "ActorStateMachine",
+          "generate": true,
+          "custom": true,
+          "serialize": false,
+          "coverage": "provider:MobaActorStateMachineRollbackProvider"
+        },
+        {
+          "name": "CharacterHfsm",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": "provider:MobaCharacterHfsmRollbackProvider"
+        }
+      ]
+    }
+  }
+}

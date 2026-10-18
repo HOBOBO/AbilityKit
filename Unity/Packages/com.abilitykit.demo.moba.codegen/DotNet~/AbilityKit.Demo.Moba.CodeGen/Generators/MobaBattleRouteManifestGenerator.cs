@@ -71,6 +71,20 @@ namespace AbilityKit.Demo.Moba.CodeGen
             RemoveDuplicateInputs(inputs);
             routes.Sort(CompareRoutes);
             inputs.Sort(CompareInputs);
+            if (routes.Count == 0)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MobaDiagnosticRules.EmptyBattleRouteManifestRule,
+                    routeManifestType.Locations.FirstOrDefault(location => location.IsInSource) ?? Location.None));
+            }
+
+            if (inputs.Count == 0)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MobaDiagnosticRules.EmptyInputHandlerManifestRule,
+                    inputManifestType.Locations.FirstOrDefault(location => location.IsInSource) ?? Location.None));
+            }
+
             context.AddSource("MobaGeneratedBattleRouteManifest.g.cs", GenerateSource(routes, inputs));
         }
 

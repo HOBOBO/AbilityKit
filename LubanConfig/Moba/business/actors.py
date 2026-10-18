@@ -1,5 +1,7 @@
 """Character and attribute template references."""
 
+from modifier_parameters import validate_field_schema
+
 
 ATTRIBUTE_KEYS = (
     "HP", "MAX_HP", "EXTRA_HP", "PHYSICS_ATTACK", "MAGIC_ATTACK",
@@ -12,6 +14,7 @@ ATTRIBUTE_KEYS = (
 
 
 def validate_attribute_types(rows):
+    """Validate the attribute catalog against the runtime enum and the shared field schema."""
     definitions = {row["Id"]: row for row in rows}
     if len(definitions) != len(rows):
         raise ValueError("attr_types: duplicate ID")
@@ -23,6 +26,9 @@ def validate_attribute_types(rows):
             raise ValueError(f"attr_types/{identity}: Key must match BattleAttributeType.{key}")
         if row["ValueKind"] not in (0, 1):
             raise ValueError(f"attr_types/{identity}: invalid ValueKind")
+        reason = validate_field_schema(row, identity, kind=2, require_capture=False)
+        if reason:
+            raise ValueError(f"attr_types/{identity}: {reason}")
 
 
 def project_loadouts(tables):

@@ -3,8 +3,10 @@ namespace AbilityKit.Game.Flow
     internal sealed class ProjectedBattleViewFeature : ConfirmedBattleViewFeature
     {
         internal ProjectedBattleViewFeature(BattleContext context, string viewRole,
-            BattleProjectionViewCapabilities capabilities = BattleProjectionViewCapabilities.Actors)
-            : base(context, viewRole, isPredictionView: true, capabilities: capabilities)
+            BattleProjectionViewCapabilities capabilities = BattleProjectionViewCapabilities.Actors,
+            UnityEngine.Camera camera = null)
+            : base(context, viewRole, isPredictionView: true,
+                capabilities: capabilities, camera: camera)
         {
         }
 

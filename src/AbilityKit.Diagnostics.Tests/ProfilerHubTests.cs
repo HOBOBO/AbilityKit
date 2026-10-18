@@ -27,6 +27,12 @@ public sealed class ProfilerHubTests
             return default;
         }
 
+        public ProbeToken Begin(string name, long contextId)
+        {
+            Calls.Add("Begin:" + name + ":" + contextId.ToString(CultureInfo.InvariantCulture));
+            return default;
+        }
+
         public void Complete(ProbeToken token)
         {
             Calls.Add("Complete");

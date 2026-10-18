@@ -91,6 +91,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             foreach (var runtime in state.Runtimes ?? Array.Empty<MobaSkillCastRuntimeSnapshot>())
             {
                 CaptureRoot(runtime);
+                CapturePhases(runtime.RootContextId);
                 foreach (var child in runtime.Children ?? Array.Empty<MobaSkillRuntimeChildRef>())
                     CaptureChild(runtime.RootContextId, in child);
             }
@@ -120,6 +121,16 @@ namespace AbilityKit.Demo.Moba.Rollback
                         $"Skill child execution context {child.ContextId} does not match its runtime child reference.");
                 nodes.Add(new MobaSkillExecutionContextRollbackEntry(in node));
             }
+
+            void CapturePhases(long rootId)
+            {
+                if (rootId == 0L || !contexts.TryGetChain(rootId, out var chain)) return;
+                foreach (var node in chain)
+                {
+                    if (node.Kind == MobaExecutionKind.SkillPhase && ids.Add(node.ContextId))
+                        nodes.Add(new MobaSkillExecutionContextRollbackEntry(in node));
+                }
+            }
         }
 
         private static void ValidateExecutionContextScope(
@@ -129,15 +140,21 @@ namespace AbilityKit.Demo.Moba.Rollback
             long nextContextId)
         {
             var expectedIds = new HashSet<long>();
+            var rootIds = new HashSet<long>();
             foreach (var runtime in runtimeState.Runtimes ?? Array.Empty<MobaSkillRuntimeRollbackEntry>())
             {
                 AddRoot(runtime);
+                if (runtime.RootContextId != 0L) rootIds.Add(runtime.RootContextId);
                 foreach (var child in runtime.Children ?? Array.Empty<MobaSkillRuntimeChildRollbackEntry>())
                     AddChild(runtime.RootContextId, in child);
             }
 
             foreach (var node in nodes)
             {
+                if (node.Kind == MobaExecutionKind.SkillPhase &&
+                    rootIds.Contains(node.RootContextId) &&
+                    node.ContextId < nextContextId)
+                    continue;
                 if (node.ContextId >= nextContextId || !expectedIds.Remove(node.ContextId))
                     throw new InvalidOperationException(
                         $"Execution-context node {node.ContextId} does not match local skill rollback scope.");

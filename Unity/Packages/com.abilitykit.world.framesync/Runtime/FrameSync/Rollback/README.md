@@ -33,7 +33,7 @@
   - Handler 执行时禁止再次 `Record`。若执行已经开始后抛异常，Journal 会进入 faulted 状态，调用方必须重建世界并 `Clear()`，不能继续 replay。
 
 - **`RollbackCoordinator`**
-  - Restore 会先执行可选 `IRollbackStatePreflightProvider.ValidateImport`；全部 preflight 通过后才调用 provider 的 `Import`，避免单个 provider 失败造成部分恢复。
+  - Restore 会先执行可选 `IRollbackStatePreflightProvider.ValidateImport`；全部 preflight 通过后才调用 provider 的 `Import`。这保证导入前的协议和依赖检查，但不构成跨 provider 的事务；若 Import 阶段失败，调用方必须停止世界推进并按业务策略重建或重新同步。
   - 全部预检通过后，先 Import `IRollbackStructureRestoreProvider`，再 Import 普通字段状态 Provider；每个阶段内部仍按 Key 保持稳定顺序。
   - 将 registry 中各 provider 的导出结果聚合为一个 `WorldRollbackSnapshot`。
   - 通过 `RollbackSnapshotRingBuffer` 管理历史快照。

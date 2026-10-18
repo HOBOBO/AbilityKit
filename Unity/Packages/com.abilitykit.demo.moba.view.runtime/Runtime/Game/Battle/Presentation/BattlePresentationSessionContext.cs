@@ -1,7 +1,7 @@
 using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.Battle.Vfx;
+using System;
 
 namespace AbilityKit.Game.Flow
 {
@@ -12,6 +12,13 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class BattlePresentationSessionFactory : IBattlePresentationSessionFactory
     {
+        private readonly IBattlePresentationDataSource _dataSource;
+
+        public BattlePresentationSessionFactory(IBattlePresentationDataSource dataSource)
+        {
+            _dataSource = dataSource ?? throw new ArgumentNullException(nameof(dataSource));
+        }
+
         public BattlePresentationSessionContext Create(in GamePhaseContext ctx)
         {
             IBattleAssetLookup assets = null;
@@ -20,8 +27,9 @@ namespace AbilityKit.Game.Flow
                 assets = assetSession?.AssetLookup;
             }
 
-            var configs = assets != null ? MobaConfigLoader.LoadDefault() : null;
-            return BattlePresentationSessionContext.CreateDefault(configs, null, assets);
+            var configs = assets != null ? _dataSource.LoadConfigs(assets) : null;
+            return BattlePresentationSessionContext.CreateDefault(configs, null, assets,
+                dataSource: _dataSource);
         }
     }
 
@@ -38,7 +46,7 @@ namespace AbilityKit.Game.Flow
 
         internal BattleViewResourceProvider CreateViewResources() =>
             new BattleViewResourceProvider(Resources.Configs, Resources.VfxDb,
-                Resources.AssetLookup, Resources.ModelResolvers);
+                Resources.AssetLookup, Resources.ModelResolvers, Resources.DataSource);
 
         internal void Retain()
         {
@@ -59,10 +67,11 @@ namespace AbilityKit.Game.Flow
             MobaConfigDatabase configs = null,
             VfxDatabase vfxDb = null,
             IBattleAssetLookup assets = null,
-            BattleViewModelResolverRegistry modelResolvers = null)
+            BattleViewModelResolverRegistry modelResolvers = null,
+            IBattlePresentationDataSource dataSource = null)
         {
             return new BattlePresentationSessionContext(
-                new BattleViewResourceProvider(configs, vfxDb, assets, modelResolvers));
+                new BattleViewResourceProvider(configs, vfxDb, assets, modelResolvers, dataSource));
         }
 
     }

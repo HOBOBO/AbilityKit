@@ -60,7 +60,7 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     [WorldService(typeof(SkillCastCoordinator))]
-    public sealed class SkillCastCoordinator : IService
+    public sealed partial class SkillCastCoordinator : IService
     {
         private readonly IWorldResolver _services;
         private readonly IWorldClock _clock;

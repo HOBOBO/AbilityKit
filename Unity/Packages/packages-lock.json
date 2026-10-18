@@ -280,6 +280,7 @@
         "com.abilitykit.combat.navigation": "0.1.0",
         "com.abilitykit.continuous": "0.1.0",
         "com.abilitykit.demo.moba.runtime": "0.0.1",
+        "com.abilitykit.demo.moba.jobs": "0.0.1",
         "com.abilitykit.demo.moba.view.runtime": "0.0.1",
         "com.abilitykit.world.ecs": "0.1.0",
         "com.abilitykit.world.entitas": "0.1.0",
@@ -312,6 +313,17 @@
         "com.abilitykit.world.framesync": "0.1.0",
         "com.abilitykit.world.snapshot": "0.1.0",
         "com.abilitykit.network.runtime": "0.1.0"
+      }
+    },
+    "com.abilitykit.demo.moba.jobs": {
+      "version": "file:com.abilitykit.demo.moba.jobs",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.compute.unityjobs": "0.1.0",
+        "com.abilitykit.demo.moba.runtime": "0.0.1",
+        "com.unity.burst": "1.8.21",
+        "com.unity.collections": "2.1.4"
       }
     },
     "com.abilitykit.demo.moba.runtime": {

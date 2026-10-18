@@ -1,0 +1,44 @@
+{
+  "Id": 10080201,
+  "Name": "鲁班七号-无敌鲨嘴炮",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "luban_skill_2_release",
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "luban_skill_2_commit",
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      }
+    },
+    {
+      "Type": 2,
+      "Timeline": {
+        "DurationMs": 500,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 10080201,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "luban_skill_2_cast"
+          }
+        ]
+      }
+    }
+  ]
+}

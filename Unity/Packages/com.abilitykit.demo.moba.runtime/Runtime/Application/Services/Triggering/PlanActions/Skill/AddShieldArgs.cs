@@ -15,6 +15,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly int DurationMs;
         public readonly ShieldStackingPolicy StackingPolicy;
         public readonly ShieldConsumePolicy ConsumePolicy;
+        public readonly ShieldSharePolicy SharePolicy;
+        public readonly ShieldTransferPolicy TransferPolicy;
         public readonly MobaActionTargetRequest TargetRequest;
         public readonly MobaEffectMagnitudeSpec Magnitude;
         public readonly BlackboardWriteTarget ResultTarget;
@@ -30,6 +32,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             int durationMs,
             ShieldStackingPolicy stackingPolicy,
             ShieldConsumePolicy consumePolicy,
+            ShieldSharePolicy sharePolicy,
+            ShieldTransferPolicy transferPolicy,
             in MobaActionTargetRequest targetRequest,
             MobaEffectMagnitudeSpec magnitude = default,
             BlackboardWriteTarget resultTarget = default,
@@ -44,6 +48,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             DurationMs = durationMs;
             StackingPolicy = stackingPolicy;
             ConsumePolicy = consumePolicy;
+            SharePolicy = sharePolicy;
+            TransferPolicy = transferPolicy;
             TargetRequest = targetRequest;
             Magnitude = magnitude;
             ResultTarget = resultTarget;

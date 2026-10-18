@@ -46,11 +46,13 @@ namespace AbilityKit.Demo.Moba.Config.Core
             {
                 groups.Add(new ConfigGroup(useLubanJsonForRemaining ? "LubanJson" : ConfigGroupNames.LegacyJson,
                     new MobaLubanAssetGroupLoader(assets, useLubanJsonForRemaining ? JsonDirectory : MobaConfigPaths.DefaultResourcesDir, binary: false),
-                    MobaLubanJsonGroupDeserializer.Instance, remaining));
+                    useLubanJsonForRemaining
+                        ? MobaLubanJsonGroupDeserializer.Create(assets)
+                        : MobaLubanJsonGroupDeserializer.Instance, remaining));
             }
             groups.Add(new ConfigGroup("SkillPipeline",
                 new MobaLubanAssetGroupLoader(assets, MobaConfigPaths.DefaultResourcesDir, binary: false),
-                MobaLubanJsonGroupDeserializer.Instance, flows));
+                MobaLubanJsonGroupDeserializer.Create(assets), flows));
             return groups;
         }
     }
@@ -110,12 +112,50 @@ namespace AbilityKit.Demo.Moba.Config.Core
     {
         public static readonly MobaLubanJsonGroupDeserializer Instance = new MobaLubanJsonGroupDeserializer();
 
-        private MobaLubanJsonGroupDeserializer() { }
+        private readonly ITextAssetLoader _assets;
+        private Dictionary<int, JObject> _modifiers;
+
+        private Dictionary<int, JObject> ModifierDefinitions()
+        {
+            if (_modifiers != null) return _modifiers;
+            byte[] templates, definitions;
+            if (_assets == null ||
+                !_assets.TryLoadBytes(MobaLubanConfigGroups.BinaryDirectory + "/modifier_templates.bytes", out templates) ||
+                !_assets.TryLoadBytes(MobaLubanConfigGroups.BinaryDirectory + "/modifier_definitions.bytes", out definitions) ||
+                templates == null || templates.Length == 0 || definitions == null || definitions.Length == 0)
+                throw new InvalidOperationException(
+                    "Missing Luban reference tables: modifier_templates and modifier_definitions");
+            _modifiers = MobaLubanBinaryGroupDeserializer.FlattenModifierDefinitions(templates, definitions);
+            return _modifiers;
+        }
+
+        private MobaLubanJsonGroupDeserializer(ITextAssetLoader assets = null)
+        {
+            _assets = assets;
+        }
+
+        public static MobaLubanJsonGroupDeserializer Create(ITextAssetLoader assets) =>
+            new MobaLubanJsonGroupDeserializer(assets);
 
         public override Array DeserializeFromBytes(byte[] bytes, Type dtoType) => throw new NotSupportedException();
 
-        public override Array DeserializeFromText(string text, Type dtoType) =>
-            JsonNetMobaConfigDtoDeserializer.Instance.DeserializeDtoArray(text, dtoType);
+        public override Array DeserializeFromText(string text, Type dtoType)
+        {
+            if (dtoType == typeof(BuffDTO) || dtoType == typeof(ContinuousProcessDTO))
+            {
+                var array = JArray.Parse(text);
+                var definitions = ModifierDefinitions();
+                var buff = dtoType == typeof(BuffDTO);
+                foreach (var row in array.OfType<JObject>())
+                {
+                    var owner = $"{dtoType.Name}/{row.Value<int>("Id")}";
+                    MobaLubanBinaryGroupDeserializer.ResolveModifierBindings(row, definitions, owner, buff);
+                }
+                // Deserialize the rewritten array; the original text still carries ModifierIds.
+                return JsonNetMobaConfigDtoDeserializer.Instance.DeserializeDtoArray(array.ToString(), dtoType);
+            }
+            return JsonNetMobaConfigDtoDeserializer.Instance.DeserializeDtoArray(text, dtoType);
+        }
 
         public override bool CanHandle(Type dtoType) =>
             MobaRuntimeConfigTableRegistry.Tables.Any(t => t.DtoType == dtoType);
@@ -136,6 +176,133 @@ namespace AbilityKit.Demo.Moba.Config.Core
         public MobaLubanBinaryGroupDeserializer(ITextAssetLoader assets)
         {
             _assets = assets ?? throw new ArgumentNullException(nameof(assets));
+        }
+
+        /// <summary>
+        /// Flattens modifier templates by merging their definition's semantics. Templates only
+        /// record which lifecycle mounts an effect and how it is scoped, so the authoritative
+        /// target/op/magnitude data comes from modifier_definitions.
+        /// </summary>
+        internal static Dictionary<int, JObject> FlattenModifierDefinitions(byte[] templateBytes,
+            byte[] definitionBytes)
+        {
+            var definitions = new Dictionary<int, JObject>();
+            foreach (var row in new moba_luban.ModifierDefinitions(ByteBuf.Wrap(definitionBytes)).DataList)
+            {
+                var flat = FlattenModifierDefinition(row);
+                definitions[row.Id] = flat;
+            }
+            var result = new Dictionary<int, JObject>();
+            foreach (var row in new moba_luban.ModifierTemplates(ByteBuf.Wrap(templateBytes)).DataList)
+            {
+                if (!definitions.TryGetValue(row.DefinitionId, out var definition))
+                    throw new InvalidOperationException(
+                        $"modifier_templates/{row.Id}: missing modifier definition {row.DefinitionId}");
+                var flat = (JObject)definition.DeepClone();
+                flat["Id"] = row.Id;
+                flat["Kind"] = (int)row.Kind;
+                flat["DefinitionId"] = row.DefinitionId;
+                flat["Priority"] = row.Priority;
+                foreach (var name in SelectorFieldNames) flat[name] = 0;
+                foreach (var token in (row.Selectors ?? string.Empty).Split(';'))
+                {
+                    if (token.Trim().Length == 0) continue;
+                    var parts = token.Split('|');
+                    var field = parts[0].Trim();
+                    var value = parts.Length > 1 && int.TryParse(parts[1], out var parsed) ? parsed : 0;
+                    if (SelectorColumns.TryGetValue(field, out var column)) flat[column] = value;
+                    else throw new InvalidOperationException(
+                        $"modifier_templates/{row.Id}: unknown selector field {field}");
+                }
+                result[row.Id] = flat;
+            }
+            return result;
+        }
+
+        private static JObject FlattenModifierDefinition(moba_luban.DRModifierDefinitions row)
+        {
+            var flat = new JObject
+            {
+                ["TargetKind"] = (int)row.Target.Kind,
+                ["TargetId"] = row.Target.Id,
+                ["Op"] = (int)row.Value.Op,
+                ["Value"] = row.Value.Value,
+                // Priority is authored on the mount row, not on the definition.
+                ["Priority"] = 0,
+                ["MagnitudeSourceType"] = (int)row.Magnitude.SourceType,
+                ["MagnitudeBaseValue"] = row.Magnitude.BaseValue,
+                ["MagnitudeCoefficient"] = row.Magnitude.Coefficient,
+                ["MagnitudeDuration"] = row.Magnitude.DurationSec,
+                ["MagnitudeDecayType"] = row.Magnitude.DecayType,
+                ["MagnitudeAttributeTypeId"] = row.Magnitude.AttributeTypeId,
+                ["MagnitudeContextKey"] = row.ContextKey,
+                ["MagnitudeCurve"] = new JArray(row.Curve),
+                // Mirrors the exporter: a magnitude that reads other state must be sampled once,
+                // everything else stays realtime. Keep this in sync with
+                // LubanConfig/Moba/business/modifiers.py::derive_evaluation_policy.
+                ["EvaluationPolicy"] = DeriveEvaluationPolicy(row.Magnitude.SourceType),
+                ["AttributeSourceRole"] = (int)row.AttributeSourceRole,
+                ["CandidateSkillId"] = row.Candidate.SkillId,
+                ["CandidateReferenceId"] = row.Candidate.ReferenceId,
+                ["FormulaConstant"] = row.FormulaConstant,
+                ["FormulaLevelCoefficient"] = row.FormulaLevelCoefficient,
+                ["FormulaTerms"] = new JArray(row.FormulaTerms),
+                ["DefinitionKey"] = row.Key,
+                ["MountPoint"] = (int)row.MountPoint,
+                ["StackingPolicy"] = (int)row.StackingPolicy,
+                ["MaxStacks"] = row.MaxStacks,
+                ["ConflictGroup"] = (int)row.ConflictGroup,
+            };
+            foreach (var name in SelectorFieldNames) flat[name] = 0;
+            return flat;
+        }
+
+        /// <summary>
+        /// Attribute and LinearFormula magnitudes read other state, so they are sampled once and
+        /// replayed from the capture store; magnitudes derived from the continuous instance itself
+        /// are already deterministic and stay realtime.
+        /// </summary>
+        private static int DeriveEvaluationPolicy(moba_luban.MagnitudeSourceType source)
+        {
+            return source == moba_luban.MagnitudeSourceType.Attribute ||
+                   source == moba_luban.MagnitudeSourceType.LinearFormula
+                ? (int)moba_luban.ModifierEvaluationPolicy.OnApplySnapshot
+                : (int)moba_luban.ModifierEvaluationPolicy.Realtime;
+        }
+
+        /// <summary>
+        /// Replaces a Buff/ContinuousProcess row's ModifierIds with the resolved Modifiers array.
+        /// Buff rows keep their historical null-normalization so JSON and binary loading agree.
+        /// </summary>
+        internal static void ResolveModifierBindings(JObject row, Dictionary<int, JObject> definitions,
+            string owner, bool buff)
+        {
+            // Buff rows may arrive already expanded (binary restore ran first); keep that result.
+            if (row["Modifiers"] is JArray) return;
+            var modifierIds = row["ModifierIds"] as JArray ?? new JArray();
+            row.Remove("ModifierIds");
+            var resolved = new JArray();
+            var seen = new HashSet<int>();
+            foreach (var token in modifierIds)
+            {
+                var id = token.Value<int>();
+                if (!seen.Add(id)) throw new InvalidOperationException($"{owner}: duplicate modifier {id}");
+                var definition = definitions.TryGetValue(id, out var value) ? value : null;
+                if (definition == null || definition.Value<int>("Kind") != (buff ? 0 : 1))
+                    throw new InvalidOperationException($"{owner}: missing or wrong-kind modifier {id}");
+                var modifier = (JObject)definition.DeepClone();
+                modifier.Remove("Id");
+                modifier.Remove("Kind");
+                if (buff)
+                {
+                    if (modifier.Value<string>("MagnitudeContextKey") == string.Empty)
+                        modifier["MagnitudeContextKey"] = JValue.CreateNull();
+                    if (modifier["MagnitudeCurve"] is JArray curve && curve.Count == 0)
+                        modifier["MagnitudeCurve"] = JValue.CreateNull();
+                }
+                resolved.Add(modifier);
+            }
+            row["Modifiers"] = resolved;
         }
 
         public override Array DeserializeFromBytes(byte[] bytes, Type dtoType)
@@ -176,16 +343,6 @@ namespace AbilityKit.Demo.Moba.Config.Core
                     }
                 }
                 RestoreReferences(json, dtoType);
-                if (dtoType == typeof(BuffDTO) && json["Modifiers"] is JArray modifiers)
-                {
-                    foreach (var modifier in modifiers.OfType<JObject>())
-                    {
-                        if (modifier.Value<string>("MagnitudeContextKey") == string.Empty)
-                            modifier["MagnitudeContextKey"] = JValue.CreateNull();
-                        if (modifier["MagnitudeCurve"] is JArray curve && curve.Count == 0)
-                            modifier["MagnitudeCurve"] = JValue.CreateNull();
-                    }
-                }
                 if (dtoType == typeof(SearchQueryTemplateDTO))
                 {
                     RemoveNullMembers(json["Rules"]);
@@ -210,7 +367,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 }
                 array.Add(json);
             }
-            return MobaLubanJsonGroupDeserializer.Instance.DeserializeFromText(array.ToString(), dtoType);
+            return MobaLubanJsonGroupDeserializer.Create(_assets).DeserializeFromText(array.ToString(), dtoType);
         }
 
         public override Array DeserializeFromText(string text, Type dtoType) => throw new NotSupportedException();
@@ -239,7 +396,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                     _tagWorkbook = new AbilityKit.Demo.Moba.Services.MobaTagWorkbookRuntime(_assets);
                 _tagWorkbook.RestoreSkill(row);
             }
-            if (dtoType == typeof(SummonDTO) || dtoType == typeof(GameplayDTO))
+            if (dtoType == typeof(SummonDTO) || dtoType == typeof(GameplayDTO) || dtoType == typeof(DungeonDTO))
             {
                 if (((JArray)row["Tags"]).Count != 0)
                     throw new InvalidOperationException($"{dtoType.Name}/{row.Value<int>("Id")}: unused Tags must be empty");
@@ -248,23 +405,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             {
                 var buff = dtoType == typeof(BuffDTO);
                 var owner = $"{dtoType.Name}/{row.Value<int>("Id")}";
-                var modifierIds = (JArray)row["ModifierIds"];
-                row.Remove("ModifierIds");
-                var resolved = new JArray();
-                var seen = new HashSet<int>();
-                foreach (var token in modifierIds)
-                {
-                    var id = token.Value<int>();
-                    if (!seen.Add(id)) throw new InvalidOperationException($"{owner}: duplicate modifier {id}");
-                    var definition = ModifierDefinitions().TryGetValue(id, out var value) ? value : null;
-                    if (definition == null || definition.Value<int>("Kind") != (buff ? 0 : 1))
-                        throw new InvalidOperationException($"{owner}: missing or wrong-kind modifier {id}");
-                    var modifier = (JObject)definition.DeepClone();
-                    modifier.Remove("Id");
-                    modifier.Remove("Kind");
-                    resolved.Add(modifier);
-                }
-                row["Modifiers"] = resolved;
+                ResolveModifierBindings(row, ModifierDefinitions(), owner, buff);
                 if (buff)
                 {
                     RestoreTagIds(row, "TagIds", "TagNames",
@@ -321,10 +462,29 @@ namespace AbilityKit.Demo.Moba.Config.Core
         private Dictionary<int, JObject> ModifierDefinitions()
         {
             if (_modifiers != null) return _modifiers;
-            var table = new moba_luban.ModifierTemplates(ByteBuf.Wrap(LoadReferenceBytes("modifier_templates")));
-            _modifiers = table.DataList.ToDictionary(row => row.Id, row => JObject.FromObject(row));
+            _modifiers = FlattenModifierDefinitions(LoadReferenceBytes("modifier_templates"),
+                LoadReferenceBytes("modifier_definitions"));
             return _modifiers;
         }
+
+        private static readonly Dictionary<string, string> SelectorColumns = new Dictionary<string, string>
+        {
+            [nameof(moba_luban.ModifierSelectorField.Slot)] = "SelectorSlot",
+            [nameof(moba_luban.ModifierSelectorField.BaseSkillId)] = "SelectorBaseSkillId",
+            [nameof(moba_luban.ModifierSelectorField.EffectiveSkillId)] = "SelectorEffectiveSkillId",
+            [nameof(moba_luban.ModifierSelectorField.LauncherTemplateId)] = "SelectorLauncherTemplateId",
+            [nameof(moba_luban.ModifierSelectorField.ProjectileTemplateId)] = "SelectorProjectileTemplateId",
+            [nameof(moba_luban.ModifierSelectorField.AreaTemplateId)] = "SelectorAreaTemplateId",
+            [nameof(moba_luban.ModifierSelectorField.SummonTemplateId)] = "SelectorSummonTemplateId",
+            [nameof(moba_luban.ModifierSelectorField.BuffTemplateId)] = "SelectorBuffTemplateId",
+        };
+
+        private static readonly string[] SelectorFieldNames =
+        {
+            "SelectorSlot", "SelectorBaseSkillId", "SelectorEffectiveSkillId",
+            "SelectorLauncherTemplateId", "SelectorProjectileTemplateId", "SelectorAreaTemplateId",
+            "SelectorSummonTemplateId", "SelectorBuffTemplateId",
+        };
 
         private Dictionary<int, JObject> CharacterLoadouts()
         {

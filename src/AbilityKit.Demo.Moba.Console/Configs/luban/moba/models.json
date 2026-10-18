@@ -52,5 +52,11 @@
     "Name": "技能预览-扇形范围占位模型",
     "PrefabPath": "moba/placeholders/aoe_sector_preview",
     "Scale": 1
+  },
+  {
+    "Id": 1008,
+    "Name": "鲁班七号占位模型",
+    "PrefabPath": "character/character8",
+    "Scale": 1
   }
 ]

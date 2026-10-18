@@ -7,6 +7,7 @@ using Entitas.CodeGeneration.Attributes;
 namespace AbilityKit.Demo.Moba.Components
 {
     [Actor]
+    [EntitasBlob]
     public sealed class AttributeGroupComponent : IComponent
     {
         public AttributeGroup Group;
@@ -41,6 +42,7 @@ namespace AbilityKit.Demo.Moba.Components
     }
 
     [Actor]
+    [EntitasBlob]
     public sealed class ResourceContainerComponent : IComponent
     {
         public ResourceContainer Value;

@@ -1861,7 +1861,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var features = MobaFlowConfiguration.CreateDefault().LobbyFeatures.FeatureIds;
 
             CollectionAssert.AreEqual(
-                new[] { "demo_lobby", "formal_lobby" },
+                new[] { "demo_lobby", "formal_lobby", "formal_lobby_ui" },
                 features);
             CollectionAssert.DoesNotContain(features, "root_debug");
         }
@@ -1950,6 +1950,38 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.IsTrue(created);
             Assert.IsInstanceOf<FormalLobbyFeature>(feature);
+            Assert.IsFalse(feature is IOnGUIFeature);
+            Assert.IsTrue(plan.TryCreate("formal_lobby_ui", in ctx, out var uiFeature));
+            Assert.IsInstanceOf<FormalLobbyOnGUIFeature>(uiFeature);
+        }
+
+        [Test]
+        public void BattleFeaturePlan_InstallAllFollowsProfileOrder()
+        {
+            var provider = new TestMobaFeatureFactoryProvider();
+            var registry = provider.CreateFeatureFactoryRegistry(() => new TestBattleSessionFeature());
+            var composition = MobaBattleFlowProfile.CreateStandard().Resolve();
+            var plan = new MobaFeaturePlanFactory(registry).CreateBattleFeaturePlan(composition);
+            var ctx = default(AbilityKit.Game.Flow.GamePhaseContext);
+
+            plan.InstallAll(in ctx, _ => { });
+
+            CollectionAssert.AreEqual(new[]
+            {
+                "context", "entity", "session", "battle_outcome", "gameplay_presentation",
+                "debug_ongui", "loading_screen", "sync", "input", "view", "hud", "end_settlement"
+            }, provider.CreatedFeatureIds);
+        }
+
+        [Test]
+        public void LobbyRuntimeOptions_ResourceIsValidAndRejectsInvalidIntervals()
+        {
+            var options = MobaLobbyRuntimeOptionsCatalog.Default;
+            Assert.AreEqual(1, options.Version);
+            Assert.Greater(options.SnapshotRecoveryMilliseconds, 0);
+            Assert.Throws<InvalidOperationException>(() => MobaLobbyRuntimeOptionsCatalog.Parse(
+                "{\"Version\":1,\"RoomNoticeDurationMilliseconds\":0," +
+                "\"RoomListRefreshMilliseconds\":3000,\"SnapshotRecoveryMilliseconds\":5000}"));
         }
 
         [Test]
@@ -2763,6 +2795,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 Register(registry, "boot_menu");
                 Register(registry, "demo_lobby");
                 Register(registry, "formal_lobby");
+                Register(registry, "formal_lobby_ui");
                 Register(registry, "root_debug");
                 Register(registry, "debug_ongui");
                 Register(registry, "context");

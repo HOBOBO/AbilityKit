@@ -18,12 +18,12 @@ namespace AbilityKit.World.Svelto
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
             builder.TryRegister<SveltoWorldContext>(WorldLifetime.Singleton, _ => new SveltoWorldContext());
-            builder.TryRegister<ISveltoWorldContext>(WorldLifetime.Singleton, r => r.Resolve<SveltoWorldContext>());
-            builder.TryRegister<EnginesRoot>(WorldLifetime.Singleton, r => r.Resolve<SveltoWorldContext>().EnginesRoot);
-            builder.TryRegister<EntitiesSubmissionScheduler>(WorldLifetime.Singleton, r => r.Resolve<SveltoWorldContext>().Scheduler);
-            builder.TryRegister<EntitiesDB>(WorldLifetime.Singleton, r => r.Resolve<SveltoWorldContext>().EntitiesDB);
-            builder.TryRegister<IEntityFactory>(WorldLifetime.Singleton, r => r.Resolve<SveltoWorldContext>().EntityFactory);
-            builder.TryRegister<IEntityFunctions>(WorldLifetime.Singleton, r => r.Resolve<SveltoWorldContext>().EntityFunctions);
+            builder.TryRegisterAlias(typeof(ISveltoWorldContext), typeof(SveltoWorldContext), WorldLifetime.Singleton);
+            builder.TryRegisterNonOwning<EnginesRoot>(WorldLifetime.Singleton, r => r.Resolve<SveltoWorldContext>().EnginesRoot);
+            builder.TryRegisterNonOwning<EntitiesSubmissionScheduler>(WorldLifetime.Singleton, r => r.Resolve<SveltoWorldContext>().Scheduler);
+            builder.TryRegisterNonOwning<EntitiesDB>(WorldLifetime.Singleton, r => r.Resolve<SveltoWorldContext>().EntitiesDB);
+            builder.TryRegisterNonOwning<IEntityFactory>(WorldLifetime.Singleton, r => r.Resolve<SveltoWorldContext>().EntityFactory);
+            builder.TryRegisterNonOwning<IEntityFunctions>(WorldLifetime.Singleton, r => r.Resolve<SveltoWorldContext>().EntityFunctions);
         }
     }
 }

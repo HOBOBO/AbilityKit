@@ -15,7 +15,9 @@ $expectedHeroes = @(
     @{ heroId = 1003; heroName = 'ZhaoYun'; fixtureFile = 'Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Test\UnitTest\Acceptance\Heroes\ZhaoYun\ZhaoYunSkillAcceptanceTests.cs' },
     @{ heroId = 1004; heroName = 'Mozi'; fixtureFile = 'Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Test\UnitTest\Acceptance\Heroes\Mozi\MoziSkillAcceptanceTests.cs' },
     @{ heroId = 1005; heroName = 'Daji'; fixtureFile = 'Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Test\UnitTest\Acceptance\Heroes\Daji\DajiSkillAcceptanceTests.cs' },
-    @{ heroId = 1006; heroName = 'YingZheng'; fixtureFile = 'Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Test\UnitTest\Acceptance\Heroes\YingZheng\YingZhengSkillAcceptanceTests.cs' }
+    @{ heroId = 1006; heroName = 'YingZheng'; fixtureFile = 'Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Test\UnitTest\Acceptance\Heroes\YingZheng\YingZhengSkillAcceptanceTests.cs' },
+    @{ heroId = 1007; heroName = 'SunShangxiang'; fixtureFile = 'Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Test\UnitTest\Acceptance\Heroes\SunShangxiang\SunShangxiangSkillAcceptanceTests.cs' },
+    @{ heroId = 1008; heroName = 'Luban'; fixtureFile = 'Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Test\UnitTest\Acceptance\Heroes\Luban\LubanSkillAcceptanceTests.cs' }
 )
 
 function Resolve-RepoPath {
@@ -131,7 +133,7 @@ foreach ($expectedHero in $expectedHeroes) {
         throw "Gate '$gateName' must contain a Unity EditMode step filtered by fixture '$fixture' or one of its test methods."
     }
 
-    if ($hero.heroName -in @('ZhaoYun', 'Mozi', 'Daji', 'YingZheng')) {
+    if ($hero.heroName -in @('ZhaoYun', 'Mozi', 'Daji', 'YingZheng', 'Luban')) {
         if ([string]$gate.level -ne 'P2') {
             throw "Gate '$gateName' for $($hero.heroName) must be P2. Actual: '$($gate.level)'."
         }

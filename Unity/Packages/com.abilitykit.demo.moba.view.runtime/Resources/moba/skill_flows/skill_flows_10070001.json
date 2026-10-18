@@ -1,0 +1,22 @@
+{
+  "Id": 10070001,
+  "Name": "孙尚香-普通攻击",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 2,
+      "Timeline": {
+        "DurationMs": 250,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 10070001,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "ssx_basic_projectile"
+          }
+        ]
+      }
+    }
+  ]
+}

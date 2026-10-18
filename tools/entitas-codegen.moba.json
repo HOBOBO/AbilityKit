@@ -1,0 +1,30 @@
+{
+  "schema": 2,
+  "project": "moba",
+  "sources": {
+    "components": [
+      "Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components"
+    ]
+  },
+  "typeIndex": {
+    "roots": [
+      "Unity/Packages"
+    ]
+  },
+  "output": {
+    "generatedDir": "Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Common/Shared/Entitas/Generated",
+    "encoding": "utf8-bom",
+    "lineEndings": "crlf",
+    "attribution": "abilitykit",
+    "cleanStale": true
+  },
+  "contexts": [
+    "Actor",
+    "Game"
+  ],
+  "pin": "tools/entitas-codegen.moba.pin.json",
+  "baseline": "tools/entitas-codegen.moba.baseline.json",
+  "serialization": {
+    "mode": "auto"
+  }
+}

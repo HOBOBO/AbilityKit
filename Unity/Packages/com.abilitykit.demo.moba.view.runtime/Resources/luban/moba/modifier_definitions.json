@@ -1,0 +1,1270 @@
+[
+  {
+    "Id": 1000001,
+    "Key": "ResilienceBonus",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 23
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000002,
+    "Key": "MoveSpeedPenalty",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.3
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000003,
+    "Key": "MoveSpeedSlow",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 2
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000004,
+    "Key": "PhysicsPenetrationBonus",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 15
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0.25
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000005,
+    "Key": "MoveSpeedSlowSmall",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0.5
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000006,
+    "Key": "PhysicsPenetrationBonusSmall",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 15
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0.35
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000007,
+    "Key": "MoveSpeedHaste",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0.8
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000008,
+    "Key": "PhysicsDefenseBonus",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 8
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0.15
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000009,
+    "Key": "MagicDefenseBonus",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 9
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0.15
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000010,
+    "Key": "MoveSpeedSlowMedium",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.25
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000011,
+    "Key": "MoveSpeedHasteMedium",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0.3
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000012,
+    "Key": "PhysicsDefenseShield",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 8
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0.2
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000013,
+    "Key": "MagicDefenseShield",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 9
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0.2
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000014,
+    "Key": "MoveSpeedImmobilize",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000015,
+    "Key": "PhysicsDefenseBarrier",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 8
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0.3
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000016,
+    "Key": "MagicDefenseBarrier",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 9
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0.3
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000017,
+    "Key": "MagicDefenseReduction",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 9
+    },
+    "Value": {
+      "Op": 0,
+      "Value": -30
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000018,
+    "Key": "MoveSpeedSlowStrong",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.35
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000019,
+    "Key": "MoveSpeedHasteShield",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0.25
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000020,
+    "Key": "AttackSpeedBonus",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 13
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 5,
+      "BaseValue": 0,
+      "Coefficient": 0.3,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "resource.rage.ratio",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000021,
+    "Key": "PhysicsDefenseBonusShield",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 8
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 5,
+      "BaseValue": 0,
+      "Coefficient": 0.2,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "resource.rage.ratio",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000022,
+    "Key": "MagicDefenseBonusShield",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 9
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 5,
+      "BaseValue": 0,
+      "Coefficient": 0.2,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "resource.rage.ratio",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000023,
+    "Key": "MoveSpeedSlowStacking",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0.4
+    },
+    "Magnitude": {
+      "SourceType": 3,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 3,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [
+      1,
+      0.5,
+      0.1
+    ],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000024,
+    "Key": "PhysicsAttackBonusFormula",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 4
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 6,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 5,
+    "FormulaLevelCoefficient": 2,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8000001,
+    "Key": "BuffDurationBonus",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 4,
+      "Id": 20001
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 1000
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2000001,
+    "Key": "SlotSkillOverride",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 4
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 10040112,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 3000001,
+    "Key": "ProjectileCountBonus",
+    "MountPoint": 4,
+    "Target": {
+      "Kind": 4,
+      "Id": 30002
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 2
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 3,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 3000002,
+    "Key": "LauncherDurationBonus",
+    "MountPoint": 4,
+    "Target": {
+      "Kind": 4,
+      "Id": 30004
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 1000
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 3,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 4000001,
+    "Key": "ProjectileSpeedScale",
+    "MountPoint": 5,
+    "Target": {
+      "Kind": 4,
+      "Id": 40002
+    },
+    "Value": {
+      "Op": 1,
+      "Value": 1.25
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 3,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 4000002,
+    "Key": "ProjectilePierceBonus",
+    "MountPoint": 5,
+    "Target": {
+      "Kind": 4,
+      "Id": 40004
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 3,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 5000001,
+    "Key": "AreaRadiusBonus",
+    "MountPoint": 6,
+    "Target": {
+      "Kind": 4,
+      "Id": 50001
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 3,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 6000001,
+    "Key": "SummonSizeScale",
+    "MountPoint": 3,
+    "Target": {
+      "Kind": 4,
+      "Id": 60003
+    },
+    "Value": {
+      "Op": 1,
+      "Value": 1.5
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 3,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 7000001,
+    "Key": "DamageBaseBonus",
+    "MountPoint": 8,
+    "Target": {
+      "Kind": 4,
+      "Id": 70001
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 10
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 3,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000025,
+    "Key": "SunShangxiangRollMoveSpeedDecay",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0.3
+    },
+    "Magnitude": {
+      "SourceType": 3,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 2.5,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [
+      1,
+      0.5,
+      0
+    ],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2000002,
+    "Key": "SunShangxiangEnhancedBasicAttackSlot",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 4
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 10070112,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  }
+]

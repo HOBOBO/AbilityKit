@@ -23,7 +23,7 @@ Editor 侧消费工具。
 | 数据 | `FlameData` | 火焰图数据结构（可导出给 speedscope 等工具） |
 | 分析 | `AnalysisArtifact` / `AnalysisProfilerBuilder` / `AnalysisBattleDiagnosticSection` | 战斗分析工件与构建 |
 | Editor | `DiagnosticsWindow` | Unity 编辑器诊断窗口 |
-| Editor | `Exporters` / `AdvancedExporters` / `AnalysisArtifactJsonExporter` | 工件导出（JSON 等） |
+| Editor | `Exporters` / `AdvancedExporters` / `AnalysisArtifactJsonExporter` | 工件导出：json / csv / folded / speedscope / chrome trace / **flamegraph SVG** / 分析工件 JSON |
 
 ## 典型用法
 

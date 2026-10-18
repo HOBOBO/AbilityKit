@@ -21,7 +21,6 @@ public sealed partial class DRGameplays : Luban.BeanBase
         Name = _buf.ReadString();
         {int n0 = _buf.ReadSize(); Tags = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); Tags.Add(_e0);}}
         {int n0 = _buf.ReadSize(); TriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); TriggerIds.Add(_e0);}}
-        WinPolicy = _buf.ReadInt();
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
     }
@@ -52,10 +51,6 @@ public sealed partial class DRGameplays : Luban.BeanBase
     /// </summary>
     public readonly System.Collections.Generic.List<int> TriggerIds;
     /// <summary>
-    /// 胜利策略；用于玩法配置。
-    /// </summary>
-    public readonly int WinPolicy;
-    /// <summary>
     /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
     /// </summary>
     public readonly string OmittedFields;
@@ -79,7 +74,6 @@ public sealed partial class DRGameplays : Luban.BeanBase
         + "Name:" + Name + ","
         + "Tags:" + Luban.StringUtil.CollectionToString(Tags) + ","
         + "TriggerIds:" + Luban.StringUtil.CollectionToString(TriggerIds) + ","
-        + "WinPolicy:" + WinPolicy + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
         + "}";

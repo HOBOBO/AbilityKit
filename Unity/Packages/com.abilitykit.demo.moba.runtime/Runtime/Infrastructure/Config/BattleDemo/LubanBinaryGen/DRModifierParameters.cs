@@ -17,14 +17,19 @@ public sealed partial class DRModifierParameters : Luban.BeanBase
     public DRModifierParameters(ByteBuf _buf) 
     {
         Id = _buf.ReadInt();
-        Domain = (ModifierParameterDomain)_buf.ReadInt();
         Key = _buf.ReadString();
         Category = _buf.ReadInt();
         SubCategory = _buf.ReadInt();
         ValueKind = (ModifierParameterValueKind)_buf.ReadInt();
-        OpMask = _buf.ReadInt();
+        {int n0 = _buf.ReadSize(); Ops = new System.Collections.Generic.List<ModifierOp>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { ModifierOp _e0;  _e0 = (ModifierOp)_buf.ReadInt(); Ops.Add(_e0);}}
         TriggerWritable = _buf.ReadBool();
         ResolveAt = (ModifierParameterResolveAt)_buf.ReadInt();
+        DisplayName = _buf.ReadString();
+        Unit = (ModifierFieldUnit)_buf.ReadInt();
+        ValueMin = _buf.ReadFloat();
+        ValueMax = _buf.ReadFloat();
+        CapturePolicy = (ModifierParameterCapturePolicy)_buf.ReadInt();
+        Deprecated = _buf.ReadBool();
     }
 
     public static DRModifierParameters DeserializeDRModifierParameters(ByteBuf _buf)
@@ -33,41 +38,61 @@ public sealed partial class DRModifierParameters : Luban.BeanBase
     }
 
     /// <summary>
-    /// 稳定参数 ID；现有行已按 Domain 分段，旧 1-16 停用。详见批注及 Docs/MobaModifierAuthoring.md。
+    /// 稳定参数 ID；按领域分段：10000 Skill / 20000 Buff / 30000 Emitter / 40000 Projectile / 50000 Aoe / 60000 Summon / 70001 Damage。详见 Docs/MobaModifierAuthoring.md。
     /// </summary>
     public readonly int Id;
     /// <summary>
-    /// 参数所属领域，决定生成代码中的分组。
-    /// </summary>
-    public readonly ModifierParameterDomain Domain;
-    /// <summary>
-    /// 领域内唯一的 C# 参数名；发布后不可改名。
+    /// 领域内唯一的 C# 参数名；发布后不可改名。领域由 ID 段隐含，不再单列。
     /// </summary>
     public readonly string Key;
     /// <summary>
-    /// ModifierKey 类别位，范围 1-255；发布后不可改动。
+    /// ModifierKey 类别位（机器 ABI）。发布后不可改动；扩量请新分配 ID。
     /// </summary>
     public readonly int Category;
     /// <summary>
-    /// ModifierKey 子类别位，范围 1-255；发布后不可改动。
+    /// ModifierKey 子类别位（机器 ABI）。发布后不可改动；扩量请新分配 ID。
     /// </summary>
     public readonly int SubCategory;
     /// <summary>
-    /// ReferenceId 只允许 Override；Integer/Float 为数值。
+    /// 存储类型：ReferenceId 只允许 Override；Integer / Float 为数值。
     /// </summary>
     public readonly ModifierParameterValueKind ValueKind;
     /// <summary>
-    /// 允许的操作位：Add=1、Mul=2、Override=4、PercentAdd=8。
+    /// 允许的操作，逗号分隔，至少一个：Add / Mul / Override / PercentAdd。参考型参数只能填 Override。
     /// </summary>
-    public readonly int OpMask;
+    public readonly System.Collections.Generic.List<ModifierOp> Ops;
     /// <summary>
-    /// 触发器的 add_skill_param_modifier 动作是否允许写入。
+    /// 旧 Trigger 数值动作的兼容权限。生产导出拒绝该动作，新内容由 Buff 或持续流程引用模板提供。
     /// </summary>
     public readonly bool TriggerWritable;
     /// <summary>
-    /// 参数取值时机；已有实例不会追溯修改。
+    /// 取值时机，已有实例不追溯：Action/Launch/BuffApply/AreaSpawn/Emit/ProjectileSpawn/Hit/SummonCreate。
     /// </summary>
     public readonly ModifierParameterResolveAt ResolveAt;
+    /// <summary>
+    /// 调试与诊断显示名；不作身份，不可用于引用。
+    /// </summary>
+    public readonly string DisplayName;
+    /// <summary>
+    /// 量纲：Point 点数 / Distance 距离 / Ms 毫秒 / Count 次数 / Ratio 倍率 / Degrees 角度 / Percent 比率 / Id 引用。数值字段必填。
+    /// </summary>
+    public readonly ModifierFieldUnit Unit;
+    /// <summary>
+    /// 合法下界（含）。填 0 表示无下界；ReferenceId 必须留空。
+    /// </summary>
+    public readonly float ValueMin;
+    /// <summary>
+    /// 合法上界（含）。填 0 表示无上界；ReferenceId 必须留空。
+    /// </summary>
+    public readonly float ValueMax;
+    /// <summary>
+    /// 生效模式：CreateSnapshot 创建时固定 / EventSample 事件时取样。LiveProperty 需注册领域更新适配器，尚未开放。
+    /// </summary>
+    public readonly ModifierParameterCapturePolicy CapturePolicy;
+    /// <summary>
+    /// 弃用标记；弃用行不得发布，新内容不得引用。
+    /// </summary>
+    public readonly bool Deprecated;
    
     public const int __ID__ = 876952911;
     public override int GetTypeId() => __ID__;
@@ -80,14 +105,19 @@ public sealed partial class DRModifierParameters : Luban.BeanBase
     {
         return "{ "
         + "Id:" + Id + ","
-        + "Domain:" + Domain + ","
         + "Key:" + Key + ","
         + "Category:" + Category + ","
         + "SubCategory:" + SubCategory + ","
         + "ValueKind:" + ValueKind + ","
-        + "OpMask:" + OpMask + ","
+        + "Ops:" + Luban.StringUtil.CollectionToString(Ops) + ","
         + "TriggerWritable:" + TriggerWritable + ","
         + "ResolveAt:" + ResolveAt + ","
+        + "DisplayName:" + DisplayName + ","
+        + "Unit:" + Unit + ","
+        + "ValueMin:" + ValueMin + ","
+        + "ValueMax:" + ValueMax + ","
+        + "CapturePolicy:" + CapturePolicy + ","
+        + "Deprecated:" + Deprecated + ","
         + "}";
     }
 }

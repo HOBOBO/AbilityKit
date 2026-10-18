@@ -29,9 +29,14 @@ namespace AbilityKit.Demo.Moba.Systems
                 return;
             }
 
-            if (AppContext.TryGetSwitch(
+            var reflectionFallbackDisabled =
+                AppContext.TryGetSwitch(
                     "AbilityKit.Moba.DisableEventMappingReflectionFallback",
-                    out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+                    out var configuredFallbackDisabled) && configuredFallbackDisabled;
+#if !UNITY_EDITOR && !DEVELOPMENT_BUILD
+            reflectionFallbackDisabled = true;
+#endif
+            if (reflectionFallbackDisabled)
             {
                 throw new InvalidOperationException(
                     "The generated MOBA event mapping manifest is empty and reflection fallback is disabled.");
@@ -88,19 +93,31 @@ namespace AbilityKit.Demo.Moba.Systems
             for (int i = 0; i < _prefixes.Count; i++)
             {
                 var existing = _prefixes[i];
-                if (string.Equals(existing.Prefix, prefix, StringComparison.Ordinal))
+                if (!string.Equals(existing.Prefix, prefix, StringComparison.Ordinal)) continue;
+                if (existing.ArgsType != argsType)
                 {
-                    if (existing.ArgsType != argsType)
-                    {
-                        throw new InvalidOperationException(
-                            $"Duplicate MOBA event prefix '{prefix}' uses both '{existing.ArgsType.FullName}' and '{argsType.FullName}'.");
-                    }
+                    throw new InvalidOperationException(
+                        $"Duplicate MOBA event prefix '{prefix}' uses both '{existing.ArgsType.FullName}' and '{argsType.FullName}'.");
+                }
 
-                    return;
+                return;
+            }
+
+            // Keep the most specific prefix first so registration order is irrelevant.
+            var insertAt = _prefixes.Count;
+            for (int i = 0; i < _prefixes.Count; i++)
+            {
+                var existing = _prefixes[i];
+                var lengthCompare = prefix.Length.CompareTo(existing.Prefix.Length);
+                if (lengthCompare > 0 ||
+                    (lengthCompare == 0 && string.CompareOrdinal(prefix, existing.Prefix) < 0))
+                {
+                    insertAt = i;
+                    break;
                 }
             }
 
-            _prefixes.Add(new PrefixEntry(prefix, argsType));
+            _prefixes.Insert(insertAt, new PrefixEntry(prefix, argsType));
         }
 
         public void DiscoverAndRegister(Assembly assembly = null)

@@ -76,7 +76,7 @@ Buff 在不同游戏中的共同点主要是代码形状，而非完整语义。
 | 阶段 Trigger 执行 | `BuffStageEffectExecutor`, `BuffTriggerContext` | [`BuffStageEffectExecutor.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/BuffStageEffectExecutor.cs:16) |
 | 生命周期通知 | `BuffLifecycleNotifier` | [`BuffLifecycleNotifier.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffLifecycleNotifier.cs:12) |
 | Buff 事件发布 | `BuffEventPublisher` | [`BuffEventPublisher.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/BuffEventPublisher.cs:20) |
-| OwnerBound Trigger 绑定 | `MobaContinuousOwnerBoundTriggerLifecycleBinder` | [`MobaContinuousOwnerBoundTriggerLifecycleBinder.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousOwnerBoundTriggerLifecycleBinder.cs:15) |
+| OwnerBound Trigger 绑定 | `MobaContinuousOwnerBoundTriggerLifecycleBinder` | [`MobaContinuousOwnerBoundTriggerLifecycleBinder.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Triggering/MobaContinuousOwnerBoundTriggerLifecycleBinder.cs:15) |
 | 命令队列系统 | `MobaBuffCommandDrainSystem` | [`MobaBuffCommandDrainSystem.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffCommandDrainSystem.cs:9) |
 | 生命周期调和系统 | `MobaBuffLifecycleReconcileSystem` | [`MobaBuffLifecycleReconcileSystem.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffLifecycleReconcileSystem.cs:10) |
 | 系统顺序约束 | `MobaSystemOrder` | [`MobaSystemOrder.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs:62) |
@@ -372,7 +372,7 @@ sequenceDiagram
     Gateway->>Trigger: Execute trigger plan
 ```
 
-Buff 没有专属的 TriggerPlan 协调器。`BuffContinuousRuntime.RuntimeModel` 暴露 `BuffMO.TriggerIds`，通用的 [`MobaContinuousOwnerBoundTriggerLifecycleBinder`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousOwnerBoundTriggerLifecycleBinder.cs:15) 监听 Continuous 生命周期，并以 continuous runtime 的 owner key 管理 OwnerBound Trigger：
+Buff 没有专属的 TriggerPlan 协调器。`BuffContinuousRuntime.RuntimeModel` 暴露 `BuffMO.TriggerIds`，通用的 [`MobaContinuousOwnerBoundTriggerLifecycleBinder`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Triggering/MobaContinuousOwnerBoundTriggerLifecycleBinder.cs:15) 监听 Continuous 生命周期，并以 continuous runtime 的 owner key 管理 OwnerBound Trigger：
 
 - Continuous 激活时，Binder 复制 TriggerId 列表并通过 `MobaOwnerBoundTriggerExecutionGateway.ApplyOwnerBoundTriggers` 建立订阅。
 - Continuous 结束或解绑时，Binder 通过同一 Gateway 停止 owner key 对应的订阅并清理来源快照。

@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public ContinuousModifierMO(ContinuousModifierDTO dto)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
+            DefinitionId = dto.DefinitionId;
             TargetKind = dto.TargetKind;
             TargetId = dto.TargetId;
             Op = dto.Op;
@@ -36,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
                 dto.SelectorSummonTemplateId, dto.SelectorBuffTemplateId);
         }
 
+        public int DefinitionId { get; }
         public int TargetKind { get; }
         public int TargetId { get; }
         public int Op { get; }

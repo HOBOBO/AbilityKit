@@ -57,14 +57,16 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public const int Base = 1000;
         public const int Mitigation = 2000;
-        public const int Shield = 3000;
-        public const int Final = 4000;
+        // Final damage is the last mutable damage input before shield resolution.
+        // A stage after Shield must not be able to replace HpDamage and bypass the shield.
+        public const int Final = 3000;
+        public const int Shield = 4000;
 
         public static bool IsExtensionOrder(int order)
         {
             return (order > Base && order < Mitigation)
-                || (order > Mitigation && order < Shield)
-                || (order > Shield && order < Final);
+                || (order > Mitigation && order < Final)
+                || (order > Final && order < Shield);
         }
     }
 

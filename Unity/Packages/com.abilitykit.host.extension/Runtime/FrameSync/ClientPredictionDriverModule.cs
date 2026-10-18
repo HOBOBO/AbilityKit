@@ -79,6 +79,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             public SortedDictionary<int, List<LocalPlayerInputEvent>> PendingLocalInputs;
 
             public RollbackCoordinator Rollback;
+            public bool RollbackFaulted;
             public int CaptureCounter;
             public FrameIndex LastProcessedRollbackFrame;
 
@@ -472,13 +473,15 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             ResetReconcileInternal(ctx);
             AlignFrameTimeToBaseline(ctx.FrameTime, baselineFrame);
 
-            if (ctx.Rollback != null && !ctx.Rollback.CaptureAndStore(baselineFrame))
+            if (ctx.Rollback != null && !ctx.Rollback.TryCaptureAndStore(baselineFrame, out var captureResult))
             {
+                ctx.RollbackFaulted = true;
                 Log.Warning(
                     $"[ClientPredictionDriverModule] Failed to capture imported prediction baseline. " +
-                    $"worldId={worldId.Value}, frame={baselineFrame.Value}");
+                    $"worldId={worldId.Value}, frame={baselineFrame.Value}, result={captureResult}");
                 return false;
             }
+            ctx.RollbackFaulted = false;
 
             _lastConsumedConfirmedFrames = 0;
             _lastConsumedPredictedFrames = 0;
@@ -579,7 +582,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 rollback = new RollbackCoordinator(
                     reg,
                     new RollbackSnapshotRingBuffer(_bufferOptions.RollbackSnapshotCapacity));
-                rollback.CaptureAndStore(new FrameIndex(0));
+                if (!rollback.TryCaptureAndStore(new FrameIndex(0), out var initialCapture))
+                    throw new InvalidOperationException($"Initial rollback capture failed: {initialCapture}", initialCapture.Exception);
             }
 
             Func<FrameIndex, WorldStateHash> computeHash = null;
@@ -708,7 +712,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         private void RequestReconcileRollback(WorldId worldId, FrameIndex mismatchFrame)
         {
             if (!_contexts.TryGetValue(worldId, out var ctx) || ctx == null) return;
-            if (!_enableRollback || ctx.Rollback == null) return;
+            if (!_enableRollback || ctx.Rollback == null || ctx.RollbackFaulted) return;
 
             // 避免回滚风暴（例如调试强制不一致），并避免在回放期间重入。
             if (ctx.Mode == ReplayMode.Replaying) return;
@@ -748,7 +752,10 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         private static bool TryRestoreState(WorldContext ctx, FrameIndex frame)
         {
             if (ctx == null || ctx.Rollback == null) return false;
-            return ctx.Rollback.TryRestore(frame);
+            if (ctx.Rollback.TryRestore(frame, out var result)) return true;
+            ctx.RollbackFaulted = true;
+            Log.Warning($"[ClientPredictionDriverModule] Rollback restore failed; world tick paused. result={result}");
+            return false;
         }
 
         private static void BeginInputReplay(
@@ -820,6 +827,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 var ctx = kv.Value;
                 if (ctx == null) continue;
                 if (ctx.World == null || ctx.InputSink == null) continue;
+                if (ctx.RollbackFaulted) continue;
 
                 _lastConsumedConfirmedFrames = 0;
                 _lastConsumedPredictedFrames = 0;
@@ -1314,7 +1322,12 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
                 try
                 {
-                    ctx.Rollback.CaptureAndStore(ctx.PredictedFrame);
+                    if (!ctx.Rollback.TryCaptureAndStore(ctx.PredictedFrame, out var captureResult))
+                    {
+                        ctx.RollbackFaulted = true;
+                        Log.Warning($"[ClientPredictionDriverModule] Rollback capture failed; world tick paused. result={captureResult}");
+                        continue;
+                    }
 
                     if (ctx.ComputeHash != null && ctx.Reconciler != null)
                     {
@@ -1343,6 +1356,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 }
                 catch (Exception ex)
                 {
+                    ctx.RollbackFaulted = true;
                     Log.Exception(ex);
                 }
             }

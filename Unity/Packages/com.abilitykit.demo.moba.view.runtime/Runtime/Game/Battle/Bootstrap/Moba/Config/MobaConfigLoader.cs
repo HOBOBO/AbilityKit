@@ -12,9 +12,8 @@ namespace AbilityKit.Game.Battle.Moba.Config
         public static MobaConfigDatabase LoadDefault()
         {
             var assets = new ResourcesTextAssetLoader();
-            MobaGameplayTagCatalog.RegisterDefinitions(assets);
             var db = new MobaConfigDatabase(textAssetLoader: assets);
-            db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir);
+            new LubanGroupsMobaConfigLoadProfile(assets).Load(db);
             return db;
         }
     }

@@ -19,7 +19,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     {
         public const int DefaultKey = 10007;
         // v2 (2026-08-15): 护盾数值字段定点化（Q32.32），快照以 raw long 存储（TotalRemaining/TransferRatio/CurrentValue/MaxValue/InitialValue/AbsorbRatio）。
-        private const int CurrentPayloadVersion = 2;
+        internal const int CurrentPayloadVersion = 3;
 
         private readonly MobaActorRegistry _actors;
         private readonly MobaShieldService _shields;
@@ -39,7 +39,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             foreach (var kv in _actors.Entries)
             {
                 var actorId = kv.Key;
-                if (!_shields.TryGetContainer(actorId, out var container))
+                if (!_shields.TryGetContainerMutable(actorId, out var container))
                 {
                     entries.Add(MobaShieldRollbackEntry.Empty(actorId));
                     continue;
@@ -50,9 +50,17 @@ namespace AbilityKit.Demo.Moba.Rollback
 
             entries.Sort((a, b) => a.ActorId.CompareTo(b.ActorId));
             ValidateEntries(entries);
+            var pools = new List<MobaSharedShieldPoolRollbackEntry>();
+            foreach (var pair in _shields.GetSharedPoolsMutable())
+            {
+                if (pair.Value == null) continue;
+                pools.Add(MobaSharedShieldPoolRollbackEntry.FromPool(pair.Value));
+            }
+            pools.Sort((a, b) => a.PoolId.CompareTo(b.PoolId));
             return MemoryPackSerializer.Serialize(new MobaShieldRollbackPayload(
                 CurrentPayloadVersion,
-                entries.Count == 0 ? Array.Empty<MobaShieldRollbackEntry>() : entries.ToArray()));
+                entries.Count == 0 ? Array.Empty<MobaShieldRollbackEntry>() : entries.ToArray(),
+                pools.Count == 0 ? Array.Empty<MobaSharedShieldPoolRollbackEntry>() : pools.ToArray()));
         }
 
         public void Import(FrameIndex frame, byte[] payload)
@@ -75,6 +83,8 @@ namespace AbilityKit.Demo.Moba.Rollback
 
             var restored = BuildContainers(entries);
             _shields.RestoreContainers(restored);
+            var pools = BuildPools(snapshot.Pools ?? Array.Empty<MobaSharedShieldPoolRollbackEntry>(), out var nextPoolId);
+            _shields.RestoreSharedPools(pools, nextPoolId);
         }
 
         private static Fixed64 FromRaw(long raw)
@@ -135,6 +145,22 @@ namespace AbilityKit.Demo.Moba.Rollback
             return restored;
         }
 
+        private static Dictionary<int, SharedShieldPool> BuildPools(
+            IReadOnlyList<MobaSharedShieldPoolRollbackEntry> entries, out int nextPoolId)
+        {
+            var restored = new Dictionary<int, SharedShieldPool>();
+            nextPoolId = 0;
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                if (entry.PoolId <= 0 || restored.ContainsKey(entry.PoolId))
+                    throw new InvalidOperationException($"Shared shield pool identities must be unique. poolId={entry.PoolId}.");
+                restored.Add(entry.PoolId, entry.ToPool());
+                if (entry.PoolId > nextPoolId) nextPoolId = entry.PoolId;
+            }
+            return restored;
+        }
+
         private static void ValidateEntries(IReadOnlyList<MobaShieldRollbackEntry> entries)
         {
             var previousActorId = 0;
@@ -176,17 +202,127 @@ namespace AbilityKit.Demo.Moba.Rollback
     }
 
     [MemoryPackable]
+    public readonly partial struct MobaSharedShieldPoolRollbackEntry
+    {
+        [MemoryPackOrder(0)] public readonly int PoolId;
+        [MemoryPackOrder(1)] public readonly int ShieldId;
+        [MemoryPackOrder(2)] public readonly int SourceActorId;
+        [MemoryPackOrder(3)] public readonly int OwnerActorId;
+        [MemoryPackOrder(4)] public readonly long SourceContextId;
+        [MemoryPackOrder(5)] public readonly long RootContextId;
+        [MemoryPackOrder(6)] public readonly long OwnerContextId;
+        [MemoryPackOrder(7)] public readonly long CurrentValueRaw;
+        [MemoryPackOrder(8)] public readonly long MaxValueRaw;
+        [MemoryPackOrder(9)] public readonly long InitialValueRaw;
+        [MemoryPackOrder(10)] public readonly long AbsorbRatioRaw;
+        [MemoryPackOrder(11)] public readonly int Priority;
+        [MemoryPackOrder(12)] public readonly int DamageTypeMask;
+        [MemoryPackOrder(13)] public readonly int StartFrame;
+        [MemoryPackOrder(14)] public readonly int ExpireFrame;
+        [MemoryPackOrder(15)] public readonly bool RemoveWhenDepleted;
+        [MemoryPackOrder(16)] public readonly int StackingPolicy;
+        [MemoryPackOrder(17)] public readonly int ConsumePolicy;
+        [MemoryPackOrder(18)] public readonly int SharePolicy;
+        [MemoryPackOrder(19)] public readonly int TransferPolicy;
+        [MemoryPackOrder(20)] public readonly int Version;
+        [MemoryPackOrder(21)] public readonly int NextMemberId;
+        [MemoryPackOrder(22)] public readonly MobaSharedShieldMemberRollbackEntry[] Members;
+
+        [MemoryPackConstructor]
+        public MobaSharedShieldPoolRollbackEntry(int poolId, int shieldId, int sourceActorId, int ownerActorId,
+            long sourceContextId, long rootContextId, long ownerContextId, long currentValueRaw, long maxValueRaw,
+            long initialValueRaw, long absorbRatioRaw, int priority, int damageTypeMask, int startFrame, int expireFrame,
+            bool removeWhenDepleted, int stackingPolicy, int consumePolicy, int sharePolicy, int transferPolicy,
+            int version, int nextMemberId, MobaSharedShieldMemberRollbackEntry[] members)
+        {
+            PoolId = poolId; ShieldId = shieldId; SourceActorId = sourceActorId; OwnerActorId = ownerActorId;
+            SourceContextId = sourceContextId; RootContextId = rootContextId; OwnerContextId = ownerContextId;
+            CurrentValueRaw = currentValueRaw; MaxValueRaw = maxValueRaw; InitialValueRaw = initialValueRaw;
+            AbsorbRatioRaw = absorbRatioRaw; Priority = priority; DamageTypeMask = damageTypeMask;
+            StartFrame = startFrame; ExpireFrame = expireFrame; RemoveWhenDepleted = removeWhenDepleted;
+            StackingPolicy = stackingPolicy; ConsumePolicy = consumePolicy; SharePolicy = sharePolicy;
+            TransferPolicy = transferPolicy; Version = version; NextMemberId = nextMemberId; Members = members;
+        }
+
+        public static MobaSharedShieldPoolRollbackEntry FromPool(SharedShieldPool pool)
+        {
+            var source = pool.Members ?? new List<SharedShieldPoolMember>();
+            var members = new MobaSharedShieldMemberRollbackEntry[source.Count];
+            for (var i = 0; i < source.Count; i++) members[i] = MobaSharedShieldMemberRollbackEntry.FromMember(source[i]);
+            return new MobaSharedShieldPoolRollbackEntry(pool.PoolId, pool.ShieldId, pool.SourceActorId, pool.OwnerActorId,
+                pool.SourceContextId, pool.RootContextId, pool.OwnerContextId, pool.CurrentValue.RawValue,
+                pool.MaxValue.RawValue, pool.InitialValue.RawValue, pool.AbsorbRatio.RawValue, pool.Priority,
+                pool.DamageTypeMask, pool.StartFrame, pool.ExpireFrame, pool.RemoveWhenDepleted,
+                (int)pool.StackingPolicy, (int)pool.ConsumePolicy, (int)pool.SharePolicy, (int)pool.TransferPolicy,
+                pool.Version, pool.NextMemberId, members);
+        }
+
+        public SharedShieldPool ToPool()
+        {
+            var source = Members ?? Array.Empty<MobaSharedShieldMemberRollbackEntry>();
+            var members = new List<SharedShieldPoolMember>(source.Length);
+            for (var i = 0; i < source.Length; i++) members.Add(source[i].ToMember());
+            return new SharedShieldPool
+            {
+                PoolId = PoolId, ShieldId = ShieldId, SourceActorId = SourceActorId, OwnerActorId = OwnerActorId,
+                SourceContextId = SourceContextId, RootContextId = RootContextId, OwnerContextId = OwnerContextId,
+                CurrentValue = Fixed64.FromRaw(CurrentValueRaw), MaxValue = Fixed64.FromRaw(MaxValueRaw),
+                InitialValue = Fixed64.FromRaw(InitialValueRaw), AbsorbRatio = Fixed64.FromRaw(AbsorbRatioRaw),
+                Priority = Priority, DamageTypeMask = DamageTypeMask, StartFrame = StartFrame, ExpireFrame = ExpireFrame,
+                RemoveWhenDepleted = RemoveWhenDepleted, StackingPolicy = (ShieldStackingPolicy)StackingPolicy,
+                ConsumePolicy = (ShieldConsumePolicy)ConsumePolicy, SharePolicy = (ShieldSharePolicy)SharePolicy,
+                TransferPolicy = (ShieldTransferPolicy)TransferPolicy, Version = Version, NextMemberId = NextMemberId,
+                Members = members,
+            };
+        }
+    }
+
+    [MemoryPackable]
+    public readonly partial struct MobaSharedShieldMemberRollbackEntry
+    {
+        [MemoryPackOrder(0)] public readonly int MemberId;
+        [MemoryPackOrder(1)] public readonly int ActorId;
+        [MemoryPackOrder(2)] public readonly long WeightRaw;
+        [MemoryPackOrder(3)] public readonly long MaxConsumeValueRaw;
+        [MemoryPackOrder(4)] public readonly int JoinedFrame;
+        [MemoryPackOrder(5)] public readonly int LeftFrame;
+        [MemoryPackOrder(6)] public readonly bool Active;
+        [MemoryPackOrder(7)] public readonly long ConsumedValueRaw;
+
+        public MobaSharedShieldMemberRollbackEntry(int memberId, int actorId, long weightRaw, long maxConsumeValueRaw,
+            int joinedFrame, int leftFrame, bool active, long consumedValueRaw = 0L)
+        {
+            MemberId = memberId; ActorId = actorId; WeightRaw = weightRaw; MaxConsumeValueRaw = maxConsumeValueRaw;
+            JoinedFrame = joinedFrame; LeftFrame = leftFrame; Active = active; ConsumedValueRaw = consumedValueRaw;
+        }
+
+        public static MobaSharedShieldMemberRollbackEntry FromMember(SharedShieldPoolMember member)
+            => new MobaSharedShieldMemberRollbackEntry(member.MemberId, member.ActorId, member.Weight.RawValue,
+                member.MaxConsumeValue.RawValue, member.JoinedFrame, member.LeftFrame, member.Active, member.ConsumedValue.RawValue);
+
+        public SharedShieldPoolMember ToMember() => new SharedShieldPoolMember
+        {
+            MemberId = MemberId, ActorId = ActorId, Weight = Fixed64.FromRaw(WeightRaw),
+            MaxConsumeValue = Fixed64.FromRaw(MaxConsumeValueRaw), JoinedFrame = JoinedFrame,
+            LeftFrame = LeftFrame, Active = Active, ConsumedValue = Fixed64.FromRaw(ConsumedValueRaw),
+        };
+    }
+
+    [MemoryPackable]
     public readonly partial struct MobaShieldRollbackPayload
     {
         [MemoryPackOrder(0)] public readonly int Version;
         [MemoryPackOrder(1)] public readonly MobaShieldRollbackEntry[] Entries;
 
         [MemoryPackConstructor]
-        public MobaShieldRollbackPayload(int version, MobaShieldRollbackEntry[] entries)
+        public MobaShieldRollbackPayload(int version, MobaShieldRollbackEntry[] entries, MobaSharedShieldPoolRollbackEntry[] pools)
         {
             Version = version;
             Entries = entries;
+            Pools = pools;
         }
+
+        [MemoryPackOrder(2)] public readonly MobaSharedShieldPoolRollbackEntry[] Pools;
     }
 
     [MemoryPackable]

@@ -82,7 +82,40 @@ namespace AbilityKit.Demo.Moba.Share
                 predictionKey: entry.PredictionKey,
                 predictionState: (PresentationCuePredictionState)entry.PredictionState,
                 predictedFrame: entry.PredictedFrame,
-                confirmedFrame: entry.ConfirmedFrame);
+                confirmedFrame: entry.ConfirmedFrame,
+                lifetime: (PresentationCueLifetime)entry.Lifetime,
+                domain: (PresentationCueDomain)entry.Domain,
+                snapshotKind: (PresentationCueSnapshotKind)entry.SnapshotKind,
+                worldId: entry.WorldId,
+                generation: entry.Generation,
+                sourceFrame: entry.SourceFrame,
+                sequence: entry.Sequence,
+                revision: entry.Revision,
+                parameterSchemaVersion: entry.ParameterSchemaVersion,
+                parameters: MapParameters(entry.Parameters),
+                eventKey: entry.EventKey);
+        }
+
+        private static PresentationCueParameter[] MapParameters(MobaPresentationCueParameter[] values)
+        {
+            if (values == null || values.Length == 0) return Array.Empty<PresentationCueParameter>();
+
+            var result = new PresentationCueParameter[values.Length];
+            for (var i = 0; i < values.Length; i++)
+            {
+                var value = values[i];
+                result[i] = new PresentationCueParameter(
+                    value.Key,
+                    (PresentationCueParameterKind)value.ValueKind,
+                    value.IntegerValue,
+                    value.FloatValue,
+                    value.StringValue,
+                    value.BoolValue,
+                    new SnapshotVec3(value.VectorX, value.VectorY, value.VectorZ),
+                    value.VectorW);
+            }
+
+            return result;
         }
 
         private static SnapshotVec3[] DecodePositions(float[] values)

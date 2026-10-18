@@ -24,5 +24,31 @@
     "SummonId": 1,
     "TargetMode": 0,
     "YawOffsetDeg": 0
+  },
+  {
+    "Id": 1008,
+    "ArcAngleDeg": 360,
+    "GridCols": 0,
+    "GridRows": 0,
+    "GridSpacingX": 0,
+    "GridSpacingZ": 0,
+    "IntervalMs": 0,
+    "Name": "鲁班七号-空中支援召唤动作",
+    "OwnerKeyMode": 0,
+    "PatternCount": 1,
+    "PatternMode": 0,
+    "PerPointRotationMode": 0,
+    "PerPointYawOffsetDeg": 0,
+    "PositionMode": 0,
+    "Radius": 0,
+    "RandomRadiusMax": 0,
+    "RandomRadiusMin": 0,
+    "RandomSeed": 0,
+    "RotationMode": 0,
+    "Spacing": 2,
+    "StartAngleDeg": 0,
+    "SummonId": 1008,
+    "TargetMode": 0,
+    "YawOffsetDeg": 0
   }
 ]

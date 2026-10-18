@@ -1,49 +1,9 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
-using AbilityKit.Game.Battle.Shared.Assets;
-using UnityEngine;
 
 namespace AbilityKit.Game.Battle.Moba.Config.Sources
 {
-    /// <summary>
-    /// Resources 配置源 - 从 Resources 目录加载
-    /// </summary>
-    public sealed class ResourcesConfigSource : IConfigSource
-    {
-        private readonly string _basePath;
-
-        public ResourcesConfigSource(string basePath = null)
-        {
-            _basePath = basePath;
-        }
-
-        public bool TryGetText(string path, out string text)
-        {
-            text = null;
-            var fullPath = GetFullPath(path);
-            var asset = ResourcesAssetProvider.Shared.Load<TextAsset>(fullPath);
-            if (asset == null) return false;
-            text = asset.text;
-            return !string.IsNullOrEmpty(text);
-        }
-
-        public bool TryGetBytes(string path, out byte[] bytes)
-        {
-            bytes = null;
-            var fullPath = GetFullPath(path);
-            var asset = ResourcesAssetProvider.Shared.Load<TextAsset>(fullPath);
-            if (asset == null) return false;
-            bytes = asset.bytes;
-            return bytes != null && bytes.Length > 0;
-        }
-
-        private string GetFullPath(string path)
-        {
-            return string.IsNullOrEmpty(_basePath) ? path : $"{_basePath}/{path}";
-        }
-    }
-
     /// <summary>
     /// 字典配置源 - 从内存字典加载
     /// </summary>

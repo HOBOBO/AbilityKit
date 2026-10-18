@@ -9,7 +9,10 @@
     "AbilityKit.Demo.Moba.Share",
     "AbilityKit.Demo.Moba.Presentation.Contracts",
     "AbilityKit.Demo.Moba.Presentation.Adapter",
+    "AbilityKit.Demo.Moba.Presentation.Vfx",
     "AbilityKit.Demo.Moba.View.Runtime",
+    "AbilityKit.Game.Battle.Presentation.Components",
+    "AbilityKit.Game.Battle.Presentation.Entities",
     "AbilityKit.World.ECS",
     "AbilityKit.World.StateSync"
   ],

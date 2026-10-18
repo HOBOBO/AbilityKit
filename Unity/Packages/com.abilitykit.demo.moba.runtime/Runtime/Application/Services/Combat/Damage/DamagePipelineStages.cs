@@ -49,7 +49,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
-    [MobaDamageStage(MobaDamageStageRegistry.ShieldStageId, MobaDamageStageOrders.Shield, DamagePipelineEvents.AfterShield, true)]
+[MobaDamageStage(MobaDamageStageRegistry.ShieldStageId, MobaDamageStageOrders.Shield, DamagePipelineEvents.AfterShield, true)]
     public sealed class MobaShieldAbsorbPipelineStage : IMobaDamagePipelineStage
     {
         private readonly MobaShieldService _shields;
@@ -65,14 +65,17 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (calc == null || calc.Attack == null) return;
 
-            calc.ShieldPlan = _shields?.PreviewAbsorb(calc.Attack, calc.MitigatedDamage.FixedValue);
+            var incomingDamage = calc.FinalDamage.FixedValue > Fixed64.Zero
+                ? calc.FinalDamage.FixedValue
+                : calc.MitigatedDamage.FixedValue;
+            calc.ShieldPlan = _shields?.PreviewAbsorb(calc.Attack, incomingDamage);
             var shieldAbsorb = calc.ShieldPlan != null ? calc.ShieldPlan.Absorbed : Fixed64.Zero;
             calc.ShieldAbsorb.FixedBaseValue = DeterministicMath.Max(Fixed64.Zero, shieldAbsorb);
-            calc.HpDamage.FixedBaseValue = DeterministicMath.Max(Fixed64.Zero, calc.MitigatedDamage.FixedValue - calc.ShieldAbsorb.FixedValue);
+            calc.HpDamage.FixedBaseValue = DeterministicMath.Max(Fixed64.Zero, incomingDamage - calc.ShieldAbsorb.FixedValue);
         }
     }
 
-    [MobaDamageStage(MobaDamageStageRegistry.FinalStageId, MobaDamageStageOrders.Final, DamagePipelineEvents.CalcFinal, true)]
+[MobaDamageStage(MobaDamageStageRegistry.FinalStageId, MobaDamageStageOrders.Final, DamagePipelineEvents.CalcFinal, true)]
     public sealed class MobaFinalDamagePipelineStage : IMobaDamagePipelineStage
     {
         public string EventId => DamagePipelineEvents.CalcFinal;
@@ -82,10 +85,9 @@ namespace AbilityKit.Demo.Moba.Services
             if (calc == null || calc.Attack == null) return;
 
             var finalOverride = calc.Attack.FinalDamage.FixedValue;
-            if (finalOverride > Fixed64.Zero)
-            {
-                calc.HpDamage.FixedBaseValue = finalOverride;
-            }
+            calc.FinalDamage.FixedBaseValue = finalOverride > Fixed64.Zero
+                ? finalOverride
+                : calc.MitigatedDamage.FixedValue;
         }
     }
 }

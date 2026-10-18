@@ -1395,5 +1395,185 @@
       "range",
       "swordsPerShot"
     ]
+  },
+  {
+    "Id": 10070000,
+    "Levels": [
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          500
+        ]
+      }
+    ],
+    "ParamNames": [
+      "basicAttackCooldownResetMs"
+    ]
+  },
+  {
+    "Id": 10070101,
+    "Levels": [
+      {
+        "CooldownMs": 7000,
+        "Cost": 50,
+        "Params": [
+          180,
+          8,
+          450,
+          400,
+          2500,
+          0.35,
+          1500
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "dashDistance",
+      "dashDurationMs",
+      "dashSpeed",
+      "enhancedWindowMs",
+      "enhancedAttackRatio",
+      "armorReductionDurationMs"
+    ]
+  },
+  {
+    "Id": 10070201,
+    "Levels": [
+      {
+        "CooldownMs": 9000,
+        "Cost": 60,
+        "Params": [
+          260,
+          0.6,
+          12,
+          4,
+          2000,
+          0.35,
+          1500
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "physicalAttackRatio",
+      "range",
+      "radius",
+      "slowDurationMs",
+      "armorReductionPercent",
+      "armorReductionDurationMs"
+    ]
+  },
+  {
+    "Id": 10070301,
+    "Levels": [
+      {
+        "CooldownMs": 20000,
+        "Cost": 100,
+        "Params": [
+          360,
+          1,
+          18,
+          500,
+          3000
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "physicalAttackRatio",
+      "range",
+      "projectileSpeed",
+      "damageFalloffPercent"
+    ]
+  },
+  {
+    "Id": 10080101,
+    "Levels": [
+      {
+        "CooldownMs": 6000,
+        "Cost": 30,
+        "Params": [
+          300,
+          0.6,
+          3.5,
+          250,
+          1000
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "physicalAttackRatio",
+      "radius",
+      "delayMs",
+      "stunDurationMs"
+    ]
+  },
+  {
+    "Id": 10080201,
+    "Levels": [
+      {
+        "CooldownMs": 10000,
+        "Cost": 80,
+        "Params": [
+          500,
+          1,
+          30,
+          25,
+          500
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "physicalAttackRatio",
+      "range",
+      "projectileSpeed",
+      "knockbackDurationMs"
+    ]
+  },
+  {
+    "Id": 10080301,
+    "Levels": [
+      {
+        "CooldownMs": 28000,
+        "Cost": 120,
+        "Params": [
+          1008,
+          5000,
+          5000,
+          3
+        ]
+      }
+    ],
+    "ParamNames": [
+      "summonId",
+      "intervalMs",
+      "durationMs",
+      "totalCount"
+    ]
+  },
+  {
+    "Id": 10080401,
+    "Levels": [
+      {
+        "CooldownMs": 1000,
+        "Cost": 0,
+        "Params": [
+          80,
+          0.5,
+          12,
+          20
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "physicalAttackRatio",
+      "range",
+      "projectileSpeed"
+    ]
   }
 ]

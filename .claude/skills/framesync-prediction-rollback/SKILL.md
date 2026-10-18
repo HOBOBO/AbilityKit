@@ -19,6 +19,14 @@ description: AbilityKit 客户端/服务端帧同步的预测、回滚、对账�
 
 ## 关键架构事实
 
+### ECS 组件层通用序列化回滚（2026-10-12 起）
+
+- `Generated/Actor/ActorComponentSerialization.cs`（**生成代码**，工具 `tools/AbilityKit.Entitas.CodeGen`）承担平值组件的 Write/Restore；`MobaEntitasComponentRollbackProvider` 只保留编排外壳（Export/Import/哈希）并委托生成代码。
+- **覆盖注册表**：pin 文件（`tools/entitas-codegen.moba.pin.json`）的 `coverage` 字段是每个组件的回滚去向声明（provider:&lt;名&gt; / immutable / projection / transient），豁免必填、缺失报错；`serialization.mode=auto` = 默认全量+豁免制（新平值组件自动入集，新 blob 不豁免直接报错）。`--validate` 输出覆盖矩阵（当前 serialized 10 / provider 9 / projection 13 / immutable 11）。
+- `MobaActorTransformRollbackProvider` payload v3 补齐了 `MotionState.Velocity/Time` 恢复（v2 只恢复 Position/Forward，速度是预测残留）。
+- 工具入口 `tools/generate-entitas.ps1 -Project moba`；gate：`run_test_gate.ps1 -Gate entitas-codegen`。改组件定义后 `-UpdatePin`；有意改模板后 `-UpdateBaseline`。
+- 设计对照（UnityLockstep/ET）与三档模式裁定详见 `tools/AbilityKit.Entitas.CodeGen/README.md`。
+
 ### 两套并行的客户端预测 primitives（重要）
 
 | 集合 | 位置 | 使用方 |

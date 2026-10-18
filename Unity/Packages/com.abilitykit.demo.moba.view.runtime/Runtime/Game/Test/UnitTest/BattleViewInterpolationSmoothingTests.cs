@@ -148,5 +148,33 @@ namespace AbilityKit.Game.Test.UnitTest
                 Object.DestroyImmediate(go);
             }
         }
+
+        [Test]
+        public void PositionApplier_TurnsTowardForwardAtConfiguredRateAndRetainsTargetForZeroForward()
+        {
+            var go = new GameObject("TestActor");
+            try
+            {
+                var handle = new BattleViewHandle { GameObject = go };
+                var applier = new BattleViewPositionApplier(handles: null, attachedVfx: null)
+                {
+                    TurnSpeedDegreesPerSecond = 180f,
+                };
+
+                applier.ApplyPendingPositionsForTest(handle, Vector3.zero, Vector3.forward, deltaTime: 0f);
+                Assert.That(Vector3.Dot(go.transform.forward, Vector3.forward), Is.GreaterThan(0.999f));
+
+                applier.ApplyPendingPositionsForTest(handle, Vector3.right, Vector3.right, deltaTime: 0.1f);
+                Assert.That(Quaternion.Angle(Quaternion.identity, go.transform.rotation), Is.EqualTo(18f).Within(0.1f));
+
+                var lastRotation = go.transform.rotation;
+                applier.ApplyPendingPositionsForTest(handle, Vector3.right * 2f, Vector3.zero, deltaTime: 0.1f);
+                Assert.That(Quaternion.Angle(go.transform.rotation, lastRotation), Is.EqualTo(18f).Within(0.1f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
     }
 }

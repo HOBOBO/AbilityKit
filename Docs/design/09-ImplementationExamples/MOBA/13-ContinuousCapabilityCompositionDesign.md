@@ -60,14 +60,14 @@ GAS 的 GameplayEffect 很强，因为它把 duration、stack、modifier、perio
 | 主题 | 源码 |
 |------|------|
 | Continuous manager | `Unity/Packages/com.abilitykit.core/Runtime/Continuous/DefaultContinuousManager.cs` |
-| MOBA continuous config base | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousConfigBase.cs` |
-| Tag rule service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousTagRuleService.cs` |
-| Effective tag query | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaEffectiveTagQueryService.cs` |
-| Tag rule evaluator | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousTagRuleEvaluator.cs` |
-| Lifecycle binder | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousLifecycleBinder.cs` |
-| Tick processor | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousTickProcessor.cs` |
-| Trigger interval handler | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaTriggerIntervalContinuousHandler.cs` |
-| Runtime query/view | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousRuntimeQueryService.cs` |
+| MOBA continuous config base | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Config/MobaContinuousConfigBase.cs` |
+| Tag rule service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Tags/MobaContinuousTagRuleService.cs` |
+| Effective tag query | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Tags/MobaEffectiveTagQueryService.cs` |
+| Tag rule evaluator | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Tags/MobaContinuousTagRuleEvaluator.cs` |
+| Lifecycle binder | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Triggering/MobaContinuousLifecycleBinder.cs` |
+| Tick processor | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Runtime/MobaContinuousTickProcessor.cs` |
+| Trigger interval handler | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Triggering/MobaTriggerIntervalContinuousHandler.cs` |
+| Runtime query/view | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Runtime/Views/MobaContinuousRuntimeQueryService.cs` |
 | Buff continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs` |
 | Buff stack policy | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffStackingPolicyApplier.cs` |
 | Buff interval handler | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousIntervalHandler.cs` |
@@ -305,8 +305,8 @@ stateDiagram-v2
 
 1. `Docs/design/09-ImplementationExamples/MOBA/11-PlanActionsAndContinuousRuntimeDeepDive.md`：PlanAction 如何创建 continuous runtime。
 2. `Unity/Packages/com.abilitykit.core/Runtime/Continuous/DefaultContinuousManager.cs`：注册、激活、暂停、恢复、结束的基础语义。
-3. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousTagRuleService.cs`：tag 如何影响生命周期。
-4. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousTickProcessor.cs`：periodic 如何统一推进。
+3. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Tags/MobaContinuousTagRuleService.cs`：tag 如何影响生命周期。
+4. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Runtime/MobaContinuousTickProcessor.cs`：periodic 如何统一推进。
 5. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs` 与 `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffStackingPolicyApplier.cs`：stack 与 buff 生命周期。
 6. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaProjectileLaunchContinuous.cs`：非 Buff 领域如何组合 continuous 能力。
 7. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaPresentationCueSnapshotService.cs`：cue 如何从逻辑转成表现快照。

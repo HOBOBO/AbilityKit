@@ -8,6 +8,7 @@ using Entitas.CodeGeneration.Attributes;
 namespace AbilityKit.Demo.Moba.Components
 {
     [Actor]
+    [EntitasBlob]
     public sealed class BuffsComponent : IComponent
     {
         public List<BuffRuntime> Active;

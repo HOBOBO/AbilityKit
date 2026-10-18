@@ -87,8 +87,7 @@ namespace AbilityKit.Game.Flow
             fail ??= message => Log.Error($"[SessionSubFeaturePipeline] {message}");
 
             return new ModuleHost<FeatureModuleContext<ISessionRuntimeFeature>, ISessionSubFeature<ISessionRuntimeFeature>>(
-                subFeatures,
-                fail);
+                subFeatures, fail);
         }
     }
 }

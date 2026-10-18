@@ -6,6 +6,11 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from modifier_parameters import domain_name_for_parameter_id  # noqa: E402
+
 DEFAULT_WORKBOOK = Path(__file__).resolve().parents[1] / "Production/Datas/J-效果表.xlsx"
 
 
@@ -13,8 +18,11 @@ def read_workbook(path):
     workbook = load_workbook(path, read_only=True, data_only=True)
     result = {}
     markers = {
-        "modifier_templates": {"CandidateSkillId", "TargetId"},
-        "modifier_parameters": {"Domain", "ResolveAt"},
+        # Mount rows only carry DefinitionId; the semantics live in modifier_definitions.
+        "modifier_templates": {"DefinitionId", "Selectors"},
+        "modifier_definitions": {"Target", "Value", "Key"},
+        # The parameter catalog is authored with Luban field names plus author-facing aliases.
+        "modifier_parameters": {"Key", "Category", "SubCategory"},
         "buffs": {"ModifierIds", "MaxStacks"},
         "continuous_processes": {"ModifierIds", "IntervalTriggerIds"},
     }
@@ -48,12 +56,15 @@ def read_workbook(path):
     return result
 
 
-def build_report(templates, buffs, processes, parameters=()):
+def build_report(templates, buffs, processes, parameters=(), definitions=()):
     by_id = {row["Id"]: row for row in templates}
     if len(by_id) != len(templates):
         raise ValueError("Duplicate modifier template ID")
     dependents = {identity: [] for identity in by_id}
-    parameter_domains = {row["Id"]: row["Domain"] for row in parameters}
+    # The catalog no longer stores Domain; it is implied by each parameter's ID segment.
+    parameter_domains = {row["Id"]: domain_name_for_parameter_id(row["Id"])
+                         for row in parameters}
+    by_definition = {row["Id"]: row for row in definitions}
     for table, rows in (("buffs", buffs), ("continuous_processes", processes)):
         for row in rows:
             for identity in row.get("ModifierIds") or []:
@@ -65,15 +76,20 @@ def build_report(templates, buffs, processes, parameters=()):
     coverage = {}
     for identity, row in sorted(by_id.items()):
         references = sorted(dependents[identity], key=lambda item: (item["table"], item["id"]))
-        domain = ("Attribute" if row.get("TargetKind") in (1, "Attribute") else
-                  "Skill" if row.get("TargetKind") == "SkillSlotCandidate" else
-                  parameter_domains.get(row.get("TargetId"), "Unknown"))
+        definition = by_definition.get(row.get("DefinitionId"), {})
+        # Definitions are authored as the `Kind|Id` bean text rather than a nested object.
+        target = str(definition.get("Target") or "0|0").split("|")
+        target_kind, target_id = int(target[0]), int(target[1]) if len(target) > 1 else 0
+        domain = ("Attribute" if target_kind in (1, "Attribute") else
+                  "Skill" if target_kind in (5, "SkillSlotCandidate") else
+                  parameter_domains.get(target_id, "Unknown"))
         coverage[str(domain)] = coverage.get(str(domain), 0) + 1
         entries.append({
             "id": identity,
             "domain": domain,
-            "targetKind": row.get("TargetKind"),
-            "targetId": row.get("TargetId"),
+            "definitionId": row.get("DefinitionId"),
+            "targetKind": target_kind,
+            "targetId": target_id,
             "usedBy": references,
             "shared": len(references) > 1,
             "unused": not references,
@@ -95,7 +111,8 @@ def main():
     args = parser.parse_args()
     tables = read_workbook(args.workbook)
     report = build_report(tables["modifier_templates"], tables["buffs"],
-                          tables["continuous_processes"], tables["modifier_parameters"])
+                          tables["continuous_processes"], tables["modifier_parameters"],
+                          tables["modifier_definitions"])
     output = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -3,24 +3,22 @@ using System.Threading.Tasks;
 using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Network.Abstractions;
-using UnityEngine;
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
     /// Production-style multiplayer lobby for the MOBA demo.
     /// The authoritative room controller owns state; this feature only coordinates entry and presentation.
     /// </summary>
-    public sealed class FormalLobbyFeature : IGamePhaseFeature, IOnGUIFeature
+    public sealed class FormalLobbyFeature : IGamePhaseFeature
     {
-        private const long RoomNoticeDurationMilliseconds = 6000L;
-
+        private readonly MobaLobbyRuntimeOptions _options;
         private readonly FormalLobbyRuntime _runtime = new FormalLobbyRuntime();
         private readonly LobbyRoomDirectoryRuntime _directoryRuntime = new LobbyRoomDirectoryRuntime();
         private readonly LobbyRoomStoreSubscription _roomSubscription =
             new LobbyRoomStoreSubscription();
         private readonly LobbyBattleEntryCoordinator _battleEntry = new LobbyBattleEntryCoordinator();
         private readonly LobbySceneExitLifecycle _sceneExit = new LobbySceneExitLifecycle();
-        private readonly FormalLobbyAutomationRuntime _automation = new FormalLobbyAutomationRuntime();
+        private readonly FormalLobbyAutomationRuntime _automation;
 
         private MultiplayerRoomFlowController _controller;
         private FormalLobbyCommandCoordinator _commands;
@@ -34,13 +32,21 @@ namespace AbilityKit.Game.Flow
         private BattleGatewayConfigSO _gatewayConfig;
         private DemoMultiplayerLaunchRequest _launchRequest;
         private string _configurationError = string.Empty;
-        private Vector2 _roomScroll;
         private string _roomNotice = string.Empty;
         private long _roomNoticeExpiresAtUnixMs;
         private long _lastSnapshotReceivedAtUnixMs;
         private ClientRoomSnapshot _lastObservedRoomSnapshot;
 
         private bool IsOperationBusy => _runtime.IsOperationBusy;
+
+        public FormalLobbyFeature() : this(MobaLobbyRuntimeOptions.CreateDefault()) { }
+
+        internal FormalLobbyFeature(MobaLobbyRuntimeOptions options)
+        {
+            _options = options ?? throw new ArgumentNullException(nameof(options));
+            _options.ValidateOrThrow();
+            _automation = new FormalLobbyAutomationRuntime(_options);
+        }
 
         internal bool OperationBusyForTesting => IsOperationBusy;
         internal string OperationLabelForTesting => _runtime.OperationLabel;
@@ -59,7 +65,6 @@ namespace AbilityKit.Game.Flow
             _directoryRuntime.Attach();
             _battleEntry.Attach();
             _configurationError = string.Empty;
-            _roomScroll = default;
             _roomNotice = string.Empty;
             _roomNoticeExpiresAtUnixMs = 0L;
             _lastSnapshotReceivedAtUnixMs = 0L;
@@ -200,15 +205,18 @@ namespace AbilityKit.Game.Flow
                 flow.EnterBattle);
         }
 
-        public void OnGUI(in GamePhaseContext ctx)
+        internal bool TryCreateScreen(in GamePhaseContext ctx,
+            out FormalLobbyScreenSnapshot snapshot, out FormalLobbyRenderCommands commands)
         {
-            if (ctx.Entry == null || !ShouldShowFlowWindow(_selection)) return;
+            snapshot = default;
+            commands = default;
+            if (ctx.Entry == null || !ShouldShowFlowWindow(_selection)) return false;
 
             var sink = ctx.Entry.Get<IFlowCommandSink>();
-            if (sink != null && sink.CurrentRootPhase == MobaRootState.Battle) return;
+            if (sink != null && sink.CurrentRootPhase == MobaRootState.Battle) return false;
 
-            var snapshot = BuildScreenSnapshot();
-            var commands = new FormalLobbyRenderCommands(
+            snapshot = BuildScreenSnapshot();
+            commands = new FormalLobbyRenderCommands(
                 ExitToStarter,
                 ResetReconnect,
                 CreateRoom,
@@ -221,7 +229,7 @@ namespace AbilityKit.Game.Flow
                 LeaveRoom,
                 CancelLoading,
                 ReturnToRooms);
-            FormalLobbyRenderer.Draw(snapshot, commands, ref _roomScroll);
+            return true;
         }
 
         internal static bool ShouldShowFlowWindow(LobbyBattleEntrySelection selection)
@@ -642,7 +650,7 @@ namespace AbilityKit.Game.Flow
                           now < _roomNoticeExpiresAtUnixMs
                 ? _roomNotice + " " + notice
                 : notice;
-            _roomNoticeExpiresAtUnixMs = now + RoomNoticeDurationMilliseconds;
+            _roomNoticeExpiresAtUnixMs = now + _options.RoomNoticeDurationMilliseconds;
         }
 
         private void HandleSnapshotChanged(ClientRoomSnapshot snapshot)

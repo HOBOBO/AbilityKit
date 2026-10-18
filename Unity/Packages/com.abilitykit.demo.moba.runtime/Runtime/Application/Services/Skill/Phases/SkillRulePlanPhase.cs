@@ -6,7 +6,8 @@ using AbilityKit.Demo.Moba.Services.Combat.Transactions;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    internal sealed class SkillRulePlanPhase : AbilityInstantPhaseBase<SkillPipelineContext>
+    internal sealed class SkillRulePlanPhase : AbilityInstantPhaseBase<SkillPipelineContext>,
+        IAbilityPipelinePhaseInstanceFactory<SkillPipelineContext>
     {
         private readonly SkillRulePlanPhaseDTO _def;
         private readonly MobaTriggerPlanExecutor _executor;
@@ -53,6 +54,9 @@ namespace AbilityKit.Demo.Moba.Services
                 return;
             }
         }
+
+        public IAbilityPipelinePhase<SkillPipelineContext> CreateRunPhase()
+            => new SkillRulePlanPhase(PhaseId, _def, _executor);
 
         private bool ExecuteWithoutPipeline(
             MobaSkillCommitTransaction transaction,

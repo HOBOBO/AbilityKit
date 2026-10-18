@@ -1,5 +1,6 @@
 {
   "View.Interp.Enabled": true,
   "View.Interp.BackTimeTicks": 1.0,
-  "View.Interp.MaxLagTicks": 4.0
+  "View.Interp.MaxLagTicks": 4.0,
+  "View.Turn.SpeedDegreesPerSecond": 540.0
 }

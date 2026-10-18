@@ -4,6 +4,7 @@ using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.Battle.Vfx;
+using AbilityKit.Game.Platform.Unity.Presentation;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -20,6 +21,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleViewVfxFactory _vfx;
         private readonly IBattleAssetLookup _assets;
         private readonly BattleViewModelResolverRegistry _modelResolvers;
+        private readonly IBattlePresentationDataSource _dataSource;
 
         internal static BattleViewResourceProvider OrDefault(BattleViewResourceProvider resources)
         {
@@ -48,8 +50,9 @@ namespace AbilityKit.Game.Flow
             MobaConfigDatabase configs,
             VfxDatabase vfxDb,
             IBattleAssetLookup assets,
-            BattleViewModelResolverRegistry modelResolvers)
-            : this(configs, vfxDb, null, null, null, null, null, assets, modelResolvers)
+            BattleViewModelResolverRegistry modelResolvers,
+            IBattlePresentationDataSource dataSource = null)
+            : this(configs, vfxDb, null, null, null, null, null, assets, modelResolvers, dataSource)
         {
         }
 
@@ -62,15 +65,17 @@ namespace AbilityKit.Game.Flow
             BattleViewVfxFactory vfx,
             BattleViewResourceProviderComponentFactory components = null,
             IBattleAssetLookup assets = null,
-            BattleViewModelResolverRegistry modelResolvers = null)
+            BattleViewModelResolverRegistry modelResolvers = null,
+            IBattlePresentationDataSource dataSource = null)
         {
             components ??= new BattleViewResourceProviderComponentFactory();
 
             _configs = configs;
             _vfxDb = vfxDb;
             _assets = assets;
+            _dataSource = dataSource ?? UnityBattlePresentationDataSource.Shared;
             _modelResolvers = modelResolvers ?? new BattleViewModelResolverRegistry();
-            _cache = cache ?? components.CreateCache(assets);
+            _cache = cache ?? components.CreateCache(_dataSource, assets);
             _configLookup = configLookup ?? components.CreateConfigLookup(_modelResolvers);
 
             var primitives = components.CreatePrimitives();
@@ -101,6 +106,7 @@ namespace AbilityKit.Game.Flow
         }
 
         internal IBattleAssetLookup AssetLookup => _assets;
+        internal IBattlePresentationDataSource DataSource => _dataSource;
         public BattleViewModelResolverRegistry ModelResolvers => _modelResolvers;
 
         public MobaConfigDatabase GetOrLoadConfigs()
@@ -191,9 +197,10 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class BattleViewResourceProviderComponentFactory
     {
-        public BattleViewResourceCache CreateCache(IBattleAssetLookup assets = null)
+        public BattleViewResourceCache CreateCache(
+            IBattlePresentationDataSource dataSource, IBattleAssetLookup assets = null)
         {
-            return new BattleViewResourceCache(assets);
+            return new BattleViewResourceCache(dataSource, assets);
         }
 
         public BattleViewConfigLookup CreateConfigLookup(BattleViewModelResolverRegistry modelResolvers = null)

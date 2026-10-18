@@ -22,5 +22,17 @@ namespace AbilityKit.Pipeline
         /// </summary>
         void Tick(float deltaTime);
 
+        /// <summary>Phase instances owned by this run.</summary>
+        System.Collections.Generic.IReadOnlyList<IAbilityPipelinePhase<TCtx>> Phases { get; }
+
+        int CurrentPhaseIndex { get; }
+        bool HasCurrentPhase { get; }
+        bool IsCancelled { get; }
+
+        /// <summary>Sets the execution cursor without invoking phase or pipeline events.</summary>
+        void SetExecutionPosition(int phaseIndex, bool hasCurrentPhase, bool isPaused, bool isCancelled);
+
+        /// <summary>Releases a run without invoking completion, failure, or context callbacks.</summary>
+        void Release();
     }
 }

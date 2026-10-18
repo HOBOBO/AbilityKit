@@ -1,0 +1,23 @@
+{
+  "Id": 10080112,
+  "Name": "鲁班七号-强化扫射",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 2,
+      "PhaseId": "luban_skill_1_enhanced_basic",
+      "Timeline": {
+        "DurationMs": 250,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 10080112,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "luban_skill_1_enhanced_basic"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -17,6 +17,7 @@ namespace AbilityKit.Demo.Moba.CodeGen
         public const string InvalidBattleRouteTypeRuleId = "AKSG9006";
         public const string InvalidEventMappingRuleId = "AKSG3001";
         public const string DuplicateEventMappingRuleId = "AKSG3002";
+        public const string EmptyEventMappingManifestRuleId = "AKSG3003";
         public const string InvalidTargetQueryFactoryRuleId = "AKSG4001";
         public const string DuplicateTargetQueryFactoryCodeRuleId = "AKSG4002";
         public const string InvalidProjectileEmitterRuleId = "AKSG5001";
@@ -24,8 +25,13 @@ namespace AbilityKit.Demo.Moba.CodeGen
         public const string AmbiguousDefaultProjectileEmitterRuleId = "AKSG5003";
         public const string InvalidBootstrapStageRuleId = "AKSG6001";
         public const string DuplicateBootstrapStageNameRuleId = "AKSG6002";
+        public const string EmptyBootstrapStageManifestRuleId = "AKSG6003";
         public const string InvalidSnapshotEmitterRuleId = "AKSG8001";
+        public const string EmptySnapshotEmitterManifestRuleId = "AKSG8002";
         public const string InvalidConfigTableRuleId = "AKSG1001";
+        public const string EmptyConfigTableManifestRuleId = "AKSG1003";
+        public const string EmptyBattleRouteManifestRuleId = "AKSG9007";
+        public const string EmptyInputHandlerManifestRuleId = "AKSG9008";
         public const string DuplicateConfigTableRuleId = "AKSG1002";
         public const string InvalidWorldServiceRuleId = "AKSG7001";
         public const string ConflictingWorldServiceLifetimeRuleId = "AKSG7002";
@@ -34,7 +40,11 @@ namespace AbilityKit.Demo.Moba.CodeGen
         public const string DuplicateWorldSystemOrderRuleId = "AKSG7005";
         public const string InvalidPlanActionSchemaRuleId = "AKSG2101";
         public const string InvalidPlanActionArgRuleId = "AKSG2102";
+        public const string EmptyPlanActionManifestRuleId = "AKSG2103";
         public const string InvalidRegistrationManifestRuleId = "AKSG7101";
         public const string DuplicateRegistrationManifestKeyRuleId = "AKSG7102";
+        public const string PortableSourceEngineDependencyRuleId = "AKSG9101";
+        public const string EntitasComponentBlobFieldRuleId = "AKSG9201";
+        public const string EntitasComponentNonPublicFieldRuleId = "AKSG9202";
     }
 }

@@ -52,7 +52,29 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var targets = PooledMobaPlanActionLists.GetIntList();
             try
             {
-                if (!MobaActionTargetResolver.TryResolveTargets(in args.TargetRequest, in coreInput, in effectInput, ctx, TriggeringConstants.Actions.GiveDamage, targets))
+                var resolvedTargets = MobaActionTargetResolver.TryResolveTargets(
+                    in args.TargetRequest,
+                    in coreInput,
+                    in effectInput,
+                    ctx,
+                    TriggeringConstants.Actions.GiveDamage,
+                    targets);
+                if (!resolvedTargets
+                    && args.TargetRequest.SourceCode == MobaActionTargetSourceCode.ContextTarget
+                    && TryResolveDirectPayloadTarget(triggerArgs, out var directPayloadTarget))
+                {
+                    targets.Add(directPayloadTarget);
+                    resolvedTargets = true;
+                }
+                if (!resolvedTargets
+                    && args.TargetRequest.SourceCode == MobaActionTargetSourceCode.ContextTarget
+                    && effectInput.TargetActorId > 0)
+                {
+                    targets.Add(effectInput.TargetActorId);
+                    resolvedTargets = true;
+                }
+
+                if (!resolvedTargets)
                 {
                     return;
                 }
@@ -350,6 +372,33 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     .Append(" parent=").Append(node.ParentContextId)
                     .Append(" childCount=").Append(childCount);
             }
+        }
+
+        private static bool TryResolveDirectPayloadTarget(object payload, out int actorId)
+        {
+            actorId = 0;
+            if (payload is MobaTriggerConditionContext condition
+                && condition.TargetActorId > 0)
+            {
+                actorId = condition.TargetActorId;
+                return true;
+            }
+            if (payload is MobaTriggerConditionContext conditionContext)
+            {
+                payload = conditionContext.Payload;
+            }
+
+            if (payload is IMobaActorContextProvider actorContext
+                && actorContext.TryGetTargetActorId(out actorId)
+                && actorId > 0)
+            {
+                return true;
+            }
+
+            return payload is MobaCombatExecutionContext executionContext
+                && executionContext.Payload is IMobaActorContextProvider originalPayload
+                && originalPayload.TryGetTargetActorId(out actorId)
+                && actorId > 0;
         }
 
         public static int ResolveProjectileTemplateId(in MobaCombatExecutionContext executionContext)

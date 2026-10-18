@@ -33,10 +33,11 @@ namespace AbilityKit.Game.Flow
 
         private readonly IBattleBootstrapper _bootstrapper;
         private readonly IAbilityKitConnectionRegistry _connectionRegistry;
-        private readonly IBattleSessionTransportFactory _transportFactory;
         private readonly IBattleSessionGatewayConnectionFactory _gatewayConnectionFactory;
         private readonly IBattleSessionGatewayRoomClientFactory _gatewayRoomClientFactory;
         private readonly IBattleLogicSessionRegistry _sessionRegistry;
+        private readonly BattleSessionConnectionRuntime _connectionRuntime;
+        private readonly BattleClientSessionDriver _clientDriver;
 
         // Compatibility facade during staged migration. Mutable session state and resources
         // are owned by BattleSessionRuntime rather than by this feature facade.
@@ -89,10 +90,13 @@ namespace AbilityKit.Game.Flow
             _bootstrapper = bootstrapper;
             _moduleRuntime = new SessionModuleRuntime(this);
             _connectionRegistry = connectionRegistry ?? new AbilityKitConnectionRegistry();
-            _transportFactory = transportFactory ?? new DefaultBattleSessionTransportFactory();
+            var effectiveTransportFactory = transportFactory ?? new DefaultBattleSessionTransportFactory();
             _gatewayConnectionFactory = gatewayRoomConnectionFactory ?? new DefaultBattleSessionGatewayConnectionFactory(gatewayConnectionFactory);
             _gatewayRoomClientFactory = gatewayRoomClientFactory ?? new DefaultBattleSessionGatewayRoomClientFactory();
             _sessionRegistry = sessionRegistry ?? new DefaultBattleLogicSessionRegistry();
+            _connectionRuntime = new BattleSessionConnectionRuntime(
+                effectiveTransportFactory, _sessionRegistry, NetworkCondition,
+                _runtime.InputSubmissionDiagnostics);
             _sessionModuleFactory = sessionModuleFactory;
             _runtime.ConfigureSimulation(worldInstaller ?? new DefaultBattleSessionWorldInstaller());
             _runtime.ConfigureSimulationController(this);
@@ -111,6 +115,11 @@ namespace AbilityKit.Game.Flow
             _featureLifecycle = new BattleSessionLifecycleController<GamePhaseContext>(
                 CreateTeardownSteps);
             _runtime.ConfigureTickLoop(this);
+            _clientDriver = new BattleClientSessionDriver(new SessionDriverHost(this));
+            _clientDriver.AttachProjection("unity-primary",
+                new UnityBattleClientProjection(
+                    () => _ctx,
+                    () => _plan.Authority.EnableClientPrediction));
             _netAdapterContextHost = new SessionNetAdapterContextHost(
                 () => _plan,
                 _handles,
@@ -133,7 +142,9 @@ namespace AbilityKit.Game.Flow
 
         public bool IsReplaySession => _runtime.Replay.IsActive;
         public bool IsPlaying => _runtime.Replay.IsPlaying;
-        public bool RenderPresentation => true;
+        public bool RenderPresentation => IsReplaySession
+            ? _replayPresentationInstanceId != null
+            : HasActiveBattleView();
         public int CurrentFrame => IsReplaySession ? _runtime.Replay.CurrentFrame : _lastFrame;
         int Battle.Replay.IBattleReplayControl.LastFrame => _runtime.Replay.LastFrame;
         public string ReplayPath => _runtime.Replay.ReplayPath;
@@ -145,16 +156,29 @@ namespace AbilityKit.Game.Flow
         }
 
         public bool TryLoad(string path, bool renderPresentation, out string error)
+            => TryLoad(_plan, path, renderPresentation, out error);
+
+        public bool TryLoad(BattleStartPlan plan, string path,
+            bool renderPresentation, out string error)
         {
-            if (_session == null)
+            if (string.IsNullOrWhiteSpace(plan.World.WorldId))
             {
-                error = "当前没有活动中的 Battle Session，无法复用战斗启动配置。";
+                error = "Replay requires a battle start plan with a world ID.";
                 return false;
             }
 
-            if (renderPresentation)
+            if (renderPresentation && (_flow == null || _ctx == null))
             {
-                error = "当前回放仅支持独立逻辑会话；呈现回放需要独立 BattleContext 资源池。";
+                error = "Replay presentation requires an attached battle view host.";
+                return false;
+            }
+
+            var otherProjectionCount = _runtime.Presentation.ProjectionViewCount -
+                (_replayPresentationInstanceId != null ? 1 : 0);
+            if (renderPresentation && (HasActiveBattleView() || otherProjectionCount > 0))
+            {
+                error = "An active battle view or projection requires explicit replay placement. " +
+                    "Load without presentation, then call ShowReplayView with a nonzero offset.";
                 return false;
             }
 
@@ -164,7 +188,21 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            return _runtime.Replay.TryStart(_plan, path, out error);
+            if (!_runtime.Replay.TryStart(plan, path, out error)) return false;
+            HideReplayView();
+            if (!renderPresentation) return true;
+            try
+            {
+                if (ShowReplayView("Replay", UnityEngine.Vector3.zero)) return true;
+                error = "Replay world cannot be projected by the current battle view host.";
+            }
+            catch (Exception exception)
+            {
+                error = "Replay presentation failed: " + exception.Message;
+            }
+            HideReplayView();
+            _runtime.Replay.Stop();
+            return false;
         }
 
         public void Play()
@@ -191,13 +229,20 @@ namespace AbilityKit.Game.Flow
 
         public bool SeekToFrame(int frame)
         {
-            return _runtime.Replay.SeekToFrame(frame);
+            var result = _runtime.Replay.SeekToFrame(frame);
+            if (result) _replayProjectionSource?.Invalidate();
+            return result;
         }
 
         private float GetFixedDeltaSeconds() => _orchestrator.GetFixedDeltaSeconds();
 
-        private Task StartSessionAsync() => _orchestrator.StartSessionAsync();
+        private bool HasActiveBattleView() =>
+            (_phaseCtx.Features != null &&
+             _phaseCtx.Features.TryGet(out BattleViewFeature primary) && primary != null) ||
+            _runtime.Presentation.ConfirmedFeature != null;
 
-        private Task StopSessionAsync() => _orchestrator.StopSessionAsync();
+        private Task StartSessionAsync() => _clientDriver.StartAsync();
+
+        private Task StopSessionAsync() => _clientDriver.StopAsync();
     }
 }

@@ -18,34 +18,9 @@ public sealed partial class DRModifierTemplates : Luban.BeanBase
     {
         Id = _buf.ReadInt();
         Kind = (ModifierTemplateKind)_buf.ReadInt();
-        TargetKind = (MobaModifierTargetKind)_buf.ReadInt();
-        TargetId = _buf.ReadInt();
-        Op = (ModifierOp)_buf.ReadInt();
-        Value = _buf.ReadFloat();
+        DefinitionId = _buf.ReadInt();
+        Selectors = _buf.ReadString();
         Priority = _buf.ReadInt();
-        MagnitudeSourceType = (MagnitudeSourceType)_buf.ReadInt();
-        MagnitudeBaseValue = _buf.ReadFloat();
-        MagnitudeCoefficient = _buf.ReadFloat();
-        MagnitudeDuration = _buf.ReadFloat();
-        MagnitudeDecayType = _buf.ReadInt();
-        MagnitudeAttributeTypeId = _buf.ReadInt();
-        MagnitudeContextKey = _buf.ReadString();
-        {int n0 = _buf.ReadSize(); MagnitudeCurve = new System.Collections.Generic.List<float>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { float _e0;  _e0 = _buf.ReadFloat(); MagnitudeCurve.Add(_e0);}}
-        EvaluationPolicy = (ModifierEvaluationPolicy)_buf.ReadInt();
-        AttributeSourceRole = (ModifierAttributeSourceRole)_buf.ReadInt();
-        SelectorSlot = _buf.ReadInt();
-        SelectorBaseSkillId = _buf.ReadInt();
-        SelectorEffectiveSkillId = _buf.ReadInt();
-        SelectorLauncherTemplateId = _buf.ReadInt();
-        SelectorProjectileTemplateId = _buf.ReadInt();
-        SelectorAreaTemplateId = _buf.ReadInt();
-        SelectorSummonTemplateId = _buf.ReadInt();
-        CandidateSkillId = _buf.ReadInt();
-        FormulaConstant = _buf.ReadFloat();
-        FormulaLevelCoefficient = _buf.ReadFloat();
-        {int n0 = _buf.ReadSize(); FormulaTerms = new System.Collections.Generic.List<ModifierFormulaTerm>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { ModifierFormulaTerm _e0;  _e0 = global::moba_luban.ModifierFormulaTerm.DeserializeModifierFormulaTerm(_buf); FormulaTerms.Add(_e0);}}
-        CandidateReferenceId = _buf.ReadInt();
-        SelectorBuffTemplateId = _buf.ReadInt();
     }
 
     public static DRModifierTemplates DeserializeDRModifierTemplates(ByteBuf _buf)
@@ -54,125 +29,25 @@ public sealed partial class DRModifierTemplates : Luban.BeanBase
     }
 
     /// <summary>
-    /// 稳定修饰器定义 ID；按目标类型分段，详见批注及 Docs/MobaModifierAuthoring.md。
+    /// ID
     /// </summary>
     public readonly int Id;
     /// <summary>
-    /// 当前记录的类型；取值由对应配置契约定义。
+    /// 挂载生命周期：Buff 或持续流程
     /// </summary>
     public readonly ModifierTemplateKind Kind;
     /// <summary>
-    /// 目标类型；按 MobaModifierTargetKind 枚举或 bean 定义填写。
+    /// 引用的修饰效果定义 ID
     /// </summary>
-    public readonly MobaModifierTargetKind TargetKind;
+    public readonly int DefinitionId;
     /// <summary>
-    /// 目标ID；填写对应配置或编辑器产物的 ID。
+    /// 生效范围选择器，格式 Field|Id;Field|Id
     /// </summary>
-    public readonly int TargetId;
+    public readonly string Selectors;
     /// <summary>
-    /// 操作；按 ModifierOp 枚举或 bean 定义填写。
-    /// </summary>
-    public readonly ModifierOp Op;
-    /// <summary>
-    /// 值；用于修饰器定义配置。
-    /// </summary>
-    public readonly float Value;
-    /// <summary>
-    /// 应用优先级；数值关系由消费系统决定。
+    /// 同冲突组内的裁决优先级，越大越优先
     /// </summary>
     public readonly int Priority;
-    /// <summary>
-    /// 幅值来源类型；按 MagnitudeSourceType 枚举或 bean 定义填写。
-    /// </summary>
-    public readonly MagnitudeSourceType MagnitudeSourceType;
-    /// <summary>
-    /// 幅值基础值；用于修饰器定义配置。
-    /// </summary>
-    public readonly float MagnitudeBaseValue;
-    /// <summary>
-    /// 幅值系数；用于修饰器定义配置。
-    /// </summary>
-    public readonly float MagnitudeCoefficient;
-    /// <summary>
-    /// 幅值持续时间；用于修饰器定义配置。
-    /// </summary>
-    public readonly float MagnitudeDuration;
-    /// <summary>
-    /// 幅值衰减类型；用于修饰器定义配置。
-    /// </summary>
-    public readonly int MagnitudeDecayType;
-    /// <summary>
-    /// 幅值属性类型ID；填写对应配置或编辑器产物的 ID。
-    /// </summary>
-    public readonly int MagnitudeAttributeTypeId;
-    /// <summary>
-    /// 幅值上下文键；用于修饰器定义配置。
-    /// </summary>
-    public readonly string MagnitudeContextKey;
-    /// <summary>
-    /// 幅值曲线列表；按列类型填写，顺序可能影响运行时行为。
-    /// </summary>
-    public readonly System.Collections.Generic.List<float> MagnitudeCurve;
-    /// <summary>
-    /// 求值策略；按 ModifierEvaluationPolicy 枚举或 bean 定义填写。
-    /// </summary>
-    public readonly ModifierEvaluationPolicy EvaluationPolicy;
-    /// <summary>
-    /// 属性引用的取值对象：Owner 为修饰器持有者，Source 为施加来源，Target 为效果目标；属性引用必须使用 OnApplySnapshot。
-    /// </summary>
-    public readonly ModifierAttributeSourceRole AttributeSourceRole;
-    /// <summary>
-    /// 0 means any; positive ID matches the stage record
-    /// </summary>
-    public readonly int SelectorSlot;
-    /// <summary>
-    /// 0 means any; positive ID matches the stage record
-    /// </summary>
-    public readonly int SelectorBaseSkillId;
-    /// <summary>
-    /// 0 means any; positive ID matches the stage record
-    /// </summary>
-    public readonly int SelectorEffectiveSkillId;
-    /// <summary>
-    /// 0 means any; positive ID matches the stage record
-    /// </summary>
-    public readonly int SelectorLauncherTemplateId;
-    /// <summary>
-    /// 0 means any; positive ID matches the stage record
-    /// </summary>
-    public readonly int SelectorProjectileTemplateId;
-    /// <summary>
-    /// 0 means any; positive ID matches the stage record
-    /// </summary>
-    public readonly int SelectorAreaTemplateId;
-    /// <summary>
-    /// 0 means any; positive ID matches the stage record
-    /// </summary>
-    public readonly int SelectorSummonTemplateId;
-    /// <summary>
-    /// 0 means any; positive ID matches the stage record
-    /// </summary>
-    public readonly int CandidateSkillId;
-    /// <summary>
-    /// Bounded snapshot formula
-    /// </summary>
-    public readonly float FormulaConstant;
-    /// <summary>
-    /// Bounded snapshot formula
-    /// </summary>
-    public readonly float FormulaLevelCoefficient;
-    /// <summary>
-    /// Bounded snapshot formula
-    /// </summary>
-    public readonly System.Collections.Generic.List<ModifierFormulaTerm> FormulaTerms;
-    /// <summary>
-    /// 0 means any; positive ID matches the stage record
-    /// </summary>
-    public readonly int CandidateReferenceId;
-    /// <summary>
-    /// 0 means any; positive Buff ID matches the BuffApply record
-    /// </summary>
-    public readonly int SelectorBuffTemplateId;
    
     public const int __ID__ = 194103092;
     public override int GetTypeId() => __ID__;
@@ -186,34 +61,9 @@ public sealed partial class DRModifierTemplates : Luban.BeanBase
         return "{ "
         + "Id:" + Id + ","
         + "Kind:" + Kind + ","
-        + "TargetKind:" + TargetKind + ","
-        + "TargetId:" + TargetId + ","
-        + "Op:" + Op + ","
-        + "Value:" + Value + ","
+        + "DefinitionId:" + DefinitionId + ","
+        + "Selectors:" + Selectors + ","
         + "Priority:" + Priority + ","
-        + "MagnitudeSourceType:" + MagnitudeSourceType + ","
-        + "MagnitudeBaseValue:" + MagnitudeBaseValue + ","
-        + "MagnitudeCoefficient:" + MagnitudeCoefficient + ","
-        + "MagnitudeDuration:" + MagnitudeDuration + ","
-        + "MagnitudeDecayType:" + MagnitudeDecayType + ","
-        + "MagnitudeAttributeTypeId:" + MagnitudeAttributeTypeId + ","
-        + "MagnitudeContextKey:" + MagnitudeContextKey + ","
-        + "MagnitudeCurve:" + Luban.StringUtil.CollectionToString(MagnitudeCurve) + ","
-        + "EvaluationPolicy:" + EvaluationPolicy + ","
-        + "AttributeSourceRole:" + AttributeSourceRole + ","
-        + "SelectorSlot:" + SelectorSlot + ","
-        + "SelectorBaseSkillId:" + SelectorBaseSkillId + ","
-        + "SelectorEffectiveSkillId:" + SelectorEffectiveSkillId + ","
-        + "SelectorLauncherTemplateId:" + SelectorLauncherTemplateId + ","
-        + "SelectorProjectileTemplateId:" + SelectorProjectileTemplateId + ","
-        + "SelectorAreaTemplateId:" + SelectorAreaTemplateId + ","
-        + "SelectorSummonTemplateId:" + SelectorSummonTemplateId + ","
-        + "CandidateSkillId:" + CandidateSkillId + ","
-        + "FormulaConstant:" + FormulaConstant + ","
-        + "FormulaLevelCoefficient:" + FormulaLevelCoefficient + ","
-        + "FormulaTerms:" + Luban.StringUtil.CollectionToString(FormulaTerms) + ","
-        + "CandidateReferenceId:" + CandidateReferenceId + ","
-        + "SelectorBuffTemplateId:" + SelectorBuffTemplateId + ","
         + "}";
     }
 }

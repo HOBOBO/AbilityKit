@@ -158,6 +158,24 @@ namespace AbilityKit.Ability.Editor.Utilities
             Debug.Log("[TriggerAuthoringMobaMigration] Imported production Trigger Authoring sources.");
         }
 
+        // Rebuild readable production Source JSON from the maintained module assets.
+        public static void ExportProductionSourcesBatch()
+        {
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            foreach (var definition in PackageDefinitions)
+            {
+                var assetPath = PackageRoot + "/" + definition.ModuleId.Replace('.', '_') + ".Module.asset";
+                var asset = AssetDatabase.LoadAssetAtPath<TriggerAuthoringModuleAsset>(assetPath);
+                if (asset == null) throw new FileNotFoundException("MOBA Trigger Authoring module is missing", assetPath);
+                var sourcePath = ResolveProjectPath(SourceRoot + "/moba-" + definition.LegacyDirectory + ".trigger.json");
+                var export = TriggerAuthoringSourceSync.Export(asset, sourcePath, force: true);
+                if (!export.Success) throw new InvalidDataException(definition.ModuleId + ": " + export.Message);
+                EditorUtility.SetDirty(asset);
+            }
+            AssetDatabase.SaveAssets();
+            Debug.Log("[TriggerAuthoringMobaMigration] Exported production Trigger Authoring sources.");
+        }
+
         public static void ImportGameplaySourceBatch()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);

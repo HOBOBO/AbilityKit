@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Triggering.Runtime;
 
@@ -80,12 +81,15 @@ namespace AbilityKit.Demo.Moba.Triggering
 
             var descriptor = context.CueDescriptor.IsEmpty ? _descriptor : context.CueDescriptor;
             var definition = context.CueDescriptor.IsEmpty ? _definition : _resolver.Resolve(in descriptor);
+            var domain = PresentationCueSemantics.ParseDomain(definition.Kind ?? descriptor.Kind);
+            var lifetime = PresentationCueSemantics.ResolveLifetime(
+                domain,
+                (AbilityKit.Demo.Moba.Share.PresentationCueStage)stage);
             var primaryAssetId = definition.VfxId != 0 ? definition.VfxId : ParseId(descriptor.PrimaryAssetId);
             var secondaryAssetId = definition.SfxId != 0 ? definition.SfxId : ParseId(descriptor.SecondaryAssetId);
             var cueTemplateId = definition.TemplateId != 0 ? definition.TemplateId : ParseId(descriptor.CueId ?? descriptor.Kind);
-            var replicationId = !string.IsNullOrWhiteSpace(requestKey)
-                ? requestKey
-                : $"cue:{context.EventId}:{context.TriggerId}:{context.ActionIndex}:{context.Order}:{sourceActorId}:{targetActorId}";
+            var eventKey = $"event:{context.EventId}:{context.TriggerId}:{context.ActionIndex}:{context.Order}";
+            var replicationId = !string.IsNullOrWhiteSpace(requestKey) ? requestKey : eventKey;
 
             return new MobaPresentationCueSnapshotEntry
             {
@@ -135,6 +139,10 @@ namespace AbilityKit.Demo.Moba.Triggering
                 ReplicationId = replicationId,
                 PredictionKey = MobaPresentationCueKeys.StableHash(replicationId),
                 PredictionState = (int)MobaPresentationCuePredictionState.ServerConfirmed
+                ,Domain = (int)domain
+                ,Lifetime = (int)lifetime
+                ,SnapshotKind = (int)PresentationCueSnapshotKind.EventDelta
+                ,EventKey = eventKey
             };
         }
 

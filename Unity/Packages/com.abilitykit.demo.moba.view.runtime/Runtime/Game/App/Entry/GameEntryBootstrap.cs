@@ -43,7 +43,7 @@ namespace AbilityKit.Game
             _gameManager = null;
         }
 
-        private static void TryInstallUnityLogSink()
+        internal static void TryInstallUnityLogSink()
         {
             try
             {

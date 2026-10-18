@@ -1,0 +1,22 @@
+{
+  "name": "AbilityKit.Game.Battle.Presentation.Components",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Ability",
+    "AbilityKit.Demo.Moba.Presentation.Contracts",
+    "AbilityKit.Demo.Moba.Runtime",
+    "AbilityKit.HFSM.Core",
+    "AbilityKit.Host.Extensions.Moba",
+    "AbilityKit.Protocol.Moba",
+    "AbilityKit.World.ECS"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": ["Newtonsoft.Json.dll"],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

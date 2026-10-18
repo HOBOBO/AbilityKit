@@ -165,6 +165,57 @@ public sealed class MobaGeneratorTests
     }
 
     [Fact]
+    public void PlanActionManifest_ReportsEmptyManifestWhenRuntimeContractExists()
+    {
+        const string source = """
+            using System;
+            namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
+            {
+                public interface IWorldResolver { }
+                public abstract class NamedArgsPlanActionModuleBase<TArgs, TContext, TModule> { }
+                public interface IMobaPlanActionMetadata { string ActionName { get; } }
+                public abstract class MobaPlanActionModuleBase<TArgs, TModule> :
+                    NamedArgsPlanActionModuleBase<TArgs, IWorldResolver, TModule>, IMobaPlanActionMetadata
+                {
+                    public string ActionName => "sample";
+                }
+                [AttributeUsage(AttributeTargets.Class)] public sealed class PlanActionModuleAttribute : Attribute { }
+                public readonly struct MobaPlanActionDescriptor { }
+                internal static partial class MobaGeneratedPlanActionManifest { }
+            }
+            """;
+
+        var result = Run(new MobaPlanActionManifestGenerator(), source);
+
+        Assert.Contains(
+            result.Diagnostics,
+            diagnostic => diagnostic.Id == MobaDiagnosticIds.EmptyPlanActionManifestRuleId);
+    }
+
+    [Fact]
+    public void EventMappingManifest_ReportsEmptyManifestWhenRuntimeContractExists()
+    {
+        const string source = """
+            using System;
+            namespace AbilityKit.Demo.Moba.Systems
+            {
+                [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true)]
+                public sealed class MobaTriggerEventAttribute : Attribute
+                {
+                    public MobaTriggerEventAttribute(string eventId, Type argsType, bool isPrefix = false) { }
+                }
+                internal static partial class MobaGeneratedEventMappingManifest { }
+            }
+            """;
+
+        var result = Run(new MobaEventMappingManifestGenerator(), source);
+
+        Assert.Contains(
+            result.Diagnostics,
+            diagnostic => diagnostic.Id == MobaDiagnosticIds.EmptyEventMappingManifestRuleId);
+    }
+
+    [Fact]
     public void PayloadAccessor_GeneratesLegacyAndConversionPaths()
     {
         const string source = """

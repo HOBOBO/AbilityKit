@@ -27,6 +27,7 @@ using ContinuousTagTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.Contin
 using SearchQueryTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SearchQueryTemplateMO;
 using BattleMapMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.BattleMapMO;
 using GameplayMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.GameplayMO;
+using DungeonMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.DungeonMO;
 using MotionGroupMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.MotionGroupMO;
  
  namespace AbilityKit.Demo.Moba.Config.Core
@@ -507,6 +508,9 @@ using MotionGroupMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.MotionGroupMO;
         public bool TryGetSearchQueryTemplate(int id, out SearchQueryTemplateMO mo) => GetTable<SearchQueryTemplateMO>().TryGet(id, out mo);
         public bool TryGetGameplay(int id, out GameplayMO mo) => GetTable<GameplayMO>().TryGet(id, out mo);
         public IEnumerable<GameplayMO> GetAllGameplays() => GetTable<GameplayMO>().All();
+        public DungeonMO GetDungeon(int id) => GetTable<DungeonMO>().Get(id);
+        public bool TryGetDungeon(int id, out DungeonMO mo) => GetTable<DungeonMO>().TryGet(id, out mo);
+        public IEnumerable<DungeonMO> GetAllDungeons() => GetTable<DungeonMO>().All();
         public MotionGroupMO GetMotionGroup(int id) => GetTable<MotionGroupMO>().Get(id);
         public bool TryGetMotionGroup(int id, out MotionGroupMO mo) => GetTable<MotionGroupMO>().TryGet(id, out mo);
         public IEnumerable<MotionGroupMO> GetAllMotionGroups() => GetTable<MotionGroupMO>().All();

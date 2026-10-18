@@ -37,9 +37,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return generated;
             }
 
-            if (AppContext.TryGetSwitch(
+            var reflectionFallbackDisabled =
+                AppContext.TryGetSwitch(
                     "AbilityKit.Moba.DisablePlanActionReflectionFallback",
-                    out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+                    out var configuredFallbackDisabled) && configuredFallbackDisabled;
+#if !UNITY_EDITOR && !DEVELOPMENT_BUILD
+            reflectionFallbackDisabled = true;
+#endif
+            if (reflectionFallbackDisabled)
             {
                 throw new InvalidOperationException(
                     "The generated MOBA plan action manifest is empty and reflection fallback is disabled.");

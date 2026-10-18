@@ -30,6 +30,13 @@ namespace AbilityKit.Demo.Moba.CodeGen
 
             specs.Sort(CompareSpecs);
             var uniqueSpecs = RemoveDuplicates(specs);
+            if (uniqueSpecs.Count == 0)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MobaDiagnosticRules.EmptyConfigTableManifestRule,
+                    manifestType!.Locations.FirstOrDefault(location => location.IsInSource) ?? Location.None));
+            }
+
             context.AddSource("MobaGeneratedConfigTableManifest.g.cs", GenerateSource(uniqueSpecs));
         }
 

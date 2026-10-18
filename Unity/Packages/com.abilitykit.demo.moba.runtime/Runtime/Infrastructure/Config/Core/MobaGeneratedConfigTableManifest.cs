@@ -87,9 +87,14 @@ namespace AbilityKit.Demo.Moba.Config.Core
             AddGenerated(specs, ref generatedCount);
             if (generatedCount == 0)
             {
-                if (AppContext.TryGetSwitch(
+                var reflectionFallbackDisabled =
+                    AppContext.TryGetSwitch(
                         "AbilityKit.Moba.DisableConfigTableReflectionFallback",
-                        out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+                        out var configuredFallbackDisabled) && configuredFallbackDisabled;
+#if !UNITY_EDITOR && !DEVELOPMENT_BUILD
+                reflectionFallbackDisabled = true;
+#endif
+                if (reflectionFallbackDisabled)
                 {
                     throw new InvalidOperationException(
                         "The generated MOBA config table manifest is empty and reflection fallback is disabled.");

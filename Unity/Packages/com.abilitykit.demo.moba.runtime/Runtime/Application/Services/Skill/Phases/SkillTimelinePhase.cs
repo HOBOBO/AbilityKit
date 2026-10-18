@@ -7,7 +7,7 @@ using AbilityKit.Pipeline;
 namespace AbilityKit.Demo.Moba.Services
 {
     using AbilityKit.Ability;
-    public sealed class SkillTimelinePhase : AbilityPipelinePhaseBase<SkillPipelineContext>
+    public sealed class SkillTimelinePhase : SkillRollbackPhaseBase, IAbilityPipelinePhaseInstanceFactory<SkillPipelineContext>
     {
         private readonly int _durationMs;
         private readonly SkillTimelineEventDTO[] _events;
@@ -114,6 +114,34 @@ namespace AbilityKit.Demo.Moba.Services
             base.Reset();
             _elapsedRaw = 0L;
             _nextEventIndex = 0;
+        }
+
+        public IAbilityPipelinePhase<SkillPipelineContext> CreateRunPhase()
+            => new SkillTimelinePhase(PhaseId, _durationMs, _events, _effects);
+
+        public override PipelinePhaseRollbackState CaptureRollbackState()
+        {
+            var state = base.CaptureRollbackState();
+            state.Longs = new[] { _elapsedRaw };
+            state.Integers = new[] { _nextEventIndex };
+            return state;
+        }
+
+        public override void ValidateRollbackState(PipelinePhaseRollbackState state)
+        {
+            base.ValidateRollbackState(state);
+            if (state?.Longs == null || state.Longs.Length != 1 || state.Longs[0] < 0 ||
+                state.Integers == null || state.Integers.Length != 1 ||
+                state.Integers[0] < 0 || state.Integers[0] > (_events?.Length ?? 0))
+                throw new InvalidOperationException("Invalid skill timeline rollback state.");
+        }
+
+        public override void RestoreRollbackState(PipelinePhaseRollbackState state)
+        {
+            ValidateRollbackState(state);
+            base.RestoreRollbackState(state);
+            _elapsedRaw = state.Longs[0];
+            _nextEventIndex = state.Integers[0];
         }
 
         private MobaEffectInvokerService ResolveEffects(SkillPipelineContext context)

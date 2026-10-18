@@ -68,6 +68,13 @@ namespace AbilityKit.Demo.Moba.CodeGen
                     MobaEventMappingContract.GetDuplicateKey(mapping)));
             }
 
+            if (mappings.Count == 0)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MobaDiagnosticRules.EmptyEventMappingManifestRule,
+                    manifestType.Locations.FirstOrDefault(location => location.IsInSource) ?? Location.None));
+            }
+
             mappings.Sort(CompareMappings);
             context.AddSource("MobaGeneratedEventMappingManifest.g.cs", GenerateSource(mappings));
         }

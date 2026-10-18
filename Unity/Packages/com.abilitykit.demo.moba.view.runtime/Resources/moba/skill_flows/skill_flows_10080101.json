@@ -1,0 +1,44 @@
+{
+  "Id": 10080101,
+  "Name": "鲁班七号-河豚手雷",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "luban_skill_1_release",
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "luban_skill_1_commit",
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      }
+    },
+    {
+      "Type": 2,
+      "Timeline": {
+        "DurationMs": 800,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 10080101,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "luban_skill_1_cast"
+          }
+        ]
+      }
+    }
+  ]
+}

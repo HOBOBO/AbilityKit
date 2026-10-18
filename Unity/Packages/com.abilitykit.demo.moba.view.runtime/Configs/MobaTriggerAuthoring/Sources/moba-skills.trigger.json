@@ -27,7 +27,7 @@
         "phase": "immediate",
         "priority": 50,
         "interruptPriority": 0,
-        "scope": "global",
+        "scope": "owner",
         "allowExternal": false,
         "schedule": {
           "mode": "transient",
@@ -5496,7 +5496,7 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_laafccd775e6fc8ae",
+          "nodeId": "node_l1007010100000001",
           "enabled": true,
           "kind": "Action",
           "type": "seq",
@@ -5782,7 +5782,7 @@
           "arguments": [],
           "children": [
             {
-              "nodeId": "node_l54c29a91c7a187f9",
+              "nodeId": "node_l1007010100000002",
               "enabled": true,
               "kind": "Action",
               "type": "dash",
@@ -14151,6 +14151,134 @@
         "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills/trigger_10060011.json"
       },
       {
+        "id": 10070011,
+        "name": "孙尚香-普通攻击-命中伤害",
+        "groupPath": "trigger_10070011",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1007001100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "give_damage",
+          "arguments": [
+            {
+              "name": "damage_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 110.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "source_attack_ratio",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 1.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "damage_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_kind",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10070001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Sun Shangxiang normal basic attack hit damage."
+      },
+      {
         "id": 10060101,
         "name": "嬴政-王者惩戒-生成剑阵",
         "groupPath": "trigger_10060101",
@@ -15950,6 +16078,4191 @@
         },
         "blackboard": [],
         "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills/trigger_10060313.json"
+      },
+      {
+        "id": 10070101,
+        "name": "孙尚香-惊雷之龙-加速并强化普攻",
+        "groupPath": "trigger_10070101",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_laafccd775e6fc8ae",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l54c29a91c7a187f9",
+              "enabled": true,
+              "kind": "Action",
+              "type": "dash",
+              "arguments": [
+                {
+                  "name": "speed",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 16.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "duration_ms",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 350.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "direction_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "apply_to_caster",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "priority",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 20,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "motion_group_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "hit_trigger_plan_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10070111,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007010100000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10070104,
+                      10070103
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007010100000004",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10070101,
+                      10070103
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007010100000005",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "赵云一技能惊雷之龙：获得短时移速提升，并强化下一次普攻附带额外伤害与减速",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills/trigger_10070101.json"
+      },
+      {
+        "id": 10070111,
+        "name": "孙尚香-惊雷之龙-强化普攻命中",
+        "groupPath": "trigger_10070111",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 55,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_l1007011100000001",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1007011100000002",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "owner_matches_payload_source",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007011100000003",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007011100000004",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_kind"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007011100000005",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "has_buff",
+              "arguments": [
+                {
+                  "name": "buff_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10070101,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "check_stack",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_l1007011100000006",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1007011100000007",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 220.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "source_attack_ratio",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 1.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10070101,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007011100000008",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10070102
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007011100000009",
+              "enabled": true,
+              "kind": "Action",
+              "type": "remove_buff",
+              "arguments": [
+                {
+                  "name": "buff_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10070101,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l100701110000000a",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "赵云一技能强化普攻：造成额外物理伤害并减速，并消耗强化普攻状态",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills/trigger_10070111.json"
+      },
+      {
+        "id": 10070201,
+        "name": "孙尚香-机关重炮-发射炮弹",
+        "groupPath": "trigger_10070201",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1007020100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1007020100000002",
+              "enabled": true,
+              "kind": "Action",
+              "type": "shoot_projectile",
+              "arguments": [
+                {
+                  "name": "launcher_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 31070202,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "projectile_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30070202,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "directionSource",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007020100000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "墨子二技能机关重炮：发射远程炮弹，命中后在目标点爆炸并眩晕",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills/trigger_10070201.json"
+      },
+      {
+        "id": 10070211,
+        "name": "孙尚香-机关重炮-命中生成爆炸",
+        "groupPath": "trigger_10070211",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1007021100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1007021100000002",
+              "enabled": true,
+              "kind": "Action",
+              "type": "spawn_area",
+              "arguments": [
+                {
+                  "name": "area_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 40070203,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "position_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "radius",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 3.5,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "duration_ms",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2000,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007021100000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "墨子二技能：炮弹结束后生成弹坑持续伤害区域",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills/trigger_10070211.json"
+      },
+      {
+        "id": 10070212,
+        "name": "孙尚香-机关重炮-爆炸伤害与眩晕",
+        "groupPath": "trigger_10070212",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1007021200000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1007021200000002",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 260.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "source_attack_ratio",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.6,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10070201,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_query_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 50040201,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007021200000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10070201
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_query_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 50040201,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007021200000004",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "墨子二技能：爆炸范围造成法术伤害并眩晕",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills/trigger_10070212.json"
+      },
+      {
+        "id": 10070001,
+        "name": "孙尚香-普通攻击-发射",
+        "groupPath": "trigger_10070001",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1007000100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "shoot_projectile",
+          "arguments": [
+            {
+              "name": "launcher_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 31070001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "projectile_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30070001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills/trigger_10070001.json"
+      },
+      {
+        "id": 10070002,
+        "name": "孙尚香-活力迸发-普攻刷新翻滚",
+        "groupPath": "trigger_10070000",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_la1950d614d8b9b83",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l7519252d4c9b1e28",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l751c8b2d4c9e0151",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_kind"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l751ff12d4ca0e47a",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_neq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "attacker_actor_id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "target_actor_id"
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_l1007000200000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "reset_cooldown",
+          "arguments": [
+            {
+              "name": "skill_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10070101,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "skill_slot",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "孙尚香演示被动：普攻命中刷新翻滚突袭冷却；演示参数 500ms。"
+      },
+      {
+        "id": 10070301,
+        "name": "孙尚香-究极弩炮-发射弩炮",
+        "groupPath": "trigger_10070301",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1007030100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1007030100000002",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10070301
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007030100000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "shoot_projectile",
+              "arguments": [
+                {
+                  "name": "launcher_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 31070302,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "projectile_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30070302,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "directionSource",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007030100000004",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "孙尚香三技能究极弩炮：发射一枚弩炮，对命中目标造成物理伤害",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills/trigger_10070301.json"
+      },
+      {
+        "id": 10070311,
+        "name": "孙尚香-至尊王权-周期发射飞剑",
+        "groupPath": "trigger_10070311",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1007031100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1007031100000002",
+              "enabled": true,
+              "kind": "Action",
+              "type": "shoot_projectile",
+              "arguments": [
+                {
+                  "name": "launcher_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 31070302,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "projectile_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30070302,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "directionSource",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007031100000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "嬴政三技能至尊王权：周期发射前方飞剑",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills/trigger_10070311.json"
+      },
+      {
+        "id": 10070313,
+        "name": "孙尚香-究极弩炮-命中伤害",
+        "groupPath": "trigger_10070313",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1007031300000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1007031300000002",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 360.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "source_attack_ratio",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 1.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10070301,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1007031300000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "鲁班七号二技能无敌鲨嘴炮：命中造成物理伤害并击退目标",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills/trigger_10070313.json"
+      },
+      {
+        "id": 10070112,
+        "name": "SunShangxiang Enhanced Basic Attack",
+        "groupPath": "trigger_10070112",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 55,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1007011200000002",
+          "enabled": true,
+          "kind": "Action",
+          "type": "shoot_projectile",
+          "arguments": [
+            {
+              "name": "launcher_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 31070001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "projectile_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30070001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Callable enhanced basic attack reuses the normal projectile; owner-bound hit trigger 10070111 adds bonus damage and consumes its Buff."
+      },
+      {
+        "id": 10080011,
+        "name": "鲁班七号-普通攻击-发射",
+        "groupPath": "trigger_10080011",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1008001100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "shoot_projectile",
+          "arguments": [
+            {
+              "name": "launcher_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 31080001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "projectile_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30080001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080012,
+        "name": "鲁班七号-普通攻击-命中伤害",
+        "groupPath": "trigger_10080012",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1008001200000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "give_damage",
+          "arguments": [
+            {
+              "name": "damage_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 110.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "source_attack_ratio",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 1.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "damage_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_kind",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10080001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080101,
+        "name": "鲁班七号-河豚手雷-发射",
+        "groupPath": "trigger_10080101",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1008010100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1008010100000002",
+              "enabled": true,
+              "kind": "Action",
+              "type": "shoot_projectile",
+              "arguments": [
+                {
+                  "name": "launcher_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 31080101,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "projectile_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30080101,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "directionSource",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1008010100000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "墨子二技能机关重炮：发射远程炮弹，命中后在目标点爆炸并眩晕",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080111,
+        "name": "鲁班七号-河豚手雷-命中生成区域",
+        "groupPath": "trigger_10080111",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1008011100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1008011100000002",
+              "enabled": true,
+              "kind": "Action",
+              "type": "spawn_area",
+              "arguments": [
+                {
+                  "name": "area_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 40080101,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "position_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "radius",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 3.5,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "duration_ms",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2000,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1008011100000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "墨子二技能：炮弹结束后生成弹坑持续伤害区域",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080112,
+        "name": "鲁班七号-河豚手雷-区域伤害眩晕",
+        "groupPath": "trigger_10080112",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1008011200000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1008011200000002",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 260.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "source_attack_ratio",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.6,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10080101,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_query_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 50040201,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1008011200000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10080101
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_query_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 50040201,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1008011200000004",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "墨子二技能：爆炸范围造成法术伤害并眩晕",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080201,
+        "name": "鲁班七号-无敌鲨嘴炮-发射",
+        "groupPath": "trigger_10080201",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1008020100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1008020100000002",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10080201
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1008020100000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "shoot_projectile",
+              "arguments": [
+                {
+                  "name": "launcher_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 31080201,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "projectile_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30080201,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "directionSource",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1008020100000004",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "孙尚香三技能究极弩炮：发射一枚弩炮，对命中目标造成物理伤害",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080211,
+        "name": "鲁班七号-无敌鲨嘴炮-命中击退",
+        "groupPath": "trigger_10080211",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1008021100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1008021100000002",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 360.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "source_attack_ratio",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 1.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10080201,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1008021100000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "孙尚香三技能究极弩炮：命中造成物理伤害",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_10080211000000000000000000000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "pull",
+              "arguments": [
+                {
+                  "name": "speed",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 12.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "duration_ms",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 500.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "direction_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 3,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_distance",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 3.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "priority",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 15,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "motion_group_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 3,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080301,
+        "name": "鲁班七号-空中支援-召唤飞艇",
+        "groupPath": "trigger_10080301",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_10080301000000000000000000000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "spawn_summon",
+          "arguments": [
+            {
+              "name": "summon_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1008,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "position_mode",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "duration_ms",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 6000.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "total_count",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号大招生成空中支援飞艇召唤物。"
+      },
+      {
+        "id": 10080401,
+        "name": "鲁班七号-空中支援-召唤物投弹",
+        "groupPath": "trigger_10080401",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1008040100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1008040100000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "shoot_projectile",
+              "arguments": [
+                {
+                  "name": "launcher_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 31080401,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "projectile_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30080401,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "directionSource",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1008040100000004",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "鲁班七号大招空中支援：飞艇周期性投放炸弹",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080411,
+        "name": "鲁班七号-空中支援-炸弹命中",
+        "groupPath": "trigger_10080411",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1008041100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l1008041100000002",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 360.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "source_attack_ratio",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 1.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10080401,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l1008041100000003",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "鲁班七号大招空中支援：炸弹命中造成物理伤害",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080001,
+        "name": "鲁班七号-普通攻击-发射",
+        "groupPath": "trigger_10080001",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1008000100000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "shoot_projectile",
+          "arguments": [
+            {
+              "name": "launcher_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 31080001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "projectile_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30080001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080004,
+        "name": "鲁班七号-扫射-命中伤害",
+        "groupPath": "trigger_10080004",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l1008000400000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "give_damage",
+          "arguments": [
+            {
+              "name": "damage_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 110.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "source_attack_ratio",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 1.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "damage_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_kind",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10080001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
       }
     ]
   }

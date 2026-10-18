@@ -9,6 +9,7 @@ using Entitas.CodeGeneration.Attributes;
 namespace AbilityKit.Demo.Moba.Components
 {
     [Actor]
+    [EntitasBlob]
     public sealed class MotionComponent : IComponent
     {
         public MotionPipeline Pipeline;

@@ -262,8 +262,8 @@ ET 的价值在于“业务对象和事件系统统一”，GameFramework 的价
 | 状态 feature 声明 | `Unity/Packages/com.abilitykit.game.view.runtime/Runtime/Flow/PhaseStateFeatureSpec.cs` |
 | 状态 feature 绑定 | `Unity/Packages/com.abilitykit.game.view.runtime/Runtime/Flow/PhaseStateFeatureBinding.cs`、`PhaseStateFeatureBindingFactory.cs` |
 | feature host | `Unity/Packages/com.abilitykit.game.view.runtime/Runtime/Flow/PhaseFeatureHost.cs` |
-| per-battle scope | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Flow/Core/BattleWorldScopeHost.cs` |
-| battle 推进决策 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Flow/Core/MobaBattleAdvanceDecider.cs` |
+| per-battle scope | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Logic/Flow/BattleWorldScopeHost.cs` |
+| battle 推进决策 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Logic/Flow/MobaBattleAdvanceDecider.cs` |
 | MOBA 联机会话 | `Docs/design/09-ImplementationExamples/MOBA/15-OnlineSessionAndProtocolContract.md` |
 | MOBA 快照表现 | `Docs/design/09-ImplementationExamples/MOBA/04-SnapshotPresentationPrediction.md` |
 | Shooter 表现会话 | `Docs/design/09-ImplementationExamples/Shooter/10-PresentationSessionAndViewDeepDive.md` |

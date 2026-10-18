@@ -44,7 +44,6 @@
           "stopPropagationOnSuccess": false,
           "stopPropagationOnFailure": false
         },
-        "condition": null,
         "actions": {
           "nodeId": "node_l9463a52e980525be",
           "enabled": true,
@@ -321,7 +320,11 @@
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "integerListValue": [],
-                    "vector3Value": { "x": 0.0, "y": 0.0, "z": 0.0 },
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
                     "fields": []
                   }
                 }

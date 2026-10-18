@@ -25,15 +25,13 @@ namespace AbilityKit.Game.Flow
             GameplayPresentationProfileCatalog profiles = null,
             GameplayPresentationModuleRegistry modules = null)
         {
-            _profiles = profiles ?? GameplayPresentationProfileCatalog.Default;
+            _profiles = profiles ?? UnityGameplayPresentationProfileCatalogLoader.Default;
             _modules = modules ?? GameplayPresentationModuleRegistry.Default;
         }
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            _context = ctx.Features.TryGet(out IBattleGameplayPresentationSource source)
-                ? source
-                : ctx.RequireFeature<BattleContext>(nameof(BattleGameplayPresentationFeature));
+            _context = ctx.RequireFeature<IBattleGameplayPresentationSource>(nameof(BattleGameplayPresentationFeature));
             _state = ctx.GameplayPresentation;
             TryBind();
         }

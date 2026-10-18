@@ -86,7 +86,7 @@ namespace AbilityKit.Demo.Moba.Systems
         {
             if (_heroes == null) return;
             foreach (var actor in _heroes.GetEntities())
-                if (actor.hasCharacterHfsm) actor.RemoveCharacterHfsm();
+                if (actor.hasCharacterHfsm) actor.RemoveAndDisposeCharacterHfsm();
         }
     }
 }

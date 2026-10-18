@@ -10,11 +10,19 @@ namespace AbilityKit.Demo.Moba.Services
             if (payload.TryResolveContextSource(out var source)
                 && source.HasExecutionSource)
             {
+                var targetActorId = source.TargetActorId;
+                if (payload is IMobaActorContextProvider actorProvider
+                    && actorProvider.TryGetTargetActorId(out var payloadTargetActorId)
+                    && payloadTargetActorId > 0)
+                {
+                    targetActorId = payloadTargetActorId;
+                }
+
                 return new MobaEffectLineageInput(
                     source.ContextKind,
                     source.ExecutionKind,
                     source.SourceActorId,
-                    source.TargetActorId,
+                    targetActorId,
                     source.SourceContextId,
                     source.RootContextId,
                     source.OwnerContextId,
@@ -49,11 +57,11 @@ namespace AbilityKit.Demo.Moba.Services
 
             // Actor IDs and execution context IDs use different namespaces. An actor-only payload
             // may start a new effect root, but it must never be promoted to a fake context parent.
-            if (payload is IMobaActorContextProvider actorProvider
-                && actorProvider.TryGetSourceActorId(out var fallbackSource)
+            if (payload is IMobaActorContextProvider fallbackActorProvider
+                && fallbackActorProvider.TryGetSourceActorId(out var fallbackSource)
                 && fallbackSource > 0)
             {
-                actorProvider.TryGetTargetActorId(out var fallbackTarget);
+                fallbackActorProvider.TryGetTargetActorId(out var fallbackTarget);
                 var fallbackKind = payload is IMobaTriggerInvocationContext fallbackInvocation
                     ? fallbackInvocation.Kind
                     : EffectContextKind.Trigger;

@@ -45,8 +45,8 @@ Diagnostics 模块用于开发期诊断和性能分析。它提供运行时轻�
 | `Runtime/Core/EditorProfiler.cs` | 编辑器 profiler 实现 |
 | `Runtime/Core/FlameData.cs` | 火焰图数据模型 |
 | `Editor/Windows/DiagnosticsWindow.cs` | Unity 编辑器诊断窗口 |
-| `Editor/Exporters/Exporters.cs` | 基础导出能力 |
-| `Editor/Exporters/AdvancedExporters.cs` | 高级导出能力 |
+| `Editor/Exporters/Exporters.cs` | 基础导出（json / csv / folded） |
+| `Editor/Exporters/AdvancedExporters.cs` | 高级导出（speedscope / chrome trace / flamegraph SVG / 0x） |
 
 ---
 
@@ -73,6 +73,26 @@ sequenceDiagram
 - 默认实现应可切换到 `NullProfiler`，保证生产环境没有额外开销。
 - 采样名称应稳定，便于跨版本比较。
 - 导出数据格式变更时需要记录版本，避免旧分析工具无法读取。
+
+## 五.1、导出格式速查
+
+所有导出器经 `ExporterFactory.Get(format)` 获取；落盘产物一律**无 BOM UTF-8**（外部火焰图工具对首行 BOM 敏感）。
+
+| format | 扩展名 | 内容与用途 |
+|--------|--------|------------|
+| `json` | `.json` | 完整快照：指标目录、计数器、gauge、样本、耗时摘要、事件、火焰树、spanLog 摘要 |
+| `csv` | `.csv` | 同 json 数据的表格化（分段 CSV） |
+| `folded` | `.folded` | Brendan Gregg folded 栈，供 flamegraph.pl / inferno 等外部工具 |
+| `speedscope` | `.speedscope.json` | speedscope.app 交互查看；快照含 span 时输出**真实时间线**（逐事件、按时间升序），否则回退聚合事件对 |
+| `chrome` | `.chrome-perf.json` | Chrome trace-viewer 格式；含 span 时为真实时间轴（ts=微秒、args 带 frame/cid），否则聚合粒度 |
+| `flamegraph` | `.flame.svg` | **静态 SVG 火焰图**：块宽=累计耗时、向上分叉=调用链、悬停见 total/self；亮暗双主题；8 槽类目色按指标族（名称第二段）首见顺序分配，超出折叠为中性灰 |
+| `0x` | `.0x.json` | 树形 JSON，value=self 纳秒 |
+
+### 时间线与关联上下文（2026-10-12）
+
+- **span 环形缓冲**：EditorProfiler 按完成顺序记录 `(Name, Start, Duration, ContextId, ThreadId, Frame)`，容量 `ProfilerOptions.MaxSpanEvents`（默认 16384，0 禁用），覆盖最旧并计 `SpansDropped`。
+- **帧轴**：宿主每帧调 `ProfilerHub.SetFrame(frame)`（EntitasWorld.Tick 已接线），span 记录起始帧号，chrome 事件 `args.frame`。
+- **关联上下文（Correlation 落地）**：`ProfilerHub.Begin(name, contextId)` 携带业务上下文 ID（effect=父技能施法 trace 节点、action=动作 trace 节点），导出后可与 trace 体系的 ContextId/ConfigId join，实现"哪个英雄哪个技能哪段效果慢"的归因。
 
 ---
 

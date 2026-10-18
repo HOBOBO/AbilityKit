@@ -73,6 +73,103 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void TriggerEventMappings_PreferExactAndLongestPrefixRegardlessOfRegistrationOrder()
+        {
+            var registry = new MobaEventSubscriptionRegistry();
+            registry.RegisterPrefix<string>("contract.event.");
+            registry.RegisterPrefix<int>("contract.event.damage.");
+            registry.RegisterExact<double>("contract.event.damage.hit");
+
+            Assert.That(registry.TryGetArgsType("contract.event.damage.hit", out var exactType), Is.True);
+            Assert.That(exactType, Is.EqualTo(typeof(double)));
+            Assert.That(registry.TryGetArgsType("contract.event.damage.miss", out var specificType), Is.True);
+            Assert.That(specificType, Is.EqualTo(typeof(int)));
+            Assert.That(registry.TryGetArgsType("contract.event.heal", out var generalType), Is.True);
+            Assert.That(generalType, Is.EqualTo(typeof(string)));
+            Assert.Throws<InvalidOperationException>(() =>
+                registry.RegisterPrefix("contract.event.damage.", typeof(long)));
+        }
+
+        [Test]
+        public void HealthChangeResult_SeparatesCommitStatusClampAndOverkill()
+        {
+            var origin = default(MobaGameplayOrigin);
+            var overkill = new MobaHealthChangeResult(
+                MobaHealthChangeKind.Damage,
+                1,
+                2,
+                0,
+                0,
+                0,
+                25f,
+                10f,
+                10f,
+                0f,
+                100f,
+                in origin,
+                MobaHealthChangeFlags.Clamped | MobaHealthChangeFlags.Overkill);
+            var mitigated = new MobaHealthChangeResult(
+                MobaHealthChangeKind.Damage,
+                1,
+                2,
+                0,
+                0,
+                0,
+                25f,
+                10f,
+                100f,
+                90f,
+                100f,
+                in origin,
+                MobaHealthChangeFlags.Clamped);
+            var rejected = default(MobaHealthChangeResult);
+
+            Assert.That(overkill.Succeeded, Is.True);
+            Assert.That(overkill.WasClamped, Is.True);
+            Assert.That(overkill.WasOverkill, Is.True);
+            Assert.That(mitigated.WasClamped, Is.True);
+            Assert.That(mitigated.WasOverkill, Is.False);
+            Assert.That(rejected.Rejected, Is.True);
+        }
+
+        [Test]
+        public void ActorDespawnRequests_MergeFramesReasonAndMissingProvenanceMonotonically()
+        {
+            var contexts = new Contexts();
+            var entity = contexts.actor.CreateEntity();
+            try
+            {
+                Assert.That(ActorLifecycleRequests.RequestDespawn(
+                    entity,
+                    frame: 20,
+                    reason: ActorDespawnReason.ProjectileExpired,
+                    sourceActorId: 7), Is.True);
+                Assert.That(ActorLifecycleRequests.RequestDespawn(
+                    entity,
+                    frame: 12,
+                    reason: ActorDespawnReason.SceneCleanup,
+                    sourceContextId: 99L), Is.True);
+                Assert.That(ActorLifecycleRequests.RequestDespawn(
+                    entity,
+                    frame: 30,
+                    reason: ActorDespawnReason.ProjectileExpired,
+                    sourceActorId: 8,
+                    sourceContextId: 100L), Is.True);
+
+                var request = entity.actorDespawnRequest;
+                Assert.That(request.RequestFrame, Is.EqualTo(12));
+                Assert.That(request.MinConfirmedFrame, Is.EqualTo(30));
+                Assert.That(request.Reason, Is.EqualTo(ActorDespawnReason.SceneCleanup));
+                Assert.That(request.SourceActorId, Is.EqualTo(7));
+                Assert.That(request.SourceContextId, Is.EqualTo(99L));
+            }
+            finally
+            {
+                contexts.Reset();
+            }
+        }
+
+        [Test]
         public void ActionSnapshot_ObservesExistingRealDamageAndHealCommitEvents()
         {
             var registry = new MobaActorRegistry();
@@ -251,7 +348,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var registry = new MobaDamageStageRegistry();
             registry.RegisterExtension("extension.first", 1500, new TestDamageStage("damage.test.first"));
             registry.RegisterExtension("extension.second", 1500, new TestDamageStage("damage.test.second"));
-            registry.RegisterExtension("extension.before_final", 3500, new TestDamageStage("damage.test.before_final"));
+            registry.RegisterExtension("extension.before_shield", 3500, new TestDamageStage("damage.test.before_shield"));
 
             var stages = registry.GetStages();
 
@@ -261,9 +358,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 "extension.first",
                 "extension.second",
                 MobaDamageStageRegistry.MitigationStageId,
-                MobaDamageStageRegistry.ShieldStageId,
-                "extension.before_final",
                 MobaDamageStageRegistry.FinalStageId,
+                "extension.before_shield",
+                MobaDamageStageRegistry.ShieldStageId,
             }));
             Assert.That(registry.Validate().Succeeded, Is.True);
         }
@@ -280,7 +377,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             var illegalOrder = new MobaDamageStageRegistry();
             Assert.Throws<ArgumentOutOfRangeException>(() =>
-                illegalOrder.RegisterExtension("extension.after_final", MobaDamageStageOrders.Final + 1, new TestDamageStage("damage.test.after_final")));
+                illegalOrder.RegisterExtension("extension.after_shield", MobaDamageStageOrders.Shield + 1, new TestDamageStage("damage.test.after_shield")));
             Assert.Throws<ArgumentOutOfRangeException>(() =>
                 illegalOrder.RegisterExtension("extension.core_collision", MobaDamageStageOrders.Mitigation, new TestDamageStage("damage.test.core_collision")));
 
@@ -519,6 +616,25 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.Throws<InvalidOperationException>(() => service.CommitHeal(7, TargetActorId, 5, 10f));
             Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(80f));
             Assert.That(beforeCount, Is.Zero);
+        }
+
+        [Test]
+        public void DeterministicEventBuffer_DrainsWithStableScalarOrder()
+        {
+            var buffer = new MobaDeterministicEventBuffer(2, 8);
+            var output = new List<MobaDeterministicEventRecord>();
+
+            buffer.Add(new MobaDeterministicEventRecord(3, 2, 10, 4, 2, 7));
+            buffer.Add(new MobaDeterministicEventRecord(2, 9, 1, 1, 0, 3));
+            buffer.Add(new MobaDeterministicEventRecord(3, 2, 10, 4, 1, 9));
+            buffer.Add(new MobaDeterministicEventRecord(3, 1, 10, 4, 5, 1));
+
+            Assert.That(buffer.DrainSortedTo(output), Is.EqualTo(4));
+            Assert.That(output[0].Frame, Is.EqualTo(2));
+            Assert.That(output[1].Kind, Is.EqualTo(1));
+            Assert.That(output[2].Sequence, Is.EqualTo(1));
+            Assert.That(output[3].Sequence, Is.EqualTo(2));
+            Assert.That(buffer.Count, Is.Zero);
         }
 
         [Test]
@@ -879,8 +995,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 Is.EqualTo("health subscriber failed"));
             Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(65f));
             Assert.That(shields.GetTotalRemaining(TargetActorId), Is.Zero);
-            Assert.That(shields.TryGetContainer(TargetActorId, out var container), Is.True);
-            Assert.That(container.Layers, Is.Empty);
+            Assert.That(shields.GetLayerCount(TargetActorId), Is.Zero);
             var nodes = _damageExecutionContexts[_damageExecutionContexts.Count - 1].CaptureLifecycleSnapshot();
             Assert.That(nodes, Has.Count.EqualTo(3));
             Assert.That(nodes[2].EndReason, Is.EqualTo((int)MobaExecutionEndReason.Completed));
@@ -1162,6 +1277,56 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             entities.Dispose();
         }
 
+        [Test]
+        public void HealPipeline_StagesExecuteInOrderAndCanModifyValue()
+        {
+            var eventBus = new EventBus();
+            var commitPort = CreateService(initialHp: 50f, eventBus, out var target);
+            var stages = new MobaHealStageRegistry();
+            var order = new List<string>();
+            stages.RegisterExtension(new TestHealStage("test.double", 2000, calculation =>
+            {
+                order.Add("double");
+                calculation.SetValue(calculation.Value * 2f);
+            }));
+            stages.RegisterExtension(new TestHealStage("test.cap", 3000, calculation =>
+            {
+                order.Add("cap");
+                calculation.SetValue(Math.Min(calculation.Value, 30f));
+            }));
+            var pipeline = new HealPipelineService(commitPort, eventBus, stageProvider: stages);
+
+            var result = pipeline.Execute(new MobaHealRequest(7, TargetActorId, 5, 20f));
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(result.RequestedValue, Is.EqualTo(30f));
+            Assert.That(result.AppliedValue, Is.EqualTo(30f));
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(80f));
+            Assert.That(order, Is.EqualTo(new[] { "double", "cap" }));
+        }
+
+        [Test]
+        public void HealPipeline_FullHealthRejectsWithoutCommitOrAfterNotification()
+        {
+            var eventBus = new EventBus();
+            var commitPort = CreateService(initialHp: MaxHp, eventBus, out var target);
+            var committed = 0;
+            var after = 0;
+            using var committedSubscription = eventBus.Subscribe(
+                CreateHealthCommittedKey(), _ => committed++);
+            using var afterSubscription = eventBus.Subscribe(
+                new EventKey<MobaHealthChangeResult>(TriggeringIdUtil.GetEventEid(HealPipelineEvents.AfterApply)),
+                _ => after++);
+
+            var result = new HealPipelineService(commitPort, eventBus)
+                .Execute(new MobaHealRequest(7, TargetActorId, 5, 20f));
+
+            Assert.That(result.Rejected, Is.True);
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(MaxHp));
+            Assert.That(committed, Is.Zero);
+            Assert.That(after, Is.Zero);
+        }
+
         private MobaDamageService CreateService(
             float initialHp,
             EventBus eventBus,
@@ -1347,6 +1512,26 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var ids = new string[stages.Count];
             for (var i = 0; i < stages.Count; i++) ids[i] = stages[i].Id;
             return ids;
+        }
+
+        private sealed class TestHealStage : IMobaHealPipelineStage
+        {
+            private readonly Action<MobaHealCalculation> _execute;
+
+            public TestHealStage(string id, int order, Action<MobaHealCalculation> execute)
+            {
+                Id = id;
+                Order = order;
+                _execute = execute;
+            }
+
+            public string Id { get; }
+            public int Order { get; }
+
+            public void Execute(MobaHealCalculation calculation)
+            {
+                _execute(calculation);
+            }
         }
 
         private sealed class TestDamageStage : IMobaDamagePipelineStage

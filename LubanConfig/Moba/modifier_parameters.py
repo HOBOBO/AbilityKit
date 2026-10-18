@@ -3,27 +3,6 @@
 import re
 
 
-DOMAIN_NAMES = {1: "Skill", 2: "Projectile", 3: "Summon", 4: "Buff", 5: "Aoe", 6: "Damage", 7: "Emitter"}
-# The original 1-16 IDs are retired by the audited domain migration below.
-PARAMETER_ID_RANGES = {
-    1: (10000, 19999),  # Skill
-    4: (20000, 29999),  # Buff
-    7: (30000, 39999),  # Emitter / launcher
-    2: (40000, 49999),  # Projectile
-    5: (50000, 59999),  # Aoe
-    3: (60000, 69999),  # Summon
-    6: (70000, 79999),  # Damage
-}
-MODIFIER_TEMPLATE_ID_RANGES = {
-    "Attribute": (100001, 199999),
-    "Buff": (200001, 299999),
-    "Skill": (300001, 399999),
-    "Emitter": (400001, 499999),
-    "Projectile": (500001, 599999),
-    "Aoe": (600001, 699999),
-    "Summon": (700001, 799999),
-    "Damage": (800001, 899999),
-}
 VALUE_KINDS = {1: "ReferenceId", 2: "Integer", 3: "Float"}
 RESOLVE_PHASES = {1: "Action", 2: "Launch", 3: "BuffApply", 4: "AreaSpawn",
                   5: "Emit", 6: "ProjectileSpawn", 7: "Hit", 8: "SummonCreate"}
@@ -57,48 +36,142 @@ PARAMETER_ID_MIGRATION = {
 }
 EMITTER_LEGACY_IDS = {1, 3, 4, 5}
 
-# A catalog entry is publishable only after its domain adapter has a named consumer.
-# Values are (domain, key, phase, consumer); SkillId is retired in favor of slot candidates.
-CONSUMER_CONTRACTS = {
-    10001: ("Skill", "SkillId", "Action", "MobaSkillSlotCandidateService"),
-    10002: ("Skill", "ResourceCost", "Action", "SkillCastPreparationService"),
-    10003: ("Skill", "CooldownMs", "Action", "SkillCastPreparationService"),
-    10004: ("Skill", "CastRange", "Action", "SkillCastPreparationService"),
-    20001: ("Buff", "DurationMs", "BuffApply", "BuffApplyFlow"),
-    30001: ("Emitter", "LauncherId", "Launch", "ShootProjectilePlanActionModule"),
-    30002: ("Emitter", "CountPerShot", "Emit", "MobaModifierProjectileSpawnPatternProvider"),
-    30003: ("Emitter", "FanAngleDeg", "Emit", "MobaModifierProjectileSpawnPatternProvider"),
-    30004: ("Emitter", "DurationMs", "Launch", "ShootProjectilePlanActionModule"),
-    30005: ("Emitter", "IntervalMs", "Launch", "MobaProjectileService"),
-    40001: ("Projectile", "ProjectileId", "Launch", "ShootProjectilePlanActionModule"),
-    40002: ("Projectile", "Speed", "ProjectileSpawn", "MobaProjectileService,MobaModifierProjectileSpawnPatternProvider"),
-    40003: ("Projectile", "LifetimeMs", "ProjectileSpawn", "MobaProjectileService,MobaModifierProjectileSpawnPatternProvider"),
-    40004: ("Projectile", "PierceHits", "ProjectileSpawn", "MobaProjectileService,MobaModifierProjectileSpawnPatternProvider"),
-    50001: ("Aoe", "Radius", "AreaSpawn", "SpawnAreaPlanActionModule"),
-    50002: ("Aoe", "DurationMs", "AreaSpawn", "SpawnAreaPlanActionModule"),
-    50003: ("Aoe", "IntervalMs", "AreaSpawn", "SpawnAreaPlanActionModule"),
-    60001: ("Summon", "SummonId", "SummonCreate", "SpawnSummonPlanActionModule"),
-    60002: ("Summon", "LifetimeMs", "SummonCreate", "MobaSummonService"),
-    60003: ("Summon", "InheritRatioScale", "SummonCreate", "MobaSummonService"),
-    70001: ("Damage", "RequestedBase", "Hit", "GiveDamagePlanActionModule"),
+DOMAIN_NAMES = {1: "Skill", 2: "Projectile", 3: "Summon", 4: "Buff", 5: "Aoe", 6: "Damage", 7: "Emitter"}
+# The original 1-16 IDs are retired by the audited domain migration below.
+PARAMETER_ID_RANGES = {
+    1: (10000, 19999),  # Skill
+    4: (20000, 29999),  # Buff
+    7: (30000, 39999),  # Emitter / launcher
+    2: (40000, 49999),  # Projectile
+    5: (50000, 59999),  # Aoe
+    3: (60000, 69999),  # Summon
+    6: (70000, 79999),  # Damage
 }
+MODIFIER_TEMPLATE_ID_RANGES = {
+    "Attribute": (100001, 199999),
+    "Buff": (200001, 299999),
+    "Skill": (300001, 399999),
+    "Emitter": (400001, 499999),
+    "Projectile": (500001, 599999),
+    "Aoe": (600001, 699999),
+    "Summon": (700001, 799999),
+    "Damage": (800001, 899999),
+}
+FIELD_UNITS = {"None": 0, "Point": 1, "Distance": 2, "Ms": 3, "Count": 4,
+               "Ratio": 5, "Degrees": 6, "Id": 7, "Percent": 8}
+# CapturePolicy answers *when the field is read at its consumption site*, which is a different
+# question from a modifier's EvaluationPolicy (whether a modifier instance's magnitude is frozen).
+#   LiveProperty   -> read live on every resolve; an already-running Buff that changes this field
+#                     is visible to the next resolve, because nothing caches the computed value.
+#   CreateSnapshot -> read once per consuming snapshot; stable inside that snapshot.
+#   EventSample    -> sampled when the triggering event fires, so e.g. a launcher change only
+#                     affects the next launch and never the projectiles already in flight.
+CAPTURE_VALUES = {"CreateSnapshot": 1, "EventSample": 2, "LiveProperty": 3}
+AGGREGATION_VALUES = {"Flat": 0, "Percent": 1}
+OPERATION_NAMES = ("Add", "Mul", "Override", "PercentAdd")
+# Reference IDs carry no numeric range; every other unit describes a numeric quantity.
+NUMERIC_UNITS = {1, 2, 3, 4, 5, 6, 8}
+# Author-facing schema columns; Category/SubCategory stay locked ModifierKey ABI.
+SCHEMA_COLUMNS = ("Unit", "ValueMin", "ValueMax", "CapturePolicy", "Deprecated")
+
+
+OPERATION_VALUES = {"Add": 0, "Mul": 1, "Override": 2, "PercentAdd": 3}
+
+
+UNIT_NAMES = {value: name for name, value in FIELD_UNITS.items()}
+CAPTURE_NAMES = {value: name for name, value in CAPTURE_VALUES.items()}
+
+
+def derive_operation_mask(ops):
+    """Derive the runtime OpMask bit field from the author-facing Ops list.
+
+    Accepts the enum values Luban emits (a list of ints) or the readable names an
+    author may type in the sheet. Returns None when the list cannot be trusted.
+    """
+    if isinstance(ops, (list, tuple)):
+        values = list(ops)
+        if not values or len(values) != len(set(values)):
+            return None
+        if all(type(value) is int for value in values):
+            if any(value not in OPERATION_VALUES.values() for value in values):
+                return None
+            return sum(1 << value for value in values)
+        values = [str(value) for value in values]
+    else:
+        values = [item for item in str(ops).split(",") if item]
+    if not values or len(values) != len(set(values)):
+        return None
+    if any(value not in OPERATION_VALUES for value in values):
+        return None
+    return sum(1 << OPERATION_VALUES[value] for value in values)
+
+
+def validate_field_schema(row, identity, kind, require_capture=True):
+    """Return a reason string when a field row violates the shared modifier field schema.
+
+    Attributes and modifier parameters share every column except CapturePolicy, which
+    only applies to domain parameters resolved at a lifecycle stage.
+    """
+    unit = row.get("Unit", 0)
+    if unit not in set(FIELD_UNITS.values()):
+        return f"unknown unit {unit}"
+    if kind == 1:
+        if unit != FIELD_UNITS["Id"]:
+            return "reference fields must use the Id unit"
+        if row.get("ValueMin") or row.get("ValueMax"):
+            return "reference fields cannot declare a numeric range"
+    elif unit not in NUMERIC_UNITS:
+        return "numeric fields must declare a dimensional unit"
+    # An absent float cell is normalized to 0, so 0 means "unbounded" on both ends.
+    lower, upper = row.get("ValueMin") or 0, row.get("ValueMax") or 0
+    if upper and lower > upper:
+        return "ValueMin must not exceed a nonzero ValueMax"
+    if require_capture:
+        capture = row.get("CapturePolicy")
+        if capture not in set(CAPTURE_VALUES.values()):
+            return f"unknown capture policy {capture}"
+    ops = derive_operation_mask(row.get("Ops"))
+    if ops is None:
+        return "Ops must list at least one distinct known operation"
+    if kind == 1 and ops != 4:
+        return "reference fields only allow the Override operation"
+    # Deprecated only applies to modifier parameters; attributes have no such column.
+    if "Deprecated" in row and row["Deprecated"] is not False:
+        return "Deprecated fields cannot be published"
+    return None
+
+
+def domain_for_parameter_id(identity):
+    """Return the domain enum value owning an ID segment, or None when unallocated."""
+    for domain_id, (lower, upper) in PARAMETER_ID_RANGES.items():
+        if lower <= identity <= upper:
+            return domain_id
+    return None
+
+
+def domain_name_for_parameter_id(identity):
+    domain_id = domain_for_parameter_id(identity)
+    return None if domain_id is None else DOMAIN_NAMES.get(domain_id)
 
 
 def validate_modifier_parameters(rows, published=None):
+    """Validate the published parameter catalog.
+
+    The domain is implied by the parameter ID segment, so rows only carry the
+    author-facing columns plus the locked ModifierKey ABI.
+    """
     ids, names, packed = set(), set(), set()
     for row in rows:
         identity = row["Id"]
-        domain = DOMAIN_NAMES.get(row["Domain"])
-        name = row["Key"]
-        category, subcategory = row["Category"], row["SubCategory"]
-        kind, mask = row["ValueKind"], row["OpMask"]
         if type(identity) is not int or identity <= 0 or identity in ids:
             raise ValueError(f"modifier_parameters: duplicate or invalid ID {identity}")
+        domain_id = domain_for_parameter_id(identity)
+        domain = DOMAIN_NAMES.get(domain_id)
+        name = row["Key"]
+        category, subcategory = row["Category"], row["SubCategory"]
+        kind = row["ValueKind"]
         if domain is None or not isinstance(name, str) or not re.fullmatch(r"[A-Z][A-Za-z0-9]*", name):
-            raise ValueError(f"modifier_parameters/{identity}: invalid domain or key")
-        lower, upper = PARAMETER_ID_RANGES[row["Domain"]]
-        if not lower <= identity <= upper:
-            raise ValueError(f"modifier_parameters/{identity}: ID outside {domain} allocation {lower}-{upper}")
+            raise ValueError(f"modifier_parameters/{identity}: unallocated ID segment or invalid key")
         if ((domain, name) in names or type(category) is not int or
                 type(subcategory) is not int or not 1 <= category <= 255 or
                 not 1 <= subcategory <= 255):
@@ -107,10 +180,16 @@ def validate_modifier_parameters(rows, published=None):
             raise ValueError(f"modifier_parameters/{identity}: duplicate ModifierKey")
         if kind not in VALUE_KINDS or row["ResolveAt"] not in RESOLVE_PHASES:
             raise ValueError(f"modifier_parameters/{identity}: invalid type or resolution phase")
-        if type(mask) is not int or not 1 <= mask <= 15 or kind == 1 and mask != 4:
-            raise ValueError(f"modifier_parameters/{identity}: invalid operation mask")
+        derived = derive_operation_mask(row.get("Ops"))
+        if derived is None or not 1 <= derived <= 15:
+            raise ValueError(f"modifier_parameters/{identity}: invalid operation list")
+        if kind == 1 and derived != 4:
+            raise ValueError(f"modifier_parameters/{identity}: reference fields only allow Override")
         if type(row["TriggerWritable"]) is not bool or kind == 1 and row["TriggerWritable"]:
             raise ValueError(f"modifier_parameters/{identity}: invalid trigger permission")
+        reason = validate_field_schema(row, identity, kind)
+        if reason:
+            raise ValueError(f"modifier_parameters/{identity}: {reason}")
         ids.add(identity)
         names.add((domain, name))
         packed.add((category, subcategory))
@@ -118,17 +197,19 @@ def validate_modifier_parameters(rows, published=None):
         expected = LEGACY_KEYS[old_id]
         expected_domain = "Emitter" if old_id in EMITTER_LEGACY_IDS else expected[0]
         row = next((item for item in rows if item["Id"] == new_id), None)
-        actual = None if row is None else (DOMAIN_NAMES.get(row["Domain"]), row["Key"], row["Category"],
-                                           row["SubCategory"], row["ValueKind"])
+        actual = None if row is None else (domain_name_for_parameter_id(new_id), row["Key"],
+                                           row["Category"], row["SubCategory"], row["ValueKind"])
         if actual != (expected_domain, *expected[1:]):
             raise ValueError(f"modifier_parameters/{new_id}: migrated key ABI cannot change")
     for previous in published or ():
-        stable = ("Domain", "Key", "Category", "SubCategory", "ValueKind")
+        stable = ("Key", "Category", "SubCategory", "ValueKind")
         old_id = previous["Id"]
         if old_id in PARAMETER_ID_MIGRATION:
+            # Legacy IDs sit outside every allocated segment, so their original domain
+            # comes from the audited migration table rather than the ID.
             expected = LEGACY_KEYS[old_id]
-            original = (DOMAIN_NAMES.get(previous["Domain"]), previous["Key"],
-                        previous["Category"], previous["SubCategory"], previous["ValueKind"])
+            original = (expected[0], previous["Key"], previous["Category"],
+                        previous["SubCategory"], previous["ValueKind"])
             if original != expected:
                 raise ValueError(f"modifier_parameters/{old_id}: published parameter ABI cannot change")
             continue
@@ -137,31 +218,68 @@ def validate_modifier_parameters(rows, published=None):
             raise ValueError(f"modifier_parameters/{previous['Id']}: published parameter ABI cannot change")
 
 
+CONSUMER_CONTRACTS = {
+    10001: ("Skill", "SkillId", "Action", "MobaSkillSlotCandidateService", "DerivedView"),
+    10002: ("Skill", "ResourceCost", "Action", "SkillCastPreparationService", "CreateSnapshot"),
+    10003: ("Skill", "CooldownMs", "Action", "SkillCastPreparationService", "CreateSnapshot"),
+    10004: ("Skill", "CastRange", "Action", "SkillCastPreparationService", "CreateSnapshot"),
+    20001: ("Buff", "DurationMs", "BuffApply", "BuffApplyFlow", "CreateSnapshot"),
+    30001: ("Emitter", "LauncherId", "Launch", "ShootProjectilePlanActionModule", "CreateSnapshot"),
+    30002: ("Emitter", "CountPerShot", "Emit", "MobaModifierProjectileSpawnPatternProvider", "EventSample"),
+    30003: ("Emitter", "FanAngleDeg", "Emit", "MobaModifierProjectileSpawnPatternProvider", "EventSample"),
+    30004: ("Emitter", "DurationMs", "Launch", "ShootProjectilePlanActionModule", "CreateSnapshot"),
+    30005: ("Emitter", "IntervalMs", "Launch", "MobaProjectileService", "CreateSnapshot"),
+    40001: ("Projectile", "ProjectileId", "Launch", "ShootProjectilePlanActionModule", "CreateSnapshot"),
+    40002: ("Projectile", "Speed", "ProjectileSpawn", "MobaProjectileService,MobaModifierProjectileSpawnPatternProvider", "CreateSnapshot"),
+    40003: ("Projectile", "LifetimeMs", "ProjectileSpawn", "MobaProjectileService,MobaModifierProjectileSpawnPatternProvider", "CreateSnapshot"),
+    40004: ("Projectile", "PierceHits", "ProjectileSpawn", "MobaProjectileService,MobaModifierProjectileSpawnPatternProvider", "CreateSnapshot"),
+    50001: ("Aoe", "Radius", "AreaSpawn", "SpawnAreaPlanActionModule", "CreateSnapshot"),
+    50002: ("Aoe", "DurationMs", "AreaSpawn", "SpawnAreaPlanActionModule", "CreateSnapshot"),
+    50003: ("Aoe", "IntervalMs", "AreaSpawn", "SpawnAreaPlanActionModule", "CreateSnapshot"),
+    60001: ("Summon", "SummonId", "SummonCreate", "SpawnSummonPlanActionModule", "CreateSnapshot"),
+    60002: ("Summon", "LifetimeMs", "SummonCreate", "MobaSummonService", "CreateSnapshot"),
+    60003: ("Summon", "InheritRatioScale", "SummonCreate", "MobaSummonService", "CreateSnapshot"),
+    70001: ("Damage", "RequestedBase", "Hit", "GiveDamagePlanActionModule", "EventSample"),
+}
+
+
 def validate_consumer_contracts(rows):
     for row in rows:
         identity = row["Id"]
         contract = CONSUMER_CONTRACTS.get(identity)
-        actual = (DOMAIN_NAMES.get(row["Domain"]), row["Key"], RESOLVE_PHASES.get(row["ResolveAt"]))
+        actual = (domain_name_for_parameter_id(identity), row["Key"],
+                  RESOLVE_PHASES.get(row["ResolveAt"]))
         if contract is None or actual != contract[:3]:
             raise ValueError(f"modifier_parameters/{identity}: no matching consumer contract for {actual}")
         consumers = contract[3].split(",")
         if len(consumers) != len(set(consumers)) or any(
                 re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) is None for name in consumers):
             raise ValueError(f"modifier_parameters/{identity}: invalid consumer type names")
+        timing = contract[4]
+        if timing not in ("CreateSnapshot", "EventSample", "LiveProperty", "DerivedView"):
+            raise ValueError(f"modifier_parameters/{identity}: invalid consumer timing {timing}")
+        if timing != "DerivedView" and timing != CAPTURE_NAMES[row["CapturePolicy"]]:
+            raise ValueError(f"modifier_parameters/{identity}: CapturePolicy {CAPTURE_NAMES[row['CapturePolicy']]} "
+                             f"does not match consumer timing {timing}")
 
 
 def validate_modifier_template_ids(rows, parameters):
-    parameter_domains = {row["Id"]: DOMAIN_NAMES[row["Domain"]] for row in parameters}
+    parameter_domains = {row["Id"]: domain_name_for_parameter_id(row["Id"])
+                         for row in parameters}
     seen = set()
     for row in rows:
         identity = row["Id"]
-        target_kind = row["TargetKind"]
+        # Templates are mount-only in the workbook and flattened by the export projection, so
+        # accept either the structured bean or the published flat target fields.
+        target = row.get("Target") or {}
+        target_kind = row.get("TargetKind", target.get("Kind", 0))
+        target_id = row.get("TargetId", target.get("Id", 0))
         if target_kind == 1:
             domain = "Attribute"
         elif target_kind == 5:
             domain = "Skill"
         elif target_kind in (4, 6):
-            domain = parameter_domains.get(row["TargetId"])
+            domain = parameter_domains.get(target_id)
         else:
             domain = None
         if type(identity) is not int or identity in seen or domain not in MODIFIER_TEMPLATE_ID_RANGES:
@@ -175,11 +293,31 @@ def validate_modifier_template_ids(rows, parameters):
 def generate_parameter_keys(rows):
     lines = [
         "// <auto-generated>MOBA modifier parameter keys from J-效果表.xlsx.</auto-generated>",
-        "using AbilityKit.Modifiers;", "", "namespace AbilityKit.Demo.Moba.Services", "{",
+        "using AbilityKit.Modifiers;",
+        "using moba_luban;",
+        "", "namespace AbilityKit.Demo.Moba.Services", "{",
+        "    public readonly struct ModifierFieldSchema", "    {",
+        "        public ModifierFieldSchema(ModifierFieldUnit unit, float min, float max,",
+        "            ModifierParameterCapturePolicy capture, int operations, string domain, string displayName)",
+        "        {",
+        "            Unit = unit; Min = min; Max = max; Capture = capture;",
+        "            Operations = operations; Domain = domain; DisplayName = displayName;",
+        "        }", "",
+        "        public ModifierFieldUnit Unit { get; }",
+        "        public float Min { get; }",
+        "        public float Max { get; }",
+        "        public ModifierParameterCapturePolicy Capture { get; }",
+        "        public int Operations { get; }",
+        "        public string Domain { get; }",
+        "        public string DisplayName { get; }", "",
+        "        public bool HasUpperBound => Max > 0f;",
+        "        public bool IsMutable(int operation) => (Operations & (1 << operation)) != 0;",
+        "        public bool IsInRange(float value) => value >= Min && (!HasUpperBound || value <= Max);",
+        "    }", "",
         "    public static class MobaSkillParamModifierKeys", "    {",
     ]
     for domain_id, domain in DOMAIN_NAMES.items():
-        members = [row for row in rows if row["Domain"] == domain_id]
+        members = [row for row in rows if domain_for_parameter_id(row["Id"]) == domain_id]
         if not members:
             continue
         lines.extend((f"        public static class {domain}", "        {"))
@@ -193,18 +331,18 @@ def generate_parameter_keys(rows):
     lines.extend(("", "        public static bool TryResolve(int parameterId, out ModifierKey key)",
                   "        {", "            switch (parameterId)", "            {"))
     for row in sorted(rows, key=lambda item: item["Id"]):
-        lines.append(f"                case {row['Id']}: key = {DOMAIN_NAMES[row['Domain']]}.{row['Key']}; return true;")
+        lines.append(f"                case {row['Id']}: key = {domain_name_for_parameter_id(row['Id'])}.{row['Key']}; return true;")
     lines.extend(("                default: key = ModifierKey.None; return false;", "            }", "        }", "",
                   "        public static bool TryGetParameterId(ModifierKey key, out int parameterId)",
                   "        {"))
     for row in sorted(rows, key=lambda item: item["Id"]):
-        lines.append(f"            if (key.Equals({DOMAIN_NAMES[row['Domain']]}.{row['Key']})) {{ parameterId = {row['Id']}; return true; }}")
+        lines.append(f"            if (key.Equals({domain_name_for_parameter_id(row['Id'])}.{row['Key']})) {{ parameterId = {row['Id']}; return true; }}")
     lines.extend(("            parameterId = 0; return false;", "        }", "",
                   "        public static bool TryGetResolveStage(ModifierKey key, out MobaParameterStage stage)",
                   "        {"))
     for row in sorted(rows, key=lambda item: item["Id"]):
         stage = RUNTIME_STAGES[RESOLVE_PHASES[row["ResolveAt"]]]
-        lines.append(f"            if (key.Equals({DOMAIN_NAMES[row['Domain']]}.{row['Key']})) {{ stage = MobaParameterStage.{stage}; return true; }}")
+        lines.append(f"            if (key.Equals({domain_name_for_parameter_id(row['Id'])}.{row['Key']})) {{ stage = MobaParameterStage.{stage}; return true; }}")
     lines.extend(("            stage = MobaParameterStage.None; return false;", "        }", "",
                   "        public static bool TryGetConsumerTypeName(int parameterId, out string typeName)",
                   "        {", "            switch (parameterId)", "            {"))
@@ -212,7 +350,33 @@ def generate_parameter_keys(rows):
         consumer = CONSUMER_CONTRACTS[row["Id"]][3]
         lines.append(f'                case {row["Id"]}: typeName = "{consumer}"; return true;')
     lines.extend(("                default: typeName = null; return false;", "            }", "        }", "",
-                  "        public static bool IsTriggerWritable(int parameterId)", "        {",
+                  "        public static bool TryGetConsumerSampleTiming(int parameterId, out MobaModifierSampleTiming timing)",
+                  "        {", "            switch (parameterId)", "            {"))
+    for row in sorted(rows, key=lambda item: item["Id"]):
+        timing = CONSUMER_CONTRACTS[row["Id"]][4]
+        lines.append(f"                case {row['Id']}: timing = MobaModifierSampleTiming.{timing}; return true;")
+    lines.extend(("                default: timing = default; return false;", "            }", "        }", "",
+                  "        public static bool TryGetFieldSchema(int parameterId, out ModifierFieldSchema schema)",
+                  "        {", "            switch (parameterId)", "            {"))
+    for row in sorted(rows, key=lambda item: item["Id"]):
+        domain = domain_name_for_parameter_id(row["Id"])
+        lower = row.get("ValueMin") or 0
+        upper = row.get("ValueMax") or 0
+        unit = UNIT_NAMES[row["Unit"]]
+        capture = CAPTURE_NAMES[row["CapturePolicy"]]
+        mask = derive_operation_mask(row["Ops"])
+        label = row["DisplayName"].replace(chr(34), "")
+        lines.append(f'                case {row["Id"]}: schema = new ModifierFieldSchema(ModifierFieldUnit.{unit}, {lower}f, {upper}f, ModifierParameterCapturePolicy.{capture}, {mask}, "{domain}", "{label}"); return true;')
+    lines.extend(("                default: schema = default; return false;", "            }", "        }", "",
+                  "        public static bool TryValidateValue(int parameterId, float value, out string error)",
+                  "        {", "            if (!TryGetFieldSchema(parameterId, out var schema))",
+                  "            { error = \"parameter id is not registered\"; return false; }",
+                  "            if (float.IsNaN(value) || float.IsInfinity(value))",
+                  "            { error = \"value must be finite\"; return false; }",
+                  "            if (!schema.IsInRange(value))",
+                  "            { error = $\"value {value} is outside [{schema.Min}, {schema.Max}]\"; return false; }",
+                  "            error = null; return true;", "        }", ""))
+    lines.extend(("        public static bool IsTriggerWritable(int parameterId)", "        {",
                   "            switch (parameterId)", "            {"))
     for row in sorted(rows, key=lambda item: item["Id"]):
         if row["TriggerWritable"]:
@@ -221,6 +385,7 @@ def generate_parameter_keys(rows):
                   "        public static bool SupportsOperation(int parameterId, int op)", "        {",
                   "            if (op < 0 || op > 3) return false;", "            switch (parameterId)", "            {"))
     for row in sorted(rows, key=lambda item: item["Id"]):
-        lines.append(f"                case {row['Id']}: return ({row['OpMask']} & (1 << op)) != 0;")
+        mask = derive_operation_mask(row["Ops"])
+        lines.append(f"                case {row['Id']}: return ({mask} & (1 << op)) != 0;")
     lines.extend(("                default: return false;", "            }", "        }", "    }", "}", ""))
     return "\n".join(lines)

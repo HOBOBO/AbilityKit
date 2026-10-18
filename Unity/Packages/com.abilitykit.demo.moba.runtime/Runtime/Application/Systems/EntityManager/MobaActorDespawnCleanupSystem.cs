@@ -9,6 +9,7 @@ using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Services.Buffs;
+using AbilityKit.Demo.Moba.Services.Triggering;
 
 namespace AbilityKit.Demo.Moba.Systems.EntityManager
 {
@@ -31,6 +32,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         private MobaCombatActivityService _combatActivity;
         private MobaShieldService _shields;
         private MobaBuffService _buffs;
+        private MobaTriggerPlanSubscriptionService _triggerSubscriptions;
 
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
@@ -57,6 +59,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             Services.TryResolve(out _combatActivity);
             Services.TryResolve(out _shields);
             Services.TryResolve(out _buffs);
+            Services.TryResolve(out _triggerSubscriptions);
             _group = Contexts.Actor().GetGroup(ActorMatcher.ActorDespawnRequest);
         }
 
@@ -110,6 +113,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             }
 
             CleanupProjectile(actorId, request);
+            StopOwnerBoundTriggers(entity);
             ReclaimActorState(actorId, ToExecutionEndReason(request.Reason));
 
             if (entity.hasSummonMeta && _summons != null)
@@ -123,6 +127,20 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
                 out _,
                 publishDespawn: true);
             TryDestroy(entity, actorId, request.Reason);
+        }
+
+        private void StopOwnerBoundTriggers(global::ActorEntity entity)
+        {
+            if (_triggerSubscriptions == null || entity == null || !entity.hasOngoingTriggerPlans) return;
+            var active = entity.ongoingTriggerPlans.Active;
+            if (active == null) return;
+
+            for (var i = 0; i < active.Count; i++)
+            {
+                var entry = active[i];
+                if (entry != null && entry.OwnerKey != 0)
+                    _triggerSubscriptions.Stop(entry.OwnerKey);
+            }
         }
 
         private void ReclaimActorState(int actorId, MobaExecutionEndReason reason)
@@ -230,7 +248,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
                 }
                 if (entity.hasCharacterHfsm)
                 {
-                    entity.RemoveCharacterHfsm();
+                    entity.RemoveAndDisposeCharacterHfsm();
                 }
 
                 entity.Destroy();

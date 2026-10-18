@@ -5,6 +5,41 @@ using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Game.Flow
 {
+    internal readonly struct FormalLobbyRenderCommands
+    {
+        public FormalLobbyRenderCommands(
+            Action exit, Action reconnect, Action createRoom, Action refreshRooms,
+            Action<string> joinRoom, Action ready, Action notReady, Action start,
+            Action leaveAndCreate, Action leave, Action cancelLoading, Action returnToRooms)
+        {
+            Exit = exit;
+            Reconnect = reconnect;
+            CreateRoom = createRoom;
+            RefreshRooms = refreshRooms;
+            JoinRoom = joinRoom;
+            Ready = ready;
+            NotReady = notReady;
+            Start = start;
+            LeaveAndCreate = leaveAndCreate;
+            Leave = leave;
+            CancelLoading = cancelLoading;
+            ReturnToRooms = returnToRooms;
+        }
+
+        public Action Exit { get; }
+        public Action Reconnect { get; }
+        public Action CreateRoom { get; }
+        public Action RefreshRooms { get; }
+        public Action<string> JoinRoom { get; }
+        public Action Ready { get; }
+        public Action NotReady { get; }
+        public Action Start { get; }
+        public Action LeaveAndCreate { get; }
+        public Action Leave { get; }
+        public Action CancelLoading { get; }
+        public Action ReturnToRooms { get; }
+    }
+
     internal enum FormalLobbyScreenContent
     {
         ConfigurationError = 0,

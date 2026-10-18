@@ -36,6 +36,14 @@ namespace AbilityKit.Demo.Moba.CodeGen
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
+        public static readonly DiagnosticDescriptor EmptyPlanActionManifestRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.EmptyPlanActionManifestRuleId,
+            title: "Empty generated plan action manifest",
+            messageFormat: "The MOBA plan action manifest is empty although its runtime contract is present; reflection fallback is not permitted for a production build",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
         public static readonly DiagnosticDescriptor InvalidWorldServiceRule = new DiagnosticDescriptor(
             id: MobaDiagnosticIds.InvalidWorldServiceRuleId,
             title: "Invalid World service declaration",
@@ -212,6 +220,14 @@ namespace AbilityKit.Demo.Moba.CodeGen
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
+        public static readonly DiagnosticDescriptor EmptyEventMappingManifestRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.EmptyEventMappingManifestRuleId,
+            title: "Empty MOBA event mapping manifest",
+            messageFormat: "The MOBA event mapping manifest is empty although its runtime contract is present; owner-bound trigger event mappings cannot use reflection fallback in a production build",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
         public static readonly DiagnosticDescriptor InvalidTargetQueryFactoryRule = new DiagnosticDescriptor(
             id: MobaDiagnosticIds.InvalidTargetQueryFactoryRuleId,
             title: "Invalid target query factory",
@@ -268,11 +284,75 @@ namespace AbilityKit.Demo.Moba.CodeGen
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
+        public static readonly DiagnosticDescriptor EmptyBootstrapStageManifestRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.EmptyBootstrapStageManifestRuleId,
+            title: "Empty generated bootstrap stage manifest",
+            messageFormat: "The MOBA bootstrap stage manifest is empty although its runtime contract is present; reflection fallback is not permitted for a production build",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
         public static readonly DiagnosticDescriptor InvalidSnapshotEmitterRule = new DiagnosticDescriptor(
             id: MobaDiagnosticIds.InvalidSnapshotEmitterRuleId,
             title: "Invalid MOBA snapshot emitter",
             messageFormat: "MOBA snapshot emitter '{0}' is invalid: {1}",
             category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor EmptySnapshotEmitterManifestRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.EmptySnapshotEmitterManifestRuleId,
+            title: "Empty generated snapshot emitter manifest",
+            messageFormat: "The MOBA snapshot emitter manifest is empty although its runtime contract is present; reflection fallback is not permitted for a production build",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor EmptyConfigTableManifestRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.EmptyConfigTableManifestRuleId,
+            title: "Empty generated config table manifest",
+            messageFormat: "The MOBA config table manifest is empty although its runtime contract is present; reflection fallback is not permitted for a production build",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor EmptyBattleRouteManifestRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.EmptyBattleRouteManifestRuleId,
+            title: "Empty generated battle route manifest",
+            messageFormat: "The MOBA battle route manifest is empty although its runtime contract is present; reflection fallback is not permitted for a production build",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor EmptyInputHandlerManifestRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.EmptyInputHandlerManifestRuleId,
+            title: "Empty generated input handler manifest",
+            messageFormat: "The MOBA input handler manifest is empty although its runtime contract is present; reflection fallback is not permitted for a production build",
+            category: "AbilityKit.Moba",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor EntitasComponentBlobFieldRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.EntitasComponentBlobFieldRuleId,
+            title: "Entitas component field is a non-whitelisted reference type",
+            messageFormat: "Entitas component '{0}' field '{1}' of type '{2}' is not a plain-value type; mark [EntitasBlob] on the component/field/type to declare blob debt (rollback goes to a dedicated provider), or restructure to plain fields",
+            category: "AbilityKit.Moba.Architecture",
+            defaultSeverity: DiagnosticSeverity.Warning,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor EntitasComponentNonPublicFieldRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.EntitasComponentNonPublicFieldRuleId,
+            title: "Entitas component field is not public",
+            messageFormat: "Entitas component '{0}' field '{1}' is not public and will be silently skipped by code generation",
+            category: "AbilityKit.Moba.Architecture",
+            defaultSeverity: DiagnosticSeverity.Warning,
+            isEnabledByDefault: true);
+
+        public static readonly DiagnosticDescriptor PortableSourceEngineDependencyRule = new DiagnosticDescriptor(
+            id: MobaDiagnosticIds.PortableSourceEngineDependencyRuleId,
+            title: "Engine dependency in portable MOBA source",
+            messageFormat: "Portable MOBA source cannot reference engine namespace '{0}'",
+            category: "AbilityKit.Moba.Architecture",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
     }

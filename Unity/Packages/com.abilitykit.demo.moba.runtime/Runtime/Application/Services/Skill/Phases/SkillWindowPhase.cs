@@ -4,7 +4,7 @@ using AbilityKit.Pipeline;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    internal sealed class SkillWindowPhase : AbilityPipelinePhaseBase<SkillPipelineContext>,
+    internal sealed class SkillWindowPhase : SkillRollbackPhaseBase,
         IInterruptiblePhase<SkillPipelineContext>, IAbilityPipelinePhaseInstanceFactory<SkillPipelineContext>
     {
         private readonly SkillWindowPhaseDTO _specification;
@@ -126,6 +126,34 @@ namespace AbilityKit.Demo.Moba.Services
             _channelTick = 0;
             _recastSequence = 0;
             _closed = false;
+        }
+
+        public override PipelinePhaseRollbackState CaptureRollbackState()
+        {
+            var state = base.CaptureRollbackState();
+            state.Numbers = new[] { _elapsedMs };
+            state.Integers = new[] { _channelTick, _recastSequence, _closed ? 1 : 0 };
+            return state;
+        }
+
+        public override void ValidateRollbackState(PipelinePhaseRollbackState state)
+        {
+            base.ValidateRollbackState(state);
+            if (state?.Numbers == null || state.Numbers.Length != 1 ||
+                double.IsNaN(state.Numbers[0]) || double.IsInfinity(state.Numbers[0]) ||
+                state.Numbers[0] < 0 || state.Integers == null || state.Integers.Length != 3 ||
+                state.Integers[0] < 0 || state.Integers[1] < 0 || state.Integers[2] is < 0 or > 1)
+                throw new InvalidOperationException("Invalid skill window rollback state.");
+        }
+
+        public override void RestoreRollbackState(PipelinePhaseRollbackState state)
+        {
+            ValidateRollbackState(state);
+            base.RestoreRollbackState(state);
+            _elapsedMs = state.Numbers[0];
+            _channelTick = state.Integers[0];
+            _recastSequence = state.Integers[1];
+            _closed = state.Integers[2] == 1;
         }
 
         private void CompleteForTimeout(SkillPipelineContext context)

@@ -34,6 +34,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             typeof(ComponentTemplateDTO),
             typeof(PresentationTemplateDTO),
             typeof(GameplayDTO),
+            typeof(DungeonDTO),
         };
 
         public Array DeserializeDtoArray(string text, Type dtoType)

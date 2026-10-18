@@ -12,6 +12,7 @@ namespace AbilityKit.Demo.Moba.Components
     }
 
     [Actor]
+    [EntitasBlob]
     public sealed class ActorStateMachineComponent : IComponent
     {
         public string ProfileId;

@@ -20,6 +20,10 @@ public sealed partial class DRAttrTypes : Luban.BeanBase
         Key = _buf.ReadString();
         Name = _buf.ReadString();
         ValueKind = (MobaAttributeValueKind)_buf.ReadInt();
+        Unit = (ModifierFieldUnit)_buf.ReadInt();
+        ValueMin = _buf.ReadFloat();
+        ValueMax = _buf.ReadFloat();
+        {int n0 = _buf.ReadSize(); Ops = new System.Collections.Generic.List<ModifierOp>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { ModifierOp _e0;  _e0 = (ModifierOp)_buf.ReadInt(); Ops.Add(_e0);}}
         DefaultValue = _buf.ReadFloat();
     }
 
@@ -29,11 +33,11 @@ public sealed partial class DRAttrTypes : Luban.BeanBase
     }
 
     /// <summary>
-    /// 本表记录的唯一 ID；其他表按该值引用。
+    /// 属性 ID；1-23 与 BattleAttributeType 枚举一一对应，发布后不可改动。
     /// </summary>
     public readonly int Id;
     /// <summary>
-    /// 稳定的程序标识或业务键；修改前检查代码与引用。
+    /// 稳定的程序标识，必须等于 BattleAttributeType 枚举名；修改前检查代码与引用。
     /// </summary>
     public readonly string Key;
     /// <summary>
@@ -41,9 +45,25 @@ public sealed partial class DRAttrTypes : Luban.BeanBase
     /// </summary>
     public readonly string Name;
     /// <summary>
-    /// 属性值类型：Flat 为普通数值，Percent 为比率。
+    /// 聚合方式：Flat 普通数值直接相加，Percent 比率按百分比参与计算。
     /// </summary>
     public readonly MobaAttributeValueKind ValueKind;
+    /// <summary>
+    /// 量纲：Point 点数 / Distance 距离 / Ms 毫秒 / Count 次数 / Ratio 倍率 / Degrees 角度 / Percent 比率。
+    /// </summary>
+    public readonly ModifierFieldUnit Unit;
+    /// <summary>
+    /// 合法下界（含）。填 0 表示无下界。
+    /// </summary>
+    public readonly float ValueMin;
+    /// <summary>
+    /// 合法上界（含）。填 0 表示无上界。
+    /// </summary>
+    public readonly float ValueMax;
+    /// <summary>
+    /// 允许的修饰操作，逗号分隔：Add / Mul / Override / PercentAdd。
+    /// </summary>
+    public readonly System.Collections.Generic.List<ModifierOp> Ops;
     /// <summary>
     /// 属性未被模板覆盖时使用的默认数值。
     /// </summary>
@@ -63,6 +83,10 @@ public sealed partial class DRAttrTypes : Luban.BeanBase
         + "Key:" + Key + ","
         + "Name:" + Name + ","
         + "ValueKind:" + ValueKind + ","
+        + "Unit:" + Unit + ","
+        + "ValueMin:" + ValueMin + ","
+        + "ValueMax:" + ValueMax + ","
+        + "Ops:" + Luban.StringUtil.CollectionToString(Ops) + ","
         + "DefaultValue:" + DefaultValue + ","
         + "}";
     }

@@ -35,10 +35,25 @@ namespace AbilityKit.Demo.Moba.Console.Presentation
                 return;
             }
 
+            // KeepActive（Ticked/Refreshed/StackChanged）代表同一个表现对象仍然存活且需要续期，
+            // 不能当作 No-op 丢弃，也不能重复 Create。
+            if (ShouldKeepActive(data.Stage))
+            {
+                Refresh(in data);
+                return;
+            }
+
             if (ShouldStop(data.Stage))
             {
                 Stop(GetRequestKey(in data), data.Stage);
             }
+        }
+
+        private void Refresh(in PresentationCueData data)
+        {
+            var requestKey = GetRequestKey(in data);
+            if (!_activeByRequestKey.ContainsKey(requestKey)) return;
+            Log.View($"[CuePresenter] Refresh request={requestKey}, stage={data.Stage}");
         }
 
         private void Play(in PresentationCueData data)
@@ -69,18 +84,21 @@ namespace AbilityKit.Demo.Moba.Console.Presentation
             Log.View($"[CuePresenter] Stop request={requestKey}, stage={stage}");
         }
 
+        // 转发到共享权威实现。这里原先是一份独立的且不完整的表：
+        // 缺 Started/Expired/Removed/Completed，导致 console 端所有 buff cue 永不生成、永不销毁。
         private static bool ShouldStart(PresentationCueStage stage)
         {
-            return stage == PresentationCueStage.ConditionPassed ||
-                   stage == PresentationCueStage.BeforeAction ||
-                   stage == PresentationCueStage.Executed;
+            return PresentationCueSemantics.Classify((int)stage) == PresentationCueTransition.Start;
+        }
+
+        private static bool ShouldKeepActive(PresentationCueStage stage)
+        {
+            return PresentationCueSemantics.Classify((int)stage) == PresentationCueTransition.KeepActive;
         }
 
         private static bool ShouldStop(PresentationCueStage stage)
         {
-            return stage == PresentationCueStage.ConditionFailed ||
-                   stage == PresentationCueStage.Interrupted ||
-                   stage == PresentationCueStage.Skipped;
+            return PresentationCueSemantics.Classify((int)stage) == PresentationCueTransition.Stop;
         }
 
         private static string GetRequestKey(in PresentationCueData data)

@@ -17,5 +17,26 @@
     "UnitSubType": 1,
     "BrainId": 1,
     "InheritAttributeConfigId": 1
+  },
+  {
+    "Id": 1008,
+    "AttrScales": [],
+    "AttributeTemplateId": 1008,
+    "DefaultComponentTemplateIds": [],
+    "DespawnOnOwnerDie": true,
+    "LifetimeMs": 6000,
+    "MaxAlivePerOwner": 1,
+    "ModelId": 1008,
+    "Name": "鲁班七号-空中支援飞艇",
+    "OverflowPolicy": 0,
+    "PassiveSkillIds": [],
+    "SkillIds": [
+      10080401
+    ],
+    "StatsMode": 0,
+    "Tags": [],
+    "UnitSubType": 1008,
+    "BrainId": 100,
+    "InheritAttributeConfigId": 1
   }
 ]

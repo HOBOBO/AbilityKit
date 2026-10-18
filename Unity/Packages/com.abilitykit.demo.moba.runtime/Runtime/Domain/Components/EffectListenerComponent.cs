@@ -13,6 +13,7 @@ namespace AbilityKit.Demo.Moba.Components
     }
 
     [Actor]
+    [EntitasBlob]
     public sealed class EffectListenersComponent : IComponent
     {
         public List<EffectListenerRuntime> Active;

@@ -93,6 +93,8 @@ namespace AbilityKit.Pipeline
             IsComplete = false;
         }
 
+        public void SetComplete(bool isComplete) => IsComplete = isComplete;
+
         /// <summary>
         /// 阶段进入时调用。
         /// </summary>
@@ -185,6 +187,17 @@ namespace AbilityKit.Pipeline
         /// </summary>
         protected float _elapsedTime;
 
+        public float ElapsedTime
+        {
+            get => _elapsedTime;
+            set
+            {
+                if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f)
+                    throw new ArgumentOutOfRangeException(nameof(value));
+                _elapsedTime = value;
+            }
+        }
+
         /// <summary>
         /// 使用阶段 ID 创建持续阶段。
         /// </summary>
@@ -241,6 +254,7 @@ namespace AbilityKit.Pipeline
             base.Reset();
             _elapsedTime = 0f;
         }
+
     }
 
     /// <summary>

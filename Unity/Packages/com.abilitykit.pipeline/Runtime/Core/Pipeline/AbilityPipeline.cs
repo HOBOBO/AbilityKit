@@ -35,6 +35,25 @@ namespace AbilityKit.Pipeline
             return new Run(this, Runtime ?? Pipeline.DefaultRuntime, config, context, runPhases);
         }
 
+        /// <summary>Creates a run and lets the caller initialize its runtime state before registration.</summary>
+        public IAbilityPipelineRun<TCtx> AttachRun(IAbilityPipelineConfig config, TCtx context,
+            Action<IAbilityPipelineRun<TCtx>> initialize)
+        {
+            if (config == null) throw new ArgumentNullException(nameof(config));
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (initialize == null) throw new ArgumentNullException(nameof(initialize));
+            var runPhases = AbilityPipelinePhaseRuntime.CreateRunPhases(_phases);
+            try
+            {
+                return new Run(this, Runtime ?? Pipeline.DefaultRuntime, config, context, runPhases, initialize);
+            }
+            catch
+            {
+                PipelinePools.ReleaseRunPhaseList(runPhases);
+                throw;
+            }
+        }
+
         /// <summary>
         /// 重置管线内所有阶段运行态。
         /// </summary>
@@ -275,6 +294,10 @@ namespace AbilityKit.Pipeline
             public AbilityPipelinePhaseId CurrentPhaseId => Context.CurrentPhaseId;
 
             public bool IsPaused { get; private set; }
+            public IReadOnlyList<IAbilityPipelinePhase<TCtx>> Phases => _phases;
+            public int CurrentPhaseIndex => _currentPhaseIndex;
+            public bool HasCurrentPhase => _currentPhase != null;
+            public bool IsCancelled => _isCancelled;
 
             public PipelineDebugRunState CaptureDebugState()
             {
@@ -403,7 +426,8 @@ namespace AbilityKit.Pipeline
             int IPipelineLifeOwner.OwnerId => _ownerId;
             string IPipelineLifeOwner.OwnerName => _owner.GetType().Name + "#" + _ownerId;
 
-            public Run(AbilityPipeline<TCtx> owner, PipelineRuntime runtime, IAbilityPipelineConfig config, TCtx context, List<IAbilityPipelinePhase<TCtx>> phases)
+            public Run(AbilityPipeline<TCtx> owner, PipelineRuntime runtime, IAbilityPipelineConfig config, TCtx context,
+                List<IAbilityPipelinePhase<TCtx>> phases, Action<IAbilityPipelineRun<TCtx>>? initialize = null)
             {
                 _owner = owner;
                 _runtime = runtime;
@@ -419,11 +443,37 @@ namespace AbilityKit.Pipeline
 
                 Context.PipelineState = EAbilityPipelineState.Executing;
 
-                _owner.Events?.OnPipelineStart?.Invoke(Context);
+                if (initialize != null) initialize(this);
+                else _owner.Events?.OnPipelineStart?.Invoke(Context);
 
                 _runtime.Registry.Register(this);
                 PipelineDebugHooks.NotifyRunStarted<TCtx>(this, _owner, _config, this);
-                _owner.Events?.RecordTrace(_runtime, this, EPipelineTraceEventType.RunStart, default, State, string.Empty);
+                if (initialize == null)
+                    _owner.Events?.RecordTrace(_runtime, this, EPipelineTraceEventType.RunStart, default, State, string.Empty);
+            }
+
+            public void SetExecutionPosition(int phaseIndex, bool hasCurrentPhase, bool isPaused, bool isCancelled)
+            {
+                if (State != EAbilityPipelineState.Executing)
+                    throw new InvalidOperationException("The run is no longer executing.");
+                if (phaseIndex < 0 || phaseIndex >= _phases.Count)
+                    throw new ArgumentOutOfRangeException(nameof(phaseIndex));
+                _currentPhaseIndex = phaseIndex;
+                _currentPhase = hasCurrentPhase ? _phases[phaseIndex] : null;
+                _isCancelled = isCancelled;
+                IsPaused = isPaused;
+                Context.PipelineState = EAbilityPipelineState.Executing;
+                Context.CurrentPhaseId = _currentPhase?.PhaseId ?? default;
+                Context.IsPaused = isPaused;
+            }
+
+            public void Release()
+            {
+                if (State != EAbilityPipelineState.Executing) return;
+                State = EAbilityPipelineState.Failed;
+                _runtime.Registry.Unregister(this);
+                PipelineDebugHooks.NotifyRunEnded(this);
+                PipelinePools.ReleaseRunPhaseList(_phases);
             }
 
             public void Tick(float deltaTime)

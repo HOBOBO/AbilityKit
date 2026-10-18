@@ -1,3 +1,4 @@
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.View.Abstractions.Shared.Types;
 
 namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
@@ -25,29 +26,20 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
             return BattlePresentationCueDecision.None;
         }
 
+        // 迁移分类转发到共享权威实现，避免第四份拷贝再次走样。
         public static bool ShouldStart(BattlePresentationCueStage stage)
         {
-            return stage == BattlePresentationCueStage.ConditionPassed
-                || stage == BattlePresentationCueStage.BeforeAction
-                || stage == BattlePresentationCueStage.Executed
-                || stage == BattlePresentationCueStage.Started;
+            return PresentationCueSemantics.Classify((int)stage) == PresentationCueTransition.Start;
         }
 
         public static bool ShouldKeepActive(BattlePresentationCueStage stage)
         {
-            return stage == BattlePresentationCueStage.Ticked
-                || stage == BattlePresentationCueStage.Refreshed
-                || stage == BattlePresentationCueStage.StackChanged;
+            return PresentationCueSemantics.Classify((int)stage) == PresentationCueTransition.KeepActive;
         }
 
         public static bool ShouldStop(BattlePresentationCueStage stage)
         {
-            return stage == BattlePresentationCueStage.ConditionFailed
-                || stage == BattlePresentationCueStage.Interrupted
-                || stage == BattlePresentationCueStage.Skipped
-                || stage == BattlePresentationCueStage.Expired
-                || stage == BattlePresentationCueStage.Removed
-                || stage == BattlePresentationCueStage.Completed;
+            return PresentationCueSemantics.Classify((int)stage) == PresentationCueTransition.Stop;
         }
 
         public static int ResolveVfxId(in BattlePresentationCueData data)

@@ -101,20 +101,25 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaDamageService _commitPort;
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly MobaCombatTransactionPipeline _transactions;
+        private readonly IMobaHealStageProvider _stageProvider;
+        private readonly bool _ownsStageProvider;
 
         public HealPipelineService(
             MobaDamageService commitPort,
             AbilityKit.Triggering.Eventing.IEventBus eventBus = null,
-            MobaCombatTransactionPipeline transactions = null)
+            MobaCombatTransactionPipeline transactions = null,
+            IMobaHealStageProvider stageProvider = null)
         {
             _commitPort = commitPort ?? throw new ArgumentNullException(nameof(commitPort));
             _eventBus = eventBus;
             _transactions = transactions;
+            _ownsStageProvider = stageProvider == null;
+            _stageProvider = stageProvider ?? new MobaHealStageRegistry();
         }
 
         public MobaHealthChangeResult Execute(in MobaHealRequest request)
         {
-            return Execute(_commitPort, _eventBus, _transactions, in request);
+            return Execute(_commitPort, _eventBus, _transactions, in request, null, _stageProvider);
         }
 
         internal static MobaHealthChangeResult Execute(
@@ -122,7 +127,8 @@ namespace AbilityKit.Demo.Moba.Services
             AbilityKit.Triggering.Eventing.IEventBus eventBus,
             MobaCombatTransactionPipeline transactions,
             in MobaHealRequest request,
-            Action onCommitted = null)
+            Action onCommitted = null,
+            IMobaHealStageProvider stageProvider = null)
         {
             if (commitPort == null) throw new ArgumentNullException(nameof(commitPort));
             if (!IsValid(in request)) return default;
@@ -131,6 +137,8 @@ namespace AbilityKit.Demo.Moba.Services
                 throw new InvalidOperationException("Heal execution requires MobaExecutionContextRegistry.");
             var transaction = new MobaHealTransaction(in request);
             PublishBefore(eventBus, in request, transaction);
+            var ownsStageProvider = stageProvider == null;
+            var resolvedStageProvider = stageProvider ?? new MobaHealStageRegistry();
             MobaHealthChangeResult result = default;
             var nodeId = 0L;
             var createdFrame = 0;
@@ -149,10 +157,22 @@ namespace AbilityKit.Demo.Moba.Services
                 if (nodeId != 0L)
                     contexts.End(nodeId, (int)(hpCommitted ? MobaExecutionEndReason.Completed : MobaExecutionEndReason.Failed),
                         commitPort.HealExecutionFrame != 0 ? commitPort.HealExecutionFrame : createdFrame);
+
+                if (ownsStageProvider && resolvedStageProvider is IDisposable disposable)
+                    disposable.Dispose();
             }
 
             bool Commit(MobaHealTransaction current)
             {
+                var calculation = new MobaHealCalculation(current);
+                var stages = resolvedStageProvider.GetStages();
+                for (var i = 0; i < stages.Count; i++)
+                {
+                    stages[i].Execute(calculation);
+                }
+                current.SetValue(calculation.Value);
+                if (!IsValid(current)) return false;
+
                 var parent = current.Origin;
                 createdFrame = commitPort.HealExecutionFrame;
                 var node = contexts.Create(new MobaExecutionContextCreateRequest(
@@ -232,6 +252,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void Dispose()
         {
+            if (_ownsStageProvider && _stageProvider is IDisposable disposable)
+                disposable.Dispose();
         }
     }
 }

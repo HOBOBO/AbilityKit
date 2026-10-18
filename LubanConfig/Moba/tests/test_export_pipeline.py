@@ -6,6 +6,8 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+ROOT = Path(__file__).resolve().parents[3]
+
 import export_pipeline
 from export_pipeline import (ATTRIBUTE_KEYS, expand_references, validate_attribute_types,
                              validate_reference_graph, validate_skill_level_tables,
@@ -22,6 +24,7 @@ class ReferenceValidationTests(unittest.TestCase):
             "skill_button_templates", "search_query_templates", "continuous_tag_templates",
             "models", "vfx", "component_templates", "summon_attr_inherits",
             "attr_types", "modifier_templates", "modifier_parameters",
+            "battle_maps", "dungeons",
         )
         self.tables = {name: [] for name in names}
         self.tables["characters"] = [{"Id": 1, "AttributeTemplateId": 1,
@@ -113,75 +116,70 @@ class ReferenceValidationTests(unittest.TestCase):
             self.validate()
 
     def test_modifier_attribute_id_is_checked(self):
-        self.tables["modifier_templates"] = [{"Id": 1, "TargetKind": 1,
-                                               "TargetId": 999,
-                                               "MagnitudeAttributeTypeId": 0}]
+        self.tables["modifier_templates"] = [{"Id": 1, "Target": {"Kind": 1, "Id": 999},
+                                               "Magnitude": {"AttributeTypeId": 0}}]
         with self.assertRaisesRegex(ValueError, "modifier_templates/1: TargetId"):
             self.validate()
 
     def test_attribute_modifier_requires_canonical_target_id(self):
-        self.tables["modifier_templates"] = [{"Id": 1, "TargetKind": 1,
-                                               "TargetId": 0,
-                                               "MagnitudeAttributeTypeId": 0}]
+        self.tables["modifier_templates"] = [{"Id": 1, "Target": {"Kind": 1, "Id": 0},
+                                               "Magnitude": {"AttributeTypeId": 0}}]
         with self.assertRaisesRegex(ValueError, "attribute target requires"):
             self.validate()
 
-    def test_attribute_source_requires_snapshot_and_valid_role(self):
+    def test_attribute_source_requires_valid_role(self):
         self.tables["attr_types"] = [{"Id": 1}]
-        modifier = {"Id": 1, "TargetKind": 1, "TargetId": 1,
-                    "MagnitudeSourceType": 2, "MagnitudeAttributeTypeId": 1,
-                    "EvaluationPolicy": 1, "AttributeSourceRole": 1}
+        modifier = {"Id": 1, "Target": {"Kind": 1, "Id": 1},
+                    "Magnitude": {"SourceType": 2, "AttributeTypeId": 1},
+                    "AttributeSourceRole": 1}
         self.tables["modifier_templates"] = [modifier]
         self.validate()
-        modifier["EvaluationPolicy"] = 0
-        with self.assertRaisesRegex(ValueError, "requires OnApplySnapshot"):
-            self.validate()
-        modifier["EvaluationPolicy"] = 1
         modifier["AttributeSourceRole"] = 3
         with self.assertRaisesRegex(ValueError, "invalid AttributeSourceRole"):
             self.validate()
         modifier["AttributeSourceRole"] = 2
-        modifier["MagnitudeAttributeTypeId"] = 0
+        modifier["Magnitude"]["AttributeTypeId"] = 0
         with self.assertRaisesRegex(ValueError, "MagnitudeAttributeTypeId"):
             self.validate()
 
     def test_modifier_parameter_reference_and_operation_are_checked(self):
-        self.tables["modifier_templates"] = [{"Id": 2, "TargetKind": 4,
-                                               "TargetId": 20001, "Op": 0,
-                                               "MagnitudeAttributeTypeId": 0}]
+        self.tables["modifier_templates"] = [{"Id": 2, "Target": {"Kind": 4, "Id": 20001},
+                                               "Modifier": {"Op": 0},
+                                               "Magnitude": {"AttributeTypeId": 0}}]
         with self.assertRaisesRegex(ValueError, "modifier_templates/2: TargetId"):
             self.validate()
-        self.tables["modifier_parameters"] = [{"Id": 20001, "Domain": 4, "Key": "DurationMs",
-                                                "ResolveAt": 3, "ValueKind": 3, "OpMask": 4}]
+        self.tables["modifier_parameters"] = [{"Id": 20001, "Key": "DurationMs",
+                                                "ResolveAt": 3, "ValueKind": 3, "Ops": [2]}]
         with self.assertRaisesRegex(ValueError, "operation is not allowed"):
             self.validate()
-        self.tables["modifier_templates"][0]["Op"] = -1
+        self.tables["modifier_templates"][0]["Modifier"]["Op"] = -1
         with self.assertRaisesRegex(ValueError, "invalid modifier operation"):
             self.validate()
-        self.tables["modifier_templates"][0]["Op"] = 2
+        self.tables["modifier_templates"][0]["Modifier"]["Op"] = 2
         self.validate()
 
     def test_buff_template_selector_requires_buff_apply_record(self):
         self.tables["buffs"] = [{"Id": 30}]
-        parameter = {"Id": 20001, "Domain": 4, "Key": "DurationMs",
-                     "ResolveAt": 3, "ValueKind": 2, "OpMask": 4}
-        modifier = {"Id": 2, "TargetKind": 4, "TargetId": 20001, "Op": 2,
-                    "MagnitudeAttributeTypeId": 0, "SelectorBuffTemplateId": 30}
+        parameter = {"Id": 20001, "Key": "DurationMs",
+                     "ResolveAt": 3, "ValueKind": 2, "Ops": [2]}
+        modifier = {"Id": 2, "Target": {"Kind": 4, "Id": 20001},
+                    "Modifier": {"Op": 2}, "Magnitude": {"AttributeTypeId": 0},
+                    "Selectors": "BuffTemplateId|30"}
         self.tables["modifier_parameters"] = [parameter]
         self.tables["modifier_templates"] = [modifier]
         self.validate()
-        modifier["SelectorBuffTemplateId"] = 999
+        modifier["Selectors"] = "BuffTemplateId|999"
         with self.assertRaisesRegex(ValueError, "SelectorBuffTemplateId"):
             self.validate()
-        modifier["SelectorBuffTemplateId"] = 30
+        modifier["Selectors"] = "BuffTemplateId|30"
         parameter["ResolveAt"] = 1
         with self.assertRaisesRegex(ValueError, "selector fields .* unavailable"):
             self.validate()
 
     def test_attribute_definition_matches_runtime_ids(self):
-        rows = [{"Id": identity, "Key": key, "ValueKind": 0}
-                for identity, key in enumerate(ATTRIBUTE_KEYS, 1)]
-        validate_attribute_types(rows)
+        catalog = json.loads((ROOT / "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/attr_types.json").read_text(encoding="utf-8-sig"))
+        validate_attribute_types(catalog)
+        rows = [dict(row) for row in catalog]
         rows[0]["Key"] = "WRONG"
         with self.assertRaisesRegex(ValueError, "attr_types/1: Key"):
             validate_attribute_types(rows)
@@ -247,6 +245,66 @@ class TableInventoryTests(unittest.TestCase):
             (stage / "json/unregistered.json").unlink()
             with self.assertRaisesRegex(ValueError, "unknown tables"):
                 validate_table_inventory({"skills": {}}, stage, {"stale": "Id"}, {})
+
+
+class DungeonRuleTests(unittest.TestCase):
+    """副本表的引用与输入校验。"""
+
+    def _row(self, **overrides):
+        row = {"Id": 1, "GameplayId": 1, "FlowProfileId": "moba.standard",
+               "MinPlayerCount": 1, "MaxPlayerCount": 10,
+               "AllowedHostModes": ["Local"], "GameplayHandlerId": "team_deathmatch",
+               "OutcomeRuleId": "team_deathmatch", "RequiredPortGroups": ["deathmatch"]}
+        row.update(overrides)
+        return row
+
+    def _context(self, rows):
+        from pipeline_rules import ExportContext
+        return ExportContext({"dungeons": rows}, Path("."), ())
+
+    def test_dungeon_references_gameplay_and_map(self):
+        from business.dungeons import Rule
+        mappings, required = Rule().references()
+        self.assertEqual(mappings["dungeons"],
+                         {"GameplayId": "gameplays"})
+        self.assertEqual(required, set())
+
+    def test_unknown_host_mode_is_rejected(self):
+        from business.dungeons import Rule
+        with self.assertRaisesRegex(ValueError, "unknown host mode"):
+            Rule().normalize("dungeons", self._row(AllowedHostModes=["Cloud"]))
+
+    def test_blank_extension_id_becomes_none(self):
+        from business.dungeons import Rule
+        row = Rule().normalize("dungeons", self._row(GameplayHandlerId="  "))
+        self.assertIsNone(row["GameplayHandlerId"])
+
+    def test_min_player_count_above_max_is_rejected(self):
+        from business.dungeons import Rule
+        with self.assertRaisesRegex(ValueError, "exceeds MaxPlayerCount"):
+            Rule().normalize("dungeons", self._row(MinPlayerCount=5, MaxPlayerCount=2))
+
+    def test_other_tables_pass_through_untouched(self):
+        from business.dungeons import Rule
+        row = self._row()
+        self.assertIs(Rule().normalize("gameplays", row), row)
+
+    def test_validate_requires_flow_profile_handler_and_outcome(self):
+        from business.dungeons import Rule
+        for field in ("FlowProfileId", "GameplayHandlerId", "OutcomeRuleId"):
+            with self.assertRaisesRegex(ValueError, field):
+                Rule().validate(self._context([self._row(**{field: None})]))
+
+    def test_validate_rejects_empty_and_duplicate_tables(self):
+        from business.dungeons import Rule
+        with self.assertRaisesRegex(ValueError, "table is empty"):
+            Rule().validate(self._context([]))
+        with self.assertRaisesRegex(ValueError, "duplicate ID"):
+            Rule().validate(self._context([self._row(), self._row()]))
+
+    def test_validate_accepts_well_formed_dungeons(self):
+        from business.dungeons import Rule
+        Rule().validate(self._context([self._row(), self._row(Id=2, MinPlayerCount=2)]))
 
 
 if __name__ == "__main__":

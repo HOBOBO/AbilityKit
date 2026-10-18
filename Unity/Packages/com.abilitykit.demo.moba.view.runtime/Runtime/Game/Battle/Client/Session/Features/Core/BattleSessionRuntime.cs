@@ -36,6 +36,7 @@ namespace AbilityKit.Game.Flow
         internal int LastFrame => _sessionOwner.LastFrame;
         internal string ReplayPath => _sessionOwner.ReplayPath;
         internal Exception LastFailure => _sessionOwner.LastFailure;
+        internal IWorld World => _sessionOwner.World;
 
         internal float PlaybackSpeed
         {

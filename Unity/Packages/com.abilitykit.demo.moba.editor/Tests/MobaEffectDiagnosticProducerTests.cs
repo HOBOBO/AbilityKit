@@ -380,7 +380,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionInvoked), Is.EqualTo(1L));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionSucceeded), Is.EqualTo(1L));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionFailed), Is.Zero);
-            Assert.That(HasSamples(MobaBattleDiagnosticMetric.EffectActionDuration + ".ms"), Is.True);
+            Assert.That(HasSamples(MobaBattleDiagnosticMetric.EffectActionScope), Is.True);
             Assert.That(HasSamples(MobaBattleDiagnosticMetric.EffectActionAllocatedBytes), Is.True);
         }
 
@@ -399,7 +399,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(action.EndReason, Is.EqualTo((int)MobaExecutionEndReason.Failed));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionInvoked), Is.EqualTo(1L));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionFailed), Is.EqualTo(1L));
-            Assert.That(HasSamples(MobaBattleDiagnosticMetric.EffectActionDuration + ".ms"), Is.False);
+            Assert.That(HasSamples(MobaBattleDiagnosticMetric.EffectActionScope), Is.False);
             Assert.That(HasSamples(MobaBattleDiagnosticMetric.EffectActionAllocatedBytes), Is.False);
         }
 

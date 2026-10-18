@@ -64,6 +64,13 @@ namespace AbilityKit.Demo.Moba.CodeGen
 
             stages.RemoveAll(stage => duplicateTypes.Contains(stage.StageType));
             stages.Sort((left, right) => string.CompareOrdinal(left.QualifiedTypeName, right.QualifiedTypeName));
+            if (stages.Count == 0)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MobaDiagnosticRules.EmptyBootstrapStageManifestRule,
+                    manifestType.Locations.FirstOrDefault(location => location.IsInSource) ?? Location.None));
+            }
+
             context.AddSource("MobaGeneratedBootstrapStageManifest.g.cs", GenerateSource(stages));
         }
 

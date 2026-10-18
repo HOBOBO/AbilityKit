@@ -16,6 +16,7 @@ using AbilityKit.Effect;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services.Observability;
+using AbilityKit.Demo.Moba.Services.Triggering;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -42,6 +43,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
         [WorldInject(required: false)] private IMobaRuntimeObjectLifecycleHook _objectLifecycle = null;
         [WorldInject(required: false)] private IMobaRuntimeObjectBootstrapRegistry _objectBootstrap = null;
+        [WorldInject(required: false)] private MobaTriggerPlanSubscriptionService _triggerSubscriptions = null;
 
         private bool _objectBootstrapRegistered;
 
@@ -318,6 +320,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (rootOwner <= 0) rootOwner = owner;
             if (e.hasSummonMeta && e.summonMeta != null) summonId = e.summonMeta.SummonId;
 
+            StopOwnerBoundTriggers(e);
             new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
                 summonActorId,
                 out _,
@@ -358,6 +361,20 @@ namespace AbilityKit.Demo.Moba.Services
             catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] destroy summon entity failed (summonActorId={summonActorId}, summonId={summonId})"); }
 
             return true;
+        }
+
+        private void StopOwnerBoundTriggers(global::ActorEntity entity)
+        {
+            if (_triggerSubscriptions == null || entity == null || !entity.hasOngoingTriggerPlans) return;
+            var active = entity.ongoingTriggerPlans.Active;
+            if (active == null) return;
+
+            for (var i = 0; i < active.Count; i++)
+            {
+                var entry = active[i];
+                if (entry != null && entry.OwnerKey != 0)
+                    _triggerSubscriptions.Stop(entry.OwnerKey);
+            }
         }
 
         private void PublishSummonObjectLifecycle(

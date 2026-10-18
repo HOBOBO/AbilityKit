@@ -96,6 +96,7 @@ namespace AbilityKit.Demo.Moba.Console
         private bool _running;
         private DateTime _lastTick;
         private double _totalTime;
+        private MobaConsoleProfileSession? _profileSession;
         private IWorldResolver _worldResolver;
         private IWorld? _runtimeWorld;
         private WorldManager? _runtimeWorldManager;
@@ -211,6 +212,7 @@ namespace AbilityKit.Demo.Moba.Console
         public void Initialize()
         {
             Log.System($"Initializing... Plan: {_context.Plan}");
+            _profileSession = MobaConsoleProfiling.TryBeginSession("moba-console-battle");
             ConfigureWorld();
             // ECS 世界现在由 BattleEntityFeature 在 InMatchPhase.OnEnter() 时创建
             // 不再在此处初始化
@@ -621,6 +623,10 @@ namespace AbilityKit.Demo.Moba.Console
             _flow?.Dispose();
             _battleView?.Dispose();
             _context?.Dispose();
+
+            // 战斗与拆除阶段全部结束后再导出，保证火焰图覆盖完整生命周期。
+            _profileSession?.Dispose();
+            _profileSession = null;
 
             Log.System("Disposed.");
         }

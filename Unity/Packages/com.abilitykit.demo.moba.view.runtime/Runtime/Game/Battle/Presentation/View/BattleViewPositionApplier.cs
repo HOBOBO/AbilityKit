@@ -14,13 +14,20 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         public float SmoothingHz = 12f;
 
+        /// <summary>
+        /// Maximum visual turn rate in degrees per second. The simulation owns the
+        /// authoritative facing; the view turns toward it progressively for a
+        /// readable MOBA-style locomotion pose.
+        /// </summary>
+        public float TurnSpeedDegreesPerSecond = 540f;
+
         public BattleViewPositionApplier(BattleViewHandleStore handles, BattleViewAttachedVfxController attachedVfx)
         {
             _handles = handles;
             _attachedVfx = attachedVfx;
         }
 
-        public void ApplyPendingPositions()
+        public void ApplyPendingPositions(float deltaTime = 0f)
         {
             _handles.ForEach((_, handle) =>
             {
@@ -29,7 +36,7 @@ namespace AbilityKit.Game.Flow
                 if (!handle.HasPendingPos) return;
 
                 var pos = handle.PendingPos;
-                ApplyPosition(handle, in pos, deltaTime: 0f);
+                ApplyPosition(handle, in pos, deltaTime);
             });
         }
 
@@ -41,6 +48,24 @@ namespace AbilityKit.Game.Flow
         internal void ApplyPendingPositionsForTest(BattleViewHandle handle, Vector3 pos, float deltaTime)
         {
             if (handle == null || handle.GameObject == null) return;
+            ApplyPosition(handle, in pos, deltaTime);
+        }
+
+        internal void ApplyPendingPositionsForTest(
+            BattleViewHandle handle,
+            Vector3 pos,
+            Vector3 forward,
+            float deltaTime)
+        {
+            if (handle == null || handle.GameObject == null) return;
+
+            var horizontalForward = new Vector3(forward.x, 0f, forward.z);
+            if (horizontalForward.sqrMagnitude > 0.0001f)
+            {
+                handle.PendingForward = horizontalForward.normalized;
+                handle.HasPendingForward = true;
+            }
+
             ApplyPosition(handle, in pos, deltaTime);
         }
 
@@ -68,10 +93,18 @@ namespace AbilityKit.Game.Flow
             var next = Smooth(current, pos, deltaTime);
 
             go.transform.position = next;
+            if (handle.HasPendingForward)
+            {
+                var targetRotation = Quaternion.LookRotation(handle.PendingForward, Vector3.up);
+                var turnStep = TurnSpeedDegreesPerSecond > 0f && deltaTime > 0f
+                    ? TurnSpeedDegreesPerSecond * deltaTime
+                    : float.PositiveInfinity;
+                go.transform.rotation = Quaternion.RotateTowards(go.transform.rotation, targetRotation, turnStep);
+            }
             handle.LastDisplayedPos = next;
             handle.HasLastDisplayed = true;
 
-            _attachedVfx.SyncPosition(handle, in next);
+            _attachedVfx?.SyncPosition(handle, in next);
         }
 
         private Vector3 Smooth(in Vector3 current, in Vector3 target, float deltaTime)

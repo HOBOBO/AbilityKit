@@ -83,9 +83,13 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class FormalLobbyAutomationRuntime
     {
-        private const long RoomListRefreshMilliseconds = 3000L;
-        private const long SnapshotRecoveryMilliseconds = 5000L;
+        private readonly MobaLobbyRuntimeOptions _options;
         private long _nextSnapshotRecoveryUnixMs;
+
+        public FormalLobbyAutomationRuntime(MobaLobbyRuntimeOptions options)
+        {
+            _options = options ?? throw new ArgumentNullException(nameof(options));
+        }
 
         public void Reset() => _nextSnapshotRecoveryUnixMs = 0L;
 
@@ -160,15 +164,15 @@ namespace AbilityKit.Game.Flow
                 now < _nextSnapshotRecoveryUnixMs)
                 return;
 
-            _nextSnapshotRecoveryUnixMs = now + SnapshotRecoveryMilliseconds;
+            _nextSnapshotRecoveryUnixMs = now + _options.SnapshotRecoveryMilliseconds;
             var synchronizer = context.PushSynchronizer;
             context.StartOperation?.Invoke("Synchronizing room",
                 operation => synchronizer.TryRefreshAfterSilenceAsync(
-                    TimeSpan.FromMilliseconds(SnapshotRecoveryMilliseconds),
+                    TimeSpan.FromMilliseconds(_options.SnapshotRecoveryMilliseconds),
                     operation.CancellationToken));
         }
 
-        private static void TryRefreshRooms(FormalLobbyAutomationContext context)
+        private void TryRefreshRooms(FormalLobbyAutomationContext context)
         {
             var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             if (context.Directory == null || !LobbyAutomationPolicy.ShouldRefreshDirectory(
@@ -178,7 +182,7 @@ namespace AbilityKit.Game.Flow
                     context.Directory.IsBusy,
                     context.Directory.LastRefreshUnixMs,
                     now,
-                    RoomListRefreshMilliseconds))
+                    _options.RoomListRefreshMilliseconds))
                 return;
 
             context.StartOperation?.Invoke("Refreshing rooms", context.RefreshRooms);

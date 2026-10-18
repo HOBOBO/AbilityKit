@@ -108,6 +108,17 @@ namespace AbilityKit.Game.Flow
             out float z);
     }
 
+    internal interface IBattleEntityRuntimeBindingPort
+    {
+        long BindEntityRuntime(
+            EC.IEntity node,
+            EC.IECWorld world,
+            BattleEntityLookup lookup,
+            BattleEntityFactory factory,
+            IBattleEntityQuery query);
+        bool ClearEntityRuntime(long bindingGeneration);
+    }
+
     internal interface IBattleHudPresentationPort :
         IBattleGameplayPresentationSource,
         IBattleEntityContext,

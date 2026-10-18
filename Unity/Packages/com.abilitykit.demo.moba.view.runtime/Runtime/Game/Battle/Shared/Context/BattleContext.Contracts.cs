@@ -25,6 +25,13 @@ namespace AbilityKit.Game.Flow
         BattleEntityFactory IBattleEntityContext.EntityFactory => EntityFactory;
         IBattleEntityQuery IBattleEntityContext.EntityQuery => EntityQuery;
 
+        long IBattleEntityRuntimeBindingPort.BindEntityRuntime(
+            EC.IEntity node, EC.IECWorld world, BattleEntityLookup lookup,
+            BattleEntityFactory factory, IBattleEntityQuery query) =>
+            BindEntityRuntime(node, world, lookup, factory, query);
+        bool IBattleEntityRuntimeBindingPort.ClearEntityRuntime(long bindingGeneration) =>
+            ClearEntityRuntime(bindingGeneration);
+
         IFrameRecordWriter IBattleInputContext.InputRecordWriter => InputRecordWriter;
         BattleLocalInputQueue IBattleInputContext.LocalInputQueue => LocalInputQueue;
 

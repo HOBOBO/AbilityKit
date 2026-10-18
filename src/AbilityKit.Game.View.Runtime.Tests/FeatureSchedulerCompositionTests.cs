@@ -184,12 +184,12 @@ public sealed class FeatureSchedulerCompositionTests
         var ctx = default(GamePhaseContext);
 
         Assert.Equal(config.BattleMachine.States.Count, scheduler.BattleStateBindings.Count);
-        Assert.Equal(5, scheduler.BattleStateBindings.Enter(MobaBattleState.Prepare, in ctx));
+        Assert.Equal(7, scheduler.BattleStateBindings.Enter(MobaBattleState.Prepare, in ctx));
         Assert.Equal(new[]
         {
             $"action:{MobaFlowActionIds.ResetBattleSessionRuntimeState}:0", "clear",
             "attach:context", "attach:entity", "attach:session", "attach:battle_outcome",
-            "attach:gameplay_presentation"
+            "attach:gameplay_presentation", "attach:dungeon_context", "attach:dungeon_scene"
         }, events);
 
         events.Clear();
@@ -215,10 +215,15 @@ public sealed class FeatureSchedulerCompositionTests
 
         events.Clear();
         Assert.Equal(2, scheduler.BattleStateBindings.Enter(MobaBattleState.End, in ctx));
-        Assert.Equal("clear", events[5]);
-        Assert.Equal("attach:end_settlement", events[6]);
-        Assert.Equal("attach:debug_ongui", events[7]);
-        Assert.Equal($"action:{MobaFlowActionIds.ReturnLobbyAfterBattleEnd}:2", events[8]);
+        // 进入 Battle.End（clearBeforeEnter）时：先解醒上一阶段保留的 battle 级 feature（含副本上下文与副本场景），
+        // 再 clear 本阶段 feature，最后挂开结算 feature 并执行 enter-after 动作。
+        Assert.Equal(new[]
+        {
+            "detach:dungeon_scene", "detach:dungeon_context", "detach:gameplay_presentation",
+            "detach:battle_outcome", "detach:session", "detach:entity", "detach:context",
+            "clear", "attach:end_settlement", "attach:debug_ongui",
+            $"action:{MobaFlowActionIds.ReturnLobbyAfterBattleEnd}:2"
+        }, events);
     }
 
     [Fact]

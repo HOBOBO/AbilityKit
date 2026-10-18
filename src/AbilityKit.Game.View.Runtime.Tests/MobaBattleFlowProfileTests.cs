@@ -10,12 +10,80 @@ namespace AbilityKit.Game.View.Runtime.Tests;
 public sealed class MobaBattleFlowProfileTests
 {
     [Fact]
+    public void WithoutBattleView_KeepsBattleLifecycleAndSnapshotSync()
+    {
+        var profile = MobaBattleFlowProfile.CreateWithoutBattleView();
+        profile.ValidateOrThrow();
+
+        Assert.Equal(new[] { "sync" }, profile.GetFeatures("Battle.InMatch"));
+        Assert.DoesNotContain("view", profile.GetFeatures("Battle.InMatch"));
+        Assert.DoesNotContain("hud", profile.GetFeatures("Battle.InMatch"));
+        Assert.Contains("session", profile.GetFeatures("Battle.Prepare"));
+    }
+
+    [Fact]
     public void Profile_RejectsUnsupportedBattleTopology()
     {
         var profile = MobaBattleFlowProfile.CreateStandard();
         profile.TopologyId = "moba.custom";
 
         Assert.Throws<InvalidOperationException>(() => profile.ValidateOrThrow());
+    }
+
+    [Fact]
+    public void Profile_ResolvesConfiguredTopologyAndBuildsBattleMachine()
+    {
+        var profile = MobaBattleFlowProfile.CreateStandard();
+        profile.ProfileId = "moba.custom-staged";
+        profile.TopologyId = "moba.custom-staged.v1";
+        profile.Version = 5;
+        profile.TopologyStates = new[]
+        {
+            new MobaBattleFlowTopologyState { StateId = "Battle.Prepare" },
+            new MobaBattleFlowTopologyState { StateId = "Battle.Connect" },
+            new MobaBattleFlowTopologyState { StateId = "Battle.CreateOrJoinWorld" },
+            new MobaBattleFlowTopologyState { StateId = "Battle.InMatch" },
+            new MobaBattleFlowTopologyState { StateId = "Battle.LoadAssets" },
+            new MobaBattleFlowTopologyState { StateId = "Battle.End" }
+        };
+        profile.TopologyTransitions = new[]
+        {
+            new MobaBattleFlowTopologyTransition { EventId = "PrepareDone", FromStateId = "Battle.Prepare", ToStateId = "Battle.Connect" },
+            new MobaBattleFlowTopologyTransition { EventId = "Connected", FromStateId = "Battle.Connect", ToStateId = "Battle.CreateOrJoinWorld" },
+            new MobaBattleFlowTopologyTransition { EventId = "JoinedWorld", FromStateId = "Battle.CreateOrJoinWorld", ToStateId = "Battle.InMatch" },
+            new MobaBattleFlowTopologyTransition { EventId = "AssetsLoadCompleted", FromStateId = "Battle.InMatch", ToStateId = "Battle.LoadAssets" },
+            new MobaBattleFlowTopologyTransition { EventId = "Ended", FromStateId = "Battle.InMatch", ToStateId = "Battle.End" },
+            new MobaBattleFlowTopologyTransition { EventId = "Ended", FromStateId = "Battle.LoadAssets", ToStateId = "Battle.End" }
+        };
+
+        var composition = profile.Resolve();
+        var configuration = MobaFlowConfiguration.CreateResolved(composition);
+
+        Assert.Equal("Battle.InMatch", composition.StateOrder[3]);
+        Assert.Equal(MobaBattleState.InMatch, configuration.BattleMachine.States[3]);
+        Assert.Equal(MobaBattleEvent.AssetsLoadCompleted, configuration.BattleMachine.Transitions[3].Trigger);
+    }
+
+    [Fact]
+    public void Profile_RejectsTopologyReferencesOutsideDeclaredStates()
+    {
+        var profile = MobaBattleFlowProfile.CreateStandard();
+        profile.ProfileId = "moba.invalid-topology";
+        profile.TopologyId = "moba.invalid.v1";
+        profile.Version = 5;
+        profile.TopologyStates = new[]
+        {
+            new MobaBattleFlowTopologyState { StateId = "Battle.Prepare" }
+        };
+        profile.TopologyTransitions = new[]
+        {
+            new MobaBattleFlowTopologyTransition
+            {
+                EventId = "PrepareDone", FromStateId = "Battle.Prepare", ToStateId = "Battle.Connect"
+            }
+        };
+
+        Assert.Throws<InvalidOperationException>(profile.ValidateOrThrow);
     }
 
     [Fact]

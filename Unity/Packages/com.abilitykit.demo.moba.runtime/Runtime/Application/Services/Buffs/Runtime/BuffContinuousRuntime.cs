@@ -235,6 +235,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             public override int TargetActorId => _runtime.TargetActorId;
             public override int ModifierSourceId => _runtime.ModifierSourceId;
             public override GameplayTagSource TagSource => CreateSource(_runtime);
+            public override int ModifierStack => _runtime.Runtime != null && _runtime.Runtime.StackCount > 0
+                ? _runtime.Runtime.StackCount : 1;
             public override float IntervalSeconds => _buff != null && _buff.IntervalMs > 0 ? _buff.IntervalMs / 1000f : 0f;
             public override IReadOnlyList<int> IntervalEffectIds => _buff?.OnIntervalEffects ?? Array.Empty<int>();
             public IReadOnlyList<int> TriggerIds => _buff?.TriggerIds ?? Array.Empty<int>();

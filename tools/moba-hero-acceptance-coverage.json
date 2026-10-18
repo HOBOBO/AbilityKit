@@ -85,6 +85,34 @@
         "area": "not-covered",
         "presentation": "not-covered"
       }
+    },
+    {
+      "heroId": 1007,
+      "heroName": "SunShangxiang",
+      "fixture": "AbilityKit.Game.Test.UnitTest.SunShangxiangSkillAcceptanceTests",
+      "gate": "moba-sunshangxiang-unity",
+      "sceneContract": "headless-harness-trigger-config-and-projectile-area",
+      "coverage": {
+        "repeatedRelease": "covered",
+        "buff": "covered",
+        "projectile": "covered",
+        "area": "covered",
+        "presentation": "not-covered"
+      }
+    },
+    {
+      "heroId": 1008,
+      "heroName": "Luban",
+      "fixture": "AbilityKit.Game.Test.UnitTest.LubanSkillAcceptanceTests",
+      "gate": "moba-luban-unity",
+      "sceneContract": "headless-harness-trigger-config-projectile-area-summon",
+      "coverage": {
+        "repeatedRelease": "covered",
+        "buff": "covered",
+        "projectile": "covered",
+        "area": "covered",
+        "presentation": "not-covered"
+      }
     }
   ]
 }

@@ -20,6 +20,11 @@ namespace AbilityKit.Game.Flow.Battle.Replay
         void PumpAndTick(int frame, float fixedDeltaSeconds);
     }
 
+    internal interface IBattleReplayProjectionRuntime
+    {
+        IWorld World { get; }
+    }
+
     internal interface IBattleReplayCheckpoint
     {
     }
@@ -122,7 +127,8 @@ namespace AbilityKit.Game.Flow.Battle.Replay
         }
     }
 
-    internal sealed class DefaultBattleReplaySessionRuntime : IBattleReplaySessionRuntime
+    internal sealed class DefaultBattleReplaySessionRuntime :
+        IBattleReplaySessionRuntime, IBattleReplayProjectionRuntime
     {
         private readonly IBattleLogicSessionRegistry _registry;
         private readonly BattleLogicSession _session;
@@ -143,6 +149,7 @@ namespace AbilityKit.Game.Flow.Battle.Replay
         public bool IsActive => !_disposed && ReferenceEquals(_registry.Current, _session);
         public bool IsPlaying => !_disposed && _driver.IsPlaying;
         public int LastFrame => _driver.LastFrame;
+        public IWorld World => !_disposed && _session.TryGetWorld(out var world) ? world : null;
 
         public float PlaybackSpeed
         {

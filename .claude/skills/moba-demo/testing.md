@@ -80,3 +80,7 @@ powershell -ExecutionPolicy Bypass -File tools/run_test_gate.ps1 -Gate moba-code
 # 修改 MOBA runtime 或 Console smoke 相关逻辑时
 powershell -ExecutionPolicy Bypass -File tools/run_test_gate.ps1 -Gate precheck
 ```
+
+## 冒烟性能分析（火焰图，2026-10-10 接入并完成框架修复）
+
+设置 `ABILITYKIT_MOBA_PROFILE=1` 后跑 console 冒烟，`ConsoleBattleBootstrapper` 会安装 `EditorProfiler`（diagnostics 包），战斗结束时导出 speedscope / **flame.svg（框架原生 SVG 火焰图）** / folded / json 四份产物（无 BOM）到 `local/Logs/moba-console-profile/`（可用 `ABILITYKIT_MOBA_PROFILE_DIR` 改目录）。ProfilerHub 是进程级单例，对 xunit 采样时过滤到单用例（如 `--filter "FullyQualifiedName~Console_entry_full_battle_scenario"`）。管线自校验测试：`MobaConsoleProfilingTests`（挂 `Gate=MobaConsoleSmoke`）。导出器源码经 `src/AbilityKit.Diagnostics.Exporters` 投影工程进 .NET（Unity 侧仍在 diagnostics.editor asmdef）。火焰树自带 `world.tick` 根作用域（EntitasWorld.Tick，全部系统执行挂同一棵 per-frame 树）。完整上手指南见 [diagnostics-profiling](../diagnostics-profiling/SKILL.md)。

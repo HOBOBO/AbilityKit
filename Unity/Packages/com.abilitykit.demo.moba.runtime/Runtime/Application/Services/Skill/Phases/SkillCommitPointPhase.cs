@@ -3,7 +3,8 @@ using AbilityKit.Pipeline;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    internal sealed class SkillCommitPointPhase : AbilityInstantPhaseBase<SkillPipelineContext>
+    internal sealed class SkillCommitPointPhase : AbilityInstantPhaseBase<SkillPipelineContext>,
+        IAbilityPipelinePhaseInstanceFactory<SkillPipelineContext>
     {
         private readonly SkillCommitPointPhaseDTO _specification;
 
@@ -12,6 +13,9 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _specification = specification;
         }
+
+        public IAbilityPipelinePhase<SkillPipelineContext> CreateRunPhase()
+            => new SkillCommitPointPhase(PhaseId, _specification);
 
         protected override void OnInstantExecute(SkillPipelineContext context)
         {

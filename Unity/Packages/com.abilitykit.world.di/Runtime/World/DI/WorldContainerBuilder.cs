@@ -108,6 +108,29 @@ namespace AbilityKit.Ability.World.DI
             return TryRegister(typeof(TService), lifetime, r => factory(r));
         }
 
+        public WorldContainerBuilder RegisterAlias(Type serviceType, Type implType, WorldLifetime lifetime)
+        {
+            return RegisterCore(serviceType, implType, lifetime,
+                r => r.Resolve(implType), WorldServiceOwnership.External,
+                WorldServiceRegistrationPolicy.Replace);
+        }
+
+        public WorldContainerBuilder TryRegisterAlias(Type serviceType, Type implType, WorldLifetime lifetime)
+        {
+            return RegisterCore(serviceType, implType, lifetime,
+                r => r.Resolve(implType), WorldServiceOwnership.External,
+                WorldServiceRegistrationPolicy.KeepExisting);
+        }
+
+        public WorldContainerBuilder TryRegisterNonOwning<TService>(
+            WorldLifetime lifetime, Func<IWorldResolver, TService> factory)
+        {
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            return RegisterCore(typeof(TService), typeof(TService), lifetime,
+                r => factory(r), WorldServiceOwnership.External,
+                WorldServiceRegistrationPolicy.KeepExisting);
+        }
+
         public WorldContainerBuilder RegisterInstance<TService>(TService instance)
         {
             return Register(typeof(TService), WorldLifetime.Singleton, _ => instance);
@@ -230,7 +253,7 @@ namespace AbilityKit.Ability.World.DI
             where TService : class, IService
             where TImpl : class, TService
         {
-            return Register(typeof(TService), lifetime, r => r.Resolve<TImpl>());
+            return RegisterAlias(typeof(TService), typeof(TImpl), lifetime);
         }
 
         public WorldContainerBuilder RegisterServiceAlias<TService, TImpl>()
@@ -244,7 +267,7 @@ namespace AbilityKit.Ability.World.DI
             where TService : class, IService
             where TImpl : class, TService
         {
-            return TryRegister(typeof(TService), lifetime, r => r.Resolve<TImpl>());
+            return TryRegisterAlias(typeof(TService), typeof(TImpl), lifetime);
         }
 
         public WorldContainerBuilder TryRegisterServiceAlias<TService, TImpl>()

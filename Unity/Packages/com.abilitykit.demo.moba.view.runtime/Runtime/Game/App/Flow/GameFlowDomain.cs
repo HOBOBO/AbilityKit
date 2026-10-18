@@ -90,6 +90,8 @@ namespace AbilityKit.Game.Flow
         public MobaBattleState CurrentBattlePhase => _core.CurrentBattlePhase;
         public MobaFlowStateSnapshot CurrentState => _core.CurrentState;
         public string CurrentBattleProfileId => _core.CurrentBattleProfileId;
+        public int CurrentGameplayId => _core.CurrentGameplayId;
+        public IReadOnlyList<string> CurrentSessionModuleIds => _core.CurrentSessionModuleIds;
         public bool IsFaulted => _core.IsFaulted;
         public MobaBattleEntryState BattleEntryState => _core.BattleEntryState;
         public string BattleEntryRejection => _core.BattleEntryRejection;
@@ -135,6 +137,13 @@ namespace AbilityKit.Game.Flow
             _core.EnterBattle(bootstrapper, profile, gatewayConnectionFactory);
         }
         public void ReturnToBoot() => _core.ReturnToBoot();
+
+        /// <summary>
+        /// 注入副本解析器。应在任何进入副本的请求发生之前调用，
+        /// 使入场前的副本 dry-run 校验生效。
+        /// </summary>
+        public void SetDungeonResolver(AbilityKit.Game.Flow.Dungeons.IBattleDungeonResolver resolver) =>
+            _core.SetDungeonResolver(resolver);
         void IFlowCommandSink.RequestEnterBattle() => ((IFlowCommandSink)_core).RequestEnterBattle();
         void IFlowCommandSink.RequestBattleEnd() => ((IFlowCommandSink)_core).RequestBattleEnd();
         void IFlowCommandSink.RequestReturnLobby() => ((IFlowCommandSink)_core).RequestReturnLobby();

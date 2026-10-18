@@ -36,6 +36,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             typeof(PresentationTemplateDTO),
             typeof(BattleMapDTO),
             typeof(GameplayDTO),
+            typeof(DungeonDTO),
         };
 
         private JsonNetMobaConfigDtoDeserializer() { }

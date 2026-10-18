@@ -20,6 +20,12 @@ namespace AbilityKit.Game.Flow
         public IEntityId VfxEntityId;
         public Vector3 PendingPos;
         public bool HasPendingPos;
+        public Vector3 PendingForward;
+        public bool HasPendingForward;
+        public Vector3 LastSampledPos;
+        public bool HasLastSampledPos;
+        public Vector3 LastSourceForward;
+        public bool HasLastSourceForward;
         public BattleViewPositionSampleBuffer Pos;
 
         /// <summary>

@@ -219,6 +219,8 @@ namespace AbilityKit.Demo.Moba.Services
                     _diagnostics,
                     MobaBattleDiagnosticChannel.TriggerHook,
                     MobaBattleDiagnosticMetric.EffectActionScope,
+                    scope.CurrentActionId,
+                    scope.CurrentActionContextId,
                     out var actionPerformanceScope))
             {
                 if (scope.PerformanceScopes == null)
@@ -236,7 +238,6 @@ namespace AbilityKit.Demo.Moba.Services
                 _diagnostics.ShouldSample(MobaBattleDiagnosticChannel.TriggerHook);
             if (!scope.IsActionDiagnosticsSampled) return;
 
-            scope.ActionStartTimestamp = _diagnostics.GetTimestamp();
             scope.ActionAllocatedBytesStart = TryGetAllocatedBytes(out var allocatedBytes)
                 ? allocatedBytes
                 : -1L;
@@ -275,9 +276,8 @@ namespace AbilityKit.Demo.Moba.Services
                     : MobaBattleDiagnosticMetric.EffectActionFailed);
             if (!scope.IsActionDiagnosticsSampled) return;
 
-            _diagnostics.RecordDuration(
-                MobaBattleDiagnosticMetric.EffectActionDuration,
-                scope.ActionStartTimestamp);
+            // 耗时已由 moba.effect.action 作用域探针（ProfilerHub.Begin/Complete）完整覆盖，
+            // 这里只补充采样型的 GC 分配字节数指标。
             if (scope.ActionAllocatedBytesStart >= 0L &&
                 TryGetAllocatedBytes(out var allocatedBytes))
             {
@@ -287,7 +287,6 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             scope.IsActionDiagnosticsSampled = false;
-            scope.ActionStartTimestamp = 0L;
             scope.ActionAllocatedBytesStart = 0L;
         }
 
@@ -342,6 +341,8 @@ namespace AbilityKit.Demo.Moba.Services
                     _diagnostics,
                     MobaBattleDiagnosticChannel.TriggerHook,
                     MobaBattleDiagnosticMetric.EffectExecuteScope,
+                    configId,
+                    parentContextId,
                     out var effectPerformanceScope))
             {
                 scope.PerformanceScopes = new EffectExecutionPerformanceScopes

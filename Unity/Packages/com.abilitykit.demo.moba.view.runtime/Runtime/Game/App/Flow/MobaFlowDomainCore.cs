@@ -34,7 +34,7 @@ namespace AbilityKit.Game.Flow
         private readonly MobaFeaturePlanFactory _featurePlanFactory;
         private readonly MobaFeatureFactoryRegistry _featureFactories;
         private readonly MobaBattleFlowProfile _defaultProfile;
-        private MobaBattleFlowComposition _activeComposition;
+        private MobaBattleFlowAssembly _activeAssembly;
         private readonly BattleScopeManager _battleScopeManager;
         private readonly BattleFlowExitCoordinator _exitCoordinator;
         private readonly ConcurrentQueue<Action> _battleSignals = new ConcurrentQueue<Action>();
@@ -81,11 +81,6 @@ namespace AbilityKit.Game.Flow
                 _gameplayPresentation, _battleOutcome);
             flowProfile ??= MobaBattleFlowProfile.CreateStandard();
             _defaultProfile = flowProfile;
-            var composition = flowProfile.Resolve();
-            composition.ValidateExtensions(_extensions);
-            ValidateSessionModules(composition);
-            _activeComposition = composition;
-            _flowConfig = MobaFlowConfiguration.CreateResolved(composition);
             _conditionResolver = new MobaFlowConditionResolver();
             _actionExecutor = new MobaFlowActionExecutor();
             _switchExecutor = new MobaFlowSwitchExecutor();
@@ -106,16 +101,19 @@ namespace AbilityKit.Game.Flow
             var featureFactories = _featureFactoryProvider.CreateFeatureFactoryRegistry(
                 _battleScopeManager.CreateBattleSessionFeature);
             _featureFactories = featureFactories;
-            composition.ValidateFactories(featureFactories);
             _featurePlanFactory = new MobaFeaturePlanFactory(featureFactories);
+            _activeAssembly = MobaBattleFlowAssembly.Resolve(flowProfile, _extensions,
+                featureFactories, _featurePlanFactory, ValidateSessionModules);
+            _flowConfig = _activeAssembly.Configuration;
+            _advanceDecider.Configure(_flowConfig.BattleTopology);
 
             _featureScheduler = new FeatureScheduler(
                 log: _log,
                 callbacks: this,
                 ctx: _ctx,
                 flowConfig: _flowConfig,
-                bootFeaturePlan: _featurePlanFactory.CreateBootFeaturePlan(),
-                battleFeaturePlan: _featurePlanFactory.CreateBattleFeaturePlan(composition));
+                bootFeaturePlan: _featurePlanFactory.CreateBootFeaturePlan(_flowConfig),
+                battleFeaturePlan: _activeAssembly.FeaturePlan);
 
             _exitCoordinator = new BattleFlowExitCoordinator(
                 _featureScheduler.ClearFeaturesAsync,
@@ -169,6 +167,13 @@ namespace AbilityKit.Game.Flow
 
         public LayeredJsonSettingsStore Settings { get; } = new LayeredJsonSettingsStore();
 
+        /// <summary>
+        /// 注入副本解析器。注入后进入副本才会执行副本 dry-run 校验与 scope 播种；
+        /// 不注入时保持原有行为（纯逻辑测试与无配置环境）。
+        /// </summary>
+        public void SetDungeonResolver(AbilityKit.Game.Flow.Dungeons.IBattleDungeonResolver resolver) =>
+            _battleScopeManager.SetDungeonResolver(resolver);
+
         private readonly FlowContext _flowContext;
         private readonly FlowEventQueue<MobaRootEvent> _rootEvents;
         private readonly StateMachine<string, MobaRootState, MobaRootEvent> _root;
@@ -179,7 +184,9 @@ namespace AbilityKit.Game.Flow
         public MobaFlowStateSnapshot CurrentState => new MobaFlowStateSnapshot(_activeRoot,
             _activeRoot == MobaRootState.Battle ? _activeBattle : (MobaBattleState?)null,
             _exitCoordinator.IsPending, _isFaulted);
-        public string CurrentBattleProfileId => _activeComposition.ProfileId;
+        public string CurrentBattleProfileId => _activeAssembly.ProfileId;
+        public int CurrentGameplayId => _gameplayPresentation.GameplayId;
+        public IReadOnlyList<string> CurrentSessionModuleIds => _activeAssembly.SessionModuleIds;
         public bool IsFaulted => _isFaulted;
         public MobaBattleEntryState BattleEntryState => _battleEntryState;
         public string BattleEntryRejection => _battleEntryRejection;
@@ -330,22 +337,25 @@ namespace AbilityKit.Game.Flow
                 _exitCoordinator.IsPending)
                 throw new InvalidOperationException("A battle is already active or still exiting.");
             var selectedProfile = profile ?? _defaultProfile;
-            selectedProfile.ValidateHostMode((bootstrapper as IBattleFlowModeProvider)?.FlowHostMode);
-            var composition = selectedProfile.Resolve();
-            composition.ValidateExtensions(_extensions);
-            ValidateSessionModules(composition);
-            composition.ValidateFactories(_featureFactories);
-            var configuration = MobaFlowConfiguration.CreateResolved(composition);
-            var plan = _featurePlanFactory.CreateBattleFeaturePlan(composition);
-            _featureScheduler.ConfigureBattle(configuration, plan);
-            _activeComposition = composition;
-            _gameplayPresentation.Reset();
-            _battleOutcome.Reset();
-            _pendingGatewayConnectionFactory = gatewayConnectionFactory;
+            var hostMode = (bootstrapper as IBattleFlowModeProvider)?.FlowHostMode;
+            var playerCount = (bootstrapper as IBattlePlayerCountProvider)?.PlayerCount ?? 1;
+            selectedProfile.ValidateHostMode(hostMode);
             _battleEntryState = MobaBattleEntryState.Pending;
             _battleEntryRejection = string.Empty;
             _battleExitKind = MobaBattleExitKind.None;
-            try { _battleScopeManager.EnterBattle(bootstrapper); }
+            try
+            {
+                // 副本先解析并全量校验；失败时不创建 scope、不建连接、不装配 feature。
+                var dungeon = _battleScopeManager.ResolveAndValidateDungeon(bootstrapper, hostMode);
+                var assembly = MobaBattleFlowAssembly.Resolve(selectedProfile, _extensions,
+                    _featureFactories, _featurePlanFactory, ValidateSessionModules, dungeon);
+                _featureScheduler.ConfigureBattle(assembly.Configuration, assembly.FeaturePlan);
+                _activeAssembly = assembly;
+                _gameplayPresentation.Reset();
+                _battleOutcome.Reset();
+                _pendingGatewayConnectionFactory = gatewayConnectionFactory;
+                _battleScopeManager.EnterBattle(bootstrapper, hostMode, playerCount, dungeon);
+            }
             catch
             {
                 _pendingGatewayConnectionFactory = null;
@@ -502,7 +512,7 @@ namespace AbilityKit.Game.Flow
             {
                 var catalog = _battleSessionFeatureFactory as IBattleSessionModuleCapabilityCatalog;
                 session.ConfigureSessionModules(
-                    _activeComposition.SessionModuleIds,
+                    _activeAssembly.SessionModuleIds,
                     catalog == null ? null : new Func<string, IReadOnlyList<string>>(catalog.GetCapabilities));
             }
             return feature;

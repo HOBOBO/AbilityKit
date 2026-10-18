@@ -275,12 +275,15 @@ namespace AbilityKit.Game.View.Runtime.Tests
         public void BattlePrepareFeatures_ContextEntitySessionAndGameplayPresentation()
         {
             var ids = _config.BattlePrepareFeatures.FeatureIds;
-            Assert.Equal(5, ids.Count);
+            Assert.Equal(7, ids.Count);
             Assert.Equal("context", ids[0]);
             Assert.Equal("entity", ids[1]);
             Assert.Equal("session", ids[2]);
             Assert.Equal("battle_outcome", ids[3]);
             Assert.Equal("gameplay_presentation", ids[4]);
+            // 副本上下文与副本场景装配同为 battle 级长命周期 feature。
+            Assert.Equal("dungeon_context", ids[5]);
+            Assert.Equal("dungeon_scene", ids[6]);
         }
 
         [Fact]

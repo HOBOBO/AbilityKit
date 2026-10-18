@@ -1,12 +1,14 @@
+using System;
+
 namespace AbilityKit.Game.Flow
 {
     internal sealed class BattlePresentationSessionResolver
     {
         private readonly IBattlePresentationSessionFactory _factory;
 
-        public BattlePresentationSessionResolver(IBattlePresentationSessionFactory factory = null)
+        public BattlePresentationSessionResolver(IBattlePresentationSessionFactory factory)
         {
-            _factory = factory ?? new BattlePresentationSessionFactory();
+            _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         }
 
         public BattlePresentationSessionContext Resolve(in GamePhaseContext ctx)
@@ -17,7 +19,8 @@ namespace AbilityKit.Game.Flow
                 return existing;
             }
 
-            var created = _factory.Create(ctx) ?? new BattlePresentationSessionFactory().Create(ctx);
+            var created = _factory.Create(ctx)
+                ?? throw new InvalidOperationException("Presentation session factory returned null.");
             created.Retain();
             ctx.Features.Set(created);
 
@@ -31,7 +34,7 @@ namespace AbilityKit.Game.Flow
             if (!ctx.Features.TryGet(out BattlePresentationSessionContext existing)) return;
             if (!ReferenceEquals(existing, session)) return;
 
-            ctx.Features.Remove<BattlePresentationSessionContext>();
+            ctx.Features.RemoveIfCurrent(session);
         }
     }
 }

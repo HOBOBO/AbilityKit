@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Logging;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Network.Battle.Projection;
 using AbilityKit.World.ECS;
@@ -94,7 +95,8 @@ namespace AbilityKit.Game.Flow
             IBattleProjectionViewSource source, BattleContext sourceContext,
             IBattleViewFeatureHost flow, Vector3 offset,
             Action<IEntity> destroyEntityTree,
-            BattleProjectionViewCapabilities capabilities = BattleProjectionViewCapabilities.Actors)
+            BattleProjectionViewCapabilities capabilities = BattleProjectionViewCapabilities.Actors,
+            Camera camera = null)
         {
             if (string.IsNullOrWhiteSpace(instanceId))
                 throw new ArgumentException("A projected view requires an instance ID.", nameof(instanceId));
@@ -102,13 +104,28 @@ namespace AbilityKit.Game.Flow
             if (flow == null || sourceContext == null || source == null) return false;
             if ((capabilities & BattleProjectionViewCapabilities.Events) != 0 &&
                 !(source is IBattleProjectionViewEventSource)) return false;
+            if ((capabilities & BattleProjectionViewCapabilities.Camera) != 0 && camera == null)
+                return false;
+            if ((capabilities & BattleProjectionViewCapabilities.Events) != 0)
+            {
+                if (sourceContext.RuntimeWorldId.Equals(source.WorldId)) return false;
+                if (_projectionViews != null)
+                    foreach (var existing in _projectionViews.Values)
+                        if (existing.Info.SourceWorldId.Equals(source.WorldId) &&
+                            (existing.Info.Capabilities & BattleProjectionViewCapabilities.Events) != 0)
+                            return false;
+            }
+            if (camera != null && _projectionViews != null)
+                foreach (var existing in _projectionViews.Values)
+                    if (ReferenceEquals(existing.Feature.AssignedCamera, camera)) return false;
 
             var context = ConfirmedViewContextFactory.Create(sourceContext, source.WorldId);
             var feature = new ProjectedBattleViewFeature(context, role + ":" + instanceId,
-                capabilities);
+                capabilities, camera);
             var instance = new ProjectionViewInstance
             {
-                Info = new BattleProjectionViewInfo(instanceId, role, source.WorldId, offset,
+                Info = new BattleProjectionViewInfo(instanceId, role, source.WorldId,
+                    new Vec3(offset.x, offset.y, offset.z),
                     feature.Capabilities),
                 Source = source,
                 Context = context,
@@ -117,18 +134,27 @@ namespace AbilityKit.Game.Flow
                 Flow = flow,
                 DestroyEntityTree = destroyEntityTree,
             };
+            var attached = false;
+            var registered = false;
             try
             {
                 flow.Attach(instance.Feature);
+                attached = true;
                 _projectionViews ??= new Dictionary<string, ProjectionViewInstance>(StringComparer.Ordinal);
                 _projectionViews.Add(instanceId, instance);
+                registered = true;
                 SyncProjectionView(instance);
                 return true;
             }
-            catch
+            catch (Exception attachFailure)
             {
-                ConfirmedViewContextDisposer.Dispose(context, destroyEntityTree);
-                throw;
+                var failures = new List<Exception> { attachFailure };
+                if (registered) _projectionViews.Remove(instanceId);
+                if (attached) TryCleanup(() => flow.Detach(feature), failures);
+                TryCleanup(() => ConfirmedViewContextDisposer.Dispose(context, destroyEntityTree), failures);
+                if (_projectionViews?.Count == 0) _projectionViews = null;
+                if (failures.Count == 1) throw;
+                throw new AggregateException("Projected view attach and rollback both failed.", failures);
             }
         }
 
@@ -137,12 +163,22 @@ namespace AbilityKit.Game.Flow
             if (instanceId == null || _projectionViews == null ||
                 !_projectionViews.TryGetValue(instanceId, out var instance))
                 return false;
-            ResetProjection(instance);
-            instance.Flow.Detach(instance.Feature);
+            var failures = new List<Exception>();
+            TryCleanup(() => ResetProjection(instance), failures);
+            TryCleanup(() => instance.Flow.Detach(instance.Feature), failures);
             _projectionViews.Remove(instanceId);
-            ConfirmedViewContextDisposer.Dispose(instance.Context, instance.DestroyEntityTree);
+            TryCleanup(() => ConfirmedViewContextDisposer.Dispose(
+                instance.Context, instance.DestroyEntityTree), failures);
             if (_projectionViews.Count == 0) _projectionViews = null;
+            if (failures.Count > 0)
+                throw new AggregateException("Projected view cleanup failed.", failures);
             return true;
+        }
+
+        private static void TryCleanup(Action action, List<Exception> failures)
+        {
+            try { action(); }
+            catch (Exception error) { failures.Add(error); }
         }
 
         internal void SyncProjectionViews()

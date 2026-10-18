@@ -488,8 +488,14 @@ public sealed class MobaTraceRegistrySmokeTests
         public SkillPipelineContext Context { get; }
         public AbilityPipelinePhaseId CurrentPhaseId => Context.CurrentPhaseId;
         public bool IsPaused => false;
+        public IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> Phases => Array.Empty<IAbilityPipelinePhase<SkillPipelineContext>>();
+        public int CurrentPhaseIndex => 0;
+        public bool HasCurrentPhase => false;
+        public bool IsCancelled => false;
         public IReadOnlyList<AbilityPipelinePhaseId> ActivePhases => Array.Empty<AbilityPipelinePhaseId>();
         public void Tick(float deltaTime) { }
+        public void SetExecutionPosition(int phaseIndex, bool hasCurrentPhase, bool isPaused, bool isCancelled) { }
+        public void Release() { }
         public void Pause() { }
         public void Resume() { }
         public void Interrupt() => State = EAbilityPipelineState.Failed;

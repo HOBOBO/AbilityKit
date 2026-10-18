@@ -13,6 +13,8 @@ namespace AbilityKit.Demo.Moba.Share.Config
     [Serializable]
     public sealed class ContinuousModifierDTO
     {
+        // Stable semantic definition identity. Legacy/dynamic modifiers may leave this as 0.
+        public int DefinitionId;
         public int TargetKind;
         public int TargetId;
         public int Op;

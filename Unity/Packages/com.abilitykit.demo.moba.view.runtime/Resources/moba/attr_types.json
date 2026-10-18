@@ -4,6 +4,13 @@
     "Key": "HP",
     "Name": "当前生命",
     "ValueKind": 0,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -11,6 +18,14 @@
     "Key": "MAX_HP",
     "Name": "最大生命",
     "ValueKind": 0,
+    "Unit": 1,
+    "ValueMin": 1,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      1,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -18,6 +33,13 @@
     "Key": "EXTRA_HP",
     "Name": "额外生命",
     "ValueKind": 0,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -25,6 +47,14 @@
     "Key": "PHYSICS_ATTACK",
     "Name": "物理攻击",
     "ValueKind": 0,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      1,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -32,6 +62,14 @@
     "Key": "MAGIC_ATTACK",
     "Name": "法术攻击",
     "ValueKind": 0,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      1,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -39,6 +77,13 @@
     "Key": "EXTRA_PHYSICS_ATTACK",
     "Name": "额外物理攻击",
     "ValueKind": 0,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -46,6 +91,13 @@
     "Key": "EXTRA_MAGIC_ATTACK",
     "Name": "额外法术攻击",
     "ValueKind": 0,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -53,6 +105,14 @@
     "Key": "PHYSICS_DEFENSE",
     "Name": "物理防御",
     "ValueKind": 0,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      1,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -60,6 +120,14 @@
     "Key": "MAGIC_DEFENSE",
     "Name": "法术防御",
     "ValueKind": 0,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      1,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -67,6 +135,13 @@
     "Key": "MANA",
     "Name": "当前法力",
     "ValueKind": 0,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -74,6 +149,14 @@
     "Key": "MAX_MANA",
     "Name": "最大法力",
     "ValueKind": 0,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      1,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -81,6 +164,13 @@
     "Key": "CRITICAL_R",
     "Name": "暴击率",
     "ValueKind": 1,
+    "Unit": 8,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -88,6 +178,14 @@
     "Key": "ATTACK_SPEED_R",
     "Name": "攻击速度加成",
     "ValueKind": 1,
+    "Unit": 8,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      1,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -95,6 +193,14 @@
     "Key": "COOLDOWN_REDUCE_R",
     "Name": "冷却缩减",
     "ValueKind": 1,
+    "Unit": 8,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      1,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -102,6 +208,13 @@
     "Key": "PHYSICS_PENETRATION_R",
     "Name": "物理穿透率",
     "ValueKind": 1,
+    "Unit": 8,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -109,6 +222,13 @@
     "Key": "MAGIC_PENETRATION_R",
     "Name": "法术穿透率",
     "ValueKind": 1,
+    "Unit": 8,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -116,6 +236,14 @@
     "Key": "MOVE_SPEED",
     "Name": "移动速度",
     "ValueKind": 0,
+    "Unit": 2,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      1,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -123,6 +251,13 @@
     "Key": "PHYSICS_BLOODSUCKING_R",
     "Name": "物理吸血率",
     "ValueKind": 1,
+    "Unit": 8,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -130,6 +265,13 @@
     "Key": "MAGIC_BLOODSUCKING_R",
     "Name": "法术吸血率",
     "ValueKind": 1,
+    "Unit": 8,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -137,6 +279,14 @@
     "Key": "ATTACK_RANGE",
     "Name": "攻击范围",
     "ValueKind": 0,
+    "Unit": 2,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      1,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -144,6 +294,13 @@
     "Key": "PER_SECOND_BLOOD_R",
     "Name": "每秒生命回复率",
     "ValueKind": 1,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -151,6 +308,13 @@
     "Key": "PER_SECOND_MANA_R",
     "Name": "每秒法力回复率",
     "ValueKind": 1,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   },
   {
@@ -158,6 +322,13 @@
     "Key": "RESILIENCE_R",
     "Name": "韧性",
     "ValueKind": 1,
+    "Unit": 8,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      2
+    ],
     "DefaultValue": 0
   }
 ]

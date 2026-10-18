@@ -1,233 +1,431 @@
 [
   {
     "Id": 10001,
-    "Domain": 1,
     "Key": "SkillId",
     "Category": 40,
     "SubCategory": 1,
     "ValueKind": 1,
-    "OpMask": 4,
+    "Ops": [
+      2
+    ],
     "TriggerWritable": false,
-    "ResolveAt": 1
+    "ResolveAt": 1,
+    "DisplayName": "技能引用 ID",
+    "Unit": 7,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 10002,
-    "Domain": 1,
     "Key": "ResourceCost",
     "Category": 40,
     "SubCategory": 3,
     "ValueKind": 2,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": true,
-    "ResolveAt": 1
+    "ResolveAt": 1,
+    "DisplayName": "资源消耗",
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 10003,
-    "Domain": 1,
     "Key": "CooldownMs",
     "Category": 40,
     "SubCategory": 4,
     "ValueKind": 2,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": true,
-    "ResolveAt": 1
+    "ResolveAt": 1,
+    "DisplayName": "冷却毫秒",
+    "Unit": 3,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 10004,
-    "Domain": 1,
     "Key": "CastRange",
     "Category": 40,
     "SubCategory": 5,
     "ValueKind": 3,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": true,
-    "ResolveAt": 1
+    "ResolveAt": 1,
+    "DisplayName": "施法距离",
+    "Unit": 2,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 20001,
-    "Domain": 4,
     "Key": "DurationMs",
     "Category": 32,
     "SubCategory": 1,
     "ValueKind": 2,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": true,
-    "ResolveAt": 3
+    "ResolveAt": 3,
+    "DisplayName": "Buff 持续时间",
+    "Unit": 3,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 30001,
-    "Domain": 7,
     "Key": "LauncherId",
     "Category": 30,
     "SubCategory": 1,
     "ValueKind": 1,
-    "OpMask": 4,
+    "Ops": [
+      2
+    ],
     "TriggerWritable": false,
-    "ResolveAt": 2
+    "ResolveAt": 2,
+    "DisplayName": "发射器引用 ID",
+    "Unit": 7,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 30002,
-    "Domain": 7,
     "Key": "CountPerShot",
     "Category": 30,
     "SubCategory": 3,
     "ValueKind": 2,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": true,
-    "ResolveAt": 5
+    "ResolveAt": 5,
+    "DisplayName": "每轮发射数",
+    "Unit": 4,
+    "ValueMin": 1,
+    "ValueMax": 0,
+    "CapturePolicy": 2,
+    "Deprecated": false
   },
   {
     "Id": 30003,
-    "Domain": 7,
     "Key": "FanAngleDeg",
     "Category": 30,
     "SubCategory": 4,
     "ValueKind": 3,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": true,
-    "ResolveAt": 5
+    "ResolveAt": 5,
+    "DisplayName": "扇角角度",
+    "Unit": 6,
+    "ValueMin": 0,
+    "ValueMax": 360,
+    "CapturePolicy": 2,
+    "Deprecated": false
   },
   {
     "Id": 30004,
-    "Domain": 7,
     "Key": "DurationMs",
     "Category": 30,
     "SubCategory": 5,
     "ValueKind": 2,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": true,
-    "ResolveAt": 2
+    "ResolveAt": 2,
+    "DisplayName": "发射器持续时间",
+    "Unit": 3,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 30005,
-    "Domain": 7,
     "Key": "IntervalMs",
     "Category": 30,
     "SubCategory": 7,
     "ValueKind": 2,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": false,
-    "ResolveAt": 2
+    "ResolveAt": 2,
+    "DisplayName": "发射间隔毫秒",
+    "Unit": 3,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 40001,
-    "Domain": 2,
     "Key": "ProjectileId",
     "Category": 30,
     "SubCategory": 2,
     "ValueKind": 1,
-    "OpMask": 4,
+    "Ops": [
+      2
+    ],
     "TriggerWritable": false,
-    "ResolveAt": 2
+    "ResolveAt": 2,
+    "DisplayName": "子弹引用 ID",
+    "Unit": 7,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 40002,
-    "Domain": 2,
     "Key": "Speed",
     "Category": 30,
     "SubCategory": 6,
     "ValueKind": 3,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": true,
-    "ResolveAt": 6
+    "ResolveAt": 6,
+    "DisplayName": "子弹速度",
+    "Unit": 2,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 40003,
-    "Domain": 2,
     "Key": "LifetimeMs",
     "Category": 30,
     "SubCategory": 8,
     "ValueKind": 2,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": false,
-    "ResolveAt": 6
+    "ResolveAt": 6,
+    "DisplayName": "子弹寿命毫秒",
+    "Unit": 3,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 40004,
-    "Domain": 2,
     "Key": "PierceHits",
     "Category": 30,
     "SubCategory": 9,
     "ValueKind": 2,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": false,
-    "ResolveAt": 6
+    "ResolveAt": 6,
+    "DisplayName": "穿透命中次数",
+    "Unit": 4,
+    "ValueMin": -1,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 50001,
-    "Domain": 5,
     "Key": "Radius",
     "Category": 31,
     "SubCategory": 1,
     "ValueKind": 3,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": true,
-    "ResolveAt": 4
+    "ResolveAt": 4,
+    "DisplayName": "区域半径",
+    "Unit": 2,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 50002,
-    "Domain": 5,
     "Key": "DurationMs",
     "Category": 31,
     "SubCategory": 2,
     "ValueKind": 2,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": true,
-    "ResolveAt": 4
+    "ResolveAt": 4,
+    "DisplayName": "区域持续时间",
+    "Unit": 3,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 50003,
-    "Domain": 5,
     "Key": "IntervalMs",
     "Category": 31,
     "SubCategory": 3,
     "ValueKind": 2,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": false,
-    "ResolveAt": 4
+    "ResolveAt": 4,
+    "DisplayName": "区域命中间隔",
+    "Unit": 3,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 60001,
-    "Domain": 3,
     "Key": "SummonId",
     "Category": 40,
     "SubCategory": 2,
     "ValueKind": 1,
-    "OpMask": 4,
+    "Ops": [
+      2
+    ],
     "TriggerWritable": false,
-    "ResolveAt": 8
+    "ResolveAt": 8,
+    "DisplayName": "召唤物引用 ID",
+    "Unit": 7,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 60002,
-    "Domain": 3,
     "Key": "LifetimeMs",
     "Category": 40,
     "SubCategory": 6,
     "ValueKind": 2,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": false,
-    "ResolveAt": 8
+    "ResolveAt": 8,
+    "DisplayName": "召唤物寿命",
+    "Unit": 3,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 60003,
-    "Domain": 3,
     "Key": "InheritRatioScale",
     "Category": 40,
     "SubCategory": 7,
     "ValueKind": 3,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": false,
-    "ResolveAt": 8
+    "ResolveAt": 8,
+    "DisplayName": "召唤继承比例倍率",
+    "Unit": 5,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 1,
+    "Deprecated": false
   },
   {
     "Id": 70001,
-    "Domain": 6,
     "Key": "RequestedBase",
     "Category": 33,
     "SubCategory": 1,
     "ValueKind": 3,
-    "OpMask": 15,
+    "Ops": [
+      0,
+      1,
+      2,
+      3
+    ],
     "TriggerWritable": false,
-    "ResolveAt": 7
+    "ResolveAt": 7,
+    "DisplayName": "请求基础伤害",
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 2,
+    "Deprecated": false
   }
 ]

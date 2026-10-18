@@ -89,121 +89,14 @@ namespace AbilityKit.Demo.Moba.Rollback
 
         private static void Write(global::ActorEntity e, BinaryWriter w)
         {
-            w.Write(e.hasLifetime);
-            if (e.hasLifetime) w.Write(e.lifetime.EndTimeMs);
-            w.Write(e.hasProjectileLauncher);
-            if (e.hasProjectileLauncher)
-            {
-                var p = e.projectileLauncher;
-                w.Write(p.LauncherId); w.Write(p.ProjectileId); w.Write(p.RootActorId);
-                w.Write(p.EndTimeMs); w.Write(p.ActiveBullets); w.Write(p.ScheduleId);
-                w.Write(p.IntervalFrames); w.Write(p.TotalCount);
-            }
-            w.Write(e.hasSummonMeta);
-            if (e.hasSummonMeta) { w.Write(e.summonMeta.SummonId); w.Write(e.summonMeta.DespawnOnOwnerDie); }
-            w.Write(e.hasProjectileEffectSnapshot);
-            if (e.hasProjectileEffectSnapshot)
-            {
-                var p = e.projectileEffectSnapshot;
-                w.Write(p.DamageMul); w.Write(p.SpeedMul); w.Write(p.Pierce);
-            }
-            w.Write(e.hasSkillLoadout);
-            if (e.hasSkillLoadout)
-            {
-                var active = e.skillLoadout.ActiveSkills;
-                w.Write(active == null ? -1 : active.Length);
-                if (active != null) foreach (var skill in active)
-                {
-                    w.Write(skill != null);
-                    if (skill == null) continue;
-                    w.Write(skill.SkillId); w.Write(skill.Level); w.Write(skill.CooldownDurationMs);
-                    w.Write(skill.CooldownEndTimeMs); w.Write(skill.MaxCharges); w.Write(skill.CurrentCharges);
-                    w.Write(skill.ChargeRecoveryMs); w.Write(skill.NextChargeRecoveryTimeMs);
-                    w.Write(skill.CooldownGroupId); w.Write(skill.ChargesConfigured); w.Write(skill.IgnoreGlobalCooldown);
-                }
-                var passive = e.skillLoadout.PassiveSkills;
-                w.Write(passive == null ? -1 : passive.Length);
-                if (passive != null) foreach (var skill in passive)
-                {
-                    w.Write(skill != null);
-                    if (skill == null) continue;
-                    w.Write(skill.PassiveSkillId); w.Write(skill.Level);
-                    w.Write(skill.CooldownDurationMs); w.Write(skill.CooldownEndTimeMs);
-                }
-            }
-            w.Write(e.hasSkillCastTimelineRuntime);
-            if (e.hasSkillCastTimelineRuntime)
-            { w.Write(e.skillCastTimelineRuntime.ElapsedMs); w.Write(e.skillCastTimelineRuntime.NextEventIndex); }
-            w.Write(e.isSkillCastRunningTag);
-            w.Write(e.hasSkillCastCancelRequest);
-            if (e.hasSkillCastCancelRequest)
-            { w.Write(e.skillCastCancelRequest.Frame); w.Write((int)e.skillCastCancelRequest.Reason); }
-            w.Write(e.hasSkillCastDestroyRequest);
-            if (e.hasSkillCastDestroyRequest)
-            {
-                var p = e.skillCastDestroyRequest;
-                w.Write(p.RequestFrame); w.Write(p.MinConfirmedFrame); w.Write((int)p.Reason);
-            }
-            w.Write(e.hasActorDespawnRequest);
-            if (e.hasActorDespawnRequest)
-            {
-                var p = e.actorDespawnRequest;
-                w.Write(p.RequestFrame); w.Write(p.MinConfirmedFrame); w.Write((int)p.Reason);
-                w.Write(p.SourceActorId); w.Write(p.SourceContextId);
-            }
+            // 2026-10-12 起逐字段序列化由生成器产出（Generated/Actor/ActorComponentSerialization.cs，
+            // 覆盖集 = tools/entitas-codegen.moba.pin.json 里 serialize:true 的组件）。
+            global::ActorComponentSerialization.Write(e, w);
         }
 
         private static void Restore(global::ActorEntity e, BinaryReader r)
         {
-            if (r.ReadBoolean()) e.ReplaceLifetime(r.ReadInt64());
-            else if (e.hasLifetime) e.RemoveLifetime();
-            if (r.ReadBoolean()) e.ReplaceProjectileLauncher(r.ReadInt32(), r.ReadInt32(), r.ReadInt32(),
-                r.ReadInt64(), r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), r.ReadInt32());
-            else if (e.hasProjectileLauncher) e.RemoveProjectileLauncher();
-            if (r.ReadBoolean()) e.ReplaceSummonMeta(r.ReadInt32(), r.ReadBoolean());
-            else if (e.hasSummonMeta) e.RemoveSummonMeta();
-            if (r.ReadBoolean()) e.ReplaceProjectileEffectSnapshot(r.ReadSingle(), r.ReadSingle(), r.ReadInt32());
-            else if (e.hasProjectileEffectSnapshot) e.RemoveProjectileEffectSnapshot();
-            if (r.ReadBoolean())
-            {
-                var activeCount = r.ReadInt32();
-                var active = activeCount < 0 ? null : new ActiveSkillRuntime[activeCount];
-                for (var i = 0; i < activeCount; i++)
-                {
-                    if (!r.ReadBoolean()) continue;
-                    active[i] = new ActiveSkillRuntime
-                    {
-                        SkillId = r.ReadInt32(), Level = r.ReadInt32(), CooldownDurationMs = r.ReadInt32(),
-                        CooldownEndTimeMs = r.ReadInt64(), MaxCharges = r.ReadInt32(), CurrentCharges = r.ReadInt32(),
-                        ChargeRecoveryMs = r.ReadInt32(), NextChargeRecoveryTimeMs = r.ReadInt64(),
-                        CooldownGroupId = r.ReadInt32(), ChargesConfigured = r.ReadBoolean(), IgnoreGlobalCooldown = r.ReadBoolean()
-                    };
-                }
-                var passiveCount = r.ReadInt32();
-                var passive = passiveCount < 0 ? null : new PassiveSkillRuntime[passiveCount];
-                for (var i = 0; i < passiveCount; i++)
-                {
-                    if (!r.ReadBoolean()) continue;
-                    passive[i] = new PassiveSkillRuntime
-                    {
-                        PassiveSkillId = r.ReadInt32(), Level = r.ReadInt32(),
-                        CooldownDurationMs = r.ReadInt32(), CooldownEndTimeMs = r.ReadInt64()
-                    };
-                }
-                e.ReplaceSkillLoadout(active, passive);
-            }
-            else if (e.hasSkillLoadout) e.RemoveSkillLoadout();
-            if (r.ReadBoolean()) e.ReplaceSkillCastTimelineRuntime(r.ReadInt32(), r.ReadInt32());
-            else if (e.hasSkillCastTimelineRuntime) e.RemoveSkillCastTimelineRuntime();
-            if (r.ReadBoolean()) e.isSkillCastRunningTag = true;
-            else e.isSkillCastRunningTag = false;
-            if (r.ReadBoolean()) e.ReplaceSkillCastCancelRequest(r.ReadInt32(), (SkillCancelReason)r.ReadInt32());
-            else if (e.hasSkillCastCancelRequest) e.RemoveSkillCastCancelRequest();
-            if (r.ReadBoolean()) e.ReplaceSkillCastDestroyRequest(r.ReadInt32(), r.ReadInt32(), (SkillDestroyReason)r.ReadInt32());
-            else if (e.hasSkillCastDestroyRequest) e.RemoveSkillCastDestroyRequest();
-            if (r.ReadBoolean()) e.ReplaceActorDespawnRequest(r.ReadInt32(), r.ReadInt32(),
-                (ActorDespawnReason)r.ReadInt32(), r.ReadInt32(), r.ReadInt64());
-            else if (e.hasActorDespawnRequest) e.RemoveActorDespawnRequest();
+            global::ActorComponentSerialization.Restore(e, r);
             if (r.BaseStream.Position != r.BaseStream.Length)
                 throw new InvalidOperationException("Unexpected Entitas component snapshot trailing data.");
         }

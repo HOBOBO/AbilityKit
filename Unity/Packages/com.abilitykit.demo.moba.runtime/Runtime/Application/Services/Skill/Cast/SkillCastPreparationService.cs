@@ -38,11 +38,11 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         [MobaModifierConsumes(MobaSkillParamModifierKeys.Skill.Ids.ResourceCost,
-            MobaParameterStage.CastPrepare, MobaModifierSampleTiming.EventSample)]
+            MobaParameterStage.CastPrepare, MobaModifierSampleTiming.CreateSnapshot)]
         [MobaModifierConsumes(MobaSkillParamModifierKeys.Skill.Ids.CooldownMs,
-            MobaParameterStage.CastPrepare, MobaModifierSampleTiming.EventSample)]
+            MobaParameterStage.CastPrepare, MobaModifierSampleTiming.CreateSnapshot)]
         [MobaModifierConsumes(MobaSkillParamModifierKeys.Skill.Ids.CastRange,
-            MobaParameterStage.CastPrepare, MobaModifierSampleTiming.EventSample)]
+            MobaParameterStage.CastPrepare, MobaModifierSampleTiming.CreateSnapshot)]
         public SkillCastPreparationResult Prepare(in SkillCastPreparationInput input)
         {
             var actorId = input.ActorId;
@@ -284,6 +284,24 @@ namespace AbilityKit.Demo.Moba.Services
             if (actorId > 0)
             {
                 _castSequenceByActor.Remove(actorId);
+            }
+        }
+
+        internal KeyValuePair<int, int>[] CaptureRollbackSequences()
+        {
+            var values = new List<KeyValuePair<int, int>>(_castSequenceByActor);
+            values.Sort((a, b) => a.Key.CompareTo(b.Key));
+            return values.ToArray();
+        }
+
+        internal void RestoreRollbackSequences(IReadOnlyList<KeyValuePair<int, int>> values)
+        {
+            _castSequenceByActor.Clear();
+            foreach (var value in values)
+            {
+                if (value.Key <= 0 || value.Value <= 0 || _castSequenceByActor.ContainsKey(value.Key))
+                    throw new InvalidOperationException("Invalid skill cast sequence rollback state.");
+                _castSequenceByActor.Add(value.Key, value.Value);
             }
         }
 

@@ -69,13 +69,17 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            // 仅多人（GatewayRemote）战斗：本地模式同样会进 Battle 根状态，但没有房间流。
+            ctx.Entry.TryGet(out BattleContext battleContext);
+            if (battleContext == null || battleContext.Plan.HostMode != BattleHostMode.GatewayRemote)
+            {
+                return;
+            }
+
             if (!ctx.Entry.TryGet(out MultiplayerRoomFlowController controller) || controller == null)
             {
                 return;
             }
 
-            ctx.Entry.TryGet(out BattleContext battleContext);
             var recovery = MobaBattlePauseController.For(battleContext);
             var isPaused = recovery?.IsPaused == true;
             var hasRecoveryError = !string.IsNullOrEmpty(recovery?.RecoveryError);

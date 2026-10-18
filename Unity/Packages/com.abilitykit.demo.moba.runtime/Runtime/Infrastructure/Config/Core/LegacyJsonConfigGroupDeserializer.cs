@@ -38,6 +38,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             typeof(ComponentTemplateDTO),
             typeof(PresentationTemplateDTO),
             typeof(GameplayDTO),
+            typeof(DungeonDTO),
         };
 
         public override Array DeserializeFromBytes(byte[] bytes, Type dtoType)

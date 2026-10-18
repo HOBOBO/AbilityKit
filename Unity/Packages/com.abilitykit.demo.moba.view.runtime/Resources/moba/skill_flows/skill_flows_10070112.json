@@ -1,0 +1,23 @@
+{
+  "Id": 10070112,
+  "Name": "孙尚香-强化普通攻击",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 2,
+      "PhaseId": "ssx_skill_1_enhanced_basic",
+      "Timeline": {
+        "DurationMs": 250,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 10070112,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "ssx_skill_1_enhanced_basic"
+          }
+        ]
+      }
+    }
+  ]
+}

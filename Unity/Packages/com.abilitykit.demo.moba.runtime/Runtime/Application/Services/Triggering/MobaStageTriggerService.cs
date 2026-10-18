@@ -269,6 +269,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                 TemplateId = projectile.Id,
                 VfxId = vfxId,
                 RequestKey = BuildProjectileCueKey(eventId, projectileId, targetActorId, frame),
+                EventKey = BuildProjectileCueKey(eventId, projectileId, targetActorId, frame),
                 SourceActorId = sourceActorId,
                 TargetActorId = targetActorId,
                 Targets = targetActorId > 0 ? new[] { targetActorId } : Array.Empty<int>(),

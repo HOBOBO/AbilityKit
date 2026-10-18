@@ -71,7 +71,7 @@ public sealed class MobaConfigTableManifestTests
             AppContext.SetSwitch("AbilityKit.Moba.DisableConfigTableReflectionFallback", false);
         }
 
-        Assert.Equal(25, registryTables.Length);
+        Assert.Equal(26, registryTables.Length);
         Assert.Equal(registryTables.Length, groupTables.Count);
         for (var i = 0; i < registryTables.Length; i++)
         {

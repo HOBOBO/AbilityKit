@@ -1,0 +1,71 @@
+[
+  {
+    "Id": 1,
+    "Name": "Standard Local Battle",
+    "GameplayId": 1,
+    "FlowProfileId": "moba.standard",
+    "MinPlayerCount": 1,
+    "MaxPlayerCount": 10,
+    "AllowedHostModes": [],
+    "SceneProviderId": "unity_map",
+    "GameplayHandlerId": "team_deathmatch",
+    "OutcomeRuleId": "team_deathmatch",
+    "RequiredPortGroups": [
+      "deathmatch"
+    ],
+    "Tags": []
+  },
+  {
+    "Id": 2,
+    "Name": "Remote Ranked Deathmatch",
+    "GameplayId": 1,
+    "FlowProfileId": "moba.standard",
+    "MinPlayerCount": 2,
+    "MaxPlayerCount": 10,
+    "AllowedHostModes": [
+      "Local",
+      "GatewayRemote"
+    ],
+    "SceneProviderId": "unity_map",
+    "GameplayHandlerId": "team_deathmatch",
+    "OutcomeRuleId": "team_deathmatch",
+    "RequiredPortGroups": [
+      "deathmatch"
+    ],
+    "Tags": []
+  },
+  {
+    "Id": 3,
+    "Name": "Headless Replay Verification",
+    "GameplayId": 1,
+    "FlowProfileId": "moba.quiet",
+    "MinPlayerCount": 1,
+    "MaxPlayerCount": 10,
+    "AllowedHostModes": [
+      "Local"
+    ],
+    "SceneProviderId": "none",
+    "GameplayHandlerId": "team_deathmatch",
+    "OutcomeRuleId": "team_deathmatch",
+    "RequiredPortGroups": [
+      "deathmatch"
+    ],
+    "Tags": []
+  },
+  {
+    "Id": 4,
+    "Name": "Trigger-Driven Scenario",
+    "GameplayId": 1,
+    "FlowProfileId": "moba.quiet",
+    "MinPlayerCount": 1,
+    "MaxPlayerCount": 10,
+    "AllowedHostModes": [
+      "Local"
+    ],
+    "SceneProviderId": "none",
+    "GameplayHandlerId": "triggers_only",
+    "OutcomeRuleId": "triggers_authoritative",
+    "RequiredPortGroups": [],
+    "Tags": []
+  }
+]

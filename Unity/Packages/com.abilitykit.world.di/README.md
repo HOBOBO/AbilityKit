@@ -22,6 +22,11 @@
   - 在 `WorldScope` 被 `Dispose` 时释放。
   - 适用于对局/会话态服务、world tick 相关服务、每个 world 的缓存等。
 
+- **Transient**
+  - 每次 `Resolve` 创建一个实例，不由容器或 scope 缓存。
+  - 解析方负责调用 `IWorldDeinitializable.OnDeinit` 和 `IDisposable.Dispose`（如适用）。
+  - 适用于短暂使用、由调用方明确管理资源的对象。
+
 ### WorldScope
 
 `WorldScope` 表示 scoped 服务的运行时生命周期边界。

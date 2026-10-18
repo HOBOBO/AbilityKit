@@ -38,7 +38,7 @@ AGGREGATE = "ability/ability_trigger_plans.json"
 STATE_MACHINE_SOURCE = ROOT / "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaStateMachineAuthoring"
 STATE_MACHINE_NAMES = ("character_hfsm", "actor_state_machines")
 TAG_TEMPLATE_TABLES = ("continuous_tag_templates",)
-REFERENCE_TABLES = {"modifier_templates", "modifier_parameters", "tag_definitions", "attr_types", *TAG_REFERENCE_TABLES,
+REFERENCE_TABLES = {"modifier_templates", "modifier_definitions", "modifier_parameters", "tag_definitions", "attr_types", *TAG_REFERENCE_TABLES,
                     *TAG_TEMPLATE_TABLES}
 
 def run_luban(kind, output):

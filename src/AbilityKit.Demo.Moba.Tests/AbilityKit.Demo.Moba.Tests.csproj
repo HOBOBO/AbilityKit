@@ -24,6 +24,7 @@
     <ProjectReference Include="..\AbilityKit.Continuous\AbilityKit.Continuous.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Host\AbilityKit.Demo.Moba.Host.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Presentation.Contracts\AbilityKit.Demo.Moba.Presentation.Contracts.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Presentation.Timeline\AbilityKit.Demo.Moba.Presentation.Timeline.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Presentation.ProtocolAdapter\AbilityKit.Demo.Moba.Presentation.ProtocolAdapter.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Share\AbilityKit.Demo.Moba.Share.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Infrastructure\AbilityKit.Demo.Moba.Infrastructure.csproj" />
@@ -37,10 +38,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Timeline/MobaSkillPresentationTimelineRuntime.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Timeline/MobaSkillPresentationCastDriver.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Entities/Components/BattleCharacterHfsmComponent.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Entities/Components/CharacterPresentationActions.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Platform/Unity/Presentation/Entities/Components/BattleCharacterHfsmComponent.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Platform/Unity/Presentation/Entities/Components/CharacterPresentationActions.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.editor/Tests/MobaModifierNumericGoldenCases.cs" />
   </ItemGroup>
 

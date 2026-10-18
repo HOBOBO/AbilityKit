@@ -102,6 +102,16 @@ namespace AbilityKit.Diagnostics
         public static ProbeToken Begin(string name) => Current.Begin(name);
 
         /// <summary>
+        /// 开始携带关联上下文 ID 的采样（用于与 Trace / 分析工件关联）。
+        /// </summary>
+        public static ProbeToken Begin(string name, long contextId) => Current.Begin(name, contextId);
+
+        /// <summary>
+        /// 声明当前逻辑帧号（供时间线导出标注帧轴；仅 EditorProfiler 支持）。
+        /// </summary>
+        public static void SetFrame(long frame) => GetEditorProfiler()?.SetFrame(frame);
+
+        /// <summary>
         /// 记录耗时
         /// </summary>
         public static void Record(string name, long nanoseconds) => Current.Record(name, nanoseconds);

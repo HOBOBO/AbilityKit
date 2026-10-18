@@ -9,10 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Core/**/*.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Logic/Presentation/Core/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Demo.Moba.Presentation.Contracts/AbilityKit.Demo.Moba.Presentation.Contracts.csproj" />
+    <ProjectReference Include="../AbilityKit.Demo.Moba.Client.Session/AbilityKit.Demo.Moba.Client.Session.csproj" />
   </ItemGroup>
 </Project>

@@ -19,6 +19,7 @@ using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
+using AbilityKit.Pipeline;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Skill;
@@ -29,6 +30,97 @@ public sealed class MobaSkillFlowAcceptanceTests
     private const int Instant = 8411;
     private const int Charge = 8412;
     private const int Volley = 8413;
+
+    [Fact]
+    public void Channel_window_rollback_preserves_tick_boundary()
+    {
+        using var scope = new Scope();
+        var windows = new MobaSkillWindowRuntimeService(scope.Runtimes);
+        scope.Services.Add(windows);
+        var context = scope.NewContext(Charge, 2);
+        Assert.True(scope.Library.TryGet(Charge, out _, out _, out var config, out _));
+        var pipeline = new SkillCastPipeline();
+        pipeline.AddPhase(new SkillWindowPhase(new AbilityPipelinePhaseId("channel"),
+            new SkillWindowPhaseDTO
+            {
+                WindowId = "rollback-channel", Kind = (int)SkillWindowKind.Channel,
+                DurationMs = 400, ChannelIntervalMs = 100
+            }, null));
+        var run = pipeline.Start(config, context);
+        var handle = context.RuntimeHandle;
+        run.Tick(0f);
+        run.Tick(0.15f);
+        Assert.True(windows.TryGetSnapshot(in handle, out var first));
+        Assert.Equal(1, first.ChannelTick);
+        var runtimeState = scope.Runtimes.CaptureRollbackSnapshot();
+        var contextState = context.CaptureRollbackState();
+        var runBytes = PipelineRollbackStateCodec.Serialize(SkillPipelineRollback.Capture(run, config));
+
+        run.Tick(0.1f);
+        Assert.True(windows.TryGetSnapshot(in handle, out var later));
+        Assert.Equal(2, later.ChannelTick);
+        SkillPipelineRollback.Detach(run);
+        scope.Runtimes.RestoreRollbackSnapshot(in runtimeState);
+
+        var aimPos = contextState.AimPos;
+        var aimDir = contextState.AimDir;
+        var request = new SkillCastRequest(Charge, 2, ActorId, 0, in aimPos, in aimDir,
+            scope.Services, null, null, null);
+        var trigger = new SkillCastContext();
+        trigger.Initialize(in request, 1);
+        trigger.RuntimeHandle = context.RuntimeHandle;
+        trigger.RuntimeId = context.RuntimeId;
+        trigger.SourceContextId = context.SourceContextId;
+        var restoredContext = new SkillPipelineContext();
+        restoredContext.Initialize(null, in request, trigger);
+        restoredContext.RestoreRollbackState(in contextState);
+        var restored = SkillPipelineRollback.Restore(pipeline, config, restoredContext,
+            PipelineRollbackStateCodec.Deserialize(runBytes));
+        Assert.True(windows.TryGetSnapshot(in handle, out var rewind));
+        Assert.Equal(1, rewind.ChannelTick);
+        restored.Tick(0.1f);
+        Assert.True(windows.TryGetSnapshot(in handle, out var replay));
+        Assert.Equal(2, replay.ChannelTick);
+        Assert.Equal(EAbilityPipelineState.Executing, restored.State);
+        restored.Interrupt();
+    }
+
+    [Fact]
+    public void Timeline_rollback_restores_mid_cast_without_replaying_prior_effects()
+    {
+        using var scope = new Scope();
+        Assert.True(scope.Start(Volley, 3, SkillCastPolicy.Default).Success);
+        scope.Runner.Step(0.15f);
+        Assert.Equal(new[] { 8441, 8442 }, scope.ExecutedEffects);
+
+        var entries = new List<SkillRunnerRollbackEntry>();
+        scope.Runner.CaptureRollbackEntries(entries);
+        var bytes = SkillRunnerRollbackCodec.Serialize(new SkillRunnerRollbackSnapshot
+        {
+            Entries = entries.ToArray()
+        });
+        var runtimeState = scope.Runtimes.CaptureRollbackSnapshot();
+        var contextNodes = scope.ExecutionContexts.CaptureLifecycleSnapshot();
+
+        scope.Runner.Step(0.2f);
+        Assert.Equal(new[] { 8441, 8442, 8443 }, scope.ExecutedEffects);
+
+        scope.Runner.DetachForRollback();
+        scope.Runtimes.RestoreRollbackSnapshot(in runtimeState);
+        scope.ExecutionContexts.RestoreLifecycle(contextNodes);
+        scope.Restore(SkillRunnerRollbackCodec.Deserialize(bytes).Entries[0]);
+        var restoredEntries = new List<SkillRunnerRollbackEntry>();
+        scope.Runner.CaptureRollbackEntries(restoredEntries);
+        Assert.Equal(bytes, SkillRunnerRollbackCodec.Serialize(new SkillRunnerRollbackSnapshot
+        {
+            Entries = restoredEntries.ToArray()
+        }));
+        scope.ExecutedEffects.Clear();
+        scope.Runner.Step(0.2f);
+
+        Assert.Equal(new[] { 8443 }, scope.ExecutedEffects);
+        Assert.False(scope.Runner.HasRunning);
+    }
 
     [Fact]
     public void Three_configured_skills_prewarm_and_instant_cost_commits_at_the_explicit_point()
@@ -327,6 +419,7 @@ public sealed class MobaSkillFlowAcceptanceTests
         public ActiveSkillRuntime SkillOne { get; }
         public ResourceState Mana { get; }
         public MobaSkillCastRuntimeService Runtimes { get; }
+        public MobaExecutionContextRegistry ExecutionContexts => _executionContexts;
         public MobaSkillEconomyService Economy { get; }
         public Resolver Services { get; }
         public TableDrivenMobaSkillPipelineLibrary Library { get; }
@@ -365,9 +458,31 @@ public sealed class MobaSkillFlowAcceptanceTests
             var trigger = new SkillCastContext();
             trigger.Initialize(in request, skillLevel: 1);
             trigger.SourceContextId = root.ContextId;
+            trigger.Sequence = _sequence;
+            trigger.ResolvedConfiguration = new ResolvedSkillCastConfiguration(id, 1,
+                ResourceType.Mana, 0, 0, false);
             trigger.RuntimeHandle = runtime.Handle;
             trigger.RuntimeId = runtime.RuntimeId;
             return Runner.TryStart(pre, prePhases, cast, phases, new object(), in request, trigger, in policy);
+        }
+
+        public void Restore(SkillRunnerRollbackEntry state)
+        {
+            Assert.True(Library.TryGet(state.SkillId, out var pre, out var prePhases,
+                out var cast, out var castPhases));
+            var aimPos = state.Context.AimPos;
+            var aimDir = state.Context.AimDir;
+            var request = new SkillCastRequest(state.SkillId, state.SkillSlot, ActorId,
+                state.Context.TargetActorId, in aimPos, in aimDir, Services, null, null, null);
+            var trigger = new SkillCastContext();
+            trigger.Initialize(in request, state.SkillLevel, state.Sequence);
+            trigger.SourceContextId = state.SourceContextId;
+            trigger.RuntimeHandle = new MobaSkillCastRuntimeHandle(state.RuntimeId,
+                state.RuntimeGeneration, state.RootContextId);
+            trigger.RuntimeId = state.RuntimeId;
+            trigger.ResolvedConfiguration = state.Context.ResolvedConfiguration;
+            Runner.RestoreRollbackEntry(state, pre, prePhases, cast, castPhases,
+                new object(), in request, trigger);
         }
 
         public SkillPipelineContext NewContext(int id, int slot)

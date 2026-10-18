@@ -1,0 +1,22 @@
+{
+  "Id": 10080001,
+  "Name": "鲁班七号-普通攻击",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 2,
+      "Timeline": {
+        "DurationMs": 250,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 10080001,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "luban_basic_projectile"
+          }
+        ]
+      }
+    }
+  ]
+}

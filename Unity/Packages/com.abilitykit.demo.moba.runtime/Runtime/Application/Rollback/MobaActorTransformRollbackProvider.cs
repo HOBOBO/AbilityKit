@@ -89,7 +89,7 @@ namespace AbilityKit.Demo.Moba.Rollback
 
                 entries.Sort((a, b) => a.ActorId.CompareTo(b.ActorId));
                 var payloadEntries = entries.Count == 0 ? Array.Empty<MobaActorTransformRollbackEntry>() : entries.ToArray();
-                return MemoryPackSerializer.Serialize(new MobaActorTransformRollbackPayload(2, payloadEntries));
+                return MemoryPackSerializer.Serialize(new MobaActorTransformRollbackPayload(3, payloadEntries));
             }
             finally
             {
@@ -115,6 +115,10 @@ namespace AbilityKit.Demo.Moba.Rollback
                     {
                         SyncMoveInput(e, in it);
                     }
+                    if (p.Version >= 3)
+                    {
+                        SyncMotionKinematics(e, in it);
+                    }
                 }
             }
         }
@@ -122,12 +126,18 @@ namespace AbilityKit.Demo.Moba.Rollback
         private static MobaActorTransformRollbackEntry CreateEntry(int actorId, global::ActorEntity entity)
         {
             var hasMoveInput = entity.hasMoveInput;
+            // v3: 捕获运动学状态——回滚前只恢复 Position/Forward 会把预测帧的 Velocity 残留进重模拟。
+            var hasMotion = entity.hasMotion;
+            var motionState = hasMotion ? entity.motion.State : default;
             return new MobaActorTransformRollbackEntry(
                 actorId,
                 entity.transform.Value,
                 hasMoveInput,
                 hasMoveInput ? entity.moveInput.Dx : 0f,
-                hasMoveInput ? entity.moveInput.Dz : 0f);
+                hasMoveInput ? entity.moveInput.Dz : 0f,
+                hasMotion,
+                motionState.Velocity,
+                motionState.Time);
         }
 
         private static void SyncMoveInput(
@@ -164,6 +174,18 @@ namespace AbilityKit.Demo.Moba.Rollback
             output.NewForward = state.Forward;
 
             e.ReplaceMotion(m.Pipeline, state, output, m.Solver, m.Policy, m.Events, m.Initialized, m.HitTriggerRuntime);
+        }
+
+        // v3: 恢复运动学状态（Velocity/Time）——与 SyncMotionState（Position/Forward）合成完整的 Motion 恢复。
+        private static void SyncMotionKinematics(global::ActorEntity e, in MobaActorTransformRollbackEntry entry)
+        {
+            if (e == null || !e.hasMotion || !entry.HasMotionState) return;
+
+            var m = e.motion;
+            var state = m.State;
+            state.Velocity = entry.MotionVelocity;
+            state.Time = entry.MotionTime;
+            e.ReplaceMotion(m.Pipeline, state, m.Output, m.Solver, m.Policy, m.Events, m.Initialized, m.HitTriggerRuntime);
         }
 
         private static void AddEntryHash(in MobaActorTransformRollbackEntry entry, ref MobaStateHashBuilder hash)
@@ -205,6 +227,29 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(2)] public readonly bool HasMoveInput;
         [MemoryPackOrder(3)] public readonly float MoveDx;
         [MemoryPackOrder(4)] public readonly float MoveDz;
+        [MemoryPackOrder(5)] public readonly bool HasMotionState;
+        [MemoryPackOrder(6)] public readonly Vec3 MotionVelocity;
+        [MemoryPackOrder(7)] public readonly float MotionTime;
+
+        public MobaActorTransformRollbackEntry(
+            int actorId,
+            Transform3 transform,
+            bool hasMoveInput,
+            float moveDx,
+            float moveDz,
+            bool hasMotionState,
+            Vec3 motionVelocity,
+            float motionTime)
+        {
+            ActorId = actorId;
+            Transform = transform;
+            HasMoveInput = hasMoveInput;
+            MoveDx = moveDx;
+            MoveDz = moveDz;
+            HasMotionState = hasMotionState;
+            MotionVelocity = motionVelocity;
+            MotionTime = motionTime;
+        }
 
         public MobaActorTransformRollbackEntry(
             int actorId,
@@ -212,12 +257,8 @@ namespace AbilityKit.Demo.Moba.Rollback
             bool hasMoveInput,
             float moveDx,
             float moveDz)
+            : this(actorId, transform, hasMoveInput, moveDx, moveDz, false, default, 0f)
         {
-            ActorId = actorId;
-            Transform = transform;
-            HasMoveInput = hasMoveInput;
-            MoveDx = moveDx;
-            MoveDz = moveDz;
         }
 
         public MobaActorTransformRollbackEntry(int actorId, Transform3 transform)

@@ -54,9 +54,14 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
                 return;
             }
 
-            if (AppContext.TryGetSwitch(
+            var reflectionFallbackDisabled =
+                AppContext.TryGetSwitch(
                     "AbilityKit.Moba.DisableBootstrapStageReflectionFallback",
-                    out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+                    out var configuredFallbackDisabled) && configuredFallbackDisabled;
+#if !UNITY_EDITOR && !DEVELOPMENT_BUILD
+            reflectionFallbackDisabled = true;
+#endif
+            if (reflectionFallbackDisabled)
             {
                 throw new InvalidOperationException(
                     "The generated MOBA bootstrap stage manifest is empty and reflection fallback is disabled.");

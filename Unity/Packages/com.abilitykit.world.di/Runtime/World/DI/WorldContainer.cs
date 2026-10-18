@@ -13,6 +13,7 @@ namespace AbilityKit.Ability.World.DI
         private readonly List<object> _singletonDisposeOrder = new List<object>(32);
         private readonly HashSet<object> _singletonDisposeSet = new HashSet<object>(ReferenceEqualityComparer.Instance);
         [ThreadStatic] private static Stack<Type> _singletonCreationStack;
+        [ThreadStatic] private static Stack<RootCreation> _rootCreationStack;
         [ThreadStatic] private static Stack<Type> _resolveStack;
         private bool _disposed;
 
@@ -116,6 +117,7 @@ namespace AbilityKit.Ability.World.DI
                 {
                     if (_singletons.TryGetValue(serviceType, out var cached)) return cached;
 
+                    EnterRootCreation(serviceType);
                     _singletonCreationStack ??= new Stack<Type>(4);
                     _singletonCreationStack.Push(serviceType);
                     try
@@ -139,14 +141,24 @@ namespace AbilityKit.Ability.World.DI
                     finally
                     {
                         _singletonCreationStack.Pop();
+                        _rootCreationStack.Pop();
                     }
                 }
 
                 if (descriptor.Lifetime == WorldLifetime.Transient)
                 {
-                    var created = descriptor.Factory(this);
-                    TryInit(created, this);
-                    return created;
+                    EnterRootCreation(serviceType);
+                    try
+                    {
+                        var created = descriptor.Factory(this);
+                        if (descriptor.Ownership == WorldServiceOwnership.Container)
+                            InitTransient(created, this);
+                        return created;
+                    }
+                    finally
+                    {
+                        _rootCreationStack.Pop();
+                    }
                 }
 
                 if (_singletonCreationStack != null && _singletonCreationStack.Count > 0)
@@ -174,6 +186,10 @@ namespace AbilityKit.Ability.World.DI
             {
                 instance = Resolve(serviceType);
                 return true;
+            }
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("Circular dependency detected."))
+            {
+                throw;
             }
             catch
             {
@@ -225,12 +241,14 @@ namespace AbilityKit.Ability.World.DI
                         return scope.GetOrCreate(serviceType, () =>
                         {
                             var created = descriptor.Factory(scope);
-                            TryInit(created, scope);
+                            if (descriptor.Ownership == WorldServiceOwnership.Container)
+                                scope.TryInit(created);
                             return created;
-                        });
+                        }, descriptor.Ownership == WorldServiceOwnership.Container);
                     case WorldLifetime.Transient:
                         var created = descriptor.Factory(scope);
-                        TryInit(created, scope);
+                        if (descriptor.Ownership == WorldServiceOwnership.Container)
+                            InitTransient(created, scope);
                         return created;
                     default:
                         throw new InvalidOperationException($"Unknown lifetime: {descriptor.Lifetime}");
@@ -259,6 +277,34 @@ namespace AbilityKit.Ability.World.DI
                 sb.Append(t.FullName ?? t.Name);
             }
             return sb.ToString();
+        }
+
+        private readonly struct RootCreation
+        {
+            public readonly WorldContainer Container;
+            public readonly Type ServiceType;
+
+            public RootCreation(WorldContainer container, Type serviceType)
+            {
+                Container = container;
+                ServiceType = serviceType;
+            }
+        }
+
+        private void EnterRootCreation(Type serviceType)
+        {
+            _rootCreationStack ??= new Stack<RootCreation>(8);
+            foreach (var frame in _rootCreationStack)
+            {
+                if (ReferenceEquals(frame.Container, this) && frame.ServiceType == serviceType)
+                    throw new InvalidOperationException($"Circular dependency detected. Resolve chain: {FormatResolveChain()}");
+            }
+            _rootCreationStack.Push(new RootCreation(this, serviceType));
+        }
+
+        private static void InitTransient(object instance, IWorldResolver services)
+        {
+            if (instance is IWorldInitializable init) init.OnInit(services);
         }
 
         private void TryInit(object instance, IWorldResolver services)
@@ -324,6 +370,7 @@ namespace AbilityKit.Ability.World.DI
             _disposed = true;
             _singletonDisposeOrder.Clear();
             _singletonDisposeSet.Clear();
+            _initialized.Clear();
             _singletons.Clear();
             _map.Clear();
         }

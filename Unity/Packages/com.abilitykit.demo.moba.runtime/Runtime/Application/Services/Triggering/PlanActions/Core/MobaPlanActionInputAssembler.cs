@@ -63,9 +63,32 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         private static bool TryResolvePayloadTargetActorId(object payload, out int actorId)
         {
             actorId = 0;
-            return payload is IMobaActorContextProvider actorContext
-                   && actorContext.TryGetTargetActorId(out actorId)
-                   && actorId > 0;
+            if (payload is MobaTriggerConditionContext conditionContext)
+            {
+                if (conditionContext.TargetActorId > 0)
+                {
+                    actorId = conditionContext.TargetActorId;
+                    return true;
+                }
+                payload = conditionContext.Payload;
+            }
+
+            if (payload is IMobaActorContextProvider actorContext
+                && actorContext.TryGetTargetActorId(out actorId)
+                && actorId > 0)
+            {
+                return true;
+            }
+
+            if (payload is MobaCombatExecutionContext executionContext
+                && executionContext.Payload is IMobaActorContextProvider originalPayload
+                && originalPayload.TryGetTargetActorId(out actorId)
+                && actorId > 0)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private static bool TryResolveAim(object payload, out Vec3 aimPosition, out Vec3 aimDirection)

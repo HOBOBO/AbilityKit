@@ -82,5 +82,33 @@
       10060201,
       10060301
     ]
+  },
+  {
+    "Id": 1007,
+    "AttributeTemplateId": 1007,
+    "ModelId": 1007,
+    "Name": "孙尚香",
+    "PassiveSkillIds": [
+      10070000
+    ],
+    "SkillIds": [
+      10070101,
+      10070201,
+      10070301
+    ]
+  },
+  {
+    "Id": 1008,
+    "AttributeTemplateId": 1008,
+    "ModelId": 1008,
+    "Name": "鲁班七号",
+    "PassiveSkillIds": [
+      10080000
+    ],
+    "SkillIds": [
+      10080101,
+      10080201,
+      10080301
+    ]
   }
 ]

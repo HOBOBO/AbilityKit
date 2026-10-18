@@ -29,6 +29,18 @@ namespace AbilityKit.Pipeline
         /// </summary>
         protected int _currentSubPhaseIndex = 0;
 
+        public int CurrentSubPhaseIndex
+        {
+            get => _currentSubPhaseIndex;
+            set
+            {
+                if (value < 0 || value > _subPhases.Count) throw new ArgumentOutOfRangeException(nameof(value));
+                _currentSubPhaseIndex = value;
+            }
+        }
+
+        public void SetComplete(bool isComplete) => IsComplete = isComplete;
+
         internal int DebugCurrentSubPhaseIndex => _currentSubPhaseIndex;
 
         /// <summary>
@@ -168,5 +180,6 @@ namespace AbilityKit.Pipeline
                 _subPhases[i].Reset();
             }
         }
+
     }
 }

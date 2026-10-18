@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Demo.Moba.Presentation.Core/AbilityKit.Demo.Moba.Presentation.Core.csproj" />
+    <ProjectReference Include="../AbilityKit.Demo.Moba.Presentation.Gameplay/AbilityKit.Demo.Moba.Presentation.Gameplay.csproj" />
     <ProjectReference Include="../AbilityKit.Demo.Moba.Presentation.Contracts/AbilityKit.Demo.Moba.Presentation.Contracts.csproj" />
   </ItemGroup>
 

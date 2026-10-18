@@ -14,6 +14,15 @@ namespace AbilityKit.Demo.Moba.Services
 
         private WorldId _worldId;
         private bool _hasWorldId;
+        private int _rollbackHistoryFrames = 600;
+
+        public int RollbackHistoryFrames => _rollbackHistoryFrames;
+
+        public void ConfigureRollbackHistoryFrames(int frames)
+        {
+            if (frames < 0) throw new ArgumentOutOfRangeException(nameof(frames));
+            _rollbackHistoryFrames = frames;
+        }
 
         public void BindWorld(WorldId worldId)
         {

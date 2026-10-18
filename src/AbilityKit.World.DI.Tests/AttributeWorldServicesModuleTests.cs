@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
@@ -29,6 +30,10 @@ public sealed class AttributeWorldServicesModuleTests
         Assert.Same(primary, secondary);
         Assert.Same(primary, implementation);
         Assert.NotSame(primary, fromSecondScope);
+
+        firstScope.Dispose();
+        Assert.Equal(1, implementation.DisposeCount);
+        Assert.Equal(0, ((TestMultiContractService)fromSecondScope).DisposeCount);
     }
 
     public interface ITestPrimaryPort
@@ -42,7 +47,9 @@ public sealed class AttributeWorldServicesModuleTests
     [WorldService(typeof(ITestPrimaryPort), WorldLifetime.Scoped)]
     [WorldService(typeof(ITestSecondaryPort), WorldLifetime.Scoped)]
     [WorldService(typeof(TestMultiContractService), WorldLifetime.Scoped)]
-    public sealed class TestMultiContractService : ITestPrimaryPort, ITestSecondaryPort
+    public sealed class TestMultiContractService : ITestPrimaryPort, ITestSecondaryPort, IDisposable
     {
+        public int DisposeCount { get; private set; }
+        public void Dispose() => DisposeCount++;
     }
 }

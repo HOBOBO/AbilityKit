@@ -17,6 +17,8 @@ namespace AbilityKit.Diagnostics
 
         public ProbeToken Begin(string name) => default;
 
+        public ProbeToken Begin(string name, long contextId) => default;
+
         public void Complete(ProbeToken token) { }
 
         public void Record(string name, long nanoseconds) { }

@@ -2,6 +2,7 @@
   {
     "Id": 1,
     "Name": "通用-普通攻击-兼容回退",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -15,13 +16,20 @@
   {
     "Id": 10010001,
     "Name": "廉颇-普通攻击",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
           "Events": [
-            { "AtMs": 0, "EffectId": 10010001, "ExecuteMode": 0, "EventTag": "lp_basic_melee" }
+            {
+              "AtMs": 0,
+              "EffectId": 10010001,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "lp_basic_melee"
+            }
           ]
         }
       }
@@ -36,7 +44,9 @@
         "Type": 4,
         "PhaseId": "skill_10010101_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -45,7 +55,9 @@
         "Type": 4,
         "PhaseId": "skill_10010101_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -55,8 +67,20 @@
         "Timeline": {
           "DurationMs": 650,
           "Events": [
-            { "AtMs": 0, "EffectId": 10010000, "ExecuteMode": 0, "EventTag": "lp_passive_armor_start" },
-            { "AtMs": 0, "EffectId": 10010101, "ExecuteMode": 0, "EventTag": "lp_skill_1_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10010000,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "lp_passive_armor_start"
+            },
+            {
+              "AtMs": 0,
+              "EffectId": 10010101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "lp_skill_1_cast"
+            }
           ]
         }
       }
@@ -71,7 +95,9 @@
         "Type": 4,
         "PhaseId": "skill_10010201_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -80,7 +106,9 @@
         "Type": 4,
         "PhaseId": "skill_10010201_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -90,8 +118,20 @@
         "Timeline": {
           "DurationMs": 700,
           "Events": [
-            { "AtMs": 0, "EffectId": 10010000, "ExecuteMode": 0, "EventTag": "lp_passive_armor_start" },
-            { "AtMs": 0, "EffectId": 10010201, "ExecuteMode": 0, "EventTag": "lp_skill_2_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10010000,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "lp_passive_armor_start"
+            },
+            {
+              "AtMs": 0,
+              "EffectId": 10010201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "lp_skill_2_cast"
+            }
           ]
         }
       }
@@ -105,7 +145,9 @@
       {
         "Type": 4,
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -113,7 +155,9 @@
       {
         "Type": 4,
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -128,8 +172,20 @@
             "Timeline": {
               "DurationMs": 650,
               "Events": [
-                { "AtMs": 0, "EffectId": 10010000, "ExecuteMode": 0, "EventTag": "lp_passive_armor_start" },
-                { "AtMs": 0, "EffectId": 10010301, "ExecuteMode": 0, "EventTag": "lp_skill_3_start" }
+                {
+                  "AtMs": 0,
+                  "EffectId": 10010000,
+                  "ExecuteMode": 0,
+                  "AbortOnFailure": false,
+                  "EventTag": "lp_passive_armor_start"
+                },
+                {
+                  "AtMs": 0,
+                  "EffectId": 10010301,
+                  "ExecuteMode": 0,
+                  "AbortOnFailure": false,
+                  "EventTag": "lp_skill_3_start"
+                }
               ]
             }
           },
@@ -140,7 +196,11 @@
               "Condition": "ObservedSlotsIdle",
               "TimeoutMs": 0,
               "CompleteOnTimeout": true,
-              "ObservedSlots": [1, 2]
+              "ObservedSlots": [
+                1,
+                2
+              ],
+              "Arguments": []
             }
           },
           {
@@ -149,7 +209,13 @@
             "Timeline": {
               "DurationMs": 650,
               "Events": [
-                { "AtMs": 0, "EffectId": 10010311, "ExecuteMode": 0, "EventTag": "lp_skill_3_second" }
+                {
+                  "AtMs": 0,
+                  "EffectId": 10010311,
+                  "ExecuteMode": 0,
+                  "AbortOnFailure": false,
+                  "EventTag": "lp_skill_3_second"
+                }
               ]
             }
           },
@@ -160,7 +226,11 @@
               "Condition": "ObservedSlotsIdle",
               "TimeoutMs": 0,
               "CompleteOnTimeout": true,
-              "ObservedSlots": [1, 2]
+              "ObservedSlots": [
+                1,
+                2
+              ],
+              "Arguments": []
             }
           },
           {
@@ -169,7 +239,13 @@
             "Timeline": {
               "DurationMs": 300,
               "Events": [
-                { "AtMs": 0, "EffectId": 10010321, "ExecuteMode": 0, "EventTag": "lp_skill_3_third" }
+                {
+                  "AtMs": 0,
+                  "EffectId": 10010321,
+                  "ExecuteMode": 0,
+                  "AbortOnFailure": false,
+                  "EventTag": "lp_skill_3_third"
+                }
               ]
             }
           }
@@ -180,13 +256,20 @@
   {
     "Id": 10020001,
     "Name": "小乔-普通攻击",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
           "Events": [
-            { "AtMs": 0, "EffectId": 10020001, "ExecuteMode": 0, "EventTag": "xq_basic_projectile" }
+            {
+              "AtMs": 0,
+              "EffectId": 10020001,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "xq_basic_projectile"
+            }
           ]
         }
       }
@@ -195,12 +278,15 @@
   {
     "Id": 10020101,
     "Name": "小乔-绽放之舞",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "skill_10020101_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -209,7 +295,9 @@
         "Type": 4,
         "PhaseId": "skill_10020101_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -219,7 +307,13 @@
         "Timeline": {
           "DurationMs": 600,
           "Events": [
-            { "AtMs": 0, "EffectId": 10020101, "ExecuteMode": 0, "EventTag": "xq_skill_1_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10020101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "xq_skill_1_cast"
+            }
           ]
         }
       }
@@ -228,12 +322,15 @@
   {
     "Id": 10020201,
     "Name": "小乔-甜蜜恋风",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "skill_10020201_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -242,7 +339,9 @@
         "Type": 4,
         "PhaseId": "skill_10020201_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -252,7 +351,13 @@
         "Timeline": {
           "DurationMs": 700,
           "Events": [
-            { "AtMs": 0, "EffectId": 10020201, "ExecuteMode": 0, "EventTag": "xq_skill_2_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10020201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "xq_skill_2_cast"
+            }
           ]
         }
       }
@@ -261,12 +366,15 @@
   {
     "Id": 10020301,
     "Name": "小乔-星华缭乱",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "skill_10020301_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -275,7 +383,9 @@
         "Type": 4,
         "PhaseId": "skill_10020301_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -285,7 +395,13 @@
         "Timeline": {
           "DurationMs": 500,
           "Events": [
-            { "AtMs": 0, "EffectId": 10020301, "ExecuteMode": 0, "EventTag": "xq_skill_3_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10020301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "xq_skill_3_cast"
+            }
           ]
         }
       }
@@ -294,13 +410,20 @@
   {
     "Id": 10030001,
     "Name": "赵云-普通攻击",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
           "Events": [
-            { "AtMs": 0, "EffectId": 10030001, "ExecuteMode": 0, "EventTag": "zy_basic_melee" }
+            {
+              "AtMs": 0,
+              "EffectId": 10030001,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "zy_basic_melee"
+            }
           ]
         }
       }
@@ -309,12 +432,15 @@
   {
     "Id": 10030101,
     "Name": "赵云-惊雷之龙",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "skill_10030101_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -323,7 +449,9 @@
         "Type": 4,
         "PhaseId": "skill_10030101_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -333,7 +461,13 @@
         "Timeline": {
           "DurationMs": 500,
           "Events": [
-            { "AtMs": 0, "EffectId": 10030101, "ExecuteMode": 0, "EventTag": "zy_skill_1_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10030101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "zy_skill_1_cast"
+            }
           ]
         }
       }
@@ -342,12 +476,15 @@
   {
     "Id": 10030201,
     "Name": "赵云-破云之龙",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "skill_10030201_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -356,7 +493,9 @@
         "Type": 4,
         "PhaseId": "skill_10030201_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -366,7 +505,13 @@
         "Timeline": {
           "DurationMs": 600,
           "Events": [
-            { "AtMs": 0, "EffectId": 10030201, "ExecuteMode": 0, "EventTag": "zy_skill_2_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10030201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "zy_skill_2_cast"
+            }
           ]
         }
       }
@@ -375,12 +520,15 @@
   {
     "Id": 10030301,
     "Name": "赵云-天翔之龙",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "skill_10030301_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -389,7 +537,9 @@
         "Type": 4,
         "PhaseId": "skill_10030301_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -399,7 +549,13 @@
         "Timeline": {
           "DurationMs": 800,
           "Events": [
-            { "AtMs": 0, "EffectId": 10030301, "ExecuteMode": 0, "EventTag": "zy_skill_3_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10030301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "zy_skill_3_cast"
+            }
           ]
         }
       }
@@ -408,13 +564,20 @@
   {
     "Id": 10040011,
     "Name": "墨子-普通攻击",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
           "Events": [
-            { "AtMs": 0, "EffectId": 10040011, "ExecuteMode": 0, "EventTag": "mz_basic_projectile" }
+            {
+              "AtMs": 0,
+              "EffectId": 10040011,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "mz_basic_projectile"
+            }
           ]
         }
       }
@@ -423,12 +586,15 @@
   {
     "Id": 10040101,
     "Name": "墨子-和平漫步",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "skill_10040101_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -437,7 +603,9 @@
         "Type": 4,
         "PhaseId": "skill_10040101_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -447,7 +615,13 @@
         "Timeline": {
           "DurationMs": 600,
           "Events": [
-            { "AtMs": 0, "EffectId": 10040101, "ExecuteMode": 0, "EventTag": "mz_skill_1_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10040101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "mz_skill_1_cast"
+            }
           ]
         }
       }
@@ -456,13 +630,20 @@
   {
     "Id": 10040112,
     "Name": "墨子-和平漫步-强化近战普攻",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
           "Events": [
-            { "AtMs": 0, "EffectId": 10040112, "ExecuteMode": 0, "EventTag": "mz_skill_1_enhanced_basic" }
+            {
+              "AtMs": 0,
+              "EffectId": 10040112,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "mz_skill_1_enhanced_basic"
+            }
           ]
         }
       }
@@ -471,12 +652,15 @@
   {
     "Id": 10040201,
     "Name": "墨子-机关重炮",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "skill_10040201_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -485,7 +669,9 @@
         "Type": 4,
         "PhaseId": "skill_10040201_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -495,7 +681,13 @@
         "Timeline": {
           "DurationMs": 500,
           "Events": [
-            { "AtMs": 0, "EffectId": 10040201, "ExecuteMode": 0, "EventTag": "mz_skill_2_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10040201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "mz_skill_2_cast"
+            }
           ]
         }
       }
@@ -504,12 +696,15 @@
   {
     "Id": 10040301,
     "Name": "墨子-墨守成规",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "skill_10040301_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -518,7 +713,9 @@
         "Type": 4,
         "PhaseId": "skill_10040301_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -528,7 +725,13 @@
         "Timeline": {
           "DurationMs": 3500,
           "Events": [
-            { "AtMs": 0, "EffectId": 10040301, "ExecuteMode": 0, "EventTag": "mz_skill_3_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10040301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "mz_skill_3_cast"
+            }
           ]
         }
       }
@@ -537,13 +740,20 @@
   {
     "Id": 10050001,
     "Name": "妲己-普通攻击",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
           "Events": [
-            { "AtMs": 0, "EffectId": 10050001, "ExecuteMode": 0, "EventTag": "dj_basic_projectile" }
+            {
+              "AtMs": 0,
+              "EffectId": 10050001,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "dj_basic_projectile"
+            }
           ]
         }
       }
@@ -552,12 +762,15 @@
   {
     "Id": 10050101,
     "Name": "妲己-灵魂冲击",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "skill_10050101_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -566,7 +779,9 @@
         "Type": 4,
         "PhaseId": "skill_10050101_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -576,7 +791,13 @@
         "Timeline": {
           "DurationMs": 500,
           "Events": [
-            { "AtMs": 0, "EffectId": 10050101, "ExecuteMode": 0, "EventTag": "dj_skill_1_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10050101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "dj_skill_1_cast"
+            }
           ]
         }
       }
@@ -585,12 +806,15 @@
   {
     "Id": 10050201,
     "Name": "妲己-偶像魅力",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "skill_10050201_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -599,7 +823,9 @@
         "Type": 4,
         "PhaseId": "skill_10050201_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -609,7 +835,13 @@
         "Timeline": {
           "DurationMs": 500,
           "Events": [
-            { "AtMs": 0, "EffectId": 10050201, "ExecuteMode": 0, "EventTag": "dj_skill_2_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10050201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "dj_skill_2_cast"
+            }
           ]
         }
       }
@@ -618,12 +850,15 @@
   {
     "Id": 10050301,
     "Name": "妲己-女王崇拜",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "skill_10050301_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -632,7 +867,9 @@
         "Type": 4,
         "PhaseId": "skill_10050301_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -642,7 +879,13 @@
         "Timeline": {
           "DurationMs": 1600,
           "Events": [
-            { "AtMs": 0, "EffectId": 10050301, "ExecuteMode": 0, "EventTag": "dj_skill_3_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10050301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "dj_skill_3_cast"
+            }
           ]
         }
       }
@@ -651,13 +894,20 @@
   {
     "Id": 10060001,
     "Name": "嬴政-普通攻击",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
           "Events": [
-            { "AtMs": 0, "EffectId": 10060001, "ExecuteMode": 0, "EventTag": "yz_basic_projectile" }
+            {
+              "AtMs": 0,
+              "EffectId": 10060001,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "yz_basic_projectile"
+            }
           ]
         }
       }
@@ -666,12 +916,15 @@
   {
     "Id": 10060101,
     "Name": "嬴政-王者惩戒",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "yz_skill_1_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -680,7 +933,9 @@
         "Type": 4,
         "PhaseId": "yz_skill_1_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -690,7 +945,13 @@
         "Timeline": {
           "DurationMs": 800,
           "Events": [
-            { "AtMs": 0, "EffectId": 10060101, "ExecuteMode": 0, "EventTag": "yz_skill_1_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10060101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "yz_skill_1_cast"
+            }
           ]
         }
       }
@@ -699,12 +960,15 @@
   {
     "Id": 10060201,
     "Name": "嬴政-王者守御",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "yz_skill_2_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -713,7 +977,9 @@
         "Type": 4,
         "PhaseId": "yz_skill_2_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -723,7 +989,13 @@
         "Timeline": {
           "DurationMs": 500,
           "Events": [
-            { "AtMs": 0, "EffectId": 10060201, "ExecuteMode": 0, "EventTag": "yz_skill_2_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10060201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "yz_skill_2_cast"
+            }
           ]
         }
       }
@@ -732,12 +1004,15 @@
   {
     "Id": 10060301,
     "Name": "嬴政-至尊王权",
+    "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
         "Type": 4,
         "PhaseId": "yz_skill_3_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -746,7 +1021,9 @@
         "Type": 4,
         "PhaseId": "yz_skill_3_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
@@ -756,7 +1033,411 @@
         "Timeline": {
           "DurationMs": 2500,
           "Events": [
-            { "AtMs": 0, "EffectId": 10060301, "ExecuteMode": 0, "EventTag": "yz_skill_3_cast" }
+            {
+              "AtMs": 0,
+              "EffectId": 10060301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "yz_skill_3_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10070001,
+    "Name": "孙尚香-普通攻击",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 250,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 10070001,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "ssx_basic_projectile"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10070101,
+    "Name": "孙尚香-翻滚突袭",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "ssx_skill_1_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "ssx_skill_1_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 800,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 10070101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "ssx_skill_1_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10070112,
+    "Name": "孙尚香-强化普通攻击",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 2,
+        "PhaseId": "ssx_skill_1_enhanced_basic",
+        "Timeline": {
+          "DurationMs": 250,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 10070112,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "ssx_skill_1_enhanced_basic"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10070201,
+    "Name": "孙尚香-红莲爆弹",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "ssx_skill_2_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "ssx_skill_2_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 10070201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "ssx_skill_2_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10070301,
+    "Name": "孙尚香-究极弩炮",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "ssx_skill_3_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "ssx_skill_3_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 2500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 10070301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "ssx_skill_3_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10080001,
+    "Name": "鲁班七号-普通攻击",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 250,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 10080001,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "luban_basic_projectile"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10080101,
+    "Name": "鲁班七号-河豚手雷",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "luban_skill_1_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "luban_skill_1_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 800,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 10080101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "luban_skill_1_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10080112,
+    "Name": "鲁班七号-强化扫射",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 2,
+        "PhaseId": "luban_skill_1_enhanced_basic",
+        "Timeline": {
+          "DurationMs": 250,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 10080112,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "luban_skill_1_enhanced_basic"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10080201,
+    "Name": "鲁班七号-无敌鲨嘴炮",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "luban_skill_2_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "luban_skill_2_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 10080201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "luban_skill_2_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10080301,
+    "Name": "鲁班七号-空中支援",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "luban_skill_3_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "luban_skill_3_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 2500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 10080301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "luban_skill_3_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10080401,
+    "Name": "鲁班七号-空中支援-召唤物投弹",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "luban_airship_skill_3_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "luban_airship_skill_3_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 2500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 10080401,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "luban_airship_bomb"
+            }
           ]
         }
       }

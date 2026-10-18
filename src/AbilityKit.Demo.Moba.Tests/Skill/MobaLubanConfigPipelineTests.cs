@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Moba.Tests.Skill;
 
 public sealed class MobaLubanConfigPipelineTests
 {
-    private static readonly int[] HeroIds = { 1001, 1002, 1003, 1004, 1005, 1006 };
+    private static readonly int[] HeroIds = { 1001, 1002, 1003, 1004, 1005, 1006, 1007 };
 
     [Fact]
     public void Published_catalog_has_no_numeric_or_per_skill_tags()
@@ -279,7 +279,10 @@ public sealed class MobaLubanConfigPipelineTests
         var services = builder.Build();
         using var scope = services.CreateScope();
         var triggers = scope.Resolve<TriggerPlanJsonDatabase>();
-        Assert.Equal(100, triggers.Records.Count);
+        // The editor aggregate includes the authored hero trigger plans in
+        // addition to the two published rule plans.
+        Assert.Equal(129, triggers.Records.Count);
+        Assert.True(triggers.TryGetRecordByTriggerId(10070011, out _));
         Assert.True(triggers.TryGetRecordByTriggerId(10010301, out _));
     }
 
@@ -300,7 +303,8 @@ public sealed class MobaLubanConfigPipelineTests
         Assert.True(JToken.DeepEquals(unity, console));
 
         var triggers = (JArray)unity["Triggers"]!;
-        Assert.Equal(98, triggers.Count);
+        Assert.Equal(127, triggers.Count);
+        Assert.Contains(triggers, row => row.Value<int>("TriggerId") == 10070011);
         foreach (var id in new[] { 10010301, 10010311, 10010321 })
         {
             var trigger = triggers.Single(row => row.Value<int>("TriggerId") == id);
@@ -310,7 +314,7 @@ public sealed class MobaLubanConfigPipelineTests
 
         var database = new TriggerPlanJsonDatabase();
         database.LoadFromJson(unity.ToString(), "moba-editor-trigger-aggregate");
-        Assert.Equal(98, database.Records.Count);
+        Assert.Equal(127, database.Records.Count);
         Assert.True(database.TryGetRecordByTriggerId(10010301, out _));
     }
 

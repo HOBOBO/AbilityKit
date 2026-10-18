@@ -15,6 +15,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     {
         public const int DefaultKey = 10031;
         private const int Version = 6;
+        private const int LegacyEnvelopeVersion = 5;
         private const int LegacyVersion = 5;
         private readonly MobaContinuousManager _continuous;
         private readonly MobaTriggerIntervalContinuousService _triggerIntervals;
@@ -60,17 +61,24 @@ namespace AbilityKit.Demo.Moba.Rollback
                     section.Write(pair.Key.OwnerActorId);
                     section.Write(pair.Key.ModifierSourceId);
                     section.Write(pair.Key.TargetActorId);
-                    var captures = pair.Value.ModifierCaptures;
-                    var indices = new List<int>(captures.Keys);
-                    indices.Sort();
-                    section.Write(indices.Count);
-                    foreach (var index in indices)
+                    var captures = pair.Value.StableModifierCaptures;
+                    var keys = new List<MobaContinuousModifierCaptureKey>(captures.Keys);
+                    keys.Sort((left, right) =>
                     {
-                        section.Write(index);
-                        section.Write(captures[index].Stack);
-                        section.Write(captures[index].Value);
-                        section.Write(captures[index].HasUnitValue);
-                        if (captures[index].HasUnitValue) section.Write(captures[index].UnitValue);
+                        var definition = left.DefinitionId.CompareTo(right.DefinitionId);
+                        return definition != 0 ? definition : left.Ordinal.CompareTo(right.Ordinal);
+                    });
+                    // A negative count marks the stable-key representation while keeping
+                    // the version-6 envelope readable by the previous index-based reader.
+                    section.Write(keys.Count == 0 ? 0 : -keys.Count);
+                    foreach (var key in keys)
+                    {
+                        section.Write(key.DefinitionId);
+                        section.Write(key.Ordinal);
+                        section.Write(captures[key].Stack);
+                        section.Write(captures[key].Value);
+                        section.Write(captures[key].HasUnitValue);
+                        if (captures[key].HasUnitValue) section.Write(captures[key].UnitValue);
                     }
                 }
             });
@@ -92,7 +100,9 @@ namespace AbilityKit.Demo.Moba.Rollback
         {
             using var input = new MemoryStream(payload, writable: false);
             using var reader = new BinaryReader(input);
-            if (reader.ReadInt32() != Version) throw new InvalidDataException("Invalid continuous modifier version.");
+            var envelopeVersion = reader.ReadInt32();
+            if (envelopeVersion != Version && envelopeVersion != LegacyEnvelopeVersion)
+                throw new InvalidDataException("Invalid continuous modifier version.");
             var count = reader.ReadInt32();
             if (count != 3) throw new InvalidDataException("Invalid continuous modifier section count.");
             var sections = new Dictionary<string, byte[]>(StringComparer.Ordinal);
@@ -113,7 +123,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             using var output = new MemoryStream();
             using (var writer = new BinaryWriter(output, System.Text.Encoding.UTF8, leaveOpen: true))
             {
-                writer.Write(LegacyVersion);
+                writer.Write(envelopeVersion == Version ? 6 : LegacyVersion);
                 writer.Write(allocator);
                 writer.Write(intervals);
                 writer.Write(captures);
@@ -133,22 +143,22 @@ namespace AbilityKit.Demo.Moba.Rollback
                     out _, preflight: false);
             }
             _continuous.RestoreNextModifierSourceId(nextSourceId);
-            foreach (var pair in restored) pair.Key.RestoreModifierCaptures(pair.Value);
+            foreach (var pair in restored) pair.Key.RestoreStableModifierCaptures(pair.Value);
             foreach (var pair in restored) _continuous.Reproject(pair.Key);
         }
 
-        private List<KeyValuePair<MobaContinuousRuntimeBase, Dictionary<int, MobaModifierCapturedValue>>>
+        private List<KeyValuePair<MobaContinuousRuntimeBase, Dictionary<MobaContinuousModifierCaptureKey, MobaModifierCapturedValue>>>
             ReadAndValidate(byte[] payload, SortedDictionary<Identity, MobaContinuousRuntimeBase> runtimes,
                 out int nextSourceId, out List<MobaTriggerIntervalContinuousService.RollbackEntry> intervals,
                 bool preflight)
         {
             if (payload == null || payload.Length == 0) throw new InvalidDataException("Continuous modifier capture payload is missing.");
-            if (payload.Length >= sizeof(int) && BitConverter.ToInt32(payload, 0) == Version)
+            if (IsNamedEnvelope(payload))
                 payload = ReadLegacyPayload(payload);
             using var stream = new MemoryStream(payload, writable: false);
             using var reader = new BinaryReader(stream);
             var version = reader.ReadInt32();
-            if (version != 2 && version != 3 && version != 4 && version != LegacyVersion)
+            if (version != 2 && version != 3 && version != 4 && version != LegacyVersion && version != 6)
                 throw new InvalidDataException("Unsupported continuous modifier capture payload version.");
             nextSourceId = version >= 4 ? reader.ReadInt32() : _continuous.NextModifierSourceId;
             intervals = null;
@@ -174,7 +184,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             var count = reader.ReadInt32();
             if (count < 0 || count > 100000) throw new InvalidDataException("Invalid continuous modifier capture count.");
 
-            var restored = new List<KeyValuePair<MobaContinuousRuntimeBase, Dictionary<int, MobaModifierCapturedValue>>>(count);
+            var restored = new List<KeyValuePair<MobaContinuousRuntimeBase, Dictionary<MobaContinuousModifierCaptureKey, MobaModifierCapturedValue>>>(count);
             var restoredIds = new HashSet<Identity>();
             for (var entry = 0; entry < count; entry++)
             {
@@ -194,27 +204,30 @@ namespace AbilityKit.Demo.Moba.Rollback
                     throw new InvalidOperationException("Continuous modifier capture identity changed since snapshot.");
                 if (plannedInterval && identity.ModifierSourceId >= nextSourceId)
                     throw new InvalidDataException("Modifier source allocator state precedes a captured source.");
-                var captureCount = reader.ReadInt32();
+                var rawCaptureCount = reader.ReadInt32();
+                var stableKeys = version >= 6 && rawCaptureCount < 0;
+                var captureCount = stableKeys ? -rawCaptureCount : rawCaptureCount;
                 if (captureCount < 0 || captureCount > 10000) throw new InvalidDataException("Invalid modifier capture count.");
-                var captures = new Dictionary<int, MobaModifierCapturedValue>(captureCount);
+                var captures = new Dictionary<MobaContinuousModifierCaptureKey, MobaModifierCapturedValue>(captureCount);
                 var specCount = runtime != null
                     ? (runtime.Config as IMobaContinuousModifierConfig)?.Modifiers?.Count ?? 0
                     : intervalSpecCount;
                 for (var i = 0; i < captureCount; i++)
                 {
+                    var definitionId = stableKeys ? reader.ReadInt32() : 0;
                     var index = reader.ReadInt32();
                     var stack = reader.ReadInt32();
                     var value = reader.ReadSingle();
                     var hasUnitValue = version >= 3 && reader.ReadBoolean();
                     var unitValue = hasUnitValue ? reader.ReadSingle() : 0f;
-                    if (index < 0 || index >= specCount || stack < 1 || float.IsNaN(value) || float.IsInfinity(value) ||
+                    if (index < 0 || index >= specCount || definitionId < 0 || stack < 1 || float.IsNaN(value) || float.IsInfinity(value) ||
                         hasUnitValue && (float.IsNaN(unitValue) || float.IsInfinity(unitValue)) ||
-                        !captures.TryAdd(index, new MobaModifierCapturedValue(stack, value,
+                        !captures.TryAdd(new MobaContinuousModifierCaptureKey(definitionId, index), new MobaModifierCapturedValue(stack, value,
                             hasUnitValue ? unitValue : (float?)null)))
                         throw new InvalidDataException("Invalid modifier capture entry.");
                 }
                 if (runtime != null)
-                    restored.Add(new KeyValuePair<MobaContinuousRuntimeBase, Dictionary<int, MobaModifierCapturedValue>>(runtime, captures));
+                    restored.Add(new KeyValuePair<MobaContinuousRuntimeBase, Dictionary<MobaContinuousModifierCaptureKey, MobaModifierCapturedValue>>(runtime, captures));
             }
             if (stream.Position != stream.Length) throw new InvalidDataException("Continuous modifier capture payload contains trailing data.");
             foreach (var pair in runtimes)
@@ -236,6 +249,29 @@ namespace AbilityKit.Demo.Moba.Rollback
             }
 
             return restored;
+        }
+
+        private static bool IsNamedEnvelope(byte[] payload)
+        {
+            if (payload == null || payload.Length < sizeof(int) * 2) return false;
+            var version = BitConverter.ToInt32(payload, 0);
+            if (version != Version && version != LegacyEnvelopeVersion) return false;
+            // Both the current envelope and the version-5 compatibility envelope contain
+            // exactly three named sections. A bare legacy payload stores the allocator value
+            // in this position, so it must not be mistaken for an envelope.
+            if (BitConverter.ToInt32(payload, sizeof(int)) != 3) return false;
+            try
+            {
+                using var stream = new MemoryStream(payload, writable: false);
+                using var reader = new BinaryReader(stream);
+                reader.ReadInt32();
+                if (reader.ReadInt32() != 3) return false;
+                return string.Equals(reader.ReadString(), "allocator", StringComparison.Ordinal);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         public void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash)

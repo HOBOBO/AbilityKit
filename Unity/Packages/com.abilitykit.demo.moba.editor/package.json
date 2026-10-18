@@ -12,6 +12,7 @@
     "com.abilitykit.combat.navigation": "0.1.0",
     "com.abilitykit.continuous": "0.1.0",
     "com.abilitykit.demo.moba.runtime": "0.0.1",
+    "com.abilitykit.demo.moba.jobs": "0.0.1",
     "com.abilitykit.demo.moba.view.runtime": "0.0.1",
     "com.abilitykit.world.ecs": "0.1.0",
     "com.abilitykit.world.entitas": "0.1.0",

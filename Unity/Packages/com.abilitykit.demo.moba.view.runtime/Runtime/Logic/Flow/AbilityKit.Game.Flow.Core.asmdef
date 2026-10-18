@@ -1,0 +1,27 @@
+{
+  "name": "AbilityKit.Game.Flow.Core",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.Flow",
+    "AbilityKit.Game.View.Runtime",
+    "AbilityKit.HFSM.Core",
+    "AbilityKit.Network.Room",
+    "AbilityKit.Demo.Moba.Presentation.Contracts",
+    "AbilityKit.Demo.Moba.Presentation.SnapshotAdapter",
+    "AbilityKit.Protocol.Moba",
+    "AbilityKit.World.DI",
+    "AbilityKit.World.ECS",
+    "AbilityKit.World.Snapshot",
+    "AbilityKit.World.NetworkFragments"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

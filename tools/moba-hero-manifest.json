@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
   "manifest": "moba-hero-production",
-  "charactersPath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/characters.json",
+  "charactersPath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/characters.json",
   "acceptanceCoveragePath": "tools/moba-hero-acceptance-coverage.json",
   "requiredConfigPaths": [
-    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skills.json",
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/skills.json",
     "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skill_flows.json",
-    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skill_button_templates.json"
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/skill_button_templates.json"
   ],
   "requiredPresentationPaths": [
-    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/models.json",
-    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/aoes.json",
-    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/projectiles.json",
-    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/presentation_templates.json"
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/models.json",
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/aoes.json",
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/projectiles.json",
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/presentation_templates.json"
   ],
   "heroes": [
     {
@@ -56,6 +56,20 @@
       "heroName": "YingZheng",
       "fixture": "AbilityKit.Game.Test.UnitTest.YingZhengSkillAcceptanceTests",
       "fixturePath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/YingZheng/YingZhengSkillAcceptanceTests.cs"
+    },
+    {
+      "characterId": 1007,
+      "acceptanceHeroId": 1007,
+      "heroName": "SunShangxiang",
+      "fixture": "AbilityKit.Game.Test.UnitTest.SunShangxiangSkillAcceptanceTests",
+      "fixturePath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/SunShangxiang/SunShangxiangSkillAcceptanceTests.cs"
+    },
+    {
+      "characterId": 1008,
+      "acceptanceHeroId": 1008,
+      "heroName": "Luban",
+      "fixture": "AbilityKit.Game.Test.UnitTest.LubanSkillAcceptanceTests",
+      "fixturePath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/Luban/LubanSkillAcceptanceTests.cs"
     }
   ]
 }

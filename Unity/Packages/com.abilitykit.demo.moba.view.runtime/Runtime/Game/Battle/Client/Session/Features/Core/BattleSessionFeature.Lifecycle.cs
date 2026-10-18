@@ -3,7 +3,6 @@ using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle.Shared.Assets;
-using UnityEngine;
 using AbilityKit.Game.Flow.Modules;
 
 namespace AbilityKit.Game.Flow
@@ -21,7 +20,6 @@ namespace AbilityKit.Game.Flow
             try
             {
                 _startupTasks.Attach();
-                TryInstallUnityLogSinkIfNeeded();
 
                 _phaseCtx = ctx;
                 _ctx = ctx.RequireFeature<BattleContext>(nameof(BattleSessionFeature));
@@ -44,26 +42,6 @@ namespace AbilityKit.Game.Flow
             {
                 _ = ObserveDetachFailureAsync(DetachAsync(ctx));
                 throw;
-            }
-        }
-
-        private static void TryInstallUnityLogSinkIfNeeded()
-        {
-            if (!(Log.Sink is NullLogSink)) return;
-
-            try
-            {
-                var type = Type.GetType("AbilityKit.Examples.Common.Log.UnityLogSink, AbilityKit.Demo.Moba.View.Runtime");
-                if (type == null) return;
-                if (!typeof(ILogSink).IsAssignableFrom(type)) return;
-
-                var sink = Activator.CreateInstance(type) as ILogSink;
-                if (sink == null) return;
-                Log.SetSink(sink);
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[BattleSessionFeature] TryInstallUnityLogSinkIfNeeded failed");
             }
         }
 
@@ -112,9 +90,11 @@ namespace AbilityKit.Game.Flow
                     }),
                 new AsyncSessionTeardownStep("gateway room", StopGatewayRoomPreparationAsync),
                 new AsyncSessionTeardownStep("network condition", () => NetworkCondition.Detach()),
-                new AsyncSessionTeardownStep("spectator session", _runtime.Spectator.StopAsync),
+                new AsyncSessionTeardownStep("spectator view", HideSpectatorView),
+                new AsyncSessionTeardownStep("replay view", HideReplayView),
+                new AsyncSessionTeardownStep("spectator session", StopSpectatingAsync),
                 new AsyncSessionTeardownStep("replay session", _runtime.Replay.Stop),
-                new AsyncSessionTeardownStep("battle session", _orchestrator.StopSessionAsync),
+                new AsyncSessionTeardownStep("battle session", _clientDriver.StopAsync),
                 new AsyncSessionTeardownStep("session flags", _state.ResetSessionFlags),
                 new AsyncSessionTeardownStep("session events", () => _eventsCtrl.OnDetach(this)),
                 new AsyncSessionTeardownStep("session context", () => SessionContextBinder.ClearSession(_ctx)),
@@ -182,6 +162,7 @@ namespace AbilityKit.Game.Flow
             Hooks?.PreTick.Invoke(deltaTime);
             InvokeSubFeaturesPreTick(ctx, deltaTime);
             _runtime.Replay.Tick(deltaTime);
+            _runtime.Spectator.Tick(10);
 
             if (_session == null) return;
 

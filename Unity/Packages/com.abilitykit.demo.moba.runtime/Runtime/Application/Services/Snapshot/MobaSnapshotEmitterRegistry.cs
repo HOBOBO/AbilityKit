@@ -30,9 +30,14 @@ namespace AbilityKit.Demo.Moba.Services
             MobaSnapshotEmitterRegistry registry = new MobaSnapshotEmitterRegistry();
             if (RegisterGeneratedAndExternalEmitters(registry) == 0)
             {
-                if (AppContext.TryGetSwitch(
+                var reflectionFallbackDisabled =
+                    AppContext.TryGetSwitch(
                         "AbilityKit.Moba.DisableSnapshotEmitterReflectionFallback",
-                        out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
+                        out var configuredFallbackDisabled) && configuredFallbackDisabled;
+#if !UNITY_EDITOR && !DEVELOPMENT_BUILD
+                reflectionFallbackDisabled = true;
+#endif
+                if (reflectionFallbackDisabled)
                 {
                     throw new InvalidOperationException(
                         "The generated MOBA snapshot emitter manifest is empty and reflection fallback is disabled.");

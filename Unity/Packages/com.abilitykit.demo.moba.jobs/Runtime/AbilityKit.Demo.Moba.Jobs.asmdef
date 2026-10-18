@@ -1,0 +1,27 @@
+{
+  "name": "AbilityKit.Demo.Moba.Jobs",
+  "rootNamespace": "AbilityKit.Demo.Moba.Jobs",
+  "references": [
+    "AbilityKit.Compute.UnityJobs",
+    "AbilityKit.Demo.Moba.Runtime",
+    "Unity.Burst",
+    "Unity.Collections"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [
+    "ABILITYKIT_MOBA_UNITY_JOBS"
+  ],
+  "versionDefines": [
+    {
+      "name": "com.unity.collections",
+      "expression": "1.0.0",
+      "define": "ABILITYKIT_MOBA_UNITY_JOBS"
+    }
+  ],
+  "noEngineReferences": false
+}

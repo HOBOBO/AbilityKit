@@ -186,5 +186,38 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(58)]
         public int ConfirmedFrame;
 
+        [MemoryPackOrder(59)]
+        public int Lifetime;
+
+        [MemoryPackOrder(60)]
+        public int Domain;
+
+        [MemoryPackOrder(61)]
+        public int ParameterSchemaVersion;
+
+        [MemoryPackOrder(62)]
+        public int SnapshotKind;
+
+        [MemoryPackOrder(63)]
+        public long WorldId;
+
+        [MemoryPackOrder(64)]
+        public long Generation;
+
+        [MemoryPackOrder(65)]
+        public int SourceFrame;
+
+        [MemoryPackOrder(66)]
+        public long Sequence;
+
+        [MemoryPackOrder(67)]
+        public int Revision;
+
+        [MemoryPackOrder(68)]
+        public AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueParameter[] Parameters;
+
+        [MemoryPackOrder(69)]
+        public string EventKey;
+
     }
 }

@@ -298,10 +298,20 @@ namespace AbilityKit.Pipeline.Editor.Tests
             public EAbilityPipelineState State => Context.PipelineState;
             public bool IsPaused => Context.IsPaused;
             public AbilityPipelinePhaseId CurrentPhaseId => Context.CurrentPhaseId;
+            public IReadOnlyList<IAbilityPipelinePhase<FakeContext>> Phases => Array.Empty<IAbilityPipelinePhase<FakeContext>>();
+            public int CurrentPhaseIndex => 0;
+            public bool HasCurrentPhase => false;
+            public bool IsCancelled => Context.IsAborted;
             public IReadOnlyList<PipelinePhaseDebugState> PhaseStates { get; set; } =
                 Array.Empty<PipelinePhaseDebugState>();
 
             public PipelineDebugRunState CaptureDebugState() => new PipelineDebugRunState(PhaseStates);
+            public void SetExecutionPosition(int phaseIndex, bool hasCurrentPhase, bool isPaused, bool isCancelled)
+            {
+                Context.IsPaused = isPaused;
+                Context.IsAborted = isCancelled;
+            }
+            public void Release() { }
             public void Tick(float deltaTime) => Context.Elapsed += deltaTime;
             public void Pause() => Context.IsPaused = true;
             public void Resume() => Context.IsPaused = false;

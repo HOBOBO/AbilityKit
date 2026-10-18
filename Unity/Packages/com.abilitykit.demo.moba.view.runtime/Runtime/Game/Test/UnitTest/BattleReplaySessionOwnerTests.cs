@@ -226,7 +226,11 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.That(runtime.DisposeCount, Is.EqualTo(1));
             Assert.That(runtime.ActiveCheckpointCount, Is.Zero);
-            Assert.That(owner.LastFailure, Is.SameAs(releaseFailure));
+            Assert.That(owner.LastFailure, Is.TypeOf<AggregateException>());
+            var failures = ((AggregateException)owner.LastFailure).InnerExceptions;
+            Assert.That(failures, Has.Count.EqualTo(2));
+            Assert.That(failures[0], Is.SameAs(releaseFailure));
+            Assert.That(failures[1], Is.SameAs(releaseFailure));
             Assert.That(runtime.CleanupEvents, Is.EqualTo(new[] { "dispose" }));
         }
 

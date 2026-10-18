@@ -1,0 +1,44 @@
+{
+  "Id": 10070201,
+  "Name": "孙尚香-红莲爆弹",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "ssx_skill_2_release",
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "ssx_skill_2_commit",
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      }
+    },
+    {
+      "Type": 2,
+      "Timeline": {
+        "DurationMs": 500,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 10070201,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "ssx_skill_2_cast"
+          }
+        ]
+      }
+    }
+  ]
+}

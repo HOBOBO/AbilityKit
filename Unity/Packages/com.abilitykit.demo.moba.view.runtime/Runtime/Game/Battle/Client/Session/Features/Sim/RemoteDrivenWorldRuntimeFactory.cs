@@ -96,7 +96,8 @@ namespace AbilityKit.Game.Flow
             try
             {
                 world = runtime.CreateWorld(worldOptions);
-                BindAuthorityFrameService(world);
+                BindAuthorityFrameService(world, options.EnableClientPrediction
+                    ? RemoteDrivenRuntimeModuleFactory.PredictionRollbackHistoryFrames : 0);
                 return new RemoteDrivenWorldRuntime(worldId, worlds, runtime, world);
             }
             catch
@@ -125,7 +126,7 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private static void BindAuthorityFrameService(IWorld world)
+        private static void BindAuthorityFrameService(IWorld world, int rollbackHistoryFrames)
         {
             try
             {
@@ -134,6 +135,7 @@ namespace AbilityKit.Game.Flow
                     authorityFrameService != null)
                 {
                     authorityFrameService.BindWorld(world.Id);
+                    authorityFrameService.ConfigureRollbackHistoryFrames(rollbackHistoryFrames);
                 }
             }
             catch (Exception ex)

@@ -10,11 +10,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\App\Flow\Core\**\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Logic\Flow\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Presentation.Contracts\AbilityKit.Demo.Moba.Presentation.Contracts.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Presentation.SnapshotAdapter\AbilityKit.Demo.Moba.Presentation.SnapshotAdapter.csproj" />
     <ProjectReference Include="..\AbilityKit.Flow\AbilityKit.Flow.csproj" />
     <ProjectReference Include="..\AbilityKit.Game.View.Runtime\AbilityKit.Game.View.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.HFSM.Core\AbilityKit.HFSM.Core.csproj" />
@@ -22,5 +23,7 @@
     <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
     <ProjectReference Include="..\AbilityKit.World.DI\AbilityKit.World.DI.csproj" />
     <ProjectReference Include="..\AbilityKit.World.ECS\AbilityKit.World.ECS.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.Snapshot\AbilityKit.World.Snapshot.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.NetworkFragments\AbilityKit.World.NetworkFragments.csproj" />
   </ItemGroup>
 </Project>

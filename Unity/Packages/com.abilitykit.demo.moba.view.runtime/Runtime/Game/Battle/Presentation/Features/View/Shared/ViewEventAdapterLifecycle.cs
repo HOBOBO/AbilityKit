@@ -13,6 +13,8 @@ namespace AbilityKit.Game.Flow
         private IBattleViewEventSink _triggerSink;
         private FrameSnapshotDispatcher _snapshotDispatcher;
         private IBattleViewEventSink _snapshotSink;
+        private BattleContext _snapshotContext;
+        private long _snapshotBindingGeneration;
 
         public ViewEventAdapterLifecycle(
             ViewEventAdapterFactory adapters = null,
@@ -44,6 +46,8 @@ namespace AbilityKit.Game.Flow
             _triggerSink = null;
             _snapshotDispatcher = null;
             _snapshotSink = null;
+            _snapshotContext = null;
+            _snapshotBindingGeneration = 0;
         }
 
         public void Refresh(IViewFeatureRuntime runtime)
@@ -76,14 +80,30 @@ namespace AbilityKit.Game.Flow
                 ? current
                 : null;
             if (ReferenceEquals(_snapshotDispatcher, snapshots) &&
-                ReferenceEquals(_snapshotSink, sink)) return;
+                ReferenceEquals(_snapshotSink, sink) &&
+                ReferenceEquals(_snapshotContext, runtime.Context) &&
+                _snapshotBindingGeneration == GetSnapshotBindingGeneration(runtime.Context)) return;
             runtime.SnapshotAdapter?.Dispose();
             runtime.SnapshotAdapter = null;
             _snapshotDispatcher = snapshots;
             _snapshotSink = sink;
+            _snapshotContext = runtime.Context;
+            _snapshotBindingGeneration = GetSnapshotBindingGeneration(runtime.Context);
             if (snapshots != null && sink != null)
-                runtime.SnapshotAdapter = _adapters.CreateSnapshot(snapshots, sink);
+            {
+                var context = _snapshotContext;
+                var generation = _snapshotBindingGeneration;
+                runtime.SnapshotAdapter = _adapters.CreateSnapshot(
+                    snapshots,
+                    sink,
+                    () => context != null &&
+                          context.IsCurrentSnapshotRouting(generation, snapshots) &&
+                          ReferenceEquals(runtime.Context, context));
+            }
         }
+
+        private static long GetSnapshotBindingGeneration(BattleContext context) =>
+            context == null ? 0 : context.SnapshotRoutingGeneration;
     }
 
     internal sealed class ViewEventAdapterFactory
@@ -93,9 +113,12 @@ namespace AbilityKit.Game.Flow
             return new BattleTriggerEventViewAdapter(subscription);
         }
 
-        public BattleSnapshotViewAdapter CreateSnapshot(FrameSnapshotDispatcher snapshots, IBattleViewEventSink sink)
+        public BattleSnapshotViewAdapter CreateSnapshot(
+            FrameSnapshotDispatcher snapshots,
+            IBattleViewEventSink sink,
+            System.Func<bool> isCurrent = null)
         {
-            return new BattleSnapshotViewAdapter(snapshots, sink);
+            return new BattleSnapshotViewAdapter(snapshots, sink, isCurrent);
         }
     }
 

@@ -27,11 +27,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var durationMs = ReadInt(namedArgs, ctx, 0, "duration_ms", "durationms", "duration", "duration_millis");
             var stackingPolicy = ReadEnum(namedArgs, ctx, ShieldStackingPolicy.Independent, "stacking_policy", "stackingpolicy");
             var consumePolicy = ReadEnum(namedArgs, ctx, ShieldConsumePolicy.PriorityThenOldest, "consume_policy", "consumepolicy");
+            var sharePolicy = ReadEnum(namedArgs, ctx, ShieldSharePolicy.None, "share_policy", "sharepolicy");
+            var transferPolicy = ReadEnum(namedArgs, ctx, ShieldTransferPolicy.None, "transfer_policy", "transferpolicy");
             var targetRequest = MobaActionTargetSchemaReader.Read(namedArgs, ctx);
             var magnitude = MobaEffectMagnitudeSchemaReader.Read(namedArgs, in ctx, value);
             TryReadBlackboardTarget(namedArgs, out var resultTarget, "result", "result_id", "shield_result");
             TryReadBlackboardTarget(namedArgs, out var resultCountTarget, "result_count", "shield_count");
-            return new AddShieldArgs(shieldId, value, absorbRatio, priority, damageTypeMask, durationFrames, durationMs, stackingPolicy, consumePolicy, in targetRequest, magnitude, resultTarget, resultCountTarget);
+            return new AddShieldArgs(shieldId, value, absorbRatio, priority, damageTypeMask, durationFrames, durationMs, stackingPolicy, consumePolicy, sharePolicy, transferPolicy, in targetRequest, magnitude, resultTarget, resultCountTarget);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

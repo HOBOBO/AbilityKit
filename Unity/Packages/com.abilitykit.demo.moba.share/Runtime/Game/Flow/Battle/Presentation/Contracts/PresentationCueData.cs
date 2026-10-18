@@ -63,6 +63,17 @@ namespace AbilityKit.Demo.Moba.Share
         public PresentationCuePredictionState PredictionState { get; }
         public int PredictedFrame { get; }
         public int ConfirmedFrame { get; }
+        public PresentationCueLifetime Lifetime { get; }
+        public PresentationCueDomain Domain { get; }
+        public PresentationCueSnapshotKind SnapshotKind { get; }
+        public long WorldId { get; }
+        public long Generation { get; }
+        public int SourceFrame { get; }
+        public long Sequence { get; }
+        public int Revision { get; }
+        public int ParameterSchemaVersion { get; }
+        public IReadOnlyList<PresentationCueParameter> Parameters { get; }
+        public string EventKey { get; }
 
         public PresentationCueData(
             PresentationCueStage stage,
@@ -119,7 +130,18 @@ namespace AbilityKit.Demo.Moba.Share
             int predictionKey = 0,
             PresentationCuePredictionState predictionState = PresentationCuePredictionState.None,
             int predictedFrame = 0,
-            int confirmedFrame = 0)
+            int confirmedFrame = 0,
+            PresentationCueLifetime lifetime = PresentationCueLifetime.Unknown,
+            PresentationCueDomain domain = PresentationCueDomain.None,
+            PresentationCueSnapshotKind snapshotKind = PresentationCueSnapshotKind.EventDelta,
+            long worldId = 0,
+            long generation = 0,
+            int sourceFrame = 0,
+            long sequence = 0,
+            int revision = 0,
+            int parameterSchemaVersion = 0,
+            IReadOnlyList<PresentationCueParameter> parameters = null,
+            string eventKey = null)
         {
             Stage = stage;
             CueKind = cueKind;
@@ -176,6 +198,17 @@ namespace AbilityKit.Demo.Moba.Share
             PredictionState = predictionState;
             PredictedFrame = predictedFrame;
             ConfirmedFrame = confirmedFrame;
+            Lifetime = lifetime;
+            Domain = domain;
+            SnapshotKind = snapshotKind;
+            WorldId = worldId;
+            Generation = generation;
+            SourceFrame = sourceFrame;
+            Sequence = sequence;
+            Revision = revision;
+            ParameterSchemaVersion = parameterSchemaVersion;
+            Parameters = parameters ?? Array.Empty<PresentationCueParameter>();
+            EventKey = eventKey;
         }
     }
 
@@ -204,6 +237,48 @@ namespace AbilityKit.Demo.Moba.Share
         ServerConfirmed = 2,
         Corrected = 3,
         Rejected = 4,
+    }
+
+    public enum PresentationCueParameterKind : byte
+    {
+        Integer = 1,
+        Float = 2,
+        String = 3,
+        Boolean = 4,
+        Vector3 = 5,
+        Vector4 = 6,
+    }
+
+    public readonly struct PresentationCueParameter
+    {
+        public int Key { get; }
+        public PresentationCueParameterKind Kind { get; }
+        public long IntegerValue { get; }
+        public float FloatValue { get; }
+        public string StringValue { get; }
+        public bool BooleanValue { get; }
+        public SnapshotVec3 VectorValue { get; }
+        public float VectorW { get; }
+
+        public PresentationCueParameter(
+            int key,
+            PresentationCueParameterKind kind,
+            long integerValue = 0,
+            float floatValue = 0f,
+            string stringValue = null,
+            bool booleanValue = false,
+            SnapshotVec3 vectorValue = default,
+            float vectorW = 0f)
+        {
+            Key = key;
+            Kind = kind;
+            IntegerValue = integerValue;
+            FloatValue = floatValue;
+            StringValue = stringValue;
+            BooleanValue = booleanValue;
+            VectorValue = vectorValue;
+            VectorW = vectorW;
+        }
     }
 
     public readonly struct SnapshotVec3

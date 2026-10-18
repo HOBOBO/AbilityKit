@@ -176,6 +176,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var state = new BattleGameplayPresentationState();
             var features = new TestFeatureStore();
             features.Set(context);
+            features.Set<IBattleGameplayPresentationSource>(context);
             var phase = new GamePhaseContext(null, features, null, state);
             var feature = new BattleGameplayPresentationFeature();
             var first = CreateGameplayDispatcher();
@@ -291,7 +292,7 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void Profiles_SelectModulesById()
         {
-            var catalog = GameplayPresentationProfileCatalog.Parse(
+            var catalog = UnityGameplayPresentationProfileCatalogLoader.Parse(
                 "{\"Profiles\":[{" +
                 "\"GameplayId\":1,\"HudModuleId\":\"team_deathmatch\",\"ProjectionModuleId\":\"team_deathmatch\",\"SettlementModuleId\":\"team_deathmatch\"}," +
                 "{\"GameplayId\":2,\"HudModuleId\":\"arena\",\"ProjectionModuleId\":\"arena\",\"SettlementModuleId\":\"arena\"}]}");
@@ -308,7 +309,7 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void Profiles_RejectUnregisteredModulesDuringComposition()
         {
-            var catalog = GameplayPresentationProfileCatalog.Parse(
+            var catalog = UnityGameplayPresentationProfileCatalogLoader.Parse(
                 "{\"Profiles\":[{\"GameplayId\":2,\"HudModuleId\":\"arena\"," +
                 "\"ProjectionModuleId\":\"arena\",\"SettlementModuleId\":\"arena\"}]}");
             var registry = new GameplayPresentationModuleRegistry()
@@ -316,7 +317,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 .RegisterSettlement("arena", () => new BattleEndSettlementFeature());
 
             StringAssert.Contains("projection",
-                Assert.Throws<InvalidOperationException>(() => catalog.ValidateModules(registry)).Message);
+                Assert.Throws<InvalidOperationException>(() => registry.ValidateCatalog(catalog)).Message);
         }
 
         [Test]
@@ -389,9 +390,9 @@ namespace AbilityKit.Game.Test.UnitTest
             public T Load<T>(string path) where T : UnityEngine.Object
             {
                 string json = null;
-                if (path == "moba/models") json = "[]";
+                if (path == "luban/moba/models") json = "[]";
                 if (path == "vfx/vfx") json = "[]";
-                if (path == GameplayPresentationProfileCatalog.ResourcePath)
+                if (path == UnityGameplayPresentationProfileCatalogLoader.ResourcePath)
                     json = "{\"Profiles\":[{\"GameplayId\":2,\"HudModuleId\":\"arena\",\"ProjectionModuleId\":\"arena\",\"SettlementModuleId\":\"arena\",\"AssetPaths\":[\"gameplay/arena/hud\",\"gameplay/arena/hud\"]}]}";
                 return json == null ? null : new TextAsset(json) as T;
             }

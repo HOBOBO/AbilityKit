@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Game.Battle;
+using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Game.Flow.Battle.Replay
 {
@@ -40,6 +41,7 @@ namespace AbilityKit.Game.Flow.Battle.Replay
         public int CurrentFrame => _currentFrame;
         public int LastFrame => _runtime?.LastFrame ?? 0;
         public string ReplayPath { get; private set; }
+        internal IWorld World => (_runtime as IBattleReplayProjectionRuntime)?.World;
         internal Exception LastFailure { get; private set; }
 
         public float PlaybackSpeed

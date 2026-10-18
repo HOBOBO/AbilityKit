@@ -50,12 +50,20 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
                 var firstInstanceId = 0;
                 var addedCount = 0;
-                for (var i = 0; i < targets.Count; i++)
+                if (args.SharePolicy != ShieldSharePolicy.None)
                 {
-                    var instanceId = AddShield(shields, args, effectInput, ctx, sourceActorId, targets[i], LogApplied);
-                    if (instanceId <= 0) continue;
-                    if (firstInstanceId == 0) firstInstanceId = instanceId;
-                    addedCount++;
+                    firstInstanceId = AddSharedShield(shields, args, effectInput, ctx, sourceActorId, targets, LogApplied);
+                    addedCount = firstInstanceId > 0 ? targets.Count : 0;
+                }
+                else
+                {
+                    for (var i = 0; i < targets.Count; i++)
+                    {
+                        var instanceId = AddShield(shields, args, effectInput, ctx, sourceActorId, targets[i], LogApplied);
+                        if (instanceId <= 0) continue;
+                        if (firstInstanceId == 0) firstInstanceId = instanceId;
+                        addedCount++;
+                    }
                 }
                 if (addedCount > 0 &&
                     (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, firstInstanceId, out var outputError) ||
@@ -111,13 +119,54 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 RemoveWhenDepleted = true,
                 StackingPolicy = args.StackingPolicy,
                 ConsumePolicy = args.ConsumePolicy,
-                SharePolicy = ShieldSharePolicy.None,
-                TransferPolicy = ShieldTransferPolicy.None,
+                SharePolicy = args.SharePolicy,
+                TransferPolicy = args.TransferPolicy,
             };
 
             var instanceId = shields.AddShield(targetActorId, layer);
             logApplied?.Invoke($"source={sourceActorId} target={targetActorId} shieldId={args.ShieldId} instance={instanceId} value={value:0.###} expireFrame={expireFrame}");
             return instanceId;
+        }
+
+        private static int AddSharedShield(MobaShieldService shields, AddShieldArgs args, MobaEffectActionInput input,
+            ExecCtx<IWorldResolver> ctx, int sourceActorId, IReadOnlyList<int> targets, Action<string> logApplied)
+        {
+            if (targets == null || targets.Count == 0) return 0;
+            var targetActorId = targets[0];
+            var value = args.Value;
+            var executionContext = input.ExecutionContext;
+            if (args.Magnitude.Enabled && !MobaEffectMagnitudeResolver.TryEvaluate(
+                    in args.Magnitude, in executionContext, in ctx, sourceActorId, input.CasterActorId,
+                    targetActorId, default, out value, out _, out _)) return 0;
+            if (value <= 0f) return 0;
+
+            ResolveFrames(args, ctx, sourceActorId, targetActorId, out var startFrame, out var expireFrame);
+            var origin = input.BuildOrigin(sourceActorId, targetActorId, MobaExecutionKind.EffectExecution, args.ShieldId);
+            var layer = new ShieldLayer
+            {
+                ShieldId = args.ShieldId,
+                SourceActorId = sourceActorId,
+                OwnerActorId = sourceActorId,
+                SourceContextId = origin.ImmediateContextId,
+                RootContextId = origin.EffectiveRootContextId,
+                OwnerContextId = origin.OwnerContextId,
+                CurrentValue = MobaResourceFixedConvert.ToFixed(value),
+                MaxValue = MobaResourceFixedConvert.ToFixed(value),
+                InitialValue = MobaResourceFixedConvert.ToFixed(value),
+                AbsorbRatio = MobaResourceFixedConvert.ToFixed(args.AbsorbRatio),
+                Priority = args.Priority,
+                DamageTypeMask = args.DamageTypeMask,
+                StartFrame = startFrame,
+                ExpireFrame = expireFrame,
+                RemoveWhenDepleted = true,
+                StackingPolicy = args.StackingPolicy,
+                ConsumePolicy = args.ConsumePolicy,
+                SharePolicy = args.SharePolicy,
+                TransferPolicy = args.TransferPolicy,
+            };
+            var bindingId = shields.AddSharedShield(targets, layer);
+            logApplied?.Invoke($"source={sourceActorId} targets={targets.Count} shieldId={args.ShieldId} binding={bindingId} value={value:0.###} expireFrame={expireFrame} share={args.SharePolicy}");
+            return bindingId;
         }
 
         private static void ResolveFrames(AddShieldArgs args, ExecCtx<IWorldResolver> ctx, int sourceActorId, int targetActorId, out int startFrame, out int expireFrame)

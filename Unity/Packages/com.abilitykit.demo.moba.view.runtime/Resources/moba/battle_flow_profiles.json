@@ -9,7 +9,7 @@
         { "GroupId": "debug_overlay", "FeatureIds": ["debug_ongui"] }
       ],
       "Phases": [
-        { "StateId": "Battle.Prepare", "FeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation"], "RetainOnExitFeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation"] },
+        { "StateId": "Battle.Prepare", "FeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation", "dungeon_context", "dungeon_scene"], "RetainOnExitFeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation", "dungeon_context", "dungeon_scene"] },
         { "StateId": "Battle.Connect", "FeatureRefs": [{ "GroupId": "debug_overlay" }] },
         { "StateId": "Battle.CreateOrJoinWorld", "FeatureRefs": [{ "GroupId": "debug_overlay" }] },
         { "StateId": "Battle.LoadAssets", "FeatureRefs": [{ "FeatureId": "loading_screen" }, { "GroupId": "debug_overlay" }] },
@@ -23,7 +23,41 @@
       "AllowedHostModes": ["Local"],
       "SessionModuleIds": ["session_events", "gateway_room", "snapshot_routing", "session_dispatchers", "session_lifecycle", "session_net_adapter", "session_replay", "session_tick_loop", "session_plan"],
       "Phases": [
-        { "StateId": "Battle.Prepare", "FeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation"], "RetainOnExitFeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation"] },
+        { "StateId": "Battle.Prepare", "FeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation", "dungeon_context", "dungeon_scene"], "RetainOnExitFeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation", "dungeon_context", "dungeon_scene"] },
+        { "StateId": "Battle.Connect" },
+        { "StateId": "Battle.CreateOrJoinWorld" },
+        { "StateId": "Battle.LoadAssets", "FeatureIds": ["loading_screen"] },
+        { "StateId": "Battle.InMatch", "FeatureIds": ["sync", "input", "view", "hud"] },
+        { "StateId": "Battle.End", "FeatureIds": ["end_settlement"] }
+      ]
+    },
+    {
+      "ProfileId": "moba.staged",
+      "TopologyId": "moba.staged.v1",
+      "TopologyStartStateId": "Battle.Prepare",
+      "Version": 5,
+      "TopologyStates": [
+        { "StateId": "Battle.Prepare", "Description": "进入战斗准备" },
+        { "StateId": "Battle.Connect", "Description": "建立战斗连接" },
+        { "StateId": "Battle.CreateOrJoinWorld", "Description": "创建或加入战斗世界" },
+        { "StateId": "Battle.LoadAssets", "Description": "加载战斗资源" },
+        { "StateId": "Battle.InMatch", "Description": "进入战斗" },
+        { "StateId": "Battle.End", "Description": "结束战斗" }
+      ],
+      "TopologyTransitions": [
+        { "EventId": "PrepareDone", "FromStateId": "Battle.Prepare", "ToStateId": "Battle.Connect" },
+        { "EventId": "Connected", "FromStateId": "Battle.Connect", "ToStateId": "Battle.CreateOrJoinWorld" },
+        { "EventId": "JoinedWorld", "FromStateId": "Battle.CreateOrJoinWorld", "ToStateId": "Battle.LoadAssets" },
+        { "EventId": "AssetsLoadCompleted", "FromStateId": "Battle.LoadAssets", "ToStateId": "Battle.InMatch" },
+        { "EventId": "Ended", "FromStateId": "Battle.Prepare", "ToStateId": "Battle.End" },
+        { "EventId": "Ended", "FromStateId": "Battle.Connect", "ToStateId": "Battle.End" },
+        { "EventId": "Ended", "FromStateId": "Battle.CreateOrJoinWorld", "ToStateId": "Battle.End" },
+        { "EventId": "Ended", "FromStateId": "Battle.LoadAssets", "ToStateId": "Battle.End" },
+        { "EventId": "Ended", "FromStateId": "Battle.InMatch", "ToStateId": "Battle.End" }
+      ],
+      "SessionModuleIds": ["session_events", "gateway_room", "snapshot_routing", "session_dispatchers", "session_lifecycle", "session_net_adapter", "session_replay", "session_tick_loop", "session_plan"],
+      "Phases": [
+        { "StateId": "Battle.Prepare", "FeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation", "dungeon_context", "dungeon_scene"], "RetainOnExitFeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation", "dungeon_context", "dungeon_scene"] },
         { "StateId": "Battle.Connect" },
         { "StateId": "Battle.CreateOrJoinWorld" },
         { "StateId": "Battle.LoadAssets", "FeatureIds": ["loading_screen"] },

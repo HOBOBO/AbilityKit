@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Logic/Presentation/Timeline/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AbilityKit.ActionSchema/AbilityKit.ActionSchema.csproj" />
+  </ItemGroup>
+</Project>

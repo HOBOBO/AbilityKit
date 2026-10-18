@@ -36,10 +36,10 @@ namespace AbilityKit.Game.Test.UnitTest
         public void HeroModels_ShouldBeAvailableThroughResources()
         {
             var characters = LoadArray<CharacterConfigRoot, CharacterDTO>(
-                "moba/characters",
+                "luban/moba/characters",
                 root => root.Items);
             var models = LoadArray<ModelConfigRoot, ModelDTO>(
-                "moba/models",
+                "luban/moba/models",
                 root => root.Items);
             var modelsById = new Dictionary<int, ModelDTO>(models.Length);
             for (var i = 0; i < models.Length; i++)
@@ -68,10 +68,92 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void HeroModels_ShouldExposeFrameSeekableAnimatorStates()
+        {
+            var characters = LoadArray<CharacterConfigRoot, CharacterDTO>(
+                "luban/moba/characters",
+                root => root.Items);
+            var heroModelIds = new HashSet<int>();
+            for (var i = 0; i < characters.Length; i++)
+                heroModelIds.Add(characters[i].ModelId);
+
+            var models = LoadArray<ModelConfigRoot, ModelDTO>(
+                "luban/moba/models",
+                root => root.Items);
+            var requiredStates = new[] { "Idle", "Run", "Attack", "Stun", "Die" };
+
+            for (var i = 0; i < models.Length; i++)
+            {
+                if (!heroModelIds.Contains(models[i].Id)) continue;
+
+                var prefab = Resources.Load<GameObject>(models[i].PrefabPath);
+                Assert.IsNotNull(prefab, "Missing hero model prefab: " + models[i].PrefabPath);
+                var animator = prefab.GetComponentInChildren<Animator>(true);
+                Assert.IsNotNull(animator, "Hero model has no Animator: " + models[i].PrefabPath);
+                Assert.IsNotNull(animator.runtimeAnimatorController,
+                    "Hero model Animator has no controller: " + models[i].PrefabPath);
+
+                var renderers = prefab.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+                Assert.IsNotEmpty(renderers,
+                    "Hero model has no skinned mesh renderer: " + models[i].PrefabPath);
+                for (var rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+                {
+                    var renderer = renderers[rendererIndex];
+                    Assert.IsNotNull(renderer.sharedMesh,
+                        "Hero model skinned renderer has no mesh: " + models[i].PrefabPath);
+                    Assert.IsNotEmpty(renderer.bones,
+                        "Hero model skinned renderer has no bones: " + models[i].PrefabPath);
+                    Assert.IsNotNull(renderer.rootBone,
+                        "Hero model skinned renderer has no root bone: " + models[i].PrefabPath);
+                }
+
+                for (var stateIndex = 0; stateIndex < requiredStates.Length; stateIndex++)
+                {
+                    var state = requiredStates[stateIndex];
+                    Assert.IsTrue(
+                        animator.HasState(0, Animator.StringToHash(state)),
+                        "Hero model Animator is missing state " + state + ": " + models[i].PrefabPath);
+                }
+            }
+        }
+
+        [Test]
+        public void PresentationModelCatalog_ShouldIncludeEveryConfiguredHeroModel()
+        {
+            var characters = LoadArray<CharacterConfigRoot, CharacterDTO>(
+                "luban/moba/characters",
+                root => root.Items);
+            var configuredModels = LoadArray<ModelConfigRoot, ModelDTO>(
+                "luban/moba/models",
+                root => root.Items);
+            var presentationModels = LoadArray<ModelConfigRoot, ModelDTO>(
+                "moba/models",
+                root => root.Items);
+            var configuredById = new Dictionary<int, ModelDTO>(configuredModels.Length);
+            var presentationById = new Dictionary<int, ModelDTO>(presentationModels.Length);
+
+            for (var i = 0; i < configuredModels.Length; i++)
+                configuredById.Add(configuredModels[i].Id, configuredModels[i]);
+            for (var i = 0; i < presentationModels.Length; i++)
+                presentationById.Add(presentationModels[i].Id, presentationModels[i]);
+
+            for (var i = 0; i < characters.Length; i++)
+            {
+                var modelId = characters[i].ModelId;
+                Assert.IsTrue(configuredById.TryGetValue(modelId, out var configured),
+                    "Character " + characters[i].Id + " references a missing Luban model: " + modelId);
+                Assert.IsTrue(presentationById.TryGetValue(modelId, out var presentation),
+                    "Presentation model catalog omits hero model: " + modelId);
+                Assert.AreEqual(configured.PrefabPath, presentation.PrefabPath,
+                    "Hero model resource path differs between the Luban config and presentation catalog: " + modelId);
+            }
+        }
+
+        [Test]
         public void AoeModels_ShouldResolveAndBeAvailableThroughResources()
         {
             var aoes = LoadArray<AoeConfigRoot, AoeDTO>("moba/aoes", root => root.Items);
-            var models = LoadArray<ModelConfigRoot, ModelDTO>("moba/models", root => root.Items);
+            var models = LoadArray<ModelConfigRoot, ModelDTO>("luban/moba/models", root => root.Items);
             var modelsById = new Dictionary<int, ModelDTO>(models.Length);
             for (var i = 0; i < models.Length; i++)
             {

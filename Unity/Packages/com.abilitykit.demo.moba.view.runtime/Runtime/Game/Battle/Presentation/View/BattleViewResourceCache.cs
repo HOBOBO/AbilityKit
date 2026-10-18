@@ -1,18 +1,18 @@
 using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.Battle.Vfx;
-using UnityEngine;
+using System;
 
 namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleViewResourceCache
     {
-        private const string DefaultVfxResourcePath = "vfx/vfx";
         private readonly IBattleAssetLookup _assets;
+        private readonly IBattlePresentationDataSource _dataSource;
 
-        public BattleViewResourceCache(IBattleAssetLookup assets = null)
+        public BattleViewResourceCache(IBattlePresentationDataSource dataSource, IBattleAssetLookup assets = null)
         {
+            _dataSource = dataSource ?? throw new ArgumentNullException(nameof(dataSource));
             _assets = assets;
         }
 
@@ -21,12 +21,9 @@ namespace AbilityKit.Game.Flow
             if (configs == null)
             {
                 if (_assets != null)
-                {
-                    throw new System.InvalidOperationException(
+                    throw new InvalidOperationException(
                         "The runtime MobaConfigDatabase is unavailable for the active battle lease.");
-                }
-
-                configs = MobaConfigLoader.LoadDefault();
+                configs = _dataSource.LoadConfigs(_assets);
             }
 
             return configs;
@@ -36,21 +33,7 @@ namespace AbilityKit.Game.Flow
         {
             if (vfxDb == null)
             {
-                if (_assets != null)
-                {
-                    if (!_assets.TryGetAsset(DefaultVfxResourcePath, out var loaded) ||
-                        !(loaded is TextAsset textAsset))
-                    {
-                        throw new System.InvalidOperationException(
-                            "The active battle lease does not contain VFX config: " + DefaultVfxResourcePath);
-                    }
-
-                    vfxDb = VfxDatabase.LoadFromJson(textAsset.text, DefaultVfxResourcePath);
-                }
-                else
-                {
-                    vfxDb = VfxDatabase.LoadFromResources(DefaultVfxResourcePath);
-                }
+                vfxDb = _dataSource.LoadVfx(_assets);
             }
 
             return vfxDb;

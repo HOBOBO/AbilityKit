@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Diagnostics.Exporters</RootNamespace>
+    <AssemblyName>AbilityKit.Diagnostics.Exporters</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- 投影 diagnostics 包 Editor/Exporters 下的纯 BCL 导出器源码（无 UnityEditor 依赖），
+       供 .NET 宿主（console 冒烟、服务端）导出 Profiler 快照。Unity 侧仍由
+       com.abilitykit.diagnostics.editor asmdef 单独编译，不共用本工程。 -->
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.diagnostics/Editor/Exporters/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AbilityKit.Diagnostics/AbilityKit.Diagnostics.csproj" />
+  </ItemGroup>
+
+  <!-- AnalysisArtifactJsonExporter 依赖 Newtonsoft（Unity 侧由包内 Newtonsoft 引用满足） -->
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+</Project>

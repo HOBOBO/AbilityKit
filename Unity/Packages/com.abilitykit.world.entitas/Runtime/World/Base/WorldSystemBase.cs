@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Diagnostics;
 
 namespace AbilityKit.Ability.World
 {
@@ -10,6 +11,9 @@ namespace AbilityKit.Ability.World
     public abstract class WorldSystemBase : global::Entitas.IInitializeSystem, global::Entitas.IExecuteSystem, global::Entitas.ICleanupSystem, global::Entitas.ITearDownSystem
     {
         private bool _enabled = true;
+
+        // 每系统一帧只构造一次探针名；Profiler 关闭时 Begin 直接返回 default，零开销。
+        private string _profilerScopeName;
 
         /// <summary>
         /// 初始化系统基类。
@@ -62,6 +66,19 @@ namespace AbilityKit.Ability.World
         {
             if (!_enabled) return;
             if (!CanExecute()) return;
+
+            if (!ProfilerHub.IsEnabled)
+            {
+                OnExecute();
+                return;
+            }
+
+            if (_profilerScopeName == null)
+            {
+                _profilerScopeName = "world.system." + GetType().Name;
+            }
+
+            using var scope = ProfilerHub.Begin(_profilerScopeName).ToScope();
             OnExecute();
         }
 

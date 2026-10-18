@@ -172,6 +172,12 @@ namespace AbilityKit.Game.Test.UnitTest
 
             FlowTick(flow, 1);
 
+            if (flow.IsFaulted)
+            {
+                throw new InvalidOperationException(
+                    "MOBA flow faulted during headless startup. " + BuildDiagnostic(flow, null));
+            }
+
             if (!_battleRequested)
             {
                 Stage("requestingBattle", flow, null);
@@ -663,6 +669,11 @@ namespace AbilityKit.Game.Test.UnitTest
             for (var i = 0; i < ticks; i++)
             {
                 flow.Tick(FixedDeltaTime);
+                if (flow.IsFaulted)
+                {
+                    throw new InvalidOperationException(
+                        "MOBA flow faulted during headless tick. " + BuildDiagnostic(flow, null));
+                }
             }
         }
 

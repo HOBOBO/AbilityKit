@@ -17,6 +17,8 @@ namespace AbilityKit.Ability.World.DI
         private readonly Dictionary<Type, object> _seeded = new Dictionary<Type, object>();
 
         private readonly List<object> _disposeOrder = new List<object>(32);
+        private readonly HashSet<object> _ownedInstances = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        private readonly HashSet<object> _initialized = new HashSet<object>(ReferenceEqualityComparer.Instance);
         private bool _disposed;
 
         internal WorldScope(WorldContainer root)
@@ -158,13 +160,28 @@ namespace AbilityKit.Ability.World.DI
             return false;
         }
 
-        internal object GetOrCreate(Type type, Func<object> factory)
+        internal object GetOrCreate(Type type, Func<object> factory, bool ownsInstance)
         {
             if (_scoped.TryGetValue(type, out var cached)) return cached;
             var created = factory();
             _scoped[type] = created;
-            _disposeOrder.Add(created);
+            if (ownsInstance && created != null && _ownedInstances.Add(created))
+                _disposeOrder.Add(created);
             return created;
+        }
+
+        internal void TryInit(object instance)
+        {
+            if (instance != null && _initialized.Add(instance) && instance is IWorldInitializable init)
+                init.OnInit(this);
+        }
+
+        private sealed class ReferenceEqualityComparer : IEqualityComparer<object>
+        {
+            public static readonly ReferenceEqualityComparer Instance = new ReferenceEqualityComparer();
+
+            public new bool Equals(object x, object y) => ReferenceEquals(x, y);
+            public int GetHashCode(object obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
         }
 
         private void TryDeinit(object instance)
@@ -210,6 +227,8 @@ namespace AbilityKit.Ability.World.DI
 
             _disposed = true;
             _disposeOrder.Clear();
+            _ownedInstances.Clear();
+            _initialized.Clear();
             _scoped.Clear();
             _seeded.Clear();
         }

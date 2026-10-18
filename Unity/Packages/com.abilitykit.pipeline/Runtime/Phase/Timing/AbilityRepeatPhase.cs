@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace AbilityKit.Pipeline
 {
@@ -38,6 +39,9 @@ namespace AbilityKit.Pipeline
         /// 要重复执行的阶段。
         /// </summary>
         private IAbilityPipelinePhase<TCtx>? _repeatPhase;
+        private IReadOnlyList<IAbilityPipelinePhase<TCtx>> _children = Array.Empty<IAbilityPipelinePhase<TCtx>>();
+
+        public override IReadOnlyList<IAbilityPipelinePhase<TCtx>> SubPhases => _children;
         
         /// <summary>
         /// 要重复执行的动作。
@@ -48,6 +52,22 @@ namespace AbilityKit.Pipeline
         /// 当前正在执行的子阶段。
         /// </summary>
         private IAbilityPipelinePhase<TCtx>? _currentSubPhase;
+
+        public float IntervalTimer => _intervalTimer;
+        public bool IsWaitingInterval => _isWaitingInterval;
+        public bool HasCurrentSubPhase => _currentSubPhase != null;
+
+        public void SetRepeatProgress(int repeatIndex, float intervalTimer, bool isWaitingInterval,
+            bool hasCurrentSubPhase)
+        {
+            if (repeatIndex < 0 || float.IsNaN(intervalTimer) || float.IsInfinity(intervalTimer) || intervalTimer < 0f ||
+                (hasCurrentSubPhase && _repeatPhase == null))
+                throw new ArgumentOutOfRangeException(nameof(repeatIndex));
+            CurrentRepeatIndex = repeatIndex;
+            _intervalTimer = intervalTimer;
+            _isWaitingInterval = isWaitingInterval;
+            _currentSubPhase = hasCurrentSubPhase ? _repeatPhase : null;
+        }
 
         /// <summary>
         /// 创建重复阶段。
@@ -71,6 +91,9 @@ namespace AbilityKit.Pipeline
         public AbilityRepeatPhase<TCtx> SetRepeatPhase(IAbilityPipelinePhase<TCtx> phase)
         {
             _repeatPhase = phase;
+            _children = phase == null
+                ? Array.Empty<IAbilityPipelinePhase<TCtx>>()
+                : new[] { phase };
             _repeatAction = null;
             return this;
         }
@@ -82,6 +105,7 @@ namespace AbilityKit.Pipeline
         {
             _repeatAction = action;
             _repeatPhase = null;
+            _children = Array.Empty<IAbilityPipelinePhase<TCtx>>();
             return this;
         }
 
@@ -210,6 +234,7 @@ namespace AbilityKit.Pipeline
 
             return phase;
         }
+
 
         /// <summary>
         /// 创建重复阶段。

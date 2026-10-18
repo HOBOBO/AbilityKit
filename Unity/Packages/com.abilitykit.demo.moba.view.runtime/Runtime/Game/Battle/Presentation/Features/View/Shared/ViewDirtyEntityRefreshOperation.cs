@@ -20,20 +20,41 @@ namespace AbilityKit.Game.Flow
             var dirty = entityContext?.DirtyEntities;
             if (dirty == null || dirty.Count == 0) return false;
 
+            var writeIndex = 0;
+            var refreshed = false;
             for (int i = 0; i < dirty.Count; i++)
             {
                 var id = dirty[i];
-                if (!query.World.IsAlive(id)) continue;
+                if (!query.World.IsAlive(id))
+                {
+                    // A destroyed entity no longer needs a view refresh.
+                    continue;
+                }
 
                 var entity = query.World.Wrap(id);
-                if (requireViewComponents && !CanCreateView(entity)) continue;
+                if (requireViewComponents && !CanCreateView(entity))
+                {
+                    // Keep the dirty marker until the spawn/transform data needed
+                    // to create the view arrives. Clearing it here loses the update.
+                    dirty[writeIndex++] = id;
+                    continue;
+                }
 
-                binder?.Sync(entity, runtimeContext);
+                if (binder == null)
+                {
+                    dirty[writeIndex++] = id;
+                    continue;
+                }
+
+                binder.Sync(entity, runtimeContext);
                 onSynced?.Invoke(id);
+                refreshed = true;
             }
 
-            dirty.Clear();
-            return true;
+            if (writeIndex < dirty.Count)
+                dirty.RemoveRange(writeIndex, dirty.Count - writeIndex);
+
+            return refreshed;
         }
 
         private bool CanCreateView(EC.IEntity entity)

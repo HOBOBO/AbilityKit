@@ -64,7 +64,7 @@ namespace AbilityKit.Game.Flow
                 _runtime.NetController.TransformFramePacket(
                     _runtime.Handles.Session, _runtime.Handles.Net.Adapter, packet);
             void ISessionTickLoopRuntime.TickSession(float deltaTime) =>
-                _runtime.TickLoop.MainTick(deltaTime);
+                _owner._clientDriver.Tick(deltaTime);
             BattleSessionHooks ISessionLifecycleRuntime.Hooks => _owner.Hooks;
 
             BattleSessionHooks ISessionGatewayRuntime.Hooks => _owner.Hooks;

@@ -87,6 +87,8 @@ powershell -ExecutionPolicy Bypass -File tools/run-unity-editmode-tests.ps1 -Tes
 
 新增表时，在对应工作簿新增子 sheet，并在 `__tables__.xlsx` 登记其 `input`；字段名和输出名仍按现有运行时契约命名。`repartition_workbooks.py` 记录了本次分组迁移，日常编辑无需运行。未登记的旧 `skill_flows.xlsx` 已移到 `Production/Archive/`，仅供迁移留档。
 
+`J-战斗场景表.xlsx` 的「副本」子表是战斗副本的权威定义：把玩法、地图、战斗流程 Profile、场景装配、玩法处理器、胜负规则和所需 Feature 端口组收成单条配置，新增副本不需要改 C# 代码。`GameplayId` 与 `BattleMapId` 的引用由导表器校验；`FlowProfileId` 引用的 `battle_flow_profiles.json` 归 Flow 编辑流程管有，不在 Excel 层校验，改由运行时的副本入场校验负责。规则见 `business/dungeons.py`，设计背景见 `Docs/MobaViewRuntime副本机制与扩展优先级.md`。
+
 `T-特效表.xlsx` 的 `特效资源` 子 sheet 是 `vfx` 的主源，发布时生成两端的 Luban JSON、`.bytes` 和 Unity 使用的 `Resources/vfx/vfx.json`。`特效表现模板` 子 sheet 保存复用特效的挂点、跟随与外观参数；其 `AssetId` 引用特效资源 ID。旧 `VfxTable.asset` 和 `VfxJsonExporter` 不再发布生产特效配置。
 
 `MobaLubanConfigGroups.Create(loader, new[] { "characters" })` 可以只将 `characters` 切换到二进制，其余表默认读取同次导出的 Luban JSON；完整生产加载让其他运行时表（包括持续标签模板）走 Luban `.bytes`，`skill_flows` 固定读取 Pipeline 发布的 `moba/skill_flows.json`。显式传入 `useLubanJsonForRemaining: false` 才使用旧 JSON 路径，该路径保留迁移基线，不能作为当前 Excel 修改后的生产数据来源。标签规则和结果映射从二进制编译，标签变化后重算缓存结果位；不会为普通标记标签生成代码枚举。脑配置优先读取二进制，在没有二进制的自定义资源环境下保留 JSON 兼容。

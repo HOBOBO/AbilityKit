@@ -152,7 +152,7 @@ public sealed class RequirementsTests : TagTestBase
         Assert.True(requirements.IsOngoingSatisfied(C("CT.A")));
         Assert.True(requirements.IsOngoingSatisfied(null!));
         Assert.NotNull(requirements.ApplicationTags);
-        Assert.NotNull(requirements.RemovalTags);
+        Assert.NotNull(requirements.RemovalRequired);
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -19,6 +20,10 @@ namespace AbilityKit.Diagnostics.Exporters
 
     public sealed class JsonExporter : IExporter
     {
+        // 无 BOM 的 UTF-8：folded/speedscope 等产物会被外部火焰图工具逐行解析，
+        // 带 BOM 会让首行帧名带上不可见前缀。
+        private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
+
         public string Extension => ".json";
 
         public void Export(ProfilerSnapshot snapshot, string filePath)
@@ -155,7 +160,41 @@ namespace AbilityKit.Diagnostics.Exporters
                 }
             }
             sb.AppendLine("  ],");
- 
+
+            sb.AppendLine("  \"spanLog\": {");
+            if (snapshot.Spans != null && snapshot.Spans.Count > 0)
+            {
+                long minFrame = long.MaxValue, maxFrame = 0L, wallNanoseconds = 0L;
+                var baseTimestamp = long.MaxValue;
+                foreach (var span in snapshot.Spans)
+                {
+                    if (span.StartTimestamp < baseTimestamp) baseTimestamp = span.StartTimestamp;
+                    if (span.Frame < minFrame) minFrame = span.Frame;
+                    if (span.Frame > maxFrame) maxFrame = span.Frame;
+                    wallNanoseconds += span.DurationNanoseconds;
+                }
+
+                long lastEnd = baseTimestamp;
+                foreach (var span in snapshot.Spans)
+                {
+                    var end = span.StartTimestamp + (long)(span.DurationNanoseconds * Stopwatch.Frequency / 1000000000.0d);
+                    if (end > lastEnd) lastEnd = end;
+                }
+
+                var wallMs = (lastEnd - baseTimestamp) * 1000.0d / Stopwatch.Frequency;
+                AppendJsonProperty(sb, "count", snapshot.Spans.Count.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
+                AppendJsonProperty(sb, "dropped", snapshot.SpansDropped.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
+                AppendJsonProperty(sb, "spanNanoseconds", wallNanoseconds.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
+                AppendJsonProperty(sb, "wallMs", Format(wallMs), 2, true, rawValue: true);
+                AppendJsonProperty(sb, "frameRange", minFrame + ".." + maxFrame, 2, false);
+            }
+            else
+            {
+                AppendJsonProperty(sb, "count", "0", 2, false, rawValue: true);
+            }
+
+            sb.AppendLine("  },");
+
             sb.AppendLine("  \"flame\": [");
             var flameRoots = new List<FlameNode>();
             if (snapshot.Root != null)
@@ -256,7 +295,7 @@ namespace AbilityKit.Diagnostics.Exporters
                 Directory.CreateDirectory(directory);
             }
 
-            File.WriteAllText(filePath, content, Encoding.UTF8);
+            File.WriteAllText(filePath, content, Utf8NoBom);
         }
     }
 

@@ -123,6 +123,12 @@ namespace AbilityKit.Game.Test.UnitTest
                     new ActorOnlyProjectionViewSource(leftProducer), source, flow,
                     Vector3.zero, entity => entity.Destroy(),
                     BattleProjectionViewCapabilities.Events), Is.False);
+                Assert.That(owner.AddProjectionView("duplicate-events", BattleProjectionViewRole.Auxiliary,
+                    rightSource, source, flow, Vector3.zero, entity => entity.Destroy(),
+                    BattleProjectionViewCapabilities.Events), Is.False);
+                Assert.That(owner.AddProjectionView("camera-without-owner", BattleProjectionViewRole.Auxiliary,
+                    leftSource, source, flow, Vector3.zero, entity => entity.Destroy(),
+                    BattleProjectionViewCapabilities.Camera), Is.False);
                 Assert.That(owner.ProjectionViewCount, Is.EqualTo(2));
                 Assert.That(root.TryGetRef(out ConfirmedBattleViewFeature confirmedBound), Is.False);
                 Assert.That(owner.TryGetProjectionView("right", out var rightInfo), Is.True);
@@ -145,7 +151,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     new BattleNetId(2), out _), Is.False);
                 Assert.That(leftSource.SubscribeCount, Is.Zero);
                 Assert.That(rightSource.SubscribeCount, Is.EqualTo(1));
-                Assert.That(rightSource.LastEventContext.WorldOffset.x, Is.EqualTo(-100));
+                Assert.That(rightSource.LastEventContext.WorldOffset.X, Is.EqualTo(-100));
                 Assert.That(rightSource.LastEventContext.CurrentFrame, Is.EqualTo(10));
 
                 leftSource.Producer = null;

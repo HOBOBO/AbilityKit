@@ -2,8 +2,9 @@
   "name": "AbilityKit.World.Entitas",
   "rootNamespace": "AbilityKit",
   "references": [
-    "AbilityKit.World.DI",
-    "AbilityKit.Core"
+    "AbilityKit.Core",
+    "AbilityKit.Diagnostics",
+    "AbilityKit.World.DI"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

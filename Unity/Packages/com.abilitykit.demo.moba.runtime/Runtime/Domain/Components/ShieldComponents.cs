@@ -1,23 +1,71 @@
 using System.Collections.Generic;
 using AbilityKit.Deterministic;
-using Entitas;
-using Entitas.CodeGeneration.Attributes;
 
 namespace AbilityKit.Demo.Moba.Components
 {
-    [Actor]
-    public sealed class ShieldContainerComponent : IComponent
+    public readonly struct ShieldContainerView
     {
-        public ShieldContainer Value;
-        public bool Initialized;
+        public ShieldContainerView(int layerCount, int nextInstanceId, Fixed64 totalRemaining, bool dirty)
+        {
+            LayerCount = layerCount;
+            NextInstanceId = nextInstanceId;
+            TotalRemaining = totalRemaining;
+            Dirty = dirty;
+        }
+
+        public int LayerCount { get; }
+        public int NextInstanceId { get; }
+        public Fixed64 TotalRemaining { get; }
+        public bool Dirty { get; }
     }
 
-    [Actor]
-    public sealed class SharedShieldPoolsComponent : IComponent
+    /// <summary>
+    /// Read-only projection for UI, snapshots and diagnostics. It deliberately contains
+    /// values, ids and versions only; no mutable layer, pool or member reference crosses
+    /// the shield service boundary.
+    /// </summary>
+    public readonly struct ShieldPresentationSnapshot
     {
-        public SharedShieldPoolContainer Value;
-        public bool Initialized;
+        public ShieldPresentationSnapshot(
+            int actorId,
+            Fixed64 totalPersonalValue,
+            Fixed64 totalSharedValue,
+            Fixed64 totalVisibleValue,
+            Fixed64 visibleCapacity,
+            int primaryShieldId,
+            int primaryPoolId,
+            int primaryPoolVersion,
+            int layerCount,
+            bool hasShared)
+        {
+            ActorId = actorId;
+            TotalPersonalValue = totalPersonalValue;
+            TotalSharedValue = totalSharedValue;
+            TotalVisibleValue = totalVisibleValue;
+            VisibleCapacity = visibleCapacity;
+            PrimaryShieldId = primaryShieldId;
+            PrimaryPoolId = primaryPoolId;
+            PrimaryPoolVersion = primaryPoolVersion;
+            LayerCount = layerCount;
+            HasShared = hasShared;
+        }
+
+        public int ActorId { get; }
+        public Fixed64 TotalPersonalValue { get; }
+        public Fixed64 TotalSharedValue { get; }
+        public Fixed64 TotalVisibleValue { get; }
+        public Fixed64 VisibleCapacity { get; }
+        public int PrimaryShieldId { get; }
+        public int PrimaryPoolId { get; }
+        public int PrimaryPoolVersion { get; }
+        public int LayerCount { get; }
+        public bool HasShared { get; }
+        public bool HasShield => TotalVisibleValue > Fixed64.Zero;
     }
+
+    // 2026-10-12：ShieldContainerComponent/SharedShieldPoolsComponent 两个 [Actor] 组件定义已删除
+    // （Jenny 死后新增、从未生成 API、零消费者——护盾状态实际在 MobaShieldService）。
+    // 护盾 ECS 化待重新规划后再以正确形态落地。
 
     public sealed class ShieldContainer
     {
@@ -90,6 +138,8 @@ namespace AbilityKit.Demo.Moba.Components
         public Fixed64 MaxValue;
         public Fixed64 InitialValue;
         public Fixed64 AbsorbRatio;
+        public int Version;
+        public int NextMemberId;
 
         public int Priority;
         public int DamageTypeMask;
@@ -109,9 +159,38 @@ namespace AbilityKit.Demo.Moba.Components
         public int ActorId;
         public Fixed64 Weight;
         public Fixed64 MaxConsumeValue;
+        public Fixed64 ConsumedValue;
         public int JoinedFrame;
         public int LeftFrame;
         public bool Active;
+    }
+
+    /// <summary>只读的共享池摘要；余额只从 Pool 读取，成员绑定不复制余额。</summary>
+    public readonly struct SharedShieldPoolView
+    {
+        public SharedShieldPoolView(int poolId, int shieldId, Fixed64 currentValue, Fixed64 maxValue,
+            int version, int memberCount, int activeMemberCount, int startFrame, int expireFrame)
+        {
+            PoolId = poolId;
+            ShieldId = shieldId;
+            CurrentValue = currentValue;
+            MaxValue = maxValue;
+            Version = version;
+            MemberCount = memberCount;
+            ActiveMemberCount = activeMemberCount;
+            StartFrame = startFrame;
+            ExpireFrame = expireFrame;
+        }
+
+        public int PoolId { get; }
+        public int ShieldId { get; }
+        public Fixed64 CurrentValue { get; }
+        public Fixed64 MaxValue { get; }
+        public int Version { get; }
+        public int MemberCount { get; }
+        public int ActiveMemberCount { get; }
+        public int StartFrame { get; }
+        public int ExpireFrame { get; }
     }
 
     public enum ShieldStackingPolicy

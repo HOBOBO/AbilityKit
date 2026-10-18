@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <!--
+    Entitas 组件代码生成器（设计时 CLI，取代已失管的 Jenny 链路）。
+    与 tools/AbilityKit.Protocol.CatalogCompiler 同级同模式：产物 checked-in，
+    由本工具生成/校验，不进任何 Unity 包。
+
+    目录划分（与命名空间一致）：
+    Configuration/ 配置与 pin；Model/ 管线数据契约与 ModelBuilder；
+    Scanning/ 组件扫描/类型索引/类型解析；Pipeline/ 生成管线与生成器/后处理器；
+    Templates/ 模板（Feature.cs 为内嵌资源，不参与编译）；Output/ 写盘；
+    Compare/ 对比报告；Runner/ 编排；Diagnostics/ 退出码与错误。
+  -->
+  <ItemGroup>
+    <Compile Remove="Templates\Feature.cs" />
+    <EmbeddedResource Include="Templates\Feature.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 仅 CLI 用（不进 Unity）：语义级组件扫描器。regex 扫描器仍为默认，见配置 scanner 项。 -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+  </ItemGroup>
+</Project>

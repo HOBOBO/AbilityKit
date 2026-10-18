@@ -2,22 +2,10 @@ using System;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Network.Battle.Projection;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
-using UnityEngine;
+using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Game.Flow
 {
-    [Flags]
-    public enum BattleProjectionViewCapabilities
-    {
-        Actors = 0,
-        Vfx = 1 << 0,
-        AreaEffects = 1 << 1,
-        FloatingText = 1 << 2,
-        Events = 1 << 3,
-        Camera = 1 << 4,
-        Full = Vfx | AreaEffects | FloatingText | Events | Camera,
-    }
-
     public interface IBattleProjectionViewSource
     {
         WorldId WorldId { get; }
@@ -44,12 +32,12 @@ namespace AbilityKit.Game.Flow
     {
         public readonly string InstanceId;
         public readonly WorldId SourceWorldId;
-        public readonly Vector3 WorldOffset;
+        public readonly Vec3 WorldOffset;
         public readonly long ProjectionEpoch;
         public readonly int CurrentFrame;
 
         public BattleProjectionViewEventContext(string instanceId, WorldId sourceWorldId,
-            Vector3 worldOffset, long projectionEpoch, int currentFrame)
+            Vec3 worldOffset, long projectionEpoch, int currentFrame)
         {
             InstanceId = instanceId;
             SourceWorldId = sourceWorldId;
@@ -59,22 +47,16 @@ namespace AbilityKit.Game.Flow
         }
     }
 
-    public enum BattleProjectionViewRole
-    {
-        Prediction,
-        Auxiliary,
-    }
-
     public readonly struct BattleProjectionViewInfo
     {
         public readonly string InstanceId;
         public readonly BattleProjectionViewRole Role;
         public readonly WorldId SourceWorldId;
-        public readonly Vector3 WorldOffset;
+        public readonly Vec3 WorldOffset;
         public readonly BattleProjectionViewCapabilities Capabilities;
 
         public BattleProjectionViewInfo(string instanceId, BattleProjectionViewRole role,
-            WorldId sourceWorldId, Vector3 worldOffset,
+            WorldId sourceWorldId, Vec3 worldOffset,
             BattleProjectionViewCapabilities capabilities = BattleProjectionViewCapabilities.Actors)
         {
             InstanceId = instanceId;

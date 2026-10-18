@@ -1,5 +1,57 @@
 # 视图运行时目录布局
 
+## 当前落地目录
+
+以下目录是当前代码归属；后文的分批迁移记录保留为历史背景。
+
+```text
+Runtime/
+  Logic/
+    Flow/                  对局外流程决策与状态机内核，独立 asmdef
+    Presentation/Core/     表现投影的纯 C# 内核，独立 asmdef
+    Presentation/Adapter/  投影适配，独立 asmdef
+    Presentation/Gameplay/  玩法表现 profile 与校验，独立 asmdef
+    Presentation/Vfx/      VFX 映射数据库，独立 asmdef
+    Presentation/Timeline/  技能表现时间轴调度与输出契约，独立 asmdef
+    Contracts/Time/        表现时间契约和手动时间源，独立 asmdef
+    Contracts/Logging/     战斗日志契约和非 Unity 实现，独立 asmdef
+  Platform/Unity/
+    Assets/                Resources 加载器和 UnityEngine.Object 资源接口
+    Config/                Resources 配置源与 TextAsset 加载器
+    Flow/                  Unity 游戏流程服务适配
+    Time/                  UnityEngine.Time 适配
+    Logging/               UnityEngine.Debug 适配
+    Presentation/Entities/  Unity 表现 ECS 组件、实体及其 Feature
+    Presentation/Gameplay/  Resources profile 读取和 JSON 适配
+    Presentation/           会话数据源及 VFX Resources/JSON 适配
+  Networking/
+    Room/                  房间客户端与协议映射
+    Transport/             本地 Host 传输与战斗逻辑客户端
+    Replication/           战斗复制、插值与可靠事件路由
+  UI/
+    App/                   大厅与调试界面
+    Battle/                战斗 HUD
+    Framework/             通用 Unity UI 基础设施
+  Game/
+    App/                   应用装配、配置和流程宿主
+    Battle/                Session、Bootstrap、输入与实体表现
+    Test/                  现有 EditMode 测试程序集
+Editor/                   Unity Editor 专用实体调试程序集
+```
+
+`Logic` 下的 asmdef 均禁用 Unity 引擎引用，.NET 工程直接编译同一份源码。技能时间轴只调用 `IMobaSkillPresentationTimelineSink`，Unity 视图负责实现动画和特效输出。`Platform/Unity/Assets` 承载 `Resources` 实现及带 `UnityEngine.Object` 约束的接口；纯 C# 的 `IBattleAssetLoadService`、`IBattleAssetDependencyProvider` 和清单解析仍在逻辑层。加载屏幕由 feature factory 注入服务，默认 Unity 实现在 `UnityMobaFeatureFactoryProvider` 选择。`Platform`、`Networking`、`UI` 和 `Game` 中没有独立 asmdef 的代码仍归主 View Runtime 程序集；目录迁移不改变命名空间。跨项目复用需要实际消费者验证后再分包，不能只根据目录名判断。
+
+玩法表现 profile 的映射和校验现在由 `Logic/Presentation/Gameplay` 承担；`Platform/Unity/Presentation/Gameplay` 负责读取 `Resources` 并把 Unity JSON 文档转换为纯 C# profile。Unity 玩法模块注册表负责验证 HUD、投影和结算实现是否齐全。
+
+## 表现层后续优先级
+
+1. **P0：会话资源创建，已完成**。`BattlePresentationSessionFactory` 和 `BattleViewResourceCache` 通过 `IBattlePresentationDataSource` 加载配置与 VFX；Unity 会话装配传入实现。租约存在但配置缺失时仍直接失败，不回退到全局资源。
+2. **P1：玩法模块职责，已完成**。注册表归 `Game/App/Flow/Composition`，TeamDeathmatch 快照投影归纯 C# `Logic/Flow`，HUD 控件归 `UI/Battle`。
+3. **P1：视图资源与 VFX 数据，已完成**。`VfxDatabase` 只持有 VFX 映射并过滤无效条目，独立的无引擎程序集可由 .NET 编译；`UnityVfxDatabaseLoader` 负责 JSON 与 `Resources` 读取。
+4. **P2：视图契约与组件布局，已完成**。投影视图的世界偏移契约改用 `AbilityKit.Core.Mathematics.Vec3`，Unity 会话创建视图时从 `Vector3` 转换；GameObject、Canvas 和 MonoBehaviour 实现继续由 Unity 侧持有。
+
+本批验证：`AbilityKit.Game.Flow.Core` 与 `AbilityKit.Demo.Moba.Presentation.Vfx` 的 .NET 编译通过；Unity EditMode 相关测试 113/113 通过。
+
 本文定义 `com.abilitykit.demo.moba.view.runtime` 的目标目录、依赖方向和分批迁移规则。当前目录仍处于过渡期；本规范同时用于判断新代码归属和约束后续迁移。
 
 ## 1. 当前问题
@@ -14,42 +66,24 @@
 
 ## 2. 目标顶层结构
 
-短期保留现有程序集和公共命名空间，先让物理目录稳定。最终目标如下：
+以当前顶层职责为基础，后续迁移按以下方向收敛。纯逻辑程序集可被 .NET 和无头宿主直接引用，Unity 装配层选择平台实现：
 
 ```text
-Runtime/Game/
-├── App/                         # 应用入口与对局外流程编排
-│   ├── Entry/
-│   ├── Configuration/
-│   └── Flow/
-├── Battle/
-│   ├── Bootstrap/               # BattleStartPlan、配置解析、启动装配
-│   ├── Session/                 # 对局会话生命周期与运行时宿主
-│   ├── Networking/              # Gateway、Transport、Replication
-│   │   ├── Gateway/
-│   │   ├── Transport/
-│   │   └── Replication/         # Snapshot、Interpolation、ReliableEvents
-│   ├── Simulation/              # 预测、确认世界、rollback/replay bridge
-│   ├── Input/                   # Sources、Mapping、Submission
-│   ├── Presentation/            # Unity 表现实现
-│   │   ├── Composition/
-│   │   ├── Entities/
-│   │   ├── Hud/
-│   │   ├── Vfx/
-│   │   ├── Camera/
-│   │   └── Events/
-│   ├── Contracts/               # 跨 Battle 子域的最小稳定契约
-│   ├── Diagnostics/
-│   └── Testing/                 # 生产程序集内可复用测试驱动
-├── UI/                          # 非 Battle 专属 UI 基础设施
-├── EntityDebug/
-└── Test/
-    └── UnitTest/                # 保持现有 EditMode asmdef 边界
-        ├── App/
-        ├── Battle/
-        ├── Acceptance/
-        └── Harness/
+Runtime/
+  Logic/                          # 状态、决策、时间轴和纯 C# 契约
+  Networking/                     # 房间通信、协议映射与复制
+  Platform/Unity/                 # Resources、Time、Debug 和场景实体适配
+  UI/                             # Unity UI 控件与页面
+  Game/
+    App/                          # 入口、配置与 feature 装配
+    Battle/                       # 对局会话、启动、输入和跨域编排
+    Test/                         # EditMode 测试
+Editor/                           # 编辑器专用代码
 ```
+
+Gateway 的资源加载服务、依赖解析器和标签版本由 `GameEntry` 装配为 `MultiplayerBattleAssetLoadingOptions`，入口模块只消费选定的实现。内存传输里无人使用的 `IAssetProvider` 世界服务注册已删除，传输组已归入 `Networking/Transport`。Bootstrap 中的 `ResourcesTextAssetLoader` 和 `ResourcesConfigSource` 已归入 `Platform/Unity/Config`，`DictionaryConfigSource` 等纯配置源仍留在 Bootstrap，后续可在消费者明确时单独提为纯程序集。
+
+下一批应检查 `SessionMobaWorldBootstrapFactory`、`MobaConfigLoader` 等对 `ResourcesTextAssetLoader` 的直接构造，并让启动配置显式传入 `ITextAssetLoader`。`GameplayPresentationProfileCatalog`、VFX 和 HUD 的 Unity 资源读取应继续留在平台表现侧；纯逻辑侧只接收已解析的配置或资源键。
 
 历史 `EntityViewModel` 已整体迁入 `Battle/Presentation/Entities`。历史 `Client/SnapshotRouting` 按职责拆分：纯 decoder/registry 进入 `Battle/Networking/Replication/Routing`，实体快照应用进入 `Battle/Presentation/Snapshots`，依赖 `BattleContext` 和 session 生命周期的 command/composition bridge 留在 `Client/Session/Features/Snapshot`。历史 `Client/Synchronization` 已按 Networking、Prediction、Presentation、Session 和 Testing 边界拆空。`Client/Session` 中其余网络和模拟实现必须先从会话宿主中解耦，再分别迁入对应职责目录。
 

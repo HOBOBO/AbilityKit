@@ -178,6 +178,10 @@ namespace AbilityKit.Demo.Moba.Rollback
             {
                 registry.Register(new MobaSkillRuntimeRollbackProvider(skillRuntimes));
             }
+            if (world.Services.TryResolve<SkillCastCoordinator>(out var skillCoordinator) && skillCoordinator != null)
+            {
+                registry.Register(new MobaSkillPipelineRollbackProvider(skillCoordinator));
+            }
 
             if (world.Services.TryResolve<MobaSkillEconomyService>(out var skillEconomy) && skillEconomy != null)
             {
@@ -232,6 +236,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 MobaOwnerBlackboardRollbackProvider.DefaultKey,
                 MobaContextEntityRollbackProvider.DefaultKey,
                 MobaSkillRuntimeRollbackProvider.DefaultKey,
+                MobaSkillPipelineRollbackProvider.DefaultKey,
                 MobaSkillEconomyRollbackProvider.DefaultKey,
                 MobaSkillParamModifierRollbackProvider.DefaultKey,
                 MobaDerivedSkillRollbackProvider.DefaultKey,

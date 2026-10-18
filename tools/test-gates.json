@@ -96,6 +96,11 @@
           "project": "Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen/AbilityKit.Demo.Moba.CodeGen.csproj"
         },
         {
+          "name": "MOBA generator contract tests",
+          "kind": "dotnet-test",
+          "project": "Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen.Tests/AbilityKit.Demo.Moba.CodeGen.Tests.csproj"
+        },
+        {
           "name": "Validate MOBA CodeGen package ownership",
           "kind": "powershell-script",
           "script": "tools/validate_moba_codegen_ownership.ps1"
@@ -136,6 +141,39 @@
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
           "filter": "Gate=MobaConsoleSmoke"
+        }
+      ]
+    },
+    {
+      "name": "entitas-codegen",
+      "level": "P1",
+      "owner": "MOBA Runtime/Compile Time",
+      "description": "Entitas component code generation self-consistency: generated baseline check for all entitas-codegen projects plus generator unit tests (golden baseline, pin drift alarms, source validation rules).",
+      "scope": [
+        "entitas-codegen",
+        "ecs-generated-api"
+      ],
+      "requiredBefore": [
+        "change-entitas-component-definitions",
+        "change-entitas-codegen-templates"
+      ],
+      "failurePolicy": "Block component definition or generator template changes until the generated baseline is consistent (intentional changes refresh it via generate-entitas.ps1 -UpdateBaseline).",
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Entitas generated baseline check",
+          "kind": "powershell-script",
+          "script": "tools/check_entitas_codegen.ps1"
+        },
+        {
+          "name": "Entitas codegen tool tests",
+          "kind": "dotnet-test",
+          "project": "tools/AbilityKit.Entitas.CodeGen.Tests/AbilityKit.Entitas.CodeGen.Tests.csproj"
         }
       ]
     },
@@ -1091,6 +1129,74 @@
           "projectPath": "Unity",
           "testPlatform": "EditMode",
           "testFilter": "AbilityKit.Game.Test.UnitTest.YingZhengSkillAcceptanceTests"
+        }
+      ]
+    },
+    {
+      "name": "moba-sunshangxiang-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Run the authoritative Sun Shangxiang Unity EditMode hero acceptance fixture as a scheduled regression baseline.",
+      "scope": [
+        "unity-editmode",
+        "moba-hero-acceptance",
+        "moba-sunshangxiang",
+        "scene-contracts",
+        "authoritative-artifacts"
+      ],
+      "requiredBefore": [
+        "broad-moba-hero-refactor-completion",
+        "release-candidate",
+        "batch-merge"
+      ],
+      "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Sun Shangxiang Unity acceptance fixture",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.SunShangxiangSkillAcceptanceTests"
+        }
+      ]
+    },
+    {
+      "name": "moba-luban-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Run the authoritative Luban Unity EditMode hero acceptance fixture as a scheduled regression baseline.",
+      "scope": [
+        "unity-editmode",
+        "moba-hero-acceptance",
+        "moba-luban",
+        "scene-contracts",
+        "authoritative-artifacts"
+      ],
+      "requiredBefore": [
+        "broad-moba-hero-refactor-completion",
+        "release-candidate",
+        "batch-merge"
+      ],
+      "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Luban Unity acceptance fixture",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.LubanSkillAcceptanceTests"
         }
       ]
     },

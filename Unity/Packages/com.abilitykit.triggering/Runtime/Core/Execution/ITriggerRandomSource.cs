@@ -2,7 +2,7 @@ namespace AbilityKit.Triggering.Runtime
 {
     /// <summary>
     /// Random source used by executable plans. Deterministic simulations should inject
-    /// a source whose state participates in their checkpoint/rollback lifecycle.
+    /// a source whose state can be captured and restored by the caller.
     /// </summary>
     public interface ITriggerRandomSource
     {

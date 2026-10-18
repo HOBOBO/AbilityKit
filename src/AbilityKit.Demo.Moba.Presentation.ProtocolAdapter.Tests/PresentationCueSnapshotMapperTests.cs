@@ -48,6 +48,60 @@ public sealed class PresentationCueSnapshotMapperTests
     }
 
     [Fact]
+    public void TypedParametersAndLineageSurviveWireRoundTrip()
+    {
+        var payload = MobaPresentationCueSnapshotCodec.Serialize(new[]
+        {
+            new MobaPresentationCueSnapshotEntry
+            {
+                Stage = (int)ProtocolStage.Started,
+                ContextKind = 3,
+                OriginKind = 31,
+                SourceContextId = 101,
+                RootContextId = 77,
+                OwnerContextId = 88,
+                SourceConfigId = 9001,
+                ContextEventId = "buff:9001:101",
+                Lifetime = (int)PresentationCueLifetime.PersistentState,
+                Domain = (int)PresentationCueDomain.Buff,
+                SnapshotKind = (int)PresentationCueSnapshotKind.ActiveBaseline,
+                WorldId = 12,
+                Generation = 4,
+                SourceFrame = 222,
+                Sequence = 701,
+                Revision = 9,
+                ParameterSchemaVersion = 1,
+                EventKey = "buff-refresh:701",
+                Parameters = new[]
+                {
+                    new MobaPresentationCueParameter { Key = 1, ValueKind = (int)PresentationCueParameterKind.Boolean, BoolValue = true },
+                    new MobaPresentationCueParameter { Key = 2, ValueKind = (int)PresentationCueParameterKind.Vector3, VectorX = 1f, VectorY = 2f, VectorZ = 3f },
+                },
+            },
+        });
+
+        var actual = Assert.Single(PresentationCueSnapshotDecoder.Decode(payload));
+
+        Assert.Equal(101, actual.SourceContextId);
+        Assert.Equal(77, actual.RootContextId);
+        Assert.Equal(88, actual.OwnerContextId);
+        Assert.Equal(9001, actual.SourceConfigId);
+        Assert.Equal("buff:9001:101", actual.ContextEventId);
+        Assert.Equal(PresentationCueLifetime.PersistentState, actual.Lifetime);
+        Assert.Equal(PresentationCueDomain.Buff, actual.Domain);
+        Assert.Equal(PresentationCueSnapshotKind.ActiveBaseline, actual.SnapshotKind);
+        Assert.Equal(12, actual.WorldId);
+        Assert.Equal(4, actual.Generation);
+        Assert.Equal(222, actual.SourceFrame);
+        Assert.Equal(701, actual.Sequence);
+        Assert.Equal(9, actual.Revision);
+        Assert.Equal("buff-refresh:701", actual.EventKey);
+        Assert.Collection(actual.Parameters,
+            value => { Assert.Equal(PresentationCueParameterKind.Boolean, value.Kind); Assert.True(value.BooleanValue); },
+            value => { Assert.Equal(PresentationCueParameterKind.Vector3, value.Kind); AssertPosition(value.VectorValue, 1f, 2f, 3f); });
+    }
+
+    [Fact]
     public void MapEmptyBatchReturnsEmptyContractBatch()
     {
         Assert.Empty(PresentationCueSnapshotMapper.Map(null!));

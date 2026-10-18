@@ -4,6 +4,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Battle.Vfx;
+using AbilityKit.Game.Platform.Unity.Presentation;
 using AbilityKit.Game.Flow.Battle.View;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot;
@@ -30,7 +31,9 @@ namespace AbilityKit.Game.Flow
         private BattlePresentationSessionContext _presentation;
         private BattleViewResourceProvider _instanceResources;
         private readonly ViewFeatureRuntimeOperations _operations = new ViewFeatureRuntimeOperations();
-        private readonly BattlePresentationSessionResolver _presentationSessions = new BattlePresentationSessionResolver();
+        private readonly BattlePresentationSessionResolver _presentationSessions =
+            new BattlePresentationSessionResolver(
+                new BattlePresentationSessionFactory(UnityBattlePresentationDataSource.Shared));
         private BattleViewHierarchyManager _hierarchy;
         private ViewInstanceResources _instanceResourcesOwner;
 
@@ -76,7 +79,9 @@ namespace AbilityKit.Game.Flow
                 throw new InvalidOperationException("View resources are already attached.");
             var worldId = RuntimeContext != null ? RuntimeContext.RuntimeWorldId.ToString() : "unknown";
             var name = "[Battle:" + worldId + ":" + role + ":" + instanceKey + "]";
-            _instanceResourcesOwner = ViewInstanceResources.Create(name, PresentationResources, capabilities);
+            _instanceResourcesOwner = ViewInstanceResources.Create(
+                name, PresentationResources, capabilities,
+                allowMainCameraFallback: role == "Primary");
             ShellPool = _instanceResourcesOwner.ShellPool;
             AreaVfxPool = _instanceResourcesOwner.AreaVfxPool;
             CameraController = _instanceResourcesOwner.CameraController;

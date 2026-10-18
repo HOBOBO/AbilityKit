@@ -1,0 +1,554 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Attributes.Core;
+using AbilityKit.Continuous;
+using AbilityKit.Modifiers;
+
+namespace AbilityKit.Demo.Moba.Services
+{
+    public interface IMobaContinuousModifierProjectionQuery
+    {
+        IReadOnlyList<MobaContinuousModifierEntry> GetActiveModifiers(int ownerActorId);
+        IReadOnlyList<MobaContinuousModifierEntry> GetActiveModifiers(int ownerActorId, int targetKind);
+        IReadOnlyList<MobaContinuousModifierEntry> GetActiveModifiers(int ownerActorId, int targetKind, int targetId);
+    }
+
+    public interface IMobaContinuousModifierExplainService
+    {
+        IReadOnlyList<MobaContinuousModifierExplainResult> ExplainActiveModifiers(int ownerActorId);
+        IReadOnlyList<MobaContinuousModifierExplainResult> ExplainActiveModifiers(int ownerActorId, int targetKind);
+        IReadOnlyList<MobaContinuousModifierExplainResult> ExplainActiveModifiers(int ownerActorId, int targetKind, int targetId);
+        bool TryExplainModifier(MobaContinuousModifierEntry entry, out MobaContinuousModifierExplainResult result);
+    }
+
+    public interface IMobaContinuousModifierValueResolver
+    {
+        /// <summary>Resolves one declared magnitude for diagnostics or a target-specific resolver.</summary>
+        float ResolveMagnitude(MobaContinuousModifierEntry entry, AttributeContext context = null);
+    }
+
+    [Obsolete("Use IMobaContinuousModifierProjectionQuery and IMobaContinuousModifierExplainService separately.")]
+    public interface IMobaContinuousModifierQueryService :
+        IMobaContinuousModifierProjectionQuery, IMobaContinuousModifierExplainService
+    {
+        float EvaluateNumeric(int ownerActorId, int targetKind, int targetId, float baseValue);
+    }
+
+    public readonly struct MobaContinuousModifierMagnitudeView
+    {
+        public MobaContinuousModifierMagnitudeView(MagnitudeSource source, float calculatedValue,
+            bool hasCalculatedValue, bool includeCurveSamples = true)
+        {
+            Type = source.Type;
+            BaseValue = source.BaseValue;
+            Coefficient = source.Coefficient;
+            Duration = source.Duration;
+            AttributeKind = source.AttributeKey.Category;
+            AttributeSubCategory = source.AttributeKey.SubCategory;
+            AttributeCustomId = source.AttributeKey.CustomId;
+            DecayType = (int)source.DecayType;
+            IsTimeVarying = source.IsTimeVarying;
+            CurveSamples = !includeCurveSamples || source.ArrayData == null
+                ? Array.Empty<float>() : (float[])source.ArrayData.Clone();
+            CalculatedValue = calculatedValue;
+            HasCalculatedValue = hasCalculatedValue;
+        }
+
+        public MagnitudeSourceType Type { get; }
+        public float BaseValue { get; }
+        public float Coefficient { get; }
+        public float Duration { get; }
+        public byte AttributeKind { get; }
+        public byte AttributeSubCategory { get; }
+        public byte AttributeCustomId { get; }
+        public int DecayType { get; }
+        public bool IsTimeVarying { get; }
+        public IReadOnlyList<float> CurveSamples { get; }
+        public float CalculatedValue { get; }
+        public bool HasCalculatedValue { get; }
+    }
+
+    public readonly struct MobaContinuousModifierExplainResult
+    {
+        public MobaContinuousModifierExplainResult(
+            IContinuous continuous,
+            int ownerActorId,
+            int targetKind,
+            int targetId,
+            int op,
+            float value,
+            int evaluationPolicy,
+            int priority,
+            int stack,
+            int modifierSourceId,
+            MobaContinuousModifierMagnitudeView declaredMagnitude,
+            MobaContinuousModifierMagnitudeView stackedMagnitude,
+            MobaContinuousModifierMagnitudeView projectedMagnitude,
+            float currentValue,
+            bool hasCurrentValue,
+            float capturedValue,
+            bool hasCapturedValue,
+            string captureMode,
+            string reason,
+            int definitionId = 0,
+            int ordinal = 0)
+        {
+            Continuous = continuous;
+            OwnerActorId = ownerActorId;
+            TargetKind = targetKind;
+            TargetId = targetId;
+            Op = op;
+            Value = value;
+            EvaluationPolicy = evaluationPolicy;
+            Priority = priority;
+            Stack = stack;
+            ModifierSourceId = modifierSourceId;
+            DeclaredMagnitude = declaredMagnitude;
+            StackedMagnitude = stackedMagnitude;
+            ProjectedMagnitude = projectedMagnitude;
+            CurrentValue = currentValue;
+            HasCurrentValue = hasCurrentValue;
+            CapturedValue = capturedValue;
+            HasCapturedValue = hasCapturedValue;
+            CaptureMode = captureMode;
+            Reason = reason;
+            DefinitionId = definitionId;
+            Ordinal = ordinal;
+        }
+
+        public IContinuous Continuous { get; }
+        public int OwnerActorId { get; }
+        public int TargetKind { get; }
+        public int TargetId { get; }
+        public int Op { get; }
+        public float Value { get; }
+        public int EvaluationPolicy { get; }
+        public int Priority { get; }
+        public int Stack { get; }
+        public int ModifierSourceId { get; }
+        public MobaContinuousModifierMagnitudeView DeclaredMagnitude { get; }
+        public MobaContinuousModifierMagnitudeView StackedMagnitude { get; }
+        public MobaContinuousModifierMagnitudeView ProjectedMagnitude { get; }
+        public float CurrentValue { get; }
+        public bool HasCurrentValue { get; }
+        public float CapturedValue { get; }
+        public bool HasCapturedValue { get; }
+        public string CaptureMode { get; }
+        public string Reason { get; }
+        public int DefinitionId { get; }
+        public int Ordinal { get; }
+        public bool IsSnapshot => EvaluationPolicy == MobaContinuousModifierEvaluationPolicy.OnApplySnapshot;
+        public bool IsRealtime => !IsSnapshot;
+    }
+
+    public readonly struct MobaContinuousModifierCaptureRecord
+    {
+        public MobaContinuousModifierCaptureRecord(
+            IContinuous continuous,
+            IMobaContinuousModifierSpec spec,
+            int ownerActorId,
+            int targetKind,
+            int targetId,
+            int op,
+            float value,
+            int evaluationPolicy,
+            int priority,
+            int stack,
+            int modifierSourceId,
+            MagnitudeSource declaredMagnitude,
+            MagnitudeSource stackedMagnitude,
+            MagnitudeSource projectedMagnitude,
+            float capturedValue,
+            bool hasCapturedValue,
+            string captureMode,
+            string reason,
+            int ordinal = 0)
+        {
+            Continuous = continuous;
+            Spec = spec;
+            CaptureKey = MobaContinuousModifierCaptureKey.From(spec, ordinal);
+            OwnerActorId = ownerActorId;
+            TargetKind = targetKind;
+            TargetId = targetId;
+            Op = op;
+            Value = value;
+            EvaluationPolicy = evaluationPolicy;
+            Priority = priority;
+            Stack = stack;
+            ModifierSourceId = modifierSourceId;
+            DeclaredMagnitude = declaredMagnitude;
+            StackedMagnitude = stackedMagnitude;
+            ProjectedMagnitude = projectedMagnitude;
+            CapturedValue = capturedValue;
+            HasCapturedValue = hasCapturedValue;
+            CaptureMode = captureMode;
+            Reason = reason;
+        }
+
+        public IContinuous Continuous { get; }
+        public IMobaContinuousModifierSpec Spec { get; }
+        public MobaContinuousModifierCaptureKey CaptureKey { get; }
+        public int Ordinal => CaptureKey.Ordinal;
+        public int OwnerActorId { get; }
+        public int TargetKind { get; }
+        public int TargetId { get; }
+        public int Op { get; }
+        public float Value { get; }
+        public int EvaluationPolicy { get; }
+        public int Priority { get; }
+        public int Stack { get; }
+        public int ModifierSourceId { get; }
+        public MagnitudeSource DeclaredMagnitude { get; }
+        public MagnitudeSource StackedMagnitude { get; }
+        public MagnitudeSource ProjectedMagnitude { get; }
+        public float CapturedValue { get; }
+        public bool HasCapturedValue { get; }
+        public string CaptureMode { get; }
+        public string Reason { get; }
+    }
+
+    [WorldService(typeof(MobaContinuousModifierCaptureStore))]
+    public sealed class MobaContinuousModifierCaptureStore : IService
+    {
+        private readonly Dictionary<Key, MobaContinuousModifierCaptureRecord> _records = new Dictionary<Key, MobaContinuousModifierCaptureRecord>();
+
+        public void Dispose() => _records.Clear();
+
+        public void Record(in MobaContinuousModifierCaptureRecord record)
+        {
+            if (record.Continuous == null || record.ModifierSourceId == 0) return;
+            _records[Key.From(record.Continuous, record.ModifierSourceId, record.CaptureKey, record.TargetKind, record.TargetId, record.Op, record.Priority)] = record;
+        }
+
+        public bool TryGet(IContinuous continuous, int sourceId, IMobaContinuousModifierSpec spec, out MobaContinuousModifierCaptureRecord record)
+        {
+            return TryGet(continuous, sourceId, spec, 0, out record);
+        }
+
+        public bool TryGet(IContinuous continuous, int sourceId, IMobaContinuousModifierSpec spec, int ordinal,
+            out MobaContinuousModifierCaptureRecord record)
+        {
+            if (continuous != null && spec != null && sourceId != 0)
+                return _records.TryGetValue(Key.From(continuous, sourceId,
+                    MobaContinuousModifierCaptureKey.From(spec, ordinal), spec.TargetKind, spec.TargetId, spec.Op,
+                    spec.Priority), out record);
+
+            record = default;
+            return false;
+        }
+
+        public void Clear(int sourceId, int targetKind, int ownerActorId)
+        {
+            if (sourceId == 0 || _records.Count == 0) return;
+
+            List<Key> remove = null;
+            foreach (var pair in _records)
+            {
+                if (pair.Key.SourceId != sourceId || pair.Key.TargetKind != targetKind ||
+                    pair.Value.OwnerActorId != ownerActorId) continue;
+                remove ??= new List<Key>();
+                remove.Add(pair.Key);
+            }
+
+            if (remove == null) return;
+            for (int i = 0; i < remove.Count; i++)
+                _records.Remove(remove[i]);
+        }
+
+        private readonly struct Key : IEquatable<Key>
+        {
+            private Key(IContinuous continuous, int sourceId, MobaContinuousModifierCaptureKey captureKey, int targetKind, int targetId, int op, int priority)
+            {
+                Continuous = continuous;
+                SourceId = sourceId;
+                CaptureKey = captureKey;
+                TargetKind = targetKind;
+                TargetId = targetId;
+                Op = op;
+                Priority = priority;
+            }
+
+            public IContinuous Continuous { get; }
+            public int SourceId { get; }
+            public MobaContinuousModifierCaptureKey CaptureKey { get; }
+            public int TargetKind { get; }
+            public int TargetId { get; }
+            public int Op { get; }
+            public int Priority { get; }
+
+            public static Key From(IContinuous continuous, int sourceId, MobaContinuousModifierCaptureKey captureKey, int targetKind, int targetId, int op, int priority)
+            {
+                return new Key(continuous, sourceId, captureKey, targetKind, targetId, op, priority);
+            }
+
+            public bool Equals(Key other)
+            {
+                return ReferenceEquals(Continuous, other.Continuous) && CaptureKey.Equals(other.CaptureKey) &&
+                       SourceId == other.SourceId &&
+                       TargetKind == other.TargetKind &&
+                       TargetId == other.TargetId &&
+                       Op == other.Op &&
+                       Priority == other.Priority;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is Key other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    var hash = Continuous != null ? Continuous.GetHashCode() : 0;
+                    hash = (hash * 397) ^ CaptureKey.GetHashCode();
+                    hash = (hash * 397) ^ SourceId;
+                    hash = (hash * 397) ^ TargetKind;
+                    hash = (hash * 397) ^ TargetId;
+                    hash = (hash * 397) ^ Op;
+                    hash = (hash * 397) ^ Priority;
+                    return hash;
+                }
+            }
+        }
+    }
+
+    [WorldService(typeof(IMobaContinuousModifierProjectionQuery))]
+    [WorldService(typeof(IMobaContinuousModifierExplainService))]
+    [WorldService(typeof(IMobaContinuousModifierValueResolver))]
+    [WorldService(typeof(IMobaContinuousModifierQueryService))]
+    [WorldService(typeof(MobaContinuousModifierQueryService))]
+    public sealed class MobaContinuousModifierQueryService : IMobaContinuousModifierQueryService,
+        IMobaContinuousModifierValueResolver, IWorldInitializable, IService
+    {
+        private IContinuousManager _continuous;
+        private MobaActorLookupService _actors;
+        private MobaContinuousModifierCaptureStore _captureStore;
+
+        public void OnInit(IWorldResolver services)
+        {
+            services?.TryResolve(out _continuous);
+            services?.TryResolve(out _actors);
+            _captureStore = services?.Resolve<MobaContinuousModifierCaptureStore>()
+                ?? throw new InvalidOperationException("Modifier capture store is unavailable in this world.");
+        }
+
+        public void Dispose()
+        {
+            _continuous = null;
+            _actors = null;
+            _captureStore = null;
+        }
+
+        public IReadOnlyList<MobaContinuousModifierEntry> GetActiveModifiers(int ownerActorId)
+        {
+            return Collect(ownerActorId, targetKind: 0, targetId: 0, filterKind: false, filterTarget: false);
+        }
+
+        public IReadOnlyList<MobaContinuousModifierEntry> GetActiveModifiers(int ownerActorId, int targetKind)
+        {
+            return Collect(ownerActorId, targetKind, targetId: 0, filterKind: true, filterTarget: false);
+        }
+
+        public IReadOnlyList<MobaContinuousModifierEntry> GetActiveModifiers(int ownerActorId, int targetKind, int targetId)
+        {
+            return Collect(ownerActorId, targetKind, targetId, filterKind: true, filterTarget: true);
+        }
+
+        public IReadOnlyList<MobaContinuousModifierExplainResult> ExplainActiveModifiers(int ownerActorId)
+        {
+            return Explain(ownerActorId, targetKind: 0, targetId: 0, filterKind: false, filterTarget: false);
+        }
+
+        public IReadOnlyList<MobaContinuousModifierExplainResult> ExplainActiveModifiers(int ownerActorId, int targetKind)
+        {
+            return Explain(ownerActorId, targetKind, targetId: 0, filterKind: true, filterTarget: false);
+        }
+
+        public IReadOnlyList<MobaContinuousModifierExplainResult> ExplainActiveModifiers(int ownerActorId, int targetKind, int targetId)
+        {
+            return Explain(ownerActorId, targetKind, targetId, filterKind: true, filterTarget: true);
+        }
+
+        public bool TryExplainModifier(MobaContinuousModifierEntry entry, out MobaContinuousModifierExplainResult result)
+        {
+            var ownerActorId = entry.Projection?.OwnerActorId ?? 0;
+            if (entry.Continuous == null || entry.Spec == null || ownerActorId <= 0)
+            {
+                result = default;
+                return false;
+            }
+
+            result = BuildExplainResult(entry, ResolveAttributeContext(ownerActorId));
+            return true;
+        }
+
+        [Obsolete("Diagnostic-only compatibility helper. Formal combat consumers must use AttributeContext or a domain ParameterResolver.")]
+        public float EvaluateNumeric(int ownerActorId, int targetKind, int targetId, float baseValue)
+        {
+            return MobaContinuousModifierMath.EvaluateNumeric(baseValue, GetActiveModifiers(ownerActorId, targetKind, targetId), ResolveAttributeContext(ownerActorId));
+        }
+
+        private IReadOnlyList<MobaContinuousModifierExplainResult> Explain(int ownerActorId, int targetKind, int targetId, bool filterKind, bool filterTarget)
+        {
+            var entries = Collect(ownerActorId, targetKind, targetId, filterKind, filterTarget);
+            if (entries == null || entries.Count == 0) return Array.Empty<MobaContinuousModifierExplainResult>();
+
+            var context = ResolveAttributeContext(ownerActorId);
+            var result = new List<MobaContinuousModifierExplainResult>(entries.Count);
+            for (int i = 0; i < entries.Count; i++)
+                result.Add(BuildExplainResult(entries[i], context));
+
+            return result;
+        }
+
+        private MobaContinuousModifierExplainResult BuildExplainResult(MobaContinuousModifierEntry entry, AttributeContext context)
+        {
+            var spec = entry.Spec;
+            var projection = entry.Projection;
+            var ownerActorId = projection?.OwnerActorId ?? 0;
+            var sourceId = projection?.ModifierSourceId ?? 0;
+            var declared = spec.Magnitude;
+            var stacked = ApplyStack(declared, entry.Stack);
+            var projected = stacked;
+            var capturedValue = 0f;
+            var hasCapturedValue = false;
+            var captureMode = spec.EvaluationPolicy == MobaContinuousModifierEvaluationPolicy.OnApplySnapshot ? "OnApplySnapshot" : "Realtime";
+            var reason = "Runtime declaration";
+
+            if (_captureStore.TryGet(entry.Continuous, sourceId, spec, entry.Ordinal, out var record))
+            {
+                projected = record.ProjectedMagnitude;
+                capturedValue = record.CapturedValue;
+                hasCapturedValue = record.HasCapturedValue;
+                captureMode = record.CaptureMode;
+                reason = record.Reason;
+            }
+            else if (spec.EvaluationPolicy == MobaContinuousModifierEvaluationPolicy.OnApplySnapshot)
+            {
+                capturedValue = stacked.Calculate(context?.Level ?? 1f, context);
+                hasCapturedValue = true;
+                projected = MagnitudeSource.Fixed(capturedValue);
+                reason = "Snapshot capture was not recorded; value is reconstructed from current context";
+            }
+
+            if (declared.Type == MagnitudeSourceType.TimeDecay)
+                reason = BuildTimeCurveDescription(declared, entry.Continuous.ElapsedSeconds);
+
+            var currentValue = EvaluateMagnitude(stacked, entry.Continuous, context);
+            var projectedValue = EvaluateMagnitude(projected, entry.Continuous, context);
+
+            return new MobaContinuousModifierExplainResult(
+                entry.Continuous,
+                ownerActorId,
+                spec.TargetKind,
+                spec.TargetId,
+                spec.Op,
+                spec.Value,
+                spec.EvaluationPolicy,
+                spec.Priority,
+                entry.Stack,
+                sourceId,
+                new MobaContinuousModifierMagnitudeView(declared, EvaluateMagnitude(declared, entry.Continuous, context), true),
+                new MobaContinuousModifierMagnitudeView(stacked, currentValue, true,
+                    includeCurveSamples: false),
+                new MobaContinuousModifierMagnitudeView(projected, projectedValue, true,
+                    includeCurveSamples: false),
+                currentValue,
+                true,
+                capturedValue,
+                hasCapturedValue,
+                captureMode,
+                reason,
+                spec.DefinitionId,
+                entry.Ordinal);
+        }
+
+        private static float EvaluateMagnitude(MagnitudeSource source, IContinuous continuous, AttributeContext context)
+        {
+            return source.Type == MagnitudeSourceType.TimeDecay
+                ? source.CalculateAtElapsed(continuous.ElapsedSeconds)
+                : source.Calculate(context?.Level ?? 1f, context);
+        }
+
+        private static string BuildTimeCurveDescription(MagnitudeSource source, float elapsedSeconds)
+        {
+            var text = new StringBuilder("Time curve: elapsed ");
+            text.Append(elapsedSeconds.ToString("0.###", CultureInfo.InvariantCulture))
+                .Append("s / ")
+                .Append(source.Duration.ToString("0.###", CultureInfo.InvariantCulture))
+                .Append("s; decay ").Append(source.DecayType);
+            var samples = source.ArrayData;
+            if (samples != null && samples.Length > 0)
+            {
+                text.Append("; multipliers [");
+                for (var i = 0; i < samples.Length; i++)
+                {
+                    if (i > 0) text.Append(", ");
+                    text.Append(samples[i].ToString("0.###", CultureInfo.InvariantCulture));
+                }
+                text.Append(']');
+            }
+            return text.ToString();
+        }
+
+        private AttributeContext ResolveAttributeContext(int ownerActorId)
+        {
+            if (ownerActorId <= 0 || _actors == null) return null;
+            if (!_actors.TryGetActorEntity(ownerActorId, out var entity) || entity == null) return null;
+            return entity.hasAttributeGroup ? entity.attributeGroup.Ctx : null;
+        }
+
+        private IReadOnlyList<MobaContinuousModifierEntry> Collect(int ownerActorId, int targetKind, int targetId, bool filterKind, bool filterTarget)
+        {
+            if (ownerActorId <= 0 || _continuous == null) return Array.Empty<MobaContinuousModifierEntry>();
+
+            var active = _continuous.GetOwnerActiveContinuous(ownerActorId);
+            if (active == null || active.Count == 0) return Array.Empty<MobaContinuousModifierEntry>();
+
+            List<MobaContinuousModifierEntry> result = null;
+            for (int i = 0; i < active.Count; i++)
+            {
+                var continuous = active[i];
+                if (continuous == null || !continuous.IsActive) continue;
+                if (!(continuous.Config is IMobaContinuousModifierConfig modifierConfig)) continue;
+                if (!(continuous.Config is IMobaContinuousProjectionConfig projection)) continue;
+                if (projection.OwnerActorId != ownerActorId) continue;
+
+                var modifiers = modifierConfig.Modifiers;
+                if (modifiers == null || modifiers.Count == 0) continue;
+
+                var stack = MobaContinuousModifierStackResolver.Resolve(continuous.Config);
+                for (int m = 0; m < modifiers.Count; m++)
+                {
+                    var spec = modifiers[m];
+                    if (spec == null) continue;
+                    if (filterKind && spec.TargetKind != targetKind) continue;
+                    if (filterTarget && spec.TargetId != targetId) continue;
+
+                    result ??= new List<MobaContinuousModifierEntry>();
+                    result.Add(new MobaContinuousModifierEntry(continuous, projection, spec, stack, m));
+                }
+            }
+
+            return result ?? (IReadOnlyList<MobaContinuousModifierEntry>)Array.Empty<MobaContinuousModifierEntry>();
+        }
+
+        private static MagnitudeSource ApplyStack(MagnitudeSource magnitude, int stack)
+        {
+            if (stack <= 1) return magnitude;
+            return magnitude.WithBaseValue(magnitude.BaseValue * stack);
+        }
+
+        public float ResolveMagnitude(MobaContinuousModifierEntry entry, AttributeContext context = null)
+        {
+            if (entry.Spec == null || entry.Continuous == null) return 0f;
+            return EvaluateMagnitude(entry.Spec.Magnitude, entry.Continuous, context ?? ResolveAttributeContext(entry.Projection?.OwnerActorId ?? 0));
+        }
+    }
+}

@@ -13,9 +13,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            _context = ctx.Features.TryGet(out IBattleGameplayPresentationSource source)
-                ? source
-                : ctx.RequireFeature<BattleContext>(nameof(BattleOutcomeFeature));
+            _context = ctx.RequireFeature<IBattleGameplayPresentationSource>(nameof(BattleOutcomeFeature));
             _outcome = ctx.BattleOutcome ?? throw new InvalidOperationException("Battle outcome state is required.");
             TryBind();
         }

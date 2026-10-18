@@ -16,6 +16,19 @@ namespace AbilityKit.Pipeline
 
         public IReadOnlyList<AbilityConditionalBranch<TCtx>> Branches => _branches;
 
+        public int CurrentBranchIndex => _currentBranchIndex;
+        public IReadOnlyList<EPipelineDebugConditionResult> BranchResults => _branchResults;
+
+        public void SetBranchProgress(int index, IReadOnlyList<EPipelineDebugConditionResult> results)
+        {
+            if (index < -1 || index >= _branches.Count) throw new System.ArgumentOutOfRangeException(nameof(index));
+            if (results == null || results.Count != _branches.Count)
+                throw new System.ArgumentException("Branch result count does not match.", nameof(results));
+            _currentBranchIndex = index;
+            _currentBranch = index < 0 ? null : _branches[index];
+            for (int i = 0; i < results.Count; i++) _branchResults[i] = results[i];
+        }
+
         internal int DebugCurrentBranchIndex => _currentBranchIndex;
         internal IReadOnlyList<EPipelineDebugConditionResult> DebugBranchResults => _branchResults;
         
@@ -203,6 +216,7 @@ namespace AbilityKit.Pipeline
             _currentBranchIndex = -1;
             ResetBranchResults();
         }
+
 
         private void ResetBranchResults()
         {

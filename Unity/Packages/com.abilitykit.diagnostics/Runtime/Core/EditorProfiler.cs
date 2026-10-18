@@ -57,6 +57,14 @@ namespace AbilityKit.Diagnostics
         private volatile bool _isEnabled;
         private int _sessionIndex;
 
+        // 时间线 span 环形缓冲：按完成顺序记录 (名称, 起点, 时长, 关联上下文, 线程, 帧号)，
+        // 供 chrome/speedscope 导出真实时间轴。容量由 ProfilerOptions.MaxSpanEvents 控制。
+        private ProfilerSpanRecord[] _spans = Array.Empty<ProfilerSpanRecord>();
+        private int _spanHead;
+        private int _spanCount;
+        private long _spansDropped;
+        private long _currentFrame;
+
         public EditorProfiler()
         {
             ResetSessionIdentity();
@@ -71,9 +79,26 @@ namespace AbilityKit.Diagnostics
                 _isEnabled = true;
                 _sessionIndex++;
                 ClearLocked();
+                var capacity = _options == null ? 0 : _options.MaxSpanEvents;
+                _spans = capacity > 0 ? new ProfilerSpanRecord[capacity] : Array.Empty<ProfilerSpanRecord>();
+                _spanHead = 0;
+                _spanCount = 0;
+                _spansDropped = 0;
+                _currentFrame = 0;
                 _root.SessionId = $"{_sessionIndex}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
                 _root.StartTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 _root.EndTimestamp = 0L;
+            }
+        }
+
+        /// <summary>
+        /// 声明当前逻辑帧号。时间线导出按此标注 span 所属帧。
+        /// </summary>
+        public void SetFrame(long frame)
+        {
+            lock (_lock)
+            {
+                _currentFrame = frame;
             }
         }
 
@@ -218,6 +243,11 @@ namespace AbilityKit.Diagnostics
 
         public ProbeToken Begin(string name)
         {
+            return Begin(name, 0L);
+        }
+
+        public ProbeToken Begin(string name, long contextId)
+        {
             if (!_isEnabled || string.IsNullOrEmpty(name))
             {
                 return default;
@@ -238,7 +268,7 @@ namespace AbilityKit.Diagnostics
                 var parent = stack.Count > 0 ? stack.Peek().Node : _root.GetOrCreateRoot(category);
                 var node = parent.GetOrCreateChild(name, category);
                 stack.Push(new ActiveFrame(name, category, node, startTimestamp));
-                return new ProbeToken(this, name, startTimestamp);
+                return new ProbeToken(this, name, startTimestamp, contextId);
             }
         }
 
@@ -253,10 +283,12 @@ namespace AbilityKit.Diagnostics
             var elapsedNanoseconds = TicksToNanoseconds(nowTimestamp - token.StartTimestamp);
             lock (_lock)
             {
-                var stack = GetThreadStack(Thread.CurrentThread.ManagedThreadId);
+                var threadId = Thread.CurrentThread.ManagedThreadId;
+                var stack = GetThreadStack(threadId);
                 if (stack.Count == 0)
                 {
                     RecordDurationLocked(token.Name, elapsedNanoseconds, attachToCurrentStack: true);
+                    AppendSpanLocked(token.Name, token.StartTimestamp, elapsedNanoseconds, token.ContextId, threadId);
                     return;
                 }
 
@@ -264,6 +296,7 @@ namespace AbilityKit.Diagnostics
                 if (string.Equals(top.Name, token.Name, StringComparison.Ordinal))
                 {
                     CompleteFrameLocked(stack, stack.Pop(), elapsedNanoseconds);
+                    AppendSpanLocked(token.Name, token.StartTimestamp, elapsedNanoseconds, token.ContextId, threadId);
                     return;
                 }
 
@@ -292,6 +325,7 @@ namespace AbilityKit.Diagnostics
                     }
 
                     RecordDurationLocked(token.Name, elapsedNanoseconds, attachToCurrentStack: true);
+                    AppendSpanLocked(token.Name, token.StartTimestamp, elapsedNanoseconds, token.ContextId, threadId);
                     return;
                 }
 
@@ -306,7 +340,36 @@ namespace AbilityKit.Diagnostics
                 }
 
                 CompleteFrameLocked(stack, targetFrame, elapsedNanoseconds);
+                AppendSpanLocked(token.Name, token.StartTimestamp, elapsedNanoseconds, token.ContextId, threadId);
             }
+        }
+
+        private void AppendSpanLocked(string name, long startTimestamp, long elapsedNanoseconds, long contextId, int threadId)
+        {
+            if (_spans.Length == 0 || elapsedNanoseconds < 0L)
+            {
+                return;
+            }
+
+            if (_spanCount == _spans.Length)
+            {
+                _spansDropped++;
+            }
+            else
+            {
+                _spanCount++;
+            }
+
+            _spans[_spanHead] = new ProfilerSpanRecord
+            {
+                Name = name,
+                StartTimestamp = startTimestamp,
+                DurationNanoseconds = elapsedNanoseconds,
+                ContextId = contextId,
+                ThreadId = threadId,
+                Frame = _currentFrame
+            };
+            _spanHead = (_spanHead + 1) % _spans.Length;
         }
 
         private void RecordFrameMeasurementLocked(ActiveFrame frame, long elapsedNanoseconds)
@@ -349,6 +412,11 @@ namespace AbilityKit.Diagnostics
 
                 EnsureMetricLocked(name, MetricKind.Duration, "ms");
                 RecordDurationLocked(name, nanoseconds, attachToCurrentStack: true);
+
+                // 外部测量只有时长：起点按“现在 - 时长”合成，时间线视图仍可对齐。
+                var now = Stopwatch.GetTimestamp();
+                var startTimestamp = now - NanosecondsToTicks(nanoseconds);
+                AppendSpanLocked(name, startTimestamp, nanoseconds, 0L, Thread.CurrentThread.ManagedThreadId);
             }
         }
 
@@ -537,8 +605,27 @@ namespace AbilityKit.Diagnostics
                 Events = new List<DiagnosticEventRecord>(_events),
                 Metrics = new Dictionary<string, MetricDefinition>(_metrics),
                 Options = _options.Clone(),
-                Sessions = new List<DiagnosticsSessionRecord>(_sessionHistory)
+                Sessions = new List<DiagnosticsSessionRecord>(_sessionHistory),
+                Spans = CloneSpansLocked(),
+                SpansDropped = _spansDropped
             };
+        }
+
+        private List<ProfilerSpanRecord> CloneSpansLocked()
+        {
+            if (_spanCount == 0)
+            {
+                return new List<ProfilerSpanRecord>();
+            }
+
+            var result = new List<ProfilerSpanRecord>(_spanCount);
+            var oldest = (_spanHead - _spanCount + _spans.Length) % _spans.Length;
+            for (var i = 0; i < _spanCount; i++)
+            {
+                result.Add(_spans[(oldest + i) % _spans.Length]);
+            }
+
+            return result;
         }
 
         private void RecordDurationLocked(string name, long nanoseconds, bool attachToCurrentStack)
@@ -826,6 +913,10 @@ namespace AbilityKit.Diagnostics
             _eventCooldowns.Clear();
             _events.Clear();
             _threadStacks.Clear();
+            _spanHead = 0;
+            _spanCount = 0;
+            _spansDropped = 0;
+            _currentFrame = 0;
         }
 
         private void ResetSessionIdentity()
@@ -854,6 +945,18 @@ namespace AbilityKit.Diagnostics
             var seconds = stopwatchTicks / Stopwatch.Frequency;
             var remainder = stopwatchTicks % Stopwatch.Frequency;
             return seconds * 1000000000L + remainder * 1000000000L / Stopwatch.Frequency;
+        }
+
+        private static long NanosecondsToTicks(long nanoseconds)
+        {
+            if (nanoseconds <= 0L)
+            {
+                return 0L;
+            }
+
+            var seconds = nanoseconds / 1000000000L;
+            var remainder = nanoseconds % 1000000000L;
+            return seconds * Stopwatch.Frequency + remainder * Stopwatch.Frequency / 1000000000L;
         }
 
         private static string GetCategory(string name)
@@ -885,5 +988,24 @@ namespace AbilityKit.Diagnostics
         public Dictionary<string, MetricDefinition> Metrics;
         public ProfilerOptions Options;
         public List<DiagnosticsSessionRecord> Sessions;
+
+        /// <summary>时间线 span 记录（按发生顺序，最旧在前）。空列表表示无时间线数据。</summary>
+        public List<ProfilerSpanRecord> Spans;
+
+        /// <summary>环形缓冲覆盖（丢弃）的 span 数量。非零表示时间线不完整。</summary>
+        public long SpansDropped;
+    }
+
+    /// <summary>
+    /// 一次探针完成事件的时间线记录：名称、Stopwatch 起点、时长、关联上下文、线程与逻辑帧。
+    /// </summary>
+    public struct ProfilerSpanRecord
+    {
+        public string Name;
+        public long StartTimestamp;
+        public long DurationNanoseconds;
+        public long ContextId;
+        public int ThreadId;
+        public long Frame;
     }
 }

@@ -91,6 +91,7 @@ namespace AbilityKit.Game.Flow
             if (settings.TryGetFloat("View.Interp.BackTimeTicks", out var backTicks)) binder.BackTimeTicks = backTicks;
             if (settings.TryGetFloat("View.Interp.MaxLagTicks", out var maxLagTicks)) binder.MaxLagTicks = maxLagTicks;
             if (settings.TryGetFloat("View.Interp.SmoothingHz", out var smoothingHz)) binder.SmoothingHz = smoothingHz;
+            if (settings.TryGetFloat("View.Turn.SpeedDegreesPerSecond", out var turnSpeed)) binder.TurnSpeedDegreesPerSecond = turnSpeed;
         }
     }
 }

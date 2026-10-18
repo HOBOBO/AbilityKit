@@ -57,6 +57,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int AddShield = 19;
         public const int AddBuff = 20;
         public const int RemoveShield = 20;
+        public const int JoinSharedShield = 20;
+        public const int LeaveSharedShield = 20;
+        public const int TransferShield = 21;
+        public const int RemoveSharedShield = 21;
 
         public const int SpawnArea = 24;
         public const int SpawnSummon = 30;

@@ -15,7 +15,6 @@ namespace AbilityKit.Demo.Moba.Services
         public long CurrentActionContextId;
         public long CurrentActionId;
         public bool IsActionDiagnosticsSampled;
-        public long ActionStartTimestamp;
         public long ActionAllocatedBytesStart;
         public EffectExecutionPerformanceScopes PerformanceScopes;
         public readonly List<long> ActionContextIds = new List<long>();

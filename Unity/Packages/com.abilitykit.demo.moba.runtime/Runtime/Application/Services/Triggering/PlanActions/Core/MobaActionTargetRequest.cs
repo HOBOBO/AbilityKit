@@ -193,6 +193,19 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return false;
             }
 
+            // A plain ContextTarget means the event already selected the exact actor
+            // (for example a projectile hit or an area enter). Preserve that identity
+            // instead of asking the generic search provider to rediscover it.
+            // Template-backed requests still go through the configured query so their
+            // filters, ordering, and max-count rules remain authoritative.
+            if (!request.UsesTemplate
+                && request.SourceCode == MobaActionTargetSourceCode.ContextTarget
+                && explicitTargetActorId > 0)
+            {
+                results.Add(explicitTargetActorId);
+                return true;
+            }
+
             var aimPosition = coreInput.AimPosition;
             if (request.UsesTemplate)
             {
@@ -207,7 +220,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return found || !requireMatch;
             }
 
-            var template = BuildInlineTemplate(in request);
+            var template = BuildInlineTemplate(in request, explicitTargetActorId);
             var inlineFound = search.TrySearchActorIds(template, effectInput.CasterActorId, in aimPosition, explicitTargetActorId, results);
             Log.Warning($"[MobaActionTargetResolver] inline query action={actionName} source={request.SourceCode} caster={effectInput.CasterActorId} explicitTarget={explicitTargetActorId} found={inlineFound} count={results.Count} targets={FormatTargets(results)} aim=({aimPosition.X:0.###},{aimPosition.Y:0.###},{aimPosition.Z:0.###})");
             return inlineFound || !requireMatch;
@@ -247,13 +260,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return input.TargetActorId;
         }
 
-        private static SearchQueryTemplateMO BuildInlineTemplate(in MobaActionTargetRequest request)
+        private static SearchQueryTemplateMO BuildInlineTemplate(in MobaActionTargetRequest request, int explicitTargetActorId)
         {
             var provider = new SearchTargetProviderConfig(0, (int)request.SourceCode, request.SourceParam);
             var rules = BuildRules(in request);
             var scorers = new[] { BuildScorer(in request) };
             var selector = new SearchTargetSelectorConfig(0, (int)request.SelectCode);
-            var explicitTargetPolicy = request.TargetPayloadActorId > 0 || request.TargetActorId > 0 || request.SourceCode == MobaActionTargetSourceCode.ExplicitActor
+            var explicitTargetPolicy = explicitTargetActorId > 0
+                || request.TargetPayloadActorId > 0
+                || request.TargetActorId > 0
+                || request.SourceCode == MobaActionTargetSourceCode.ExplicitActor
                 ? SearchQueryExplicitTargetPolicy.PreferExplicitTarget
                 : SearchQueryExplicitTargetPolicy.IgnoreExplicitTarget;
 

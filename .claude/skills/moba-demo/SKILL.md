@@ -52,7 +52,7 @@ Host/Session → WorldTypeRegistry → MobaWorldBlueprintsRegistration
 - [codegen_analyzer.md](codegen_analyzer.md) — MOBA Generator/Analyzer 覆盖矩阵、DTO→MO 规则、fallback 边界与 P1 门禁
 - [runtime_architecture.md](runtime_architecture.md) — runtime 包 Application/Domain/Common/Infrastructure/Worlds 分层 + 11 篇团队约定 Docs 导航
 - [bootstrap_flow.md](bootstrap_flow.md) — 12 个 Bootstrap Stage + 拓扑排序 + 启动全链路（含 MapRuntime → nav.Build）
-- [ecs_components.md](ecs_components.md) — 5 Context + 39 Actor*Component 分组清单 + Motion 初始化生命周期
+- [ecs_components.md](ecs_components.md) — Entitas 组件全景：43 组件 + 生成器接管（tools/AbilityKit.Entitas.CodeGen）+ 序列化覆盖注册表 + 回滚覆盖矩阵
 - [view_runtime.md](view_runtime.md) — view.runtime 目录树 + BattleSessionFeature 37 partial + 双 Sim 模式
 - [app_flow.md](app_flow.md) — Game/App/Flow 状态机 + GamePhase + IBattleSessionFeature
 - [editor_toolchain.md](editor_toolchain.md) — 14 BattleDebug 面板 + ConfigSync + SceneGizmos + NavigationGizmoDrawer + HotReload

@@ -17,6 +17,33 @@ namespace AbilityKit.Game.Test.UnitTest
     /// </summary>
     public sealed class BattleViewCameraControllerTests
     {
+        [Test]
+        public void AuxiliaryCamera_DoesNotFallBackToMainCamera()
+        {
+            var go = new GameObject("main-camera");
+            go.tag = "MainCamera";
+            var camera = go.AddComponent<Camera>();
+            var original = go.transform.position;
+            try
+            {
+                var controller = new BattleViewCameraController(
+                    allowMainCameraFallback: false);
+                controller.SetCamera(null);
+                controller.TrackActor(TrackedActorId);
+                var query = new FakeEntityQuery();
+                query.SetActorPosition(new Vector3(5f, 0f, 7f));
+
+                controller.Tick(query, 0.05f);
+
+                Assert.That(controller.Camera, Is.Null);
+                Assert.That(camera.transform.position, Is.EqualTo(original));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         private sealed class FakeEntityQuery : IBattleEntityQuery
         {
             public EC.IECWorld World => null;

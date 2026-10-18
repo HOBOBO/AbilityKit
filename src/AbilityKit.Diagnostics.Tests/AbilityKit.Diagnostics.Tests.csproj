@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Diagnostics/AbilityKit.Diagnostics.csproj" />
+    <ProjectReference Include="../AbilityKit.Diagnostics.Exporters/AbilityKit.Diagnostics.Exporters.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -211,10 +211,10 @@ namespace AbilityKit.Ability.World.Services.Attributes
                 if (registration.ServiceType == implementationType) continue;
 
                 // TryRegister preserves explicit composition-root overrides.
-                builder.TryRegister(
+                builder.TryRegisterAlias(
                     registration.ServiceType,
-                    registration.Lifetime,
-                    resolver => resolver.Resolve(implementationType));
+                    implementationType,
+                    registration.Lifetime);
             }
         }
 

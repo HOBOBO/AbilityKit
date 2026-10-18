@@ -37,6 +37,10 @@ namespace AbilityKit.Demo.Moba.Systems
             public const string CancelSkill = "cancel_skill";
             public const string AddShield = "add_shield";
             public const string RemoveShield = "remove_shield";
+            public const string JoinSharedShield = "join_shared_shield";
+            public const string LeaveSharedShield = "leave_shared_shield";
+            public const string TransferShield = "transfer_shield";
+            public const string RemoveSharedShield = "remove_shared_shield";
             public const string RemoveSummon = "remove_summon";
             public const string RemoveProjectile = "remove_projectile";
             public const string RemoveArea = "remove_area";
@@ -152,6 +156,10 @@ namespace AbilityKit.Demo.Moba.Systems
         public static ActionId CancelSkillId => GetActionId(Actions.CancelSkill);
         public static ActionId AddShieldId => GetActionId(Actions.AddShield);
         public static ActionId RemoveShieldId => GetActionId(Actions.RemoveShield);
+        public static ActionId JoinSharedShieldId => GetActionId(Actions.JoinSharedShield);
+        public static ActionId LeaveSharedShieldId => GetActionId(Actions.LeaveSharedShield);
+        public static ActionId TransferShieldId => GetActionId(Actions.TransferShield);
+        public static ActionId RemoveSharedShieldId => GetActionId(Actions.RemoveSharedShield);
         public static ActionId RemoveSummonId => GetActionId(Actions.RemoveSummon);
         public static ActionId RemoveProjectileId => GetActionId(Actions.RemoveProjectile);
         public static ActionId RemoveAreaId => GetActionId(Actions.RemoveArea);

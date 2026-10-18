@@ -25,7 +25,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         /// from Trigger or Snapshot). Cleared on world change to avoid stale entries
         /// after reconnect or replay.
         /// </summary>
-        private readonly HashSet<int> _seenHitActorIds = new HashSet<int>();
+        private readonly HashSet<int> _seenHitProjectileIds = new HashSet<int>();
 
         public BattleProjectileViewEventHandler(
             EC.IECWorld world,
@@ -66,7 +66,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
             // Cross-source deduplication: if this projectile already produced a hit VFX
             // (via Snapshot), skip the Trigger path.
-            if (projectileId > 0 && !_seenHitActorIds.Add(projectileId)) return;
+            if (projectileId > 0 && !_seenHitProjectileIds.Add(projectileId)) return;
 
             var spec = new BattleProjectileVfxSpawnSpec(vfxId, in pos, default);
             _vfxSpawner.TrySpawn(in spec);
@@ -110,7 +110,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         /// </summary>
         public void ResetCrossSourceDeduplication()
         {
-            _seenHitActorIds.Clear();
+            _seenHitProjectileIds.Clear();
         }
 
         private void HandleSnapshotEntry(ProjectileEventData entry)
@@ -120,7 +120,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 // Exit cleanup is idempotent. Completed projectile identities must not remain
                 // in session-lifetime caches after a high-volume launch has finished.
                 _deduplicator.ForgetLifecycle(in entry);
-                _seenHitActorIds.Remove(entry.ProjectileActorId);
+                var projectileIdentity = ResolveProjectileIdentity(in entry);
+                if (projectileIdentity > 0)
+                    _seenHitProjectileIds.Remove(projectileIdentity);
                 _vfxSpawner.StopFollowingActor(entry.ProjectileActorId);
                 _shellSpawner?.StopAndReturn(entry.TemplateId, entry.ProjectileActorId);
                 return;
@@ -128,27 +130,38 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
             if (!_deduplicator.ShouldHandle(in entry)) return;
 
-            // For hit events, register in cross-source deduplication so Trigger path skips.
-            if (entry.Kind == ProjectilePresentationEventKind.Hit && entry.ProjectileActorId > 0)
-            {
-                _seenHitActorIds.Add(entry.ProjectileActorId);
-            }
-
             if (!_snapshotVfx.TryResolve(in entry, out var spec)) return;
             var spawnedConfiguredVfx = _vfxSpawner.TrySpawn(in spec);
+            var spawnedFallbackShell = false;
 
             // The shell is a fallback for missing/broken VFX, not a second visual for every projectile.
             if (!spawnedConfiguredVfx && _shellSpawner != null)
             {
                 var position = spec.Position;
                 var forward = spec.Rotation * UnityEngine.Vector3.forward;
-                _shellSpawner.TrySpawn(
+                spawnedFallbackShell = _shellSpawner.TrySpawn(
                     entry.TemplateId,
                     entry.ProjectileActorId,
                     in position,
                     in forward,
                     entry.LauncherActorId);
             }
+
+            // Register only after the snapshot produced a visible result. If its
+            // configuration is unavailable, a later Trigger event may still provide
+            // the presentation and must not be suppressed.
+            if (entry.Kind == ProjectilePresentationEventKind.Hit &&
+                (spawnedConfiguredVfx || spawnedFallbackShell))
+            {
+                var projectileIdentity = ResolveProjectileIdentity(in entry);
+                if (projectileIdentity > 0)
+                    _seenHitProjectileIds.Add(projectileIdentity);
+            }
+        }
+
+        private static int ResolveProjectileIdentity(in ProjectileEventData entry)
+        {
+            return entry.ProjectileId > 0 ? entry.ProjectileId : entry.ProjectileActorId;
         }
     }
 

@@ -234,7 +234,7 @@ namespace AbilityKit.Game.Tests
 
                 var original = CreateShieldLayer(instanceId: 7, currentValue: 25f);
                 shields.AddShield(42, original);
-                Assert.That(shields.TryGetContainer(42, out var container), Is.True);
+                Assert.That(shields.TryGetContainerMutable(42, out var container), Is.True);
                 container.NextInstanceId = 12;
                 container.TotalRemaining = Fixed64.FromSingle(25f);
                 container.Dirty = false;
@@ -249,7 +249,7 @@ namespace AbilityKit.Game.Tests
 
                 provider.Import(new FrameIndex(20), payload);
 
-                Assert.That(shields.TryGetContainer(42, out var restored), Is.True);
+                Assert.That(shields.TryGetContainerMutable(42, out var restored), Is.True);
                 Assert.That(restored.NextInstanceId, Is.EqualTo(12));
                 Assert.That(restored.TotalRemaining, Is.EqualTo(Fixed64.FromSingle(25f)));
                 Assert.That(restored.Dirty, Is.False);
@@ -283,7 +283,7 @@ namespace AbilityKit.Game.Tests
                 var provider = new MobaShieldRollbackProvider(actors, shields);
                 var payload = provider.Export(new FrameIndex(20));
 
-                shields.TryGetContainer(42, out var current);
+                shields.TryGetContainerMutable(42, out var current);
                 current.Layers[0].CurrentValue = Fixed64.FromSingle(3f);
                 actors.Register(43, context.CreateEntity());
 

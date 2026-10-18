@@ -35,6 +35,12 @@ namespace AbilityKit.Game.Flow
             set => _applier.SmoothingHz = value;
         }
 
+        public float TurnSpeedDegreesPerSecond
+        {
+            get => _applier.TurnSpeedDegreesPerSecond;
+            set => _applier.TurnSpeedDegreesPerSecond = value;
+        }
+
         public bool TryGetInterpolatedPos(EC.IEntityId id, out Vector3 pos)
         {
             pos = default;
@@ -62,9 +68,9 @@ namespace AbilityKit.Game.Flow
             return false;
         }
 
-        public void SampleEntity(in EC.IEntity entity, in Vector3 pos, IBattleRuntimeContext ctx)
+        public void SampleEntity(in EC.IEntity entity, in Vector3 pos, in Vector3 forward, IBattleRuntimeContext ctx)
         {
-            _sampler.SampleEntity(entity, in pos, ctx);
+            _sampler.SampleEntity(entity, in pos, in forward, ctx);
         }
 
         public void Tick(
@@ -77,7 +83,7 @@ namespace AbilityKit.Game.Flow
 
             if (!InterpolationEnabled)
             {
-                _applier.ApplyPendingPositions();
+                _applier.ApplyPendingPositions(deltaTime);
                 return;
             }
 

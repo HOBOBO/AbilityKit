@@ -4,6 +4,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Triggering;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Continuous;
 using AbilityKit.GameplayTags;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -13,7 +14,6 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaTagPresentationCueReporter))]
     public sealed class MobaTagPresentationCueReporter : IService, IWorldInitializable, IContinuousLifecycleBinder, IDisposable
     {
-        private const string CueKindTag = "Tag";
         private const string EventTagAdded = "tag.added";
         private const string EventTagRemoved = "tag.removed";
         private const int NumericTagId = 1;
@@ -110,6 +110,8 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (tags == null || tags.Count == 0) return;
 
+            var legacyKind = PresentationCueSemantics.ToLegacyDomainName(PresentationCueDomain.Tag);
+
             foreach (var tag in tags)
             {
                 if (!tag.IsValid) continue;
@@ -118,19 +120,27 @@ namespace AbilityKit.Demo.Moba.Services
                 if (!MobaGameplayTagCatalog.TryGetDefinitionId(tagName, out var definitionId))
                     throw new InvalidOperationException($"Tag cue has no published definition: {tagName}");
                 var simpleName = tag.SimpleName ?? string.Empty;
+                var instanceKey = BuildInstanceKey(ownerActorId, definitionId);
+
                 var entry = new MobaPresentationCueSnapshotEntry
                 {
                     Stage = (int)stage,
-                    CueKind = CueKindTag,
-                    RequestKey = BuildInstanceKey(ownerActorId, definitionId),
+                    CueKind = legacyKind,
+                    RequestKey = instanceKey,
                     SourceActorId = source.Value > 0 && source.Value <= int.MaxValue ? (int)source.Value : ownerActorId,
                     TargetActorId = ownerActorId,
                     Targets = new[] { ownerActorId },
-                    OwnerKind = CueKindTag,
+                    OwnerKind = legacyKind,
                     InstanceId = ComposeInstanceId(ownerActorId, definitionId),
-                    InstanceKey = BuildInstanceKey(ownerActorId, definitionId),
+                    InstanceKey = instanceKey,
                     LifecycleReason = changeKind,
                     ContextEventId = eventId,
+                    // Tag cue 不带表现模板：颜色/缩放走缺省，由表现层按 tag 语义自行决定。
+                    Scale = 1f,
+                    ColorR = 1f,
+                    ColorG = 1f,
+                    ColorB = 1f,
+                    ColorA = 1f,
                     NumericParamKeys = new[] { NumericTagId, NumericTagDepth, NumericChangeKind, NumericSourceValue },
                     NumericParamValues = new[] { (float)definitionId, tag.GetDepth(), changeKind, (float)source.Value },
                     StringParamKeys = new[] { "tag", "simple", "event", "source" },

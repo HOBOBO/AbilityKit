@@ -17,6 +17,8 @@ namespace AbilityKit.Game.Flow
             get => _snapshotRoutingBinding.Value;
         }
 
+        internal long SnapshotRoutingGeneration => _snapshotRoutingBinding.Generation;
+
         public SnapshotPipeline SnapshotPipeline
         {
             get => _snapshotPipeline;
@@ -89,6 +91,13 @@ namespace AbilityKit.Game.Flow
             return ReferenceEquals(_snapshotRoutingBinding.Value, snapshots)
                 && ReferenceEquals(_snapshotPipeline, pipeline)
                 && ReferenceEquals(_cmdHandler, cmdHandler);
+        }
+
+        internal bool IsCurrentSnapshotRouting(
+            long bindingGeneration,
+            FrameSnapshotDispatcher snapshots)
+        {
+            return _snapshotRoutingBinding.IsCurrent(bindingGeneration, snapshots);
         }
     }
 }

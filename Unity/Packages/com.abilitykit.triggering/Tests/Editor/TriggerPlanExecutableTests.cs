@@ -140,6 +140,7 @@ namespace AbilityKit.Triggering.Tests
             scheduler.Tick(250f);
             Assert.That(child.Count, Is.EqualTo(3));
             Assert.That(scheduler.ActiveCount, Is.EqualTo(0));
+            Assert.That(scheduler.DefinitionCount, Is.EqualTo(0));
             Assert.That(root.Kind, Is.EqualTo(ETriggerPlanExecutableKind.Scheduled));
             Assert.That(root.ScheduleMode, Is.EqualTo(EScheduleMode.Periodic));
             Assert.That(root.IntervalMs, Is.EqualTo(250f));
@@ -147,17 +148,17 @@ namespace AbilityKit.Triggering.Tests
         }
 
         [Test]
-        public void Scheduler_RestoreRemovesPostCheckpointDefinitionsAndReusesIdsDuringReplay()
+        public void Scheduler_RemoveAndSetCursorAllowIdReuse()
         {
             var scheduler = new TriggerExecutionScheduler();
-            var checkpoint = scheduler.CaptureSnapshot();
             var ctx = CreateContext(executionScheduler: scheduler);
             var first = TriggerPlanExecutableDsl.Timed(new CountingExecutable(), 10f);
 
             Assert.That(first.Execute<object>(null, in ctx).IsSuccess, Is.True);
             Assert.That(scheduler.DefinitionCount, Is.EqualTo(1));
 
-            scheduler.RestoreSnapshot(in checkpoint);
+            Assert.That(scheduler.Remove(1), Is.True);
+            scheduler.SetNextExecutionId(1);
 
             Assert.That(scheduler.DefinitionCount, Is.EqualTo(0));
             Assert.DoesNotThrow(() => first.Execute<object>(null, in ctx));
@@ -165,21 +166,21 @@ namespace AbilityKit.Triggering.Tests
         }
 
         [Test]
-        public void Scheduler_RestoreReactivatesCheckpointedPeriodicExecution()
+        public void Scheduler_SetProgressReactivatesCompletedPeriodicExecution()
         {
             var child = new CountingExecutable();
-            var scheduler = new TriggerExecutionScheduler();
+            var scheduler = new TriggerExecutionScheduler(retainFinishedEntries: true);
             var ctx = CreateContext(executionScheduler: scheduler);
             var root = TriggerPlanExecutableDsl.Periodic(child, 100f, maxExecutions: 2);
             root.Execute<object>(null, in ctx);
             scheduler.Tick(100f);
-            var checkpoint = scheduler.CaptureSnapshot();
+            var checkpoint = scheduler.GetExecutions()[0];
 
             scheduler.Tick(100f);
             Assert.That(child.Count, Is.EqualTo(2));
             Assert.That(scheduler.ActiveCount, Is.EqualTo(0));
 
-            scheduler.RestoreSnapshot(in checkpoint);
+            scheduler.SetExecutionProgress(in checkpoint);
             Assert.That(scheduler.ActiveCount, Is.EqualTo(1));
             scheduler.Tick(100f);
             Assert.That(child.Count, Is.EqualTo(3));
@@ -189,7 +190,7 @@ namespace AbilityKit.Triggering.Tests
         [Test]
         public void Scheduler_ExternalExecutionExceptionTransitionsToFailedState()
         {
-            var scheduler = new TriggerExecutionScheduler();
+            var scheduler = new TriggerExecutionScheduler(retainFinishedEntries: true);
             var ctx = CreateContext(executionScheduler: scheduler);
             var handle = scheduler.Schedule(
                 new ThrowingExecutable(),
@@ -202,11 +203,11 @@ namespace AbilityKit.Triggering.Tests
 
             Assert.That(scheduler.ExecuteExternal(in handle), Is.False);
 
-            var snapshot = scheduler.CaptureSnapshot();
+            var entries = scheduler.GetExecutions();
             Assert.That(scheduler.ActiveCount, Is.Zero);
-            Assert.That(snapshot.Entries, Has.Length.EqualTo(1));
-            Assert.That(snapshot.Entries[0].State, Is.EqualTo(TriggerScheduledExecutionState.Failed));
-            Assert.That(snapshot.Entries[0].FailureReason, Is.EqualTo("external failure"));
+            Assert.That(entries, Has.Length.EqualTo(1));
+            Assert.That(entries[0].State, Is.EqualTo(TriggerScheduledExecutionState.Failed));
+            Assert.That(entries[0].FailureReason, Is.EqualTo("external failure"));
         }
 
         [Test]

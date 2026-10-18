@@ -54,7 +54,6 @@ namespace AbilityKit.Demo.Moba.Services
             Add(catalog, MobaBattleDiagnosticMetric.EffectActionInvoked, "moba.effect", "counter", "count", "Formal effect action invocation count.", "stable", "always", "effect", "action", "actor", "skill");
             Add(catalog, MobaBattleDiagnosticMetric.EffectActionSucceeded, "moba.effect", "counter", "count", "Successfully completed formal effect action count.", "stable", "always", "effect", "action", "actor", "skill");
             Add(catalog, MobaBattleDiagnosticMetric.EffectActionFailed, "moba.effect", "counter", "count", "Failed formal effect action count.", "stable", "always", "effect", "action", "actor", "skill");
-            Add(catalog, MobaBattleDiagnosticMetric.EffectActionDuration, "moba.effect", "duration", "ms", "Formal effect action execution duration.", "stable", "sampled", "effect", "action", "actor", "skill");
             Add(catalog, MobaBattleDiagnosticMetric.EffectActionAllocatedBytes, "moba.effect", "sample", "bytes", "Managed bytes allocated by a sampled formal effect action on the executing thread.", "stable", "sampled", "effect", "action", "actor", "skill");
 
             Add(catalog, MobaBattleDiagnosticMetric.PipelineTraceEvent, "moba.pipeline", "event", "none", "Pipeline trace event exported for correlation.", "stable", "always", "pipeline", "traceKind", "rootContextId", "sourceContextId");

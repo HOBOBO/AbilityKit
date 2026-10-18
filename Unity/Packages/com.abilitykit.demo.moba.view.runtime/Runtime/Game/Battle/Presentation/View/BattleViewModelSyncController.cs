@@ -109,7 +109,8 @@ namespace AbilityKit.Game.Flow
         public void Sample(in BattleViewEntitySyncInput input, IBattleRuntimeContext ctx)
         {
             var position = input.Transform.Position;
-            _transforms.SampleEntity(input.Entity, in position, ctx);
+            var forward = input.Transform.Forward;
+            _transforms.SampleEntity(input.Entity, in position, in forward, ctx);
         }
     }
 

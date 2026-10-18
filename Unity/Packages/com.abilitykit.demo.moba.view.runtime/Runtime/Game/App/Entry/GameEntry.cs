@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using AbilityKit.World.ECS;
 using AbilityKit.Demo.Common.Rooms;
+using AbilityKit.Demo.Moba.View.Config;
+using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.EntityCreation;
 using AbilityKit.Game.Flow;
 using AbilityKit.Game.View.Modules;
@@ -64,6 +66,9 @@ namespace AbilityKit.Game
             }
 
             _instance = this;
+
+            // Install the sink before constructing the flow domain, which captures Log.Sink.
+            GameEntryBootstrap.TryInstallUnityLogSink();
 
             World = new EntityWorld();
             Root = EntityGenerator.CreateRoot(World, "GameRoot");
@@ -262,8 +267,14 @@ namespace AbilityKit.Game
             };
             if (_multiplayerGatewayConfig != null)
             {
+                var assetLoading = new MultiplayerBattleAssetLoadingOptions(
+                    ResourcesBattleAssetLoadService.Default,
+                    ResourcesBattleAssetDependencyProvider.Default,
+                    AbilityKit.Demo.Moba.Services.MobaGameplayTagCatalog.VerifyPublishedBundle(
+                        new ResourcesTextAssetLoader()));
                 modules.Add(new MultiplayerGatewayEntryModule(
                     _multiplayerGatewayConfig,
+                    assetLoading,
                     _multiplayerLaunchRequest));
             }
 
@@ -429,12 +440,11 @@ namespace AbilityKit.Game
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (_entry == null || !_entry.DebugEnabled) return;
 
-            // 英雄替换、冷却重置、生成单位等均为本地单人验收命令。
-            // 多人 Gateway 模块存在时不创建控制器也不绘制窗口，避免对权威战斗产生误导性入口。
-            if (_entry.TryGet(out MultiplayerRoomFlowController _)) return;
-
             _entry.TryGet(out IFlowCommandSink sink);
             var inBattle = sink != null && sink.CurrentRootPhase == MobaRootState.Battle;
+            var battleContext = ResolveBattleContext();
+            if (inBattle && (battleContext == null || battleContext.Plan.HostMode != BattleHostMode.Local)) return;
+
             EnsureLocalDebugController();
             var debugSnapshot = _localDebug != null
                 ? _localDebug.CaptureSnapshot()

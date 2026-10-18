@@ -15,7 +15,7 @@ using AbilityKit.Demo.Moba.Services.Search;
 namespace AbilityKit.Demo.Moba.Services
 {
     using AbilityKit.Ability;
-    public sealed class SkillPipelineRunner
+    public sealed partial class SkillPipelineRunner
     {
         public readonly struct RunningSnapshot
         {

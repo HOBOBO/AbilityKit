@@ -15,6 +15,7 @@ namespace AbilityKit.Demo.Moba.Services
         private Stack<ProbeScope> _evaluateScopes;
         private Stack<ProbeScope> _executeScopes;
         private long _nextScopeId = 1L;
+        private long _lastDispatchTraceId;
 
         public MobaTriggerDiagnosticsAdapter(IWorldResolver services)
         {
@@ -53,7 +54,8 @@ namespace AbilityKit.Demo.Moba.Services
         {
             BeginNestedPerformanceScope(
                 ref _evaluateScopes,
-                MobaBattleDiagnosticMetric.TriggerEvaluateScope);
+                MobaBattleDiagnosticMetric.TriggerEvaluateScope,
+                GetEventName(key));
         }
 
         public void OnAfterEvaluate<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool result)
@@ -91,7 +93,9 @@ namespace AbilityKit.Demo.Moba.Services
         {
             BeginNestedPerformanceScope(
                 ref _executeScopes,
-                MobaBattleDiagnosticMetric.TriggerExecuteScope);
+                MobaBattleDiagnosticMetric.TriggerExecuteScope,
+                actionName,
+                _lastDispatchTraceId);
         }
 
         public void OnActionExecuted<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted)
@@ -129,6 +133,8 @@ namespace AbilityKit.Demo.Moba.Services
             var hasOuterDispatch = _dispatchScopes != null && _dispatchScopes.Count > 0;
             var started = TryBeginPerformanceScope(
                 MobaBattleDiagnosticMetric.TriggerDispatchScope,
+                GetEventName(key),
+                0L,
                 out var scope);
             if (started || hasOuterDispatch)
             {
@@ -143,7 +149,9 @@ namespace AbilityKit.Demo.Moba.Services
                     _executeScopes?.Count ?? 0));
             }
 
-            return new TraceScope(_nextScopeId++, Stopwatch.GetTimestamp(), GetEventName(key), key.GetHashCode());
+            var traceScope = new TraceScope(_nextScopeId++, Stopwatch.GetTimestamp(), GetEventName(key), key.GetHashCode());
+            _lastDispatchTraceId = traceScope.ScopeId;
+            return traceScope;
         }
 
         public void RecordTrigger<TArgs>(TraceScope scope, TriggerTraceRecord record)
@@ -183,10 +191,12 @@ namespace AbilityKit.Demo.Moba.Services
 
         private void BeginNestedPerformanceScope(
             ref Stack<ProbeScope> scopes,
-            string marker)
+            string marker,
+            string detailName = null,
+            long contextId = 0L)
         {
             var hasOuterScope = scopes != null && scopes.Count > 0;
-            var started = TryBeginPerformanceScope(marker, out var scope);
+            var started = TryBeginPerformanceScope(marker, detailName, contextId, out var scope);
             if (!started && !hasOuterScope) return;
 
             if (scopes == null)
@@ -198,15 +208,17 @@ namespace AbilityKit.Demo.Moba.Services
             scopes.Push(scope);
         }
 
-        private bool TryBeginPerformanceScope(string marker, out ProbeScope scope)
+        private bool TryBeginPerformanceScope(string marker, string detailName, long contextId, out ProbeScope scope)
         {
             scope = default;
             if (!ProfilerHub.IsEnabled) return false;
 
-            return MobaPerformanceProfiling.TryBegin(
+            return MobaPerformanceProfiling.TryBeginNamed(
                 Diagnostics,
                 MobaBattleDiagnosticChannel.TriggerHook,
                 marker,
+                detailName,
+                contextId,
                 out scope);
         }
 

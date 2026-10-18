@@ -33,6 +33,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 LogRejected(ctx, "source_id must be non-zero.");
                 return;
             }
+            if (!MobaSkillParamModifierKeys.TryValidateValue(args.ParameterId, args.Value, out var valueError))
+            {
+                LogRejected(ctx, $"invalid modifier value: {valueError}.");
+                return;
+            }
             if (!TryResolveRequired(ctx, out MobaTriggerModifierContinuousService modifiers)) return;
             if (!MobaPlanActionInputResolver.TryResolve(triggerArgs, ctx, out var coreInput))
             {

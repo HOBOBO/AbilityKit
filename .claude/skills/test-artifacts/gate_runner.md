@@ -5,7 +5,7 @@
 ## 工具文件
 
 - `tools/run_test_gate.ps1` — 主执行器（约 744 行）
-- `tools/test-gates.json` — gate 定义（schemaVersion 6，29 个 gate：P0 3、P1 18、P2 8）
+- `tools/test-gates.json` — gate 定义（schemaVersion 6，32 个 gate：P0 3、P1 19、P2 8+）
 - `tools/validate_shooter_test_gates.ps1` — shooter gate 契约验证器
 - `.github/workflows/abilitykit-test-gates.yml` — CI 工作流
 - `Docs/AbilityKit测试门禁与批量回归规范.md` — 团队约定文档
@@ -66,6 +66,7 @@ nested gate 路径嵌套：`local/Logs/test-gates/{ts}-regression/{ts}-moba-zhao
 | Gate | 用途 |
 |------|------|
 | `moba-codegen` | 构建 framework/MOBA Generator 与 Analyzer，并运行 CodeGen 契约测试 |
+| `entitas-codegen` | Entitas 组件代码生成自洽：全部 entitas-codegen 项目基线校验（`tools/check_entitas_codegen.ps1`）+ 生成器单测（golden 基线/pin 漂移报警/源校验规则，工具在 `tools/AbilityKit.Entitas.CodeGen`） |
 | `runtime-contracts` | 网络 runtime / World DI / GameView runtime 契约 |
 | `moba-network-options` | MOBA 战斗数据面选项装配契约（room-gateway 预设 / 输入序列化 / 重试 / 可靠事件 cursor）|
 | `moba-acceptance-dotnet` | 无 Unity 的 MOBA 白盒验收判定（trace 基线 `src/AbilityKit.Demo.Moba.Acceptance.Tests/`）|

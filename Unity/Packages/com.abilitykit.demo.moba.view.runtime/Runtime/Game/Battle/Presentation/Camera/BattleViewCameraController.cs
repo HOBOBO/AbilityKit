@@ -17,6 +17,7 @@ namespace AbilityKit.Game.Flow
     public sealed class BattleViewCameraController
     {
         private readonly BattleCameraConfig _config;
+        private readonly bool _allowMainCameraFallback;
 
         private Camera _camera;
         private int _trackedActorId;
@@ -41,9 +42,11 @@ namespace AbilityKit.Game.Flow
         private Vector3 _lastValidTargetPos;
         private bool _hasLastValidTargetPos;
 
-        public BattleViewCameraController(BattleCameraConfig config = null)
+        public BattleViewCameraController(BattleCameraConfig config = null,
+            bool allowMainCameraFallback = true)
         {
             _config = config ?? BattleCameraConfig.Default;
+            _allowMainCameraFallback = allowMainCameraFallback;
         }
 
         /// <summary>
@@ -61,7 +64,7 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         public void SetCamera(Camera camera)
         {
-            _camera = camera ?? Camera.main;
+            _camera = camera ?? (_allowMainCameraFallback ? Camera.main : null);
             if (_camera != null && !_hasTrackedActor)
             {
                 _currentPosition = _camera.transform.position;
@@ -93,7 +96,7 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         public void Tick(IBattleEntityQuery query, float deltaTime)
         {
-            if (_camera == null)
+            if (_camera == null && _allowMainCameraFallback)
             {
                 SetCamera(null);
             }

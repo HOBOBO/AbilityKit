@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.DI/AbilityKit.World.DI.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Diagnostics/AbilityKit.Diagnostics.csproj" />
   </ItemGroup>
 
   <!-- NuGet 包引用 -->

@@ -16,31 +16,15 @@ public partial struct BuffModifier
 {
     public BuffModifier(ByteBuf _buf) 
     {
-        TargetKind = (MobaModifierTargetKind)_buf.ReadInt();
-        TargetId = _buf.ReadInt();
-        Op = (ModifierOp)_buf.ReadInt();
-        Value = _buf.ReadFloat();
-        Priority = _buf.ReadInt();
-        MagnitudeSourceType = (MagnitudeSourceType)_buf.ReadInt();
-        MagnitudeBaseValue = _buf.ReadFloat();
-        MagnitudeCoefficient = _buf.ReadFloat();
-        MagnitudeDuration = _buf.ReadFloat();
-        MagnitudeDecayType = _buf.ReadInt();
-        MagnitudeAttributeTypeId = _buf.ReadInt();
-        MagnitudeContextKey = _buf.ReadString();
-        {int n0 = _buf.ReadSize(); MagnitudeCurve = new System.Collections.Generic.List<float>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { float _e0;  _e0 = _buf.ReadFloat(); MagnitudeCurve.Add(_e0);}}
+        Target = global::moba_luban.ModifierTargetSpec.DeserializeModifierTargetSpec(_buf);
+        Modifier = global::moba_luban.ModifierValueSpec.DeserializeModifierValueSpec(_buf);
+        Magnitude = global::moba_luban.ModifierMagnitudeSpec.DeserializeModifierMagnitudeSpec(_buf);
+        ContextKey = _buf.ReadString();
+        {int n0 = _buf.ReadSize(); Curve = new System.Collections.Generic.List<float>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { float _e0;  _e0 = _buf.ReadFloat(); Curve.Add(_e0);}}
         EvaluationPolicy = (ModifierEvaluationPolicy)_buf.ReadInt();
         AttributeSourceRole = (ModifierAttributeSourceRole)_buf.ReadInt();
-        SelectorSlot = _buf.ReadInt();
-        SelectorBaseSkillId = _buf.ReadInt();
-        SelectorEffectiveSkillId = _buf.ReadInt();
-        SelectorLauncherTemplateId = _buf.ReadInt();
-        SelectorProjectileTemplateId = _buf.ReadInt();
-        SelectorAreaTemplateId = _buf.ReadInt();
-        SelectorSummonTemplateId = _buf.ReadInt();
-        SelectorBuffTemplateId = _buf.ReadInt();
-        CandidateSkillId = _buf.ReadInt();
-        CandidateReferenceId = _buf.ReadInt();
+        Selectors = _buf.ReadString();
+        Candidate = global::moba_luban.ModifierCandidateSpec.DeserializeModifierCandidateSpec(_buf);
         FormulaConstant = _buf.ReadFloat();
         FormulaLevelCoefficient = _buf.ReadFloat();
         {int n0 = _buf.ReadSize(); FormulaTerms = new System.Collections.Generic.List<ModifierFormulaTerm>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { ModifierFormulaTerm _e0;  _e0 = global::moba_luban.ModifierFormulaTerm.DeserializeModifierFormulaTerm(_buf); FormulaTerms.Add(_e0);}}
@@ -51,31 +35,15 @@ public partial struct BuffModifier
         return new BuffModifier(_buf);
     }
 
-    public readonly MobaModifierTargetKind TargetKind;
-    public readonly int TargetId;
-    public readonly ModifierOp Op;
-    public readonly float Value;
-    public readonly int Priority;
-    public readonly MagnitudeSourceType MagnitudeSourceType;
-    public readonly float MagnitudeBaseValue;
-    public readonly float MagnitudeCoefficient;
-    public readonly float MagnitudeDuration;
-    public readonly int MagnitudeDecayType;
-    public readonly int MagnitudeAttributeTypeId;
-    public readonly string MagnitudeContextKey;
-    public readonly System.Collections.Generic.List<float> MagnitudeCurve;
+    public readonly ModifierTargetSpec Target;
+    public readonly ModifierValueSpec Modifier;
+    public readonly ModifierMagnitudeSpec Magnitude;
+    public readonly string ContextKey;
+    public readonly System.Collections.Generic.List<float> Curve;
     public readonly ModifierEvaluationPolicy EvaluationPolicy;
     public readonly ModifierAttributeSourceRole AttributeSourceRole;
-    public readonly int SelectorSlot;
-    public readonly int SelectorBaseSkillId;
-    public readonly int SelectorEffectiveSkillId;
-    public readonly int SelectorLauncherTemplateId;
-    public readonly int SelectorProjectileTemplateId;
-    public readonly int SelectorAreaTemplateId;
-    public readonly int SelectorSummonTemplateId;
-    public readonly int SelectorBuffTemplateId;
-    public readonly int CandidateSkillId;
-    public readonly int CandidateReferenceId;
+    public readonly string Selectors;
+    public readonly ModifierCandidateSpec Candidate;
     public readonly float FormulaConstant;
     public readonly float FormulaLevelCoefficient;
     public readonly System.Collections.Generic.List<ModifierFormulaTerm> FormulaTerms;
@@ -88,31 +56,15 @@ public partial struct BuffModifier
     public override string ToString()
     {
         return "{ "
-        + "TargetKind:" + TargetKind + ","
-        + "TargetId:" + TargetId + ","
-        + "Op:" + Op + ","
-        + "Value:" + Value + ","
-        + "Priority:" + Priority + ","
-        + "MagnitudeSourceType:" + MagnitudeSourceType + ","
-        + "MagnitudeBaseValue:" + MagnitudeBaseValue + ","
-        + "MagnitudeCoefficient:" + MagnitudeCoefficient + ","
-        + "MagnitudeDuration:" + MagnitudeDuration + ","
-        + "MagnitudeDecayType:" + MagnitudeDecayType + ","
-        + "MagnitudeAttributeTypeId:" + MagnitudeAttributeTypeId + ","
-        + "MagnitudeContextKey:" + MagnitudeContextKey + ","
-        + "MagnitudeCurve:" + Luban.StringUtil.CollectionToString(MagnitudeCurve) + ","
+        + "Target:" + Target + ","
+        + "Modifier:" + Modifier + ","
+        + "Magnitude:" + Magnitude + ","
+        + "ContextKey:" + ContextKey + ","
+        + "Curve:" + Luban.StringUtil.CollectionToString(Curve) + ","
         + "EvaluationPolicy:" + EvaluationPolicy + ","
         + "AttributeSourceRole:" + AttributeSourceRole + ","
-        + "SelectorSlot:" + SelectorSlot + ","
-        + "SelectorBaseSkillId:" + SelectorBaseSkillId + ","
-        + "SelectorEffectiveSkillId:" + SelectorEffectiveSkillId + ","
-        + "SelectorLauncherTemplateId:" + SelectorLauncherTemplateId + ","
-        + "SelectorProjectileTemplateId:" + SelectorProjectileTemplateId + ","
-        + "SelectorAreaTemplateId:" + SelectorAreaTemplateId + ","
-        + "SelectorSummonTemplateId:" + SelectorSummonTemplateId + ","
-        + "SelectorBuffTemplateId:" + SelectorBuffTemplateId + ","
-        + "CandidateSkillId:" + CandidateSkillId + ","
-        + "CandidateReferenceId:" + CandidateReferenceId + ","
+        + "Selectors:" + Selectors + ","
+        + "Candidate:" + Candidate + ","
         + "FormulaConstant:" + FormulaConstant + ","
         + "FormulaLevelCoefficient:" + FormulaLevelCoefficient + ","
         + "FormulaTerms:" + Luban.StringUtil.CollectionToString(FormulaTerms) + ","

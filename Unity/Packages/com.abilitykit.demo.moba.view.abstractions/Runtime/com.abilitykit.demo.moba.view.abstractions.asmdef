@@ -6,6 +6,7 @@
     "AbilityKit.ActionSchema",
     "AbilityKit.Demo.Moba.Runtime",
     "AbilityKit.Demo.Moba.Share",
+    "AbilityKit.Demo.Moba.Presentation.Contracts",
     "AbilityKit.Protocol.Moba",
     "AbilityKit.Protocol.Room",
     "AbilityKit.World.NetworkFragments"

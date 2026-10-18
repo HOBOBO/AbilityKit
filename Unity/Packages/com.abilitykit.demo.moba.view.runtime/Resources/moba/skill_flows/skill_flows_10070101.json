@@ -1,0 +1,44 @@
+{
+  "Id": 10070101,
+  "Name": "孙尚香-翻滚突袭",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "ssx_skill_1_release",
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "ssx_skill_1_commit",
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      }
+    },
+    {
+      "Type": 2,
+      "Timeline": {
+        "DurationMs": 800,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 10070101,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "ssx_skill_1_cast"
+          }
+        ]
+      }
+    }
+  ]
+}

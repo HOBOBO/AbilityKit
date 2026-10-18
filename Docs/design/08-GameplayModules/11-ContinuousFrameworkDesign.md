@@ -43,13 +43,13 @@ Tick、周期处理、Modifier 投影、表现 Cue、标签驱动暂停/终止�
 | 核心类型 | `Runtime/Continuous/ContinuousState.cs`、`ContinuousEndReason.cs` | 状态与结束原因枚举 |
 | 策略与钩子 | `Runtime/Continuous/ContinuousPolicies.cs` | 准入策略与生命周期钩子 |
 | 默认实现 | `Runtime/Continuous/DefaultContinuousManager.cs` | 管理器默认实现 |
-| moba.manager | `Application/Services/Continuous/MobaContinuousManager.cs` | MOBA 业务实现 |
-| moba.运行时基类 | `Application/Services/Continuous/MobaContinuousRuntimeBase.cs` | MOBA 运行时基类 |
-| moba.配置基类 | `Application/Services/Continuous/MobaContinuousConfigBase.cs` | MOBA 配置基类 |
-| 生命周期钩子 | `Application/Services/Continuous/MobaContinuousLifecycleBinder.cs` | 绑定修改器到生命周期 |
-| 间隔处理器 | `Application/Services/Continuous/MobaContinuousTickProcessor.cs` | 驱动间隔效果 |
-| 标签规则 | `Application/Services/Continuous/MobaContinuousTagRuleService.cs` | 标签驱动的激活/暂停/终止 |
-| 修饰器投影 | `Application/Services/Continuous/MobaAttributeContinuousModifierProjector.cs` | 属性修改器 |
+| moba.manager | `Application/Services/Continuous/Runtime/MobaContinuousManager.cs` | MOBA 业务实现 |
+| moba.运行时基类 | `Application/Services/Continuous/Runtime/MobaContinuousRuntimeBase.cs` | MOBA 运行时基类 |
+| moba.配置基类 | `Application/Services/Continuous/Config/MobaContinuousConfigBase.cs` | MOBA 配置基类 |
+| 生命周期钩子 | `Application/Services/Continuous/Triggering/MobaContinuousLifecycleBinder.cs` | 绑定修改器到生命周期 |
+| 间隔处理器 | `Application/Services/Continuous/Runtime/MobaContinuousTickProcessor.cs` | 驱动间隔效果 |
+| 标签规则 | `Application/Services/Continuous/Tags/MobaContinuousTagRuleService.cs` | 标签驱动的激活/暂停/终止 |
+| 修饰器投影 | `Application/Services/Continuous/Modifiers/MobaAttributeContinuousModifierProjector.cs` | 属性修改器 |
 | Buff 运行时 | `Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs` | Buff 的 Continuous 实现 |
 | 移动运行时 | `Application/Services/Motion/MobaMotionContinuousRuntime.cs` | 移动源的 Continuous 实现 |
 | Triggering 集成 | `Runtime/RuntimeServices/Continuous/ContinuousExecutorBase.cs` | 旧版 Continuous 与 IContinuous 桥接 |

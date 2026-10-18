@@ -5,7 +5,7 @@ using AbilityKit.Pipeline;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    internal sealed class SkillDerivedSkillPhase : AbilityPipelinePhaseBase<SkillPipelineContext>,
+    internal sealed class SkillDerivedSkillPhase : SkillRollbackPhaseBase,
         IInterruptiblePhase<SkillPipelineContext>, IAbilityPipelinePhaseInstanceFactory<SkillPipelineContext>
     {
         private readonly SkillDerivedSkillPhaseDTO _specification;
@@ -86,6 +86,30 @@ namespace AbilityKit.Demo.Moba.Services
         {
             base.Reset();
             _child = default;
+        }
+
+        public override PipelinePhaseRollbackState CaptureRollbackState()
+        {
+            var state = base.CaptureRollbackState();
+            state.Longs = new[] { _child.RuntimeId, _child.RootContextId };
+            state.Integers = new[] { _child.Generation };
+            return state;
+        }
+
+        public override void ValidateRollbackState(PipelinePhaseRollbackState state)
+        {
+            base.ValidateRollbackState(state);
+            if (state?.Longs == null || state.Longs.Length != 2 ||
+                state.Integers == null || state.Integers.Length != 1 ||
+                state.Longs[0] < 0 || state.Longs[1] < 0 || state.Integers[0] < 0)
+                throw new InvalidOperationException("Invalid derived skill rollback state.");
+        }
+
+        public override void RestoreRollbackState(PipelinePhaseRollbackState state)
+        {
+            ValidateRollbackState(state);
+            base.RestoreRollbackState(state);
+            _child = new MobaSkillCastRuntimeHandle(state.Longs[0], state.Integers[0], state.Longs[1]);
         }
 
         private void FinishFailure(SkillPipelineContext context, string reason)

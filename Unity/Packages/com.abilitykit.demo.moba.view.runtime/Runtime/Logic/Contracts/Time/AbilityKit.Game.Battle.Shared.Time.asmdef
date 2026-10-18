@@ -1,0 +1,14 @@
+{
+    "name": "AbilityKit.Game.Battle.Shared.Time",
+    "rootNamespace": "AbilityKit",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

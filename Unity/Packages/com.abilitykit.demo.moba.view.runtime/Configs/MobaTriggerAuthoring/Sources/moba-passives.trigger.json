@@ -2411,7 +2411,7 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_l5cc1bea7ec281936",
+          "nodeId": "node_l1007000000000001",
           "enabled": true,
           "kind": "Action",
           "type": "debug_log",
@@ -2763,7 +2763,7 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_l3d6c419092f3dff3",
+          "nodeId": "node_l1007000300000001",
           "enabled": true,
           "kind": "Action",
           "type": "give_damage",
@@ -2876,6 +2876,643 @@
         },
         "blackboard": [],
         "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10060000.json"
+      },
+      {
+        "id": 10070000,
+        "name": "孙尚香-王者审判-被动入口",
+        "groupPath": "trigger_10070000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l5cc1bea7ec281936",
+          "enabled": true,
+          "kind": "Action",
+          "type": "debug_log",
+          "arguments": [
+            {
+              "name": "message",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "Mozi passive entry",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10070000.json"
+      },
+      {
+        "id": 10070003,
+        "name": "孙尚香-王者审判-第五次普攻强化",
+        "groupPath": "trigger_10070000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": true,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l3d6c419092f3dff3",
+          "enabled": true,
+          "kind": "Action",
+          "type": "give_damage",
+          "arguments": [
+            {
+              "name": "damage_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 180.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "source_attack_ratio",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.35,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "damage_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10070003,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "target_mode",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "target_max_count",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10070000.json"
+      },
+      {
+      "id": 10080002,
+        "name": "鲁班七号-火力压制-普攻计数",
+      "groupPath": "trigger_10080002",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 45,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_10080002000000000000000000000001",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_10080002000000000000000000000002",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_10080002000000000000000000000003",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_kind"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_10080002000000000000000000000004",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_neq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "attacker_actor_id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "target_actor_id"
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_10080002000000000000000000000005",
+          "enabled": true,
+          "kind": "Action",
+          "type": "advance_gameplay_counter",
+          "arguments": [
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10080001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "scope_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1993035528,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 4.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "delta",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 1.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reset_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "trigger_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10080003,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080003,
+        "name": "鲁班七号-火力压制-扫射",
+        "groupPath": "trigger_10080003",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": true,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_10080003000000000000000000000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "shoot_projectile",
+          "arguments": [
+            {
+              "name": "launcher_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 31080301,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "projectile_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30080301,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080000,
+        "name": "鲁班七号-火力压制-被动入口",
+        "groupPath": "trigger_10080000",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_10080000000000000000000000000001",
+          "enabled": true,
+          "kind": "Action",
+          "type": "debug_log",
+          "arguments": [
+            {
+              "name": "message",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "Mozi passive entry",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
       }
     ]
   }

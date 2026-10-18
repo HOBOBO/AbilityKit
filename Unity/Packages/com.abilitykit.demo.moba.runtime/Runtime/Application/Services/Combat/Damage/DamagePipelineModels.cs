@@ -192,6 +192,7 @@ namespace AbilityKit.Demo.Moba
 
         public readonly CombatNumberValue RawDamage;
         public readonly CombatNumberValue MitigatedDamage;
+        public readonly CombatNumberValue FinalDamage;
         public readonly CombatNumberValue ShieldAbsorb;
         public readonly CombatNumberValue HpDamage;
         internal Services.ShieldAbsorbPlan ShieldPlan;
@@ -206,6 +207,7 @@ namespace AbilityKit.Demo.Moba
             TriggerId = attack?.TriggerId ?? 0;
             RawDamage = new CombatNumberValue(CombatNumberValueMode.BaseAddMul);
             MitigatedDamage = new CombatNumberValue(CombatNumberValueMode.BaseAddMul);
+            FinalDamage = new CombatNumberValue(CombatNumberValueMode.BaseAddMul);
             ShieldAbsorb = new CombatNumberValue(CombatNumberValueMode.BaseAddMul);
             HpDamage = new CombatNumberValue(CombatNumberValueMode.BaseAddMul);
         }

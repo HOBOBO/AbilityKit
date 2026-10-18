@@ -7,6 +7,20 @@ namespace AbilityKit.Demo.Moba.Services
         Respawn = 2,
     }
 
+    public enum MobaHealthChangeStatus
+    {
+        Rejected = 0,
+        Committed = 1,
+    }
+
+    [System.Flags]
+    public enum MobaHealthChangeFlags
+    {
+        None = 0,
+        Clamped = 1 << 0,
+        Overkill = 1 << 1,
+    }
+
     public readonly struct MobaHealthChangeResult : IMobaActorContextProvider, IMobaOriginContextProvider
     {
         public MobaHealthChangeResult(
@@ -22,6 +36,37 @@ namespace AbilityKit.Demo.Moba.Services
             float targetHp,
             float targetMaxHp,
             in MobaGameplayOrigin origin)
+            : this(
+                kind,
+                sourceActorId,
+                targetActorId,
+                valueType,
+                reasonKind,
+                reasonParam,
+                requestedValue,
+                appliedValue,
+                oldHp,
+                targetHp,
+                targetMaxHp,
+                in origin,
+                CalculateLegacyFlags(requestedValue, appliedValue))
+        {
+        }
+
+        public MobaHealthChangeResult(
+            MobaHealthChangeKind kind,
+            int sourceActorId,
+            int targetActorId,
+            int valueType,
+            int reasonKind,
+            int reasonParam,
+            float requestedValue,
+            float appliedValue,
+            float oldHp,
+            float targetHp,
+            float targetMaxHp,
+            in MobaGameplayOrigin origin,
+            MobaHealthChangeFlags flags)
         {
             Kind = kind;
             SourceActorId = sourceActorId;
@@ -35,6 +80,16 @@ namespace AbilityKit.Demo.Moba.Services
             TargetHp = targetHp;
             TargetMaxHp = targetMaxHp;
             Origin = origin;
+            Status = appliedValue > 0f ? MobaHealthChangeStatus.Committed : MobaHealthChangeStatus.Rejected;
+            Flags = flags;
+        }
+
+        private static MobaHealthChangeFlags CalculateLegacyFlags(float requestedValue, float appliedValue)
+        {
+            if (appliedValue <= 0f || requestedValue <= 0f) return MobaHealthChangeFlags.None;
+            return appliedValue < requestedValue
+                ? MobaHealthChangeFlags.Clamped
+                : MobaHealthChangeFlags.None;
         }
 
         public MobaHealthChangeKind Kind { get; }
@@ -49,7 +104,12 @@ namespace AbilityKit.Demo.Moba.Services
         public float TargetHp { get; }
         public float TargetMaxHp { get; }
         public MobaGameplayOrigin Origin { get; }
-        public bool Succeeded => AppliedValue > 0f;
+        public MobaHealthChangeStatus Status { get; }
+        public MobaHealthChangeFlags Flags { get; }
+        public bool Succeeded => Status == MobaHealthChangeStatus.Committed;
+        public bool Rejected => Status == MobaHealthChangeStatus.Rejected;
+        public bool WasClamped => (Flags & MobaHealthChangeFlags.Clamped) != 0;
+        public bool WasOverkill => (Flags & MobaHealthChangeFlags.Overkill) != 0;
         public bool BecameDead => Kind == MobaHealthChangeKind.Damage && OldHp > 0f && TargetHp <= 0f;
 
         public bool TryGetSourceActorId(out int actorId)

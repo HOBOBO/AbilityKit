@@ -73,6 +73,12 @@ namespace AbilityKit.Game.Flow
             set => _transforms.SmoothingHz = value;
         }
 
+        public float TurnSpeedDegreesPerSecond
+        {
+            get => _transforms.TurnSpeedDegreesPerSecond;
+            set => _transforms.TurnSpeedDegreesPerSecond = value;
+        }
+
         public bool TryGetShellGameObject(EC.IEntityId id, out GameObject go)
         {
             return _queries.TryGetShellGameObject(id, out go);

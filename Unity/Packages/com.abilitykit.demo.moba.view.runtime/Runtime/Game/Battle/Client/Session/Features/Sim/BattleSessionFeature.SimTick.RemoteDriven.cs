@@ -24,14 +24,30 @@ namespace AbilityKit.Game.Flow
 
         public bool ShowProjectionView(string instanceId, IBattleProjectionViewSource source,
             Vector3 worldOffset, BattleProjectionViewCapabilities capabilities)
+            => ShowProjectionView(instanceId, source, worldOffset, capabilities, null);
+
+        public bool ShowProjectionView(string instanceId, IBattleProjectionViewSource source,
+            Vector3 worldOffset, BattleProjectionViewCapabilities capabilities, Camera camera)
         {
             return _runtime.Presentation.AddProjectionView(instanceId,
                 BattleProjectionViewRole.Auxiliary, source, _ctx, _flow,
-                worldOffset, DestroyEntityTree, capabilities);
+                worldOffset, DestroyEntityTree, capabilities, camera);
         }
 
-        public bool HideProjectionView(string instanceId) =>
-            _runtime.Presentation.RemoveProjectionView(instanceId);
+        public bool HideProjectionView(string instanceId)
+        {
+            if (instanceId == _spectatorPresentationInstanceId)
+            {
+                HideSpectatorView();
+                return true;
+            }
+            if (instanceId == _replayPresentationInstanceId)
+            {
+                HideReplayView();
+                return true;
+            }
+            return _runtime.Presentation.RemoveProjectionView(instanceId);
+        }
 
         public bool ShowPredictionView(string instanceId, Vector3 worldOffset) =>
             ShowPredictionView(instanceId, worldOffset, BattleProjectionViewCapabilities.Actors);

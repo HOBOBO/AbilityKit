@@ -59,6 +59,22 @@
         <var name="Hit" value="7"/>
         <var name="SummonCreate" value="8"/>
     </enum>
+    <enum name="ModifierFieldUnit">
+        <var name="None" value="0"/>
+        <var name="Point" value="1"/>
+        <var name="Distance" value="2"/>
+        <var name="Ms" value="3"/>
+        <var name="Count" value="4"/>
+        <var name="Ratio" value="5"/>
+        <var name="Degrees" value="6"/>
+        <var name="Id" value="7"/>
+        <var name="Percent" value="8"/>
+    </enum>
+    <enum name="ModifierParameterCapturePolicy">
+        <var name="CreateSnapshot" value="1"/>
+        <var name="EventSample" value="2"/>
+        <var name="LiveProperty" value="3"/>
+    </enum>
     <enum name="ModifierOp">
         <var name="Add" value="0"/>
         <var name="Mul" value="1"/>
@@ -75,6 +91,9 @@
         <var name="ContextFloat" value="5"/>
         <var name="LinearFormula" value="6"/>
     </enum>
+    <!-- EvaluationPolicy is no longer authored. The exporter derives it from the referenced
+         modifier parameter's CapturePolicy so a field's timing semantics live in exactly one
+         place: the parameter catalog. See business/modifiers.py::derive_evaluation_policy. -->
     <enum name="ModifierEvaluationPolicy">
         <var name="Realtime" value="0"/>
         <var name="OnApplySnapshot" value="1"/>
@@ -84,9 +103,46 @@
         <var name="Source" value="1"/>
         <var name="Target" value="2"/>
     </enum>
+    <enum name="ModifierSelectorField">
+        <var name="Slot" value="1"/>
+        <var name="BaseSkillId" value="2"/>
+        <var name="EffectiveSkillId" value="3"/>
+        <var name="LauncherTemplateId" value="4"/>
+        <var name="ProjectileTemplateId" value="5"/>
+        <var name="AreaTemplateId" value="6"/>
+        <var name="SummonTemplateId" value="7"/>
+        <var name="BuffTemplateId" value="8"/>
+    </enum>
     <enum name="ModifierTemplateKind">
         <var name="Buff" value="0"/>
         <var name="ContinuousProcess" value="1"/>
+    </enum>
+    <!-- MountPoint classifies an effect by which lifecycle owner holds the numeric value.
+         It maps onto the ModifierKey Category allocation: the three "held" mounts share the
+         actor-owned Category, spawned mounts share the projectile-owned one, and so on. -->
+    <enum name="ModifierMountPoint">
+        <var name="None" value="0"/>
+        <var name="Actor" value="1"/>
+        <var name="Skill" value="2"/>
+        <var name="Summon" value="3"/>
+        <var name="Emitter" value="4"/>
+        <var name="Projectile" value="5"/>
+        <var name="Aoe" value="6"/>
+        <var name="Buff" value="7"/>
+        <var name="Damage" value="8"/>
+    </enum>
+    <!-- ConflictGroup makes modifier arbitration explicit: effects in different groups never
+         override each other, while Priority only orders effects inside the same group. -->
+    <enum name="ModifierConflictGroup">
+        <var name="None" value="0"/>
+        <var name="Attribute" value="1"/>
+        <var name="SkillSlot" value="2"/>
+        <var name="SkillParameter" value="3"/>
+    </enum>
+    <enum name="ModifierStackingPolicy">
+        <var name="Independent" value="0"/>
+        <var name="Refresh" value="1"/>
+        <var name="Max" value="2"/>
     </enum>
     <enum name="MobaTagNamespace">
         <var name="GameplayState" value="1"/>
@@ -233,66 +289,55 @@
         <var name="FloatValue" type="float"/>
         <var name="BoolValue" type="bool"/>
     </bean>
+    <bean name="ModifierTargetSpec" valueType="1" sep="|">
+        <var name="Kind" type="MobaModifierTargetKind"/>
+        <var name="Id" type="int"/>
+    </bean>
+    <bean name="ModifierValueSpec" valueType="1" sep="|">
+        <var name="Op" type="ModifierOp"/>
+        <var name="Value" type="float"/>
+    </bean>
+    <bean name="ModifierMagnitudeSpec" valueType="1" sep="|">
+        <var name="SourceType" type="MagnitudeSourceType"/>
+        <var name="BaseValue" type="float"/>
+        <var name="Coefficient" type="float"/>
+        <var name="DurationSec" type="float"/>
+        <var name="DecayType" type="int"/>
+        <var name="AttributeTypeId" type="int"/>
+    </bean>
+    <bean name="ModifierCandidateSpec" valueType="1" sep="|">
+        <var name="SkillId" type="int"/>
+        <var name="ReferenceId" type="int"/>
+    </bean>
     <bean name="ModifierFormulaTerm" valueType="1" sep="|">
         <var name="ActorRole" type="ModifierAttributeSourceRole"/>
         <var name="AttributeTypeId" type="int"/>
         <var name="Coefficient" type="float"/>
     </bean>
-    <bean name="BuffModifier" valueType="1" sep="|">
-        <var name="TargetKind" type="MobaModifierTargetKind"/>
-        <var name="TargetId" type="int"/>
-        <var name="Op" type="ModifierOp"/>
-        <var name="Value" type="float"/>
-        <var name="Priority" type="int"/>
-        <var name="MagnitudeSourceType" type="MagnitudeSourceType"/>
-        <var name="MagnitudeBaseValue" type="float"/>
-        <var name="MagnitudeCoefficient" type="float"/>
-        <var name="MagnitudeDuration" type="float"/>
-        <var name="MagnitudeDecayType" type="int"/>
-        <var name="MagnitudeAttributeTypeId" type="int"/>
-        <var name="MagnitudeContextKey" type="string"/>
-        <var name="MagnitudeCurve" type="(list#sep=,),float"/>
-        <var name="EvaluationPolicy" type="ModifierEvaluationPolicy"/>
+    <!-- The semantic half of a modifier: what it changes and by how much, independent of
+         which Buff or continuous process mounts it. Templates reference this through
+         DefinitionId so equivalent effects are authored once. EvaluationPolicy and Priority
+         are deliberately absent: the exporter derives timing from the target parameter's
+         CapturePolicy and takes ordering from the mount row. -->
+    <bean name="ModifierDefinition" valueType="1" sep="|">
+        <var name="Id" type="int"/>
+        <var name="Key" type="string"/>
+        <var name="MountPoint" type="ModifierMountPoint"/>
+        <var name="Target" type="ModifierTargetSpec"/>
+        <var name="Value" type="ModifierValueSpec"/>
+        <var name="Magnitude" type="ModifierMagnitudeSpec"/>
+        <var name="Curve" type="(list#sep=,),float"/>
+        <var name="ContextKey" type="string"/>
         <var name="AttributeSourceRole" type="ModifierAttributeSourceRole"/>
-        <var name="SelectorSlot" type="int"/>
-        <var name="SelectorBaseSkillId" type="int"/>
-        <var name="SelectorEffectiveSkillId" type="int"/>
-        <var name="SelectorLauncherTemplateId" type="int"/>
-        <var name="SelectorProjectileTemplateId" type="int"/>
-        <var name="SelectorAreaTemplateId" type="int"/>
-        <var name="SelectorSummonTemplateId" type="int"/>
-        <var name="SelectorBuffTemplateId" type="int"/>
-        <var name="CandidateSkillId" type="int"/>
-        <var name="CandidateReferenceId" type="int"/>
+        <var name="Candidate" type="ModifierCandidateSpec"/>
         <var name="FormulaConstant" type="float"/>
         <var name="FormulaLevelCoefficient" type="float"/>
         <var name="FormulaTerms" type="(list#sep=,),ModifierFormulaTerm"/>
-    </bean>
-    <bean name="ContinuousProcessModifier" valueType="1" sep="|">
-        <var name="TargetKind" type="MobaModifierTargetKind"/>
-        <var name="TargetId" type="int"/>
-        <var name="Op" type="ModifierOp"/>
-        <var name="Value" type="float"/>
-        <var name="Priority" type="int"/>
-        <var name="MagnitudeSourceType" type="MagnitudeSourceType"/>
-        <var name="MagnitudeBaseValue" type="float"/>
-        <var name="MagnitudeCoefficient" type="float"/>
-        <var name="MagnitudeContextKey" type="string"/>
-        <var name="EvaluationPolicy" type="ModifierEvaluationPolicy"/>
-        <var name="AttributeSourceRole" type="ModifierAttributeSourceRole"/>
-        <var name="SelectorSlot" type="int"/>
-        <var name="SelectorBaseSkillId" type="int"/>
-        <var name="SelectorEffectiveSkillId" type="int"/>
-        <var name="SelectorLauncherTemplateId" type="int"/>
-        <var name="SelectorProjectileTemplateId" type="int"/>
-        <var name="SelectorAreaTemplateId" type="int"/>
-        <var name="SelectorSummonTemplateId" type="int"/>
-        <var name="SelectorBuffTemplateId" type="int"/>
-        <var name="CandidateSkillId" type="int"/>
-        <var name="CandidateReferenceId" type="int"/>
-        <var name="FormulaConstant" type="float"/>
-        <var name="FormulaLevelCoefficient" type="float"/>
-        <var name="FormulaTerms" type="(list#sep=,),ModifierFormulaTerm"/>
+        <var name="StackingPolicy" type="ModifierStackingPolicy"/>
+        <var name="MaxStacks" type="int"/>
+        <var name="ConflictGroup" type="ModifierConflictGroup"/>
+        <var name="ConditionSetId" type="int"/>
+        <var name="Deprecated" type="bool"/>
     </bean>
     <bean name="SearchTargetProvider" valueType="1" sep="|">
         <var name="Kind" type="SearchTargetProviderKind"/>

@@ -62,18 +62,22 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
     {
         private const string EffectsJsonPath =
             "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/effects.json";
+        private const string ProductionSkillsJsonPath =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/skills.json";
+        private const string ProductionBuffsJsonPath =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/buffs.json";
         private const string SkillFlowsJsonPath =
             "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skill_flows.json";
         private const string ProjectileLaunchersJsonPath =
-            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/projectile_launchers.json";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/projectile_launchers.json";
         private const string ProjectilesJsonPath =
-            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/projectiles.json";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/projectiles.json";
         private const string AoesJsonPath =
-            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/aoes.json";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/aoes.json";
         private const string SummonsJsonPath =
-            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/summons.json";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/summons.json";
         private const string SearchQueryTemplatesJsonPath =
-            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/search_query_templates.json";
+            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/search_query_templates.json";
         private const string ModifierParametersJsonPath =
             "Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/modifier_parameters.json";
         private const string TagRuleGroupsJsonPath =
@@ -306,9 +310,15 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
         private static Snapshot BuildSnapshot()
         {
             var characters = LoadAssets<CharacterSO, CharacterDTO>(asset => asset.dataList);
-            var skills = LoadAssets<SkillSO, SkillDTO>(asset => asset.dataList);
+            var skills = MergeById(
+                LoadAssets<SkillSO, SkillDTO>(asset => asset.dataList),
+                LoadJsonArray<SkillDTO>(ProductionSkillsJsonPath),
+                skill => skill.Id);
             var attributes = LoadAssets<BattleAttributeTemplateSO, BattleAttributeTemplateDTO>(asset => asset.dataList);
-            var buffs = LoadAssets<BuffSO, BuffDTO>(asset => asset.dataList);
+            var buffs = MergeById(
+                LoadAssets<BuffSO, BuffDTO>(asset => asset.dataList),
+                LoadJsonArray<BuffDTO>(ProductionBuffsJsonPath),
+                buff => buff.Id);
             var flows = LoadSkillFlows();
 
             var skillNames = skills.ToDictionary(
@@ -612,6 +622,21 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
             }
 
             return byId.OrderBy(pair => pair.Key).Select(pair => pair.Value).ToArray();
+        }
+
+        private static T[] MergeById<T>(
+            IEnumerable<T> authored,
+            IEnumerable<T> generated,
+            Func<T, int> idSelector)
+            where T : class
+        {
+            return authored
+                .Concat(generated ?? Enumerable.Empty<T>())
+                .Where(value => value != null && idSelector(value) > 0)
+                .GroupBy(idSelector)
+                .OrderBy(group => group.Key)
+                .Select(group => group.First())
+                .ToArray();
         }
 
         private static SkillFlowDTO[] LoadSkillFlows()

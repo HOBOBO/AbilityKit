@@ -17,11 +17,17 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Loading
         private readonly BattleLoadingRuntime _runtime = new BattleLoadingRuntime();
         private readonly BattleLoadingScreenRenderer _renderer =
             new BattleLoadingScreenRenderer();
+        private readonly IBattleAssetLoadService _loadService;
+        private readonly IBattleAssetDependencyProvider _dependencyProvider;
 
         private IFlowCommandSink _flowSink;
 
-        public BattleLoadingScreenFeature()
+        public BattleLoadingScreenFeature(
+            IBattleAssetLoadService loadService,
+            IBattleAssetDependencyProvider dependencyProvider)
         {
+            _loadService = loadService ?? throw new ArgumentNullException(nameof(loadService));
+            _dependencyProvider = dependencyProvider ?? throw new ArgumentNullException(nameof(dependencyProvider));
         }
 
         internal BattleLoadingScreenFeature(IBattleAssetLoadCoordinator coordinator)
@@ -49,9 +55,9 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Loading
                 {
                     var manifest = BattleAssetManifestResolver.Resolve(
                         new BattlePlanManifestSource(sessionPort.Plan),
-                        ResourcesBattleAssetDependencyProvider.Default);
+                        _dependencyProvider);
                     _runtime.SetCoordinator(new BattleAssetLoadCoordinator(
-                        ResourcesBattleAssetLoadService.Default,
+                        _loadService,
                         () => manifest,
                         new InlineProgress<BattleAssetLoadProgress>(_runtime.OnProgress)));
                 }

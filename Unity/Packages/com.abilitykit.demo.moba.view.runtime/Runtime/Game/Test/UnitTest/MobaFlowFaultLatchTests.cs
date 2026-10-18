@@ -82,6 +82,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 domain.Tick(0.016f);
                 domain.EnterBattle(new ConfiguredBattleBootstrapper(null, preset));
                 Assert.AreEqual("moba.quiet", domain.CurrentBattleProfileId);
+                Assert.IsNotEmpty(domain.CurrentSessionModuleIds);
+                Assert.AreEqual(0, domain.CurrentGameplayId);
             }
             finally
             {
@@ -202,6 +204,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 return new MobaFeatureFactoryRegistry()
                     .Register("demo_lobby", (in GamePhaseContext ctx) => _countingFeature)
                     .Register("formal_lobby", (in GamePhaseContext ctx) => _controlledFeature)
+                    .Register("formal_lobby_ui", (in GamePhaseContext ctx) => _trailingFeature)
                     .Register("root_debug", (in GamePhaseContext ctx) => _trailingFeature)
                     .Register("context", (in GamePhaseContext ctx) => new CountingFeature("context"))
                     .Register("entity", (in GamePhaseContext ctx) => new CountingFeature("entity"))
