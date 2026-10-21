@@ -838,7 +838,7 @@
         ],
         "enabled": true,
         "entryMode": "Event",
-        "event": "skill.cast.complete",
+        "event": "damage.apply.after",
         "phase": "immediate",
         "priority": 50,
         "interruptPriority": 0,
@@ -857,6 +857,97 @@
           "interruptPolicy": "none",
           "stopPropagationOnSuccess": false,
           "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_l6000000000000001",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l6000000000000002",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "owner_matches_payload_source",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l6000000000000003",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": { "x": 0.0, "y": 0.0, "z": 0.0 },
+                    "fields": [],
+                    "path": "reason_kind"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": { "x": 0.0, "y": 0.0, "z": 0.0 },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l6000000000000004",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "vector3Value": { "x": 0.0, "y": 0.0, "z": 0.0 },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "vector3Value": { "x": 0.0, "y": 0.0, "z": 0.0 },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
         },
         "actions": {
           "nodeId": "node_lca39e4fdf615341c",
@@ -3084,16 +3175,16 @@
         "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/passives/trigger_10070000.json"
       },
       {
-      "id": 10080002,
+        "id": 10080002,
         "name": "鲁班七号-火力压制-普攻计数",
-      "groupPath": "trigger_10080002",
+        "groupPath": "trigger_10080002",
         "tags": [
           "moba",
           "passives"
         ],
         "enabled": true,
         "entryMode": "Event",
-        "event": "damage.apply.after",
+        "event": "skill.cast.start",
         "phase": "immediate",
         "priority": 45,
         "interruptPriority": 0,
@@ -3124,13 +3215,13 @@
               "nodeId": "node_10080002000000000000000000000002",
               "enabled": true,
               "kind": "Condition",
-              "type": "arg_gt",
+              "type": "arg_eq",
               "arguments": [
                 {
                   "name": "left",
                   "value": {
                     "source": "Payload",
-                    "type": "Number",
+                    "type": "Integer",
                     "integerValue": 0,
                     "numberValue": 0.0,
                     "booleanValue": false,
@@ -3141,15 +3232,15 @@
                       "z": 0.0
                     },
                     "fields": [],
-                    "path": "damage_value"
+                    "path": "skill.id"
                   }
                 },
                 {
                   "name": "right",
                   "value": {
                     "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
+                    "type": "Integer",
+                    "integerValue": 10080001,
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "integerListValue": [],
@@ -3167,7 +3258,7 @@
             },
             {
               "nodeId": "node_10080002000000000000000000000003",
-              "enabled": true,
+              "enabled": false,
               "kind": "Condition",
               "type": "arg_eq",
               "arguments": [
@@ -3212,7 +3303,7 @@
             },
             {
               "nodeId": "node_10080002000000000000000000000004",
-              "enabled": true,
+              "enabled": false,
               "kind": "Condition",
               "type": "arg_neq",
               "arguments": [
@@ -3287,7 +3378,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 1993035528,
+                "integerValue": 1939836602,
                 "numberValue": 0.0,
                 "booleanValue": false,
                 "integerListValue": [],
@@ -3305,7 +3396,7 @@
                 "source": "Constant",
                 "type": "Number",
                 "integerValue": 0,
-                "numberValue": 4.0,
+                "numberValue": 5.0,
                 "booleanValue": false,
                 "integerListValue": [],
                 "vector3Value": {
@@ -3372,7 +3463,7 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+        "note": "鲁班七号被动：第五次普攻触发扫射。"
       },
       {
         "id": 10080003,
@@ -3513,6 +3604,63 @@
         },
         "blackboard": [],
         "note": "鲁班七号 1008 production trigger authored from the existing MOBA action contracts."
+      },
+      {
+        "id": 10080005,
+        "name": "Luban - skill cast primes sweep",
+        "groupPath": "trigger_10080005",
+        "tags": ["moba", "passives"],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "skill.cast.start",
+        "phase": "immediate",
+        "priority": 44,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {"mode": "transient", "delayMilliseconds": 0, "intervalMilliseconds": 0, "repeatCount": 0},
+        "cue": {},
+        "executionControl": {"maxExecutions": 0, "cooldownMilliseconds": 0.0, "interruptPolicy": "none", "stopPropagationOnSuccess": false, "stopPropagationOnFailure": false},
+        "condition": {
+          "nodeId": "node_10080005000000000000000000000001",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "any",
+          "arguments": [],
+          "children": [
+            {"nodeId": "node_10080005000000000000000000000002", "enabled": true, "kind": "Condition", "type": "arg_eq", "arguments": [
+              {"name": "left", "value": {"source": "Payload", "type": "Integer", "integerValue": 0, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": [], "path": "skill.id"}},
+              {"name": "right", "value": {"source": "Constant", "type": "Integer", "integerValue": 10080101, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}}
+            ], "children": [], "elseChildren": []},
+            {"nodeId": "node_10080005000000000000000000000003", "enabled": true, "kind": "Condition", "type": "arg_eq", "arguments": [
+              {"name": "left", "value": {"source": "Payload", "type": "Integer", "integerValue": 0, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": [], "path": "skill.id"}},
+              {"name": "right", "value": {"source": "Constant", "type": "Integer", "integerValue": 10080201, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}}
+            ], "children": [], "elseChildren": []},
+            {"nodeId": "node_10080005000000000000000000000004", "enabled": true, "kind": "Condition", "type": "arg_eq", "arguments": [
+              {"name": "left", "value": {"source": "Payload", "type": "Integer", "integerValue": 0, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": [], "path": "skill.id"}},
+              {"name": "right", "value": {"source": "Constant", "type": "Integer", "integerValue": 10080301, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}}
+            ], "children": [], "elseChildren": []}
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_10080005000000000000000000000005",
+          "enabled": true,
+          "kind": "Action",
+          "type": "advance_gameplay_counter",
+          "arguments": [
+            {"name": "key_id", "value": {"source": "Constant", "type": "Integer", "integerValue": 10080001, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}},
+            {"name": "scope_payload_field_id", "value": {"source": "Constant", "type": "Integer", "integerValue": 1939836602, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}},
+            {"name": "threshold", "value": {"source": "Constant", "type": "Number", "integerValue": 0, "numberValue": 5.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}},
+            {"name": "delta", "value": {"source": "Constant", "type": "Number", "integerValue": 0, "numberValue": 5.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}},
+            {"name": "reset_value", "value": {"source": "Constant", "type": "Number", "integerValue": 0, "numberValue": 5.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}},
+            {"name": "trigger_id", "value": {"source": "Constant", "type": "Integer", "integerValue": 0, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}}
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Luban skill casts prime the next basic attack sweep without firing it immediately."
       }
     ]
   }

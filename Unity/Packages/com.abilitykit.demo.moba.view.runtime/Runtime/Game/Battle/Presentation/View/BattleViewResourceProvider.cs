@@ -124,6 +124,12 @@ namespace AbilityKit.Game.Flow
             return _models.CreateActorShell(GetOrLoadConfigs(), actorId, modelId);
         }
 
+        /// <summary>Creates a shell for a lane minion entity.</summary>
+        public GameObject CreateMinionShell(int actorId, int modelId)
+        {
+            return _models.CreateMinionShell(GetOrLoadConfigs(), actorId, modelId);
+        }
+
         /// <summary>Creates a shell for a Summon entity.</summary>
         public GameObject CreateSummonShell(int actorId, int modelId)
         {

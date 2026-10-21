@@ -1,0 +1,28 @@
+{
+  "Version": 4,
+  "MapId": 1,
+  "DefaultRouteId": 1,
+  "Schedule": {
+    "FirstWaveAtMs": 0,
+    "IntervalMs": 30000,
+    "MaxWaves": 0,
+    "MaxActiveMinionsPerTeam": 30,
+    "Composition": [
+      { "Archetype": "Melee", "Count": 3, "SpawnIntervalMs": 250 },
+      { "Archetype": "Ranged", "Count": 3, "SpawnIntervalMs": 250 }
+    ]
+  },
+  "Routes": [
+    {
+      "RouteId": 1,
+      "AcceptanceRadius": 0.5,
+      "TerminalPolicy": "BaseDamageEvent",
+      "Waypoints": [
+        { "X": -12.0, "Y": 0.0, "Z": 0.0 },
+        { "X": -4.0, "Y": 0.0, "Z": 0.0 },
+        { "X": 4.0, "Y": 0.0, "Z": 0.0 },
+        { "X": 12.0, "Y": 0.0, "Z": 0.0 }
+      ]
+    }
+  ]
+}

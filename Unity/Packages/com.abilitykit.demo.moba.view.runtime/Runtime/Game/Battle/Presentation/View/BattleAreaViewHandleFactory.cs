@@ -51,7 +51,9 @@ namespace AbilityKit.Game.Flow
 
             handle.ModelGo = _objects.CreateModel(evt.TemplateId, aoe.ModelId, attach, in pos);
             handle.RangeGo = _objects.CreateRange(evt.TemplateId, aoe.Radius, aoe.DelayMs, attach, in pos);
-            handle.VfxGo = _objects.CreateVfx(evt.TemplateId, aoe.VfxId, attach, in pos);
+            // AOE VFX with a configured id is owned by the unified presentation
+            // cue stream. Keep the legacy object only as a fallback for old data.
+            handle.VfxGo = aoe.VfxId > 0 ? null : _objects.CreateVfx(evt.TemplateId, aoe.VfxId, attach, in pos);
             handle.Pool = _objects is PooledBattleAreaViewObjectFactory p ? p.Pool : null;
             return handle;
         }

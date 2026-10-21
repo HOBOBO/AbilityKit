@@ -24,6 +24,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int LevelTableId { get; }
         public int PreCastFlowId { get; }
         public int CastFlowId { get; }
+        public int PreviewVfxId { get; }
         public ulong ExecutionBlockedResultMask { get; }
         public IReadOnlyList<int> Tags { get; }
 
@@ -47,6 +48,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             LevelTableId = dto.LevelTableId;
             PreCastFlowId = dto.PreCastFlowId;
             CastFlowId = dto.CastFlowId;
+            PreviewVfxId = dto.PreviewVfxId;
             ExecutionBlockedResultMask = dto.ExecutionBlockedResultMask;
             Tags = dto.Tags ?? Array.Empty<int>();
         }

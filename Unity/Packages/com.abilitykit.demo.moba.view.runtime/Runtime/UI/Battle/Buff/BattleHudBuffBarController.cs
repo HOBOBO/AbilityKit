@@ -6,7 +6,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
 {
     /// <summary>
     /// Manages per-actor <see cref="BattleHudBuffBar"/> instances:
-    /// creates one lazily when a Buff cue arrives for an actor,
+    /// creates one lazily when a Buff or gameplay-tag cue arrives for an actor,
     /// destroys it on entity destroyed,
     /// and projects each bar to the actor's world position every Tick.
     /// </summary>
@@ -20,6 +20,8 @@ namespace AbilityKit.Game.Flow.Battle.Hud
 
         private readonly Dictionary<int, BattleHudBuffBar> _barsByActorId = new Dictionary<int, BattleHudBuffBar>(32);
         private readonly Dictionary<string, int> _actorByInstanceKey = new Dictionary<string, int>(64);
+        private readonly BattleHudStatusBaselineSession _baseline = new BattleHudStatusBaselineSession();
+        private readonly List<string> _baselineStaleKeys = new List<string>(16);
 
         public BattleHudBuffBarController(
             BattleHudConfig cfg,
@@ -67,19 +69,31 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             for (var i = 0; i < entries.Count; i++)
             {
                 var entry = entries[i];
-                if (!BattleHudBuffCueFilter.IsBuffCue(in entry)) continue;
+
+                if (entry.SnapshotKind == PresentationCueSnapshotKind.ActiveBaseline)
+                {
+                    if (!_baseline.IsActive) _baseline.Begin();
+                    if (!localOnly || IsLocalActor(entry.TargetActorId)) _baseline.Observe(in entry);
+                }
+                else if (entry.SnapshotKind == PresentationCueSnapshotKind.ActiveBaselineEnd)
+                {
+                    _baseline.End(ReconcileBaselineActor);
+                    continue;
+                }
+
+                if (!BattleHudStatusCueFilter.IsHudStatusCue(in entry)) continue;
 
                 var actorId = entry.TargetActorId;
                 if (actorId <= 0) continue;
                 if (localOnly && !IsLocalActor(actorId)) continue;
 
                 var stage = entry.Stage;
-                var isRemove = BattleHudBuffCueFilter.IsBuffRemoveStage(stage);
-                var isActive = BattleHudBuffCueFilter.IsBuffActiveStage(stage);
+                var isRemove = BattleHudStatusCueFilter.IsStatusRemoveStage(stage);
+                var isActive = BattleHudStatusCueFilter.IsStatusActiveStage(stage);
 
                 if (isRemove)
                 {
-                    RemoveBuff(actorId, entry.InstanceKey);
+                    RemoveStatus(actorId, entry.InstanceKey);
                     continue;
                 }
                 if (!isActive) continue;
@@ -144,14 +158,35 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             }
             _barsByActorId.Clear();
             _actorByInstanceKey.Clear();
+            _baseline.End(null);
+            _baselineStaleKeys.Clear();
         }
 
-        private void RemoveBuff(int actorId, string instanceKey)
+        private void RemoveStatus(int actorId, string instanceKey)
         {
             if (string.IsNullOrEmpty(instanceKey)) return;
             if (!_barsByActorId.TryGetValue(actorId, out var bar) || bar == null) return;
             bar.RemoveIcon(instanceKey);
             _actorByInstanceKey.Remove(instanceKey);
+        }
+
+        private void ReconcileBaselineActor(int actorId, ISet<string> desiredKeys)
+        {
+            if (!_barsByActorId.TryGetValue(actorId, out var bar) || bar == null) return;
+
+            _baselineStaleKeys.Clear();
+            foreach (var mapping in _actorByInstanceKey)
+            {
+                if (mapping.Value == actorId && !desiredKeys.Contains(mapping.Key))
+                    _baselineStaleKeys.Add(mapping.Key);
+            }
+
+            for (var i = 0; i < _baselineStaleKeys.Count; i++)
+            {
+                var key = _baselineStaleKeys[i];
+                bar.RemoveIcon(key);
+                _actorByInstanceKey.Remove(key);
+            }
         }
 
         private static float ResolveTotalSecondsHint(in PresentationCueData entry)

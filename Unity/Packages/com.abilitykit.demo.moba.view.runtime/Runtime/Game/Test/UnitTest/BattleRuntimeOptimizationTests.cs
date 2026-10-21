@@ -579,11 +579,13 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 var spawner = new BattlePresentationCueVfxSpawner(world, null, default);
 
-                spawner.Update(entity.Id, scale: 1f, radius: 1f, durationMsOverride: 2500);
+                spawner.Update(entity.Id, scale: 1f, radius: 1f, durationMsOverride: 2500,
+                    stackCount: 0, maxStackCount: 0, elapsedSeconds: 0f, remainingSeconds: 0f);
                 Assert.AreEqual(2.5f, lifetime.ExpireAtTime - Time.time, 0.05f);
 
                 var refreshedExpireAtTime = lifetime.ExpireAtTime;
-                spawner.Update(entity.Id, scale: 1f, radius: 1f, durationMsOverride: 0);
+                spawner.Update(entity.Id, scale: 1f, radius: 1f, durationMsOverride: 0,
+                    stackCount: 0, maxStackCount: 0, elapsedSeconds: 0f, remainingSeconds: 0f);
                 Assert.AreEqual(refreshedExpireAtTime, lifetime.ExpireAtTime, 0.0001f);
             }
             finally
@@ -2010,6 +2012,38 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 UnityEngine.Object.DestroyImmediate(preset);
                 UnityEngine.Object.DestroyImmediate(config);
+            }
+        }
+
+        [Test]
+        public void DemoLobby_AutoEntersLocalBattleOnceAndLeavesRemoteFlowManual()
+        {
+            var remotePreset = ScriptableObject.CreateInstance<BattleStartPresetSO>();
+            remotePreset.HostMode = BattleHostMode.GatewayRemote;
+            var selection = new LobbyBattleEntrySelection();
+
+            try
+            {
+                Assert.IsTrue(DemoLobbyOnGUIFeature.ShouldAutoEnterLocalBattle(
+                    null, alreadyInBattle: false, hasBattleConfig: true, alreadyAttempted: false));
+                Assert.IsFalse(DemoLobbyOnGUIFeature.ShouldAutoEnterLocalBattle(
+                    selection, alreadyInBattle: false, hasBattleConfig: true, alreadyAttempted: false));
+
+                selection.SelectRemote(ScriptableObject.CreateInstance<BattleStartConfig>(), remotePreset);
+                Assert.IsFalse(DemoLobbyOnGUIFeature.ShouldAutoEnterLocalBattle(
+                    selection, alreadyInBattle: false, hasBattleConfig: true, alreadyAttempted: false));
+                Assert.IsFalse(DemoLobbyOnGUIFeature.ShouldAutoEnterLocalBattle(
+                    null, alreadyInBattle: true, hasBattleConfig: true, alreadyAttempted: false));
+                Assert.IsFalse(DemoLobbyOnGUIFeature.ShouldAutoEnterLocalBattle(
+                    null, alreadyInBattle: false, hasBattleConfig: false, alreadyAttempted: false));
+                Assert.IsFalse(DemoLobbyOnGUIFeature.ShouldAutoEnterLocalBattle(
+                    null, alreadyInBattle: false, hasBattleConfig: true, alreadyAttempted: true));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(remotePreset);
+                if (selection.Config != null)
+                    UnityEngine.Object.DestroyImmediate(selection.Config);
             }
         }
 

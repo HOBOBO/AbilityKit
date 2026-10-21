@@ -408,6 +408,21 @@ namespace AbilityKit.Protocol.Generated
                         1d,
                         null
                     ),
+                    new ProtocolMessageDefinition(
+                        "shield-state.push",
+                        4015u,
+                        ProtocolDirection.ServerToClient,
+                        ProtocolPacketKind.Push,
+                        "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload",
+                        "memorypack",
+                        ProtocolReliability.Reliable,
+                        null,
+                        1,
+                        1,
+                        1048576,
+                        0.25d,
+                        null
+                    ),
                 }),
         };
 

@@ -22,9 +22,26 @@ def validate_skill_level_tables(rows):
                                  f"but ParamNames has {len(names)} names")
 
 
+def validate_character_skill_preview_vfx(characters, skills, vfx_entries):
+    skills_by_id = {row["Id"]: row for row in skills}
+    vfx_ids = {row["Id"] for row in vfx_entries}
+    for character in characters:
+        for skill_id in character.get("SkillIds") or []:
+            skill = skills_by_id.get(skill_id)
+            if skill is None:
+                raise ValueError(f"characters/{character['Id']}: missing skill {skill_id}")
+            vfx_id = skill.get("PreviewVfxId", 0)
+            if not isinstance(vfx_id, int) or isinstance(vfx_id, bool) or vfx_id <= 0:
+                raise ValueError(f"skills/{skill_id}: PreviewVfxId must reference a VFX for character use")
+            if vfx_id not in vfx_ids:
+                raise ValueError(f"skills/{skill_id}: PreviewVfxId references missing vfx {vfx_id}")
+
+
 class Rule:
     def project(self, context):
         validate_skill_level_tables(context.tables["skill_level_tables"])
+        validate_character_skill_preview_vfx(
+            context.tables["characters"], context.tables["skills"], context.tables["vfx"])
 
     def validate_graph(self, graph, tables, external):
         def check_phase(phase, owner):

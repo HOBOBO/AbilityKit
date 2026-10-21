@@ -34,6 +34,9 @@ namespace AbilityKit.Game.Battle.Entity
         /// <summary>Static or destructible building.</summary>
         Building = 7,
 
+        /// <summary>Lane minion spawned by the wave scheduler.</summary>
+        Minion = 8,
+
         /// <summary>Area-effect zone (AOE) — handled by <see cref="Flow.BattleAreaViewSystem"/>.</summary>
         AreaEffect = 100,
     }

@@ -7,6 +7,23 @@ using AbilityKit.Game.Battle.Entity;
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
+    /// Minion projections carry the resolved model id in EntityCode. This keeps
+    /// presentation independent from the minion character/attribute tables.
+    /// </summary>
+    internal sealed class BattleViewMinionConfigResolver
+    {
+        public int ResolveModelId(MobaConfigDatabase configs, BattleEntityMetaComponent meta)
+        {
+            if (meta == null || meta.Kind != BattleEntityKind.Minion) return 0;
+            return meta.EntityCode > 0
+                ? meta.EntityCode
+                : BattleViewFallbackPolicy.DevelopmentOnly(
+                    BattleViewPlaceholderIds.CharacterModel,
+                    "minion:" + meta.EntityCode);
+        }
+    }
+
+    /// <summary>
     /// Resolves view-model parameters for <see cref="BattleEntityKind.Summon"/> entities.
     /// Falls back to placeholder when the summon config is unavailable.
     /// </summary>

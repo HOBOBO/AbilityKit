@@ -79,6 +79,7 @@ namespace AbilityKit.Game.Editor
         [MenuItem(MenuPath, priority = 20)]
         public static void GenerateAll()
         {
+            MobaMapSceneGenerator.ValidateMapAndMinionRoutes(1);
             EnsureFolder(MobaPrefabDirectory);
             EnsureFolder(MobaProfileDirectory);
             EnsureFolder(MobaSceneDirectory);

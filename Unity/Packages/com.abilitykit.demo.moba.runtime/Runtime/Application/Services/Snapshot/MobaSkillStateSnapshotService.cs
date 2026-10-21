@@ -18,6 +18,8 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly IFrameTime _time;
         private readonly MobaSkillEconomyService _economy;
         private MobaSkillSlotCandidateService _slotCandidates;
+        private MobaSkillCastRuntimeService _skillRuntimes;
+        private MobaSkillWindowRuntimeService _skillWindows;
         private readonly MobaSnapshotBuffer<MobaSkillStateSnapshotEntry> _entries = new MobaSnapshotBuffer<MobaSkillStateSnapshotEntry>(16, 256);
 
         private FrameIndex _lastFrame;
@@ -38,6 +40,8 @@ namespace AbilityKit.Demo.Moba.Services
         public void OnInit(IWorldResolver services)
         {
             services?.TryResolve(out _slotCandidates);
+            services?.TryResolve(out _skillRuntimes);
+            services?.TryResolve(out _skillWindows);
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
@@ -109,6 +113,9 @@ namespace AbilityKit.Demo.Moba.Services
                     var sharedRemainingMs = ClampToInt(sharedEndTimeMs - nowMs);
                     var globalRemainingMs = ClampToInt(globalEndTimeMs - nowMs);
                     var chargeRecoveryRemainingMs = ClampToInt(runtime.NextChargeRecoveryTimeMs - nowMs);
+                    ResolveCastingState(actorId, i + 1, runtime.SkillId,
+                        out var castingState, out var castElapsedMs, out var castTotalMs,
+                        out var castTier, out var castMaxTier);
                     _entries.Add(new MobaSkillStateSnapshotEntry
                     {
                         ActorId = actorId,
@@ -126,9 +133,34 @@ namespace AbilityKit.Demo.Moba.Services
                         ChargeRecoveryRemainingMs = chargeRecoveryRemainingMs,
                         SharedCooldownRemainingMs = sharedRemainingMs,
                         GlobalCooldownRemainingMs = globalRemainingMs,
+                        CastingState = castingState,
+                        CastElapsedMs = castElapsedMs,
+                        CastTotalMs = castTotalMs,
+                        CastTier = castTier,
+                        CastMaxTier = castMaxTier,
                     });
                 }
             }
+        }
+
+        private void ResolveCastingState(int actorId, int slot, int skillId,
+            out MobaSkillCastingState state, out int elapsedMs, out int totalMs,
+            out int tier, out int maxTier)
+        {
+            state = MobaSkillCastingState.None;
+            elapsedMs = totalMs = tier = maxTier = 0;
+            if (_skillRuntimes == null || _skillWindows == null) return;
+
+            if (!_skillRuntimes.TryGetActiveSkill(actorId, slot, skillId, out var runtime)) return;
+            var handle = runtime.Handle;
+            if (!_skillWindows.TryGetSnapshot(in handle, out var window) || !window.IsOpen ||
+                window.Kind != AbilityKit.Demo.Moba.Share.Config.SkillWindowKind.Charge) return;
+
+            state = MobaSkillCastingState.Charging;
+            elapsedMs = Math.Max(0, window.ElapsedMs);
+            totalMs = Math.Max(0, window.TotalMs);
+            tier = Math.Max(0, window.ChargeTier);
+            maxTier = Math.Max(0, window.MaxChargeTier);
         }
 
         private static int ClampToInt(long value)

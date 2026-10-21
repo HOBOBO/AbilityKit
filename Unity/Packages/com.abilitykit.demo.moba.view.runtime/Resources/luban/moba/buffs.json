@@ -58,7 +58,7 @@
     "OnAddEffects": [],
     "OnIntervalEffects": [],
     "OnRemoveEffects": [],
-    "PresentationTemplateId": 0,
+    "PresentationTemplateId": 90001002,
     "RefreshPolicy": 1,
     "StackingPolicy": 0,
     "TriggerIds": [],
@@ -637,7 +637,7 @@
     "OnAddEffects": [],
     "OnIntervalEffects": [],
     "OnRemoveEffects": [],
-    "PresentationTemplateId": 90003001,
+    "PresentationTemplateId": 90007005,
     "RefreshPolicy": 1,
     "StackingPolicy": 0,
     "TriggerIds": [
@@ -677,7 +677,7 @@
     "IntervalMs": 0,
     "MaxStacks": 1,
     "ModifierIds": [
-      100025
+      100026
     ],
     "Name": "孙尚香-翻滚突袭-破甲",
     "OnAddEffects": [],
@@ -725,7 +725,7 @@
     "OnAddEffects": [],
     "OnIntervalEffects": [],
     "OnRemoveEffects": [],
-    "PresentationTemplateId": 90006003,
+    "PresentationTemplateId": 90007006,
     "RefreshPolicy": 1,
     "StackingPolicy": 0,
     "TriggerIds": [],
@@ -759,13 +759,13 @@
     "ContinuousTagTemplateId": 0,
     "DispelCategory": 0,
     "DispelPolicy": 0,
-    "DurationMs": 1000,
+    "DurationMs": 2000,
     "IntervalMs": 0,
     "MaxStacks": 1,
     "ModifierIds": [
-      100014
+      100010
     ],
-    "Name": "鲁班七号-河豚手雷眩晕",
+    "Name": "鲁班七号-河豚手雷减速",
     "OnAddEffects": [],
     "OnIntervalEffects": [],
     "OnRemoveEffects": [],
@@ -811,7 +811,29 @@
     "OnAddEffects": [],
     "OnIntervalEffects": [],
     "OnRemoveEffects": [],
-    "PresentationTemplateId": 90006003,
+    "PresentationTemplateId": 90008005,
+    "RefreshPolicy": 1,
+    "StackingPolicy": 0,
+    "TriggerIds": [],
+    "DispelBlockedByTagNames": null,
+    "TagNames": null
+  },
+  {
+    "Id": 10070202,
+    "ContinuousTagTemplateId": 0,
+    "DispelCategory": 0,
+    "DispelPolicy": 0,
+    "DurationMs": 2500,
+    "IntervalMs": 0,
+    "MaxStacks": 1,
+    "ModifierIds": [
+      100027
+    ],
+    "Name": "孙尚香-红莲爆弹-破甲",
+    "OnAddEffects": [],
+    "OnIntervalEffects": [],
+    "OnRemoveEffects": [],
+    "PresentationTemplateId": 90007006,
     "RefreshPolicy": 1,
     "StackingPolicy": 0,
     "TriggerIds": [],

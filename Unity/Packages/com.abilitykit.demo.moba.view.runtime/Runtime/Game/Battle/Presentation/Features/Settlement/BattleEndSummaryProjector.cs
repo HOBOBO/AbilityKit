@@ -21,8 +21,10 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
                 Team2Score = match.Team2Score,
                 EndReason = match.EndReason,
                 MatchDurationFrames = match.EndFrame,
-                MatchDurationSeconds = state.HasClock && state.Clock.DurationMilliseconds > 0
-                    ? Math.Max(0, state.Clock.DurationMilliseconds - state.Clock.RemainingMilliseconds) / 1000
+                MatchDurationSeconds = state.HasClock
+                    ? Math.Max(0, state.Clock.ElapsedMilliseconds > 0
+                        ? state.Clock.ElapsedMilliseconds
+                        : state.Clock.DurationMilliseconds - state.Clock.RemainingMilliseconds) / 1000
                     : match.EndFrame / state.TickRate
             };
             foreach (var player in state.Players)

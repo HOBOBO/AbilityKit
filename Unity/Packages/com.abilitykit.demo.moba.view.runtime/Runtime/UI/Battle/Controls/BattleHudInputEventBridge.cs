@@ -32,6 +32,17 @@ namespace AbilityKit.Game.Flow
             _events.SetSkillSpecs(skillSpecs);
         }
 
+        public event System.Action<int> SkillPreviewPressed
+        {
+            add => _events.SkillPreviewPressed += value;
+            remove => _events.SkillPreviewPressed -= value;
+        }
+        public event System.Action<int> SkillPreviewReleased
+        {
+            add => _events.SkillPreviewReleased += value;
+            remove => _events.SkillPreviewReleased -= value;
+        }
+
         public void ResetHudAim()
         {
             _events.ResetHudAim();

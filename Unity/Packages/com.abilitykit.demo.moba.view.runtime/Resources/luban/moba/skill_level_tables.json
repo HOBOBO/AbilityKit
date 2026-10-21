@@ -1499,7 +1499,7 @@
           0.6,
           3.5,
           250,
-          1000
+          2000
         ]
       }
     ],
@@ -1508,7 +1508,7 @@
       "physicalAttackRatio",
       "radius",
       "delayMs",
-      "stunDurationMs"
+      "slowDurationMs"
     ]
   },
   {
@@ -1542,9 +1542,9 @@
         "Cost": 120,
         "Params": [
           1008,
-          5000,
-          5000,
-          3
+          1000,
+          14000,
+          14
         ]
       }
     ],

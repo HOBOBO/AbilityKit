@@ -12,6 +12,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleHudFloatingTextController _floatingTexts;
         private readonly BattleHudDamageEventPresenter _damageEvents;
         private readonly BattleHudBuffBarController _buffBars;
+        private readonly BattleHudChargeBarController _chargeBars;
 
         public BattleHudBinder(
             BattleHudConfig cfg,
@@ -30,6 +31,7 @@ namespace AbilityKit.Game.Flow
             _floatingTexts = controllers.CreateFloatingTexts(cfg, root, projector, this, fallbackUi);
             _damageEvents = controllers.CreateDamageEvents(_hpBars, _floatingTexts);
             _buffBars = controllers.CreateBuffBars(cfg, root, projector, this);
+            _chargeBars = controllers.CreateChargeBars(cfg, root, projector, this);
         }
 
         public void OnDamageEvents(DamageEventData[] entries)
@@ -41,6 +43,38 @@ namespace AbilityKit.Game.Flow
         {
             if (entries == null || entries.Length == 0) return;
             _buffBars.HandleCues(entries);
+            for (var i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                if (entry.Domain == PresentationCueDomain.Buff &&
+                    entry.TargetActorId > 0 &&
+                    !string.IsNullOrEmpty(entry.InstanceKey) &&
+                    entry.InstanceKey.StartsWith("gameplay-counter:", System.StringComparison.Ordinal) &&
+                    PresentationCueSemantics.Classify(entry.Stage) != PresentationCueTransition.Stop)
+                {
+                    _floatingTexts.SpawnStatus(
+                        entry.TargetActorId,
+                        entry.StackCount.ToString(),
+                        new Color(entry.ColorR, entry.ColorG, entry.ColorB, entry.ColorA),
+                        450);
+                    continue;
+                }
+                if (entry.Domain != PresentationCueDomain.Tag ||
+                    entry.Stage != PresentationCueStage.Started ||
+                    entry.TargetActorId <= 0) continue;
+                if (BattleHudStatusCueFilter.TryResolveHeadText(in entry, out var text, out var color, out var durationMs))
+                    _floatingTexts.SpawnStatus(entry.TargetActorId, text, color, durationMs);
+            }
+        }
+
+        public void OnSkillStates(SkillStateData[] entries, int localActorId)
+        {
+            _chargeBars.Apply(entries, localActorId);
+        }
+
+        public void OnShieldStates(ShieldStateData[] entries)
+        {
+            _hpBars.UpdateShields(entries);
         }
 
         public void Tick(float deltaTime)
@@ -48,6 +82,7 @@ namespace AbilityKit.Game.Flow
             _hpBars.Tick();
             _floatingTexts.Tick(deltaTime);
             _buffBars.Tick(deltaTime);
+            _chargeBars.Tick();
         }
 
         public void OnEntityDestroyed(EC.IEntityId id)
@@ -57,6 +92,7 @@ namespace AbilityKit.Game.Flow
             _hpBars.RemoveActor(actorId);
             _floatingTexts.RemoveActor(actorId);
             _buffBars.RemoveActor(actorId);
+            _chargeBars.RemoveActor(actorId);
         }
 
         public void Clear()
@@ -64,6 +100,7 @@ namespace AbilityKit.Game.Flow
             _hpBars.Clear();
             _floatingTexts.Clear();
             _buffBars.Clear();
+            _chargeBars.Clear();
         }
 
         public bool TryGetActorWorldPos(int actorId, out Vector3 pos)
@@ -133,6 +170,15 @@ namespace AbilityKit.Game.Flow
             IBattleHudActorPositionResolver actors)
         {
             return new BattleHudBuffBarController(cfg, root, projector, actors);
+        }
+
+        public BattleHudChargeBarController CreateChargeBars(
+            BattleHudConfig cfg,
+            RectTransform root,
+            BattleHudCanvasProjector projector,
+            IBattleHudActorPositionResolver actors)
+        {
+            return new BattleHudChargeBarController(cfg, root, projector, actors);
         }
     }
 }

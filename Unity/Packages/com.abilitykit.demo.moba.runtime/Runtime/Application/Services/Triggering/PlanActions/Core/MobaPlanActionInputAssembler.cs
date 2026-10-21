@@ -131,6 +131,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return HasAim(in aimPosition, in aimDirection);
             }
 
+            if (payload is ProjectileHitArgs projectileHitEvent)
+            {
+                aimPosition = projectileHitEvent.Point;
+                return aimPosition.SqrMagnitude > 0f;
+            }
+
             if (payload is AreaEventArgs areaEvent)
             {
                 aimPosition = areaEvent.Center;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using AbilityKit.Demo.Moba;
@@ -6,6 +7,7 @@ using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Context;
 using AbilityKit.Demo.Moba.Gameplay;
+using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Share.Config;
@@ -23,6 +25,71 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
 public sealed class MobaCompleteBattleLifecycleSmokeTests
 {
+    [Fact]
+    public void Map_gameplay_bootstrap_spawns_first_minion_wave()
+    {
+        using var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        bootstrapper.Initialize();
+        bootstrapper.Start();
+        for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();
+        bootstrapper.SetupBattle();
+
+        var services = bootstrapper.RuntimeServices!;
+        var gameplay = services.Resolve<MobaGameplayService>();
+        var maps = services.Resolve<AbilityKit.Demo.Moba.Services.Map.IMobaMapRuntimeService>();
+        var waves = services.Resolve<MobaMinionWaveService>();
+        Assert.True(gameplay.IsRunning);
+        Assert.True(maps.IsLoaded);
+        Assert.Equal(gameplay.CurrentGameplay.MapId, maps.CurrentMap.Id);
+
+        for (var i = 0; i < 40 && waves.ActiveCount < 12; i++) bootstrapper.Tick();
+
+        Assert.Equal(1, waves.CommittedWaveCount);
+        Assert.True(waves.ActiveCount > 0);
+        var spawned = services.Resolve<MobaActorRegistry>().Entries
+            .Where(entry => entry.Value != null && entry.Value.hasEntityMainType &&
+                entry.Value.hasUnitSubType &&
+                entry.Value.entityMainType.Value == EntityMainType.Unit &&
+                entry.Value.unitSubType.Value == UnitSubType.Minion)
+            .ToArray();
+        Assert.Equal(waves.ActiveCount, spawned.Length);
+        var runtimes = new List<MobaMinionRuntimeView>();
+        Assert.Equal(waves.ActiveCount, waves.CopyActiveRuntimeViews(runtimes));
+        Assert.Contains(runtimes, runtime => runtime.Archetype == MobaMinionArchetype.Melee);
+        Assert.Contains(runtimes, runtime => runtime.Archetype == MobaMinionArchetype.Ranged);
+        Assert.All(spawned, entry =>
+        {
+            Assert.True(entry.Value.hasTeam);
+            Assert.True(entry.Value.hasTransform);
+            Assert.True(entry.Value.hasAttributeGroup);
+            Assert.True(entry.Value.hasModelId);
+            Assert.True(entry.Value.modelId.Value > 0);
+        });
+
+        var actorSpawns = services.Resolve<MobaActorSpawnSnapshotService>();
+        var minionSpawns = new List<AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotEntry>();
+        for (var frame = bootstrapper.Context.LastFrame + 1; frame <= bootstrapper.Context.LastFrame + 4; frame++)
+        {
+            if (!actorSpawns.TryGetSnapshot(new FrameIndex(frame), out var spawnSnapshot)) continue;
+            Assert.Equal(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ActorSpawn, spawnSnapshot.OpCode);
+            minionSpawns.AddRange(AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotCodec
+                .Deserialize(spawnSnapshot.Payload)
+                .Where(entry => entry.Kind == (int)AbilityKit.Protocol.Moba.StateSync.SpawnEntityKind.Minion));
+            if (minionSpawns.Count == 12) break;
+        }
+        Assert.Equal(12, minionSpawns.Count);
+        var actorsById = spawned.ToDictionary(entry => entry.Key, entry => entry.Value);
+        Assert.All(minionSpawns, entry =>
+        {
+            Assert.True(entry.NetId > 0);
+            Assert.True(entry.EntityVersion > 0);
+            Assert.Contains(entry.Code, new[] { 1101, 1102 });
+            Assert.True(actorsById.ContainsKey(entry.NetId));
+            Assert.True(maps.IsPositionWalkable(
+                new AbilityKit.Core.Mathematics.Vec3(entry.X, entry.Y, entry.Z)));
+        });
+    }
+
     [Fact]
     public void Gameplay_start_rejects_missing_trigger_binding_service()
     {
@@ -316,7 +383,9 @@ public sealed class MobaCompleteBattleLifecycleSmokeTests
     [Fact]
     public void Configured_time_limit_ends_game_as_draw()
     {
-        using var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        var startConfig = BattleStartConfig.CreateDefault();
+        startConfig.GameplayId = 2;
+        using var bootstrapper = new ConsoleBattleBootstrapper(startConfig);
         bootstrapper.Initialize();
         bootstrapper.Start();
         for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();
@@ -334,6 +403,7 @@ public sealed class MobaCompleteBattleLifecycleSmokeTests
         Assert.Equal(GameplayClockSnapshotCodec.OpCode, first.OpCode);
         Assert.True(GameplayClockSnapshotCodec.TryDecode(first.Payload, out var firstClock));
         Assert.Equal(gameplay.GetClockState().RemainingMilliseconds, firstClock.RemainingMilliseconds);
+        Assert.Equal(gameplay.GetClockState().ElapsedMilliseconds, firstClock.ElapsedMilliseconds);
         Assert.False(clockEmitter.TryGetSnapshot(new FrameIndex(10001), out _));
         gameplay.Tick(gameplay.CurrentGameplay.DefaultDurationMs / 1000f);
         Assert.Equal(MobaGameplayPhase.Ended, gameplay.Phase);
@@ -533,7 +603,9 @@ public sealed class MobaCompleteBattleLifecycleSmokeTests
 
         Assert.Equal(MobaGameplayPhase.Running, gameplay.Phase);
         Assert.Equal(elapsedRaw, gameplay.ElapsedRaw);
-        Assert.Equal(600f - gameplay.ElapsedSeconds, gameplay.GetClockState().RemainingSeconds, 2);
+        Assert.Equal(0, gameplay.GetClockState().DurationMilliseconds);
+        Assert.Equal(0f, gameplay.GetClockState().RemainingSeconds);
+        Assert.True(gameplay.GetClockState().ElapsedMilliseconds > 0);
         Assert.Equal(2d, scores.Get(1002));
         Assert.Equal(0, gameplay.LastResult.WinTeamId);
     }

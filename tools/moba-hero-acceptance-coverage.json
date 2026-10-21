@@ -83,7 +83,7 @@
         "buff": "covered",
         "projectile": "covered",
         "area": "not-covered",
-        "presentation": "not-covered"
+        "presentation": "covered"
       }
     },
     {
@@ -97,7 +97,7 @@
         "buff": "covered",
         "projectile": "covered",
         "area": "covered",
-        "presentation": "not-covered"
+        "presentation": "covered"
       }
     },
     {
@@ -111,7 +111,7 @@
         "buff": "covered",
         "projectile": "covered",
         "area": "covered",
-        "presentation": "not-covered"
+        "presentation": "covered"
       }
     }
   ]

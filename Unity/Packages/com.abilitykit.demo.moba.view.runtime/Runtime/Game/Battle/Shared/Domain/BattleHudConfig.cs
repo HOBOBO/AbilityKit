@@ -10,6 +10,11 @@ namespace AbilityKit.Game.Flow
 
         public Vector3 HpBarWorldOffset = new Vector3(0f, 2.2f, 0f);
 
+        public Vector3 ChargeBarWorldOffset = new Vector3(0f, 2.42f, 0f);
+        public Vector2 ChargeBarSize = new Vector2(76f, 6f);
+        public Color ChargeBarBackgroundColor = new Color(0f, 0f, 0f, 0.8f);
+        public Color ChargeBarFillColor = new Color(1f, 0.78f, 0.18f, 1f);
+
         public Vector3 FloatingTextWorldOffset = new Vector3(0f, 2.4f, 0f);
         public float FloatingTextLifetime = 0.9f;
         public float FloatingTextRisePixels = 50f;

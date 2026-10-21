@@ -66,6 +66,33 @@ public sealed class ActorSpawnSnapshotRouteTests
     }
 
     [Fact]
+    public void RegisterDecoderPreservesMinionSpawnKind()
+    {
+        var registry = new RecordingDecoderRegistry();
+        ActorSpawnSnapshotRoute.RegisterDecoder(registry);
+
+        var payload = MobaActorSpawnSnapshotCodec.Serialize(new[]
+        {
+            new MobaActorSpawnSnapshotEntry(
+                netId: 20001,
+                kind: (int)SpawnEntityKind.Minion,
+                code: 1101,
+                ownerNetId: 0,
+                x: 1f,
+                y: 0f,
+                z: 2f),
+        });
+        var snapshot = new WorldStateSnapshot(ActorSpawnSnapshotRoute.OpCode, payload);
+
+        Assert.True(registry.Decode(in snapshot, out var spawns));
+        var spawn = Assert.Single(spawns);
+        Assert.Equal(ActorSpawnKind.Minion, spawn.Kind);
+        Assert.True(spawn.IsMinion);
+        Assert.False(spawn.IsProjectile);
+        Assert.Equal(1101, spawn.EntityCode);
+    }
+
+    [Fact]
     public void RegisterDecoderRejectsNullRegistry()
     {
         Assert.Throws<ArgumentNullException>(() =>

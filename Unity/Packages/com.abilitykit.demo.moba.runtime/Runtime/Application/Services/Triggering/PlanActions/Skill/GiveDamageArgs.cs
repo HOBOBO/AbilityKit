@@ -47,6 +47,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         /// </summary>
         public readonly DamageReasonKind ReasonKind;
         public readonly MobaEffectMagnitudeSpec Magnitude;
+        public readonly int MaxTargetHits;
+        public readonly int TargetHitCountKeyBase;
 
         public GiveDamageArgs(
             float damageValue,
@@ -56,7 +58,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             float sourceAttackRatio = 0f,
             DamageReasonKind reasonKind = DamageReasonKind.Skill,
             DamageAttributeSourceKind attributeSource = DamageAttributeSourceKind.AttributionActor,
-            MobaEffectMagnitudeSpec magnitude = default)
+            MobaEffectMagnitudeSpec magnitude = default,
+            int maxTargetHits = 0,
+            int targetHitCountKeyBase = 1200000)
         {
             DamageValue = damageValue;
             ReasonParam = reasonParam;
@@ -66,6 +70,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             TargetRequest = targetRequest;
             ReasonKind = reasonKind;
             Magnitude = magnitude;
+            MaxTargetHits = maxTargetHits;
+            TargetHitCountKeyBase = targetHitCountKeyBase;
         }
 
         public static GiveDamageArgs Default => new GiveDamageArgs(0f, 0, DamageType.Physical, MobaActionTargetRequest.ContextTarget());

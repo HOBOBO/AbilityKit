@@ -32,6 +32,7 @@ public sealed partial class DRSkills : Luban.BeanBase
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
         {int n0 = _buf.ReadSize(); ExecutionBlockedFlagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ExecutionBlockedFlagIds.Add(_e0);}}
+        PreviewVfxId = _buf.ReadInt();
     }
 
     public static DRSkills DeserializeDRSkills(ByteBuf _buf)
@@ -103,6 +104,10 @@ public sealed partial class DRSkills : Luban.BeanBase
     /// 执行前及施法过程中阻断本技能的结果标志 ID，多个用逗号分隔；空表示不检查。
     /// </summary>
     public readonly System.Collections.Generic.List<int> ExecutionBlockedFlagIds;
+    /// <summary>
+    /// ?????????????? VFX ID?0 ????????
+    /// </summary>
+    public readonly int PreviewVfxId;
    
     public const int __ID__ = 491147888;
     public override int GetTypeId() => __ID__;
@@ -130,6 +135,7 @@ public sealed partial class DRSkills : Luban.BeanBase
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
         + "ExecutionBlockedFlagIds:" + Luban.StringUtil.CollectionToString(ExecutionBlockedFlagIds) + ","
+        + "PreviewVfxId:" + PreviewVfxId + ","
         + "}";
     }
 }

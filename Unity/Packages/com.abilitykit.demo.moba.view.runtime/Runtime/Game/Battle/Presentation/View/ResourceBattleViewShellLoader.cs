@@ -25,6 +25,9 @@ namespace AbilityKit.Game.Flow
                 case BattleEntityKind.Unknown:
                     return _resources.CreateShellGameObject(actorId, modelId);
 
+                case BattleEntityKind.Minion:
+                    return _resources.CreateMinionShell(actorId, modelId);
+
                 case BattleEntityKind.Summon:
                 case BattleEntityKind.Clone:
                     return _resources.CreateSummonShell(actorId, modelId);

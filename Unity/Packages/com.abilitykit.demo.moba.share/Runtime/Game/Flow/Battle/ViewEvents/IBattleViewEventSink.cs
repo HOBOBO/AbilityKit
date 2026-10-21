@@ -36,6 +36,7 @@ namespace AbilityKit.Demo.Moba.Share
         /// Handles platform-neutral skill presentation states.
         /// </summary>
         void OnSkillStateSnapshot(in FrameSnapshotData snapshot);
+        void OnShieldStateSnapshot(in FrameSnapshotData snapshot);
 
         /// <summary>
         /// 处理弹道事件快照

@@ -235,6 +235,41 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        [Test]
+        public void Skill10060301_ShouldKeepProjectileDirectionWhenCasterMovesAfterCast()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(YingZheng, "ying_zheng_skill_3_direction_snapshot_contract_world"))
+            {
+                harness.EnterGameAndWarmup(reason: "ying zheng skill 3 direction snapshot contract");
+                var actorId = harness.AssertPlayerActorBound();
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                var cast = skills.TryCastBySlot(actorId, Skill3.Slot, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
+                Assert.IsTrue(cast.Success, "Ying Zheng ultimate should cast before the caster moves. failReason=" + cast.FailReason);
+
+                var effectTrace = harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, Skill3.EffectId, maxTicks: 30, message: "Ying Zheng ultimate should execute before direction is checked.");
+                harness.AssertProjectileLaunchedUnderEffect(effectTrace.RootId, 31060301, 30060301);
+                harness.MoveScenarioActor(actorId, new MobaAcceptanceVector3Expectation { x = 0f, y = 0f, z = 6f });
+                harness.Tick(8);
+                var nextWaveSpawn = TickUntilProjectileSpawnSnapshot(harness, 30060301, maxTicks: 20);
+                Assert.Greater(nextWaveSpawn.ForwardX, 0.9f, "A later sword wave should preserve the original cast direction after the caster moves.");
+                Assert.Less(Math.Abs(nextWaveSpawn.ForwardZ), 0.1f, "A later sword wave must not retarget the caster's post-cast position.");
+            }
+        }
+
+        [Test]
+        public void Skill10060301_ShouldUseFiniteOneTargetPierceAndUnitCollisionBounds()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(YingZheng, "ying_zheng_skill_3_first_target_collision_contract_world"))
+            {
+                Assert.IsTrue(harness.Config.TryGetProjectile(30060301, out var projectile), "Ying Zheng ultimate projectile config should exist.");
+                Assert.AreEqual(ProjectileHitPolicyKind.Pierce, projectile.HitPolicyKind, "Ying Zheng flying swords should use the configured finite pierce policy.");
+                Assert.AreEqual(1, projectile.HitsRemaining, "Each Ying Zheng flying sword should hit at most one enemy unit.");
+                Assert.AreEqual(0.8f, projectile.CollisionWidth, 0.001f, "Ying Zheng flying swords should use a narrow unit collision box.");
+                Assert.AreEqual(1.5f, projectile.CollisionHeight, 0.001f, "Ying Zheng flying swords should use a unit-height collision box.");
+                Assert.AreEqual(0.8f, projectile.CollisionLength, 0.001f, "Ying Zheng flying swords should use a finite forward collision length.");
+            }
+        }
+
         private static MobaProjectileEventSnapshotEntry TickUntilProjectileSpawnSnapshot(MobaSkillConfigTestHarness harness, int templateId, int maxTicks)
         {
             for (var i = 0; i <= maxTicks; i++)

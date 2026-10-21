@@ -20,6 +20,7 @@ namespace AbilityKit.Game.Flow
     internal readonly struct BattleHudSkillPresentationSpec
     {
         public readonly int SkillId;
+        public readonly int PreviewVfxId;
         public readonly string Name;
         public readonly BattleHudSkillPreviewShape PreviewShape;
         public readonly SkillAimIndicatorShape IndicatorShape;
@@ -69,9 +70,11 @@ namespace AbilityKit.Game.Flow
             float fanAngleDegrees = 90f,
             float fanRadius = 0f,
             float selfRadius = 0f,
-            float lockProjectileRadius = 0f)
+            float lockProjectileRadius = 0f,
+            int previewVfxId = 0)
         {
             SkillId = skillId;
+            PreviewVfxId = previewVfxId;
             Name = name;
             PreviewShape = previewShape;
             IndicatorShape = indicatorShape;
@@ -181,7 +184,8 @@ namespace AbilityKit.Game.Flow
                     usePointMode: usePointMode,
                     faceToAim: template.FaceToAim,
                     uiAimRadiusPixels: uiAimRadius,
-                    lockProjectileRadius: targetRadius);
+                    lockProjectileRadius: targetRadius,
+                    previewVfxId: skill.PreviewVfxId);
             }
 
             switch (indicatorShape)
@@ -203,7 +207,8 @@ namespace AbilityKit.Game.Flow
                         aimMode: SkillAimMode.Direction,
                         usePointMode: usePointMode,
                         faceToAim: template.FaceToAim,
-                        uiAimRadiusPixels: uiAimRadius);
+                        uiAimRadiusPixels: uiAimRadius,
+                        previewVfxId: skill.PreviewVfxId);
 
                 case SkillAimIndicatorShape.TargetCircle:
                     var targetRadius = template.IndicatorWorldWidth > 0f ? template.IndicatorWorldWidth : 2.8f;
@@ -221,7 +226,8 @@ namespace AbilityKit.Game.Flow
                         usePointMode: usePointMode,
                         faceToAim: template.FaceToAim,
                         uiAimRadiusPixels: uiAimRadius,
-                        lockProjectileRadius: targetRadius);
+                        lockProjectileRadius: targetRadius,
+                        previewVfxId: skill.PreviewVfxId);
 
                 case SkillAimIndicatorShape.SelfCircle:
                     var selfRadius = template.SelfRadius > 0f ? template.SelfRadius : DefaultSelfRadius;
@@ -239,7 +245,8 @@ namespace AbilityKit.Game.Flow
                         usePointMode: usePointMode,
                         faceToAim: template.FaceToAim,
                         uiAimRadiusPixels: uiAimRadius,
-                        selfRadius: selfRadius);
+                        selfRadius: selfRadius,
+                        previewVfxId: skill.PreviewVfxId);
 
                 case SkillAimIndicatorShape.Sector:
                     var sectorAngle = template.SectorAngleDegrees > 0f ? template.SectorAngleDegrees : DefaultSectorAngleDegrees;
@@ -260,7 +267,8 @@ namespace AbilityKit.Game.Flow
                         uiAimRadiusPixels: uiAimRadius,
                         angleDegrees: sectorAngle,
                         fanAngleDegrees: sectorAngle,
-                        fanRadius: sectorRadius);
+                        fanRadius: sectorRadius,
+                        previewVfxId: skill.PreviewVfxId);
 
                 case SkillAimIndicatorShape.DirectionArea:
                     var areaWidth = template.IndicatorWorldWidth > 0f ? template.IndicatorWorldWidth : 1.5f;
@@ -277,7 +285,8 @@ namespace AbilityKit.Game.Flow
                         aimMode: SkillAimMode.Direction,
                         usePointMode: usePointMode,
                         faceToAim: template.FaceToAim,
-                        uiAimRadiusPixels: uiAimRadius);
+                        uiAimRadiusPixels: uiAimRadius,
+                        previewVfxId: skill.PreviewVfxId);
 
                 case SkillAimIndicatorShape.DashLine:
                     var dashDistance = template.DashDistance > 0f ? template.DashDistance : DefaultDashDistance;
@@ -298,7 +307,8 @@ namespace AbilityKit.Game.Flow
                         usePointMode: usePointMode,
                         faceToAim: template.FaceToAim,
                         uiAimRadiusPixels: uiAimRadius,
-                        dashDistance: dashDistance);
+                        dashDistance: dashDistance,
+                        previewVfxId: skill.PreviewVfxId);
 
                 case SkillAimIndicatorShape.LockProjectile:
                     var lockDurationMs = template.LockOnDurationMs > 0 ? template.LockOnDurationMs : (int)(DefaultLockOnDurationSeconds * 1000f);
@@ -319,7 +329,8 @@ namespace AbilityKit.Game.Flow
                         faceToAim: template.FaceToAim,
                         uiAimRadiusPixels: uiAimRadius,
                         lockOnDurationSeconds: lockDurationMs / 1000f,
-                        lockProjectileRadius: lockRadius);
+                        lockProjectileRadius: lockRadius,
+                        previewVfxId: skill.PreviewVfxId);
 
                 case SkillAimIndicatorShape.FanArea:
                     var fanAngle = template.FanAngleDegrees > 0f ? template.FanAngleDegrees : DefaultFanAngleDegrees;
@@ -341,7 +352,8 @@ namespace AbilityKit.Game.Flow
                         uiAimRadiusPixels: uiAimRadius,
                         angleDegrees: fanAngle,
                         fanAngleDegrees: fanAngle,
-                        fanRadius: fanRadius);
+                        fanRadius: fanRadius,
+                        previewVfxId: skill.PreviewVfxId);
 
                 default:
                     return BattleHudSkillPresentationSpec.Hidden(skill.Id, skill.Name);
@@ -374,10 +386,10 @@ namespace AbilityKit.Game.Flow
                 case 2: return BattleHudSkillPreviewShape.TargetCircle;
                 case 3: return BattleHudSkillPreviewShape.SelfCircle;
                 case 4: return BattleHudSkillPreviewShape.Sector;
-                case 5: return BattleHudSkillPreviewShape.DashLine;
-                case 6: return BattleHudSkillPreviewShape.LockProjectile;
-                case 7: return BattleHudSkillPreviewShape.FanArea;
-                case 8: return BattleHudSkillPreviewShape.DirectionArea;
+                case 5: return BattleHudSkillPreviewShape.DirectionArea;
+                case 6: return BattleHudSkillPreviewShape.DashLine;
+                case 7: return BattleHudSkillPreviewShape.LockProjectile;
+                case 8: return BattleHudSkillPreviewShape.FanArea;
                 default: return BattleHudSkillPreviewShape.None;
             }
         }

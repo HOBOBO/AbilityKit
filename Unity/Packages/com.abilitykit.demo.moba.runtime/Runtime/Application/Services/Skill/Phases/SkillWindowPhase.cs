@@ -36,7 +36,8 @@ namespace AbilityKit.Demo.Moba.Services
                 return;
             }
 
-            windows.Open(in handle, _specification.WindowId, (SkillWindowKind)_specification.Kind);
+            windows.Open(in handle, _specification.WindowId, (SkillWindowKind)_specification.Kind,
+                ResolveTotalMs(), _specification.ChargeTierThresholdMs?.Length ?? 0);
             if (windows.TryGetSnapshot(in handle, out var snapshot)) _recastSequence = snapshot.RecastSequence;
             if (!ExecuteTriggers(context, _specification.OpenTriggerIds))
             {
@@ -205,6 +206,13 @@ namespace AbilityKit.Demo.Moba.Services
                 tier++;
             }
             return tier;
+        }
+
+        private int ResolveTotalMs()
+        {
+            if (_specification.DurationMs > 0) return _specification.DurationMs;
+            var thresholds = _specification.ChargeTierThresholdMs;
+            return thresholds != null && thresholds.Length > 0 ? Math.Max(0, thresholds[thresholds.Length - 1]) : 0;
         }
 
         private static bool TryResolve(

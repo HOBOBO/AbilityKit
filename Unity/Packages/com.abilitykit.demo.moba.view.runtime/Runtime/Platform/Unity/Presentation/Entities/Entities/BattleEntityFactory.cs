@@ -41,6 +41,51 @@ namespace AbilityKit.Game.Battle.Entity
             return e;
         }
 
+        public EC.IEntity CreateMinion(BattleNetId netId, int entityCode = 0)
+        {
+            EC.IEntity e;
+            if (_parent.IsValid)
+            {
+                e = _world.CreateChild(_parent);
+                e.SetName($"Minion_{netId.Value}");
+            }
+            else
+            {
+                e = _world.Create($"Minion_{netId.Value}");
+            }
+            e.WithRef(new BattleNetIdComponent { NetId = netId });
+            e.WithRef(new BattleEntityMetaComponent { Kind = BattleEntityKind.Minion, EntityCode = entityCode });
+            e.WithRef(new BattleTransformComponent());
+            e.WithRef(new BattleCharacterComponent());
+            e.WithRef(new SkillListComponent());
+            e.WithRef(new BuffListComponent());
+
+            _lookup?.Bind(netId, e);
+            return e;
+        }
+
+        public EC.IEntity CreateSummon(BattleNetId netId, int summonId = 0, BattleNetId ownerNetId = default)
+        {
+            EC.IEntity e;
+            if (_parent.IsValid)
+            {
+                e = _world.CreateChild(_parent);
+                e.SetName($"Summon_{netId.Value}");
+            }
+            else
+            {
+                e = _world.Create($"Summon_{netId.Value}");
+            }
+            e.WithRef(new BattleNetIdComponent { NetId = netId });
+            e.WithRef(new BattleEntityMetaComponent { Kind = BattleEntityKind.Summon, EntityCode = summonId });
+            e.WithRef(new BattleTransformComponent());
+            e.WithRef(new BattleCharacterComponent());
+            e.WithRef(new SkillListComponent());
+            e.WithRef(new BuffListComponent());
+            _lookup?.Bind(netId, e);
+            return e;
+        }
+
         public EC.IEntity CreateProjectile(BattleNetId netId, BattleNetId ownerNetId, int entityCode = 0)
         {
             EC.IEntity e;

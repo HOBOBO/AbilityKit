@@ -90,6 +90,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var aimPos = input.HasAimPosition ? input.AimPosition : Vec3.Zero;
             var aimDir = input.HasAimDirection ? input.AimDirection : Vec3.Zero;
+            var maxDistance = 0f;
             var targetActorId = 0;
 
             ProjectileLauncherMO launcher = null;
@@ -182,10 +183,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 if (!delta.Equals(Vec3.Zero)) aimDir = DeterministicMathBridge.Normalize(in delta);
             }
 
+            if (input.HasAimPosition)
+            {
+                var aimDelta = new Vec3(aimPos.X - casterPos.X, 0f, aimPos.Z - casterPos.Z);
+                maxDistance = DeterministicMathBridge.Magnitude(in aimDelta);
+            }
+
             aimPos = casterPos;
 
             var sourceContext = input.CreateSourceContext(casterActorId, targetActorId, projectile.Id);
-            if (!projectileSvc.TryLaunch(casterActorId, launcher, projectile, launchParams.CountPerShot, launchParams.FanAngleDeg, launchParams.DurationMs, args.ContinuousProcessId, args.TrackTarget, in aimPos, in aimDir, in sourceContext, out var launchResult))
+            if (!projectileSvc.TryLaunch(casterActorId, launcher, projectile, launchParams.CountPerShot, launchParams.FanAngleDeg, launchParams.DurationMs, args.ContinuousProcessId, args.TrackTarget, in aimPos, in aimDir, in sourceContext, out var launchResult, maxDistance))
             {
                 LogRejected(ctx, $"launch failed. launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId}");
                 return;

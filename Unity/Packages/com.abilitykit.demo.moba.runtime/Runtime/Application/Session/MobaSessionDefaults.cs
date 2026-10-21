@@ -10,6 +10,7 @@ namespace AbilityKit.Demo.Moba.Session
         public string WorldType { get; set; } = Worlds.Blueprints.MobaBattleWorldBlueprint.Type;
         public string MatchId { get; set; } = "session";
         public int MapId { get; set; } = 1;
+        public int GameplayId { get; set; } = 1;
         public int TickRate { get; set; } = 30;
         public int InputDelayFrames { get; set; }
         public int RandomSeed { get; set; } = 1;
@@ -23,6 +24,11 @@ namespace AbilityKit.Demo.Moba.Session
         public int ResolveMapId(int configuredMapId)
         {
             return configuredMapId > 0 ? configuredMapId : MapId;
+        }
+
+        public int ResolveGameplayId(int configuredGameplayId)
+        {
+            return configuredGameplayId > 0 ? configuredGameplayId : GameplayId;
         }
 
         public int ResolveTickRate(int configuredTickRate)

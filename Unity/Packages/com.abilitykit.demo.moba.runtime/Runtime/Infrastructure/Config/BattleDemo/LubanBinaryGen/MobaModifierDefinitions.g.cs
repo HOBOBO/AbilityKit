@@ -54,6 +54,8 @@ namespace AbilityKit.Demo.Moba.Services
             { 1000023, new ModifierDefinitionEntry(1000023, "MoveSpeedSlowStacking", 1, 0, 0, 1, 1) },
             { 1000024, new ModifierDefinitionEntry(1000024, "PhysicsAttackBonusFormula", 1, 0, 0, 1, 1) },
             { 1000025, new ModifierDefinitionEntry(1000025, "SunShangxiangRollMoveSpeedDecay", 1, 0, 0, 1, 1) },
+            { 1000026, new ModifierDefinitionEntry(1000026, "SunShangxiangArmorBreak", 1, 0, 0, 1, 1) },
+            { 1000027, new ModifierDefinitionEntry(1000027, "SunShangxiangSkill2ArmorBreak", 1, 0, 0, 1, 1) },
             { 2000001, new ModifierDefinitionEntry(2000001, "SlotSkillOverride", 2, 0, 0, 2, 1) },
             { 2000002, new ModifierDefinitionEntry(2000002, "SunShangxiangEnhancedBasicAttackSlot", 2, 0, 0, 2, 1) },
             { 3000001, new ModifierDefinitionEntry(3000001, "ProjectileCountBonus", 4, 0, 0, 3, 1) },

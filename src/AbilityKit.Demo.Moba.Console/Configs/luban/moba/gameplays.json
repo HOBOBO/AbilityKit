@@ -1,14 +1,35 @@
 [
   {
     "Id": 1,
+    "MapId": 1,
+    "DefaultDurationMs": 0,
+    "Name": "Default Count-up Gameplay",
+    "Tags": [],
+    "TriggerIds": [
+      900002,
+      900003,
+      900004
+    ],
+    "FeatureIds": [
+      "minion_waves",
+      "structures"
+    ]
+  },
+  {
+    "Id": 2,
+    "MapId": 1,
     "DefaultDurationMs": 600000,
-    "Name": "Default Battle Gameplay",
+    "Name": "10-Minute Timed Gameplay",
     "Tags": [],
     "TriggerIds": [
       900001,
       900002,
       900003,
       900004
+    ],
+    "FeatureIds": [
+      "minion_waves",
+      "structures"
     ]
   }
 ]

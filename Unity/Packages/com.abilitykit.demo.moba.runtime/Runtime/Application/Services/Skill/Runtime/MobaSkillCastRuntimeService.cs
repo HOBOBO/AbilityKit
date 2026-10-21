@@ -95,6 +95,23 @@ namespace AbilityKit.Demo.Moba.Services
             return _runtimeByContextId.TryGetValue(contextId, out var runtimeId) && TryGet(runtimeId, out runtime);
         }
 
+        public bool TryGetActiveSkill(int actorId, int skillSlot, int skillId, out MobaSkillCastRuntime runtime)
+        {
+            runtime = null;
+            if (actorId <= 0 || skillSlot <= 0 || skillId <= 0) return false;
+
+            foreach (var pair in _runtimes)
+            {
+                var candidate = pair.Value;
+                if (candidate == null || candidate.IsEnded || candidate.CasterActorId != actorId ||
+                    candidate.SkillSlot != skillSlot || candidate.SkillId != skillId) continue;
+                runtime = candidate;
+                return true;
+            }
+
+            return false;
+        }
+
         public bool UpdateStage(long runtimeId, SkillCastStage stage)
         {
             if (!TryGet(runtimeId, out var runtime)) return false;

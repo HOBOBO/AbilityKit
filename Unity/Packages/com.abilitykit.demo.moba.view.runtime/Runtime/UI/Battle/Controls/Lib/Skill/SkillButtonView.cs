@@ -21,6 +21,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         private readonly SkillButtonGestureController _gesture = new SkillButtonGestureController();
         private Camera _uiCamera;
         private SkillCooldownPresentationState _cooldownState;
+        private bool _previewPressed;
 
         public SkillButtonConfig Config
         {
@@ -40,6 +41,8 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         public event Action<Vector2> OnAimUpdate;
         public event Action<Vector2> OnAimEnd;
         public event Action OnAimCancel;
+        public event Action OnPreviewPressed;
+        public event Action OnPreviewReleased;
 
         public void Initialize(
             RectTransform buttonRect,
@@ -101,6 +104,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
         private void OnDisable()
         {
+            ReleasePreview();
             CancelAimPreview();
             _gesture.Reset();
             _aim.Hide();
@@ -126,6 +130,11 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             if (!CanAcceptInput) return;
 
             _gesture.Begin(eventData.pointerId, eventData.position, Time.unscaledTime);
+            if (_config.PreviewVfxId > 0)
+            {
+                _previewPressed = true;
+                OnPreviewPressed?.Invoke();
+            }
             if (ShouldPreviewImmediately())
             {
                 ShowAimPreview(eventData.position);
@@ -156,10 +165,12 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             {
                 _gesture.Reset();
                 EndAim();
+                ReleasePreview();
                 return;
             }
 
             if (!_gesture.End(eventData.pointerId, out var wasAiming, out var longPressFired)) return;
+            ReleasePreview();
 
             if (wasAiming)
             {
@@ -215,10 +226,12 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
             if (_cooldownText != null)
             {
-                _cooldownText.gameObject.SetActive(visual.ShowCountdown);
-                _cooldownText.text = visual.ShowCountdown
-                    ? Mathf.CeilToInt(visual.RemainingSeconds).ToString()
-                    : string.Empty;
+                _cooldownText.gameObject.SetActive(visual.ShowCountdown || visual.IsDisabled);
+                _cooldownText.text = visual.IsDisabled
+                    ? "禁用"
+                    : visual.ShowCountdown
+                        ? Mathf.CeilToInt(visual.RemainingSeconds).ToString()
+                        : string.Empty;
             }
         }
 
@@ -277,8 +290,16 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
         private void CancelAimPreview()
         {
+            ReleasePreview();
             if (!_config.EnableAim) return;
             OnAimCancel?.Invoke();
+        }
+
+        private void ReleasePreview()
+        {
+            if (!_previewPressed) return;
+            _previewPressed = false;
+            OnPreviewReleased?.Invoke();
         }
 
         private static readonly Color CoolingOverlayColor = new Color(0f, 0f, 0f, 0.58f);

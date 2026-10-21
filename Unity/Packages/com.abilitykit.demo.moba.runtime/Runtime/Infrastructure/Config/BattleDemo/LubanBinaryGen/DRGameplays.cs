@@ -17,10 +17,12 @@ public sealed partial class DRGameplays : Luban.BeanBase
     public DRGameplays(ByteBuf _buf) 
     {
         Id = _buf.ReadInt();
+        MapId = _buf.ReadInt();
         DefaultDurationMs = _buf.ReadInt();
         Name = _buf.ReadString();
         {int n0 = _buf.ReadSize(); Tags = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); Tags.Add(_e0);}}
         {int n0 = _buf.ReadSize(); TriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); TriggerIds.Add(_e0);}}
+        {int n0 = _buf.ReadSize(); FeatureIds = new System.Collections.Generic.List<string>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { string _e0;  _e0 = _buf.ReadString(); FeatureIds.Add(_e0);}}
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
     }
@@ -35,7 +37,11 @@ public sealed partial class DRGameplays : Luban.BeanBase
     /// </summary>
     public readonly int Id;
     /// <summary>
-    /// 默认持续时间，单位毫秒。
+    /// 地图 ID，引用 battle_maps。
+    /// </summary>
+    public readonly int MapId;
+    /// <summary>
+    /// 默认对局时长，单位毫秒；0 表示从 0 递增且不限时，正值表示倒计时。
     /// </summary>
     public readonly int DefaultDurationMs;
     /// <summary>
@@ -50,6 +56,10 @@ public sealed partial class DRGameplays : Luban.BeanBase
     /// 触发器 ID 列表；由 Trigger Authoring 发布，逗号分隔。
     /// </summary>
     public readonly System.Collections.Generic.List<int> TriggerIds;
+    /// <summary>
+    /// ?????? ID??????????????????????????????
+    /// </summary>
+    public readonly System.Collections.Generic.List<string> FeatureIds;
     /// <summary>
     /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
     /// </summary>
@@ -70,10 +80,12 @@ public sealed partial class DRGameplays : Luban.BeanBase
     {
         return "{ "
         + "Id:" + Id + ","
+        + "MapId:" + MapId + ","
         + "DefaultDurationMs:" + DefaultDurationMs + ","
         + "Name:" + Name + ","
         + "Tags:" + Luban.StringUtil.CollectionToString(Tags) + ","
         + "TriggerIds:" + Luban.StringUtil.CollectionToString(TriggerIds) + ","
+        + "FeatureIds:" + Luban.StringUtil.CollectionToString(FeatureIds) + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
         + "}";

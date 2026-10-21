@@ -55,6 +55,10 @@ public partial class Tables
     /// 修饰器语义定义：目标、运算、幅值与叠加/冲突策略
     /// </summary>
     public ModifierDefinitions ModifierDefinitions {get; }
+    /// <summary>
+    /// Buff HUD display configuration.
+    /// </summary>
+    public BuffHudTemplates BuffHudTemplates {get; }
 
     public Tables(System.Func<string, ByteBuf> loader)
     {
@@ -97,6 +101,7 @@ public partial class Tables
         TagBehaviorGates = new TagBehaviorGates(loader("tag_behavior_gates"));
         Dungeons = new Dungeons(loader("dungeons"));
         ModifierDefinitions = new ModifierDefinitions(loader("modifier_definitions"));
+        BuffHudTemplates = new BuffHudTemplates(loader("buff_hud_templates"));
         ResolveRef();
     }
     
@@ -141,6 +146,7 @@ public partial class Tables
         TagBehaviorGates.ResolveRef(this);
         Dungeons.ResolveRef(this);
         ModifierDefinitions.ResolveRef(this);
+        BuffHudTemplates.ResolveRef(this);
     }
 }
 

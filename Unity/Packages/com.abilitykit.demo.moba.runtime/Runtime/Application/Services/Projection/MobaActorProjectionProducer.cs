@@ -21,7 +21,7 @@ namespace AbilityKit.Demo.Moba.Services.Projection
     /// 字段约定（与 wire 协议对齐）：
     /// - TeamId：team 组件枚举值（Team.None → 0）
     /// - VelX/VelZ：motion 组件的 MotionOutput.NewVelocity（无 motion 组件时为 0）
-    /// - Kind：SpawnEntityKind（Character=1 / Projectile=2，按 entityMainType 判定）
+    /// - Kind：SpawnEntityKind（Character=1 / Projectile=2 / Minion=3）
     /// - Code：modelId 配置 id（投射物为模板 id）
     /// - OwnerNetId：ownerLink.OwnerActorId（投射物的拥有者 actorId；角色为 0）
     /// </summary>
@@ -101,8 +101,16 @@ namespace AbilityKit.Demo.Moba.Services.Projection
 
             var kind = e.hasEntityMainType && e.entityMainType.Value == EntityMainType.Projectile
                 ? (int)SpawnEntityKind.Projectile
-                : (int)SpawnEntityKind.Character;
-            var code = e.hasModelId ? e.modelId.Value : 0;
+                : e.hasSummonMeta
+                        ? (int)SpawnEntityKind.Summon
+                        : e.hasUnitSubType && e.unitSubType.Value == UnitSubType.Minion
+                            ? (int)SpawnEntityKind.Minion
+                            : (int)SpawnEntityKind.Character;
+            // Summons resolve their presentation model from SummonMO, so the
+            // projection code is the summon template id rather than the model id.
+            var code = e.hasSummonMeta && e.summonMeta != null
+                ? e.summonMeta.SummonId
+                : e.hasModelId ? e.modelId.Value : 0;
             var ownerNetId = e.hasOwnerLink ? e.ownerLink.OwnerActorId : 0;
 
             return new ActorProjectionData(

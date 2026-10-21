@@ -113,5 +113,75 @@
     "Id": 90006011,
     "Resource": "effect/yingzheng_basic_sword",
     "DurationMs": 0
+  },
+  {
+    "Id": 90007001,
+    "Resource": "effect/sunshangxiang_skill1_roll",
+    "DurationMs": 600
+  },
+  {
+    "Id": 90007002,
+    "Resource": "effect/sunshangxiang_skill2_grenade",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90007003,
+    "Resource": "effect/sunshangxiang_skill2_explosion",
+    "DurationMs": 1200
+  },
+  {
+    "Id": 90007004,
+    "Resource": "effect/sunshangxiang_skill3_cannon",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90007005,
+    "Resource": "effect/sunshangxiang_buff_enhanced",
+    "DurationMs": 2500
+  },
+  {
+    "Id": 90007006,
+    "Resource": "effect/sunshangxiang_buff_mark",
+    "DurationMs": 2500
+  },
+  {
+    "Id": 90008001,
+    "Resource": "effect/luban_basic_bullet",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90008002,
+    "Resource": "effect/luban_skill1_grenade",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90008003,
+    "Resource": "effect/luban_skill1_explosion",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90008004,
+    "Resource": "effect/luban_skill2_cannon",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90008005,
+    "Resource": "effect/luban_passive_sweep",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90008006,
+    "Resource": "effect/luban_skill3_bomb",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90001002,
+    "Resource": "effect/lianpo_skill1_charge",
+    "DurationMs": 650
+  },
+  {
+    "Id": 90001003,
+    "Resource": "effect/lianpo_skill3_impact",
+    "DurationMs": 650
   }
 ]

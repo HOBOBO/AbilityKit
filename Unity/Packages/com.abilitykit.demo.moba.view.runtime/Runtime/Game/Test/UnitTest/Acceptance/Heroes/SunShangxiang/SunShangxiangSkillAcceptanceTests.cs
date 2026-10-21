@@ -26,7 +26,28 @@ namespace AbilityKit.Game.Test.UnitTest
         private static readonly HeroSkillSlotContract Skill3 = new HeroSkillSlotContract(3, 10070301, 10070301, 10070301);
 
         [Test]
-        public void Passive10070000_ShouldResetSkillOneCooldownAfterBasicAttack()
+        public void SunShangxiangAndLubanSkills_ShouldExposeOfficialAimIndicators()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(SunShangxiang, "hero_skill_indicator_contract_world"))
+            {
+                AssertIndicator(harness, 10070101, 11, 6, 1.8f);
+                AssertIndicator(harness, 10070201, 12, 2, 4f);
+                AssertIndicator(harness, 10070301, 13, 7, 1.2f);
+            }
+        }
+
+        private static void AssertIndicator(MobaSkillConfigTestHarness harness, int skillId, int templateId, int shape, float width)
+        {
+            Assert.IsTrue(harness.Config.TryGetSkill(skillId, out var skill));
+            Assert.AreEqual(templateId, skill.SkillButtonTemplateId);
+            Assert.IsTrue(harness.Config.TryGetSkillButtonTemplate(templateId, out var template));
+            Assert.AreEqual(shape, template.IndicatorShape);
+            Assert.AreEqual(width, template.IndicatorWorldWidth);
+            Assert.IsTrue(template.EnableAim);
+        }
+
+        [Test]
+        public void Passive10070000_ShouldReduceCooldownsOfAllThreeActiveSkillsAfterBasicAttackHit()
         {
             using (var harness = HeroSkillHeadlessContract.CreateHarness(SunShangxiang, "sun_shangxiang_passive_cooldown_reset_contract_world"))
             {
@@ -51,11 +72,23 @@ namespace AbilityKit.Game.Test.UnitTest
                     message: "Sun Shangxiang skill 1 should finish before the passive reset is evaluated.");
 
                 var actor = harness.AssertActorEntity(actorId);
-                var skillRuntime = System.Array.Find(
-                    actor.skillLoadout.ActiveSkills,
-                    runtime => runtime != null && runtime.SkillId == Skill1.SkillId);
-                Assert.IsNotNull(skillRuntime, "Sun Shangxiang skill 1 runtime should remain in the active loadout.");
-                Assert.Greater(skillRuntime.CooldownEndTimeMs, 0L, "Sun Shangxiang skill 1 should be on cooldown after casting.");
+                var skills = actor.skillLoadout.ActiveSkills;
+                var skillOne = System.Array.Find(skills, runtime => runtime != null && runtime.SkillId == Skill1.SkillId);
+                var skillTwo = System.Array.Find(skills, runtime => runtime != null && runtime.SkillId == Skill2.SkillId);
+                var skillThree = System.Array.Find(skills, runtime => runtime != null && runtime.SkillId == Skill3.SkillId);
+                Assert.IsNotNull(skillOne, "Sun Shangxiang skill 1 runtime should remain in the active loadout.");
+                Assert.IsNotNull(skillTwo, "Sun Shangxiang skill 2 runtime should remain in the active loadout.");
+                Assert.IsNotNull(skillThree, "Sun Shangxiang skill 3 runtime should remain in the active loadout.");
+                Assert.Greater(skillOne.CooldownEndTimeMs, 0L, "Sun Shangxiang skill 1 should be on cooldown after casting.");
+
+                var nowMs = (long)(harness.FrameTime.Time * 1000d);
+                skillTwo.CooldownDurationMs = 5000;
+                skillTwo.CooldownEndTimeMs = nowMs + 5000;
+                skillThree.CooldownDurationMs = 8000;
+                skillThree.CooldownEndTimeMs = nowMs + 8000;
+                var expectedSkillOneEnd = skillOne.CooldownEndTimeMs - 500;
+                var expectedSkillTwoEnd = skillTwo.CooldownEndTimeMs - 500;
+                var expectedSkillThreeEnd = skillThree.CooldownEndTimeMs - 500;
 
                 var passiveBaseline = harness.CaptureTraceBaseline();
                 HeroSkillHeadlessContract.ExecuteBasicAttackDamage(harness, actorId, targetActorId, baseDamage: 10f);
@@ -66,10 +99,66 @@ namespace AbilityKit.Game.Test.UnitTest
                     maxTicks: 10,
                     message: "Sun Shangxiang basic attack should execute the armed enhanced hit trigger.");
                 harness.Tick(1);
-                Assert.LessOrEqual(
-                    skillRuntime.CooldownEndTimeMs,
-                    0L,
-                    "Sun Shangxiang passive should reset skill 1 cooldown after a basic attack hit.");
+                Assert.AreEqual(expectedSkillOneEnd, skillOne.CooldownEndTimeMs, "A basic attack hit should reduce skill 1's remaining cooldown by 500 ms, not clear it.");
+                Assert.AreEqual(expectedSkillTwoEnd, skillTwo.CooldownEndTimeMs, "A basic attack hit should reduce skill 2's remaining cooldown by 500 ms.");
+                Assert.AreEqual(expectedSkillThreeEnd, skillThree.CooldownEndTimeMs, "A basic attack hit should reduce skill 3's remaining cooldown by 500 ms.");
+                Assert.AreEqual(4500, skillTwo.CooldownDurationMs, "Cooldown reduction should reduce the remaining-time duration used by the skill HUD.");
+            }
+        }
+
+        [Test]
+        public void Passive10070000_ShouldClampShortCooldownAndPreserveReadySkill()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(SunShangxiang, "sun_shangxiang_passive_cooldown_boundary_contract_world"))
+            {
+                harness.EnterGameAndWarmup(reason: "sun shangxiang passive cooldown boundary contract");
+                var actorId = harness.AssertPlayerActorBound();
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f, z: 0f);
+                HeroSkillHeadlessContract.CastSlotAndAssertEffect(
+                    harness,
+                    Skill1,
+                    "sun shangxiang passive cooldown boundary contract",
+                    aimDir: Vec3.Right);
+                harness.TickUntilSkillStops(
+                    actorId,
+                    Skill1.Slot,
+                    maxTicks: 120,
+                    message: "Sun Shangxiang skill 1 should finish before the passive cooldown boundary is evaluated.");
+
+                var actor = harness.AssertActorEntity(actorId);
+                var skills = actor.skillLoadout.ActiveSkills;
+                var skillOne = System.Array.Find(skills, runtime => runtime != null && runtime.SkillId == Skill1.SkillId);
+                var skillTwo = System.Array.Find(skills, runtime => runtime != null && runtime.SkillId == Skill2.SkillId);
+                var skillThree = System.Array.Find(skills, runtime => runtime != null && runtime.SkillId == Skill3.SkillId);
+                Assert.IsNotNull(skillOne);
+                Assert.IsNotNull(skillTwo);
+                Assert.IsNotNull(skillThree);
+
+                var nowMs = (long)(harness.FrameTime.Time * 1000d);
+                skillOne.CooldownDurationMs = 300;
+                skillOne.CooldownEndTimeMs = nowMs + 300;
+                skillTwo.CooldownDurationMs = 0;
+                skillTwo.CooldownEndTimeMs = nowMs;
+                skillThree.CooldownDurationMs = 5000;
+                skillThree.CooldownEndTimeMs = nowMs + 5000;
+
+                var passiveBaseline = harness.CaptureTraceBaseline();
+                HeroSkillHeadlessContract.ExecuteBasicAttackDamage(harness, actorId, targetActorId, baseDamage: 10f);
+                harness.TickUntilTraceNodeAfter(
+                    passiveBaseline,
+                    MobaExecutionKind.EffectExecution,
+                    10070111,
+                    maxTicks: 10,
+                    message: "Sun Shangxiang's enhanced basic attack should evaluate cooldown reduction at the ready and underflow boundaries.");
+                harness.Tick(1);
+
+                var afterHitNowMs = (long)(harness.FrameTime.Time * 1000d);
+                Assert.LessOrEqual(skillOne.CooldownEndTimeMs, afterHitNowMs, "A reduction larger than the remaining cooldown should clamp skill 1 to ready.");
+                Assert.AreEqual(0, skillOne.CooldownDurationMs, "A clamped cooldown should expose zero remaining duration to the HUD.");
+                Assert.LessOrEqual(skillTwo.CooldownEndTimeMs, afterHitNowMs, "A ready skill should remain ready after cooldown reduction.");
+                Assert.AreEqual(0, skillTwo.CooldownDurationMs, "A ready skill should keep zero remaining duration after cooldown reduction.");
+                Assert.AreEqual(nowMs + 4500, skillThree.CooldownEndTimeMs, "The third active skill should still receive the configured 500 ms reduction.");
+                Assert.AreEqual(4500, skillThree.CooldownDurationMs, "The third skill's HUD duration should shrink with its remaining cooldown.");
             }
         }
 
@@ -208,6 +297,9 @@ namespace AbilityKit.Game.Test.UnitTest
                     10070212,
                     (int)TriggeringConstants.GiveDamageId.Value,
                     (int)TriggeringConstants.AddBuffId.Value);
+                Assert.IsTrue(harness.Config.TryGetBuff(10070202, out var armorBreak));
+                Assert.AreEqual(1000027, armorBreak.Modifiers[0].DefinitionId,
+                    "Sun Shangxiang skill 2 should use its own armor-break Buff contract.");
 
                 var effectTrace = HeroSkillHeadlessContract.CastSlotAndAssertEffect(
                     harness,
@@ -229,6 +321,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.Less(harness.GetActorHp(targetActorId), targetHp, "Sun Shangxiang skill 2 explosion should damage the enemy.");
                 HeroSkillHeadlessContract.AssertFreshBuff(harness, targetActorId, 10070201, 0.5f,
                     "Sun Shangxiang skill 2 explosion should apply its slow Buff to the enemy.");
+                HeroSkillHeadlessContract.AssertFreshBuff(harness, targetActorId, 10070202, 0.5f,
+                    "Sun Shangxiang skill 2 explosion should apply its armor-break mark to the enemy.");
 
                 var areas = harness.World.Services.Resolve<MobaAreaRuntimeService>();
                 var activeAreas = new List<MobaAreaRuntimeInfo>(2);
@@ -267,7 +361,10 @@ namespace AbilityKit.Game.Test.UnitTest
                 HeroSkillHeadlessContract.AssertTriggerActions(
                     harness,
                     10070313,
-                    (int)TriggeringConstants.GiveDamageId.Value);
+                    (int)TriggeringConstants.GiveDamageId.Value,
+                    (int)TriggeringConstants.SpawnAreaId.Value);
+                Assert.IsTrue(harness.Config.TryGetAoe(40070301, out var ultimateAoe));
+                CollectionAssert.Contains(ultimateAoe.OnDelayTriggerIds, 10070314);
 
                 var effectTrace = HeroSkillHeadlessContract.CastSlotAndAssertEffect(
                     harness,
@@ -290,6 +387,12 @@ namespace AbilityKit.Game.Test.UnitTest
                     maxTicks: 20,
                     message: $"Sun Shangxiang ultimate hit should apply its configured damage trace. root={effectTrace.RootId} traces={traceSummary}");
                 Assert.Less(harness.GetActorHp(targetActorId), targetHp, "Sun Shangxiang ultimate should damage the enemy on hit.");
+                var hpAfterDirectHit = harness.GetActorHp(targetActorId);
+                harness.TickUntilTraceNode(MobaExecutionKind.AreaSpawn, 40070301, 20,
+                    "Sun Shangxiang ultimate should spawn an explosion area at the hit point.");
+                harness.Tick(20);
+                Assert.Less(harness.GetActorHp(targetActorId), hpAfterDirectHit,
+                    "Sun Shangxiang ultimate explosion area should apply additional damage after the direct projectile hit.");
             }
         }
 

@@ -9,6 +9,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
     internal sealed class DebugBattleViewEventSink : IBattleViewEventSink
     {
+        public void OnShieldStateSnapshot(in FrameSnapshotData snapshot) { }
         private readonly DebugBattleViewEventLineBuffer _lines;
         private readonly DebugBattleViewEventFormatter _formatter;
 

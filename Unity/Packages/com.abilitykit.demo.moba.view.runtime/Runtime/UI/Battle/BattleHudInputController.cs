@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Game.Flow.Battle.Hud;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -16,6 +17,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleHudInputUiFactory _uiFactory;
 
         private readonly HashSet<int> _appliedSkillStateSlots = new HashSet<int>();
+        private readonly List<PresentationCueData> _pendingBuffCues = new List<PresentationCueData>();
 
         private BattleHudInputUi _inputUi;
 
@@ -50,6 +52,16 @@ namespace AbilityKit.Game.Flow
         }
 
         public IReadOnlyDictionary<int, BattleHudSkillPresentationSpec> SkillSpecs => _templateBinder.SkillSpecs;
+        public event System.Action<int> SkillPreviewPressed
+        {
+            add => _inputEvents.SkillPreviewPressed += value;
+            remove => _inputEvents.SkillPreviewPressed -= value;
+        }
+        public event System.Action<int> SkillPreviewReleased
+        {
+            add => _inputEvents.SkillPreviewReleased += value;
+            remove => _inputEvents.SkillPreviewReleased -= value;
+        }
         internal BattleHudInputUi InputUi => _inputUi;
 
         public bool ApplySkillButtonTemplates(BattleEnterGameSnapshot res, string playerId)
@@ -94,13 +106,50 @@ namespace AbilityKit.Game.Flow
             {
                 ClearMissingSkillStates(_appliedSkillStateSlots);
             }
+            if (localActorId > 0 && _pendingBuffCues.Count > 0)
+            {
+                ApplyBuffCues(_pendingBuffCues.ToArray(), localActorId);
+                _pendingBuffCues.Clear();
+            }
             if (templatesChanged) _inputEvents.SetSkillSpecs(_templateBinder.SkillSpecs);
             return templatesChanged;
+        }
+
+        public void ApplyBuffCues(PresentationCueData[] entries, int localActorId)
+        {
+            if (entries == null || entries.Length == 0) return;
+            if (localActorId <= 0)
+            {
+                var hasBaseline = false;
+                for (var i = 0; i < entries.Length; i++)
+                {
+                    if (entries[i].SnapshotKind == PresentationCueSnapshotKind.ActiveBaseline)
+                    {
+                        hasBaseline = true;
+                        break;
+                    }
+                }
+                if (hasBaseline) _pendingBuffCues.Clear();
+                for (var i = 0; i < entries.Length; i++)
+                {
+                    var entry = entries[i];
+                    if (BattleHudStatusCueFilter.IsHudStatusCue(in entry) ||
+                        entry.SnapshotKind == PresentationCueSnapshotKind.ActiveBaselineEnd)
+                    {
+                        _pendingBuffCues.Add(entry);
+                    }
+                }
+                return;
+            }
+            if (_inputUi?.SkillBuffStatusBar == null) return;
+            _inputUi.SkillBuffStatusBar.SetActor(localActorId);
+            _inputUi.SkillBuffStatusBar.Apply(entries);
         }
 
         public void Dispose()
         {
             _inputEvents.ResetHudAim();
+            _pendingBuffCues.Clear();
             DestroyInputUi();
         }
 

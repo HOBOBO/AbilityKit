@@ -411,6 +411,13 @@ namespace AbilityKit.Game.Flow
             }
 
             message = $"已重置 {count} 个技能的冷却时间";
+            if (TryResolveWorldService(ctx, out MobaSkillEconomyService economy) && economy != null)
+            {
+                economy.RemoveActor(ctx.LocalActorId);
+            }
+
+            MobaSkillRuntimeAccess.TryRestoreSkillResources(actors, ctx.LocalActorId, out var restoredResources);
+            message += $"；已恢复 {restoredResources} 项技能资源";
             return count > 0;
         }
 

@@ -1,4 +1,5 @@
 using System.Collections;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.View;
 using AbilityKit.Game.Battle.View.Lib.Skill;
 using NUnit.Framework;
@@ -62,6 +63,46 @@ namespace AbilityKit.Game.Test.UnitTest
                 fixture.Click(fixture.Skill1);
 
                 Assert.AreEqual(1, clickCount);
+            }
+        }
+
+        [Test]
+        public void SkillPreviewRelease_IsRaisedOnceForClick()
+        {
+            using (var fixture = BattleHudInputViewFixture.Create())
+            {
+                var config = fixture.Skill1.Config;
+                config.PreviewVfxId = 9001;
+                fixture.Skill1.Config = config;
+                var releaseCount = 0;
+                fixture.Skill1.OnPreviewReleased += () => releaseCount++;
+
+                fixture.Click(fixture.Skill1);
+
+                Assert.AreEqual(1, releaseCount);
+            }
+        }
+
+        [Test]
+        public void SkillPreviewRelease_CleansUpWhenSkillBecomesUnavailableWhilePressed()
+        {
+            using (var fixture = BattleHudInputViewFixture.Create())
+            {
+                var config = fixture.Skill1.Config;
+                config.PreviewVfxId = 9001;
+                fixture.Skill1.Config = config;
+                var releaseCount = 0;
+                fixture.Skill1.OnPreviewReleased += () => releaseCount++;
+
+                fixture.Skill1.OnPointerDown(BattleHudInputViewFixture.Pointer(1, new Vector2(10f, 10f)));
+                fixture.Skill1.ApplySkillState(new SkillStateData(
+                    actorId: 1,
+                    slot: 1,
+                    skillId: 10010101,
+                    availability: SkillAvailabilityState.Disabled));
+                fixture.Skill1.OnPointerUp(BattleHudInputViewFixture.Pointer(1, new Vector2(10f, 10f)));
+
+                Assert.AreEqual(1, releaseCount);
             }
         }
 

@@ -37,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private IWorldClock _clock = null;
         [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
         [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn = null;
+        [WorldInject(required: false)] private MobaActorSpawnSnapshotService _spawnSnapshots = null;
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
         [WorldInject(required: false)] private MobaSkillParamModifierService _paramModifiers = null;
@@ -205,6 +206,17 @@ namespace AbilityKit.Demo.Moba.Services
                     throw new InvalidOperationException($"Summon failed to retain parent skill runtime. summonId={summonId} actorId={actorId} runtime={spawnSourceContext.SkillRuntimeHandle}");
                 }
                 _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
+
+                if (_spawnSnapshots != null &&
+                    !_spawnSnapshots.TryEnqueueActorSpawn(
+                        _registry,
+                        actorId,
+                        AbilityKit.Protocol.Moba.StateSync.SpawnEntityKind.Summon,
+                        summonId,
+                        casterActorId))
+                {
+                    Log.Warning($"[MobaSummonService] failed to enqueue summon spawn presentation. summonId={summonId} actorId={actorId}");
+                }
 
                 PublishSummonEvent(MobaSummonTriggering.Events.Spawned, rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None, in spawnSourceContext);
                 PublishSummonEvent(MobaSummonTriggering.Events.SpawnedByOwner(rootOwner), rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None, in spawnSourceContext);

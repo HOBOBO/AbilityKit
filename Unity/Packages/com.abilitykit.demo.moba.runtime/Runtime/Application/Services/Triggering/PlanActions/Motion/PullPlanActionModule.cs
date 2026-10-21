@@ -123,7 +123,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
             else
             {
-                var velocity = pullDir * args.Speed;
+                var speed = args.Speed;
+                if (args.DirectionMode == 3)
+                {
+                    // Luban's cannon applies stronger knockback to nearby targets and
+                    // tapers the impulse for targets already at the edge of the lane.
+                    // Keep the rule deterministic and local to the outward knockback mode.
+                    speed *= ResolveOutwardKnockbackScale(input, registry, targetId);
+                }
+
+                var velocity = pullDir * speed;
                 source = new FixedDeltaMotionSource(velocity, duration, group.Priority, group.GroupId, group.Stacking);
             }
 
@@ -142,6 +151,29 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 LogRejected(ctx, rejectReason);
             }
+        }
+
+        private static float ResolveOutwardKnockbackScale(
+            MobaMovementActionInput input,
+            MobaActorRegistry registry,
+            int targetId)
+        {
+            if (registry == null || input.CasterActorId <= 0 ||
+                !registry.TryGet(input.CasterActorId, out var caster) || caster == null || !caster.hasTransform ||
+                !registry.TryGet(targetId, out var target) || target == null || !target.hasTransform)
+            {
+                return 1f;
+            }
+
+            var casterPos = caster.transform.Value.Position;
+            var targetPos = target.transform.Value.Position;
+            var dx = targetPos.X - casterPos.X;
+            var dz = targetPos.Z - casterPos.Z;
+            var distance = DeterministicMathBridge.Sqrt(dx * dx + dz * dz);
+            var normalized = distance / 12f;
+            if (normalized < 0f) normalized = 0f;
+            if (normalized > 1f) normalized = 1f;
+            return 1.25f - normalized * 0.5f;
         }
 
         private sealed class KnockupTrajectory : ITrajectory3D

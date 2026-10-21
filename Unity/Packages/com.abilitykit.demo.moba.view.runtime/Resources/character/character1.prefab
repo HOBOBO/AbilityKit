@@ -69,18 +69,6 @@ PrefabInstance:
       value: Rig
       objectReference: {fileID: 0}
     - target: {fileID: 4781799842951158, guid: 9e27b0bdab1ad7242a009899d15c0e67, type: 3}
-      propertyPath: m_LocalScale.x
-      value: 10
-      objectReference: {fileID: 0}
-    - target: {fileID: 4781799842951158, guid: 9e27b0bdab1ad7242a009899d15c0e67, type: 3}
-      propertyPath: m_LocalScale.y
-      value: 10
-      objectReference: {fileID: 0}
-    - target: {fileID: 4781799842951158, guid: 9e27b0bdab1ad7242a009899d15c0e67, type: 3}
-      propertyPath: m_LocalScale.z
-      value: 10
-      objectReference: {fileID: 0}
-    - target: {fileID: 4781799842951158, guid: 9e27b0bdab1ad7242a009899d15c0e67, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}

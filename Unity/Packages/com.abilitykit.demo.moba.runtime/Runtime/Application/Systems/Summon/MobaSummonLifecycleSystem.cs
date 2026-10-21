@@ -27,9 +27,7 @@ namespace AbilityKit.Demo.Moba.Systems.Summon
             Services.TryResolve(out _clock);
 
             var ctx = (global::Contexts)Contexts;
-            _group = ctx.actor.GetGroup(ActorMatcher.AllOf(
-                ActorComponentsLookup.SummonMeta,
-                ActorComponentsLookup.OwnerLink));
+            _group = ctx.actor.GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.SummonMeta));
         }
 
         protected override void OnExecute()

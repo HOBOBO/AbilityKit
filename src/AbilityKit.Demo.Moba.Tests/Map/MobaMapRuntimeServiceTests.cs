@@ -1,13 +1,16 @@
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.Config;
 using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Console.Bootstrap;
+using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Demo.Moba.Services.Map;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Systems.Collision;
 using Xunit;
+using System.IO;
 
 namespace AbilityKit.Demo.Moba.Tests.Map;
 
@@ -101,6 +104,144 @@ public sealed class MobaMapRuntimeServiceTests
             0.5f,
             out var projected));
         Assert.Equal(new Vec3(17f, 2f, 11f), projected);
+    }
+
+    [Fact]
+    public void Published_minion_route_matches_map_bounds_walkable_area_and_team_spawns()
+    {
+        var loader = new ConsoleTextAssetLoader();
+        var configs = new MobaConfigDatabase(textAssetLoader: loader);
+        configs.LoadFromGroups(MobaLubanConfigGroups.Create(loader, Array.Empty<string>()));
+        Assert.True(configs.TryGetBattleMap(1, out var map));
+
+        var root = FindRepositoryRoot();
+        var routeSourcePath = Path.Combine(root.FullName,
+            "LubanConfig", "Moba", "Production", "Gameplay", "minion_routes.json");
+        var runtimeRoutePath = Path.Combine(root.FullName,
+            "Unity", "Packages", "com.abilitykit.demo.moba.runtime", "Resources", "moba", "minion_routes.json");
+        var consoleRoutePath = Path.Combine(root.FullName,
+            "src", "AbilityKit.Demo.Moba.Console", "Configs", "moba", "minion_routes.json");
+        var sourceJson = File.ReadAllText(routeSourcePath);
+        Assert.Equal(sourceJson, File.ReadAllText(runtimeRoutePath));
+        Assert.Equal(sourceJson, File.ReadAllText(consoleRoutePath));
+        var resource = MobaMinionRouteResourceLoader.LoadResource(sourceJson);
+        Assert.Equal(map.Id, resource.MapId);
+        var route = Assert.Single(resource.Routes);
+
+        Assert.Equal(1, route.RouteId);
+        MobaMinionRouteMapValidator.Validate(route, map);
+
+        var maps = new MobaMapRuntimeService(configs, new CollisionService());
+        maps.Load(map.Id);
+        Assert.True(maps.TryGetTeamSpawnPoint(1, 0, out var teamOneSpawn));
+        Assert.True(maps.TryGetTeamSpawnPoint(2, 0, out var teamTwoSpawn));
+        Assert.Equal(teamOneSpawn.Position, route.Waypoints[0]);
+        Assert.Equal(teamTwoSpawn.Position, route.Waypoints[route.Waypoints.Count - 1]);
+        foreach (var waypoint in route.Waypoints)
+            Assert.True(maps.IsPositionWalkable(waypoint), $"Route waypoint {waypoint} must be walkable.");
+    }
+
+    [Fact]
+    public void Minion_route_runtime_config_is_prepared_against_the_loaded_map()
+    {
+        var loader = new ConsoleTextAssetLoader();
+        var configs = new MobaConfigDatabase(textAssetLoader: loader);
+        configs.LoadFromGroups(MobaLubanConfigGroups.Create(loader, Array.Empty<string>()));
+        Assert.True(configs.TryGetBattleMap(1, out var map));
+        var routeConfig = new MobaMinionRouteRuntimeConfig(loader);
+
+        routeConfig.Prepare(map);
+
+        Assert.True(routeConfig.IsPrepared);
+        Assert.Equal(map.Id, routeConfig.MapId);
+        Assert.Equal(1, routeConfig.Resource.DefaultRouteId);
+        Assert.Equal(routeConfig.Resource.DefaultRouteId, routeConfig.DefaultRoute.RouteId);
+        Assert.Equal(30_000, routeConfig.Resource.Schedule.IntervalMs);
+        Assert.Equal(2, routeConfig.Resource.Schedule.Composition.Count);
+    }
+
+    [Fact]
+    public void Minion_route_runtime_config_rejects_a_map_mismatch_during_prepare()
+    {
+        var loader = new ConsoleTextAssetLoader();
+        var mapDto = CreateMap();
+        mapDto.Id = 2;
+        var map = new BattleMapMO(mapDto);
+        var routeConfig = new MobaMinionRouteRuntimeConfig(loader);
+
+        var error = Assert.Throws<InvalidOperationException>(() => routeConfig.Prepare(map));
+
+        Assert.Contains("mapId=2", error.Message);
+        Assert.Contains("resourceMapId=1", error.Message);
+        Assert.Contains("path=moba/minion_routes.json", error.Message);
+        Assert.False(routeConfig.IsPrepared);
+    }
+
+    [Fact]
+    public void Minion_route_runtime_config_prepare_fails_when_resource_is_removed()
+    {
+        var root = FindRepositoryRoot();
+        var routePath = Path.Combine(root.FullName,
+            "LubanConfig", "Moba", "Production", "Gameplay", "minion_routes.json");
+        var loader = new MutableTextAssetLoader(File.ReadAllText(routePath));
+        var routeConfig = new MobaMinionRouteRuntimeConfig(loader);
+        var configs = new MobaConfigDatabase(textAssetLoader: new ConsoleTextAssetLoader());
+        configs.LoadFromGroups(MobaLubanConfigGroups.Create(new ConsoleTextAssetLoader(), Array.Empty<string>()));
+        Assert.True(configs.TryGetBattleMap(1, out var map));
+
+        routeConfig.Prepare(map);
+        Assert.True(routeConfig.IsPrepared);
+
+        loader.Text = null;
+        var error = Assert.Throws<InvalidOperationException>(() => routeConfig.Prepare(map));
+        Assert.Contains("resource was not found", error.Message);
+        Assert.False(routeConfig.IsPrepared);
+        Assert.Equal(0, routeConfig.MapId);
+        Assert.Null(routeConfig.Resource);
+        Assert.Null(routeConfig.DefaultRoute);
+    }
+
+    [Fact]
+    public void Minion_route_runtime_config_prepare_rejects_invalid_published_resource()
+    {
+        var loader = new MutableTextAssetLoader("{ invalid json");
+        var routeConfig = new MobaMinionRouteRuntimeConfig(loader);
+
+        var error = Assert.Throws<InvalidOperationException>(
+            () => routeConfig.Prepare(new BattleMapMO(CreateMap())));
+
+        Assert.Contains("resource is invalid", error.Message);
+        Assert.False(routeConfig.IsPrepared);
+    }
+
+    [Fact]
+    public void Minion_route_map_validator_rejects_waypoints_outside_walkable_areas()
+    {
+        var map = new BattleMapMO(CreateMap());
+        var route = new MobaMinionRouteDefinition(
+            1,
+            new[] { new Vec3(-8f, 0f, 1f), new Vec3(0f, 0f, 1f), new Vec3(8f, 0f, -1f) },
+            0.5f,
+            MobaMinionTerminalPolicy.BaseDamageEvent);
+
+        var error = Assert.Throws<InvalidOperationException>(
+            () => MobaMinionRouteMapValidator.Validate(route, map));
+
+        Assert.Contains("outside walkable areas", error.Message);
+    }
+
+    [Fact]
+    public void Minion_route_resource_validator_rejects_map_identity_mismatch()
+    {
+        const string json = "{\"Version\":2,\"MapId\":2,\"Routes\":[{\"RouteId\":1,\"AcceptanceRadius\":0.5,\"TerminalPolicy\":\"BaseDamageEvent\",\"Waypoints\":[{\"X\":-8,\"Y\":0,\"Z\":1},{\"X\":8,\"Y\":0,\"Z\":-1}]}]}";
+        var resource = MobaMinionRouteResourceLoader.LoadResource(json);
+        var map = new BattleMapMO(CreateMap());
+
+        var error = Assert.Throws<InvalidOperationException>(
+            () => MobaMinionRouteMapValidator.ValidateResource(resource, map));
+
+        Assert.Contains("resourceMapId=2", error.Message);
+        Assert.Contains("mapId=1", error.Message);
     }
 
     [Fact]
@@ -217,6 +358,20 @@ public sealed class MobaMapRuntimeServiceTests
         return error;
     }
 
+    private static DirectoryInfo FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory != null)
+        {
+            if (Directory.Exists(Path.Combine(directory.FullName, "Unity", "Packages")) &&
+                Directory.Exists(Path.Combine(directory.FullName, "src")))
+                return directory;
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repository root from test output directory.");
+    }
+
     private static MobaConfigDatabase CreateConfigDatabase(BattleMapDTO map)
     {
         var configs = new MobaConfigDatabase();
@@ -314,5 +469,27 @@ public sealed class MobaMapRuntimeServiceTests
     private static MapVector3DTO Vector(float x, float y, float z)
     {
         return new MapVector3DTO { X = x, Y = y, Z = z };
+    }
+
+    private sealed class MutableTextAssetLoader : ITextAssetLoader
+    {
+        public MutableTextAssetLoader(string text)
+        {
+            Text = text;
+        }
+
+        public string Text { get; set; }
+
+        public bool TryLoadText(string path, out string text)
+        {
+            text = Text;
+            return !string.IsNullOrWhiteSpace(Text);
+        }
+
+        public bool TryLoadBytes(string path, out byte[] bytes)
+        {
+            bytes = null;
+            return false;
+        }
     }
 }

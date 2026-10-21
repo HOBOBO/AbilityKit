@@ -137,6 +137,16 @@ namespace AbilityKit.Demo.Moba.Rollback
                 registry.Register(new MobaGameplayRollbackProvider(gameplay, gameplayVariables, deaths));
             }
 
+            var minionWavesEnabled = world.Services.TryResolve<IMobaGameplayFeatureSet>(out var gameplayFeatures) &&
+                gameplayFeatures != null && gameplayFeatures.IsConfigured &&
+                gameplayFeatures.IsEnabled(MobaGameplayFeatureIds.MinionWaves);
+            if (minionWavesEnabled &&
+                world.Services.TryResolve<MobaMinionWaveService>(out var minionWaves) && minionWaves != null &&
+                world.Services.TryResolve<MobaMinionCombatService>(out var minionCombat) && minionCombat != null)
+            {
+                registry.Register(new MobaMinionRollbackProvider(minionWaves, minionCombat));
+            }
+
             if (world.Services.TryResolve<MobaActorRegistry>(out var actorRegistry) &&
                 actorRegistry != null)
             {
@@ -215,14 +225,14 @@ namespace AbilityKit.Demo.Moba.Rollback
 
             if (string.Equals(world.WorldType, MobaBattleWorldBlueprint.Type, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(world.WorldType, "MobaBattle", StringComparison.OrdinalIgnoreCase))
-                ValidateBattleRegistry(registry);
+                ValidateBattleRegistry(registry, minionWavesEnabled);
 
             return registry;
         }
 
-        private static void ValidateBattleRegistry(RollbackRegistry registry)
+        private static void ValidateBattleRegistry(RollbackRegistry registry, bool minionWavesEnabled)
         {
-            var requiredKeys = new[]
+            var requiredKeys = new List<int>
             {
                 MobaEntitasEntityRollbackProvider.DefaultKey,
                 MobaEntitasComponentRollbackProvider.DefaultKey,
@@ -246,6 +256,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                 FrameTimeRollbackStateProvider.DefaultKey,
                 RollbackWorldRandom.DefaultKey,
             };
+            if (minionWavesEnabled)
+                requiredKeys.Insert(9, MobaMinionRollbackProvider.DefaultKey);
             var missing = new List<int>();
             foreach (var key in requiredKeys)
             {

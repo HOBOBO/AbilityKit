@@ -25,6 +25,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         private MobaSkillCastRuntimeService _skillRuntimes;
         private MobaExecutionContextRegistry _executionContexts;
         private MobaSummonService _summons;
+        private MobaBrainService _brains;
         private SkillCastCoordinator _skills;
         private MobaSkillLoadoutService _skillLoadouts;
         private MobaSkillParamModifierService _skillModifiers;
@@ -52,6 +53,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             Services.TryResolve(out _skillRuntimes);
             Services.TryResolve(out _executionContexts);
             Services.TryResolve(out _summons);
+            Services.TryResolve(out _brains);
             Services.TryResolve(out _skills);
             Services.TryResolve(out _skillLoadouts);
             Services.TryResolve(out _skillModifiers);
@@ -114,6 +116,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
 
             CleanupProjectile(actorId, request);
             StopOwnerBoundTriggers(entity);
+            _brains?.DeactivateBrain(entity);
             ReclaimActorState(actorId, ToExecutionEndReason(request.Reason));
 
             if (entity.hasSummonMeta && _summons != null)

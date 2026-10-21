@@ -23,8 +23,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         {
             var skillId = ReadInt(namedArgs, ctx, 0, "skill_id", "skillid", "id");
             var skillSlot = ReadInt(namedArgs, ctx, 0, "skill_slot", "skillslot", "slot");
+            var reductionMs = ReadInt(namedArgs, ctx, 0, "reduction_ms", "reductionms", "reduce_ms", "reducems");
             var targetRequest = MobaActionTargetSchemaReader.Read(namedArgs, ctx, in parseContext);
-            return new ResetCooldownArgs(skillId, skillSlot, in targetRequest);
+            return new ResetCooldownArgs(skillId, skillSlot, reductionMs, in targetRequest);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

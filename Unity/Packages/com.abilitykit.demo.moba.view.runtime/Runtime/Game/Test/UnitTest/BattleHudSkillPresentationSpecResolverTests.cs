@@ -194,10 +194,10 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(BattleHudSkillPreviewShape.TargetCircle, BattleHudSkillPresentationSpecResolver.ResolvePreviewShape(2));
             Assert.AreEqual(BattleHudSkillPreviewShape.SelfCircle, BattleHudSkillPresentationSpecResolver.ResolvePreviewShape(3));
             Assert.AreEqual(BattleHudSkillPreviewShape.Sector, BattleHudSkillPresentationSpecResolver.ResolvePreviewShape(4));
-            Assert.AreEqual(BattleHudSkillPreviewShape.DashLine, BattleHudSkillPresentationSpecResolver.ResolvePreviewShape(5));
-            Assert.AreEqual(BattleHudSkillPreviewShape.LockProjectile, BattleHudSkillPresentationSpecResolver.ResolvePreviewShape(6));
-            Assert.AreEqual(BattleHudSkillPreviewShape.FanArea, BattleHudSkillPresentationSpecResolver.ResolvePreviewShape(7));
-            Assert.AreEqual(BattleHudSkillPreviewShape.DirectionArea, BattleHudSkillPresentationSpecResolver.ResolvePreviewShape(8));
+            Assert.AreEqual(BattleHudSkillPreviewShape.DirectionArea, BattleHudSkillPresentationSpecResolver.ResolvePreviewShape(5));
+            Assert.AreEqual(BattleHudSkillPreviewShape.DashLine, BattleHudSkillPresentationSpecResolver.ResolvePreviewShape(6));
+            Assert.AreEqual(BattleHudSkillPreviewShape.LockProjectile, BattleHudSkillPresentationSpecResolver.ResolvePreviewShape(7));
+            Assert.AreEqual(BattleHudSkillPreviewShape.FanArea, BattleHudSkillPresentationSpecResolver.ResolvePreviewShape(8));
             Assert.AreEqual(BattleHudSkillPreviewShape.None, BattleHudSkillPresentationSpecResolver.ResolvePreviewShape(99));
         }
 

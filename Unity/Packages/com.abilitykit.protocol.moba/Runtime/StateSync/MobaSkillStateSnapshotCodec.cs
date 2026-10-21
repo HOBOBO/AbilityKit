@@ -11,6 +11,19 @@ namespace AbilityKit.Protocol.Moba.StateSync
         Disabled = 2,
     }
 
+    /// <summary>
+    /// Authoritative cast-window state. Charge recovery is represented separately by
+    /// ChargeRecoveryRemainingMs and must not be interpreted as player-held charging.
+    /// </summary>
+    public enum MobaSkillCastingState
+    {
+        None = 0,
+        Charging = 1,
+        Committed = 2,
+        Cancelled = 3,
+        Completed = 4,
+    }
+
     public partial struct MobaSkillStateSnapshotPayload
     {
         [MemoryPackConstructor]

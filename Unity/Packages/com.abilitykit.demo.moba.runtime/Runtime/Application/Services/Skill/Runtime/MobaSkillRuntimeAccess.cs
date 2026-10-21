@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Components;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -52,6 +53,43 @@ namespace AbilityKit.Demo.Moba.Services
             if (!TryGetActiveSkill(actors, actorId, skillSlot, skillId, out var runtime)) return false;
             runtime.CooldownEndTimeMs = cooldownEndTimeMs;
             runtime.CooldownDurationMs = Math.Max(0, cooldownDurationMs);
+            return true;
+        }
+
+        /// <summary>
+        /// Restores resources used by skill casts for the local debug reset command.
+        /// Health is intentionally excluded so resetting a test cooldown does not
+        /// also heal damage that was part of the scenario.
+        /// </summary>
+        public static bool TryRestoreSkillResources(
+            MobaActorLookupService actors,
+            int actorId,
+            out int restoredCount)
+        {
+            restoredCount = 0;
+            if (actors == null || actorId <= 0 || !actors.TryGetActorEntity(actorId, out var actor) || actor == null ||
+                !actor.hasResourceContainer || actor.resourceContainer.Value?.Map == null)
+            {
+                return false;
+            }
+
+            foreach (var pair in actor.resourceContainer.Value.Map)
+            {
+                if (pair.Key == ResourceType.None || pair.Key == ResourceType.Hp || pair.Value == null ||
+                    pair.Value.LastMax <= Fixed64.Zero)
+                {
+                    continue;
+                }
+
+                pair.Value.Current = pair.Value.LastMax;
+                restoredCount++;
+            }
+
+            if (restoredCount > 0)
+            {
+                MobaResourceAttributeContextProjector.Refresh(actor);
+            }
+
             return true;
         }
     }

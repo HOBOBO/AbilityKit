@@ -8,6 +8,10 @@ namespace ET.Logic
     /// </summary>
     public sealed class ETCompositeBattleViewEventSink : IBattleViewEventSink
     {
+        public void OnShieldStateSnapshot(in FrameSnapshotData snapshot)
+        {
+            for (int i = 0; i < _sinks.Length; i++) _sinks[i]?.OnShieldStateSnapshot(in snapshot);
+        }
         private readonly IBattleViewEventSink[] _sinks;
 
         public ETCompositeBattleViewEventSink(params IBattleViewEventSink[] sinks)

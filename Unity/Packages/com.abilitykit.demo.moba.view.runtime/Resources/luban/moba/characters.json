@@ -110,5 +110,21 @@
       10080201,
       10080301
     ]
+  },
+  {
+    "Id": 2001,
+    "AttributeTemplateId": 2001,
+    "ModelId": 1101,
+    "Name": "Melee Minion",
+    "PassiveSkillIds": [],
+    "SkillIds": []
+  },
+  {
+    "Id": 2002,
+    "AttributeTemplateId": 2002,
+    "ModelId": 1102,
+    "Name": "Ranged Minion",
+    "PassiveSkillIds": [],
+    "SkillIds": []
   }
 ]

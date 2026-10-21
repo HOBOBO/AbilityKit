@@ -68,6 +68,7 @@ namespace AbilityKit.Demo.Moba.Share
         /// Platform-neutral skill presentation states.
         /// </summary>
         public IReadOnlyList<SkillStateData> SkillStates { get; }
+        public IReadOnlyList<ShieldStateData> ShieldStates { get; }
 
         public GameplayClockData GameplayClock { get; }
 
@@ -90,6 +91,7 @@ namespace AbilityKit.Demo.Moba.Share
             IReadOnlyList<PresentationCueData> presentationCues = null,
             IReadOnlyList<ActorDespawnData> actorDespawns = null,
             IReadOnlyList<SkillStateData> skillStates = null,
+            IReadOnlyList<ShieldStateData> shieldStates = null,
             GameplayClockData gameplayClock = default)
         {
             FrameIndex = frameIndex;
@@ -104,6 +106,7 @@ namespace AbilityKit.Demo.Moba.Share
             ActorSpawns = actorSpawns ?? Array.Empty<ActorSpawnData>();
             ActorDespawns = actorDespawns ?? Array.Empty<ActorDespawnData>();
             SkillStates = skillStates ?? Array.Empty<SkillStateData>();
+            ShieldStates = shieldStates ?? Array.Empty<ShieldStateData>();
             GameplayClock = gameplayClock;
             PresentationCues = presentationCues ?? Array.Empty<PresentationCueData>();
         }

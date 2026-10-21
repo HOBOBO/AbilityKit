@@ -57,8 +57,22 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             text.horizontalOverflow = HorizontalWrapMode.Overflow;
             text.verticalOverflow = VerticalWrapMode.Overflow;
 
+            var tagLabelGo = new GameObject("TagLabel", typeof(RectTransform), typeof(Text));
+            var tagLabelRt = (RectTransform)tagLabelGo.transform;
+            tagLabelRt.SetParent(rootRt, worldPositionStays: false);
+            BattleHudRectTransformLayout.StretchToParent(tagLabelRt);
+            var tagLabel = tagLabelGo.GetComponent<Text>();
+            tagLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            tagLabel.alignment = TextAnchor.MiddleCenter;
+            tagLabel.fontSize = 10;
+            tagLabel.color = Color.white;
+            tagLabel.raycastTarget = false;
+            tagLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            tagLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            tagLabelGo.SetActive(false);
+
             var view = rootGo.GetComponent<BattleHudBuffIconView>();
-            view.Initialize(rootRt, bg, ring, bg, text, text);
+            view.Initialize(rootRt, bg, ring, bg, text, text, tagLabel);
             return view;
         }
     }

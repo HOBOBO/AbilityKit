@@ -139,7 +139,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 for (int i = 0; i < targets.Count; i++)
                 {
                     var targetActorId = targets[i];
-                    if (!TryGetActorPosition(actors, targetActorId, out var center))
+                    if (!MobaTemporaryEntityPositionResolver.TryGetActorPosition(actors, targetActorId, out var center))
                     {
                         LogRejected(ctx, $"cannot resolve target actor position. areaId={args.AreaId} target={targetActorId}");
                         continue;
@@ -309,15 +309,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             failure = null;
-            return true;
-        }
-
-        private static bool TryGetActorPosition(MobaActorLookupService actors, int actorId, out Vec3 position)
-        {
-            position = Vec3.Zero;
-            if (actorId <= 0 || actors == null) return false;
-            if (!actors.TryGetActorEntity(actorId, out var actor) || actor == null || !actor.hasTransform) return false;
-            position = actor.transform.Value.Position;
             return true;
         }
 

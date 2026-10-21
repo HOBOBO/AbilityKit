@@ -87,7 +87,7 @@ powershell -ExecutionPolicy Bypass -File tools/run-unity-editmode-tests.ps1 -Tes
 
 新增表时，在对应工作簿新增子 sheet，并在 `__tables__.xlsx` 登记其 `input`；字段名和输出名仍按现有运行时契约命名。`repartition_workbooks.py` 记录了本次分组迁移，日常编辑无需运行。未登记的旧 `skill_flows.xlsx` 已移到 `Production/Archive/`，仅供迁移留档。
 
-`J-战斗场景表.xlsx` 的「副本」子表是战斗副本的权威定义：把玩法、地图、战斗流程 Profile、场景装配、玩法处理器、胜负规则和所需 Feature 端口组收成单条配置，新增副本不需要改 C# 代码。`GameplayId` 与 `BattleMapId` 的引用由导表器校验；`FlowProfileId` 引用的 `battle_flow_profiles.json` 归 Flow 编辑流程管有，不在 Excel 层校验，改由运行时的副本入场校验负责。规则见 `business/dungeons.py`，设计背景见 `Docs/MobaViewRuntime副本机制与扩展优先级.md`。
+`J-战斗场景表.xlsx` 的「副本」子表是战斗副本的权威定义：把玩法、战斗流程 Profile、场景装配、玩法处理器、胜负规则和所需 Feature 端口组收成单条配置，新增副本不需要改 C# 代码。地图属于玩法资源，由「玩法」子表的 `MapId` 绑定并引用 `battle_maps`；副本通过 `GameplayId` 间接选择地图。导表器检查这些表引用，启动阶段还会验证 create-world 请求的 `MapId` 与 Gameplay 绑定一致。`FlowProfileId` 引用的 `battle_flow_profiles.json` 归 Flow 编辑流程管有，不在 Excel 层校验，改由运行时的副本入场校验负责。规则见 `business/gameplays.py` 和 `business/dungeons.py`，设计背景见 `Docs/MobaViewRuntime副本机制与扩展优先级.md`。
 
 `T-特效表.xlsx` 的 `特效资源` 子 sheet 是 `vfx` 的主源，发布时生成两端的 Luban JSON、`.bytes` 和 Unity 使用的 `Resources/vfx/vfx.json`。`特效表现模板` 子 sheet 保存复用特效的挂点、跟随与外观参数；其 `AssetId` 引用特效资源 ID。旧 `VfxTable.asset` 和 `VfxJsonExporter` 不再发布生产特效配置。
 

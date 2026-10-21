@@ -26,18 +26,29 @@ namespace AbilityKit.Game.Flow
 
         public void Spawn(int targetActorId, string text, bool heal)
         {
+            Spawn(targetActorId, text, heal ? _cfg.HealTextColor : _cfg.DamageTextColor, _cfg.FloatingTextLifetime);
+        }
+
+        public void SpawnStatus(int targetActorId, string text, Color color, int durationMs)
+        {
+            var lifetime = durationMs > 0 ? durationMs / 1000f : _cfg.FloatingTextLifetime;
+            Spawn(targetActorId, text, color, lifetime);
+        }
+
+        private void Spawn(int targetActorId, string text, Color color, float lifetime)
+        {
             var floating = _pool.Rent();
 
             floating.TargetActorId = targetActorId;
             floating.Age = 0f;
-            floating.Lifetime = _cfg.FloatingTextLifetime;
+            floating.Lifetime = Mathf.Max(0.05f, lifetime);
             floating.WorldOffset = _cfg.FloatingTextWorldOffset;
             floating.ScreenOffset = Random.insideUnitCircle * _cfg.FloatingTextSpreadPixels;
 
             if (floating.Text != null)
             {
                 floating.Text.text = text;
-                floating.Text.color = heal ? _cfg.HealTextColor : _cfg.DamageTextColor;
+                floating.Text.color = color;
             }
 
             _floating.Add(floating);
@@ -61,7 +72,10 @@ namespace AbilityKit.Game.Flow
                     continue;
                 }
 
-                TickFloatingText(floating);
+                if (!TickFloatingText(floating))
+                {
+                    floating.Root.gameObject.SetActive(false);
+                }
             }
         }
 
@@ -93,9 +107,9 @@ namespace AbilityKit.Game.Flow
             _pool.Clear();
         }
 
-        private void TickFloatingText(BattleHudFloatingTextHandle floating)
+        private bool TickFloatingText(BattleHudFloatingTextHandle floating)
         {
-            if (!_positionResolver.TryGetActorWorldPos(floating.TargetActorId, out var worldPos)) return;
+            if (!_positionResolver.TryGetActorWorldPos(floating.TargetActorId, out var worldPos)) return false;
 
             var t = floating.Age / Mathf.Max(0.001f, floating.Lifetime);
             var rise = Mathf.Lerp(0f, _cfg.FloatingTextRisePixels, t);
@@ -103,6 +117,9 @@ namespace AbilityKit.Game.Flow
             {
                 floating.Root.anchoredPosition = local + floating.ScreenOffset + new Vector2(0f, rise);
             }
+            else return false;
+
+            if (!floating.Root.gameObject.activeSelf) floating.Root.gameObject.SetActive(true);
 
             if (floating.Text != null)
             {
@@ -110,6 +127,7 @@ namespace AbilityKit.Game.Flow
                 color.a = 1f - t;
                 floating.Text.color = color;
             }
+            return true;
         }
 
         private void RecycleAt(int index, BattleHudFloatingTextHandle floating)

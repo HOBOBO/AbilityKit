@@ -58,5 +58,11 @@
     "Name": "鲁班七号占位模型",
     "PrefabPath": "character/character8",
     "Scale": 1.0
+  },
+  {
+    "Id": 100801,
+    "Name": "鲁班七号空中支援飞艇占位模型",
+    "PrefabPath": "moba/airship/luban_airship",
+    "Scale": 1.0
   }
 ]

@@ -6,6 +6,13 @@
       "ProjectionModuleId": "team_deathmatch",
       "SettlementModuleId": "team_deathmatch",
       "AssetPaths": []
+    },
+    {
+      "GameplayId": 2,
+      "HudModuleId": "team_deathmatch",
+      "ProjectionModuleId": "team_deathmatch",
+      "SettlementModuleId": "team_deathmatch",
+      "AssetPaths": []
     }
   ]
 }

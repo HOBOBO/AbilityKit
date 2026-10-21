@@ -303,22 +303,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
  
         public bool TryResolveSpawnPosition(SpawnSummonPositionMode positionMode, out Vec3 spawnPosition)
         {
-            spawnPosition = Vec3.Zero;
-            switch (positionMode)
-            {
-                case SpawnSummonPositionMode.Caster:
-                    return TryGetActorPosition(CasterActorId, out spawnPosition);
-                case SpawnSummonPositionMode.Target:
-                    return TryGetActorPosition(TargetActorId, out spawnPosition);
-                case SpawnSummonPositionMode.AimPos:
-                    if (!HasAimPosition) return false;
-                    spawnPosition = new Vec3(AimPosition.X, 0, AimPosition.Z);
-                    return true;
-                case SpawnSummonPositionMode.Fixed:
-                    return true;
-                default:
-                    return false;
-            }
+            var aimPosition = AimPosition;
+            return MobaTemporaryEntityPositionResolver.TryResolve(
+                _actors,
+                CasterActorId,
+                TargetActorId,
+                in aimPosition,
+                HasAimPosition,
+                positionMode,
+                out spawnPosition);
         }
 
         public SummonSourceContext CreateSourceContext(int sourceActorId, int summonConfigId)
@@ -338,13 +331,5 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return _effect.BuildOrigin(sourceActorId, targetActorId, fallbackKind, fallbackConfigId);
         }
 
-        private bool TryGetActorPosition(int actorId, out Vec3 position)
-        {
-            position = Vec3.Zero;
-            if (actorId <= 0 || _actors == null) return false;
-            if (!_actors.TryGetActorEntity(actorId, out var actor) || actor == null || !actor.hasTransform) return false;
-            position = actor.transform.Value.Position;
-            return true;
-        }
     }
 }

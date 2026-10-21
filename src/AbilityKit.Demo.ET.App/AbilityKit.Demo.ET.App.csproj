@@ -47,6 +47,7 @@
     <ProjectReference Include="..\AbilityKit.Demo.ET.Logic\AbilityKit.Demo.ET.Logic.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.ET.View\AbilityKit.Demo.ET.View.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Host\AbilityKit.Demo.Moba.Host.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Presentation.Contracts\AbilityKit.Demo.Moba.Presentation.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

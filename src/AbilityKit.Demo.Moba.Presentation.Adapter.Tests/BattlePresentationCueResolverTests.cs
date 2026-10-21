@@ -71,6 +71,61 @@ public sealed class BattlePresentationCueResolverTests
         Assert.Equal(8f, request.Radius);
     }
 
+    [Fact]
+    public void PersistentBuffCueCarriesStacksAndCountdownToSpawnRequest()
+    {
+        var cue = new PresentationCueData(
+            stage: PresentationCueStage.Started,
+            cueKind: "Buff",
+            cueVfxId: string.Empty,
+            cueSfxId: string.Empty,
+            templateId: 2001,
+            vfxId: 7101,
+            sfxId: 0,
+            requestKey: "buff:7:200:9001",
+            sourceActorId: 3,
+            targetActorId: 7,
+            triggerEventId: 0,
+            triggerEventName: null,
+            triggerId: 0,
+            phase: 0,
+            priority: 0,
+            order: 0,
+            actionIndex: -1,
+            interruptReason: 0,
+            interruptSourceName: null,
+            interruptTriggerId: 0,
+            interruptConditionPassed: false,
+            targets: new[] { 7 },
+            positions: null,
+            offsetX: 0f,
+            offsetY: 0f,
+            offsetZ: 0f,
+            durationMsOverride: 10000,
+            scale: 1f,
+            colorR: 1f,
+            colorG: 1f,
+            colorB: 1f,
+            colorA: 1f,
+            ownerKind: "Buff",
+            instanceId: 9001,
+            instanceKey: "buff:7:200:9001",
+            stackCount: 3,
+            maxStackCount: 5,
+            elapsedSeconds: 2f,
+            remainingSeconds: 8f,
+            lifetime: PresentationCueLifetime.PersistentState,
+            domain: PresentationCueDomain.Buff);
+
+        var decision = _resolver.Resolve(in cue);
+
+        Assert.Equal(BattlePresentationCueDecisionKind.Play, decision.Kind);
+        Assert.Equal(3, decision.SpawnRequest.StackCount);
+        Assert.Equal(5, decision.SpawnRequest.MaxStackCount);
+        Assert.Equal(2f, decision.SpawnRequest.ElapsedSeconds);
+        Assert.Equal(8f, decision.SpawnRequest.RemainingSeconds);
+    }
+
     [Theory]
     [InlineData(PresentationCuePredictionState.Predicted, 120, 0, PresentationCuePredictionOutcome.Predicted, 120)]
     [InlineData(PresentationCuePredictionState.ServerConfirmed, 120, 121, PresentationCuePredictionOutcome.Confirmed, 121)]

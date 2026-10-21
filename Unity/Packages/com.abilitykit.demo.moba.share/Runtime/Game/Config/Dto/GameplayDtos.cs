@@ -6,8 +6,10 @@ namespace AbilityKit.Demo.Moba.Share.Config
     public sealed class GameplayDTO
     {
         public int Id;
+        public int MapId;
         public string Name;
         public int[] TriggerIds;
+        public string[] FeatureIds;
         public int DefaultDurationMs;
         public int[] Tags;
     }

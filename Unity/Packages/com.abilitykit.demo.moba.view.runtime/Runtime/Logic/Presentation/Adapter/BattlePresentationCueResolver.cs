@@ -24,7 +24,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             SnapshotVec3 offset,
             int durationMsOverride,
             float scale,
-            float radius)
+            float radius,
+            int stackCount = 0,
+            int maxStackCount = 0,
+            float elapsedSeconds = 0f,
+            float remainingSeconds = 0f)
         {
             RequestKey = requestKey;
             VfxId = vfxId;
@@ -37,6 +41,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             DurationMsOverride = durationMsOverride > 0 ? durationMsOverride : 0;
             Scale = scale > 0f ? scale : 1f;
             Radius = radius;
+            StackCount = stackCount;
+            MaxStackCount = maxStackCount;
+            ElapsedSeconds = elapsedSeconds;
+            RemainingSeconds = remainingSeconds > 0f ? remainingSeconds : 0f;
         }
 
         public BattlePresentationCueRequestKey RequestKey { get; }
@@ -50,6 +58,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public int DurationMsOverride { get; }
         public float Scale { get; }
         public float Radius { get; }
+        public int StackCount { get; }
+        public int MaxStackCount { get; }
+        public float ElapsedSeconds { get; }
+        public float RemainingSeconds { get; }
  
         public bool IsEmpty => RequestKey.IsEmpty || VfxId <= 0;
     }
@@ -163,7 +175,36 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 new SnapshotVec3(data.OffsetX, data.OffsetY, data.OffsetZ),
                 data.DurationMsOverride,
                 data.Scale,
-                ResolveRadius(in data));
+                ResolveRadius(in data),
+                data.StackCount,
+                data.MaxStackCount,
+                data.ElapsedSeconds,
+                data.RemainingSeconds);
+        }
+
+        public static BattlePresentationCueSpawnRequest CreateSpawnRequest(
+            BattlePresentationCueRequestKey requestKey,
+            in PresentationCueData data,
+            int vfxId,
+            int durationMsOverride)
+        {
+            if (requestKey.IsEmpty || vfxId <= 0) return default;
+            return new BattlePresentationCueSpawnRequest(
+                requestKey,
+                vfxId,
+                data.SourceActorId,
+                data.TargetActorId,
+                ResolveFirstTargetActorId(in data),
+                data.Positions != null && data.Positions.Count > 0,
+                data.Positions != null && data.Positions.Count > 0 ? data.Positions[0] : default,
+                new SnapshotVec3(data.OffsetX, data.OffsetY, data.OffsetZ),
+                durationMsOverride > 0 ? durationMsOverride : data.DurationMsOverride,
+                data.Scale,
+                ResolveRadius(in data),
+                data.StackCount,
+                data.MaxStackCount,
+                data.ElapsedSeconds,
+                data.RemainingSeconds);
         }
 
         public static int ResolveFirstTargetActorId(in PresentationCueData data)

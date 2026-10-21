@@ -31,13 +31,13 @@ namespace AbilityKit.Demo.Moba.Services
             var state = _gameplay.GetClockState();
             var clock = new GameplayClockData(state.GameplayId, (GameplayClockPhase)state.Phase,
                 state.DurationMilliseconds, state.RemainingMilliseconds,
-                _gameplay.MatchId, frame.Value);
+                _gameplay.MatchId, frame.Value, state.ElapsedMilliseconds);
             if (!_hasPublished && state.Phase == MobaGameplayPhase.NotStarted) return false;
             if (_hasPublished && clock.GameplayId == _lastPublished.GameplayId &&
                 clock.MatchId == _lastPublished.MatchId &&
                 clock.Phase == _lastPublished.Phase &&
                 clock.DurationMilliseconds == _lastPublished.DurationMilliseconds &&
-                DisplaySeconds(clock.RemainingMilliseconds) == DisplaySeconds(_lastPublished.RemainingMilliseconds) &&
+                DisplaySeconds(clock) == DisplaySeconds(_lastPublished) &&
                 frame.Value >= _lastPublishedFrame && frame.Value - _lastPublishedFrame < 30)
                 return false;
 
@@ -58,7 +58,8 @@ namespace AbilityKit.Demo.Moba.Services
             _lastPublished = default;
         }
 
-        private static int DisplaySeconds(int milliseconds) =>
-            milliseconds / 1000 + (milliseconds % 1000 == 0 ? 0 : 1);
+        private static int DisplaySeconds(GameplayClockData clock) => clock.DurationMilliseconds > 0
+            ? clock.RemainingMilliseconds / 1000 + (clock.RemainingMilliseconds % 1000 == 0 ? 0 : 1)
+            : clock.ElapsedMilliseconds / 1000;
     }
 }

@@ -142,6 +142,7 @@ namespace AbilityKit.Game.Flow
         {
             if (!_handles.TryGet(id, out var handle)) return;
 
+            BattleViewActorTransformRegistry.Remove(handle.ActorId);
             _marker.MarkDestroyed(handle);
             _visualCleanup.Cleanup(handle);
             _handles.Remove(id);
@@ -171,6 +172,7 @@ namespace AbilityKit.Game.Flow
         {
             _handles.ForEach((_, handle) =>
             {
+                if (handle != null) BattleViewActorTransformRegistry.Remove(handle.ActorId);
                 _visualCleanup.Cleanup(handle);
                 _marker.ClearRuntimeSamples(handle);
             });

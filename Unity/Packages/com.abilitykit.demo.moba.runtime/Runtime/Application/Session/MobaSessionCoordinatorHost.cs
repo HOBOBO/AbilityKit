@@ -283,7 +283,7 @@ namespace AbilityKit.Demo.Moba.Session
                 tickRate: _defaults.ResolveTickRate(config.TickRate),
                 inputDelayFrames: _defaults.InputDelayFrames,
                 players: loadouts,
-                gameplayId: 0);
+                gameplayId: _defaults.ResolveGameplayId(0));
 
             var validation = MobaProtocolValidation.ValidateCreateWorldSpec(localPlayerId, in spec);
             if (!validation.IsValid)

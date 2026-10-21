@@ -12,6 +12,7 @@ import export_pipeline
 from export_pipeline import (ATTRIBUTE_KEYS, expand_references, validate_attribute_types,
                              validate_reference_graph, validate_skill_level_tables,
                              validate_table_inventory)
+from business.skills import validate_character_skill_preview_vfx
 
 
 class ReferenceValidationTests(unittest.TestCase):
@@ -48,6 +49,16 @@ class ReferenceValidationTests(unittest.TestCase):
 
     def test_valid_graph(self):
         self.validate()
+
+    def test_character_active_skills_require_valid_press_preview_vfx(self):
+        characters = [{"Id": 1, "SkillIds": [10]}]
+        skills = [{"Id": 10, "PreviewVfxId": 9001}]
+        vfx = [{"Id": 9001}]
+        validate_character_skill_preview_vfx(characters, skills, vfx)
+        with self.assertRaisesRegex(ValueError, "PreviewVfxId"):
+            validate_character_skill_preview_vfx(characters, [{"Id": 10}], vfx)
+        with self.assertRaisesRegex(ValueError, "missing vfx 9002"):
+            validate_character_skill_preview_vfx(characters, [{"Id": 10, "PreviewVfxId": 9002}], vfx)
 
     def test_missing_skill_level_is_rejected(self):
         self.tables["skills"][0]["LevelTableId"] = 999

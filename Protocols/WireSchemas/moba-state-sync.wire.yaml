@@ -463,12 +463,39 @@ types:
       - { id: 12, name: chargeRecoveryRemainingMs, scalarType: int32, required: true }
       - { id: 13, name: sharedCooldownRemainingMs, scalarType: int32, required: true }
       - { id: 14, name: globalCooldownRemainingMs, scalarType: int32, required: true }
+      - id: 15
+        name: castingState
+        type: AbilityKit.Protocol.Moba.StateSync.MobaSkillCastingState
+        external: true
+        required: false
+      - { id: 16, name: castElapsedMs, scalarType: int32, required: false }
+      - { id: 17, name: castTotalMs, scalarType: int32, required: false }
+      - { id: 18, name: castTier, scalarType: int32, required: false }
+      - { id: 19, name: castMaxTier, scalarType: int32, required: false }
 
   - name: MobaSkillStateSnapshotPayload
     fields:
       - id: 0
         name: entries
         type: AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotEntry
+        array: true
+        required: true
+
+  - name: MobaShieldStateSnapshotEntry
+    fields:
+      - { id: 0, name: actorId, scalarType: int32, required: true }
+      - { id: 1, name: currentShield, scalarType: float, required: true }
+      - { id: 2, name: capacity, scalarType: float, required: true }
+      - { id: 3, name: personalShield, scalarType: float, required: true }
+      - { id: 4, name: sharedShield, scalarType: float, required: true }
+      - { id: 5, name: activeLayerCount, scalarType: int32, required: true }
+      - { id: 6, name: hasShared, scalarType: bool, required: true }
+
+  - name: MobaShieldStateSnapshotPayload
+    fields:
+      - id: 0
+        name: entries
+        type: AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotEntry
         array: true
         required: true
 

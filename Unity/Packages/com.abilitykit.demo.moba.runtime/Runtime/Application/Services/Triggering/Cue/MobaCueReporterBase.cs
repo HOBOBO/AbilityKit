@@ -34,6 +34,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.Cue
         public int SourceActorId;
         public int TargetActorId;
         public int[] Targets;
+        public float[] Positions;
 
         public int DurationMsOverride;
         public float OffsetX;
@@ -316,6 +317,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.Cue
                 SourceActorId = draft.SourceActorId,
                 TargetActorId = draft.TargetActorId,
                 Targets = draft.Targets,
+                Positions = draft.Positions,
                 OffsetX = draft.OffsetX,
                 OffsetY = draft.OffsetY,
                 OffsetZ = draft.OffsetZ,

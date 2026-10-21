@@ -28,6 +28,7 @@ namespace AbilityKit.Game.Flow
             cfg.IndicatorShape = spec.IndicatorShape;
             cfg.IndicatorLengthPixels = spec.UiLengthPixels;
             cfg.IndicatorWidthPixels = spec.UiWidthPixels;
+            cfg.PreviewVfxId = spec.PreviewVfxId;
 
             view.Config = cfg;
             Log.Info($"[BattleHudSkillButtonTemplateApplier] applied skillId={spec.SkillId}, templateId={(template != null ? template.Id : 0)}, enableAim={cfg.EnableAim}, aimMode={cfg.AimMode}, usePointMode={cfg.UsePointMode}, dragThreshold={cfg.DragThreshold:F1}");

@@ -29,7 +29,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         [WorldInject] private MobaActorRegistry _registry = null;
         [WorldInject] private MobaEntityManager _entities = null;
         [WorldInject] private MobaProjectileLinkService _links = null;
-        [WorldInject(required: false)] private MobaActorSpawnSnapshotService _spawnSnapshots = null;
+        [WorldInject] private MobaActorSpawnSnapshotService _spawnSnapshots = null;
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
         [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
@@ -194,20 +194,14 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     RetainProjectileSkillRuntime(pid, projectileCode, out acquiredRetain);
                 }
 
-                if (_spawnSnapshots != null)
-                {
-                    _spawnSnapshots.Enqueue(new MobaActorSpawnSnapshotEntry
-                    {
-                        NetId = projectileActorId,
-                        Kind = (int)SpawnEntityKind.Projectile,
-                        Code = projectileCode,
-                        OwnerNetId = casterActorId,
-                        X = spawnPos.X,
-                        Y = spawnPos.Y,
-                        Z = spawnPos.Z,
-                        EntityVersion = _registry.GetEntityVersion(projectileActorId)
-                    });
-                }
+                if (!_spawnSnapshots.TryEnqueueActorSpawn(
+                        _registry,
+                        projectileActorId,
+                        SpawnEntityKind.Projectile,
+                        projectileCode,
+                        casterActorId))
+                    throw new InvalidOperationException(
+                        $"Could not publish projectile spawn snapshot. actorId={projectileActorId}, projectileCode={projectileCode}.");
 
                 CollectProjectileSpawned(
                     casterActorId,
@@ -347,7 +341,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             in Vec3 aimPos,
             in Vec3 aimDir,
             in ProjectileSourceContext sourceContext,
-            out MobaProjectileLaunchResult result)
+            out MobaProjectileLaunchResult result,
+            float maxDistance = 0f)
         {
             result = default;
             if (_entities == null || casterActorId <= 0 || launcher == null || projectile == null) return false;
@@ -357,7 +352,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             dir = DeterministicMathBridge.Normalize(in dir);
             if (dir.SqrMagnitude <= 0f) dir = Vec3.Forward;
             return TryLaunchFromSpawn(casterActorId, launcher, projectile, countPerShot, fanAngleDeg, durationMs,
-                continuousProcessId, trackTarget, in spawnPos, in dir, in sourceContext, out result);
+                continuousProcessId, trackTarget, in spawnPos, in dir, in sourceContext, out result, maxDistance);
         }
 
         public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 spawnPos, in Vec3 dir)
@@ -391,7 +386,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 continuousProcessId, trackTarget, in spawnPos, in dir, in sourceContext, out _);
         }
 
-        private bool TryLaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, int countPerShot, float fanAngleDeg, int durationMs, int continuousProcessId, bool trackTarget, in Vec3 spawnPos, in Vec3 dir, in ProjectileSourceContext sourceContext, out MobaProjectileLaunchResult result)
+        private bool TryLaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, int countPerShot, float fanAngleDeg, int durationMs, int continuousProcessId, bool trackTarget, in Vec3 spawnPos, in Vec3 dir, in ProjectileSourceContext sourceContext, out MobaProjectileLaunchResult result, float maxDistance = 0f)
         {
             result = default;
             var request = new MobaProjectileLaunchRequest(
@@ -405,7 +400,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 trackTarget,
                 in spawnPos,
                 in dir,
-                in sourceContext);
+                in sourceContext,
+                maxDistance);
  
             var continuous = new MobaProjectileLaunchContinuous(in request, this, _configs, _tagTemplates);
             if (_continuous != null)
@@ -553,7 +549,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 returnSpeed: returnSpeed,
                 returnStopDistance: returnStopDistance,
                 lifetimeFrames: lifetimeFrames,
-                maxDistance: projectile.MaxDistance,
+                maxDistance: request.MaxDistance > 0f ? System.Math.Min(request.MaxDistance, projectile.MaxDistance) : projectile.MaxDistance,
                 collisionLayerMask: collisionMask,
                 ignoreCollider: ignore,
                 hitPolicy: null,

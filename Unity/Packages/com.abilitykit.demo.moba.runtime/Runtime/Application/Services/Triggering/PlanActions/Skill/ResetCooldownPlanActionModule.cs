@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
@@ -53,12 +54,42 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     return;
                 }
 
-                if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, effectInput.CasterActorId, skillSlot, skillId, 0L, 0))
+                if (!MobaSkillRuntimeAccess.TryGetActiveSkill(actors, effectInput.CasterActorId, skillSlot, skillId, out var runtime))
                 {
                     throw new InvalidOperationException($"[Plan] reset_cooldown failed: active skill not found. actorId={effectInput.CasterActorId}, skillId={skillId}, slot={skillSlot}");
                 }
 
-                LogApplied(ctx, $"actorId={effectInput.CasterActorId}, skillId={skillId}, slot={skillSlot}, matchedTargets={targets.Count}");
+                if (args.ReductionMs <= 0)
+                {
+                    if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, effectInput.CasterActorId, skillSlot, skillId, 0L, 0))
+                    {
+                        throw new InvalidOperationException($"[Plan] reset_cooldown failed to clear active skill. actorId={effectInput.CasterActorId}, skillId={skillId}, slot={skillSlot}");
+                    }
+
+                    LogApplied(ctx, $"actorId={effectInput.CasterActorId}, skillId={skillId}, slot={skillSlot}, mode=reset, matchedTargets={targets.Count}");
+                    return;
+                }
+
+                if (!ctx.Context.TryResolve<IFrameTime>(out var frameTime) || frameTime == null)
+                {
+                    throw new InvalidOperationException($"[Plan] reset_cooldown reduction requires IFrameTime. actorId={effectInput.CasterActorId}, skillId={skillId}, slot={skillSlot}");
+                }
+
+                var nowMs = MobaSkillRuntimeAccess.GetCurrentTimeMs(frameTime);
+                if (runtime.CooldownEndTimeMs <= nowMs)
+                {
+                    LogApplied(ctx, $"actorId={effectInput.CasterActorId}, skillId={skillId}, slot={skillSlot}, mode=reduce, reductionMs={args.ReductionMs}, alreadyReady=true, matchedTargets={targets.Count}");
+                    return;
+                }
+
+                var reducedEndTimeMs = Math.Max(nowMs, runtime.CooldownEndTimeMs - args.ReductionMs);
+                var reducedDurationMs = Math.Max(0, runtime.CooldownDurationMs - args.ReductionMs);
+                if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, effectInput.CasterActorId, skillSlot, skillId, reducedEndTimeMs, reducedDurationMs))
+                {
+                    throw new InvalidOperationException($"[Plan] reset_cooldown failed to reduce active skill. actorId={effectInput.CasterActorId}, skillId={skillId}, slot={skillSlot}, reductionMs={args.ReductionMs}");
+                }
+
+                LogApplied(ctx, $"actorId={effectInput.CasterActorId}, skillId={skillId}, slot={skillSlot}, mode=reduce, reductionMs={args.ReductionMs}, endMs={reducedEndTimeMs}, matchedTargets={targets.Count}");
             }
             finally
             {

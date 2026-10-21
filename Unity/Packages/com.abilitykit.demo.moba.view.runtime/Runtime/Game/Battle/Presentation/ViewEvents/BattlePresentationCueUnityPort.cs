@@ -49,6 +49,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                     payload.DurationMsOverride,
                     payload.Scale,
                     payload.Radius,
+                    payload.StackCount,
+                    payload.MaxStackCount,
+                    payload.ElapsedSeconds,
+                    payload.RemainingSeconds,
                     out var entity))
             {
                 return false;
@@ -66,7 +70,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 handle,
                 payload.Scale,
                 payload.Radius,
-                payload.DurationMsOverride);
+                payload.DurationMsOverride,
+                payload.StackCount,
+                payload.MaxStackCount,
+                payload.ElapsedSeconds,
+                payload.RemainingSeconds);
         }
 
         public void Destroy(EC.IEntityId handle)
@@ -142,6 +150,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             int durationMsOverride,
             float scale,
             float radius,
+            int stackCount,
+            int maxStackCount,
+            float elapsedSeconds,
+            float remainingSeconds,
             out EC.IEntity entity)
         {
             entity = default;
@@ -162,7 +174,31 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             }
 
             ApplyPresentationScale(entity, scale, radius);
+            ApplyCueState(entity, stackCount, maxStackCount, elapsedSeconds, remainingSeconds);
             return true;
+        }
+
+        public bool TrySpawn(
+            int vfxId,
+            in Vector3 position,
+            EC.IEntityId followTarget,
+            int durationMsOverride,
+            float scale,
+            float radius,
+            out EC.IEntity entity)
+        {
+            return TrySpawn(
+                vfxId,
+                in position,
+                followTarget,
+                durationMsOverride,
+                scale,
+                radius,
+                0,
+                0,
+                0f,
+                0f,
+                out entity);
         }
 
         public void Destroy(EC.IEntityId id)
@@ -175,12 +211,45 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             EC.IEntityId id,
             float scale,
             float radius,
-            int durationMsOverride)
+            int durationMsOverride,
+            int stackCount,
+            int maxStackCount,
+            float elapsedSeconds,
+            float remainingSeconds)
         {
             if (!id.IsValid) return;
 
             ApplyPresentationScale(id, scale, radius);
             RefreshLifetime(id, durationMsOverride);
+            ApplyCueState(id, stackCount, maxStackCount, elapsedSeconds, remainingSeconds);
+        }
+
+        private void ApplyCueState(
+            EC.IEntity entity,
+            int stackCount,
+            int maxStackCount,
+            float elapsedSeconds,
+            float remainingSeconds)
+        {
+            if (!entity.IsValid ||
+                !entity.TryGetRef(out BattleViewGameObjectComponent goComponent) ||
+                goComponent == null || goComponent.GameObject == null)
+                return;
+
+            var metadata = goComponent.GameObject.GetComponent<BattleVfxCueMetadata>();
+            if (metadata == null) return;
+            metadata.Apply(stackCount, maxStackCount, elapsedSeconds, remainingSeconds);
+        }
+
+        private void ApplyCueState(
+            EC.IEntityId id,
+            int stackCount,
+            int maxStackCount,
+            float elapsedSeconds,
+            float remainingSeconds)
+        {
+            if (!id.IsValid || _world == null || !_world.IsAlive(id)) return;
+            ApplyCueState(_world.Wrap(id), stackCount, maxStackCount, elapsedSeconds, remainingSeconds);
         }
 
         private static void ApplyPresentationScale(

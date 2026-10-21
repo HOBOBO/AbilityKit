@@ -122,7 +122,11 @@ namespace AbilityKit.Game.Flow
                 {
                     entity = entry.IsProjectile
                         ? factory.CreateProjectile(netId, ownerNetId: new BattleNetId(entry.OwnerActorId), entityCode: entry.EntityCode)
-                        : factory.CreateCharacter(netId, entityCode: entry.EntityCode);
+                        : entry.IsMinion
+                            ? factory.CreateMinion(netId, entityCode: entry.EntityCode)
+                            : entry.IsSummon
+                                ? factory.CreateSummon(netId, summonId: entry.EntityCode, ownerNetId: new BattleNetId(entry.OwnerActorId))
+                                : factory.CreateCharacter(netId, entityCode: entry.EntityCode);
                 }
                 else if (!updateExisting)
                 {
@@ -180,7 +184,11 @@ namespace AbilityKit.Game.Flow
             {
                 meta.Kind = entry.IsProjectile
                     ? BattleEntityKind.Projectile
-                    : BattleEntityKind.Character;
+                    : entry.IsMinion
+                        ? BattleEntityKind.Minion
+                        : entry.IsSummon
+                            ? BattleEntityKind.Summon
+                        : BattleEntityKind.Character;
                 meta.EntityCode = entry.EntityCode;
             }
 

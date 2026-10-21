@@ -8,6 +8,11 @@ using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Demo.Moba.Services.Observability;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Services.Triggering.Cue;
+using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Triggering;
 
 namespace AbilityKit.Demo.Moba.Services.Area
 {
@@ -23,6 +28,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
         [WorldInject(required: false)] private IMobaRuntimeObjectLifecycleHook _objectLifecycle = null;
         [WorldInject(required: false)] private IMobaRuntimeObjectBootstrapRegistry _objectBootstrap = null;
+        [WorldInject(required: false)] private MobaAreaPresentationCueReporter _presentationCues = null;
 
         private bool _objectBootstrapRegistered;
 
@@ -76,6 +82,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
 
             if (_areas.TryGetValue(areaId.Value, out var oldInfo))
             {
+                _presentationCues?.Ended(in oldInfo, MobaExecutionEndReason.Replaced);
                 PublishAreaLifecycle(
                     MobaRuntimeObjectLifecycleStage.Destroyed,
                     in oldInfo,
@@ -92,6 +99,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             Index(_areasByOwner, ownerActorId, areaId.Value);
             Index(_areasByTemplate, templateId, areaId.Value);
             _presentationEvents.Add(new MobaAreaEventSnapshotEntry((int)AreaEventKind.Spawn, areaId.Value, ownerActorId, templateId, center.X, center.Y, center.Z, radius));
+            _presentationCues?.Started(in info);
             _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Area, ActiveCount, frame);
             PublishAreaLifecycle(MobaRuntimeObjectLifecycleStage.Created, in info, frame);
         }
@@ -105,6 +113,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             _delayTriggeredAreas.Remove(areaId.Value);
             Unindex(info);
             _presentationEvents.Add(new MobaAreaEventSnapshotEntry((int)AreaEventKind.Expire, info.AreaId, info.OwnerActorId, info.TemplateId, info.Center.X, info.Center.Y, info.Center.Z, info.Radius));
+            _presentationCues?.Ended(in info, MobaExecutionEndReason.Completed);
             EndAreaContext(in info, MobaExecutionEndReason.Completed, CurrentFrame);
             ReleaseSkillRuntime(areaId.Value);
             _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Area, ActiveCount, CurrentFrame);
@@ -144,6 +153,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
                     in info,
                     CurrentFrame,
                     (int)MobaExecutionEndReason.Failed));
+            transaction.Enlist("area-presentation-cue", () =>
+                _presentationCues?.Ended(in info, MobaExecutionEndReason.Failed));
             transaction.Enlist("area-context", () =>
                 EndAreaContext(in info, MobaExecutionEndReason.Failed, CurrentFrame));
             transaction.Rollback();
@@ -247,6 +258,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
                     in info,
                     diagnosticFrame,
                     (int)MobaExecutionEndReason.Cancelled);
+                _presentationCues?.Ended(in info, MobaExecutionEndReason.Cancelled);
                 EndAreaContext(in info, MobaExecutionEndReason.Cancelled, diagnosticFrame);
             }
 
@@ -471,6 +483,72 @@ namespace AbilityKit.Demo.Moba.Services.Area
                 index.Remove(key);
             }
         }
+    }
+
+    /// <summary>Owns the persistent AOE VFX cue. Area snapshots continue to drive model/range views.</summary>
+    [WorldService(typeof(MobaAreaPresentationCueReporter))]
+    public sealed class MobaAreaPresentationCueReporter : MobaCueReporterBase
+    {
+        private readonly MobaConfigDatabase _configs;
+        private MobaAreaRuntimeInfo _info;
+        private MobaExecutionEndReason _reason;
+        private AoeMO _aoe;
+
+        public MobaAreaPresentationCueReporter(
+            MobaConfigDatabase configs = null,
+            MobaPresentationCueSnapshotService snapshots = null)
+            : base(snapshots)
+        {
+            _configs = configs;
+        }
+
+        protected override PresentationCueDomain Domain => PresentationCueDomain.Aoe;
+
+        public void Started(in MobaAreaRuntimeInfo info)
+        {
+            Report(MobaPresentationCueStage.Started, in info, MobaExecutionEndReason.None);
+        }
+
+        public void Ended(in MobaAreaRuntimeInfo info, MobaExecutionEndReason reason)
+        {
+            Report(MobaPresentationCueStage.Completed, in info, reason);
+        }
+
+        private void Report(MobaPresentationCueStage stage, in MobaAreaRuntimeInfo info, MobaExecutionEndReason reason)
+        {
+            if (_configs == null || info.TemplateId <= 0) return;
+            if (!_configs.TryGetAoe(info.TemplateId, out var aoe) || aoe == null || aoe.VfxId <= 0) return;
+
+            _info = info;
+            _reason = reason;
+            _aoe = aoe;
+            var draft = CueDraft.Create(PresentationCueDomain.Aoe, stage);
+            draft.Class = PresentationCueClass.Lifecycle | PresentationCueClass.Placement | PresentationCueClass.Visual;
+            Emit(ref draft);
+        }
+
+        protected override void Populate(ref CueDraft draft)
+        {
+            draft.TemplateId = _aoe.Id;
+            draft.VfxId = _aoe.VfxId;
+            draft.SourceActorId = _info.OwnerActorId;
+            draft.TargetActorId = _info.OwnerActorId;
+            draft.Targets = _info.OwnerActorId > 0 ? new[] { _info.OwnerActorId } : null;
+            draft.Positions = new[] { _info.Center.X, _info.Center.Y, _info.Center.Z };
+            draft.DurationMsOverride = _aoe.DurationMs;
+            CueNumericParams.SetRadius(ref draft, _info.Radius > 0f ? _info.Radius : _aoe.Radius);
+            draft.InstanceId = _info.AreaId;
+            draft.ContextKind = (int)EffectContextKind.Area;
+            draft.OriginKind = (int)MobaExecutionKind.AreaSpawn;
+            draft.SourceContextId = _info.SourceContextId;
+            draft.RootContextId = _info.RootContextId;
+            draft.OwnerContextId = _info.OwnerContextId;
+            draft.SourceConfigId = _info.TemplateId;
+            draft.ContextEventId = $"area:{_info.AreaId}";
+            draft.LifecycleReason = (int)_reason;
+        }
+
+        protected override string ResolveInstanceKey(in CueDraft draft) => $"area:{_info.AreaId}";
     }
 
     public readonly struct MobaAreaRuntimeInfo

@@ -15,6 +15,7 @@ namespace AbilityKit.Game.Flow
         private BattleHudAimPreviewObject _preview;
         private int _lastSubmissionVersion;
         private float _submittedPreviewRemainingSeconds;
+        private int _pressedSlot;
 
         public BattleHudAimPreview(
             BattleHudAimPreviewPositionResolver positions = null,
@@ -29,6 +30,23 @@ namespace AbilityKit.Game.Flow
         public void SetSkillSpecs(IReadOnlyDictionary<int, BattleHudSkillPresentationSpec> skillSpecs)
         {
             _skillSpecs = skillSpecs;
+        }
+
+        public void ShowPressed(int slot, IBattleHudAimPreviewReadPort input)
+        {
+            if (!TryGetSpec(slot, out var spec) || spec.PreviewVfxId <= 0 || input == null ||
+                !input.TryResolveLocalActorWorldPosition(out var x, out var y, out var z)) return;
+            _pressedSlot = slot;
+            var state = new BattleHudAimPreviewState(slot, new Vector3(x, y, z), Vector3.forward, spec.Range);
+            EnsurePreview(spec.PreviewVfxId);
+            _preview.Apply(state, spec);
+        }
+
+        public void HidePressed(int slot)
+        {
+            if (_pressedSlot != slot) return;
+            _pressedSlot = 0;
+            Hide();
         }
 
         public void Tick(IBattleHudAimPreviewReadPort input, float deltaTime = 0f)
@@ -65,7 +83,7 @@ namespace AbilityKit.Game.Flow
                 _submittedPreviewRemainingSeconds = 0f;
             }
 
-            EnsurePreview();
+            EnsurePreview(spec.PreviewVfxId);
             _preview.Apply(state, spec);
         }
 
@@ -86,6 +104,8 @@ namespace AbilityKit.Game.Flow
             _preview = null;
             _lastSubmissionVersion = 0;
             _submittedPreviewRemainingSeconds = 0f;
+            _previewVfxId = 0;
+            _pressedSlot = 0;
         }
 
         private bool TryGetSpec(int slot, out BattleHudSkillPresentationSpec spec)
@@ -109,11 +129,18 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private void EnsurePreview()
+        private void EnsurePreview(int previewVfxId)
         {
-            if (_preview != null) return;
+            if (_preview != null)
+            {
+                if (_previewVfxId == previewVfxId) return;
+                Clear();
+            }
 
-            _preview = _objects.Create();
+            _previewVfxId = previewVfxId;
+            _preview = _objects.Create(previewVfxId);
         }
+
+        private int _previewVfxId;
     }
 }

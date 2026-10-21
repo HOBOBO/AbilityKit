@@ -41,7 +41,12 @@ namespace AbilityKit.Demo.Moba.Share
                 currentCharges: entry.CurrentCharges,
                 chargeRecoveryRemainingMs: entry.ChargeRecoveryRemainingMs,
                 sharedCooldownRemainingMs: entry.SharedCooldownRemainingMs,
-                globalCooldownRemainingMs: entry.GlobalCooldownRemainingMs);
+                globalCooldownRemainingMs: entry.GlobalCooldownRemainingMs,
+                castingState: (SkillCastingState)(int)(entry.CastingState ?? MobaSkillCastingState.None),
+                castElapsedMs: entry.CastElapsedMs ?? 0,
+                castTotalMs: entry.CastTotalMs ?? 0,
+                castTier: entry.CastTier ?? 0,
+                castMaxTier: entry.CastMaxTier ?? 0);
         }
     }
 }

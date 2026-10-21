@@ -77,6 +77,9 @@ namespace AbilityKit.Game.Battle.Vfx
             {
                 go.transform.SetPositionAndRotation(position, rotation);
 
+                if (vfxId > 0 && go.GetComponent<BattleVfxCueMetadata>() == null)
+                    go.AddComponent<BattleVfxCueMetadata>();
+
                 if (_hierarchy != null)
                 {
                     _hierarchy.ParentActive(BattleViewCategory.ActiveVfx, vfxId, go);

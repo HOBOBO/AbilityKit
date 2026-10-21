@@ -1878,12 +1878,60 @@
     },
     {
       "TriggerId": 10020000,
-      "EventName": "skill.cast.complete",
-      "EventId": 1035494462,
+      "EventName": "damage.apply.after",
+      "EventId": 2077131812,
       "Priority": 50,
       "Scope": 1,
       "Predicate": {
-        "Kind": "none"
+        "Kind": "expr",
+        "Nodes": [
+          {
+            "Kind": "Function",
+            "Left": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "FunctionId": 279566872,
+            "FunctionArity": 2
+          },
+          {
+            "Kind": "CompareNumeric",
+            "CompareOp": "Equal",
+            "Left": {
+              "Kind": "PayloadField",
+              "FieldId": 1946781372,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            }
+          },
+          {
+            "Kind": "And"
+          },
+          {
+            "Kind": "CompareNumeric",
+            "CompareOp": "GreaterThan",
+            "Left": {
+              "Kind": "PayloadField",
+              "FieldId": 931929450,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "Scale": 1.0
+            }
+          },
+          {
+            "Kind": "And"
+          }
+        ]
       },
       "Actions": [
         {
@@ -2526,9 +2574,19 @@
               "ConstValue": 80.0,
               "Scale": 1.0
             },
+            "max_target_hits": {
+              "Kind": "Const",
+              "ConstValue": 4.0,
+              "Scale": 1.0
+            },
             "reason_param": {
               "Kind": "Const",
               "ConstValue": 10020301.0,
+              "Scale": 1.0
+            },
+            "target_hit_count_key_base": {
+              "Kind": "Const",
+              "ConstValue": 1200000.0,
               "Scale": 1.0
             },
             "target_max_count": {
@@ -7014,6 +7072,11 @@
           "ActionId": 343447158,
           "Arity": 2,
           "Args": {
+            "reduction_ms": {
+              "Kind": "Const",
+              "ConstValue": 500.0,
+              "Scale": 1.0
+            },
             "skill_id": {
               "Kind": "Const",
               "ConstValue": 10070101.0,
@@ -7022,6 +7085,54 @@
             "skill_slot": {
               "Kind": "Const",
               "ConstValue": 1.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 343447158,
+          "Arity": 2,
+          "Args": {
+            "reduction_ms": {
+              "Kind": "Const",
+              "ConstValue": 500.0,
+              "Scale": 1.0
+            },
+            "skill_id": {
+              "Kind": "Const",
+              "ConstValue": 10070201.0,
+              "Scale": 1.0
+            },
+            "skill_slot": {
+              "Kind": "Const",
+              "ConstValue": 2.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 343447158,
+          "Arity": 2,
+          "Args": {
+            "reduction_ms": {
+              "Kind": "Const",
+              "ConstValue": 500.0,
+              "Scale": 1.0
+            },
+            "skill_id": {
+              "Kind": "Const",
+              "ConstValue": 10070301.0,
+              "Scale": 1.0
+            },
+            "skill_slot": {
+              "Kind": "Const",
+              "ConstValue": 3.0,
               "Scale": 1.0
             }
           },
@@ -7205,11 +7316,6 @@
             "buff_ids": {
               "Kind": "Const",
               "ConstValue": 10070101.0,
-              "Scale": 1.0
-            },
-            "buff_ids1": {
-              "Kind": "Const",
-              "ConstValue": 10070103.0,
               "Scale": 1.0
             },
             "target_self": {
@@ -7614,6 +7720,54 @@
           "RetryMaxRetries": 3
         },
         {
+          "ActionId": 1241142882,
+          "Arity": 2,
+          "Args": {
+            "buff_ids": {
+              "Kind": "Const",
+              "ConstValue": 10070202.0,
+              "Scale": 1.0
+            },
+            "target_max_count": {
+              "Kind": "Const",
+              "ConstValue": 10.0,
+              "Scale": 1.0
+            },
+            "target_query_id": {
+              "Kind": "Const",
+              "ConstValue": 50040201.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1241142882,
+          "Arity": 2,
+          "Args": {
+            "buff_ids": {
+              "Kind": "Const",
+              "ConstValue": 10070104.0,
+              "Scale": 1.0
+            },
+            "target_max_count": {
+              "Kind": "Const",
+              "ConstValue": 10.0,
+              "Scale": 1.0
+            },
+            "target_query_id": {
+              "Kind": "Const",
+              "ConstValue": 50040201.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
           "ActionId": 589451731,
           "Arity": 2,
           "Args": {
@@ -7794,6 +7948,35 @@
           "RetryMaxRetries": 3
         },
         {
+          "ActionId": 1822191218,
+          "Arity": 2,
+          "Args": {
+            "area_id": {
+              "Kind": "Const",
+              "ConstValue": 40070301.0,
+              "Scale": 1.0
+            },
+            "duration_ms": {
+              "Kind": "Const",
+              "ConstValue": 350.0,
+              "Scale": 1.0
+            },
+            "position_mode": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "radius": {
+              "Kind": "Const",
+              "ConstValue": 3.5,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
           "ActionId": 589451731,
           "Arity": 2,
           "Args": {
@@ -7804,6 +7987,54 @@
             "message": {
               "Kind": "Const",
               "ConstValue": 1017261101.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 10070314,
+      "Priority": 50,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 176148626,
+          "Arity": 2,
+          "Args": {
+            "damage_type": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "damage_value": {
+              "Kind": "Const",
+              "ConstValue": 180.0,
+              "Scale": 1.0
+            },
+            "reason_param": {
+              "Kind": "Const",
+              "ConstValue": 10070301.0,
+              "Scale": 1.0
+            },
+            "source_attack_ratio": {
+              "Kind": "Const",
+              "ConstValue": 0.6,
+              "Scale": 1.0
+            },
+            "target_max_count": {
+              "Kind": "Const",
+              "ConstValue": 10.0,
+              "Scale": 1.0
+            },
+            "target_query_id": {
+              "Kind": "Const",
+              "ConstValue": 50040201.0,
               "Scale": 1.0
             }
           },
@@ -7867,8 +8098,8 @@
     },
     {
       "TriggerId": 10080002,
-      "EventName": "damage.apply.after",
-      "EventId": 2077131812,
+      "EventName": "skill.cast.start",
+      "EventId": 1454698067,
       "Priority": 45,
       "Scope": 1,
       "Predicate": {
@@ -7876,50 +8107,17 @@
         "Nodes": [
           {
             "Kind": "CompareNumeric",
-            "CompareOp": "GreaterThan",
-            "Left": {
-              "Kind": "PayloadField",
-              "FieldId": 931929450,
-              "Scale": 1.0
-            },
-            "Right": {
-              "Kind": "Const",
-              "Scale": 1.0
-            }
-          },
-          {
-            "Kind": "CompareNumeric",
             "CompareOp": "Equal",
             "Left": {
               "Kind": "PayloadField",
-              "FieldId": 1946781372,
+              "FieldId": 1195644125,
               "Scale": 1.0
             },
             "Right": {
               "Kind": "Const",
-              "ConstValue": 2.0,
+              "ConstValue": 10080001.0,
               "Scale": 1.0
             }
-          },
-          {
-            "Kind": "And"
-          },
-          {
-            "Kind": "CompareNumeric",
-            "CompareOp": "NotEqual",
-            "Left": {
-              "Kind": "PayloadField",
-              "FieldId": 1993035528,
-              "Scale": 1.0
-            },
-            "Right": {
-              "Kind": "PayloadField",
-              "FieldId": 247416154,
-              "Scale": 1.0
-            }
-          },
-          {
-            "Kind": "And"
           }
         ]
       },
@@ -7944,12 +8142,12 @@
             },
             "scope_payload_field_id": {
               "Kind": "Const",
-              "ConstValue": 1993035528.0,
+              "ConstValue": 1939836602.0,
               "Scale": 1.0
             },
             "threshold": {
               "Kind": "Const",
-              "ConstValue": 4.0,
+              "ConstValue": 5.0,
               "Scale": 1.0
             },
             "trigger_id": {
@@ -8028,6 +8226,106 @@
             "source_attack_ratio": {
               "Kind": "Const",
               "ConstValue": 1.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 10080005,
+      "EventName": "skill.cast.start",
+      "EventId": 1454698067,
+      "Priority": 44,
+      "Scope": 1,
+      "Predicate": {
+        "Kind": "expr",
+        "Nodes": [
+          {
+            "Kind": "CompareNumeric",
+            "CompareOp": "Equal",
+            "Left": {
+              "Kind": "PayloadField",
+              "FieldId": 1195644125,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 10080101.0,
+              "Scale": 1.0
+            }
+          },
+          {
+            "Kind": "CompareNumeric",
+            "CompareOp": "Equal",
+            "Left": {
+              "Kind": "PayloadField",
+              "FieldId": 1195644125,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 10080201.0,
+              "Scale": 1.0
+            }
+          },
+          {
+            "Kind": "Or"
+          },
+          {
+            "Kind": "CompareNumeric",
+            "CompareOp": "Equal",
+            "Left": {
+              "Kind": "PayloadField",
+              "FieldId": 1195644125,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 10080301.0,
+              "Scale": 1.0
+            }
+          },
+          {
+            "Kind": "Or"
+          }
+        ]
+      },
+      "Actions": [
+        {
+          "ActionId": 327267303,
+          "Arity": 2,
+          "Args": {
+            "delta": {
+              "Kind": "Const",
+              "ConstValue": 5.0,
+              "Scale": 1.0
+            },
+            "key_id": {
+              "Kind": "Const",
+              "ConstValue": 10080001.0,
+              "Scale": 1.0
+            },
+            "reset_value": {
+              "Kind": "Const",
+              "ConstValue": 5.0,
+              "Scale": 1.0
+            },
+            "scope_payload_field_id": {
+              "Kind": "Const",
+              "ConstValue": 1939836602.0,
+              "Scale": 1.0
+            },
+            "threshold": {
+              "Kind": "Const",
+              "ConstValue": 5.0,
+              "Scale": 1.0
+            },
+            "trigger_id": {
+              "Kind": "Const",
               "Scale": 1.0
             }
           },
@@ -8407,7 +8705,7 @@
             },
             "target_max_count": {
               "Kind": "Const",
-              "ConstValue": 1.0,
+              "ConstValue": 10.0,
               "Scale": 1.0
             }
           },
@@ -8425,7 +8723,7 @@
             },
             "message": {
               "Kind": "Const",
-              "ConstValue": 1855162572.0,
+              "ConstValue": 552620360.0,
               "Scale": 1.0
             }
           },
@@ -8467,9 +8765,63 @@
               "ConstValue": 3.0,
               "Scale": 1.0
             },
+            "target_max_count": {
+              "Kind": "Const",
+              "ConstValue": 10.0,
+              "Scale": 1.0
+            },
             "target_mode": {
               "Kind": "Const",
               "ConstValue": 2.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 10080213,
+      "EventName": "damage.attack.before_calc",
+      "EventId": 750714271,
+      "Priority": 62,
+      "Scope": 1,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 326784944,
+          "Arity": 2,
+          "Args": {
+            "number_slot": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "op": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "reason_kind": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "reason_param": {
+              "Kind": "Const",
+              "ConstValue": 10080201.0,
+              "Scale": 1.0
+            },
+            "require_skill_runtime": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "target_missing_hp_ratio_coefficient": {
+              "Kind": "Const",
+              "ConstValue": 0.05,
               "Scale": 1.0
             }
           },
@@ -8492,7 +8844,7 @@
           "Args": {
             "duration_ms": {
               "Kind": "Const",
-              "ConstValue": 6000.0,
+              "ConstValue": 14000.0,
               "Scale": 1.0
             },
             "position_mode": {
@@ -8574,32 +8926,17 @@
       },
       "Actions": [
         {
-          "ActionId": 176148626,
+          "ActionId": 1822191218,
           "Arity": 2,
           "Args": {
-            "damage_type": {
+            "area_id": {
               "Kind": "Const",
-              "ConstValue": 1.0,
+              "ConstValue": 40080401.0,
               "Scale": 1.0
             },
-            "damage_value": {
+            "position_mode": {
               "Kind": "Const",
-              "ConstValue": 360.0,
-              "Scale": 1.0
-            },
-            "reason_param": {
-              "Kind": "Const",
-              "ConstValue": 10080401.0,
-              "Scale": 1.0
-            },
-            "source_attack_ratio": {
-              "Kind": "Const",
-              "ConstValue": 1.0,
-              "Scale": 1.0
-            },
-            "target_max_count": {
-              "Kind": "Const",
-              "ConstValue": 1.0,
+              "ConstValue": 2.0,
               "Scale": 1.0
             }
           },
@@ -8617,7 +8954,65 @@
             },
             "message": {
               "Kind": "Const",
-              "ConstValue": 1846218739.0,
+              "ConstValue": 1927008419.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 10080412,
+      "Priority": 50,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 176148626,
+          "Arity": 2,
+          "Args": {
+            "damage_type": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "damage_value": {
+              "Kind": "Const",
+              "ConstValue": 240.0,
+              "Scale": 1.0
+            },
+            "reason_param": {
+              "Kind": "Const",
+              "ConstValue": 10080401.0,
+              "Scale": 1.0
+            },
+            "source_attack_ratio": {
+              "Kind": "Const",
+              "ConstValue": 0.7,
+              "Scale": 1.0
+            },
+            "target_max_count": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "target_order": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "target_order_param": {
+              "Kind": "Const",
+              "ConstValue": 10080401.0,
+              "Scale": 1.0
+            },
+            "target_query_id": {
+              "Kind": "Const",
+              "ConstValue": 50040201.0,
               "Scale": 1.0
             }
           },
@@ -8646,6 +9041,7 @@
     "376269847": "赵云一技能三档增强：龙鸣三档触发更长距离额外冲锋突进",
     "384346428": "小乔一技能：发射扇子投射物",
     "427639643": "赵云三技能：落地命中目标并附加感电标记",
+    "552620360": "鲁班七号二技能：鲨嘴炮命中前方范围内敌人并击退",
     "647226000": "赵云二技能三档增强：龙鸣三档触发最大范围突刺区域",
     "654020440": "廉颇一技能：霸体并向指向方向冲锋，移动过程命中触发判定",
     "675141686": "赵云二技能二档增强：龙鸣二档触发更大范围突刺区域",
@@ -8681,11 +9077,10 @@
     "1652966546": "妲己三技能女王崇拜：狐火命中造成法术伤害并叠加失心",
     "1741743491": "廉颇二技能：获得护盾并生成延迟范围伤害区域，范围内有敌人时刷新一技能",
     "1762279276": "赵云二技能第一段：命中敌人并回血",
-    "1846218739": "鲁班七号大招空中支援：炸弹命中造成物理伤害",
     "1852222594": "廉颇三技能：第三段命中击飞目标",
-    "1855162572": "孙尚香三技能究极弩炮：命中造成物理伤害",
     "1911062026": "嬴政三技能至尊王权：飞剑命中造成法术伤害",
     "1912671924": "妲己二技能偶像魅力：锁定目标并发射追踪魅惑弹",
+    "1927008419": "鲁班七号大招空中支援：炸弹命中生成落点 AOE",
     "1962063611": "小乔三技能：添加持续落星状态",
     "1971586270": "赵云二技能破云之龙：向前连续四次刺击，命中造成物理伤害并回复自身生命",
     "1996636231": "妲己二技能偶像魅力：命中造成法术伤害、魅惑并叠加失心",

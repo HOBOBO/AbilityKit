@@ -52,6 +52,7 @@ namespace AbilityKit.Game.Flow
                 inputUiRoot.transform,
                 BattleHudInputLayout.InfoButtonPosition,
                 infoClicked);
+            var skillBuffStatusBar = BattleHudSkillBuffStatusBar.Create(inputUiRoot.transform);
 
             inputUiRoot.SetActive(true);
 
@@ -66,7 +67,8 @@ namespace AbilityKit.Game.Flow
                 moveMapper,
                 skillAimMapper,
                 skillViews,
-                infoButton);
+                infoButton,
+                skillBuffStatusBar);
         }
 
         private SkillButtonView CreateSkillButton(

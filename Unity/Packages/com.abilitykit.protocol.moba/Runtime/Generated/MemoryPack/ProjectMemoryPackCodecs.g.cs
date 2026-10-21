@@ -37,6 +37,7 @@ namespace AbilityKit.Protocol.Generated
             registry.TryRegister("abilitykit.moba.battle", "skill-state.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload>);
             registry.TryRegister("abilitykit.moba.battle", "player-hero-changed.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaPlayerHeroChangedSnapshotPayload>);
             registry.TryRegister("abilitykit.moba.battle", "action-ack.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload>);
+            registry.TryRegister("abilitykit.moba.battle", "shield-state.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload>);
         }
 
         private static object? Decode<T>(ArraySegment<byte> payload)

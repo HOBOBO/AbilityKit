@@ -69,18 +69,6 @@ PrefabInstance:
       value: Rig
       objectReference: {fileID: 0}
     - target: {fileID: 4781799842951158, guid: 9e27b0bdab1ad7242a009899d15c0e67, type: 3}
-      propertyPath: m_LocalScale.x
-      value: 10
-      objectReference: {fileID: 0}
-    - target: {fileID: 4781799842951158, guid: 9e27b0bdab1ad7242a009899d15c0e67, type: 3}
-      propertyPath: m_LocalScale.y
-      value: 10
-      objectReference: {fileID: 0}
-    - target: {fileID: 4781799842951158, guid: 9e27b0bdab1ad7242a009899d15c0e67, type: 3}
-      propertyPath: m_LocalScale.z
-      value: 10
-      objectReference: {fileID: 0}
-    - target: {fileID: 4781799842951158, guid: 9e27b0bdab1ad7242a009899d15c0e67, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
@@ -123,7 +111,7 @@ PrefabInstance:
     - target: {fileID: 137922557972750890, guid: 9e27b0bdab1ad7242a009899d15c0e67, type: 3}
       propertyPath: m_Materials.Array.data[0]
       value: 
-      objectReference: {fileID: 2100000, guid: df7e17de0681c544d96d4d6e74f82a35, type: 2}
+      objectReference: {fileID: 2100000, guid: ae7870ed245c3ea47adc6c03194ef0a6, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

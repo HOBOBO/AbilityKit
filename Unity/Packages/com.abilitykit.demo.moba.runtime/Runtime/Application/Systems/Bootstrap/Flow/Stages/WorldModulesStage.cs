@@ -5,6 +5,7 @@ using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
+using AbilityKit.Demo.Moba.Gameplay.Structures;
 using AbilityKit.Demo.Moba.Predicates;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Triggering.Blackboard;
@@ -64,6 +65,9 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 payloads.RegisterDoubleAccessor<Services.MobaHealthChangeResult>(battleAccessor, MobaBattlePayloadAccessor.SupportsHealthChangeResultField);
                 payloads.RegisterIntAccessor<Events.Unit.UnitDieEventPayload>(battleAccessor, MobaBattlePayloadAccessor.SupportsUnitDieField);
                 payloads.RegisterDoubleAccessor<Events.Unit.UnitDieEventPayload>(battleAccessor, MobaBattlePayloadAccessor.SupportsUnitDieField);
+                var structureAccessor = new MobaStructurePayloadAccessor();
+                payloads.RegisterIntAccessor<MobaStructureEventArgs>(structureAccessor, MobaStructurePayloadAccessor.SupportsStructureField);
+                payloads.RegisterDoubleAccessor<MobaStructureEventArgs>(structureAccessor, MobaStructurePayloadAccessor.SupportsStructureDoubleField);
 
                 var skillAccessor = new SkillPipelineContextPayloadAccessor(_);
                 payloads.RegisterIntAccessor<SkillPipelineContext>(skillAccessor, SkillPipelineContextPayloadAccessor.SupportsField);

@@ -16,7 +16,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             bool trackTarget,
             in Vec3 spawnPosition,
             in Vec3 direction,
-            in ProjectileSourceContext sourceContext)
+            in ProjectileSourceContext sourceContext,
+            float maxDistance = 0f)
         {
             CasterActorId = casterActorId;
             Launcher = launcher;
@@ -29,6 +30,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             SpawnPosition = spawnPosition;
             Direction = direction;
             SourceContext = sourceContext;
+            MaxDistance = maxDistance;
         }
 
         public int CasterActorId { get; }
@@ -42,6 +44,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         public Vec3 SpawnPosition { get; }
         public Vec3 Direction { get; }
         public ProjectileSourceContext SourceContext { get; }
+        public float MaxDistance { get; }
 
         public int LauncherId => Launcher != null ? Launcher.Id : 0;
         public int ProjectileId => Projectile != null ? Projectile.Id : 0;

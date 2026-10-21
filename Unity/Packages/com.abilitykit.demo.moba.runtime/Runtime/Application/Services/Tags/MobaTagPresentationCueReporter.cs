@@ -8,6 +8,7 @@ using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Continuous;
 using AbilityKit.GameplayTags;
 using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Services.Triggering.Cue;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -26,6 +27,9 @@ namespace AbilityKit.Demo.Moba.Services
         private DefaultContinuousManager _continuous;
         private MobaContinuousManager _mobaContinuous;
         private MobaPresentationCueSnapshotService _presentationCues;
+        private long _unknownTagCount;
+
+        public long UnknownTagCount => _unknownTagCount;
 
         public void OnInit(IWorldResolver services)
         {
@@ -61,6 +65,7 @@ namespace AbilityKit.Demo.Moba.Services
             _mobaContinuous = null;
             _effectiveTags = null;
             _presentationCues = null;
+            _unknownTagCount = 0;
         }
 
         public void OnRegistered(IContinuous continuous, IContinuousManager manager) { }
@@ -118,7 +123,12 @@ namespace AbilityKit.Demo.Moba.Services
 
                 var tagName = tag.TagName ?? string.Empty;
                 if (!MobaGameplayTagCatalog.TryGetDefinitionId(tagName, out var definitionId))
-                    throw new InvalidOperationException($"Tag cue has no published definition: {tagName}");
+                {
+                    // A view cue is optional and must not interrupt simulation
+                    // when an unpublished runtime tag is observed.
+                    _unknownTagCount++;
+                    continue;
+                }
                 var simpleName = tag.SimpleName ?? string.Empty;
                 var instanceKey = BuildInstanceKey(ownerActorId, definitionId);
 
@@ -126,8 +136,10 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     Stage = (int)stage,
                     CueKind = legacyKind,
+                    Domain = (int)PresentationCueDomain.Tag,
+                    Lifetime = (int)PresentationCueLifetime.PersistentState,
                     RequestKey = instanceKey,
-                    SourceActorId = source.Value > 0 && source.Value <= int.MaxValue ? (int)source.Value : ownerActorId,
+                    SourceActorId = ownerActorId,
                     TargetActorId = ownerActorId,
                     Targets = new[] { ownerActorId },
                     OwnerKind = legacyKind,
@@ -143,9 +155,17 @@ namespace AbilityKit.Demo.Moba.Services
                     ColorA = 1f,
                     NumericParamKeys = new[] { NumericTagId, NumericTagDepth, NumericChangeKind, NumericSourceValue },
                     NumericParamValues = new[] { (float)definitionId, tag.GetDepth(), changeKind, (float)source.Value },
+                    SourceContextId = source.Value,
                     StringParamKeys = new[] { "tag", "simple", "event", "source" },
                     StringParamValues = new[] { tagName, simpleName, eventId, source.ToString() },
+                    ParameterSchemaVersion = 1,
                 };
+
+                entry.Parameters = CueParameterBag.FromLegacy(
+                    entry.NumericParamKeys,
+                    entry.NumericParamValues,
+                    entry.StringParamKeys,
+                    entry.StringParamValues);
 
                 _presentationCues.Report(in entry);
             }

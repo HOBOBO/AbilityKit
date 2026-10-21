@@ -9,7 +9,8 @@ public sealed class GameplayClockSnapshotRouteTests
     [Fact]
     public void Clock_round_trips_through_generic_snapshot_envelope()
     {
-        var clock = new GameplayClockData(1001, GameplayClockPhase.Running, 600000, 599001);
+        var clock = new GameplayClockData(1001, GameplayClockPhase.Running, 600000, 599001,
+            elapsedMilliseconds: 999);
         var snapshot = new WorldStateSnapshot(GameplayClockSnapshotCodec.OpCode,
             GameplayClockSnapshotCodec.Encode(in clock));
 
@@ -18,7 +19,21 @@ public sealed class GameplayClockSnapshotRouteTests
         Assert.Equal(clock.Phase, decoded.Phase);
         Assert.Equal(clock.DurationMilliseconds, decoded.DurationMilliseconds);
         Assert.Equal(clock.RemainingMilliseconds, decoded.RemainingMilliseconds);
+        Assert.Equal(clock.ElapsedMilliseconds, decoded.ElapsedMilliseconds);
         Assert.True(decoded.IsVisible);
+    }
+
+    [Fact]
+    public void Count_up_clock_is_visible_and_round_trips_elapsed_time_without_a_duration()
+    {
+        var clock = new GameplayClockData(1, GameplayClockPhase.Running, 0, 0,
+            elapsedMilliseconds: 12500);
+        var payload = GameplayClockSnapshotCodec.Encode(in clock);
+
+        Assert.True(GameplayClockSnapshotCodec.TryDecode(payload, out var decoded));
+        Assert.True(decoded.IsVisible);
+        Assert.Equal(0, decoded.DurationMilliseconds);
+        Assert.Equal(12500, decoded.ElapsedMilliseconds);
     }
 
     [Fact]

@@ -37,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Share
             _subscriptions.Add(_snapshots.Subscribe<ActorTransformData[]>(MobaOpCodes.Snapshot.ActorTransform, OnActorTransformSnapshot));
             _subscriptions.Add(_snapshots.Subscribe<ActorDespawnData[]>(MobaOpCodes.Snapshot.ActorDespawn, OnActorDespawnSnapshot));
             _subscriptions.Add(_snapshots.Subscribe<SkillStateData[]>(MobaOpCodes.Snapshot.SkillState, OnSkillStateSnapshot));
+            _subscriptions.Add(_snapshots.Subscribe<ShieldStateData[]>(MobaOpCodes.Snapshot.ShieldState, OnShieldStateSnapshot));
             _subscriptions.Add(_snapshots.Subscribe<ProjectileEventData[]>(MobaOpCodes.Snapshot.ProjectileEvent, OnProjectileEventSnapshot));
             _subscriptions.Add(_snapshots.Subscribe<AreaEventData[]>(MobaOpCodes.Snapshot.AreaEvent, OnAreaEventSnapshot));
             _subscriptions.Add(_snapshots.Subscribe<DamageEventData[]>(MobaOpCodes.Snapshot.DamageEvent, OnDamageEventSnapshot));
@@ -83,6 +84,12 @@ namespace AbilityKit.Demo.Moba.Share
                 SnapshotType.Delta,
                 skillStates: data);
             _sink.OnSkillStateSnapshot(in snapshot);
+        }
+
+        private void OnShieldStateSnapshot(int frameIndex, ShieldStateData[] data)
+        {
+            var snapshot = new FrameSnapshotData(frameIndex, 0, SnapshotType.Delta, shieldStates: data);
+            _sink.OnShieldStateSnapshot(in snapshot);
         }
 
         private void OnProjectileEventSnapshot(int frameIndex, ProjectileEventData[] data)

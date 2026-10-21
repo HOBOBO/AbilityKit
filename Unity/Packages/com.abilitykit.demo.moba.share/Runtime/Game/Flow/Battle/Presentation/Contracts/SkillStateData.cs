@@ -1,3 +1,5 @@
+using System;
+
 namespace AbilityKit.Demo.Moba.Share
 {
     /// <summary>
@@ -20,6 +22,11 @@ namespace AbilityKit.Demo.Moba.Share
         public int ChargeRecoveryRemainingMs { get; }
         public int SharedCooldownRemainingMs { get; }
         public int GlobalCooldownRemainingMs { get; }
+        public SkillCastingState CastingState { get; }
+        public int CastElapsedMs { get; }
+        public int CastTotalMs { get; }
+        public int CastTier { get; }
+        public int CastMaxTier { get; }
 
         public SkillStateData(
             int actorId,
@@ -36,7 +43,12 @@ namespace AbilityKit.Demo.Moba.Share
             int currentCharges = 0,
             int chargeRecoveryRemainingMs = 0,
             int sharedCooldownRemainingMs = 0,
-            int globalCooldownRemainingMs = 0)
+            int globalCooldownRemainingMs = 0,
+            SkillCastingState castingState = SkillCastingState.None,
+            int castElapsedMs = 0,
+            int castTotalMs = 0,
+            int castTier = 0,
+            int castMaxTier = 0)
         {
             ActorId = actorId;
             Slot = slot;
@@ -53,7 +65,16 @@ namespace AbilityKit.Demo.Moba.Share
             ChargeRecoveryRemainingMs = chargeRecoveryRemainingMs;
             SharedCooldownRemainingMs = sharedCooldownRemainingMs;
             GlobalCooldownRemainingMs = globalCooldownRemainingMs;
+            CastingState = castingState;
+            CastElapsedMs = Math.Max(0, castElapsedMs);
+            CastTotalMs = Math.Max(0, castTotalMs);
+            CastTier = Math.Max(0, castTier);
+            CastMaxTier = Math.Max(0, castMaxTier);
         }
+
+        public float CastProgress => CastTotalMs > 0
+            ? Math.Min(1f, Math.Max(0f, (float)CastElapsedMs / CastTotalMs))
+            : 0f;
     }
 
     /// <summary>
@@ -65,5 +86,14 @@ namespace AbilityKit.Demo.Moba.Share
         Available = 0,
         CoolingDown = 1,
         Disabled = 2,
+    }
+
+    public enum SkillCastingState
+    {
+        None = 0,
+        Charging = 1,
+        Committed = 2,
+        Cancelled = 3,
+        Completed = 4,
     }
 }

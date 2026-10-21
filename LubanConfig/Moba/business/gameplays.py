@@ -9,7 +9,16 @@ class Rule:
                 ReferenceSpec("battle_start", "Players[].BrainId", "brains")]
 
     def references(self):
-        return ({"gameplays": {"TriggerIds": "triggers"}}, set())
+        return ({"gameplays": {"MapId": "battle_maps", "TriggerIds": "triggers"}}, set())
+
+    def validate(self, context):
+        gameplays = context.tables.get("gameplays") or []
+        if not gameplays:
+            raise ValueError("gameplays: table is empty")
+        for gameplay in gameplays:
+            identifier = gameplay.get("Id")
+            if not gameplay.get("MapId"):
+                raise ValueError("gameplays/%s: MapId is required" % identifier)
 
     def normalize(self, table, row):
         if isinstance(row.get("RunMode"), int) and "Network" in row:

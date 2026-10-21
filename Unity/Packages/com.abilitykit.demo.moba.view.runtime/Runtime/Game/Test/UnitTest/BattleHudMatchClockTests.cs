@@ -69,6 +69,52 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void Hud_count_up_clock_displays_elapsed_time_from_zero()
+        {
+            var root = new GameObject("HudTestRoot", typeof(RectTransform));
+            var clock = new BattleHudMatchClock();
+            try
+            {
+                clock.Bind((RectTransform)root.transform);
+                var data = new GameplayClockData(1, GameplayClockPhase.Running, 0, 0,
+                    elapsedMilliseconds: 12500);
+                clock.Apply(in data);
+
+                var label = root.GetComponentInChildren<Text>(true);
+                Assert.IsTrue(label.transform.parent.gameObject.activeSelf);
+                Assert.AreEqual("00:12", label.text);
+            }
+            finally
+            {
+                clock.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void Hud_count_down_clock_keeps_displaying_remaining_time()
+        {
+            var root = new GameObject("HudTestRoot", typeof(RectTransform));
+            var clock = new BattleHudMatchClock();
+            try
+            {
+                clock.Bind((RectTransform)root.transform);
+                var data = new GameplayClockData(2, GameplayClockPhase.Running, 60000, 59500,
+                    elapsedMilliseconds: 500);
+                clock.Apply(in data);
+
+                var label = root.GetComponentInChildren<Text>(true);
+                Assert.IsTrue(label.transform.parent.gameObject.activeSelf);
+                Assert.AreEqual("01:00", label.text);
+            }
+            finally
+            {
+                clock.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void Hud_clock_receives_snapshots_without_a_logic_world()
         {
             var hero = new HeroSkillContract("Daji", 1005, 1005,
@@ -98,18 +144,19 @@ namespace AbilityKit.Game.Test.UnitTest
 
                     Feed(1);
                     Assert.IsTrue(label.transform.parent.gameObject.activeSelf);
-                    Assert.AreEqual(Format(gameplay.GetClockState().RemainingMilliseconds), label.text);
+                    Assert.AreEqual(Format(gameplay.GetClockState().ElapsedSeconds), label.text);
 
                     var before = label.text;
                     gameplay.Tick(1f);
                     Feed(2);
                     Assert.AreNotEqual(before, label.text);
-                    Assert.AreEqual(Format(gameplay.GetClockState().RemainingMilliseconds), label.text);
+                    Assert.AreEqual(Format(gameplay.GetClockState().ElapsedSeconds), label.text);
 
-                    gameplay.Tick(gameplay.CurrentGameplay.DefaultDurationMs / 1000f);
+                    Assert.AreEqual(0, gameplay.CurrentGameplay.DefaultDurationMs);
+                    Assert.IsTrue(gameplay.End("test", 0));
                     Feed(3);
                     Assert.AreEqual(MobaGameplayPhase.Ended, gameplay.Phase);
-                    Assert.AreEqual("00:00", label.text);
+                    Assert.AreEqual(Format(gameplay.GetClockState().ElapsedSeconds), label.text);
 
                     gameplay.Reset();
                     Feed(4);
@@ -142,6 +189,9 @@ namespace AbilityKit.Game.Test.UnitTest
             return BattleHudMatchClock.FormatTime(seconds);
         }
 
+        private static string Format(float elapsedSeconds) =>
+            BattleHudMatchClock.FormatTime((int)Math.Max(0, elapsedSeconds));
+
         [Test]
         public void Hud_match_state_receives_score_and_result_without_a_logic_world()
         {
@@ -164,7 +214,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 {
                     Assert.IsFalse(context.TryGetRuntimeWorld(out _));
                     match.Bind((RectTransform)root.transform);
-                    Assert.IsTrue(controller.Bind(context, null, null, null, null,
+                    Assert.IsTrue(controller.Bind(context, null, null, null,
+                        (Action<PresentationCueData[]>)null,
                         gameplayMatchReceived: state => match.Apply(state)));
                     var score = root.transform.Find("MatchState/Score").GetComponent<Text>();
                     var outcome = root.transform.Find("MatchState/Result/Outcome").GetComponent<Text>();

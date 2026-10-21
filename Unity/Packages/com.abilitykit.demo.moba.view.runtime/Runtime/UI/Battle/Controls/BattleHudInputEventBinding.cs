@@ -59,6 +59,12 @@ namespace AbilityKit.Game.Flow
                 _subscriptions.Add(
                     () => inputView.SkillClick += _events.OnSkillClick,
                     () => inputView.SkillClick -= _events.OnSkillClick);
+                _subscriptions.Add(
+                    () => inputView.SkillPreviewPressed += _events.OnSkillPreviewPressed,
+                    () => inputView.SkillPreviewPressed -= _events.OnSkillPreviewPressed);
+                _subscriptions.Add(
+                    () => inputView.SkillPreviewReleased += _events.OnSkillPreviewReleased,
+                    () => inputView.SkillPreviewReleased -= _events.OnSkillPreviewReleased);
             }
         }
 

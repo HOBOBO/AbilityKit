@@ -16,6 +16,7 @@ using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Triggering;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Triggering.Eventing;
 
@@ -262,21 +263,34 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
         {
             if (_presentationCues == null || vfxId <= 0 || projectile == null) return;
 
+            var eventKey = BuildProjectileCueKey(eventId, projectileId, targetActorId, frame);
+            var hasPersistentInstance = stage == MobaPresentationCueStage.Started ||
+                                        stage == MobaPresentationCueStage.Ticked ||
+                                        stage == MobaPresentationCueStage.Refreshed ||
+                                        stage == MobaPresentationCueStage.Completed ||
+                                        stage == MobaPresentationCueStage.Expired ||
+                                        stage == MobaPresentationCueStage.Removed;
+            var instanceKey = hasPersistentInstance ? $"projectile:{projectileId.Value}" : null;
+            var replicationId = instanceKey ?? eventKey;
+            var domain = PresentationCueDomain.Projectile;
+
             var entry = new MobaPresentationCueSnapshotEntry
             {
                 Stage = (int)stage,
                 CueKind = CueKindProjectile,
+                Domain = (int)domain,
+                Lifetime = (int)PresentationCueSemantics.ResolveLifetime(domain, (AbilityKit.Demo.Moba.Share.PresentationCueStage)stage),
                 TemplateId = projectile.Id,
                 VfxId = vfxId,
-                RequestKey = BuildProjectileCueKey(eventId, projectileId, targetActorId, frame),
-                EventKey = BuildProjectileCueKey(eventId, projectileId, targetActorId, frame),
+                RequestKey = instanceKey ?? eventKey,
+                EventKey = eventKey,
                 SourceActorId = sourceActorId,
                 TargetActorId = targetActorId,
                 Targets = targetActorId > 0 ? new[] { targetActorId } : Array.Empty<int>(),
                 Positions = new[] { position.X, position.Y, position.Z },
                 OwnerKind = CueKindProjectile,
                 InstanceId = projectileId.Value,
-                InstanceKey = $"projectile:{projectileId.Value}",
+                InstanceKey = instanceKey,
                 LifecycleReason = lifecycleReason,
                 ContextKind = (int)EffectContextKind.Projectile,
                 OriginKind = (int)(eventId == EventProjectileHit ? MobaExecutionKind.ProjectileHit : MobaExecutionKind.ProjectileLaunch),
@@ -285,6 +299,9 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                 OwnerContextId = sourceContext.OwnerContextId != 0L ? sourceContext.OwnerContextId : sourceContext.SourceContextId,
                 SourceConfigId = projectile.Id,
                 ContextEventId = eventId,
+                ReplicationId = replicationId,
+                PredictionKey = MobaPresentationCueKeys.StableHash(replicationId),
+                PredictionState = (int)MobaPresentationCuePredictionState.ServerConfirmed,
                 NumericParamKeys = new[] { 1, 2 },
                 NumericParamValues = new[] { (float)projectileId.Value, frame },
                 StringParamKeys = new[] { "event" },

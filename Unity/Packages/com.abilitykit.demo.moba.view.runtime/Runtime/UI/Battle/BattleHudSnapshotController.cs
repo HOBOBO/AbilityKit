@@ -11,6 +11,7 @@ namespace AbilityKit.Game.Flow
             Action<BattleEnterGameSnapshot> enterGame,
             Action<DamageEventData[]> damageEvents,
             Action<SkillStateData[]> skillStates,
+            Action<ShieldStateData[]> shieldStates,
             Action<PresentationCueData[]> presentationCues,
             Action<GameplayClockData> gameplayClock,
             Action<GameplayMatchData> gameplayMatch,
@@ -19,6 +20,7 @@ namespace AbilityKit.Game.Flow
             EnterGame = enterGame;
             DamageEvents = damageEvents;
             SkillStates = skillStates;
+            ShieldStates = shieldStates;
             PresentationCues = presentationCues;
             GameplayClock = gameplayClock;
             GameplayMatch = gameplayMatch;
@@ -28,6 +30,7 @@ namespace AbilityKit.Game.Flow
         public Action<BattleEnterGameSnapshot> EnterGame { get; }
         public Action<DamageEventData[]> DamageEvents { get; }
         public Action<SkillStateData[]> SkillStates { get; }
+        public Action<ShieldStateData[]> ShieldStates { get; }
         public Action<PresentationCueData[]> PresentationCues { get; }
         public Action<GameplayClockData> GameplayClock { get; }
         public Action<GameplayMatchData> GameplayMatch { get; }
@@ -57,6 +60,21 @@ namespace AbilityKit.Game.Flow
             Action<BattleEnterGameSnapshot> enterGameReceived,
             Action<DamageEventData[]> damageEventsReceived,
             Action<SkillStateData[]> skillStatesReceived,
+            Action<PresentationCueData[]> presentationCuesReceived,
+            Action<GameplayClockData> gameplayClockReceived = null,
+            Action<GameplayMatchData> gameplayMatchReceived = null,
+            Action<GameplayRespawnData[]> gameplayRespawnReceived = null)
+        {
+            return Bind(ctx, enterGameReceived, damageEventsReceived, skillStatesReceived, null,
+                presentationCuesReceived, gameplayClockReceived, gameplayMatchReceived, gameplayRespawnReceived);
+        }
+
+        public bool Bind(
+            IBattleGameplayPresentationSource ctx,
+            Action<BattleEnterGameSnapshot> enterGameReceived,
+            Action<DamageEventData[]> damageEventsReceived,
+            Action<SkillStateData[]> skillStatesReceived,
+            Action<ShieldStateData[]> shieldStatesReceived = null,
             Action<PresentationCueData[]> presentationCuesReceived = null,
             Action<GameplayClockData> gameplayClockReceived = null,
             Action<GameplayMatchData> gameplayMatchReceived = null,
@@ -64,6 +82,7 @@ namespace AbilityKit.Game.Flow
         {
             return Bind(ctx, new BattleHudSnapshotHandlers(
                 enterGameReceived, damageEventsReceived, skillStatesReceived,
+                shieldStatesReceived,
                 presentationCuesReceived, gameplayClockReceived, gameplayMatchReceived,
                 gameplayRespawnReceived));
         }
@@ -110,6 +129,9 @@ namespace AbilityKit.Game.Flow
             if (callbacks.SkillStates != null)
                 subscriptions.Add(snapshots.Subscribe<SkillStateData[]>(
                     MobaOpCodes.Snapshot.SkillState, (_, data) => callbacks.SkillStates(data)));
+            if (callbacks.ShieldStates != null)
+                subscriptions.Add(snapshots.Subscribe<ShieldStateData[]>(
+                    MobaOpCodes.Snapshot.ShieldState, (_, data) => callbacks.ShieldStates(data)));
             if (callbacks.PresentationCues != null)
                 subscriptions.Add(snapshots.Subscribe<PresentationCueData[]>(
                     MobaOpCodes.Snapshot.PresentationCue, (_, data) => callbacks.PresentationCues(data)));

@@ -49,7 +49,7 @@
       10010331
     ],
     "Radius": 4.5,
-    "VfxId": 0
+    "VfxId": 90001003
   },
   {
     "Id": 40010311,
@@ -67,7 +67,7 @@
       10010331
     ],
     "Radius": 4.5,
-    "VfxId": 0
+    "VfxId": 90001003
   },
   {
     "Id": 40010321,
@@ -86,7 +86,7 @@
       10010341
     ],
     "Radius": 4.5,
-    "VfxId": 0
+    "VfxId": 90001003
   },
   {
     "Id": 40020201,
@@ -402,7 +402,7 @@
       10070212
     ],
     "Radius": 4,
-    "VfxId": 90003002
+    "VfxId": 90007003
   },
   {
     "Id": 40080101,
@@ -420,7 +420,45 @@
     "OnDelayTriggerIds": [
       10080112
     ],
-    "Radius": 4,
-    "VfxId": 90003002
+    "Radius": 3.5,
+    "VfxId": 90008003
+  },
+  {
+    "Id": 40070301,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 100,
+    "DurationMs": 350,
+    "IntervalMs": 0,
+    "MaxTargets": 10,
+    "ModelId": 90000101,
+    "Name": "孙尚香-究极弩炮-爆炸范围",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [
+      10070314
+    ],
+    "Radius": 3.5,
+    "VfxId": 90007003
+  },
+  {
+    "Id": 40080401,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 650,
+    "DurationMs": 1000,
+    "IntervalMs": 0,
+    "MaxTargets": 10,
+    "ModelId": 90000101,
+    "Name": "鲁班七号-空中支援-定时轰炸范围",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [
+      10080412
+    ],
+    "Radius": 3.5,
+    "VfxId": 90008006
   }
 ]

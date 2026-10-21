@@ -20,6 +20,14 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         public static void RegisterDefaults(MobaActorArchetypeRegistry registry)
         {
             if (registry == null) return;
+            registry.Register(MobaEntityKind.Hero, CreateHero);
+            registry.Register(MobaEntityKind.Minion, CreateMinion);
+            registry.Register(MobaEntityKind.Monster, CreateMonster);
+            registry.Register(MobaEntityKind.Projectile, CreateProjectile);
+            registry.Register(MobaEntityKind.Summon, CreateSummon);
+            registry.Register(MobaEntityKind.ProjectileLauncher, CreateProjectileLauncher);
+            registry.Register(MobaEntityKind.Area, CreateArea);
+            registry.Register(MobaEntityKind.Building, CreateBuilding);
             AddGenerated(registry);
         }
 
@@ -124,6 +132,19 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 .WithCollisionLayer(layerMask: MobaCollisionLayers.ProjectileMask)
                 .Build();
 
+            ActorEntityMetaApplier.Apply(entity, in info);
+            return entity;
+        }
+
+        [MobaActorArchetype(MobaEntityKind.Building)]
+        internal static ActorEntity CreateBuilding(ActorContext context, in MobaEntityInfo info)
+        {
+            var entity = ActorEntityFactory.Create(context)
+                .WithActorId(info.ActorId)
+                .WithTransform(info.Transform)
+                .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.8f)))
+                .WithCollisionLayer(layerMask: MobaCollisionLayers.UnitMask)
+                .Build();
             ActorEntityMetaApplier.Apply(entity, in info);
             return entity;
         }

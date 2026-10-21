@@ -110,6 +110,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
+            if (args.MaxTargetHits > 0 && !TryReserveTargetHit(args, input, ctx, targetActorId))
+            {
+                return;
+            }
+
             if (ctx.Context.TryResolve<MobaSkillParamModifierService>(out var modifiers) && modifiers != null)
             {
                 ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var skillRuntimes);
@@ -152,6 +157,39 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             LogDamageTrace(args, input, ctx, attributeSourceActorId, MobaResourceFixedConvert.ToSingle(requestedDamage), attack.BaseDamage.Value, in origin, result);
+        }
+
+        private static bool TryReserveTargetHit(GiveDamageArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, int targetActorId)
+        {
+            var handle = input.ExecutionContext.SkillRuntimeHandle;
+            if (!handle.IsValid)
+            {
+                MobaPlanActionDiagnostics.Rejected(ctx.Context, TriggeringConstants.Actions.GiveDamage, $"target hit limit requires a skill runtime. target={targetActorId}");
+                return false;
+            }
+
+            if (!ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var runtimes)
+                || runtimes == null
+                || !runtimes.TryGetBlackboard(in handle, out var blackboard)
+                || blackboard == null)
+            {
+                MobaPlanActionDiagnostics.Rejected(ctx.Context, TriggeringConstants.Actions.GiveDamage, $"cannot resolve skill runtime blackboard for target hit limit. handle={handle}");
+                return false;
+            }
+
+            var key = new MobaSkillRuntimeBlackboardKey(
+                args.TargetHitCountKeyBase + targetActorId,
+                $"skill.targetHitCount.{targetActorId}",
+                MobaSkillRuntimeValueKind.Int,
+                MobaSkillRuntimeBlackboardScope.Cast);
+            blackboard.TryGetInt(in key, out var previousHitCount);
+            if (previousHitCount >= args.MaxTargetHits)
+            {
+                MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.GiveDamage, $"target hit limit reached. target={targetActorId} count={previousHitCount} max={args.MaxTargetHits}");
+                return false;
+            }
+
+            return true;
         }
 
         internal static bool TryResolveRequestedDamage(

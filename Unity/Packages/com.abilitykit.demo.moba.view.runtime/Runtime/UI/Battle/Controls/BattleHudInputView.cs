@@ -55,6 +55,18 @@ namespace AbilityKit.Game.Battle.View
             remove => _binding.SkillAimCancel -= value;
         }
 
+        public event Action<int> SkillPreviewPressed
+        {
+            add => _binding.SkillPreviewPressed += value;
+            remove => _binding.SkillPreviewPressed -= value;
+        }
+
+        public event Action<int> SkillPreviewReleased
+        {
+            add => _binding.SkillPreviewReleased += value;
+            remove => _binding.SkillPreviewReleased -= value;
+        }
+
         public void Initialize(JoystickAreaView moveJoystick, IReadOnlyList<SkillButtonView> skills)
         {
             UnhookAll();

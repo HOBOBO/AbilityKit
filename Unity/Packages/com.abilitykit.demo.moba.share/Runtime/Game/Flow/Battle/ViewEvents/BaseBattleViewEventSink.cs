@@ -213,6 +213,8 @@ namespace AbilityKit.Demo.Moba.Share
             LastProcessedFrame = snapshot.FrameIndex;
         }
 
+        public virtual void OnShieldStateSnapshot(in FrameSnapshotData snapshot) { }
+
         public virtual void OnGameplayClockSnapshot(in FrameSnapshotData snapshot)
         {
             LastProcessedFrame = snapshot.FrameIndex;

@@ -17,6 +17,7 @@ namespace AbilityKit.Game.Flow
         public bool TryGetActorWorldPos(int actorId, out Vector3 pos)
         {
             pos = default;
+            if (BattleViewActorTransformRegistry.TryGet(actorId, out pos)) return true;
             if (_ctx?.EntityQuery == null) return false;
             if (!_ctx.EntityQuery.TryResolve(new BattleNetId(actorId), out var entity)) return false;
             if (!entity.TryGetRef(out BattleTransformComponent transform) || transform == null) return false;

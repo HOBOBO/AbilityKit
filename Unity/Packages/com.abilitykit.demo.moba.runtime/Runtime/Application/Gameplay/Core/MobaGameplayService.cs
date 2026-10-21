@@ -69,6 +69,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
         public int CurrentGameplayId => _currentGameplayId;
         public string MatchId => _matchId;
+        public int CurrentFrame => GetCurrentFrame();
 
         public GameplayMO CurrentGameplay => _currentGameplay;
 
@@ -84,7 +85,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
                 durationMs,
                 ElapsedSeconds,
                 Fixed64.FromRaw(Math.Max(0L, remainingRaw)).ToSingle(),
-                Math.Min(durationMs, ToRemainingMilliseconds(Math.Max(0L, remainingRaw))));
+                Math.Min(durationMs, ToRemainingMilliseconds(Math.Max(0L, remainingRaw))),
+                ToElapsedMilliseconds(_elapsedRaw));
         }
 
         private static int ToRemainingMilliseconds(long secondsRaw)
@@ -92,6 +94,14 @@ namespace AbilityKit.Demo.Moba.Gameplay
             const long unit = 1L << 32;
             var wholeMilliseconds = (secondsRaw / unit) * 1000L;
             var fractionMilliseconds = ((secondsRaw % unit) * 1000L + unit - 1L) / unit;
+            return (int)Math.Min(int.MaxValue, wholeMilliseconds + fractionMilliseconds);
+        }
+
+        private static int ToElapsedMilliseconds(long secondsRaw)
+        {
+            const long unit = 1L << 32;
+            var wholeMilliseconds = (secondsRaw / unit) * 1000L;
+            var fractionMilliseconds = ((secondsRaw % unit) * 1000L) / unit;
             return (int)Math.Min(int.MaxValue, wholeMilliseconds + fractionMilliseconds);
         }
 
@@ -489,10 +499,11 @@ namespace AbilityKit.Demo.Moba.Gameplay
         public float ElapsedSeconds { get; }
         public float RemainingSeconds { get; }
         public int RemainingMilliseconds { get; }
+        public int ElapsedMilliseconds { get; }
 
         public MobaGameplayClockState(int gameplayId, MobaGameplayPhase phase,
             int durationMilliseconds, float elapsedSeconds, float remainingSeconds,
-            int remainingMilliseconds)
+            int remainingMilliseconds, int elapsedMilliseconds)
         {
             GameplayId = gameplayId;
             Phase = phase;
@@ -500,6 +511,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
             ElapsedSeconds = elapsedSeconds;
             RemainingSeconds = remainingSeconds;
             RemainingMilliseconds = remainingMilliseconds;
+            ElapsedMilliseconds = elapsedMilliseconds;
         }
     }
 }

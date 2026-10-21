@@ -192,3 +192,10 @@ messages:
     payloadType: AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload
     reliability: reliable
     maximumPayloadBytes: 262144
+  - id: shield-state.push
+    opCode: 4015
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload
+    maximumPayloadBytes: 1048576
+    captureSampleRate: 0.25

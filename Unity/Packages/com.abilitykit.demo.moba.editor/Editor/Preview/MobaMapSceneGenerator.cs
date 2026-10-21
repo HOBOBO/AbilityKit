@@ -1,33 +1,92 @@
 using System;
 using System.IO;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Minions;
+using AbilityKit.Demo.Moba.Gameplay.Structures;
+using AbilityKit.Demo.Moba.Services.Map;
+using AbilityKit.Demo.Moba.View;
 using AbilityKit.Demo.Moba.Share.Config;
 using Newtonsoft.Json;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
+using UnityEngine.SceneManagement;
 
 namespace AbilityKit.Game.Editor
 {
     internal static class MobaMapSceneGenerator
     {
         private const string MapJsonPath = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/battle_maps.json";
+        private const string MinionRouteJsonPath = "Packages/com.abilitykit.demo.moba.runtime/Resources/moba/minion_routes.json";
+        private const string StructureJsonPath = "Packages/com.abilitykit.demo.moba.runtime/Resources/moba/map_structures.json";
         private const string GeneratedRootPath = "Assets/Generated";
         private const string GeneratedMobaPath = "Assets/Generated/Moba";
         private const string MapRootName = "GeneratedBattleMap";
 
+        private const string ValidateMenuPath = "Tools/AbilityKit/Demos/MOBA/Validate Map And Minion Routes";
+
+        [MenuItem(ValidateMenuPath, priority = 19)]
+        private static void ValidateMapAndMinionRoutesMenu()
+        {
+            ValidateMapAndMinionRoutes(1);
+            Debug.Log("[MobaMapSceneGenerator] Map and minion route resources are valid.");
+        }
+
+        [MenuItem("Tools/AbilityKit/Demos/MOBA/Refresh Generated Map (Map 1)", priority = 20)]
+        private static void RefreshActiveSceneMap()
+        {
+            var scene = SceneManager.GetActiveScene();
+            if (!scene.IsValid()) throw new InvalidOperationException("There is no valid active scene to refresh.");
+            Refresh(scene, 1);
+            EditorSceneManager.MarkSceneDirty(scene);
+        }
+
+        public static void ValidateMapAndMinionRoutes(int mapId)
+        {
+            var map = new BattleMapMO(LoadMap(mapId));
+            var routeAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(MinionRouteJsonPath);
+            if (routeAsset == null)
+                throw new FileNotFoundException("Minion route JSON asset was not found.", MinionRouteJsonPath);
+
+            var resource = MobaMinionRouteResourceLoader.LoadResource(routeAsset.text);
+            MobaMinionRouteMapValidator.ValidateResource(resource, map);
+        }
+
+        public static void ValidateMapAndMinionRoutesBatch()
+        {
+            ValidateMapAndMinionRoutes(1);
+            Debug.Log("[MobaMapSceneGenerator] Batch map and minion route validation succeeded.");
+        }
+
+        public static void RegenerateMapPrefabBatch()
+        {
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Refresh(scene, 1);
+            EditorSceneManager.CloseScene(scene, true);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("[MobaMapSceneGenerator] BattleMap_1 prefab regenerated successfully.");
+        }
+
         public static GameObject Refresh(Scene scene, int mapId)
         {
             var map = LoadMap(mapId);
+            ValidateMapAndMinionRoutes(mapId);
+            var structures = LoadStructures(mapId);
             EnsureAssetFolders();
 
             var prefabPath = $"{GeneratedMobaPath}/BattleMap_{map.Id}.prefab";
-            var prefabSource = BuildMapRoot(map);
+            var prefabSource = BuildMapRoot(map, structures);
             var prefab = PrefabUtility.SaveAsPrefabAsset(prefabSource, prefabPath);
             Object.DestroyImmediate(prefabSource);
             if (prefab == null)
             {
                 throw new InvalidOperationException($"Failed to generate battle map prefab. path={prefabPath}");
+            }
+            if (prefab.GetComponent<MobaGeneratedMapIdentity>()?.MapId != map.Id)
+            {
+                throw new InvalidOperationException($"Generated battle map prefab identity does not match its configuration. mapId={map.Id}, path={prefabPath}");
             }
 
             RemoveGeneratedMapRoot(scene);
@@ -58,16 +117,51 @@ namespace AbilityKit.Game.Editor
             throw new InvalidOperationException($"Battle map JSON does not contain map id {mapId}. path={MapJsonPath}");
         }
 
-        private static GameObject BuildMapRoot(BattleMapDTO map)
+        private static MobaMapStructureResource LoadStructures(int mapId)
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<TextAsset>(StructureJsonPath);
+            if (asset == null) throw new FileNotFoundException("Map structure JSON asset was not found.", StructureJsonPath);
+            var resource = MobaMapStructureResourceLoader.LoadResource(asset.text);
+            if (resource.MapId != mapId)
+                throw new InvalidOperationException($"Map structure resource map mismatch. mapId={mapId}, resourceMapId={resource.MapId}");
+            return resource;
+        }
+
+        private static GameObject BuildMapRoot(BattleMapDTO map, MobaMapStructureResource structures)
         {
             var root = new GameObject($"{MapRootName}_Map{map.Id}_{SanitizeName(map.Name)}");
             root.transform.position = Vector3.zero;
+            var identity = root.AddComponent<MobaGeneratedMapIdentity>();
+            identity.SetMapId(map.Id);
 
             CreateGround(root.transform, map.Bounds);
             CreateWalkableAreas(root.transform, map.WalkableAreas, map.Bounds);
             CreateSpawnPoints(root.transform, map.SpawnPoints);
             CreateCollisionObjects(root.transform, map.CollisionObjects);
+            CreateStructureMarkers(root.transform, structures);
             return root;
+        }
+
+        private static void CreateStructureMarkers(Transform parent, MobaMapStructureResource resource)
+        {
+            var group = new GameObject("Structures_VisualOnly");
+            group.transform.SetParent(parent, false);
+            if (resource?.Structures == null) return;
+            for (var i = 0; i < resource.Structures.Count; i++)
+            {
+                var item = resource.Structures[i];
+                var position = item.Position;
+                var marker = GameObject.CreatePrimitive(item.ParsedKind == MobaStructureKind.Base ? PrimitiveType.Cylinder : PrimitiveType.Cube);
+                marker.name = $"Structure_{item.Id}_Team{item.TeamId}_{SanitizeName(item.Name)}";
+                marker.transform.SetParent(group.transform, false);
+                marker.transform.localPosition = new Vector3(position?.X ?? 0f, (position?.Y ?? 0f) + 0.4f, position?.Z ?? 0f);
+                marker.transform.localRotation = Quaternion.Euler(0f, item.YawDegrees, 0f);
+                var radius = Math.Max(0.25f, item.Radius);
+                marker.transform.localScale = item.ParsedKind == MobaStructureKind.Base
+                    ? new Vector3(radius * 2f, 0.8f, radius * 2f)
+                    : new Vector3(radius * 2f, 1.2f, radius * 2f);
+                RemoveCollider(marker);
+            }
         }
 
         private static void CreateGround(Transform parent, MapBoundsDTO bounds)

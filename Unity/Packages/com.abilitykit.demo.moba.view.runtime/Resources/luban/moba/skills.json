@@ -12,6 +12,7 @@
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
     "Tags": [],
+    "PreviewVfxId": 0,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -27,6 +28,7 @@
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
     "Tags": [],
+    "PreviewVfxId": 0,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -39,9 +41,10 @@
     "Name": "廉颇-爆裂冲撞",
     "PreCastFlowId": 0,
     "Range": 8,
-    "SkillButtonTemplateId": 2,
+    "SkillButtonTemplateId": 22,
     "SkillType": 5,
     "Tags": [],
+    "PreviewVfxId": 90001002,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -54,9 +57,10 @@
     "Name": "廉颇-熔岩重击",
     "PreCastFlowId": 0,
     "Range": 5,
-    "SkillButtonTemplateId": 1,
+    "SkillButtonTemplateId": 23,
     "SkillType": 5,
     "Tags": [],
+    "PreviewVfxId": 90001001,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -72,6 +76,7 @@
     "SkillButtonTemplateId": 3,
     "SkillType": 4,
     "Tags": [],
+    "PreviewVfxId": 90001003,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -87,6 +92,7 @@
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
     "Tags": [],
+    "PreviewVfxId": 0,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -102,6 +108,7 @@
     "SkillButtonTemplateId": 2,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90002001,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -117,6 +124,7 @@
     "SkillButtonTemplateId": 3,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90002002,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -129,9 +137,10 @@
     "Name": "小乔-星华缭乱",
     "PreCastFlowId": 0,
     "Range": 20,
-    "SkillButtonTemplateId": 1,
+    "SkillButtonTemplateId": 21,
     "SkillType": 4,
     "Tags": [],
+    "PreviewVfxId": 90002003,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -147,6 +156,7 @@
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
     "Tags": [],
+    "PreviewVfxId": 0,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -162,6 +172,7 @@
     "SkillButtonTemplateId": 8,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90003001,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -177,6 +188,7 @@
     "SkillButtonTemplateId": 9,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90003002,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -192,6 +204,7 @@
     "SkillButtonTemplateId": 10,
     "SkillType": 4,
     "Tags": [],
+    "PreviewVfxId": 90003003,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -207,6 +220,7 @@
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
     "Tags": [],
+    "PreviewVfxId": 0,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -219,9 +233,10 @@
     "Name": "墨子-和平漫步",
     "PreCastFlowId": 0,
     "Range": 8,
-    "SkillButtonTemplateId": 2,
+    "SkillButtonTemplateId": 19,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90004001,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -237,6 +252,7 @@
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
     "Tags": [],
+    "PreviewVfxId": 0,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -252,6 +268,7 @@
     "SkillButtonTemplateId": 2,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90004002,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -264,9 +281,10 @@
     "Name": "墨子-墨守成规",
     "PreCastFlowId": 0,
     "Range": 6,
-    "SkillButtonTemplateId": 1,
+    "SkillButtonTemplateId": 20,
     "SkillType": 4,
     "Tags": [],
+    "PreviewVfxId": 90004003,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -282,6 +300,7 @@
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
     "Tags": [],
+    "PreviewVfxId": 0,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -297,6 +316,7 @@
     "SkillButtonTemplateId": 4,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90005001,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -310,9 +330,10 @@
     "PreCastFlowId": 0,
     "Range": 10,
     "RequiredTargetQueryId": 50050201,
-    "SkillButtonTemplateId": 3,
+    "SkillButtonTemplateId": 17,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90005002,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -325,9 +346,10 @@
     "Name": "妲己-女王崇拜",
     "PreCastFlowId": 0,
     "Range": 12,
-    "SkillButtonTemplateId": 1,
+    "SkillButtonTemplateId": 18,
     "SkillType": 4,
     "Tags": [],
+    "PreviewVfxId": 90005003,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -343,6 +365,7 @@
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
     "Tags": [],
+    "PreviewVfxId": 0,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -358,6 +381,7 @@
     "SkillButtonTemplateId": 5,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90006001,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -373,6 +397,7 @@
     "SkillButtonTemplateId": 6,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90006002,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -388,6 +413,7 @@
     "SkillButtonTemplateId": 7,
     "SkillType": 4,
     "Tags": [],
+    "PreviewVfxId": 90006003,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -403,6 +429,7 @@
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
     "Tags": [],
+    "PreviewVfxId": 0,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -415,9 +442,10 @@
     "Name": "孙尚香-翻滚突袭",
     "PreCastFlowId": 0,
     "Range": 8,
-    "SkillButtonTemplateId": 8,
+    "SkillButtonTemplateId": 11,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90007001,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -430,9 +458,10 @@
     "Name": "孙尚香-红莲爆弹",
     "PreCastFlowId": 0,
     "Range": 12,
-    "SkillButtonTemplateId": 2,
+    "SkillButtonTemplateId": 12,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90007002,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -445,9 +474,10 @@
     "Name": "孙尚香-究极弩炮",
     "PreCastFlowId": 0,
     "Range": 18,
-    "SkillButtonTemplateId": 3,
+    "SkillButtonTemplateId": 13,
     "SkillType": 4,
     "Tags": [],
+    "PreviewVfxId": 90007004,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -463,6 +493,7 @@
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
     "Tags": [],
+    "PreviewVfxId": 0,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -478,6 +509,7 @@
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
     "Tags": [],
+    "PreviewVfxId": 0,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -490,9 +522,10 @@
     "Name": "鲁班七号-河豚手雷",
     "PreCastFlowId": 0,
     "Range": 10,
-    "SkillButtonTemplateId": 8,
+    "SkillButtonTemplateId": 14,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90008002,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -505,9 +538,10 @@
     "Name": "鲁班七号-无敌鲨嘴炮",
     "PreCastFlowId": 0,
     "Range": 30,
-    "SkillButtonTemplateId": 2,
+    "SkillButtonTemplateId": 15,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 90008004,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -520,9 +554,10 @@
     "Name": "鲁班七号-空中支援",
     "PreCastFlowId": 0,
     "Range": 16,
-    "SkillButtonTemplateId": 3,
+    "SkillButtonTemplateId": 16,
     "SkillType": 4,
     "Tags": [],
+    "PreviewVfxId": 90008006,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -538,6 +573,7 @@
     "SkillButtonTemplateId": 3,
     "SkillType": 2,
     "Tags": [],
+    "PreviewVfxId": 0,
     "ExecutionBlockedResultMask": 4
   }
 ]

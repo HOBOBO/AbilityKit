@@ -16,7 +16,8 @@ namespace AbilityKit.Game.Flow
             BattleHudMoveInputMapper moveMapper,
             BattleHudSkillAimInputMapper skillAimMapper,
             IReadOnlyList<SkillButtonView> skillViews,
-            Button infoButton)
+            Button infoButton,
+            BattleHudSkillBuffStatusBar skillBuffStatusBar = null)
         {
             Root = root;
             InputView = inputView;
@@ -28,6 +29,7 @@ namespace AbilityKit.Game.Flow
             Skill2View = SkillViews.Count > 1 ? SkillViews[1] : null;
             Skill3View = SkillViews.Count > 2 ? SkillViews[2] : null;
             InfoButton = infoButton;
+            SkillBuffStatusBar = skillBuffStatusBar;
         }
 
         public BattleHudInputUi(
@@ -39,7 +41,8 @@ namespace AbilityKit.Game.Flow
             SkillButtonView skill1View,
             SkillButtonView skill2View,
             SkillButtonView skill3View,
-            Button infoButton)
+            Button infoButton,
+            BattleHudSkillBuffStatusBar skillBuffStatusBar = null)
             : this(
                 root,
                 inputView,
@@ -47,7 +50,8 @@ namespace AbilityKit.Game.Flow
                 moveMapper,
                 skillAimMapper,
                 new[] { skill1View, skill2View, skill3View },
-                infoButton)
+                infoButton,
+                skillBuffStatusBar)
         {
         }
 
@@ -62,6 +66,7 @@ namespace AbilityKit.Game.Flow
         public IReadOnlyList<SkillButtonView> SkillViews { get; }
         public int SkillButtonCount => SkillViews != null ? SkillViews.Count : 0;
         public Button InfoButton { get; }
+        public BattleHudSkillBuffStatusBar SkillBuffStatusBar { get; }
 
         public void Destroy()
         {

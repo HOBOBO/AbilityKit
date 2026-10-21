@@ -4,7 +4,14 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleHudAimPreviewObjectFactory
     {
-        public BattleHudAimPreviewObject Create()
+        private readonly System.Func<int, GameObject> _vfxLoader;
+
+        public BattleHudAimPreviewObjectFactory(System.Func<int, GameObject> vfxLoader = null)
+        {
+            _vfxLoader = vfxLoader;
+        }
+
+        public BattleHudAimPreviewObject Create(int vfxId = 0)
         {
             var root = new GameObject("SkillAimPreview");
             root.hideFlags = HideFlags.DontSave;
@@ -16,7 +23,14 @@ namespace AbilityKit.Game.Flow
             var casterRing = CreateRing(root.transform, "CasterRing", segments: 72, thickness01: 0.18f);
             var edgeRing = CreateRing(root.transform, "EdgeRing", segments: 72, thickness01: 0.12f);
 
-            var preview = new BattleHudAimPreviewObject(root, line, circle, dot, sector, casterRing, edgeRing);
+            var vfx = vfxId > 0 ? _vfxLoader?.Invoke(vfxId) : null;
+            if (vfx != null)
+            {
+                vfx.name = "SkillPreviewVfx_" + vfxId;
+                vfx.transform.SetParent(root.transform, true);
+                vfx.SetActive(true);
+            }
+            var preview = new BattleHudAimPreviewObject(root, line, circle, dot, sector, casterRing, edgeRing, vfx);
             preview.SetVisible(false);
             return preview;
         }

@@ -8,8 +8,11 @@ namespace AbilityKit.Game.Flow
         public int ActorId;
         public RectTransform Root;
         public Image HpFill;
+        public Image ShieldFill;
         public float Hp;
         public float MaxHp;
+        public float Shield;
+        public float ShieldCapacity;
         public Vector3 WorldOffset;
     }
 }

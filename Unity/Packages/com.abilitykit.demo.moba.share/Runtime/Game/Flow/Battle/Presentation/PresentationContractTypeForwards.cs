@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 [assembly: TypeForwardedTo(typeof(AbilityKit.Demo.Moba.Share.ActorDespawnData))]
 [assembly: TypeForwardedTo(typeof(AbilityKit.Demo.Moba.Share.ActorDespawnReason))]
 [assembly: TypeForwardedTo(typeof(AbilityKit.Demo.Moba.Share.SkillStateData))]
+[assembly: TypeForwardedTo(typeof(AbilityKit.Demo.Moba.Share.ShieldStateData))]
 [assembly: TypeForwardedTo(typeof(AbilityKit.Demo.Moba.Share.SkillAvailabilityState))]
 [assembly: TypeForwardedTo(typeof(AbilityKit.Demo.Moba.Share.ProjectileEventData))]
 [assembly: TypeForwardedTo(typeof(AbilityKit.Demo.Moba.Share.ProjectilePresentationEventKind))]

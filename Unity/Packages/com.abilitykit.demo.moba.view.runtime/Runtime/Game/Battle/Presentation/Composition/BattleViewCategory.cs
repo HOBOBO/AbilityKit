@@ -75,6 +75,9 @@ namespace AbilityKit.Game.Battle.Hierarchy
         /// <summary>Live building / static structure entities.</summary>
         ActiveBuilding = 206,
 
+        /// <summary>Live lane minion entities.</summary>
+        ActiveMinion = 210,
+
         /// <summary>Live area-effect zones.</summary>
         ActiveArea = 207,
 
@@ -129,6 +132,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
                 case BattleViewCategory.ActiveTurret:     return new[] { ActiveRoot, "_Turret" };
                 case BattleViewCategory.ActiveMonster:    return new[] { ActiveRoot, "_Monster" };
                 case BattleViewCategory.ActiveBuilding:   return new[] { ActiveRoot, "_Building" };
+                case BattleViewCategory.ActiveMinion:     return new[] { ActiveRoot, "_Minion" };
                 case BattleViewCategory.ActiveArea:         return new[] { ActiveRoot, "_Area" };
                 case BattleViewCategory.ActiveVfx:          return new[] { ActiveRoot, "_Vfx" };
                 case BattleViewCategory.ActiveFloatingText: return new[] { ActiveRoot, "_FloatingText" };
@@ -156,6 +160,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
                 case AbilityKit.Game.Battle.Entity.BattleEntityKind.Turret: return BattleViewCategory.ActiveTurret;
                 case AbilityKit.Game.Battle.Entity.BattleEntityKind.Monster: return BattleViewCategory.ActiveMonster;
                 case AbilityKit.Game.Battle.Entity.BattleEntityKind.Building: return BattleViewCategory.ActiveBuilding;
+                case AbilityKit.Game.Battle.Entity.BattleEntityKind.Minion: return BattleViewCategory.ActiveMinion;
                 case AbilityKit.Game.Battle.Entity.BattleEntityKind.AreaEffect: return BattleViewCategory.ActiveArea;
                 default: return BattleViewCategory.Unknown;
             }

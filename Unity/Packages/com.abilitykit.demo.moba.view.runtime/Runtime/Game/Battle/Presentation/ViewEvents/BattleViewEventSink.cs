@@ -15,6 +15,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
     public sealed class BattleViewEventSink : IBattleViewEventSink
     {
+        public void OnShieldStateSnapshot(in FrameSnapshotData snapshot) { }
         private readonly BattleContext _context;
         private readonly BattleAreaViewEventHandler _areaEvents;
         private readonly BattleDamageViewEventHandler _damageEvents;

@@ -8,6 +8,10 @@ namespace AbilityKit.Protocol.Moba.StateSync
     {
         Character = 1,
         Projectile = 2,
+        /// <summary>Lane minion. Kept distinct from heroes for presentation routing.</summary>
+        Minion = 3,
+        /// <summary>Skill-created summon, resolved by summon template id.</summary>
+        Summon = 4,
     }
 
     public partial struct MobaActorSpawnSnapshotEntry

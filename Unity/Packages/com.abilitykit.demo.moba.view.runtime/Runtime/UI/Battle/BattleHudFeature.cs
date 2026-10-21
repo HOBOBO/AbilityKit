@@ -67,6 +67,9 @@ namespace AbilityKit.Game.Flow
                 _skillFailurePresenter = _controllers.CreateSkillFailures();
                 _skillFailurePresenter.Bind(_ctx, _canvasController.Root);
                 CreateInputController();
+                _aimPreview ??= _controllers.CreateAimPreview();
+                _inputController.SkillPreviewPressed += OnSkillPreviewPressed;
+                _inputController.SkillPreviewReleased += OnSkillPreviewReleased;
                 ApplyLaunchSpecSkillTemplates();
                 SubscribeEntityLifecycle();
                 SubscribeSnapshots();
@@ -214,7 +217,7 @@ namespace AbilityKit.Game.Flow
             if (_snapshotController == null || _snapshotController.IsBoundTo(_ctx)) return;
 
             _snapshotController.Bind(_ctx, OnEnterGameSnapshot, OnDamageEventSnapshot,
-                OnSkillStateSnapshot, OnPresentationCueSnapshot);
+                OnSkillStateSnapshot, OnShieldStateSnapshot, OnPresentationCueSnapshot);
         }
 
         private void OnEnterGameSnapshot(BattleEnterGameSnapshot res)
@@ -255,7 +258,7 @@ namespace AbilityKit.Game.Flow
 
         private void OnSkillStateSnapshot(SkillStateData[] entries)
         {
-            if (_ctx == null || entries == null || entries.Length == 0) return;
+            if (_ctx == null || entries == null) return;
             SynchronizeSessionFromContext();
             System.Predicate<SkillStateData> matchesLoadout = null;
             if (_inputController != null)
@@ -268,7 +271,9 @@ namespace AbilityKit.Game.Flow
                 matchesLoadout);
             PublishLocalActorId();
 
-            if (_inputController != null && _inputController.ApplySkillStates(entries, localActorId))
+            _binder?.OnSkillStates(entries, localActorId);
+
+            if (entries.Length > 0 && _inputController != null && _inputController.ApplySkillStates(entries, localActorId))
                 _aimPreview?.SetSkillSpecs(_inputController.SkillSpecs);
         }
 
@@ -276,6 +281,15 @@ namespace AbilityKit.Game.Flow
         {
             if (entries == null || entries.Length == 0) return;
             _binder?.OnPresentationCues(entries);
+            _inputController?.ApplyBuffCues(entries, _session.LocalActorId);
+        }
+
+        private void OnSkillPreviewPressed(int slot) => _aimPreview?.ShowPressed(slot, _ctx);
+        private void OnSkillPreviewReleased(int slot) => _aimPreview?.HidePressed(slot);
+
+        private void OnShieldStateSnapshot(ShieldStateData[] entries)
+        {
+            _binder?.OnShieldStates(entries);
         }
 
         private void SynchronizeSessionFromContext()
@@ -335,7 +349,9 @@ namespace AbilityKit.Game.Flow
 
         public BattleHudAimPreview CreateAimPreview()
         {
-            return new BattleHudAimPreview();
+            var resources = BattleViewResourceProvider.Default;
+            return new BattleHudAimPreview(
+                objects: new BattleHudAimPreviewObjectFactory(vfxId => resources.CreateVfxGo(vfxId)));
         }
 
         public BattleHudSkillFailurePresenter CreateSkillFailures()

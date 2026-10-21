@@ -15,6 +15,8 @@ namespace AbilityKit.Game.Battle.View
         public event Action<int, Vector2> AimUpdate;
         public event Action<int, Vector2> AimEnd;
         public event Action AimCancel;
+        public event Action<int> PreviewPressed;
+        public event Action<int> PreviewReleased;
 
         public void Bind(SkillButtonView view, int slot)
         {
@@ -31,6 +33,8 @@ namespace AbilityKit.Game.Battle.View
             _view.OnAimUpdate += OnAimUpdate;
             _view.OnAimEnd += OnAimEnd;
             _view.OnAimCancel += OnAimCancel;
+            _view.OnPreviewPressed += OnPreviewPressed;
+            _view.OnPreviewReleased += OnPreviewReleased;
         }
 
         public void Unbind()
@@ -43,6 +47,8 @@ namespace AbilityKit.Game.Battle.View
                 _view.OnAimUpdate -= OnAimUpdate;
                 _view.OnAimEnd -= OnAimEnd;
                 _view.OnAimCancel -= OnAimCancel;
+                _view.OnPreviewPressed -= OnPreviewPressed;
+                _view.OnPreviewReleased -= OnPreviewReleased;
             }
 
             _view = null;
@@ -78,5 +84,8 @@ namespace AbilityKit.Game.Battle.View
         {
             AimCancel?.Invoke();
         }
+
+        private void OnPreviewPressed() => PreviewPressed?.Invoke(_slot);
+        private void OnPreviewReleased() => PreviewReleased?.Invoke(_slot);
     }
 }

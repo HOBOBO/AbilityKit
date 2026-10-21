@@ -17,6 +17,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
         [SerializeField] private Image _stackIcon;
         [SerializeField] private Text _stackText;
         [SerializeField] private Text _countdownText;
+        [SerializeField] private Text _tagLabel;
 
         private int _templateId;
         private int _stackCount;
@@ -26,6 +27,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
         private float _lastTickRealtime;
         private Color _tintColor = Color.white;
         private bool _hasColor;
+        private bool _isTag;
 
         public int TemplateId => _templateId;
         public string InstanceKey { get; private set; }
@@ -38,7 +40,8 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             Image ring,
             Image stackIcon,
             Text stackText,
-            Text countdownText)
+            Text countdownText,
+            Text tagLabel = null)
         {
             _root = root;
             _background = background;
@@ -46,6 +49,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             _stackIcon = stackIcon;
             _stackText = stackText;
             _countdownText = countdownText;
+            _tagLabel = tagLabel;
             ResetState();
         }
 
@@ -76,6 +80,8 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             _lastTickRealtime = Time.realtimeSinceStartup;
             _hasColor = false;
             _tintColor = Color.white;
+            _isTag = false;
+            if (_tagLabel != null) _tagLabel.text = string.Empty;
             ApplyVisualState();
             SetVisible(false);
         }
@@ -85,6 +91,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             InstanceKey = entry.InstanceKey;
             _templateId = entry.TemplateId;
             BuffId = ResolveBuffIdFromCueKind(entry.CueKind);
+            _isTag = BattleHudStatusCueFilter.IsTagCue(in entry);
             _stackCount = entry.StackCount;
             _maxStackCount = entry.MaxStackCount;
 
@@ -95,8 +102,23 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             if (_totalSeconds <= 0f) _totalSeconds = entry.RemainingSeconds;
             _remainingSeconds = entry.RemainingSeconds;
 
+            // Tag colors and labels come from the presentation catalog keyed by
+            // the published tag definition ID.
+            if (_isTag && BattleHudStatusCueFilter.TryResolveTagPresentation(in entry, out var tagPresentation))
+            {
+                _tintColor = new Color(
+                    tagPresentation.ColorR,
+                    tagPresentation.ColorG,
+                    tagPresentation.ColorB,
+                    tagPresentation.ColorA);
+                _hasColor = true;
+                if (_tagLabel != null)
+                    _tagLabel.text = string.IsNullOrWhiteSpace(tagPresentation.DisplayName)
+                        ? tagPresentation.LocalizationKey
+                        : tagPresentation.DisplayName;
+            }
             // Apply tint from cue color (only when explicitly authored, otherwise keep white).
-            if (entry.ColorA > 0f)
+            else if (entry.ColorA > 0f)
             {
                 _tintColor = new Color(entry.ColorR, entry.ColorG, entry.ColorB, entry.ColorA);
                 _hasColor = true;
@@ -140,7 +162,9 @@ namespace AbilityKit.Game.Flow.Battle.Hud
                 {
                     var t = Mathf.Clamp01(_remainingSeconds / _totalSeconds);
                     _ring.fillAmount = t;
-                    _ring.color = new Color(0.05f, 0.85f, 1f, 0.85f);
+                _ring.color = _isTag && _hasColor
+                    ? new Color(_tintColor.r, _tintColor.g, _tintColor.b, 0.85f)
+                    : new Color(0.05f, 0.85f, 1f, 0.85f);
                 }
                 else
                 {
@@ -153,8 +177,14 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             }
             if (_stackText != null)
             {
-                _stackText.text = _stackCount > 1 ? _stackCount.ToString() : string.Empty;
-                _stackText.gameObject.SetActive(_stackCount > 1);
+                var isGameplayCounter = InstanceKey != null && InstanceKey.StartsWith("gameplay-counter:", System.StringComparison.Ordinal);
+                var showStack = !_isTag && (_stackCount > 1 || (isGameplayCounter && _maxStackCount > 0));
+                _stackText.text = showStack
+                    ? isGameplayCounter && _maxStackCount > 0
+                        ? $"{_stackCount}/{_maxStackCount}"
+                        : _stackCount.ToString()
+                    : string.Empty;
+                _stackText.gameObject.SetActive(showStack);
             }
             if (_countdownText != null && !ReferenceEquals(_countdownText, _stackText))
             {
@@ -167,6 +197,11 @@ namespace AbilityKit.Game.Flow.Battle.Hud
                 {
                     _countdownText.gameObject.SetActive(false);
                 }
+            }
+            if (_tagLabel != null)
+            {
+                _tagLabel.gameObject.SetActive(_isTag && !string.IsNullOrEmpty(_tagLabel.text));
+                _tagLabel.color = Color.white;
             }
         }
 
@@ -202,5 +237,6 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             if (parts.Length < 4) return 0;
             return int.TryParse(parts[2], out var v) ? v : 0;
         }
+
     }
 }

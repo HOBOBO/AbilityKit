@@ -171,6 +171,32 @@ public sealed class PresentationCueLifecycleTests
     }
 
     [Fact]
+    public void Aoe_domain_is_persistent_and_uses_stable_area_identity()
+    {
+        var start = new MobaPresentationCueSnapshotEntry
+        {
+            Stage = (int)MobaPresentationCueStage.Started,
+            Domain = (int)PresentationCueDomain.Aoe,
+            Lifetime = (int)PresentationCueLifetime.PersistentState,
+            InstanceKey = "area:42",
+            RequestKey = "area:42",
+            VfxId = 9001,
+            Positions = new[] { 1f, 2f, 3f },
+            NumericParamKeys = new[] { 2 },
+            NumericParamValues = new[] { 4f },
+        };
+        var stop = start;
+        stop.Stage = (int)MobaPresentationCueStage.Completed;
+
+        var store = new MobaActivePresentationCueStore();
+        Assert.Equal(MobaPresentationCueObserveResult.Started, store.Observe(in start));
+        Assert.True(store.TryGet("area:42", out var active));
+        Assert.Equal(new[] { 1f, 2f, 3f }, active.Entry.Positions);
+        Assert.Equal(MobaPresentationCueObserveResult.Stopped, store.Observe(in stop));
+        Assert.False(store.Contains("area:42"));
+    }
+
+    [Fact]
     public void Cleared_store_resets_revisions()
     {
         var store = new MobaActivePresentationCueStore();

@@ -57,8 +57,12 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            var remaining = Math.Max(0, clock.RemainingMilliseconds);
-            var seconds = remaining / 1000 + (remaining % 1000 == 0 ? 0 : 1);
+            var displayedMilliseconds = clock.DurationMilliseconds > 0
+                ? Math.Max(0, clock.RemainingMilliseconds)
+                : Math.Max(0, clock.ElapsedMilliseconds);
+            var seconds = clock.DurationMilliseconds > 0
+                ? displayedMilliseconds / 1000 + (displayedMilliseconds % 1000 == 0 ? 0 : 1)
+                : displayedMilliseconds / 1000;
             if (seconds == _shownSeconds) return;
             _shownSeconds = seconds;
             _time.text = FormatTime(seconds);

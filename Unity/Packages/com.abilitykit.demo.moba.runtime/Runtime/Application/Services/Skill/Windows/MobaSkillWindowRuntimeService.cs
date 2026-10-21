@@ -23,7 +23,9 @@ namespace AbilityKit.Demo.Moba.Services
             int windowId,
             SkillWindowKind kind,
             int elapsedMs,
+            int totalMs,
             int chargeTier,
+            int maxChargeTier,
             int channelTick,
             int recastSequence,
             int eventSequence,
@@ -35,7 +37,9 @@ namespace AbilityKit.Demo.Moba.Services
             WindowId = windowId;
             Kind = kind;
             ElapsedMs = elapsedMs;
+            TotalMs = totalMs;
             ChargeTier = chargeTier;
+            MaxChargeTier = maxChargeTier;
             ChannelTick = channelTick;
             RecastSequence = recastSequence;
             EventSequence = eventSequence;
@@ -48,7 +52,9 @@ namespace AbilityKit.Demo.Moba.Services
         public int WindowId { get; }
         public SkillWindowKind Kind { get; }
         public int ElapsedMs { get; }
+        public int TotalMs { get; }
         public int ChargeTier { get; }
+        public int MaxChargeTier { get; }
         public int ChannelTick { get; }
         public int RecastSequence { get; }
         public int EventSequence { get; }
@@ -80,6 +86,8 @@ namespace AbilityKit.Demo.Moba.Services
         public static readonly MobaSkillRuntimeBlackboardKey WindowEndReason = Key(108, "skill.window.endReason", MobaSkillRuntimeValueKind.Int);
         public static readonly MobaSkillRuntimeBlackboardKey CommitSequence = Key(109, "skill.commit.sequence", MobaSkillRuntimeValueKind.Int);
         public static readonly MobaSkillRuntimeBlackboardKey LastCommitId = Key(110, "skill.commit.id", MobaSkillRuntimeValueKind.Int);
+        public static readonly MobaSkillRuntimeBlackboardKey WindowTotalMs = Key(111, "skill.window.totalMs", MobaSkillRuntimeValueKind.Int);
+        public static readonly MobaSkillRuntimeBlackboardKey MaxChargeTier = Key(112, "skill.window.maxChargeTier", MobaSkillRuntimeValueKind.Int);
 
         private readonly MobaSkillCastRuntimeService _runtimes;
 
@@ -88,13 +96,16 @@ namespace AbilityKit.Demo.Moba.Services
             _runtimes = runtimes;
         }
 
-        public bool Open(in MobaSkillCastRuntimeHandle handle, string windowId, SkillWindowKind kind)
+        public bool Open(in MobaSkillCastRuntimeHandle handle, string windowId, SkillWindowKind kind,
+            int totalMs = 0, int maxChargeTier = 0)
         {
             if (!TryGetBoard(in handle, out var board)) return false;
             board.SetInt(in ActiveWindowId, StableId("window:", windowId));
             board.SetInt(in WindowKind, (int)kind);
             board.SetInt(in WindowElapsedMs, 0);
             board.SetInt(in ChargeTier, 0);
+            board.SetInt(in WindowTotalMs, totalMs < 0 ? 0 : totalMs);
+            board.SetInt(in MaxChargeTier, maxChargeTier < 0 ? 0 : maxChargeTier);
             board.SetInt(in ChannelTick, 0);
             board.SetInt(in WindowEndReason, (int)MobaSkillWindowEndReason.None);
             return true;
@@ -147,6 +158,8 @@ namespace AbilityKit.Demo.Moba.Services
             board.TryGetInt(in WindowKind, out var kind);
             board.TryGetInt(in WindowElapsedMs, out var elapsedMs);
             board.TryGetInt(in ChargeTier, out var chargeTier);
+            board.TryGetInt(in WindowTotalMs, out var totalMs);
+            board.TryGetInt(in MaxChargeTier, out var maxChargeTier);
             board.TryGetInt(in ChannelTick, out var channelTick);
             board.TryGetInt(in RecastSequence, out var recastSequence);
             board.TryGetInt(in EventSequence, out var eventSequence);
@@ -154,7 +167,7 @@ namespace AbilityKit.Demo.Moba.Services
             board.TryGetInt(in CommitSequence, out var commitSequence);
             board.TryGetInt(in LastCommitId, out var commitId);
             board.TryGetInt(in WindowEndReason, out var endReason);
-            snapshot = new MobaSkillWindowSnapshot(windowId, (SkillWindowKind)kind, elapsedMs, chargeTier,
+            snapshot = new MobaSkillWindowSnapshot(windowId, (SkillWindowKind)kind, elapsedMs, totalMs, chargeTier, maxChargeTier,
                 channelTick, recastSequence, eventSequence, eventId, commitSequence, commitId,
                 (MobaSkillWindowEndReason)endReason);
             return true;

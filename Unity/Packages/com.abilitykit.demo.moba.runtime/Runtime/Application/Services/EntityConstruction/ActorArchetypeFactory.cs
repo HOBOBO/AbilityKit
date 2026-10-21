@@ -23,10 +23,11 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         Summon = 5,
         ProjectileLauncher = 6,
         Area = 7,
+        Building = 8,
     }
 
     /* 生成 ActorEntity 骨架所需的最小信息集合。*/
-    public readonly struct MobaEntityInfo
+        public readonly struct MobaEntityInfo
     {
         public readonly int ActorId;
         public readonly MobaEntityKind Kind;

@@ -44,6 +44,11 @@ namespace AbilityKit.Game.Flow
             _hudInput?.SubmitHudSkillClick(slot);
         }
 
+        public event System.Action<int> SkillPreviewPressed;
+        public event System.Action<int> SkillPreviewReleased;
+        public void OnSkillPreviewPressed(int slot) => SkillPreviewPressed?.Invoke(slot);
+        public void OnSkillPreviewReleased(int slot) => SkillPreviewReleased?.Invoke(slot);
+
         public void OnSkillAimStart(int slot, Vector2 aim)
         {
             aim = ResolveWorldAim(slot, aim);

@@ -12,6 +12,7 @@ namespace AbilityKit.Game.Flow
         private readonly GameObject _sector;
         private readonly GameObject _casterRing;
         private readonly GameObject _edgeRing;
+        private readonly GameObject _skillVfx;
 
         public GameObject Root { get; }
 
@@ -22,7 +23,8 @@ namespace AbilityKit.Game.Flow
             GameObject dot,
             GameObject sector,
             GameObject casterRing,
-            GameObject edgeRing)
+            GameObject edgeRing,
+            GameObject skillVfx = null)
         {
             Root = root;
             _line = line;
@@ -31,12 +33,28 @@ namespace AbilityKit.Game.Flow
             _sector = sector;
             _casterRing = casterRing;
             _edgeRing = edgeRing;
+            _skillVfx = skillVfx;
         }
 
         public void Apply(in BattleHudAimPreviewState state, in BattleHudSkillPresentationSpec spec)
         {
             SetVisible(true);
             SetColor(spec.Color);
+            if (_skillVfx != null)
+            {
+                _skillVfx.SetActive(true);
+                var vfxPosition = spec.PreviewShape == BattleHudSkillPreviewShape.SelfCircle
+                    ? state.CasterPosition
+                    : state.CasterPosition + state.AimDirection.normalized * Mathf.Clamp(state.AimDistance, 0f, Mathf.Max(0.1f, spec.Range));
+                _skillVfx.transform.position = vfxPosition + Vector3.up * (HeightOffset + 0.04f);
+                _skillVfx.transform.rotation = Quaternion.LookRotation(
+                    state.AimDirection.sqrMagnitude > 0.001f ? state.AimDirection : Vector3.forward,
+                    Vector3.up);
+                var scale = spec.PreviewShape == BattleHudSkillPreviewShape.SelfCircle
+                    ? Mathf.Max(0.25f, spec.SelfRadius * 0.35f)
+                    : Mathf.Max(0.25f, spec.Radius > 0f ? spec.Radius * 0.35f : spec.Width * 0.35f);
+                _skillVfx.transform.localScale = Vector3.one * scale;
+            }
 
             var direction = state.AimDirection.sqrMagnitude > 0.001f ? state.AimDirection.normalized : Vector3.forward;
             var range = Mathf.Max(0.1f, spec.Range);
@@ -258,6 +276,7 @@ namespace AbilityKit.Game.Flow
             HideDot();
             HideSector();
             HideRings();
+            if (_skillVfx != null) _skillVfx.SetActive(false);
         }
 
         private void SetColor(Color color)

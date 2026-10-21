@@ -58,5 +58,23 @@
     "Name": "鲁班七号占位模型",
     "PrefabPath": "character/character8",
     "Scale": 1
+  },
+  {
+    "Id": 1101,
+    "Name": "Melee Minion",
+    "PrefabPath": "character/character8",
+    "Scale": 0.72
+  },
+  {
+    "Id": 1102,
+    "Name": "Ranged Minion",
+    "PrefabPath": "character/character8",
+    "Scale": 0.62
+  },
+  {
+    "Id": 100801,
+    "Name": "????-??????????",
+    "PrefabPath": "moba/airship/luban_airship",
+    "Scale": 3
   }
 ]

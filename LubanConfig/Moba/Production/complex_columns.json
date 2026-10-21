@@ -26,6 +26,7 @@
   "summon_attr_inherits": {"Scales": "array"},
   "component_templates": {},
   "skill_button_templates": {},
+  "buff_hud_templates": {},
   "search_query_templates": {},
   "spawn_summon_action_templates": {},
   "presentation_templates": {},

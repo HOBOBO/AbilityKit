@@ -21,6 +21,7 @@
     "AbilityKit.Protocol.Moba.StateSync.MobaPlayerHeroChangedSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload"
   ],
@@ -51,6 +52,8 @@
     "AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotEntry",
+    "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload"
@@ -95,6 +98,8 @@
         "AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotPayload",
         "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry",
         "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotEntry",
+        "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload",
         "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotEntry",
         "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload",
         "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload"
@@ -128,6 +133,8 @@
     "MobaProjectileEventSnapshotPayload.MemoryPack.g.cs",
     "MobaRoomPlayerSnapshot.MemoryPack.g.cs",
     "MobaRoomSnapshot.MemoryPack.g.cs",
+    "MobaShieldStateSnapshotEntry.MemoryPack.g.cs",
+    "MobaShieldStateSnapshotPayload.MemoryPack.g.cs",
     "MobaSkillStateSnapshotEntry.MemoryPack.g.cs",
     "MobaSkillStateSnapshotPayload.MemoryPack.g.cs",
     "MobaStateHashSnapshotPayload.MemoryPack.g.cs",

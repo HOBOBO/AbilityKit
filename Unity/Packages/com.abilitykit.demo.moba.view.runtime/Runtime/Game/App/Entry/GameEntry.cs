@@ -397,6 +397,8 @@ namespace AbilityKit.Game
         private string _localDebugMessage;
         private string _replaceHeroIdText = "1001";
         private Vector2 _heroOptionsScroll;
+        private float _localDebugPanelScale = 1f;
+        private bool _localDebugPanelVisible = true;
 
         public void Bind(GameEntry entry)
         {
@@ -405,6 +407,8 @@ namespace AbilityKit.Game
                 _localDebug = null;
                 _localDebugMessage = null;
                 _replaceHeroIdText = "1001";
+                _localDebugPanelVisible = true;
+                _localDebugPanelScale = 1f;
             }
 
             _entry = entry;
@@ -450,9 +454,31 @@ namespace AbilityKit.Game
                 ? _localDebug.CaptureSnapshot()
                 : default;
 
+            if (GUI.Button(
+                    new Rect(Screen.width - 160f, 10f, 150f, 32f),
+                    _localDebugPanelVisible ? "隐藏调试面板" : "显示调试面板"))
+            {
+                _localDebugPanelVisible = !_localDebugPanelVisible;
+            }
+
+            if (!_localDebugPanelVisible) return;
+
             const float width = 300f;
-            var height = Mathf.Min(520f, Screen.height - 20f);
-            GUILayout.BeginArea(new Rect(Screen.width - width - 10f, 10f, width, height), "英雄技能验收", GUI.skin.window);
+            var height = Mathf.Min(520f, Screen.height - 60f);
+            var previousMatrix = GUI.matrix;
+            GUIUtility.ScaleAroundPivot(
+                new Vector2(_localDebugPanelScale, _localDebugPanelScale),
+                new Vector2(Screen.width - 10f, 50f));
+            GUILayout.BeginArea(new Rect(Screen.width - width - 10f, 50f, width, height), "英雄技能验收", GUI.skin.window);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("面板缩放", GUILayout.Width(70f));
+            _localDebugPanelScale = GUILayout.HorizontalSlider(
+                _localDebugPanelScale,
+                0.55f,
+                1f,
+                GUILayout.Width(150f));
+            GUILayout.Label($"{Mathf.RoundToInt(_localDebugPanelScale * 100f)}%", GUILayout.Width(42f));
+            GUILayout.EndHorizontal();
             GUILayout.Label("版本：hero-replacement-v8");
             GUILayout.Label($"根阶段：{(sink != null ? sink.CurrentRootPhase.ToString() : "缺失")}");
 
@@ -549,6 +575,7 @@ namespace AbilityKit.Game
             }
 
             GUILayout.EndArea();
+            GUI.matrix = previousMatrix;
 #endif
         }
 

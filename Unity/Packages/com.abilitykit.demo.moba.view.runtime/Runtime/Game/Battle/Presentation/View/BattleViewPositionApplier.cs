@@ -103,6 +103,7 @@ namespace AbilityKit.Game.Flow
             }
             handle.LastDisplayedPos = next;
             handle.HasLastDisplayed = true;
+            BattleViewActorTransformRegistry.Set(handle.ActorId, go.transform);
 
             _attachedVfx?.SyncPosition(handle, in next);
         }

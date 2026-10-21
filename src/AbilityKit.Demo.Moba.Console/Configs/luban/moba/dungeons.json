@@ -67,5 +67,21 @@
     "OutcomeRuleId": "triggers_authoritative",
     "RequiredPortGroups": [],
     "Tags": []
+  },
+  {
+    "Id": 5,
+    "Name": "10-Minute Timed Battle",
+    "GameplayId": 2,
+    "FlowProfileId": "moba.standard",
+    "MinPlayerCount": 1,
+    "MaxPlayerCount": 10,
+    "AllowedHostModes": [],
+    "SceneProviderId": "unity_map",
+    "GameplayHandlerId": "team_deathmatch",
+    "OutcomeRuleId": "team_deathmatch",
+    "RequiredPortGroups": [
+      "deathmatch"
+    ],
+    "Tags": []
   }
 ]

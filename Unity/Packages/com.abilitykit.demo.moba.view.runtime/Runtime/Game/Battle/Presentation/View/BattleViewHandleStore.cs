@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 using AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
@@ -66,6 +67,36 @@ namespace AbilityKit.Game.Flow
         {
             _handles.Clear();
             _actors.Clear();
+        }
+    }
+
+    internal static class BattleViewActorTransformRegistry
+    {
+        private static readonly Dictionary<int, Transform> Transforms =
+            new Dictionary<int, Transform>(128);
+
+        public static void Set(int actorId, Transform transform)
+        {
+            if (actorId > 0 && transform != null) Transforms[actorId] = transform;
+        }
+
+        public static bool TryGet(int actorId, out Vector3 position)
+        {
+            position = default;
+            if (actorId <= 0 || !Transforms.TryGetValue(actorId, out var transform)) return false;
+            if (transform == null)
+            {
+                Transforms.Remove(actorId);
+                return false;
+            }
+
+            position = transform.position;
+            return true;
+        }
+
+        public static void Remove(int actorId)
+        {
+            if (actorId > 0) Transforms.Remove(actorId);
         }
     }
 }

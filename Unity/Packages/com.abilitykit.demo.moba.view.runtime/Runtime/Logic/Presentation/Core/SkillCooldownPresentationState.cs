@@ -29,7 +29,7 @@ namespace AbilityKit.Game.Flow
         }
 
         public bool IsDisabled =>
-            _availability == SkillAvailabilityState.Disabled && _disableReason != 0;
+            _availability == SkillAvailabilityState.Disabled;
 
         public static SkillCooldownPresentationState FromSnapshot(
             in SkillStateData state,

@@ -54,5 +54,20 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(14)]
         public int GlobalCooldownRemainingMs;
 
+        [MemoryPackOrder(15)]
+        public AbilityKit.Protocol.Moba.StateSync.MobaSkillCastingState? CastingState;
+
+        [MemoryPackOrder(16)]
+        public int? CastElapsedMs;
+
+        [MemoryPackOrder(17)]
+        public int? CastTotalMs;
+
+        [MemoryPackOrder(18)]
+        public int? CastTier;
+
+        [MemoryPackOrder(19)]
+        public int? CastMaxTier;
+
     }
 }

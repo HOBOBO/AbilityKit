@@ -29,6 +29,12 @@ public sealed partial class DRSkillButtonTemplates : Luban.BeanBase
         SelectRange = _buf.ReadFloat();
         SelfRadius = _buf.ReadFloat();
         UsePointMode = (SkillUsePointMode)_buf.ReadInt();
+        LockProjectileRadius = _buf.ReadFloat();
+        FanAngleDegrees = _buf.ReadFloat();
+        FanRadius = _buf.ReadFloat();
+        LockOnDurationMs = _buf.ReadInt();
+        DashDistance = _buf.ReadFloat();
+        SectorAngleDegrees = _buf.ReadFloat();
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
     }
@@ -91,6 +97,30 @@ public sealed partial class DRSkillButtonTemplates : Luban.BeanBase
     /// </summary>
     public readonly SkillUsePointMode UsePointMode;
     /// <summary>
+    /// ??????????????
+    /// </summary>
+    public readonly float LockProjectileRadius;
+    /// <summary>
+    /// ????????????
+    /// </summary>
+    public readonly float FanAngleDegrees;
+    /// <summary>
+    /// ????????
+    /// </summary>
+    public readonly float FanRadius;
+    /// <summary>
+    /// ??????????????
+    /// </summary>
+    public readonly int LockOnDurationMs;
+    /// <summary>
+    /// ????????????
+    /// </summary>
+    public readonly float DashDistance;
+    /// <summary>
+    /// ????????????
+    /// </summary>
+    public readonly float SectorAngleDegrees;
+    /// <summary>
     /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
     /// </summary>
     public readonly string OmittedFields;
@@ -122,6 +152,12 @@ public sealed partial class DRSkillButtonTemplates : Luban.BeanBase
         + "SelectRange:" + SelectRange + ","
         + "SelfRadius:" + SelfRadius + ","
         + "UsePointMode:" + UsePointMode + ","
+        + "LockProjectileRadius:" + LockProjectileRadius + ","
+        + "FanAngleDegrees:" + FanAngleDegrees + ","
+        + "FanRadius:" + FanRadius + ","
+        + "LockOnDurationMs:" + LockOnDurationMs + ","
+        + "DashDistance:" + DashDistance + ","
+        + "SectorAngleDegrees:" + SectorAngleDegrees + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
         + "}";

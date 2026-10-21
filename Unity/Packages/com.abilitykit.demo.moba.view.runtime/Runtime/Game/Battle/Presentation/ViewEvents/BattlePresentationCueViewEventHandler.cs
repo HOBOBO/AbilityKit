@@ -2,6 +2,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Vfx;
+using AbilityKit.Game.Flow.Battle.Hud;
 using System.Collections.Generic;
 using EC = AbilityKit.World.ECS;
 
@@ -99,13 +100,35 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         private void HandleSnapshotEntry(in PresentationCueData data)
         {
-            var decision = _resolver.Resolve(in data);
+            var decision = ResolveDecision(in data);
             var update = BattlePresentationCueReconciliationMapper.CreateUpdate(
                 in data,
                 in decision,
                 _reconciliation.CurrentGeneration);
             var reconciliation = _reconciliation.Process(in update);
             _views.Apply(in reconciliation);
+        }
+
+        private BattlePresentationCueDecision ResolveDecision(in PresentationCueData data)
+        {
+            if (data.Domain != PresentationCueDomain.Tag ||
+                !BattleHudStatusCueFilter.TryResolveTagVfx(in data, out var vfxId, out var durationMs))
+                return _resolver.Resolve(in data);
+
+            var requestKey = BattlePresentationCueRequestKey.From(in data);
+            if (requestKey.IsEmpty) return BattlePresentationCueDecision.None;
+            if (data.PredictionState == PresentationCuePredictionState.Rejected ||
+                BattlePresentationCueResolver.ShouldStop(data.Stage))
+                return new BattlePresentationCueDecision(BattlePresentationCueDecisionKind.Stop, requestKey, default);
+            if (!BattlePresentationCueResolver.ShouldStart(data.Stage) &&
+                !BattlePresentationCueResolver.ShouldKeepActive(data.Stage))
+                return BattlePresentationCueDecision.None;
+
+            var spawn = BattlePresentationCueResolver.CreateSpawnRequest(
+                requestKey, in data, vfxId, durationMs);
+            return spawn.IsEmpty
+                ? BattlePresentationCueDecision.None
+                : new BattlePresentationCueDecision(BattlePresentationCueDecisionKind.Play, requestKey, spawn);
         }
 
         internal bool BeginReconciliationGeneration(long generation)

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Network.Battle.Projection;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.World.ECS;
 using UnityEngine;
 
@@ -104,9 +105,13 @@ namespace AbilityKit.Game.Flow
             if (!_viewLookup.TryResolve(_viewWorld, netId, out var viewEntity))
             {
                 if (_viewContext?.EntityFactory == null || !data.Has(ActorProjectionFields.Spawn)) return;
-                viewEntity = data.Kind == 2
+                viewEntity = data.Kind == (int)SpawnEntityKind.Projectile
                     ? _viewContext.EntityFactory.CreateProjectile(netId, new BattleNetId(data.OwnerNetId), data.Code)
-                    : _viewContext.EntityFactory.CreateCharacter(netId, data.Code);
+                    : data.Kind == (int)SpawnEntityKind.Minion
+                        ? _viewContext.EntityFactory.CreateMinion(netId, data.Code)
+                        : data.Kind == (int)SpawnEntityKind.Summon
+                            ? _viewContext.EntityFactory.CreateSummon(netId, data.Code, new BattleNetId(data.OwnerNetId))
+                            : _viewContext.EntityFactory.CreateCharacter(netId, data.Code);
             }
 
             if (viewEntity.TryGetRef(out BattleTransformComponent viewTransform) && viewTransform != null)

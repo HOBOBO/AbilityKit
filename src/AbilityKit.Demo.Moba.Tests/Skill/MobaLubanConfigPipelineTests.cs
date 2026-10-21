@@ -117,6 +117,23 @@ public sealed class MobaLubanConfigPipelineTests
     }
 
     [Fact]
+    public void Gameplay_catalog_carries_the_authoritative_map_binding()
+    {
+        var assets = new ConsoleTextAssetLoader();
+        Assert.True(assets.TryLoadBytes("luban/moba_bytes/gameplays.bytes", out var bytes));
+        var rows = new moba_luban.Gameplays(Luban.ByteBuf.Wrap(bytes)).DataList;
+        Assert.Equal(2, rows.Count);
+        Assert.All(rows, row => Assert.Equal(1, row.MapId));
+
+        var database = new MobaConfigDatabase(textAssetLoader: assets);
+        database.LoadFromGroups(MobaLubanConfigGroups.Create(assets, new[] { "gameplays" }));
+        Assert.True(database.TryGetGameplay(1, out var defaultGameplay));
+        Assert.True(database.TryGetGameplay(2, out var timedGameplay));
+        Assert.Equal(1, defaultGameplay.MapId);
+        Assert.Equal(1, timedGameplay.MapId);
+    }
+
+    [Fact]
     public void Binary_effect_references_resolve_modifiers_and_tags()
     {
         var assets = new ConsoleTextAssetLoader();
@@ -281,7 +298,7 @@ public sealed class MobaLubanConfigPipelineTests
         var triggers = scope.Resolve<TriggerPlanJsonDatabase>();
         // The editor aggregate includes the authored hero trigger plans in
         // addition to the two published rule plans.
-        Assert.Equal(129, triggers.Records.Count);
+        Assert.Equal(132, triggers.Records.Count);
         Assert.True(triggers.TryGetRecordByTriggerId(10070011, out _));
         Assert.True(triggers.TryGetRecordByTriggerId(10010301, out _));
     }
@@ -303,7 +320,7 @@ public sealed class MobaLubanConfigPipelineTests
         Assert.True(JToken.DeepEquals(unity, console));
 
         var triggers = (JArray)unity["Triggers"]!;
-        Assert.Equal(127, triggers.Count);
+        Assert.Equal(130, triggers.Count);
         Assert.Contains(triggers, row => row.Value<int>("TriggerId") == 10070011);
         foreach (var id in new[] { 10010301, 10010311, 10010321 })
         {
@@ -314,7 +331,7 @@ public sealed class MobaLubanConfigPipelineTests
 
         var database = new TriggerPlanJsonDatabase();
         database.LoadFromJson(unity.ToString(), "moba-editor-trigger-aggregate");
-        Assert.Equal(127, database.Records.Count);
+        Assert.Equal(130, database.Records.Count);
         Assert.True(database.TryGetRecordByTriggerId(10010301, out _));
     }
 

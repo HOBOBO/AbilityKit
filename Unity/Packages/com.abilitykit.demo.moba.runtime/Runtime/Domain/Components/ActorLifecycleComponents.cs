@@ -9,6 +9,8 @@ namespace AbilityKit.Demo.Moba.Components
         ProjectileExpired = 1,
         ProjectileHitOrExit = 2,
         ProjectileLauncherCompleted = 3,
+        MinionKilled = 20,
+        MinionTerminal = 21,
         HeroReplaced = 5,
         SummonTimeout = 10,
         SummonOwnerDead = 11,
@@ -78,6 +80,8 @@ namespace AbilityKit.Demo.Moba.Components
                 case ActorDespawnReason.ProjectileHitOrExit: return 30;
                 case ActorDespawnReason.ProjectileExpired: return 20;
                 case ActorDespawnReason.ProjectileLauncherCompleted: return 10;
+                case ActorDespawnReason.MinionKilled: return 60;
+                case ActorDespawnReason.MinionTerminal: return 35;
                 case ActorDespawnReason.Unknown:
                 default: return 0;
             }

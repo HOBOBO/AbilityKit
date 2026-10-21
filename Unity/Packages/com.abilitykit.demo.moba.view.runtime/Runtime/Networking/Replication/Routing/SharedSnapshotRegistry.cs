@@ -20,6 +20,8 @@ namespace AbilityKit.Game.Flow.Snapshot
             PresentationCueSnapshotRoute.RegisterDecoder(pipelineDecoders);
             SkillStateSnapshotRoute.RegisterDecoder(dispatcherDecoders);
             SkillStateSnapshotRoute.RegisterDecoder(pipelineDecoders);
+            ShieldStateSnapshotRoute.RegisterDecoder(dispatcherDecoders);
+            ShieldStateSnapshotRoute.RegisterDecoder(pipelineDecoders);
             GameplayClockSnapshotRoute.RegisterDecoder(dispatcherDecoders);
             GameplayClockSnapshotRoute.RegisterDecoder(pipelineDecoders);
             GameplayMatchSnapshotRoute.RegisterDecoder(dispatcherDecoders);

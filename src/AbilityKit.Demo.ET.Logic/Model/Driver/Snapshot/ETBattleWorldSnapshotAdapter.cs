@@ -23,6 +23,9 @@ namespace ET.Logic
                 case MobaOpCodes.Snapshot.SkillState:
                     return TryConvertSkillState(in snapshot, frameIndex, timestamp, out frameSnapshot);
 
+                case MobaOpCodes.Snapshot.ShieldState:
+                    return TryConvertShieldState(in snapshot, frameIndex, timestamp, out frameSnapshot);
+
                 case MobaOpCodes.Snapshot.DamageEvent:
                     return TryConvertDamageEvent(in snapshot, frameIndex, timestamp, out frameSnapshot);
 
@@ -108,6 +111,17 @@ namespace ET.Logic
                 timestamp: timestamp,
                 type: SnapshotType.Delta,
                 skillStates: states);
+            return true;
+        }
+
+        private static bool TryConvertShieldState(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
+        {
+            if (!ShieldStateSnapshotRoute.TryDecode(in snapshot, out var states) || states.Length == 0)
+            {
+                frameSnapshot = default;
+                return false;
+            }
+            frameSnapshot = new FrameSnapshotData(frameIndex, timestamp, SnapshotType.Delta, shieldStates: states);
             return true;
         }
 

@@ -448,19 +448,15 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            spawnSnapshots.Enqueue(new MobaActorSpawnSnapshotEntry
-            {
-                NetId = spawnResult.ActorId,
-                Kind = (int)SpawnEntityKind.Character,
-                Code = loadout.HeroId,
-                OwnerNetId = sourceActorId,
-                X = spawnPosition.X,
-                Y = spawnPosition.Y,
-                Z = spawnPosition.Z,
-                EntityVersion = context.Services.TryResolve<MobaActorRegistry>(out var actors) && actors != null
-                    ? actors.GetEntityVersion(spawnResult.ActorId)
-                    : 1,
-            });
+            if (!context.Services.TryResolve<MobaActorRegistry>(out var actors) || actors == null ||
+                !spawnSnapshots.TryEnqueueActorSpawn(
+                    actors,
+                    spawnResult.ActorId,
+                    SpawnEntityKind.Character,
+                    loadout.HeroId,
+                    sourceActorId))
+                throw new InvalidOperationException(
+                    $"Could not publish debug-spawned character snapshot. actorId={spawnResult.ActorId}, heroId={loadout.HeroId}.");
 
             result = MobaInputCommandResult.Accepted(
                 command,

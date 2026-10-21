@@ -7,6 +7,7 @@ using AbilityKit.Combat.Collision;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
@@ -240,8 +241,8 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var starfallAreas = MobaAcceptanceTraceAssert.CollectTraceNodesInRoot(records, effectRootId, "AreaSpawn", 40020301);
             var starfallHits = MobaAcceptanceTraceAssert.CollectTraceNodesInRoot(records, effectRootId, "DamageApply", 10020301);
-            Assert.GreaterOrEqual(starfallAreas.Count, 2, "the first two ultimate intervals should each spawn one delayed starfall area.");
-            Assert.AreEqual(2, starfallHits.Count, "the first two delayed starfalls should apply exactly two damage hits in this scenario.");
+            Assert.AreEqual(4, starfallAreas.Count, "the full ultimate duration should spawn four delayed starfall areas while the target remains in range.");
+            Assert.AreEqual(4, starfallHits.Count, "one target should receive exactly four real damage applications during a full ultimate cast.");
         }
 
         [Test]
@@ -256,6 +257,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 const float baseMoveSpeed = 5f;
                 const float buffedMoveSpeed = 7f;
                 var playerActorId = harness.AssertPlayerActorBound();
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f);
 
                 Assert.AreEqual(baseMoveSpeed, harness.GetActorMoveSpeed(playerActorId), 0.01f, "Xiao Qiao base move speed should come from attribute template 1002 before casting.");
                 Assert.IsFalse(harness.HasActorBuff(playerActorId, passiveBuffId), "Passive speed buff should not exist before any skill cast.");
@@ -265,13 +267,17 @@ namespace AbilityKit.Game.Test.UnitTest
                 var castResult = skills.TryCastBySlot(playerActorId, slot: 1, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
                 Assert.IsTrue(castResult.Success, $"Xiao Qiao skill 1 cast should succeed in the passive contract test. failReason={castResult.FailReason}");
 
-                harness.TickUntilSkillStops(playerActorId, 1, maxTicks: 120, message: "Xiao Qiao skill 1 must complete before its cast-complete passive is checked.");
+                harness.TickUntilSkillStops(playerActorId, 1, maxTicks: 120, message: "Xiao Qiao skill 1 must complete before its skill-hit passive is checked.");
 
                 harness.TickUntilTraceNode(MobaExecutionKind.SkillCast, 10020101, maxTicks: 10, message: "Xiao Qiao skill 1 should emit SkillCast after direct cast.");
                 harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, 10020101, maxTicks: 10, message: "Xiao Qiao skill 1 should execute effect 10020101 after direct cast.");
-                harness.TickUntilTraceNode(MobaExecutionKind.BuffApply, passiveBuffId, maxTicks: 30, message: "Xiao Qiao passive should apply buff 10020001 after skill cast completes.");
+                Assert.IsFalse(harness.HasActorBuff(playerActorId, passiveBuffId), "Casting a skill without hitting an enemy must not activate Xiao Qiao's passive.");
+                HeroSkillHeadlessContract.ExecuteBasicAttackDamage(harness, playerActorId, targetActorId, baseDamage: 10f);
+                Assert.IsFalse(harness.HasActorBuff(playerActorId, passiveBuffId), "A basic attack hit must not activate Xiao Qiao's skill-hit passive.");
+                HeroSkillHeadlessContract.ExecuteDamage(harness, playerActorId, targetActorId, 10f, DamageReasonKind.Skill, reasonParam: 10020101, damageType: DamageType.Magic);
+                harness.TickUntilTraceNode(MobaExecutionKind.BuffApply, passiveBuffId, maxTicks: 30, message: "Xiao Qiao passive should apply after her skill damage hits an enemy.");
 
-                Assert.IsTrue(harness.HasActorBuff(playerActorId, passiveBuffId), "Passive speed buff should exist immediately after the cast-triggered passive resolves.");
+                Assert.IsTrue(harness.HasActorBuff(playerActorId, passiveBuffId), "Passive speed buff should exist immediately after a skill hit triggers it.");
                 Assert.AreEqual(buffedMoveSpeed, harness.GetActorMoveSpeed(playerActorId), 0.01f, "Passive speed buff should raise move speed by the configured modifier amount.");
 
                 harness.TickSeconds(2.1f);
@@ -293,13 +299,16 @@ namespace AbilityKit.Game.Test.UnitTest
                 const float baseMoveSpeed = 5f;
                 const float buffedMoveSpeed = 7f;
                 var playerActorId = harness.AssertPlayerActorBound();
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f);
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 Assert.IsNotNull(skills, "SkillCastCoordinator should be available in the single-player harness world.");
 
                 var firstCast = skills.TryCastBySlot(playerActorId, slot: 1, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
                 Assert.IsTrue(firstCast.Success, $"Xiao Qiao first skill 1 cast should succeed. failReason={firstCast.FailReason}");
                 harness.TickUntilSkillStops(playerActorId, 1, maxTicks: 120, message: "Xiao Qiao first cast must complete before its passive is checked.");
-                TickUntilActorBuff(harness, playerActorId, passiveBuffId, maxTicks: 30, message: "Xiao Qiao passive should apply the speed buff after the first cast completes.");
+                Assert.IsFalse(harness.HasActorBuff(playerActorId, passiveBuffId), "An empty first cast must not activate Xiao Qiao's passive.");
+                HeroSkillHeadlessContract.ExecuteDamage(harness, playerActorId, targetActorId, 10f, DamageReasonKind.Skill, reasonParam: 10020101, damageType: DamageType.Magic);
+                TickUntilActorBuff(harness, playerActorId, passiveBuffId, maxTicks: 30, message: "Xiao Qiao passive should apply the speed buff after the first skill hits.");
 
                 Assert.AreEqual(buffedMoveSpeed, harness.GetActorMoveSpeed(playerActorId), 0.01f, "The first passive application should raise move speed.");
                 var firstRemaining = harness.AssertActorBuffRemainingSeconds(playerActorId, passiveBuffId, "Passive speed buff should exist after the first cast.");
@@ -318,6 +327,8 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 var secondCast = skills.TryCastBySlot(playerActorId, slot: 1, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
                 Assert.IsTrue(secondCast.Success, $"Xiao Qiao second skill 1 cast should succeed for refresh validation. failReason={secondCast.FailReason}");
+                harness.TickUntilSkillStops(playerActorId, 1, maxTicks: 120, message: "Xiao Qiao second cast should complete before its hit refreshes the passive.");
+                HeroSkillHeadlessContract.ExecuteDamage(harness, playerActorId, targetActorId, 10f, DamageReasonKind.Skill, reasonParam: 10020101, damageType: DamageType.Magic);
                 var refreshedRemaining = TickUntilActorBuffRemainingAtLeast(
                     harness,
                     playerActorId,

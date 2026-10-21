@@ -27,6 +27,8 @@ namespace AbilityKit.Game.Battle.View
         public event Action<int, Vector2> AimUpdate;
         public event Action<int, Vector2> AimEnd;
         public event Action AimCancel;
+        public event Action<int> PreviewPressed;
+        public event Action<int> PreviewReleased;
 
         public void Bind(IReadOnlyList<SkillButtonView> skills)
         {
@@ -73,6 +75,8 @@ namespace AbilityKit.Game.Battle.View
             bridge.AimUpdate += OnAimUpdate;
             bridge.AimEnd += OnAimEnd;
             bridge.AimCancel += OnAimCancel;
+            bridge.PreviewPressed += OnPreviewPressed;
+            bridge.PreviewReleased += OnPreviewReleased;
         }
 
         private void OnClick(int slot)
@@ -104,6 +108,9 @@ namespace AbilityKit.Game.Battle.View
         {
             AimCancel?.Invoke();
         }
+
+        private void OnPreviewPressed(int slot) => PreviewPressed?.Invoke(slot);
+        private void OnPreviewReleased(int slot) => PreviewReleased?.Invoke(slot);
     }
 
     internal sealed class BattleHudSkillButtonBridgeSetFactory

@@ -36,6 +36,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
             BattleViewCategory.ActiveTurret,
             BattleViewCategory.ActiveMonster,
             BattleViewCategory.ActiveBuilding,
+            BattleViewCategory.ActiveMinion,
             BattleViewCategory.ActiveArea,
             BattleViewCategory.ActiveVfx,
             BattleViewCategory.ActiveFloatingText,

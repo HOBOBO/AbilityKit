@@ -1266,5 +1266,77 @@
     "ConflictGroup": 2,
     "ConditionSetId": 0,
     "Deprecated": false
+  },
+  {
+    "Id": 1000026,
+    "Key": "SunShangxiangArmorBreak",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 8
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.15
+    },
+    "Magnitude": {
+      "SourceType": 3,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 1.5,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1000027,
+    "Key": "SunShangxiangSkill2ArmorBreak",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 8
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.15
+    },
+    "Magnitude": {
+      "SourceType": 3,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 1.5,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
   }
 ]

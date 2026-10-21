@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Share.Config;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEditor.Animations;
 
 namespace AbilityKit.Game.Test.UnitTest
 {
@@ -27,9 +28,68 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Serializable]
+        private sealed class SummonConfigRoot
+        {
+            public SummonDTO[] Items;
+        }
+
+        [Serializable]
         private sealed class VfxConfigRoot
         {
             public VfxDTO[] Items;
+        }
+
+        [Serializable]
+        private sealed class SkillConfigRoot
+        {
+            public SkillDTO[] Items;
+        }
+
+        [Serializable]
+        private sealed class ProjectileConfigRoot
+        {
+            public ProjectileDTO[] Items;
+        }
+
+        [Serializable]
+        private sealed class BuffConfigRoot
+        {
+            public BuffDTO[] Items;
+        }
+
+        [Serializable]
+        private sealed class PresentationTemplateConfigRoot
+        {
+            public PresentationTemplateDTO[] Items;
+        }
+
+        [Serializable]
+        private sealed class BuffHudConfigRoot
+        {
+            public BuffHudDTO[] Items;
+        }
+
+        [Serializable]
+        private sealed class BuffHudDTO
+        {
+            public int Id;
+            public string Name;
+            public string ShortName;
+            public bool ShowCountdown;
+            public bool ShowDisabledHint;
+        }
+
+        [Test]
+        public void SunShangxiangRollBuff_ShouldHaveExportedHudStatus()
+        {
+            var rows = LoadArray<BuffHudConfigRoot, BuffHudDTO>(
+                "luban/moba/buff_hud_templates",
+                root => root.Items);
+
+            var row = Array.Find(rows, item => item != null && item.Id == 10070103);
+            Assert.IsNotNull(row, "Sun Shangxiang's roll move-speed Buff needs a HUD display row.");
+            Assert.AreEqual("Speed", row.ShortName);
+            Assert.IsTrue(row.ShowCountdown, "The roll Buff should show a countdown.");
         }
 
         [Test]
@@ -92,6 +152,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsNotNull(animator, "Hero model has no Animator: " + models[i].PrefabPath);
                 Assert.IsNotNull(animator.runtimeAnimatorController,
                     "Hero model Animator has no controller: " + models[i].PrefabPath);
+                var controller = animator.runtimeAnimatorController as AnimatorController;
+                Assert.IsNotNull(controller,
+                    "Hero model Animator controller is not an AnimatorController asset: " + models[i].PrefabPath);
 
                 var renderers = prefab.GetComponentsInChildren<SkinnedMeshRenderer>(true);
                 Assert.IsNotEmpty(renderers,
@@ -111,7 +174,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 {
                     var state = requiredStates[stateIndex];
                     Assert.IsTrue(
-                        animator.HasState(0, Animator.StringToHash(state)),
+                        HasState(controller.layers[0].stateMachine, state),
                         "Hero model Animator is missing state " + state + ": " + models[i].PrefabPath);
                 }
             }
@@ -139,6 +202,8 @@ namespace AbilityKit.Game.Test.UnitTest
 
             for (var i = 0; i < characters.Length; i++)
             {
+                // The Luban roster also contains minion archetypes; this contract covers the eight hero models.
+                if (characters[i].Id < 1001 || characters[i].Id > 1008) continue;
                 var modelId = characters[i].ModelId;
                 Assert.IsTrue(configuredById.TryGetValue(modelId, out var configured),
                     "Character " + characters[i].Id + " references a missing Luban model: " + modelId);
@@ -147,6 +212,25 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.AreEqual(configured.PrefabPath, presentation.PrefabPath,
                     "Hero model resource path differs between the Luban config and presentation catalog: " + modelId);
             }
+        }
+
+        private static bool HasState(AnimatorStateMachine stateMachine, string stateName)
+        {
+            if (stateMachine == null) return false;
+
+            var states = stateMachine.states;
+            for (var i = 0; i < states.Length; i++)
+            {
+                if (states[i].state != null && states[i].state.name == stateName) return true;
+            }
+
+            var childMachines = stateMachine.stateMachines;
+            for (var i = 0; i < childMachines.Length; i++)
+            {
+                if (HasState(childMachines[i].stateMachine, stateName)) return true;
+            }
+
+            return false;
         }
 
         [Test]
@@ -233,6 +317,167 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 Assert.IsTrue(harness.Config.TryGetProjectile(projectileId, out var projectile), "Missing projectile config: " + projectileId);
                 Assert.AreEqual(expectedVfxId, projectile.VfxId, "Basic attack projectile should reference its matching VFX.");
+            }
+        }
+
+        [Test]
+        public void LubanAirshipSummon_ShouldUseDedicatedModelPrefab()
+        {
+            var summons = LoadArray<SummonConfigRoot, SummonDTO>(
+                "luban/moba/summons",
+                root => root.Items);
+            var models = LoadArray<ModelConfigRoot, ModelDTO>(
+                "luban/moba/models",
+                root => root.Items);
+            var characters = LoadArray<CharacterConfigRoot, CharacterDTO>(
+                "luban/moba/characters",
+                root => root.Items);
+            var airship = Array.Find(summons, item => item != null && item.Id == 1008);
+            var luban = Array.Find(characters, item => item != null && item.Id == 1008);
+            Assert.IsNotNull(airship, "Luban airship summon config is missing.");
+            Assert.IsNotNull(luban, "Luban character config is missing.");
+            Assert.AreNotEqual(luban.ModelId, airship.ModelId,
+                "The airship summon must not reuse Luban's hero model.");
+
+            var model = Array.Find(models, item => item != null && item.Id == airship.ModelId);
+            Assert.IsNotNull(model, "Luban airship model config is missing: " + airship.ModelId);
+            Assert.AreEqual("moba/airship/luban_airship", model.PrefabPath);
+            Assert.IsNotNull(Resources.Load<GameObject>(model.PrefabPath),
+                "Missing Luban airship model resource: " + model.PrefabPath);
+        }
+
+        [Test]
+        public void SunShangxiangAndLubanPresentation_ShouldResolveDedicatedVfxPrefabs()
+        {
+            var expected = new Dictionary<int, string>
+            {
+                { 90007001, "effect/sunshangxiang_skill1_roll" },
+                { 90007002, "effect/sunshangxiang_skill2_grenade" },
+                { 90007003, "effect/sunshangxiang_skill2_explosion" },
+                { 90007004, "effect/sunshangxiang_skill3_cannon" },
+                { 90007005, "effect/sunshangxiang_buff_enhanced" },
+                { 90007006, "effect/sunshangxiang_buff_mark" },
+                { 90008001, "effect/luban_basic_bullet" },
+                { 90008002, "effect/luban_skill1_grenade" },
+                { 90008003, "effect/luban_skill1_explosion" },
+                { 90008004, "effect/luban_skill2_cannon" },
+                { 90008005, "effect/luban_passive_sweep" },
+                { 90008006, "effect/luban_skill3_bomb" },
+            };
+            var entries = LoadArray<VfxConfigRoot, VfxDTO>("vfx/vfx", root => root.Items);
+            var byId = new Dictionary<int, VfxDTO>();
+            foreach (var entry in entries) byId.Add(entry.Id, entry);
+            foreach (var pair in expected)
+            {
+                Assert.IsTrue(byId.TryGetValue(pair.Key, out var vfx), "Missing dedicated VFX config " + pair.Key);
+                Assert.AreEqual(pair.Value, vfx.Resource, "Dedicated VFX resource path mismatch for " + pair.Key);
+                Assert.IsNotNull(Resources.Load<GameObject>(vfx.Resource), "Missing dedicated VFX prefab " + vfx.Resource);
+            }
+        }
+
+        [TestCase(10010101, "buff", 10010000)]
+        [TestCase(10010201, "aoe", 40010201)]
+        [TestCase(10010301, "aoe", 40010301)]
+        [TestCase(10020101, "projectile", 30020101)]
+        [TestCase(10020201, "aoe", 40020201)]
+        [TestCase(10020301, "buff", 10020301)]
+        [TestCase(10030101, "buff", 10030101)]
+        [TestCase(10030201, "aoe", 40030201)]
+        [TestCase(10030301, "aoe", 40030301)]
+        [TestCase(10040101, "buff", 10040101)]
+        [TestCase(10040201, "projectile", 30040201)]
+        [TestCase(10040301, "aoe", 40040301)]
+        [TestCase(10050101, "projectile", 30050101)]
+        [TestCase(10050201, "projectile", 30050201)]
+        [TestCase(10050301, "buff", 10050301)]
+        [TestCase(10060101, "aoe", 40060101)]
+        [TestCase(10060201, "buff", 10060201)]
+        [TestCase(10060301, "projectile", 30060301)]
+        [TestCase(10070101, "buff", 10070101)]
+        [TestCase(10070201, "projectile", 30070202)]
+        [TestCase(10070301, "projectile", 30070302)]
+        [TestCase(10080101, "projectile", 30080101)]
+        [TestCase(10080201, "projectile", 30080201)]
+        [TestCase(10080301, "projectile", 30080401)]
+        public void EightHeroActiveSkills_ShouldResolveReferencedVfx(int skillId, string referenceKind, int referenceId)
+        {
+            var skills = LoadArray<SkillConfigRoot, SkillDTO>("luban/moba/skills", root => root.Items);
+            Assert.IsNotNull(Array.Find(skills, item => item != null && item.Id == skillId),
+                "Configured active skill is missing: " + skillId);
+
+            var vfxId = ResolveReferencedVfx(referenceKind, referenceId);
+            Assert.Greater(vfxId, 0,
+                "Skill " + skillId + " reference " + referenceKind + " " + referenceId + " has no VFX.");
+
+            var entries = LoadArray<VfxConfigRoot, VfxDTO>("vfx/vfx", root => root.Items);
+            var vfx = Array.Find(entries, item => item != null && item.Id == vfxId);
+            Assert.IsNotNull(vfx, "Skill " + skillId + " references missing VFX config: " + vfxId);
+            Assert.IsFalse(string.IsNullOrWhiteSpace(vfx.Resource),
+                "Skill " + skillId + " VFX has an empty resource path: " + vfxId);
+            Assert.IsNotNull(Resources.Load<GameObject>(vfx.Resource),
+                "Skill " + skillId + " VFX prefab is missing: " + vfx.Resource);
+        }
+
+        [Test]
+        public void EveryConfiguredCharacterSkill_ShouldHaveLoadablePressPreviewVfx()
+        {
+            var characters = LoadArray<CharacterConfigRoot, CharacterDTO>(
+                "luban/moba/characters", root => root.Items);
+            var skills = LoadArray<SkillConfigRoot, SkillDTO>(
+                "luban/moba/skills", root => root.Items);
+            var vfxEntries = LoadArray<VfxConfigRoot, VfxDTO>("vfx/vfx", root => root.Items);
+            var skillsById = new Dictionary<int, SkillDTO>();
+            var vfxById = new Dictionary<int, VfxDTO>();
+            foreach (var skill in skills) if (skill != null) skillsById[skill.Id] = skill;
+            foreach (var vfx in vfxEntries) if (vfx != null) vfxById[vfx.Id] = vfx;
+
+            foreach (var character in characters)
+            {
+                if (character == null || character.SkillIds == null) continue;
+                foreach (var skillId in character.SkillIds)
+                {
+                    Assert.IsTrue(skillsById.TryGetValue(skillId, out var skill),
+                        "Character " + character.Id + " references missing skill " + skillId);
+                    Assert.Greater(skill.PreviewVfxId, 0,
+                        "Character " + character.Id + " skill " + skillId + " has no press-preview VFX.");
+                    Assert.IsTrue(vfxById.TryGetValue(skill.PreviewVfxId, out var vfx),
+                        "Skill " + skillId + " references missing preview VFX " + skill.PreviewVfxId);
+                    Assert.IsFalse(string.IsNullOrWhiteSpace(vfx.Resource),
+                        "Skill " + skillId + " preview VFX has no resource path.");
+                    Assert.IsNotNull(Resources.Load<GameObject>(vfx.Resource),
+                        "Skill " + skillId + " preview prefab is missing: " + vfx.Resource);
+                }
+            }
+        }
+
+        private static int ResolveReferencedVfx(string referenceKind, int referenceId)
+        {
+            switch (referenceKind)
+            {
+                case "aoe":
+                    var aoes = LoadArray<AoeConfigRoot, AoeDTO>("luban/moba/aoes", root => root.Items);
+                    var aoe = Array.Find(aoes, item => item != null && item.Id == referenceId);
+                    Assert.IsNotNull(aoe, "Missing AOE config: " + referenceId);
+                    return aoe.VfxId;
+                case "projectile":
+                    var projectiles = LoadArray<ProjectileConfigRoot, ProjectileDTO>(
+                        "luban/moba/projectiles", root => root.Items);
+                    var projectile = Array.Find(projectiles, item => item != null && item.Id == referenceId);
+                    Assert.IsNotNull(projectile, "Missing projectile config: " + referenceId);
+                    return projectile.VfxId > 0 ? projectile.VfxId : projectile.OnHitVfxId;
+                case "buff":
+                    var buffs = LoadArray<BuffConfigRoot, BuffDTO>("luban/moba/buffs", root => root.Items);
+                    var buff = Array.Find(buffs, item => item != null && item.Id == referenceId);
+                    Assert.IsNotNull(buff, "Missing buff config: " + referenceId);
+                    var templates = LoadArray<PresentationTemplateConfigRoot, PresentationTemplateDTO>(
+                        "luban/moba/presentation_templates", root => root.Items);
+                    var template = Array.Find(templates, item => item != null && item.Id == buff.PresentationTemplateId);
+                    Assert.IsNotNull(template, "Buff " + referenceId + " references missing presentation template: " +
+                        buff.PresentationTemplateId);
+                    return template.AssetId > 0 ? template.AssetId : buff.PresentationTemplateId;
+                default:
+                    Assert.Fail("Unknown VFX reference kind: " + referenceKind);
+                    return 0;
             }
         }
     }

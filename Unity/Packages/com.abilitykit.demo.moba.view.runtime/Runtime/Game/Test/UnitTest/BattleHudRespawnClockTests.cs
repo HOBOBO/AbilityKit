@@ -28,7 +28,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsFalse(context.TryGetRuntimeWorld(out _));
                 clock.Bind((RectTransform)root.transform);
                 clock.SetLocalActorId(12);
-                Assert.IsTrue(controller.Bind(context, null, null, null, null,
+                Assert.IsTrue(controller.Bind(context, null, null, null,
+                    (Action<PresentationCueData[]>)null,
                     gameplayRespawnReceived: clock.Apply));
                 var label = root.transform.Find("RespawnClock/Remaining").GetComponent<Text>();
 

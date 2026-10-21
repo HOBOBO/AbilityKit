@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -9,90 +8,66 @@ namespace AbilityKit.Game.Flow
 {
     public sealed class DemoLobbyOnGUIFeature : IGamePhaseFeature, IOnGUIFeature
     {
-        private readonly List<BattleStartPresetSO> _presets = new List<BattleStartPresetSO>(8);
         private BattleStartConfig _config;
-        private Vector2 _scroll;
         private bool _loaded;
-        private bool _show = true;
+        private bool _autoEntryAttempted;
 
         public void OnAttach(in GamePhaseContext ctx)
         {
+            _autoEntryAttempted = false;
             LoadAssets(ctx.Entry as GameEntry);
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
+            _loaded = false;
+            _config = null;
+            _autoEntryAttempted = false;
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
         {
-        }
-
-        public void OnGUI(in GamePhaseContext ctx)
-        {
-            if (!_show) return;
-            if (ctx.Entry == null) return;
+            if (_autoEntryAttempted || ctx.Entry == null) return;
 
             var selection = ctx.Entry.Get<LobbyBattleEntrySelection>();
-            if (selection?.IsRemoteSelected == true) return;
-
-            var sink = ctx.Entry.Get<IFlowCommandSink>();
-            if (sink != null && sink.CurrentRootPhase == MobaRootState.Battle) return;
-
+            // A remote launch is owned by FormalLobbyFeature and must keep its
+            // room/ready/start flow. Local mode can enter through the same path
+            // used by the old Start Default Battle button.
             if (!_loaded)
             {
                 LoadAssets(ctx.Entry as GameEntry);
             }
+            if (_config == null) return;
 
-            GUILayout.BeginArea(new Rect(10, 10, 360, 260), GUI.skin.window);
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("MOBA Demo Lobby");
-            if (GUILayout.Button("Hide", GUILayout.Width(56)))
-            {
-                _show = false;
-            }
-            GUILayout.EndHorizontal();
+            var sink = ctx.Entry.Get<IFlowCommandSink>();
+            var alreadyInBattle = sink != null && sink.CurrentRootPhase == MobaRootState.Battle;
+            if (!ShouldAutoEnterLocalBattle(
+                    selection,
+                    alreadyInBattle,
+                    _config != null,
+                    _autoEntryAttempted))
+                return;
 
-            if (_config == null)
-            {
-                GUILayout.Label("BattleStartConfig asset not found.");
-            }
-            else
-            {
-                DrawPresetButtons(ctx);
-            }
-
-            GUILayout.Space(6);
-            if (GUILayout.Button("Start Default Battle", GUILayout.Height(30)))
-            {
-                EnterBattle(ctx, null);
-            }
-
-            GUILayout.EndArea();
+            _autoEntryAttempted = true;
+            EnterBattle(ctx, null);
         }
 
-        private void DrawPresetButtons(in GamePhaseContext ctx)
+        internal static bool ShouldAutoEnterLocalBattle(
+            LobbyBattleEntrySelection selection,
+            bool alreadyInBattle,
+            bool hasBattleConfig,
+            bool alreadyAttempted)
         {
-            if (_presets.Count == 0)
-            {
-                GUILayout.Label("No BattleStartPreset assets found.");
-                return;
-            }
+            return selection?.IsRemoteSelected != true &&
+                   !alreadyInBattle &&
+                   hasBattleConfig &&
+                   !alreadyAttempted;
+        }
 
-            GUILayout.Label("Presets");
-            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(150));
-            for (int i = 0; i < _presets.Count; i++)
-            {
-                var preset = _presets[i];
-                if (preset == null) continue;
-
-                var label = string.IsNullOrEmpty(preset.name) ? $"Preset {i + 1}" : preset.name;
-                if (GUILayout.Button(label, GUILayout.Height(28)))
-                {
-                    EnterBattle(ctx, preset);
-                }
-            }
-            GUILayout.EndScrollView();
+        public void OnGUI(in GamePhaseContext ctx)
+        {
+            // Local mode enters automatically in Tick; multiplayer has its
+            // dedicated lobby UI.
         }
 
         private void EnterBattle(in GamePhaseContext ctx, BattleStartPresetSO preset)
@@ -120,31 +95,12 @@ namespace AbilityKit.Game.Flow
         private void LoadAssets(GameEntry entry)
         {
             _loaded = true;
-            _presets.Clear();
             _config = entry != null ? entry.BattleStartConfig : null;
-
-            var runtimePresets = entry?.BattleStartPresets;
-            if (runtimePresets != null)
-            {
-                for (var i = 0; i < runtimePresets.Count; i++)
-                {
-                    var preset = runtimePresets[i];
-                    if (preset != null && !IsRemotePreset(preset) && !_presets.Contains(preset))
-                    {
-                        _presets.Add(preset);
-                    }
-                }
-            }
 
 #if UNITY_EDITOR
             if (_config == null)
             {
                 _config = LoadFirstAsset<BattleStartConfig>();
-            }
-
-            if (_presets.Count == 0)
-            {
-                LoadAllAssets(_presets);
             }
 #endif
         }
@@ -163,24 +119,6 @@ namespace AbilityKit.Game.Flow
             return null;
         }
 
-        private static void LoadAllAssets<T>(List<T> results) where T : Object
-        {
-            var guids = AssetDatabase.FindAssets($"t:{typeof(T).Name}");
-            for (int i = 0; i < guids.Length; i++)
-            {
-                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
-                var asset = AssetDatabase.LoadAssetAtPath<T>(path);
-                if (asset is BattleStartPresetSO preset && IsRemotePreset(preset))
-                {
-                    continue;
-                }
-
-                if (asset != null && !results.Contains(asset))
-                {
-                    results.Add(asset);
-                }
-            }
-        }
 #endif
     }
 }

@@ -61,6 +61,16 @@ namespace AbilityKit.Game.Flow
             return go;
         }
 
+        public GameObject CreateMinionShell(MobaConfigDatabase configs, int actorId, int modelId)
+        {
+            var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateActorFallback(actorId, modelId));
+            if (go == null) return null;
+            go.name = $"Minion_{actorId}";
+            _attachRoots.Ensure(go);
+            ParentUnderActive(go, BattleEntityKind.Minion);
+            return go;
+        }
+
         public GameObject CreateSummonShell(MobaConfigDatabase configs, int actorId, int modelId)
         {
             var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateSummonFallback(actorId, modelId));

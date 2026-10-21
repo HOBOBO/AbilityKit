@@ -258,6 +258,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         Summon = 2,
         Projectile = 3,
         ProjectileLauncher = 4,
+        Minion = 5,
     }
 
     public readonly struct MobaActorBuildSpec

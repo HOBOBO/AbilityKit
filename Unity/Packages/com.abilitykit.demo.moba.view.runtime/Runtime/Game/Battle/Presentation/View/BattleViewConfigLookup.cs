@@ -7,6 +7,7 @@ namespace AbilityKit.Game.Flow
     internal sealed class BattleViewConfigLookup
     {
         private readonly BattleViewCharacterConfigResolver _characters;
+        private readonly BattleViewMinionConfigResolver _minions;
         private readonly BattleViewProjectileConfigResolver _projectiles;
         private readonly BattleViewSummonConfigResolver _summons;
         private readonly BattleViewModelResolverRegistry _otherModels;
@@ -20,6 +21,7 @@ namespace AbilityKit.Game.Flow
             BattleViewAoeConfigResolver aoes = null)
         {
             _characters = characters ?? new BattleViewCharacterConfigResolver();
+            _minions = new BattleViewMinionConfigResolver();
             _projectiles = projectiles ?? new BattleViewProjectileConfigResolver();
             _summons = summons ?? new BattleViewSummonConfigResolver();
             _otherModels = otherModels ?? new BattleViewModelResolverRegistry();
@@ -37,6 +39,7 @@ namespace AbilityKit.Game.Flow
             switch (meta.Kind)
             {
                 case BattleEntityKind.Character:  return _characters.ResolveModelId(configs, meta);
+                case BattleEntityKind.Minion:      return _minions.ResolveModelId(configs, meta);
                 case BattleEntityKind.Summon:     return _summons.ResolveModelId(configs, meta);
                 case BattleEntityKind.Turret:
                 case BattleEntityKind.Monster:
@@ -54,6 +57,7 @@ namespace AbilityKit.Game.Flow
             switch (kind)
             {
                 case BattleEntityKind.Character:
+                case BattleEntityKind.Minion:
                 case BattleEntityKind.Summon:
                 case BattleEntityKind.Clone:
                 case BattleEntityKind.Turret:

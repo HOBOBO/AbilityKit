@@ -37,6 +37,46 @@ namespace AbilityKit.Demo.Moba.Services
             _pending.Add(entry);
         }
 
+        /// <summary>
+        /// Builds a dynamic spawn entry from the authoritative registered Actor.
+        /// Callers provide only the protocol kind/code and optional owner; position
+        /// and entity version must come from the same logical entity instance.
+        /// </summary>
+        public bool TryEnqueueActorSpawn(
+            MobaActorRegistry actors,
+            int actorId,
+            SpawnEntityKind kind,
+            int code,
+            int ownerNetId = 0)
+        {
+            if (actors == null || actorId <= 0 || code <= 0 || ownerNetId < 0 ||
+                (kind != SpawnEntityKind.Character &&
+                 kind != SpawnEntityKind.Projectile &&
+                 kind != SpawnEntityKind.Minion &&
+                 kind != SpawnEntityKind.Summon) ||
+                !actors.TryGet(actorId, out var actor) || actor == null || !actor.hasTransform)
+            {
+                return false;
+            }
+
+            var position = actor.transform.Value.Position;
+            var entry = new MobaActorSpawnSnapshotEntry
+            {
+                NetId = actorId,
+                Kind = (int)kind,
+                Code = code,
+                OwnerNetId = ownerNetId,
+                X = position.X,
+                Y = position.Y,
+                Z = position.Z,
+                EntityVersion = actors.GetEntityVersion(actorId),
+            };
+            if (entry.EntityVersion <= 0) return false;
+
+            Enqueue(in entry);
+            return true;
+        }
+
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
             if (_hasSnapshot && !_sent)

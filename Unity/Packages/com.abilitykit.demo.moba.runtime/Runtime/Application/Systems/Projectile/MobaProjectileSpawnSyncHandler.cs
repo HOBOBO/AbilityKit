@@ -133,17 +133,15 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
                 return;
             }
 
-            _sys.SpawnSnapshots?.Enqueue(new MobaActorSpawnSnapshotEntry
-            {
-                NetId = projectileActorId,
-                Kind = (int)SpawnEntityKind.Projectile,
-                Code = evt.TemplateId,
-                OwnerNetId = ownerActorId,
-                X = evt.Position.X,
-                Y = evt.Position.Y,
-                Z = evt.Position.Z,
-                EntityVersion = _sys.Registry.GetEntityVersion(projectileActorId)
-            });
+            if (_sys.SpawnSnapshots == null ||
+                !_sys.SpawnSnapshots.TryEnqueueActorSpawn(
+                    _sys.Registry,
+                    projectileActorId,
+                    SpawnEntityKind.Projectile,
+                    evt.TemplateId,
+                    ownerActorId))
+                throw new InvalidOperationException(
+                    $"Could not publish scheduled projectile spawn snapshot. actorId={projectileActorId}, templateId={evt.TemplateId}.");
 
             links.Link(evt.Projectile, projectileActorId);
             AttachConfiguredStateMachine(evt.TemplateId, spawnResult.Entity);

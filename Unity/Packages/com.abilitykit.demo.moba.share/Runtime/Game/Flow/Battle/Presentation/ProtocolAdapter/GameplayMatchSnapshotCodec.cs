@@ -1,11 +1,12 @@
 using System;
 using System.IO;
+using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Share
 {
     public static class GameplayMatchSnapshotCodec
     {
-        public const int OpCode = 4015;
+        public const int OpCode = MobaOpCodes.Snapshot.GameplayMatch;
         private const int Version = 2;
         private const int MaxPayloadLength = 2048;
 

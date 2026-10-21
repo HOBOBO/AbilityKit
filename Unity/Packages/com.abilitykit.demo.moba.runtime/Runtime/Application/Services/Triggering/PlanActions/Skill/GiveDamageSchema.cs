@@ -37,7 +37,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 "attributesourcekind");
             var targetRequest = MobaActionTargetSchemaReader.Read(namedArgs, ctx);
             var magnitude = MobaEffectMagnitudeSchemaReader.Read(namedArgs, in ctx, damageValue);
-            return new GiveDamageArgs(damageValue, reasonParam, damageType, targetRequest, sourceAttackRatio, reasonKind, attributeSource, magnitude);
+            var maxTargetHits = ReadInt(namedArgs, ctx, 0, "max_target_hits", "maxtargethits", "target_hit_limit", "targethitlimit");
+            var targetHitCountKeyBase = ReadInt(namedArgs, ctx, 1200000, "target_hit_count_key_base", "targethitcountkeybase");
+            return new GiveDamageArgs(damageValue, reasonParam, damageType, targetRequest, sourceAttackRatio, reasonKind, attributeSource, magnitude, maxTargetHits, targetHitCountKeyBase);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

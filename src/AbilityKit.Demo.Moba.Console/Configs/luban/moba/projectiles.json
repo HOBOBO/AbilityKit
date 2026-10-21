@@ -143,6 +143,9 @@
   },
   {
     "Id": 30060301,
+    "CollisionHeight": 1.5,
+    "CollisionLength": 0.8,
+    "CollisionWidth": 0.8,
     "HitCooldownMs": 0,
     "HitPolicyKind": 1,
     "HitsRemaining": 1,
@@ -330,7 +333,7 @@
     "ReturnStopDistance": 0,
     "Speed": 20,
     "TickIntervalMs": 33,
-    "VfxId": 90003002
+    "VfxId": 90007002
   },
   {
     "Id": 30070302,
@@ -343,7 +346,9 @@
     "LifetimeMs": 1800,
     "MaxDistance": 18,
     "Name": "SunShangxiang Skill3 Projectile",
-    "OnExitTriggerIds": [],
+    "OnExitTriggerIds": [
+      10070311
+    ],
     "OnExpireVfxId": 0,
     "OnHitEffectId": 10070313,
     "OnHitVfxId": 0,
@@ -357,13 +362,13 @@
     "Speed": 30,
     "StateMachineProfileId": "",
     "TickIntervalMs": 33,
-    "VfxId": 90003003
+    "VfxId": 90007004
   },
   {
     "Id": 30080001,
     "HitCooldownMs": 0,
-    "HitPolicyKind": 1,
-    "HitsRemaining": 3,
+    "HitPolicyKind": 0,
+    "HitsRemaining": 1,
     "LifetimeMs": 1000,
     "MaxDistance": 10,
     "Name": "鲁班七号-普通攻击投射物",
@@ -376,7 +381,7 @@
     "ReturnStopDistance": 0,
     "Speed": 30,
     "TickIntervalMs": 0,
-    "VfxId": 0
+    "VfxId": 90008001
   },
   {
     "Id": 30080101,
@@ -401,7 +406,7 @@
     "ReturnStopDistance": 0,
     "Speed": 20,
     "TickIntervalMs": 33,
-    "VfxId": 0
+    "VfxId": 90008002
   },
   {
     "Id": 30080201,
@@ -410,7 +415,7 @@
     "CollisionWidth": 1,
     "HitCooldownMs": 0,
     "HitPolicyKind": 1,
-    "HitsRemaining": 1,
+    "HitsRemaining": -1,
     "LifetimeMs": 1800,
     "MaxDistance": 18,
     "Name": "鲁班七号-无敌鲨嘴炮投射物",
@@ -428,7 +433,7 @@
     "Speed": 30,
     "StateMachineProfileId": "",
     "TickIntervalMs": 33,
-    "VfxId": 0
+    "VfxId": 90008004
   },
   {
     "Id": 30080301,
@@ -437,7 +442,7 @@
     "CollisionWidth": 1,
     "HitCooldownMs": 0,
     "HitPolicyKind": 1,
-    "HitsRemaining": 1,
+    "HitsRemaining": -1,
     "LifetimeMs": 1800,
     "MaxDistance": 18,
     "Name": "鲁班七号-扫射投射物",
@@ -455,7 +460,7 @@
     "Speed": 30,
     "StateMachineProfileId": "",
     "TickIntervalMs": 33,
-    "VfxId": 0
+    "VfxId": 90008005
   },
   {
     "Id": 30080401,
@@ -482,6 +487,6 @@
     "Speed": 30,
     "StateMachineProfileId": "",
     "TickIntervalMs": 33,
-    "VfxId": 0
+    "VfxId": 90008006
   }
 ]

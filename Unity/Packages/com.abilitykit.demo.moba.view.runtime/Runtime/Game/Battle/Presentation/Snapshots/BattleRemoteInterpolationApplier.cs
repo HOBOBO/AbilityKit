@@ -91,7 +91,11 @@ namespace AbilityKit.Game.Flow
                 {
                     entity = actor.Kind == (int)SpawnEntityKind.Projectile
                         ? _factory.CreateProjectile(netId, new BattleNetId(actor.OwnerNetId), actor.Code)
-                        : _factory.CreateCharacter(netId, actor.Code);
+                        : actor.Kind == (int)SpawnEntityKind.Minion
+                            ? _factory.CreateMinion(netId, actor.Code)
+                            : actor.Kind == (int)SpawnEntityKind.Summon
+                                ? _factory.CreateSummon(netId, actor.Code, new BattleNetId(actor.OwnerNetId))
+                                : _factory.CreateCharacter(netId, actor.Code);
                 }
 
                 if (!entity.TryGetRef(out BattleTransformComponent transform) || transform == null)
