@@ -12,7 +12,7 @@ namespace AbilityKit.Demo.Moba.Services
 {
     [MobaSnapshotEmitter(65)]
     [WorldService(typeof(MobaPresentationCueSnapshotService))]
-    public sealed class MobaPresentationCueSnapshotService : IService, IMobaSnapshotEmitter
+    public sealed class MobaPresentationCueSnapshotService : IService, IMobaSnapshotEmitter, IActiveBaselineSnapshotProvider
     {
         private readonly MobaLogicWorldRunGateService _phase;
         private readonly MobaSnapshotBuffer<MobaPresentationCueSnapshotEntry> _events = new MobaSnapshotBuffer<MobaPresentationCueSnapshotEntry>(32, 512);
@@ -25,6 +25,7 @@ namespace AbilityKit.Demo.Moba.Services
         private long _generation = 1;
         private long _worldId;
         private long _rejectedMissingStableKeyCount;
+        private bool _activeBaselineRequested;
 
         public MobaPresentationCueSnapshotService(MobaLogicWorldRunGateService phase)
         {
@@ -37,6 +38,11 @@ namespace AbilityKit.Demo.Moba.Services
         public long Generation => _generation;
         public long WorldId => _worldId;
         public long RejectedMissingStableKeyCount => _rejectedMissingStableKeyCount;
+
+        public void RequestActiveBaseline()
+        {
+            _activeBaselineRequested = true;
+        }
 
         public void SetWorldIdentity(long worldId, long generation)
         {
@@ -148,6 +154,13 @@ namespace AbilityKit.Demo.Moba.Services
             var payload = MobaPresentationCueSnapshotCodec.Serialize(payloadEntries);
             _pool.Return(payloadEntries);
             snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.PresentationCue, payload);
+            return true;
+        }
+
+        public bool ConsumeActiveBaselineRequest()
+        {
+            if (!_activeBaselineRequested) return false;
+            _activeBaselineRequested = false;
             return true;
         }
 
@@ -268,6 +281,7 @@ namespace AbilityKit.Demo.Moba.Services
             _lastFrame = new FrameIndex(-999999);
             _sequence = 0;
             _rejectedMissingStableKeyCount = 0;
+            _activeBaselineRequested = false;
         }
     }
 }

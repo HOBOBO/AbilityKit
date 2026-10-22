@@ -76,6 +76,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _lines.Push(_formatter.FormatPresentationCues(entries));
         }
 
+        public bool RefreshPresentationState() => false;
+
         public void Tick()
         {
         }

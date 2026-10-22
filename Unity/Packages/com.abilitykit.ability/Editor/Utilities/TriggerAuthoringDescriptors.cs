@@ -698,8 +698,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Optional("reason_id", TriggerValueType.Integer),
                 Optional("win_team_id", TriggerValueType.Integer),
                 Optional("win_team_from_event", TriggerValueType.Integer)));
+            catalog.Register(Action("damage_structure_from_minion", "Damage structure from minion", "Action/Gameplay"));
         }
-
         private static TriggerTypeDescriptor Condition(
             string type,
             string displayName,

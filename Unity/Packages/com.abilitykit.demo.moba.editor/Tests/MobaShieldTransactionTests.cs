@@ -22,6 +22,62 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void PreviewAbsorb_ExplainsPersonalAllocationWithoutSharedState()
+        {
+            var service = CreateServiceWithShield(10f);
+            var plan = service.PreviewAbsorb(CreateAttack(), Fixed64.FromSingle(4f));
+
+            Assert.That(plan.HasUnsupportedPolicy, Is.False);
+            Assert.That(plan.AllocationCount, Is.EqualTo(1));
+            Assert.That(plan.GetAllocation(0).Kind, Is.EqualTo(ShieldAllocationKind.PersonalLayer));
+            Assert.That(plan.GetAllocation(0).Policy, Is.EqualTo(ShieldSharePolicy.None));
+            Assert.That(plan.GetAllocation(0).AllocatedValue, Is.EqualTo(Fixed64.FromSingle(4f)));
+        }
+
+        [Test]
+        public void PreviewAbsorb_ReportsUnsupportedCrossActorPolicyExplicitly()
+        {
+            var service = new MobaShieldService();
+            service.AddSharedShield(new[] { 11, 12 }, new ShieldLayer
+            {
+                ShieldId = 499,
+                SourceActorId = 7,
+                CurrentValue = Fixed64.FromSingle(20f),
+                MaxValue = Fixed64.FromSingle(20f),
+                InitialValue = Fixed64.FromSingle(20f),
+                AbsorbRatio = Fixed64.One,
+                SharePolicy = ShieldSharePolicy.LowestHpMemberFirst,
+            });
+
+            var plan = service.PreviewAbsorb(CreateAttack(), Fixed64.FromSingle(4f));
+
+            Assert.That(plan.Absorbed, Is.Zero);
+            Assert.That(plan.HasUnsupportedPolicy, Is.True);
+            Assert.That(plan.UnsupportedPolicyMask & (1 << (int)ShieldSharePolicy.LowestHpMemberFirst), Is.Not.Zero);
+        }
+
+        [Test]
+        public void FinalizeAbsorb_PublishesCommittedTypedChange()
+        {
+            var service = CreateServiceWithShield(10f);
+            ShieldChangeEvent observed = default;
+            var count = 0;
+            service.Changed += (in ShieldChangeEvent change) => { observed = change; count++; };
+
+            var plan = service.PreviewAbsorb(CreateAttack(), Fixed64.FromSingle(4f));
+            Assert.That(service.CommitAbsorb(plan), Is.True);
+            Assert.That(count, Is.Zero);
+            service.FinalizeAbsorb(plan);
+
+            Assert.That(count, Is.EqualTo(1));
+            Assert.That(observed.Kind, Is.EqualTo(ShieldChangeKind.Absorbed));
+            Assert.That(observed.ActorId, Is.EqualTo(TargetActorId));
+            Assert.That(observed.OldValue, Is.EqualTo(Fixed64.FromSingle(10f)));
+            Assert.That(observed.NewValue, Is.EqualTo(Fixed64.FromSingle(6f)));
+            Assert.That(observed.Revision, Is.GreaterThan(0));
+        }
+
+        [Test]
         public void PresentationSnapshot_SeparatesPersonalAndSharedValue()
         {
             var service = CreateServiceWithShield(12f);

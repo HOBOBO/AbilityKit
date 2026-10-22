@@ -139,6 +139,12 @@ namespace AbilityKit.Demo.Moba.Services
             if (_links != null && _links.TryGetActorId(projectile, out var projectileActorId) && projectileActorId > 0)
             {
                 entry.ProjectileActorId = projectileActorId;
+                return;
+            }
+
+            if (_links != null && _links.TryGetRetiredActorId(projectile, out projectileActorId) && projectileActorId > 0)
+            {
+                entry.ProjectileActorId = projectileActorId;
             }
         }
 

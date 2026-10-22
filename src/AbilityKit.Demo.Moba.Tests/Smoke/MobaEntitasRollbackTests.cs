@@ -13,6 +13,7 @@ using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.EntityManager;
+using AbilityKit.Triggering.Blackboard;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
@@ -279,6 +280,26 @@ public sealed class MobaEntitasRollbackTests
         Assert.True(first.TryGet(CommandRollbackStateProvider.DefaultKey, out var firstProvider));
         Assert.True(second.TryGet(CommandRollbackStateProvider.DefaultKey, out var secondProvider));
         Assert.Same(firstProvider, secondProvider);
+    }
+
+    [Fact]
+    public void Registry_builder_ignores_registered_actors_without_owner_blackboards()
+    {
+        var contexts = new Contexts();
+        var actorRegistry = new MobaActorRegistry();
+        var actor = contexts.actor.CreateEntity();
+        actor.AddActorId(1);
+        actorRegistry.Register(1, actor);
+        var services = new TestWorldResolver();
+        services.Add(actorRegistry);
+        services.Add<IOwnerBlackboardStore>(new OwnerBlackboardStore());
+        using var world = new TestEntitasWorld(contexts, services);
+        var registry = MobaRollbackRegistryBuilder.Create(world);
+
+        Assert.True(registry.TryGet(MobaOwnerBlackboardRollbackProvider.DefaultKey, out var provider));
+        var payload = provider.Export(new FrameIndex(0));
+        var preflight = Assert.IsAssignableFrom<IRollbackStatePreflightProvider>(provider);
+        preflight.ValidateImport(new FrameIndex(0), payload);
     }
 
     [Fact]

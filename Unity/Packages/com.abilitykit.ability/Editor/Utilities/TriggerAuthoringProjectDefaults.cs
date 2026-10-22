@@ -29,6 +29,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Exact("health.change.committed", "生命值已变化", "生命值", "MobaHealthChangeResult", HealthChangeFields(), false, true),
                 Exact("heal.apply.before", "应用治疗前", "治疗", "MobaHealRequest", HealRequestFields(), false, true),
                 Exact("heal.apply.after", "应用治疗后", "治疗", "MobaHealthChangeResult", HealthChangeFields(), false, true)
+                ,Exact("minion.base_damage", "Minion base damage", "Minion", "MobaMinionBaseDamageEvent", MinionBaseDamageFields(), false, true),
+                Exact("structure.damaged", "Structure damaged", "Structure", "MobaStructureEventArgs", StructureFields(), false, true),
+                Exact("structure.destroyed", "Structure destroyed", "Structure", "MobaStructureEventArgs", StructureFields(), false, true),
             };
             AddExactEvents(events, new[]
             {
@@ -237,6 +240,27 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 Field("event_id", TriggerValueType.String), Field("source_actor_id", TriggerValueType.Integer),
                 Field("target_actor_id", TriggerValueType.Integer), Field("presentation_id", TriggerValueType.Integer)
+            };
+        }
+
+        private static List<TriggerPayloadFieldData> MinionBaseDamageFields()
+        {
+            return new List<TriggerPayloadFieldData>
+            {
+                Field("actor_id", TriggerValueType.Integer), Field("source_team_id", TriggerValueType.Integer),
+                Field("target_team_id", TriggerValueType.Integer), Field("damage", TriggerValueType.Integer),
+                Field("wave_id", TriggerValueType.Integer), Field("frame", TriggerValueType.Integer)
+            };
+        }
+
+        private static List<TriggerPayloadFieldData> StructureFields()
+        {
+            return new List<TriggerPayloadFieldData>
+            {
+                Field("structure_actor_id", TriggerValueType.Integer), Field("structure_id", TriggerValueType.Integer),
+                Field("structure_kind", TriggerValueType.Integer), Field("team_id", TriggerValueType.Integer),
+                Field("winner_team_id", TriggerValueType.Integer), Field("source_actor_id", TriggerValueType.Integer),
+                Field("damage", TriggerValueType.Number), Field("remaining_hp", TriggerValueType.Number)
             };
         }
 

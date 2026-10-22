@@ -53,7 +53,8 @@ namespace AbilityKit.Demo.Moba.Services
                 (kind != SpawnEntityKind.Character &&
                  kind != SpawnEntityKind.Projectile &&
                  kind != SpawnEntityKind.Minion &&
-                 kind != SpawnEntityKind.Summon) ||
+                 kind != SpawnEntityKind.Summon &&
+                 kind != SpawnEntityKind.Building) ||
                 !actors.TryGet(actorId, out var actor) || actor == null || !actor.hasTransform)
             {
                 return false;

@@ -127,11 +127,59 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        [Test]
+        public void View_handler_rebind_baseline_is_idempotent_and_empty_baseline_clears_stale_view()
+        {
+            const int vfxId = 7101;
+            var world = new EntityWorld();
+            var root = world.Create("baseline-cue-root");
+            var vfx = new BattleVfxManager(new VfxDatabase(new Dictionary<int, VfxDTO>
+            {
+                [vfxId] = new VfxDTO { Id = vfxId, Resource = "missing/baseline-cue", DurationMs = 300 },
+            }));
+            var handler = new BattlePresentationCueViewEventHandler(world, null, vfx, in root);
+            var cue = CreateCue("persistent-aura", 0, PresentationCuePredictionState.None, 0,
+                snapshotKind: PresentationCueSnapshotKind.ActiveBaseline,
+                lifetime: PresentationCueLifetime.PersistentState,
+                worldId: 44,
+                generation: 1);
+            var key = BattlePresentationCueRequestKey.From(in cue);
+
+            try
+            {
+                handler.HandleSnapshot(new[]
+                {
+                    cue,
+                    CreateBaselineEnd(worldId: 44, generation: 1),
+                });
+                var firstEntity = GetActiveEntityId(handler, key);
+
+                handler.HandleSnapshot(new[]
+                {
+                    cue,
+                    CreateBaselineEnd(worldId: 44, generation: 1),
+                });
+                Assert.AreEqual(firstEntity, GetActiveEntityId(handler, key));
+
+                handler.HandleSnapshot(new[] { CreateBaselineEnd(worldId: 44, generation: 1) });
+                Assert.IsFalse(world.IsAlive(firstEntity));
+                Assert.Throws<System.InvalidOperationException>(() => GetActiveEntityId(handler, key));
+            }
+            finally
+            {
+                if (root.IsValid && world.IsAlive(root.Id)) world.DestroyRecursive(root.Id);
+            }
+        }
+
         private static PresentationCueData CreateCue(
             string requestKey,
             int predictionKey,
             PresentationCuePredictionState predictionState,
-            int confirmedFrame)
+            int confirmedFrame,
+            PresentationCueSnapshotKind snapshotKind = PresentationCueSnapshotKind.EventDelta,
+            PresentationCueLifetime lifetime = PresentationCueLifetime.Unknown,
+            long worldId = 0,
+            long generation = 0)
         {
             return new PresentationCueData(
                 stage: PresentationCueStage.Started,
@@ -169,7 +217,52 @@ namespace AbilityKit.Game.Test.UnitTest
                 predictionKey: predictionKey,
                 predictionState: predictionState,
                 predictedFrame: 120,
-                confirmedFrame: confirmedFrame);
+                confirmedFrame: confirmedFrame,
+                snapshotKind: snapshotKind,
+                lifetime: lifetime,
+                worldId: worldId,
+                generation: generation);
+        }
+
+        private static PresentationCueData CreateBaselineEnd(long worldId, long generation)
+        {
+            return new PresentationCueData(
+                stage: PresentationCueStage.None,
+                cueKind: string.Empty,
+                cueVfxId: string.Empty,
+                cueSfxId: string.Empty,
+                templateId: 0,
+                vfxId: 0,
+                sfxId: 0,
+                requestKey: string.Empty,
+                sourceActorId: 0,
+                targetActorId: 0,
+                triggerEventId: 0,
+                triggerEventName: string.Empty,
+                triggerId: 0,
+                phase: 0,
+                priority: 0,
+                order: 0,
+                actionIndex: -1,
+                interruptReason: 0,
+                interruptSourceName: null,
+                interruptTriggerId: 0,
+                interruptConditionPassed: false,
+                targets: null,
+                positions: null,
+                offsetX: 0f,
+                offsetY: 0f,
+                offsetZ: 0f,
+                durationMsOverride: 0,
+                scale: 1f,
+                colorR: 1f,
+                colorG: 1f,
+                colorB: 1f,
+                colorA: 1f,
+                lifetime: PresentationCueLifetime.PersistentState,
+                snapshotKind: PresentationCueSnapshotKind.ActiveBaselineEnd,
+                worldId: worldId,
+                generation: generation);
         }
 
         private static EC.IEntityId GetActiveEntityId(

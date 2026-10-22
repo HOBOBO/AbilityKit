@@ -1513,7 +1513,7 @@ namespace AbilityKit.Game.Test.UnitTest
             return int.TryParse(actorId, out value) && value > 0;
         }
 
-        private static void AssertPlanContainsAction(TriggerPlan<object> plan, int actionId, string message)
+        private void AssertPlanContainsAction(TriggerPlan<object> plan, int actionId, string message)
         {
             var actions = plan.Actions;
             if (actions != null)
@@ -1527,7 +1527,36 @@ namespace AbilityKit.Game.Test.UnitTest
                 }
             }
 
+            if (TryGetPlanActionRoot(plan.TriggerId, out var root) && ContainsAction(root, actionId))
+            {
+                return;
+            }
+
             Assert.Fail($"{message} Actual actions: {DescribeActionIds(actions)}");
+        }
+
+        private bool TryGetPlanActionRoot(int triggerId, out ITriggerPlanExecutable root)
+        {
+            return World.Services.Resolve<TriggerPlanJsonDatabase>()
+                .TryGetExecutionRootByTriggerId(triggerId, out root);
+        }
+
+        private static bool ContainsAction(ITriggerPlanExecutable node, int actionId)
+        {
+            if (node is ActionCallTriggerPlanExecutable action && (int)action.Action.Id.Value == actionId)
+                return true;
+
+            if (!(node is CompositeTriggerPlanExecutableBase composite))
+                return false;
+
+            var children = composite.Children;
+            for (var i = 0; i < children.Count; i++)
+            {
+                if (children[i] != null && ContainsAction(children[i], actionId))
+                    return true;
+            }
+
+            return false;
         }
 
         private static string DescribeActionIds(ActionCallPlan[] actions)

@@ -118,6 +118,14 @@ namespace AbilityKit.Demo.Moba.Systems
             );
 
             _flowBootstrap.Install(contexts, systems, services);
+
+            // Keep temporary-entity reconciliation explicit until the generated
+            // manifest includes these runtime-owned systems.  Projectile events
+            // must be consumed before actor cleanup in the same post-execute pass.
+            var temporaryEntityCleanup = new global::Entitas.Systems();
+            temporaryEntityCleanup.Add(new AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile.MobaProjectileSyncSystem(contexts, services));
+            temporaryEntityCleanup.Add(new AbilityKit.Demo.Moba.Systems.EntityManager.MobaActorDespawnCleanupSystem(contexts, services));
+            systems.Add(temporaryEntityCleanup);
         }
     }
 }

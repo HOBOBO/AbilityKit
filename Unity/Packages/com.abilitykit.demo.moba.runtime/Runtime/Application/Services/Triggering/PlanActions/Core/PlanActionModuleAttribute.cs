@@ -33,6 +33,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int ExecuteTrigger = 1;
         public const int QueryTargetCollection = 2;
         public const int EndGame = 0;
+        public const int DamageStructureFromMinion = 0;
 
         public const int CancelSkill = 9;
         public const int ConsumeResource = 10;

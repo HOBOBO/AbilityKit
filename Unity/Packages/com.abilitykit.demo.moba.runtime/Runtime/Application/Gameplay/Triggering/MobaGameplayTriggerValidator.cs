@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Gameplay.Structures;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Triggering.Eventing;
@@ -47,6 +48,20 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
             MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.ReasonParam),
             MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.UnitActorId),
             MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.KillerActorId),
+            MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.WaveId),
+            MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.SourceTeamId),
+            MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.TargetTeamId),
+            MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.Frame),
+            MobaBattlePayloadFields.FieldId("actor_id"),
+            MobaBattlePayloadFields.FieldId("damage"),
+            StableStringId.Get("payload:structure_actor_id"),
+            StableStringId.Get("payload:structure_id"),
+            StableStringId.Get("payload:structure_kind"),
+            StableStringId.Get("payload:team_id"),
+            StableStringId.Get("payload:winner_team_id"),
+            StableStringId.Get("payload:source_actor_id"),
+            StableStringId.Get("payload:damage"),
+            StableStringId.Get("payload:remaining_hp"),
         };
 
         public static bool Validate(TriggerPlanJsonDatabase db, MobaEventSubscriptionRegistry eventRegistry)
@@ -167,7 +182,12 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
                 return;
             }
 
-            MobaRuntimeLog.Warning(MobaRuntimeLogModule.Triggering, MobaRuntimeLogPurpose.Validation, nameof(MobaGameplayTriggerValidator), "validation completed. " + report.FormatSummary());
+            MobaRuntimeLog.Warning(
+                MobaRuntimeLogModule.Triggering,
+                MobaRuntimeLogPurpose.Validation,
+                nameof(MobaGameplayTriggerValidator),
+                "validation completed. " + report.FormatSummary() +
+                (report.HasErrors ? "\n" + report.FormatAllEntries() : string.Empty));
         }
 
         private static bool IsGameplayRecord(TriggerPlanJsonDatabase.Record record)

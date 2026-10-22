@@ -29,6 +29,19 @@ namespace AbilityKit.Demo.Moba.Services
         bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot);
     }
 
+    /// <summary>
+    /// Optional snapshot source for reconnect/view-rebind baselines. A baseline is
+    /// requested explicitly and is emitted once on the next router pull.
+    /// </summary>
+    public interface IActiveBaselineSnapshotProvider
+    {
+        void RequestActiveBaseline();
+
+        bool ConsumeActiveBaselineRequest();
+
+        bool TryGetActiveBaseline(out WorldStateSnapshot snapshot);
+    }
+
     public readonly struct MobaSnapshotEmitterHealthEntry
     {
         public readonly Type EmitterType;
@@ -253,5 +266,9 @@ namespace AbilityKit.Demo.Moba.Services
     public interface IMobaSnapshotBatchProvider
     {
         int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32);
+
+        int CollectActiveBaselines(IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32);
+
+        bool RequestActiveBaseline(Type emitterType = null);
     }
 }

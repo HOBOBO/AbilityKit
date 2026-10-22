@@ -5,5 +5,12 @@
     "ShortName": "Speed",
     "ShowCountdown": true,
     "ShowDisabledHint": false
+  },
+  {
+    "Id": 10020001,
+    "Name": "Xiao Qiao Skill Hit Speed",
+    "ShortName": "Speed",
+    "ShowCountdown": true,
+    "ShowDisabledHint": false
   }
 ]

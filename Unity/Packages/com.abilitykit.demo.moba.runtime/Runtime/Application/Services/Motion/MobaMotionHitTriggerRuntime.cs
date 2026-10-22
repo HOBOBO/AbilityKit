@@ -348,30 +348,48 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             }
 
             // 沿 to→from 二分（固定 16 步，确定性），找最近出墙点。lo=墙内侧(to)、hi=墙外侧(from)。
-            const int steps = 16;
-            var lo = 0f;
-            var hi = 1f;
-            for (var i = 0; i < steps; i++)
+            var direction = to - from;
+            var planarLength = DeterministicMathBridge.Sqrt(direction.X * direction.X + direction.Z * direction.Z);
+            if (planarLength <= 1e-6f)
             {
-                var mid = (lo + hi) * 0.5f;
-                var p = new Vec3(
-                    to.X + (from.X - to.X) * mid,
-                    to.Y + (from.Y - to.Y) * mid,
-                    to.Z + (from.Z - to.Z) * mid);
-                if (Overlap(moverId, in p, radius, obstacleMask, ignoreMask))
-                {
-                    lo = mid;
-                }
-                else
-                {
-                    hi = mid;
-                }
+                projectedPosition = to;
+                return false;
             }
 
-            projectedPosition = new Vec3(
-                to.X + (from.X - to.X) * hi,
-                to.Y + (from.Y - to.Y) * hi,
-                to.Z + (from.Z - to.Z) * hi);
+            direction = new Vec3(direction.X / planarLength, 0f, direction.Z / planarLength);
+            var insideDistance = 0f;
+            var outsideDistance = ProjectionSearchStep;
+            var foundExit = false;
+            while (outsideDistance <= ProjectionMaxDistance)
+            {
+                var candidate = to + direction * outsideDistance;
+                if (!Overlap(moverId, in candidate, radius, obstacleMask, ignoreMask))
+                {
+                    foundExit = true;
+                    break;
+                }
+
+                insideDistance = outsideDistance;
+                outsideDistance += ProjectionSearchStep;
+            }
+
+            if (!foundExit)
+            {
+                projectedPosition = to;
+                return false;
+            }
+
+            for (var i = 0; i < ProjectionBinarySearchSteps; i++)
+            {
+                var mid = (insideDistance + outsideDistance) * 0.5f;
+                var candidate = to + direction * mid;
+                if (Overlap(moverId, in candidate, radius, obstacleMask, ignoreMask))
+                    insideDistance = mid;
+                else
+                    outsideDistance = mid;
+            }
+
+            projectedPosition = to + direction * outsideDistance;
             return true;
         }
 

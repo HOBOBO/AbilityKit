@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 {
@@ -24,12 +26,18 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             for (var i = 0; i < count; i++)
             {
                 var evt = exits[i];
+                // Exit triggers may execute remove_projectile and unlink the
+                // runtime mapping. Capture the actor/source before dispatching
+                // those triggers so the presentation actor is still cleaned up.
+                var hadActorLink = _sys.Links.TryGetActorId(evt.Projectile, out var actorId) && actorId > 0;
+                var hadSource = _sys.Links.TryGetSource(evt.Projectile, out var source);
+                var projectileEntity = hadActorLink ? ResolveProjectileActor(actorId) : null;
                 _sys.ProjectileSnapshots?.RecordExit(evt);
                 _sys.StageTriggers?.ExecuteProjectileExit(evt);
                 DecrementLauncherActiveBullets(evt.LauncherActorId);
-                if (_sys.Links.TryGetActorId(evt.Projectile, out var actorId) && actorId > 0)
+                if (hadActorLink)
                 {
-                    RequestProjectileActorDespawn(evt, actorId);
+                    RequestProjectileActorDespawn(evt, actorId, projectileEntity, hadSource ? source : default);
                 }
                 else
                 {
@@ -40,19 +48,41 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             exits.Clear();
         }
 
-        private void RequestProjectileActorDespawn(in ProjectileExitEvent evt, int actorId)
+        private global::ActorEntity ResolveProjectileActor(int actorId)
         {
             global::ActorEntity projectileEntity = null;
             if (_sys.Registry != null) _sys.Registry.TryGet(actorId, out projectileEntity);
             if (projectileEntity == null && _sys.Entities != null) _sys.Entities.TryGetActorEntity(actorId, out projectileEntity);
-            if (projectileEntity == null) return;
+            if (projectileEntity == null && _sys.ActorContext != null)
+            {
+                var entities = _sys.ActorContext.GetGroup(ActorMatcher.ActorId).GetEntities();
+                for (var i = 0; i < entities.Length; i++)
+                {
+                    var candidate = entities[i];
+                    if (candidate != null && candidate.isEnabled && candidate.hasActorId && candidate.actorId.Value == actorId)
+                    {
+                        projectileEntity = candidate;
+                        break;
+                    }
+                }
+            }
+
+            return projectileEntity;
+        }
+
+        private void RequestProjectileActorDespawn(in ProjectileExitEvent evt, int actorId, global::ActorEntity projectileEntity, in ProjectileSourceContext capturedSource)
+        {
+            if (projectileEntity == null)
+            {
+                return;
+            }
 
             var sourceActorId = evt.OwnerId;
             var sourceContextId = 0L;
-            if (_sys.Links != null && _sys.Links.TryGetSource(evt.Projectile, out var source))
+            if (capturedSource.IsValid)
             {
-                if (source.SourceActorId > 0) sourceActorId = source.SourceActorId;
-                sourceContextId = source.SourceContextId;
+                if (capturedSource.SourceActorId > 0) sourceActorId = capturedSource.SourceActorId;
+                sourceContextId = capturedSource.SourceContextId;
             }
 
             _sys.CleanupProjectileActorOnExit(evt.Projectile, projectileEntity, ActorDespawnReason.ProjectileHitOrExit, sourceActorId, sourceContextId);

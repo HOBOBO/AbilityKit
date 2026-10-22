@@ -6,7 +6,9 @@ using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Context;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Demo.Moba.Gameplay;
+using AbilityKit.Demo.Moba.Gameplay.Structures;
 using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
@@ -25,6 +27,17 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
 public sealed class MobaCompleteBattleLifecycleSmokeTests
 {
+    [Fact]
+    public void Structure_gameplay_events_are_in_the_generated_event_mapping_manifest()
+    {
+        var registry = new MobaEventSubscriptionRegistry();
+
+        Assert.True(registry.TryGetArgsType(MobaMinionEvents.BaseDamage, out var minionArgsType));
+        Assert.Equal(typeof(MobaMinionBaseDamageEvent), minionArgsType);
+        Assert.True(registry.TryGetArgsType(MobaStructureEvents.Destroyed, out var structureArgsType));
+        Assert.Equal(typeof(MobaStructureEventArgs), structureArgsType);
+    }
+
     [Fact]
     public void Map_gameplay_bootstrap_spawns_first_minion_wave()
     {
@@ -88,6 +101,72 @@ public sealed class MobaCompleteBattleLifecycleSmokeTests
             Assert.True(maps.IsPositionWalkable(
                 new AbilityKit.Core.Mathematics.Vec3(entry.X, entry.Y, entry.Z)));
         });
+    }
+
+    [Theory]
+    [InlineData(1, 2)]
+    [InlineData(2, 1)]
+    public void Minion_push_destroys_tower_then_base_and_publishes_winner(int sourceTeam, int targetTeam)
+    {
+        using var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        bootstrapper.Initialize();
+        bootstrapper.Start();
+        for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();
+        bootstrapper.SetupBattle();
+
+        var services = bootstrapper.RuntimeServices!;
+        var events = services.Resolve<AbilityKit.Triggering.Eventing.IEventBus>();
+        var gameplay = services.Resolve<MobaGameplayService>();
+        var actorRegistry = services.Resolve<MobaActorRegistry>();
+        var teamTwoTower = actorRegistry.Entries.Single(entry => entry.Value != null &&
+            entry.Value.hasEntityMainType && entry.Value.entityMainType.Value == EntityMainType.Unit &&
+            entry.Value.hasUnitSubType && entry.Value.unitSubType.Value == UnitSubType.Tower &&
+            entry.Value.hasTeam && (int)entry.Value.team.Value == targetTeam);
+        var destroyedCount = 0;
+        var destroyedEventId = AbilityKit.Demo.Moba.Services.TriggeringIdUtil
+            .GetEventEid(MobaStructureEvents.Destroyed);
+        using var destroyedSubscription = events.Subscribe(
+            new EventKey<MobaStructureEventArgs>(destroyedEventId),
+            _ => destroyedCount++);
+
+        void Push(int damage)
+        {
+            var request = new MobaMinionBaseDamageEvent(1, 90001, sourceTeam, targetTeam, damage, bootstrapper.Context.LastFrame);
+            events.Publish(
+                new EventKey<MobaMinionBaseDamageEvent>(
+                    AbilityKit.Demo.Moba.Services.TriggeringIdUtil.GetEventEid(MobaMinionEvents.BaseDamage)),
+                in request);
+            object boxedRequest = request;
+            events.Publish(
+                new EventKey<object>(
+                    AbilityKit.Demo.Moba.Services.TriggeringIdUtil.GetEventEid(MobaMinionEvents.BaseDamage)),
+                in boxedRequest);
+        }
+
+        Push(1000000);
+        Assert.Equal(MobaGameplayPhase.Running, gameplay.Phase);
+        Assert.Equal(1, destroyedCount);
+
+        bootstrapper.Tick();
+        Push(1000000);
+        Assert.Equal(MobaGameplayPhase.Ended, gameplay.Phase);
+        Assert.Equal("base_destroyed", gameplay.LastResult.Reason);
+        Assert.Equal(sourceTeam, gameplay.LastResult.WinTeamId);
+        Assert.Equal(2, destroyedCount);
+
+        var matchSnapshot = new MobaGameplayMatchSnapshotService(
+            gameplay, services.Resolve<MobaGameplayVariableService>());
+        Assert.True(matchSnapshot.TryGetSnapshot(new FrameIndex(1000), out var endedSnapshot));
+        Assert.True(GameplayMatchSnapshotCodec.TryDecode(endedSnapshot.Payload, out var matchData));
+        Assert.Equal(GameplayClockPhase.Ended, matchData.Phase);
+        Assert.Equal(sourceTeam, matchData.WinTeamId);
+        Assert.Equal("base_destroyed", matchData.EndReason);
+
+        Push(1000000);
+        Assert.Equal(2, destroyedCount);
+        Assert.Equal(sourceTeam, gameplay.LastResult.WinTeamId);
+        Assert.True(teamTwoTower.Value.hasAttributeGroup);
+        Assert.Equal(0f, teamTwoTower.Value.GetMobaAttrs().Hp);
     }
 
     [Fact]

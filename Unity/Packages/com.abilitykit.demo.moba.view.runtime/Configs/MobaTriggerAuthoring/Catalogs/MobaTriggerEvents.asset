@@ -27,7 +27,7 @@ MonoBehaviour:
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 61
+      Data: 64
     - Name: 
       Entry: 7
       Data: 1|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
@@ -4565,35 +4565,35 @@ MonoBehaviour:
       Data: 245|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: skill.precast.start
+      Data: minion.base_damage
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: skill.precast.start
+      Data: Minion base damage
     - Name: Category
       Entry: 1
-      Data: "\u6280\u80FD"
+      Data: Minion
     - Name: PayloadType
       Entry: 1
-      Data: SkillCastContext
+      Data: MobaMinionBaseDamageEvent
     - Name: PayloadFields
       Entry: 7
       Data: 246|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 14
+      Data: 6
     - Name: 
       Entry: 7
       Data: 247|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: skill.id
+      Data: actor_id
     - Name: DisplayName
       Entry: 1
-      Data: skill.id
+      Data: actor_id
     - Name: Type
       Entry: 3
       Data: 1
@@ -4608,10 +4608,10 @@ MonoBehaviour:
       Data: 248|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: skill.slot
+      Data: source_team_id
     - Name: DisplayName
       Entry: 1
-      Data: skill.slot
+      Data: source_team_id
     - Name: Type
       Entry: 3
       Data: 1
@@ -4626,10 +4626,10 @@ MonoBehaviour:
       Data: 249|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: skill.level
+      Data: target_team_id
     - Name: DisplayName
       Entry: 1
-      Data: skill.level
+      Data: target_team_id
     - Name: Type
       Entry: 3
       Data: 1
@@ -4644,13 +4644,13 @@ MonoBehaviour:
       Data: 250|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: skill.cost
+      Data: damage
     - Name: DisplayName
       Entry: 1
-      Data: skill.cost
+      Data: damage
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -4662,13 +4662,13 @@ MonoBehaviour:
       Data: 251|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: skill.cooldown_ms
+      Data: wave_id
     - Name: DisplayName
       Entry: 1
-      Data: skill.cooldown_ms
+      Data: wave_id
     - Name: Type
       Entry: 3
-      Data: 2
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -4680,157 +4680,13 @@ MonoBehaviour:
       Data: 252|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: skill.cooldown_remaining_ms
+      Data: frame
     - Name: DisplayName
       Entry: 1
-      Data: skill.cooldown_remaining_ms
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 253|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: caster.actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: caster.actor_id
+      Data: frame
     - Name: Type
       Entry: 3
       Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 254|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target.actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target.actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 255|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: caster.mana
-    - Name: DisplayName
-      Entry: 1
-      Data: caster.mana
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 256|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: caster.mana.max
-    - Name: DisplayName
-      Entry: 1
-      Data: caster.mana.max
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 257|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: caster.mana.percent
-    - Name: DisplayName
-      Entry: 1
-      Data: caster.mana.percent
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 258|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: aim.pos
-    - Name: DisplayName
-      Entry: 1
-      Data: aim.pos
-    - Name: Type
-      Entry: 3
-      Data: 8
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 259|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: aim.dir
-    - Name: DisplayName
-      Entry: 1
-      Data: aim.dir
-    - Name: Type
-      Entry: 3
-      Data: 8
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 260|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: fail.reason
-    - Name: DisplayName
-      Entry: 1
-      Data: fail.reason
-    - Name: Type
-      Entry: 3
-      Data: 4
     - Name: Description
       Entry: 6
       Data: 
@@ -4845,7 +4701,7 @@ MonoBehaviour:
       Data: 
     - Name: AllowExternal
       Entry: 5
-      Data: true
+      Data: false
     - Name: Deterministic
       Entry: 5
       Data: true
@@ -4857,71 +4713,173 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 261|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 253|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: skill.precast.complete
+      Data: structure.damaged
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: skill.precast.complete
+      Data: Structure damaged
     - Name: Category
       Entry: 1
-      Data: "\u6280\u80FD"
+      Data: Structure
     - Name: PayloadType
       Entry: 1
-      Data: SkillCastContext
+      Data: MobaStructureEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 262|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 254|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 14
+      Data: 8
     - Name: 
-      Entry: 9
-      Data: 247
+      Entry: 7
+      Data: 255|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: structure_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: structure_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 248
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 249
+      Entry: 7
+      Data: 256|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: structure_id
+    - Name: DisplayName
+      Entry: 1
+      Data: structure_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 250
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 251
+      Entry: 7
+      Data: 257|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: structure_kind
+    - Name: DisplayName
+      Entry: 1
+      Data: structure_kind
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 252
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 253
+      Entry: 7
+      Data: 258|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: team_id
+    - Name: DisplayName
+      Entry: 1
+      Data: team_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 254
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 255
+      Entry: 7
+      Data: 259|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: winner_team_id
+    - Name: DisplayName
+      Entry: 1
+      Data: winner_team_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 256
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 257
+      Entry: 7
+      Data: 260|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: source_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: source_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 258
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 259
+      Entry: 7
+      Data: 261|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: damage
+    - Name: DisplayName
+      Entry: 1
+      Data: damage
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 260
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 262|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: remaining_hp
+    - Name: DisplayName
+      Entry: 1
+      Data: remaining_hp
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
     - Name: 
       Entry: 13
       Data: 
@@ -4930,7 +4888,7 @@ MonoBehaviour:
       Data: 
     - Name: AllowExternal
       Entry: 5
-      Data: true
+      Data: false
     - Name: Deterministic
       Entry: 5
       Data: true
@@ -4945,80 +4903,38 @@ MonoBehaviour:
       Data: 263|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: skill.precast.fail
+      Data: structure.destroyed
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: skill.precast.fail
+      Data: Structure destroyed
     - Name: Category
       Entry: 1
-      Data: "\u6280\u80FD"
+      Data: Structure
     - Name: PayloadType
       Entry: 1
-      Data: SkillCastContext
+      Data: MobaStructureEventArgs
     - Name: PayloadFields
       Entry: 7
       Data: 264|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 14
+      Data: 8
     - Name: 
-      Entry: 9
-      Data: 247
-    - Name: 
-      Entry: 9
-      Data: 248
-    - Name: 
-      Entry: 9
-      Data: 249
-    - Name: 
-      Entry: 9
-      Data: 250
-    - Name: 
-      Entry: 9
-      Data: 251
-    - Name: 
-      Entry: 9
-      Data: 252
-    - Name: 
-      Entry: 9
-      Data: 253
-    - Name: 
-      Entry: 9
-      Data: 254
-    - Name: 
-      Entry: 9
-      Data: 255
-    - Name: 
-      Entry: 9
-      Data: 256
-    - Name: 
-      Entry: 9
-      Data: 257
-    - Name: 
-      Entry: 9
-      Data: 258
-    - Name: 
-      Entry: 9
-      Data: 259
-    - Name: 
-      Entry: 9
-      Data: 260
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: true
-    - Name: Deterministic
-      Entry: 5
-      Data: true
+      Entry: 7
+      Data: 265|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: structure_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: structure_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -5027,83 +4943,16 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 265|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
+      Data: 266|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
       Entry: 1
-      Data: skill.precast.interrupt
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
+      Data: structure_id
     - Name: DisplayName
       Entry: 1
-      Data: skill.precast.interrupt
-    - Name: Category
-      Entry: 1
-      Data: "\u6280\u80FD"
-    - Name: PayloadType
-      Entry: 1
-      Data: SkillCastContext
-    - Name: PayloadFields
-      Entry: 7
-      Data: 266|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 14
-    - Name: 
-      Entry: 9
-      Data: 247
-    - Name: 
-      Entry: 9
-      Data: 248
-    - Name: 
-      Entry: 9
-      Data: 249
-    - Name: 
-      Entry: 9
-      Data: 250
-    - Name: 
-      Entry: 9
-      Data: 251
-    - Name: 
-      Entry: 9
-      Data: 252
-    - Name: 
-      Entry: 9
-      Data: 253
-    - Name: 
-      Entry: 9
-      Data: 254
-    - Name: 
-      Entry: 9
-      Data: 255
-    - Name: 
-      Entry: 9
-      Data: 256
-    - Name: 
-      Entry: 9
-      Data: 257
-    - Name: 
-      Entry: 9
-      Data: 258
-    - Name: 
-      Entry: 9
-      Data: 259
-    - Name: 
-      Entry: 9
-      Data: 260
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: true
-    - Name: Deterministic
-      Entry: 5
-      Data: true
+      Data: structure_id
+    - Name: Type
+      Entry: 3
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -5112,83 +4961,16 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 267|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
+      Data: 267|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
       Entry: 1
-      Data: skill.cast.start
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
+      Data: structure_kind
     - Name: DisplayName
       Entry: 1
-      Data: skill.cast.start
-    - Name: Category
-      Entry: 1
-      Data: "\u6280\u80FD"
-    - Name: PayloadType
-      Entry: 1
-      Data: SkillCastContext
-    - Name: PayloadFields
-      Entry: 7
-      Data: 268|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 14
-    - Name: 
-      Entry: 9
-      Data: 247
-    - Name: 
-      Entry: 9
-      Data: 248
-    - Name: 
-      Entry: 9
-      Data: 249
-    - Name: 
-      Entry: 9
-      Data: 250
-    - Name: 
-      Entry: 9
-      Data: 251
-    - Name: 
-      Entry: 9
-      Data: 252
-    - Name: 
-      Entry: 9
-      Data: 253
-    - Name: 
-      Entry: 9
-      Data: 254
-    - Name: 
-      Entry: 9
-      Data: 255
-    - Name: 
-      Entry: 9
-      Data: 256
-    - Name: 
-      Entry: 9
-      Data: 257
-    - Name: 
-      Entry: 9
-      Data: 258
-    - Name: 
-      Entry: 9
-      Data: 259
-    - Name: 
-      Entry: 9
-      Data: 260
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: true
-    - Name: Deterministic
-      Entry: 5
-      Data: true
+      Data: structure_kind
+    - Name: Type
+      Entry: 3
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -5197,83 +4979,16 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 269|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
+      Data: 268|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
       Entry: 1
-      Data: skill.cast.complete
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
+      Data: team_id
     - Name: DisplayName
       Entry: 1
-      Data: skill.cast.complete
-    - Name: Category
-      Entry: 1
-      Data: "\u6280\u80FD"
-    - Name: PayloadType
-      Entry: 1
-      Data: SkillCastContext
-    - Name: PayloadFields
-      Entry: 7
-      Data: 270|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 14
-    - Name: 
-      Entry: 9
-      Data: 247
-    - Name: 
-      Entry: 9
-      Data: 248
-    - Name: 
-      Entry: 9
-      Data: 249
-    - Name: 
-      Entry: 9
-      Data: 250
-    - Name: 
-      Entry: 9
-      Data: 251
-    - Name: 
-      Entry: 9
-      Data: 252
-    - Name: 
-      Entry: 9
-      Data: 253
-    - Name: 
-      Entry: 9
-      Data: 254
-    - Name: 
-      Entry: 9
-      Data: 255
-    - Name: 
-      Entry: 9
-      Data: 256
-    - Name: 
-      Entry: 9
-      Data: 257
-    - Name: 
-      Entry: 9
-      Data: 258
-    - Name: 
-      Entry: 9
-      Data: 259
-    - Name: 
-      Entry: 9
-      Data: 260
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: true
-    - Name: Deterministic
-      Entry: 5
-      Data: true
+      Data: team_id
+    - Name: Type
+      Entry: 3
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -5282,71 +4997,76 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 271|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
+      Data: 269|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
       Entry: 1
-      Data: skill.cast.fail
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
+      Data: winner_team_id
     - Name: DisplayName
       Entry: 1
-      Data: skill.cast.fail
-    - Name: Category
-      Entry: 1
-      Data: "\u6280\u80FD"
-    - Name: PayloadType
-      Entry: 1
-      Data: SkillCastContext
-    - Name: PayloadFields
+      Data: winner_team_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
       Entry: 7
-      Data: 272|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
+      Data: 270|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: source_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: source_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 12
-      Data: 14
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 247
+      Entry: 7
+      Data: 271|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: damage
+    - Name: DisplayName
+      Entry: 1
+      Data: damage
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 248
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 249
+      Entry: 7
+      Data: 272|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: remaining_hp
+    - Name: DisplayName
+      Entry: 1
+      Data: remaining_hp
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 250
-    - Name: 
-      Entry: 9
-      Data: 251
-    - Name: 
-      Entry: 9
-      Data: 252
-    - Name: 
-      Entry: 9
-      Data: 253
-    - Name: 
-      Entry: 9
-      Data: 254
-    - Name: 
-      Entry: 9
-      Data: 255
-    - Name: 
-      Entry: 9
-      Data: 256
-    - Name: 
-      Entry: 9
-      Data: 257
-    - Name: 
-      Entry: 9
-      Data: 258
-    - Name: 
-      Entry: 9
-      Data: 259
-    - Name: 
-      Entry: 9
-      Data: 260
+      Entry: 8
+      Data: 
     - Name: 
       Entry: 13
       Data: 
@@ -5355,7 +5075,7 @@ MonoBehaviour:
       Data: 
     - Name: AllowExternal
       Entry: 5
-      Data: true
+      Data: false
     - Name: Deterministic
       Entry: 5
       Data: true
@@ -5370,13 +5090,13 @@ MonoBehaviour:
       Data: 273|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: skill.cast.interrupt
+      Data: skill.precast.start
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: skill.cast.interrupt
+      Data: skill.precast.start
     - Name: Category
       Entry: 1
       Data: "\u6280\u80FD"
@@ -5391,47 +5111,257 @@ MonoBehaviour:
       Entry: 12
       Data: 14
     - Name: 
-      Entry: 9
-      Data: 247
+      Entry: 7
+      Data: 275|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: skill.id
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 248
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 249
+      Entry: 7
+      Data: 276|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: skill.slot
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.slot
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 250
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 251
+      Entry: 7
+      Data: 277|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: skill.level
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.level
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 252
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 253
+      Entry: 7
+      Data: 278|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: skill.cost
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.cost
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 254
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 255
+      Entry: 7
+      Data: 279|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: skill.cooldown_ms
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.cooldown_ms
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 256
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 257
+      Entry: 7
+      Data: 280|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: skill.cooldown_remaining_ms
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.cooldown_remaining_ms
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 258
+      Entry: 8
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 259
+      Entry: 7
+      Data: 281|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: caster.actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: caster.actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 9
-      Data: 260
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 282|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: target.actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: target.actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 283|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: caster.mana
+    - Name: DisplayName
+      Entry: 1
+      Data: caster.mana
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 284|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: caster.mana.max
+    - Name: DisplayName
+      Entry: 1
+      Data: caster.mana.max
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 285|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: caster.mana.percent
+    - Name: DisplayName
+      Entry: 1
+      Data: caster.mana.percent
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 286|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: aim.pos
+    - Name: DisplayName
+      Entry: 1
+      Data: aim.pos
+    - Name: Type
+      Entry: 3
+      Data: 8
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 287|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: aim.dir
+    - Name: DisplayName
+      Entry: 1
+      Data: aim.dir
+    - Name: Type
+      Entry: 3
+      Data: 8
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 288|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: fail.reason
+    - Name: DisplayName
+      Entry: 1
+      Data: fail.reason
+    - Name: Type
+      Entry: 3
+      Data: 4
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
     - Name: 
       Entry: 13
       Data: 
@@ -5452,7 +5382,602 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 275|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 289|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: skill.precast.complete
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.precast.complete
+    - Name: Category
+      Entry: 1
+      Data: "\u6280\u80FD"
+    - Name: PayloadType
+      Entry: 1
+      Data: SkillCastContext
+    - Name: PayloadFields
+      Entry: 7
+      Data: 290|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 14
+    - Name: 
+      Entry: 9
+      Data: 275
+    - Name: 
+      Entry: 9
+      Data: 276
+    - Name: 
+      Entry: 9
+      Data: 277
+    - Name: 
+      Entry: 9
+      Data: 278
+    - Name: 
+      Entry: 9
+      Data: 279
+    - Name: 
+      Entry: 9
+      Data: 280
+    - Name: 
+      Entry: 9
+      Data: 281
+    - Name: 
+      Entry: 9
+      Data: 282
+    - Name: 
+      Entry: 9
+      Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
+    - Name: 
+      Entry: 9
+      Data: 286
+    - Name: 
+      Entry: 9
+      Data: 287
+    - Name: 
+      Entry: 9
+      Data: 288
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: true
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 291|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: skill.precast.fail
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.precast.fail
+    - Name: Category
+      Entry: 1
+      Data: "\u6280\u80FD"
+    - Name: PayloadType
+      Entry: 1
+      Data: SkillCastContext
+    - Name: PayloadFields
+      Entry: 7
+      Data: 292|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 14
+    - Name: 
+      Entry: 9
+      Data: 275
+    - Name: 
+      Entry: 9
+      Data: 276
+    - Name: 
+      Entry: 9
+      Data: 277
+    - Name: 
+      Entry: 9
+      Data: 278
+    - Name: 
+      Entry: 9
+      Data: 279
+    - Name: 
+      Entry: 9
+      Data: 280
+    - Name: 
+      Entry: 9
+      Data: 281
+    - Name: 
+      Entry: 9
+      Data: 282
+    - Name: 
+      Entry: 9
+      Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
+    - Name: 
+      Entry: 9
+      Data: 286
+    - Name: 
+      Entry: 9
+      Data: 287
+    - Name: 
+      Entry: 9
+      Data: 288
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: true
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 293|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: skill.precast.interrupt
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.precast.interrupt
+    - Name: Category
+      Entry: 1
+      Data: "\u6280\u80FD"
+    - Name: PayloadType
+      Entry: 1
+      Data: SkillCastContext
+    - Name: PayloadFields
+      Entry: 7
+      Data: 294|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 14
+    - Name: 
+      Entry: 9
+      Data: 275
+    - Name: 
+      Entry: 9
+      Data: 276
+    - Name: 
+      Entry: 9
+      Data: 277
+    - Name: 
+      Entry: 9
+      Data: 278
+    - Name: 
+      Entry: 9
+      Data: 279
+    - Name: 
+      Entry: 9
+      Data: 280
+    - Name: 
+      Entry: 9
+      Data: 281
+    - Name: 
+      Entry: 9
+      Data: 282
+    - Name: 
+      Entry: 9
+      Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
+    - Name: 
+      Entry: 9
+      Data: 286
+    - Name: 
+      Entry: 9
+      Data: 287
+    - Name: 
+      Entry: 9
+      Data: 288
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: true
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 295|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: skill.cast.start
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.cast.start
+    - Name: Category
+      Entry: 1
+      Data: "\u6280\u80FD"
+    - Name: PayloadType
+      Entry: 1
+      Data: SkillCastContext
+    - Name: PayloadFields
+      Entry: 7
+      Data: 296|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 14
+    - Name: 
+      Entry: 9
+      Data: 275
+    - Name: 
+      Entry: 9
+      Data: 276
+    - Name: 
+      Entry: 9
+      Data: 277
+    - Name: 
+      Entry: 9
+      Data: 278
+    - Name: 
+      Entry: 9
+      Data: 279
+    - Name: 
+      Entry: 9
+      Data: 280
+    - Name: 
+      Entry: 9
+      Data: 281
+    - Name: 
+      Entry: 9
+      Data: 282
+    - Name: 
+      Entry: 9
+      Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
+    - Name: 
+      Entry: 9
+      Data: 286
+    - Name: 
+      Entry: 9
+      Data: 287
+    - Name: 
+      Entry: 9
+      Data: 288
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: true
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 297|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: skill.cast.complete
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.cast.complete
+    - Name: Category
+      Entry: 1
+      Data: "\u6280\u80FD"
+    - Name: PayloadType
+      Entry: 1
+      Data: SkillCastContext
+    - Name: PayloadFields
+      Entry: 7
+      Data: 298|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 14
+    - Name: 
+      Entry: 9
+      Data: 275
+    - Name: 
+      Entry: 9
+      Data: 276
+    - Name: 
+      Entry: 9
+      Data: 277
+    - Name: 
+      Entry: 9
+      Data: 278
+    - Name: 
+      Entry: 9
+      Data: 279
+    - Name: 
+      Entry: 9
+      Data: 280
+    - Name: 
+      Entry: 9
+      Data: 281
+    - Name: 
+      Entry: 9
+      Data: 282
+    - Name: 
+      Entry: 9
+      Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
+    - Name: 
+      Entry: 9
+      Data: 286
+    - Name: 
+      Entry: 9
+      Data: 287
+    - Name: 
+      Entry: 9
+      Data: 288
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: true
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 299|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: skill.cast.fail
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.cast.fail
+    - Name: Category
+      Entry: 1
+      Data: "\u6280\u80FD"
+    - Name: PayloadType
+      Entry: 1
+      Data: SkillCastContext
+    - Name: PayloadFields
+      Entry: 7
+      Data: 300|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 14
+    - Name: 
+      Entry: 9
+      Data: 275
+    - Name: 
+      Entry: 9
+      Data: 276
+    - Name: 
+      Entry: 9
+      Data: 277
+    - Name: 
+      Entry: 9
+      Data: 278
+    - Name: 
+      Entry: 9
+      Data: 279
+    - Name: 
+      Entry: 9
+      Data: 280
+    - Name: 
+      Entry: 9
+      Data: 281
+    - Name: 
+      Entry: 9
+      Data: 282
+    - Name: 
+      Entry: 9
+      Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
+    - Name: 
+      Entry: 9
+      Data: 286
+    - Name: 
+      Entry: 9
+      Data: 287
+    - Name: 
+      Entry: 9
+      Data: 288
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: true
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 301|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: skill.cast.interrupt
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: skill.cast.interrupt
+    - Name: Category
+      Entry: 1
+      Data: "\u6280\u80FD"
+    - Name: PayloadType
+      Entry: 1
+      Data: SkillCastContext
+    - Name: PayloadFields
+      Entry: 7
+      Data: 302|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 14
+    - Name: 
+      Entry: 9
+      Data: 275
+    - Name: 
+      Entry: 9
+      Data: 276
+    - Name: 
+      Entry: 9
+      Data: 277
+    - Name: 
+      Entry: 9
+      Data: 278
+    - Name: 
+      Entry: 9
+      Data: 279
+    - Name: 
+      Entry: 9
+      Data: 280
+    - Name: 
+      Entry: 9
+      Data: 281
+    - Name: 
+      Entry: 9
+      Data: 282
+    - Name: 
+      Entry: 9
+      Data: 283
+    - Name: 
+      Entry: 9
+      Data: 284
+    - Name: 
+      Entry: 9
+      Data: 285
+    - Name: 
+      Entry: 9
+      Data: 286
+    - Name: 
+      Entry: 9
+      Data: 287
+    - Name: 
+      Entry: 9
+      Data: 288
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: true
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 303|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: buff.apply
@@ -5470,14 +5995,14 @@ MonoBehaviour:
       Data: BuffEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 276|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 304|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 9
     - Name: 
       Entry: 7
-      Data: 277|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 305|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: event_id
@@ -5495,7 +6020,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 278|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 306|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: source_actor_id
@@ -5513,7 +6038,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 279|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 307|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: target_actor_id
@@ -5531,7 +6056,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 280|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 308|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: buff_id
@@ -5549,7 +6074,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 281|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 309|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: effect_id
@@ -5567,7 +6092,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 282|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 310|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: stage
@@ -5585,7 +6110,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 283|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 311|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: stack_count
@@ -5603,7 +6128,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 284|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 312|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: duration_seconds
@@ -5621,898 +6146,13 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 285|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: source_context_id
-    - Name: DisplayName
-      Entry: 1
-      Data: source_context_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 286|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: buff.remove
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: buff.remove
-    - Name: Category
-      Entry: 1
-      Data: "\u589E\u76CA\u6548\u679C"
-    - Name: PayloadType
-      Entry: 1
-      Data: BuffEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 287|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 9
-      Data: 277
-    - Name: 
-      Entry: 9
-      Data: 278
-    - Name: 
-      Entry: 9
-      Data: 279
-    - Name: 
-      Entry: 9
-      Data: 280
-    - Name: 
-      Entry: 9
-      Data: 281
-    - Name: 
-      Entry: 9
-      Data: 282
-    - Name: 
-      Entry: 9
-      Data: 283
-    - Name: 
-      Entry: 9
-      Data: 284
-    - Name: 
-      Entry: 9
-      Data: 285
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 288|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: buff.interval
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: buff.interval
-    - Name: Category
-      Entry: 1
-      Data: "\u589E\u76CA\u6548\u679C"
-    - Name: PayloadType
-      Entry: 1
-      Data: BuffEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 289|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 9
-      Data: 277
-    - Name: 
-      Entry: 9
-      Data: 278
-    - Name: 
-      Entry: 9
-      Data: 279
-    - Name: 
-      Entry: 9
-      Data: 280
-    - Name: 
-      Entry: 9
-      Data: 281
-    - Name: 
-      Entry: 9
-      Data: 282
-    - Name: 
-      Entry: 9
-      Data: 283
-    - Name: 
-      Entry: 9
-      Data: 284
-    - Name: 
-      Entry: 9
-      Data: 285
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 290|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: buff.stack
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: buff.stack
-    - Name: Category
-      Entry: 1
-      Data: "\u589E\u76CA\u6548\u679C"
-    - Name: PayloadType
-      Entry: 1
-      Data: BuffEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 291|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 9
-      Data: 277
-    - Name: 
-      Entry: 9
-      Data: 278
-    - Name: 
-      Entry: 9
-      Data: 279
-    - Name: 
-      Entry: 9
-      Data: 280
-    - Name: 
-      Entry: 9
-      Data: 281
-    - Name: 
-      Entry: 9
-      Data: 282
-    - Name: 
-      Entry: 9
-      Data: 283
-    - Name: 
-      Entry: 9
-      Data: 284
-    - Name: 
-      Entry: 9
-      Data: 285
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 292|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: buff.refresh
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: buff.refresh
-    - Name: Category
-      Entry: 1
-      Data: "\u589E\u76CA\u6548\u679C"
-    - Name: PayloadType
-      Entry: 1
-      Data: BuffEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 293|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 9
-      Data: 277
-    - Name: 
-      Entry: 9
-      Data: 278
-    - Name: 
-      Entry: 9
-      Data: 279
-    - Name: 
-      Entry: 9
-      Data: 280
-    - Name: 
-      Entry: 9
-      Data: 281
-    - Name: 
-      Entry: 9
-      Data: 282
-    - Name: 
-      Entry: 9
-      Data: 283
-    - Name: 
-      Entry: 9
-      Data: 284
-    - Name: 
-      Entry: 9
-      Data: 285
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 294|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: buff.tick
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: buff.tick
-    - Name: Category
-      Entry: 1
-      Data: "\u589E\u76CA\u6548\u679C"
-    - Name: PayloadType
-      Entry: 1
-      Data: BuffEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 295|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 9
-      Data: 277
-    - Name: 
-      Entry: 9
-      Data: 278
-    - Name: 
-      Entry: 9
-      Data: 279
-    - Name: 
-      Entry: 9
-      Data: 280
-    - Name: 
-      Entry: 9
-      Data: 281
-    - Name: 
-      Entry: 9
-      Data: 282
-    - Name: 
-      Entry: 9
-      Data: 283
-    - Name: 
-      Entry: 9
-      Data: 284
-    - Name: 
-      Entry: 9
-      Data: 285
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 296|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: buff.end
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: buff.end
-    - Name: Category
-      Entry: 1
-      Data: "\u589E\u76CA\u6548\u679C"
-    - Name: PayloadType
-      Entry: 1
-      Data: BuffEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 297|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 9
-      Data: 277
-    - Name: 
-      Entry: 9
-      Data: 278
-    - Name: 
-      Entry: 9
-      Data: 279
-    - Name: 
-      Entry: 9
-      Data: 280
-    - Name: 
-      Entry: 9
-      Data: 281
-    - Name: 
-      Entry: 9
-      Data: 282
-    - Name: 
-      Entry: 9
-      Data: 283
-    - Name: 
-      Entry: 9
-      Data: 284
-    - Name: 
-      Entry: 9
-      Data: 285
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 298|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: buff.added
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: buff.added
-    - Name: Category
-      Entry: 1
-      Data: "\u589E\u76CA\u6548\u679C"
-    - Name: PayloadType
-      Entry: 1
-      Data: BuffEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 299|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 9
-      Data: 277
-    - Name: 
-      Entry: 9
-      Data: 278
-    - Name: 
-      Entry: 9
-      Data: 279
-    - Name: 
-      Entry: 9
-      Data: 280
-    - Name: 
-      Entry: 9
-      Data: 281
-    - Name: 
-      Entry: 9
-      Data: 282
-    - Name: 
-      Entry: 9
-      Data: 283
-    - Name: 
-      Entry: 9
-      Data: 284
-    - Name: 
-      Entry: 9
-      Data: 285
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 300|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: buff.removed
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: buff.removed
-    - Name: Category
-      Entry: 1
-      Data: "\u589E\u76CA\u6548\u679C"
-    - Name: PayloadType
-      Entry: 1
-      Data: BuffEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 301|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 9
-      Data: 277
-    - Name: 
-      Entry: 9
-      Data: 278
-    - Name: 
-      Entry: 9
-      Data: 279
-    - Name: 
-      Entry: 9
-      Data: 280
-    - Name: 
-      Entry: 9
-      Data: 281
-    - Name: 
-      Entry: 9
-      Data: 282
-    - Name: 
-      Entry: 9
-      Data: 283
-    - Name: 
-      Entry: 9
-      Data: 284
-    - Name: 
-      Entry: 9
-      Data: 285
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 302|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: buff.stack_changed
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: buff.stack_changed
-    - Name: Category
-      Entry: 1
-      Data: "\u589E\u76CA\u6548\u679C"
-    - Name: PayloadType
-      Entry: 1
-      Data: BuffEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 303|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 9
-      Data: 277
-    - Name: 
-      Entry: 9
-      Data: 278
-    - Name: 
-      Entry: 9
-      Data: 279
-    - Name: 
-      Entry: 9
-      Data: 280
-    - Name: 
-      Entry: 9
-      Data: 281
-    - Name: 
-      Entry: 9
-      Data: 282
-    - Name: 
-      Entry: 9
-      Data: 283
-    - Name: 
-      Entry: 9
-      Data: 284
-    - Name: 
-      Entry: 9
-      Data: 285
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 304|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: buff.effect_tick
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: buff.effect_tick
-    - Name: Category
-      Entry: 1
-      Data: "\u589E\u76CA\u6548\u679C"
-    - Name: PayloadType
-      Entry: 1
-      Data: BuffEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 305|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 9
-      Data: 277
-    - Name: 
-      Entry: 9
-      Data: 278
-    - Name: 
-      Entry: 9
-      Data: 279
-    - Name: 
-      Entry: 9
-      Data: 280
-    - Name: 
-      Entry: 9
-      Data: 281
-    - Name: 
-      Entry: 9
-      Data: 282
-    - Name: 
-      Entry: 9
-      Data: 283
-    - Name: 
-      Entry: 9
-      Data: 284
-    - Name: 
-      Entry: 9
-      Data: 285
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 306|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: on_buff_added
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: on_buff_added
-    - Name: Category
-      Entry: 1
-      Data: "\u589E\u76CA\u6548\u679C"
-    - Name: PayloadType
-      Entry: 1
-      Data: BuffEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 307|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 9
-    - Name: 
-      Entry: 9
-      Data: 277
-    - Name: 
-      Entry: 9
-      Data: 278
-    - Name: 
-      Entry: 9
-      Data: 279
-    - Name: 
-      Entry: 9
-      Data: 280
-    - Name: 
-      Entry: 9
-      Data: 281
-    - Name: 
-      Entry: 9
-      Data: 282
-    - Name: 
-      Entry: 9
-      Data: 283
-    - Name: 
-      Entry: 9
-      Data: 284
-    - Name: 
-      Entry: 9
-      Data: 285
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 308|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: projectile.spawn
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: projectile.spawn
-    - Name: Category
-      Entry: 1
-      Data: "\u6295\u5C04\u7269"
-    - Name: PayloadType
-      Entry: 1
-      Data: ProjectileEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 309|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 8
-    - Name: 
-      Entry: 7
-      Data: 310|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: source_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: source_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 311|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: target_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 312|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: projectile_template_id
-    - Name: DisplayName
-      Entry: 1
-      Data: projectile_template_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
       Data: 313|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: projectile_id
+      Data: source_context_id
     - Name: DisplayName
       Entry: 1
-      Data: projectile_id
+      Data: source_context_id
     - Name: Type
       Entry: 3
       Data: 1
@@ -6523,17 +6163,17 @@ MonoBehaviour:
       Entry: 8
       Data: 
     - Name: 
-      Entry: 7
-      Data: 314|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: frame
-    - Name: DisplayName
-      Entry: 1
-      Data: frame
-    - Name: Type
-      Entry: 3
-      Data: 1
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
     - Name: Description
       Entry: 6
       Data: 
@@ -6542,16 +6182,68 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 315|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
+      Data: 314|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
       Entry: 1
-      Data: position
+      Data: buff.remove
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: position
-    - Name: Type
-      Entry: 3
-      Data: 8
+      Data: buff.remove
+    - Name: Category
+      Entry: 1
+      Data: "\u589E\u76CA\u6548\u679C"
+    - Name: PayloadType
+      Entry: 1
+      Data: BuffEventArgs
+    - Name: PayloadFields
+      Entry: 7
+      Data: 315|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 9
+    - Name: 
+      Entry: 9
+      Data: 305
+    - Name: 
+      Entry: 9
+      Data: 306
+    - Name: 
+      Entry: 9
+      Data: 307
+    - Name: 
+      Entry: 9
+      Data: 308
+    - Name: 
+      Entry: 9
+      Data: 309
+    - Name: 
+      Entry: 9
+      Data: 310
+    - Name: 
+      Entry: 9
+      Data: 311
+    - Name: 
+      Entry: 9
+      Data: 312
+    - Name: 
+      Entry: 9
+      Data: 313
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
     - Name: Description
       Entry: 6
       Data: 
@@ -6560,40 +6252,56 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 316|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
+      Data: 316|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
       Entry: 1
-      Data: direction
+      Data: buff.interval
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: direction
-    - Name: Type
-      Entry: 3
-      Data: 8
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
+      Data: buff.interval
+    - Name: Category
+      Entry: 1
+      Data: "\u589E\u76CA\u6548\u679C"
+    - Name: PayloadType
+      Entry: 1
+      Data: BuffEventArgs
+    - Name: PayloadFields
       Entry: 7
-      Data: 317|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: exit_reason
-    - Name: DisplayName
-      Entry: 1
-      Data: exit_reason
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Data: 317|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 12
+      Data: 9
+    - Name: 
+      Entry: 9
+      Data: 305
+    - Name: 
+      Entry: 9
+      Data: 306
+    - Name: 
+      Entry: 9
+      Data: 307
+    - Name: 
+      Entry: 9
+      Data: 308
+    - Name: 
+      Entry: 9
+      Data: 309
+    - Name: 
+      Entry: 9
+      Data: 310
+    - Name: 
+      Entry: 9
+      Data: 311
+    - Name: 
+      Entry: 9
+      Data: 312
+    - Name: 
+      Entry: 9
+      Data: 313
     - Name: 
       Entry: 13
       Data: 
@@ -6617,26 +6325,41 @@ MonoBehaviour:
       Data: 318|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: projectile.tick
+      Data: buff.stack
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: projectile.tick
+      Data: buff.stack
     - Name: Category
       Entry: 1
-      Data: "\u6295\u5C04\u7269"
+      Data: "\u589E\u76CA\u6548\u679C"
     - Name: PayloadType
       Entry: 1
-      Data: ProjectileEventArgs
+      Data: BuffEventArgs
     - Name: PayloadFields
       Entry: 7
       Data: 319|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 8
+      Data: 9
+    - Name: 
+      Entry: 9
+      Data: 305
+    - Name: 
+      Entry: 9
+      Data: 306
+    - Name: 
+      Entry: 9
+      Data: 307
+    - Name: 
+      Entry: 9
+      Data: 308
+    - Name: 
+      Entry: 9
+      Data: 309
     - Name: 
       Entry: 9
       Data: 310
@@ -6649,18 +6372,6 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 313
-    - Name: 
-      Entry: 9
-      Data: 314
-    - Name: 
-      Entry: 9
-      Data: 315
-    - Name: 
-      Entry: 9
-      Data: 316
-    - Name: 
-      Entry: 9
-      Data: 317
     - Name: 
       Entry: 13
       Data: 
@@ -6684,26 +6395,41 @@ MonoBehaviour:
       Data: 320|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: projectile.hit
+      Data: buff.refresh
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: projectile.hit
+      Data: buff.refresh
     - Name: Category
       Entry: 1
-      Data: "\u6295\u5C04\u7269"
+      Data: "\u589E\u76CA\u6548\u679C"
     - Name: PayloadType
       Entry: 1
-      Data: ProjectileEventArgs
+      Data: BuffEventArgs
     - Name: PayloadFields
       Entry: 7
       Data: 321|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 8
+      Data: 9
+    - Name: 
+      Entry: 9
+      Data: 305
+    - Name: 
+      Entry: 9
+      Data: 306
+    - Name: 
+      Entry: 9
+      Data: 307
+    - Name: 
+      Entry: 9
+      Data: 308
+    - Name: 
+      Entry: 9
+      Data: 309
     - Name: 
       Entry: 9
       Data: 310
@@ -6716,18 +6442,6 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 313
-    - Name: 
-      Entry: 9
-      Data: 314
-    - Name: 
-      Entry: 9
-      Data: 315
-    - Name: 
-      Entry: 9
-      Data: 316
-    - Name: 
-      Entry: 9
-      Data: 317
     - Name: 
       Entry: 13
       Data: 
@@ -6751,26 +6465,41 @@ MonoBehaviour:
       Data: 322|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: projectile.exit
+      Data: buff.tick
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: projectile.exit
+      Data: buff.tick
     - Name: Category
       Entry: 1
-      Data: "\u6295\u5C04\u7269"
+      Data: "\u589E\u76CA\u6548\u679C"
     - Name: PayloadType
       Entry: 1
-      Data: ProjectileEventArgs
+      Data: BuffEventArgs
     - Name: PayloadFields
       Entry: 7
       Data: 323|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 8
+      Data: 9
+    - Name: 
+      Entry: 9
+      Data: 305
+    - Name: 
+      Entry: 9
+      Data: 306
+    - Name: 
+      Entry: 9
+      Data: 307
+    - Name: 
+      Entry: 9
+      Data: 308
+    - Name: 
+      Entry: 9
+      Data: 309
     - Name: 
       Entry: 9
       Data: 310
@@ -6783,18 +6512,6 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 313
-    - Name: 
-      Entry: 9
-      Data: 314
-    - Name: 
-      Entry: 9
-      Data: 315
-    - Name: 
-      Entry: 9
-      Data: 316
-    - Name: 
-      Entry: 9
-      Data: 317
     - Name: 
       Entry: 13
       Data: 
@@ -6818,38 +6535,65 @@ MonoBehaviour:
       Data: 324|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: area.spawn
+      Data: buff.end
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: area.spawn
+      Data: buff.end
     - Name: Category
       Entry: 1
-      Data: "\u533A\u57DF"
+      Data: "\u589E\u76CA\u6548\u679C"
     - Name: PayloadType
       Entry: 1
-      Data: AreaEventArgs
+      Data: BuffEventArgs
     - Name: PayloadFields
       Entry: 7
       Data: 325|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 8
+      Data: 9
     - Name: 
-      Entry: 7
-      Data: 326|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: area_id
-    - Name: DisplayName
-      Entry: 1
-      Data: area_id
-    - Name: Type
-      Entry: 3
-      Data: 1
+      Entry: 9
+      Data: 305
+    - Name: 
+      Entry: 9
+      Data: 306
+    - Name: 
+      Entry: 9
+      Data: 307
+    - Name: 
+      Entry: 9
+      Data: 308
+    - Name: 
+      Entry: 9
+      Data: 309
+    - Name: 
+      Entry: 9
+      Data: 310
+    - Name: 
+      Entry: 9
+      Data: 311
+    - Name: 
+      Entry: 9
+      Data: 312
+    - Name: 
+      Entry: 9
+      Data: 313
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
     - Name: Description
       Entry: 6
       Data: 
@@ -6858,16 +6602,68 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 327|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
+      Data: 326|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
       Entry: 1
-      Data: template_id
+      Data: buff.added
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: template_id
-    - Name: Type
-      Entry: 3
-      Data: 1
+      Data: buff.added
+    - Name: Category
+      Entry: 1
+      Data: "\u589E\u76CA\u6548\u679C"
+    - Name: PayloadType
+      Entry: 1
+      Data: BuffEventArgs
+    - Name: PayloadFields
+      Entry: 7
+      Data: 327|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 9
+    - Name: 
+      Entry: 9
+      Data: 305
+    - Name: 
+      Entry: 9
+      Data: 306
+    - Name: 
+      Entry: 9
+      Data: 307
+    - Name: 
+      Entry: 9
+      Data: 308
+    - Name: 
+      Entry: 9
+      Data: 309
+    - Name: 
+      Entry: 9
+      Data: 310
+    - Name: 
+      Entry: 9
+      Data: 311
+    - Name: 
+      Entry: 9
+      Data: 312
+    - Name: 
+      Entry: 9
+      Data: 313
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
     - Name: Description
       Entry: 6
       Data: 
@@ -6876,16 +6672,68 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 328|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
+      Data: 328|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
       Entry: 1
-      Data: owner_actor_id
+      Data: buff.removed
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: owner_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
+      Data: buff.removed
+    - Name: Category
+      Entry: 1
+      Data: "\u589E\u76CA\u6548\u679C"
+    - Name: PayloadType
+      Entry: 1
+      Data: BuffEventArgs
+    - Name: PayloadFields
+      Entry: 7
+      Data: 329|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 9
+    - Name: 
+      Entry: 9
+      Data: 305
+    - Name: 
+      Entry: 9
+      Data: 306
+    - Name: 
+      Entry: 9
+      Data: 307
+    - Name: 
+      Entry: 9
+      Data: 308
+    - Name: 
+      Entry: 9
+      Data: 309
+    - Name: 
+      Entry: 9
+      Data: 310
+    - Name: 
+      Entry: 9
+      Data: 311
+    - Name: 
+      Entry: 9
+      Data: 312
+    - Name: 
+      Entry: 9
+      Data: 313
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
     - Name: Description
       Entry: 6
       Data: 
@@ -6894,16 +6742,68 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 329|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
+      Data: 330|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
       Entry: 1
-      Data: target_actor_id
+      Data: buff.stack_changed
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: target_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
+      Data: buff.stack_changed
+    - Name: Category
+      Entry: 1
+      Data: "\u589E\u76CA\u6548\u679C"
+    - Name: PayloadType
+      Entry: 1
+      Data: BuffEventArgs
+    - Name: PayloadFields
+      Entry: 7
+      Data: 331|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 9
+    - Name: 
+      Entry: 9
+      Data: 305
+    - Name: 
+      Entry: 9
+      Data: 306
+    - Name: 
+      Entry: 9
+      Data: 307
+    - Name: 
+      Entry: 9
+      Data: 308
+    - Name: 
+      Entry: 9
+      Data: 309
+    - Name: 
+      Entry: 9
+      Data: 310
+    - Name: 
+      Entry: 9
+      Data: 311
+    - Name: 
+      Entry: 9
+      Data: 312
+    - Name: 
+      Entry: 9
+      Data: 313
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
     - Name: Description
       Entry: 6
       Data: 
@@ -6912,76 +6812,56 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 330|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
+      Data: 332|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
       Entry: 1
-      Data: frame
+      Data: buff.effect_tick
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: frame
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
+      Data: buff.effect_tick
+    - Name: Category
+      Entry: 1
+      Data: "\u589E\u76CA\u6548\u679C"
+    - Name: PayloadType
+      Entry: 1
+      Data: BuffEventArgs
+    - Name: PayloadFields
       Entry: 7
-      Data: 331|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: center
-    - Name: DisplayName
-      Entry: 1
-      Data: center
-    - Name: Type
-      Entry: 3
-      Data: 8
-    - Name: Description
-      Entry: 6
-      Data: 
+      Data: 333|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 12
+      Data: 9
     - Name: 
-      Entry: 7
-      Data: 332|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: radius
-    - Name: DisplayName
-      Entry: 1
-      Data: radius
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 305
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 306
     - Name: 
-      Entry: 7
-      Data: 333|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: max_targets
-    - Name: DisplayName
-      Entry: 1
-      Data: max_targets
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
+      Entry: 9
+      Data: 307
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 9
+      Data: 308
+    - Name: 
+      Entry: 9
+      Data: 309
+    - Name: 
+      Entry: 9
+      Data: 310
+    - Name: 
+      Entry: 9
+      Data: 311
+    - Name: 
+      Entry: 9
+      Data: 312
+    - Name: 
+      Entry: 9
+      Data: 313
     - Name: 
       Entry: 13
       Data: 
@@ -7005,50 +6885,53 @@ MonoBehaviour:
       Data: 334|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: area.tick
+      Data: on_buff_added
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: area.tick
+      Data: on_buff_added
     - Name: Category
       Entry: 1
-      Data: "\u533A\u57DF"
+      Data: "\u589E\u76CA\u6548\u679C"
     - Name: PayloadType
       Entry: 1
-      Data: AreaEventArgs
+      Data: BuffEventArgs
     - Name: PayloadFields
       Entry: 7
       Data: 335|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 8
+      Data: 9
     - Name: 
       Entry: 9
-      Data: 326
+      Data: 305
     - Name: 
       Entry: 9
-      Data: 327
+      Data: 306
     - Name: 
       Entry: 9
-      Data: 328
+      Data: 307
     - Name: 
       Entry: 9
-      Data: 329
+      Data: 308
     - Name: 
       Entry: 9
-      Data: 330
+      Data: 309
     - Name: 
       Entry: 9
-      Data: 331
+      Data: 310
     - Name: 
       Entry: 9
-      Data: 332
+      Data: 311
     - Name: 
       Entry: 9
-      Data: 333
+      Data: 312
+    - Name: 
+      Entry: 9
+      Data: 313
     - Name: 
       Entry: 13
       Data: 
@@ -7072,19 +6955,19 @@ MonoBehaviour:
       Data: 336|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: area.enter
+      Data: projectile.spawn
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: area.enter
+      Data: projectile.spawn
     - Name: Category
       Entry: 1
-      Data: "\u533A\u57DF"
+      Data: "\u6295\u5C04\u7269"
     - Name: PayloadType
       Entry: 1
-      Data: AreaEventArgs
+      Data: ProjectileEventArgs
     - Name: PayloadFields
       Entry: 7
       Data: 337|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
@@ -7093,41 +6976,17 @@ MonoBehaviour:
       Entry: 12
       Data: 8
     - Name: 
-      Entry: 9
-      Data: 326
-    - Name: 
-      Entry: 9
-      Data: 327
-    - Name: 
-      Entry: 9
-      Data: 328
-    - Name: 
-      Entry: 9
-      Data: 329
-    - Name: 
-      Entry: 9
-      Data: 330
-    - Name: 
-      Entry: 9
-      Data: 331
-    - Name: 
-      Entry: 9
-      Data: 332
-    - Name: 
-      Entry: 9
-      Data: 333
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
+      Entry: 7
+      Data: 338|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: source_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: source_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
     - Name: Description
       Entry: 6
       Data: 
@@ -7136,175 +6995,106 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 338|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
+      Data: 339|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
       Entry: 1
-      Data: area.exit
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: area.exit
-    - Name: Category
-      Entry: 1
-      Data: "\u533A\u57DF"
-    - Name: PayloadType
-      Entry: 1
-      Data: AreaEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 339|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
+      Data: target_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
     - Name: 
-      Entry: 12
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 340|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: projectile_template_id
+    - Name: DisplayName
+      Entry: 1
+      Data: projectile_template_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 341|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: projectile_id
+    - Name: DisplayName
+      Entry: 1
+      Data: projectile_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 342|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: frame
+    - Name: DisplayName
+      Entry: 1
+      Data: frame
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 343|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: position
+    - Name: DisplayName
+      Entry: 1
+      Data: position
+    - Name: Type
+      Entry: 3
       Data: 8
-    - Name: 
-      Entry: 9
-      Data: 326
-    - Name: 
-      Entry: 9
-      Data: 327
-    - Name: 
-      Entry: 9
-      Data: 328
-    - Name: 
-      Entry: 9
-      Data: 329
-    - Name: 
-      Entry: 9
-      Data: 330
-    - Name: 
-      Entry: 9
-      Data: 331
-    - Name: 
-      Entry: 9
-      Data: 332
-    - Name: 
-      Entry: 9
-      Data: 333
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
     - Name: Description
       Entry: 6
       Data: 
     - Name: 
       Entry: 8
       Data: 
-    - Name: 
-      Entry: 7
-      Data: 340|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: area.end
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: area.end
-    - Name: Category
-      Entry: 1
-      Data: "\u533A\u57DF"
-    - Name: PayloadType
-      Entry: 1
-      Data: AreaEventArgs
-    - Name: PayloadFields
-      Entry: 7
-      Data: 341|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 8
-    - Name: 
-      Entry: 9
-      Data: 326
-    - Name: 
-      Entry: 9
-      Data: 327
-    - Name: 
-      Entry: 9
-      Data: 328
-    - Name: 
-      Entry: 9
-      Data: 329
-    - Name: 
-      Entry: 9
-      Data: 330
-    - Name: 
-      Entry: 9
-      Data: 331
-    - Name: 
-      Entry: 9
-      Data: 332
-    - Name: 
-      Entry: 9
-      Data: 333
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: AllowExternal
-      Entry: 5
-      Data: false
-    - Name: Deterministic
-      Entry: 5
-      Data: true
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 342|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
-    - Name: Id
-      Entry: 1
-      Data: summon.spawn
-    - Name: MatchMode
-      Entry: 3
-      Data: 0
-    - Name: DisplayName
-      Entry: 1
-      Data: summon.spawn
-    - Name: Category
-      Entry: 1
-      Data: "\u53EC\u5524\u7269"
-    - Name: PayloadType
-      Entry: 1
-      Data: SummonEventPayload
-    - Name: PayloadFields
-      Entry: 7
-      Data: 343|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
-        AbilityKit.Ability]], mscorlib
-    - Name: 
-      Entry: 12
-      Data: 5
     - Name: 
       Entry: 7
       Data: 344|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: summon_actor_id
+      Data: direction
     - Name: DisplayName
       Entry: 1
-      Data: summon_actor_id
+      Data: direction
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 8
     - Name: Description
       Entry: 6
       Data: 
@@ -7316,64 +7106,10 @@ MonoBehaviour:
       Data: 345|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: summon_id
+      Data: exit_reason
     - Name: DisplayName
       Entry: 1
-      Data: summon_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 346|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: owner_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: owner_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 347|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: root_owner_actor_id
-    - Name: DisplayName
-      Entry: 1
-      Data: root_owner_actor_id
-    - Name: Type
-      Entry: 3
-      Data: 1
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 348|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: reason
-    - Name: DisplayName
-      Entry: 1
-      Data: reason
+      Data: exit_reason
     - Name: Type
       Entry: 3
       Data: 1
@@ -7403,29 +7139,47 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 349|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 346|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: summon.despawn
+      Data: projectile.tick
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: summon.despawn
+      Data: projectile.tick
     - Name: Category
       Entry: 1
-      Data: "\u53EC\u5524\u7269"
+      Data: "\u6295\u5C04\u7269"
     - Name: PayloadType
       Entry: 1
-      Data: SummonEventPayload
+      Data: ProjectileEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 350|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 347|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 5
+      Data: 8
+    - Name: 
+      Entry: 9
+      Data: 338
+    - Name: 
+      Entry: 9
+      Data: 339
+    - Name: 
+      Entry: 9
+      Data: 340
+    - Name: 
+      Entry: 9
+      Data: 341
+    - Name: 
+      Entry: 9
+      Data: 342
+    - Name: 
+      Entry: 9
+      Data: 343
     - Name: 
       Entry: 9
       Data: 344
@@ -7433,15 +7187,6 @@ MonoBehaviour:
       Entry: 9
       Data: 345
     - Name: 
-      Entry: 9
-      Data: 346
-    - Name: 
-      Entry: 9
-      Data: 347
-    - Name: 
-      Entry: 9
-      Data: 348
-    - Name: 
       Entry: 13
       Data: 
     - Name: 
@@ -7461,29 +7206,47 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 351|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 348|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: summon.die
+      Data: projectile.hit
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: summon.die
+      Data: projectile.hit
     - Name: Category
       Entry: 1
-      Data: "\u53EC\u5524\u7269"
+      Data: "\u6295\u5C04\u7269"
     - Name: PayloadType
       Entry: 1
-      Data: SummonEventPayload
+      Data: ProjectileEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 352|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 349|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 5
+      Data: 8
+    - Name: 
+      Entry: 9
+      Data: 338
+    - Name: 
+      Entry: 9
+      Data: 339
+    - Name: 
+      Entry: 9
+      Data: 340
+    - Name: 
+      Entry: 9
+      Data: 341
+    - Name: 
+      Entry: 9
+      Data: 342
+    - Name: 
+      Entry: 9
+      Data: 343
     - Name: 
       Entry: 9
       Data: 344
@@ -7491,14 +7254,72 @@ MonoBehaviour:
       Entry: 9
       Data: 345
     - Name: 
-      Entry: 9
-      Data: 346
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 350|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: projectile.exit
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: projectile.exit
+    - Name: Category
+      Entry: 1
+      Data: "\u6295\u5C04\u7269"
+    - Name: PayloadType
+      Entry: 1
+      Data: ProjectileEventArgs
+    - Name: PayloadFields
+      Entry: 7
+      Data: 351|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 8
     - Name: 
       Entry: 9
-      Data: 347
+      Data: 338
     - Name: 
       Entry: 9
-      Data: 348
+      Data: 339
+    - Name: 
+      Entry: 9
+      Data: 340
+    - Name: 
+      Entry: 9
+      Data: 341
+    - Name: 
+      Entry: 9
+      Data: 342
+    - Name: 
+      Entry: 9
+      Data: 343
+    - Name: 
+      Entry: 9
+      Data: 344
+    - Name: 
+      Entry: 9
+      Data: 345
     - Name: 
       Entry: 13
       Data: 
@@ -7519,38 +7340,56 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 353|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 352|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: unit.spawn
+      Data: area.spawn
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: unit.spawn
+      Data: area.spawn
     - Name: Category
       Entry: 1
-      Data: "\u5355\u4F4D"
+      Data: "\u533A\u57DF"
     - Name: PayloadType
       Entry: 1
-      Data: UnitEventPayload
+      Data: AreaEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 354|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 353|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 6
+      Data: 8
+    - Name: 
+      Entry: 7
+      Data: 354|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: area_id
+    - Name: DisplayName
+      Entry: 1
+      Data: area_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
     - Name: 
       Entry: 7
       Data: 355|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: unit_actor_id
+      Data: template_id
     - Name: DisplayName
       Entry: 1
-      Data: unit_actor_id
+      Data: template_id
     - Name: Type
       Entry: 3
       Data: 1
@@ -7565,10 +7404,10 @@ MonoBehaviour:
       Data: 356|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: team
+      Data: owner_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: team
+      Data: owner_actor_id
     - Name: Type
       Entry: 3
       Data: 1
@@ -7583,10 +7422,10 @@ MonoBehaviour:
       Data: 357|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: main_type
+      Data: target_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: main_type
+      Data: target_actor_id
     - Name: Type
       Entry: 3
       Data: 1
@@ -7601,10 +7440,10 @@ MonoBehaviour:
       Data: 358|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: unit_sub_type
+      Data: frame
     - Name: DisplayName
       Entry: 1
-      Data: unit_sub_type
+      Data: frame
     - Name: Type
       Entry: 3
       Data: 1
@@ -7619,13 +7458,13 @@ MonoBehaviour:
       Data: 359|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: owner_player_id
+      Data: center
     - Name: DisplayName
       Entry: 1
-      Data: owner_player_id
+      Data: center
     - Name: Type
       Entry: 3
-      Data: 1
+      Data: 8
     - Name: Description
       Entry: 6
       Data: 
@@ -7637,10 +7476,28 @@ MonoBehaviour:
       Data: 360|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: killer_actor_id
+      Data: radius
     - Name: DisplayName
       Entry: 1
-      Data: killer_actor_id
+      Data: radius
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 361|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: max_targets
+    - Name: DisplayName
+      Entry: 1
+      Data: max_targets
     - Name: Type
       Entry: 3
       Data: 1
@@ -7670,29 +7527,32 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 361|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 362|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: unit.despawn
+      Data: area.tick
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: unit.despawn
+      Data: area.tick
     - Name: Category
       Entry: 1
-      Data: "\u5355\u4F4D"
+      Data: "\u533A\u57DF"
     - Name: PayloadType
       Entry: 1
-      Data: UnitEventPayload
+      Data: AreaEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 362|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 363|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 6
+      Data: 8
+    - Name: 
+      Entry: 9
+      Data: 354
     - Name: 
       Entry: 9
       Data: 355
@@ -7711,6 +7571,9 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 360
+    - Name: 
+      Entry: 9
+      Data: 361
     - Name: 
       Entry: 13
       Data: 
@@ -7731,29 +7594,32 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 363|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 364|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: unit.die
+      Data: area.enter
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: unit.die
+      Data: area.enter
     - Name: Category
       Entry: 1
-      Data: "\u5355\u4F4D"
+      Data: "\u533A\u57DF"
     - Name: PayloadType
       Entry: 1
-      Data: UnitEventPayload
+      Data: AreaEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 364|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 365|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 6
+      Data: 8
+    - Name: 
+      Entry: 9
+      Data: 354
     - Name: 
       Entry: 9
       Data: 355
@@ -7772,6 +7638,9 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 360
+    - Name: 
+      Entry: 9
+      Data: 361
     - Name: 
       Entry: 13
       Data: 
@@ -7792,29 +7661,32 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 365|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 366|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: unit.respawn
+      Data: area.exit
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: unit.respawn
+      Data: area.exit
     - Name: Category
       Entry: 1
-      Data: "\u5355\u4F4D"
+      Data: "\u533A\u57DF"
     - Name: PayloadType
       Entry: 1
-      Data: UnitEventPayload
+      Data: AreaEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 366|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 367|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 6
+      Data: 8
+    - Name: 
+      Entry: 9
+      Data: 354
     - Name: 
       Entry: 9
       Data: 355
@@ -7833,6 +7705,9 @@ MonoBehaviour:
     - Name: 
       Entry: 9
       Data: 360
+    - Name: 
+      Entry: 9
+      Data: 361
     - Name: 
       Entry: 13
       Data: 
@@ -7853,41 +7728,65 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 367|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 368|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
-      Data: gameplay.started
+      Data: area.end
     - Name: MatchMode
       Entry: 3
       Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: gameplay.started
+      Data: area.end
     - Name: Category
       Entry: 1
-      Data: "\u73A9\u6CD5"
+      Data: "\u533A\u57DF"
     - Name: PayloadType
       Entry: 1
-      Data: GameplayLifecycleEventArgs
+      Data: AreaEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 368|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 369|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 6
+      Data: 8
     - Name: 
-      Entry: 7
-      Data: 369|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: frame_index
-    - Name: DisplayName
-      Entry: 1
-      Data: frame_index
-    - Name: Type
-      Entry: 3
-      Data: 1
+      Entry: 9
+      Data: 354
+    - Name: 
+      Entry: 9
+      Data: 355
+    - Name: 
+      Entry: 9
+      Data: 356
+    - Name: 
+      Entry: 9
+      Data: 357
+    - Name: 
+      Entry: 9
+      Data: 358
+    - Name: 
+      Entry: 9
+      Data: 359
+    - Name: 
+      Entry: 9
+      Data: 360
+    - Name: 
+      Entry: 9
+      Data: 361
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
     - Name: Description
       Entry: 6
       Data: 
@@ -7896,49 +7795,38 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 370|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
+      Data: 370|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
       Entry: 1
-      Data: elapsed_seconds
+      Data: summon.spawn
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
     - Name: DisplayName
       Entry: 1
-      Data: elapsed_seconds
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
+      Data: summon.spawn
+    - Name: Category
+      Entry: 1
+      Data: "\u53EC\u5524\u7269"
+    - Name: PayloadType
+      Entry: 1
+      Data: SummonEventPayload
+    - Name: PayloadFields
       Entry: 7
-      Data: 371|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
-    - Name: Path
-      Entry: 1
-      Data: delta_seconds
-    - Name: DisplayName
-      Entry: 1
-      Data: delta_seconds
-    - Name: Type
-      Entry: 3
-      Data: 2
-    - Name: Description
-      Entry: 6
-      Data: 
+      Data: 371|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
     - Name: 
-      Entry: 8
-      Data: 
+      Entry: 12
+      Data: 5
     - Name: 
       Entry: 7
       Data: 372|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
-      Data: win_team_id
+      Data: summon_actor_id
     - Name: DisplayName
       Entry: 1
-      Data: win_team_id
+      Data: summon_actor_id
     - Name: Type
       Entry: 3
       Data: 1
@@ -7953,6 +7841,643 @@ MonoBehaviour:
       Data: 373|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
+      Data: summon_id
+    - Name: DisplayName
+      Entry: 1
+      Data: summon_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 374|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: owner_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: owner_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 375|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: root_owner_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: root_owner_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 376|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: reason
+    - Name: DisplayName
+      Entry: 1
+      Data: reason
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 377|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: summon.despawn
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: summon.despawn
+    - Name: Category
+      Entry: 1
+      Data: "\u53EC\u5524\u7269"
+    - Name: PayloadType
+      Entry: 1
+      Data: SummonEventPayload
+    - Name: PayloadFields
+      Entry: 7
+      Data: 378|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 5
+    - Name: 
+      Entry: 9
+      Data: 372
+    - Name: 
+      Entry: 9
+      Data: 373
+    - Name: 
+      Entry: 9
+      Data: 374
+    - Name: 
+      Entry: 9
+      Data: 375
+    - Name: 
+      Entry: 9
+      Data: 376
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 379|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: summon.die
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: summon.die
+    - Name: Category
+      Entry: 1
+      Data: "\u53EC\u5524\u7269"
+    - Name: PayloadType
+      Entry: 1
+      Data: SummonEventPayload
+    - Name: PayloadFields
+      Entry: 7
+      Data: 380|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 5
+    - Name: 
+      Entry: 9
+      Data: 372
+    - Name: 
+      Entry: 9
+      Data: 373
+    - Name: 
+      Entry: 9
+      Data: 374
+    - Name: 
+      Entry: 9
+      Data: 375
+    - Name: 
+      Entry: 9
+      Data: 376
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 381|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: unit.spawn
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: unit.spawn
+    - Name: Category
+      Entry: 1
+      Data: "\u5355\u4F4D"
+    - Name: PayloadType
+      Entry: 1
+      Data: UnitEventPayload
+    - Name: PayloadFields
+      Entry: 7
+      Data: 382|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 6
+    - Name: 
+      Entry: 7
+      Data: 383|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: unit_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: unit_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 384|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: team
+    - Name: DisplayName
+      Entry: 1
+      Data: team
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 385|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: main_type
+    - Name: DisplayName
+      Entry: 1
+      Data: main_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 386|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: unit_sub_type
+    - Name: DisplayName
+      Entry: 1
+      Data: unit_sub_type
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 387|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: owner_player_id
+    - Name: DisplayName
+      Entry: 1
+      Data: owner_player_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 388|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: killer_actor_id
+    - Name: DisplayName
+      Entry: 1
+      Data: killer_actor_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 389|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: unit.despawn
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: unit.despawn
+    - Name: Category
+      Entry: 1
+      Data: "\u5355\u4F4D"
+    - Name: PayloadType
+      Entry: 1
+      Data: UnitEventPayload
+    - Name: PayloadFields
+      Entry: 7
+      Data: 390|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 6
+    - Name: 
+      Entry: 9
+      Data: 383
+    - Name: 
+      Entry: 9
+      Data: 384
+    - Name: 
+      Entry: 9
+      Data: 385
+    - Name: 
+      Entry: 9
+      Data: 386
+    - Name: 
+      Entry: 9
+      Data: 387
+    - Name: 
+      Entry: 9
+      Data: 388
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 391|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: unit.die
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: unit.die
+    - Name: Category
+      Entry: 1
+      Data: "\u5355\u4F4D"
+    - Name: PayloadType
+      Entry: 1
+      Data: UnitEventPayload
+    - Name: PayloadFields
+      Entry: 7
+      Data: 392|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 6
+    - Name: 
+      Entry: 9
+      Data: 383
+    - Name: 
+      Entry: 9
+      Data: 384
+    - Name: 
+      Entry: 9
+      Data: 385
+    - Name: 
+      Entry: 9
+      Data: 386
+    - Name: 
+      Entry: 9
+      Data: 387
+    - Name: 
+      Entry: 9
+      Data: 388
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 393|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: unit.respawn
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: unit.respawn
+    - Name: Category
+      Entry: 1
+      Data: "\u5355\u4F4D"
+    - Name: PayloadType
+      Entry: 1
+      Data: UnitEventPayload
+    - Name: PayloadFields
+      Entry: 7
+      Data: 394|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 6
+    - Name: 
+      Entry: 9
+      Data: 383
+    - Name: 
+      Entry: 9
+      Data: 384
+    - Name: 
+      Entry: 9
+      Data: 385
+    - Name: 
+      Entry: 9
+      Data: 386
+    - Name: 
+      Entry: 9
+      Data: 387
+    - Name: 
+      Entry: 9
+      Data: 388
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Deterministic
+      Entry: 5
+      Data: true
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 395|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 1
+      Data: gameplay.started
+    - Name: MatchMode
+      Entry: 3
+      Data: 0
+    - Name: DisplayName
+      Entry: 1
+      Data: gameplay.started
+    - Name: Category
+      Entry: 1
+      Data: "\u73A9\u6CD5"
+    - Name: PayloadType
+      Entry: 1
+      Data: GameplayLifecycleEventArgs
+    - Name: PayloadFields
+      Entry: 7
+      Data: 396|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 6
+    - Name: 
+      Entry: 7
+      Data: 397|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: frame_index
+    - Name: DisplayName
+      Entry: 1
+      Data: frame_index
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 398|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: elapsed_seconds
+    - Name: DisplayName
+      Entry: 1
+      Data: elapsed_seconds
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 399|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: delta_seconds
+    - Name: DisplayName
+      Entry: 1
+      Data: delta_seconds
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 400|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
+      Data: win_team_id
+    - Name: DisplayName
+      Entry: 1
+      Data: win_team_id
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: Description
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 401|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+    - Name: Path
+      Entry: 1
       Data: team_id
     - Name: DisplayName
       Entry: 1
@@ -7968,7 +8493,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 374|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
+      Data: 402|AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData, AbilityKit.Ability
     - Name: Path
       Entry: 1
       Data: score
@@ -8004,7 +8529,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 375|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 403|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: gameplay.tick
@@ -8022,29 +8547,29 @@ MonoBehaviour:
       Data: GameplayLifecycleEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 376|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 404|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 6
     - Name: 
       Entry: 9
-      Data: 369
+      Data: 397
     - Name: 
       Entry: 9
-      Data: 370
+      Data: 398
     - Name: 
       Entry: 9
-      Data: 371
+      Data: 399
     - Name: 
       Entry: 9
-      Data: 372
+      Data: 400
     - Name: 
       Entry: 9
-      Data: 373
+      Data: 401
     - Name: 
       Entry: 9
-      Data: 374
+      Data: 402
     - Name: 
       Entry: 13
       Data: 
@@ -8065,7 +8590,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 377|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 405|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: gameplay.time_expired
@@ -8083,29 +8608,29 @@ MonoBehaviour:
       Data: GameplayLifecycleEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 378|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 406|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 6
     - Name: 
       Entry: 9
-      Data: 369
+      Data: 397
     - Name: 
       Entry: 9
-      Data: 370
+      Data: 398
     - Name: 
       Entry: 9
-      Data: 371
+      Data: 399
     - Name: 
       Entry: 9
-      Data: 372
+      Data: 400
     - Name: 
       Entry: 9
-      Data: 373
+      Data: 401
     - Name: 
       Entry: 9
-      Data: 374
+      Data: 402
     - Name: 
       Entry: 13
       Data: 
@@ -8126,7 +8651,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 379|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 407|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: gameplay.score_changed
@@ -8144,29 +8669,29 @@ MonoBehaviour:
       Data: GameplayLifecycleEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 380|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 408|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 6
     - Name: 
       Entry: 9
-      Data: 369
+      Data: 397
     - Name: 
       Entry: 9
-      Data: 370
+      Data: 398
     - Name: 
       Entry: 9
-      Data: 371
+      Data: 399
     - Name: 
       Entry: 9
-      Data: 372
+      Data: 400
     - Name: 
       Entry: 9
-      Data: 373
+      Data: 401
     - Name: 
       Entry: 9
-      Data: 374
+      Data: 402
     - Name: 
       Entry: 13
       Data: 
@@ -8187,7 +8712,7 @@ MonoBehaviour:
       Data: 
     - Name: 
       Entry: 7
-      Data: 381|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
+      Data: 409|AbilityKit.Ability.Config.Authoring.TriggerEventDefinitionData, AbilityKit.Ability
     - Name: Id
       Entry: 1
       Data: gameplay.ended
@@ -8205,29 +8730,29 @@ MonoBehaviour:
       Data: GameplayLifecycleEventArgs
     - Name: PayloadFields
       Entry: 7
-      Data: 382|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
+      Data: 410|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerPayloadFieldData,
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
       Data: 6
     - Name: 
       Entry: 9
-      Data: 369
+      Data: 397
     - Name: 
       Entry: 9
-      Data: 370
+      Data: 398
     - Name: 
       Entry: 9
-      Data: 371
+      Data: 399
     - Name: 
       Entry: 9
-      Data: 372
+      Data: 400
     - Name: 
       Entry: 9
-      Data: 373
+      Data: 401
     - Name: 
       Entry: 9
-      Data: 374
+      Data: 402
     - Name: 
       Entry: 13
       Data: 

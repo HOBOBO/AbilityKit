@@ -11,6 +11,7 @@ using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateImport;
+using AbilityKit.Combat.Projectile;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
@@ -51,6 +52,8 @@ public sealed class MobaLogicWorldStateImportSmokeTests
                 .GetValue(bootstrapper)!;
             var rollbackRegistry = MobaRollbackRegistryBuilder.Create(runtimeWorld);
             Assert.NotEmpty(rollbackRegistry.Providers);
+            Assert.True(rollbackRegistry.TryGet(ProjectileRollbackProvider.DefaultKey, out _),
+                "Projectile simulation state must participate in the battle rollback registry.");
             Assert.True(services.TryResolve<MobaActorRegistry>(out var registry) && registry != null,
                 "MobaActorRegistry not resolved from world services.");
             Assert.True(services.TryResolve<MobaLogicWorldStateImporter>(out var importer) && importer != null,

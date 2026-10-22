@@ -12,6 +12,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
         Minion = 3,
         /// <summary>Skill-created summon, resolved by summon template id.</summary>
         Summon = 4,
+        Building = 5,
     }
 
     public partial struct MobaActorSpawnSnapshotEntry

@@ -515,6 +515,69 @@ public sealed class StateSyncPredictionEvidenceSmokeTests
     }
 
     [Fact]
+    public void Action_ack_received_from_authority_is_available_to_prediction_replay()
+    {
+        var authority = new MobaActionAckSnapshotService();
+        var accepted = authority.Report(
+            actorId: 7,
+            entityVersion: 2,
+            predictionKey: 87,
+            skillId: 6001,
+            accepted: true,
+            authoritativeFrame: 120,
+            reason: MobaActionAckReason.None);
+        authority.AdvanceInterruptEpoch(7, 2, authoritativeFrame: 121);
+        Assert.True(authority.TryGetSnapshot(
+            new AbilityKit.Ability.FrameSync.FrameIndex(121),
+            out var snapshot));
+
+        var received = MobaActionAckCodec.Deserialize(snapshot.Payload);
+        var prediction = new MobaActionAckSnapshotService();
+        prediction.ApplyAuthoritative(received);
+
+        Assert.Equal(1, prediction.GetInterruptEpoch(7, 2));
+        prediction.BeginReplay(
+            new AbilityKit.Ability.FrameSync.FrameIndex(119),
+            new AbilityKit.Ability.FrameSync.FrameIndex(121));
+        Assert.Equal(
+            MobaActionReplayDisposition.ExecuteAccepted,
+            prediction.ResolveReplay(7, 2, 87, out var replayDecision));
+        Assert.Equal(accepted.AuthoritySequence, replayDecision.AuthoritySequence);
+        prediction.CompleteReplay(7, 2, 87);
+        prediction.EndReplay();
+
+        Assert.False(prediction.TryGetSnapshot(
+            new AbilityKit.Ability.FrameSync.FrameIndex(122),
+            out _));
+    }
+
+    [Fact]
+    public void Authoritative_replay_input_fills_a_late_action_ack_without_republishing_it()
+    {
+        var prediction = new MobaActionAckSnapshotService();
+        prediction.BeginReplay(
+            new AbilityKit.Ability.FrameSync.FrameIndex(119),
+            new AbilityKit.Ability.FrameSync.FrameIndex(121));
+
+        prediction.RecordAuthoritativeReplayInput(
+            actorId: 7,
+            entityVersion: 2,
+            predictionKey: 87,
+            skillId: 6001,
+            authoritativeFrame: 120);
+
+        Assert.Equal(
+            MobaActionReplayDisposition.ExecuteAccepted,
+            prediction.ResolveReplay(7, 2, 87, out var decision));
+        Assert.True(decision.Accepted);
+        prediction.CompleteReplay(7, 2, 87);
+        prediction.EndReplay();
+        Assert.False(prediction.TryGetSnapshot(
+            new AbilityKit.Ability.FrameSync.FrameIndex(122),
+            out _));
+    }
+
+    [Fact]
     public void Actor_entity_version_changes_only_when_actor_id_is_bound_to_a_new_entity()
     {
         var registry = new MobaActorRegistry();

@@ -278,6 +278,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.TickUntilTraceNode(MobaExecutionKind.BuffApply, passiveBuffId, maxTicks: 30, message: "Xiao Qiao passive should apply after her skill damage hits an enemy.");
 
                 Assert.IsTrue(harness.HasActorBuff(playerActorId, passiveBuffId), "Passive speed buff should exist immediately after a skill hit triggers it.");
+                AssertBuffPresentationCue(harness, playerActorId, passiveBuffId,
+                    "Xiao Qiao's passive speed buff should publish an active HUD cue.");
                 Assert.AreEqual(buffedMoveSpeed, harness.GetActorMoveSpeed(playerActorId), 0.01f, "Passive speed buff should raise move speed by the configured modifier amount.");
 
                 harness.TickSeconds(2.1f);

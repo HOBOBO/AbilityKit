@@ -21,6 +21,7 @@ from business.actors import project_loadouts
 from business.tags import project_tag_references, stable_action_id
 from business.modifiers import project_modifier_bindings
 from tag_bundle import build_tag_bundle_manifest
+from tools.skill_level_parameters import materialize_nested_workbook
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -41,11 +42,27 @@ TAG_TEMPLATE_TABLES = ("continuous_tag_templates",)
 REFERENCE_TABLES = {"modifier_templates", "modifier_definitions", "modifier_parameters", "tag_definitions", "attr_types", *TAG_REFERENCE_TABLES,
                     *TAG_TEMPLATE_TABLES}
 
-def run_luban(kind, output):
+def run_luban(kind, output, config=None):
     command = ["dotnet", str(LUBAN), "-t", "all", kind, "bin" if kind == "-d" and output.name == "bin" else
-               "json" if kind == "-d" else "cs-bin", "--conf", str(PRODUCTION / "luban.conf"),
+               "json" if kind == "-d" else "cs-bin", "--conf", str(config or PRODUCTION / "luban.conf"),
                "-x", ("outputCodeDir=" if kind == "-c" else "outputDataDir=") + str(output)]
     subprocess.run(command, cwd=ROOT, check=True)
+
+
+def run_luban_from_authoring_sources():
+    source_table = PRODUCTION / "Datas" / "moba-skill-level-parameters.xlsx"
+    if not source_table.is_file():
+        raise ValueError(f"missing skill parameter authoring source: {source_table}")
+    production_copy = STAGE / "authoring-input"
+    if production_copy.exists():
+        shutil.rmtree(production_copy)
+    shutil.copytree(PRODUCTION, production_copy)
+    materialize_nested_workbook(
+        source_table,
+        production_copy / "Datas" / "J-技能表.xlsx")
+    config = production_copy / "luban.conf"
+    for kind, output in (("-d", STAGE / "json"), ("-d", STAGE / "bin"), ("-c", STAGE / "code")):
+        run_luban(kind, output, config)
 
 
 def validate_table_inventory(expected, stage, keys, roots):
@@ -365,9 +382,7 @@ def main():
         if target.exists():
             shutil.rmtree(target)
         target.mkdir(parents=True)
-    run_luban("-d", STAGE / "json")
-    run_luban("-d", STAGE / "bin")
-    run_luban("-c", STAGE / "code")
+    run_luban_from_authoring_sources()
     keys = json.loads(TABLE_KEYS.read_text(encoding="utf-8")) if TABLE_KEYS.exists() else {}
     validate_table_inventory(tables, STAGE, keys, roots)
     normalized_tables = {}

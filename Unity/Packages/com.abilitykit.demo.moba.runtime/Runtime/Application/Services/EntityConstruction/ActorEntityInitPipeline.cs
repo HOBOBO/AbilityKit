@@ -225,7 +225,9 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 
             public bool TryPrepare(in MobaActorInitializationContext context, out object preparedState, out string error)
             {
-                preparedState = _initializer.Prepare(context.ResolvedLoadout.AttributeTemplate);
+                preparedState = _initializer.Prepare(
+                    context.ResolvedLoadout.AttributeTemplate,
+                    context.Loadout.Level);
                 error = null;
                 return true;
             }

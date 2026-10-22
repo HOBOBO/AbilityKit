@@ -22,6 +22,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         private MobaEntityManager _entities;
         private MobaActorDespawnSnapshotService _despawnSnapshots;
         private MobaProjectileLinkService _projectileLinks;
+        private IProjectileService _projectiles;
         private MobaSkillCastRuntimeService _skillRuntimes;
         private MobaExecutionContextRegistry _executionContexts;
         private MobaSummonService _summons;
@@ -36,6 +37,8 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         private MobaTriggerPlanSubscriptionService _triggerSubscriptions;
 
         private global::Entitas.IGroup<global::ActorEntity> _group;
+        private readonly System.Collections.Generic.List<MobaProjectileLinkDiagnostics> _projectileDiagnostics =
+            new System.Collections.Generic.List<MobaProjectileLinkDiagnostics>(32);
 
         public MobaActorDespawnCleanupSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
@@ -50,6 +53,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             Services.TryResolve(out _entities);
             Services.TryResolve(out _despawnSnapshots);
             Services.TryResolve(out _projectileLinks);
+            Services.TryResolve(out _projectiles);
             Services.TryResolve(out _skillRuntimes);
             Services.TryResolve(out _executionContexts);
             Services.TryResolve(out _summons);
@@ -74,12 +78,36 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
                 throw new System.InvalidOperationException("MobaActorDespawnCleanupSystem requires authority or frame time before cleaning actor despawn requests.");
             }
 
+            SweepExitedProjectiles(confirmed);
+
             const int maxPasses = 8;
 
             for (int pass = 0; pass < maxPasses; pass++)
             {
                 var processed = DrainReadyRequests(confirmed);
                 if (processed == 0) break;
+            }
+        }
+
+        private void SweepExitedProjectiles(int frame)
+        {
+            if (_projectileLinks == null || _projectiles == null || _registry == null) return;
+
+            _projectileDiagnostics.Clear();
+            _projectileLinks.CopyDiagnosticsTo(_projectileDiagnostics);
+            for (var i = 0; i < _projectileDiagnostics.Count; i++)
+            {
+                var link = _projectileDiagnostics[i];
+                if (link.ActorId <= 0 || link.ProjectileId.Value <= 0 ||
+                    _projectiles.TryGetRuntimeState(link.ProjectileId, out _)) continue;
+                if (!_registry.TryGetRegistered(link.ActorId, out var entity) || entity == null) continue;
+
+                ActorLifecycleRequests.RequestDespawn(
+                    entity,
+                    frame,
+                    ActorDespawnReason.ProjectileHitOrExit,
+                    link.Source.SourceActorId,
+                    link.Source.SourceContextId);
             }
         }
 
@@ -114,12 +142,19 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
                 return;
             }
 
+            var isLinkedProjectile = request.Reason == ActorDespawnReason.ProjectileHitOrExit ||
+                (_projectileLinks != null &&
+                _projectileLinks.TryGetProjectileId(actorId, out _));
             CleanupProjectile(actorId, request);
             StopOwnerBoundTriggers(entity);
             _brains?.DeactivateBrain(entity);
             ReclaimActorState(actorId, ToExecutionEndReason(request.Reason));
 
-            if (entity.hasSummonMeta && _summons != null)
+            // Projectile actors may carry the generic summon metadata used by the
+            // actor construction path, but their lifetime is owned by the
+            // projectile link.  Letting the summon service consume the request
+            // leaves the cannon entity registered after projectile exit.
+            if (entity.hasSummonMeta && _summons != null && !isLinkedProjectile)
             {
                 if (_summons.ExecuteRequestedDespawn(actorId, ToSummonReason(request.Reason))) return;
             }

@@ -5,6 +5,7 @@ using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
+using AbilityKit.Demo.Moba.Gameplay.Structures;
 using AbilityKit.Demo.Moba.Systems;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -35,19 +36,29 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             if (string.IsNullOrEmpty(reason))
             {
-                reason = "trigger_end_game";
+                reason = triggerArgs is MobaStructureEventArgs structureEvent &&
+                         structureEvent.Kind == MobaStructureKind.Base
+                    ? "base_destroyed"
+                    : "trigger_end_game";
             }
 
             var winTeamId = args.WinTeamId;
             if (args.WinTeamFromEvent)
             {
-                if (!(triggerArgs is GameplayLifecycleEventArgs evt) ||
-                    (evt.TeamId != (int)Team.Team1 && evt.TeamId != (int)Team.Team2))
+                if (triggerArgs is MobaStructureEventArgs structureEvent)
                 {
-                    LogRejected("win_team_from_event requires a scored team event");
+                    winTeamId = structureEvent.WinnerTeamId;
+                }
+                else if (triggerArgs is GameplayLifecycleEventArgs gameplayEvent &&
+                         (gameplayEvent.TeamId == (int)Team.Team1 || gameplayEvent.TeamId == (int)Team.Team2))
+                {
+                    winTeamId = gameplayEvent.TeamId;
+                }
+                else
+                {
+                    LogRejected("win_team_from_event requires a gameplay score or structure event");
                     return;
                 }
-                winTeamId = evt.TeamId;
             }
 
             if (winTeamId != 0 && winTeamId != (int)Team.Team1 && winTeamId != (int)Team.Team2)

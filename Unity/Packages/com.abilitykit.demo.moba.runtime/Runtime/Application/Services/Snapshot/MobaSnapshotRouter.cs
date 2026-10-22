@@ -76,7 +76,13 @@ namespace AbilityKit.Demo.Moba.Services
                 RecordHit(snapshot.OpCode, 1);
                 return true;
             }
- 
+
+            if (TryGetRequestedBaseline(out snapshot))
+            {
+                RecordHit(snapshot.OpCode, 1);
+                return true;
+            }
+
             snapshot = default;
             RecordEmpty();
             return false;
@@ -111,10 +117,68 @@ namespace AbilityKit.Demo.Moba.Services
                 lastOpCode = snapshot.OpCode;
             }
 
+            if (count < maxSnapshots)
+            {
+                count += CollectActiveBaselines(snapshots, maxSnapshots - count);
+                if (count > 0) lastOpCode = snapshots[snapshots.Count - 1].OpCode;
+            }
+
             if (count > 0) RecordHit(lastOpCode, count);
             else RecordEmpty();
  
             return count;
+        }
+
+        /// <summary>
+        /// Requests a one-shot full state replay from baseline-capable emitters.
+        /// The request is intentionally routed by the snapshot layer so every view
+        /// can use the same refresh contract.
+        /// </summary>
+        public bool RequestActiveBaseline(Type emitterType = null)
+        {
+            var requested = false;
+            for (var i = 0; i < _emitters.Count; i++)
+            {
+                var emitter = _emitters[i];
+                if (!(emitter is IActiveBaselineSnapshotProvider provider)) continue;
+                if (emitterType != null && emitter.GetType() != emitterType) continue;
+                provider.RequestActiveBaseline();
+                requested = true;
+            }
+            return requested;
+        }
+
+        /// <summary>
+        /// Collects the requested/current baselines without consuming normal frame
+        /// deltas. Empty baselines are valid and are preserved for cleanup.
+        /// </summary>
+        public int CollectActiveBaselines(IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32)
+        {
+            if (snapshots == null) throw new ArgumentNullException(nameof(snapshots));
+            if (maxSnapshots <= 0) throw new ArgumentOutOfRangeException(nameof(maxSnapshots));
+
+            var count = 0;
+            for (var i = 0; i < _emitters.Count && count < maxSnapshots; i++)
+            {
+                if (!(_emitters[i] is IActiveBaselineSnapshotProvider provider) ||
+                    !provider.ConsumeActiveBaselineRequest()) continue;
+                if (!provider.TryGetActiveBaseline(out var snapshot)) continue;
+                snapshots.Add(snapshot);
+                count++;
+            }
+            return count;
+        }
+
+        private bool TryGetRequestedBaseline(out WorldStateSnapshot snapshot)
+        {
+            for (var i = 0; i < _emitters.Count; i++)
+            {
+                if (!(_emitters[i] is IActiveBaselineSnapshotProvider provider) ||
+                    !provider.ConsumeActiveBaselineRequest()) continue;
+                if (provider.TryGetActiveBaseline(out snapshot)) return true;
+            }
+            snapshot = default;
+            return false;
         }
 
         private static void ValidateFrame(FrameIndex frame)

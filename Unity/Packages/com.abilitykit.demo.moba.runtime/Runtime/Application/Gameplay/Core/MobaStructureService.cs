@@ -15,6 +15,7 @@ using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.Map;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Demo.Moba.Gameplay
@@ -33,8 +34,10 @@ namespace AbilityKit.Demo.Moba.Gameplay
         private readonly Dictionary<int, StructureRuntime> _structures = new Dictionary<int, StructureRuntime>();
         private readonly Dictionary<int, StructureRuntime> _structuresByActor = new Dictionary<int, StructureRuntime>();
         private readonly Dictionary<int, int> _baseByTeam = new Dictionary<int, int>();
-        private IDisposable _baseDamageSubscription;
+        private readonly Dictionary<int, List<int>> _towersByTeam = new Dictionary<int, List<int>>();
+        private IDisposable _healthCommittedSubscription;
         private IEventBus _events;
+        [WorldInject(required: false)] private MobaActorSpawnSnapshotService _spawnSnapshots;
 
         public MobaStructureService(
             ActorIdAllocator actorIds,
@@ -96,13 +99,26 @@ namespace AbilityKit.Demo.Moba.Gameplay
                             throw new InvalidOperationException($"Only one base is allowed per team. teamId={definition.TeamId}");
                         _baseByTeam.Add(definition.TeamId, result.ActorId);
                     }
+                    else
+                    {
+                        if (!_towersByTeam.TryGetValue(definition.TeamId, out var towers))
+                        {
+                            towers = new List<int>();
+                            _towersByTeam.Add(definition.TeamId, towers);
+                        }
+                        towers.Add(result.ActorId);
+                    }
+
+                    if (_spawnSnapshots != null && !_spawnSnapshots.TryEnqueueActorSpawn(
+                            _actors, result.ActorId, SpawnEntityKind.Building, definition.ModelId > 0 ? definition.ModelId : 90001004))
+                        throw new InvalidOperationException($"Could not publish structure spawn snapshot. structureId={definition.Id}.");
                 }
 
                 if (_events != null)
                 {
-                    var eventId = TriggeringIdUtil.GetEventEid(MobaMinionEvents.BaseDamage);
-                    _baseDamageSubscription = _events.Subscribe(
-                        new EventKey<MobaMinionBaseDamageEvent>(eventId), OnMinionBaseDamage);
+                    var healthEventId = TriggeringIdUtil.GetEventEid(DamagePipelineEvents.HealthCommitted);
+                    _healthCommittedSubscription = _events.Subscribe(
+                        new EventKey<MobaHealthChangeResult>(healthEventId), OnHealthCommitted);
                 }
             }
             catch
@@ -112,21 +128,45 @@ namespace AbilityKit.Demo.Moba.Gameplay
             }
         }
 
-        private void OnMinionBaseDamage(MobaMinionBaseDamageEvent request)
+        public bool ApplyMinionBaseDamage(in MobaMinionBaseDamageEvent request)
         {
-            if (!_baseByTeam.TryGetValue(request.TargetTeamId, out var targetActorId)) return;
-            if (!_structuresByActor.TryGetValue(targetActorId, out var structure)) return;
-            if (!_actors.TryGet(targetActorId, out var target) || target == null || !target.hasAttributeGroup) return;
-            var result = _damage.CommitDamage(request.ActorId, targetActorId, 0,
+            if (!TryGetNextTarget(request.TargetTeamId, out var targetActorId)) return false;
+            if (!_actors.TryGet(targetActorId, out var target) || target == null || !target.hasAttributeGroup) return false;
+            _damage.CommitDamage(request.ActorId, targetActorId, 0,
                 MobaResourceFixedConvert.ToFixed(request.Damage), BaseDamageReason, 0);
-            if (!result.Succeeded) return;
+            return true;
+        }
+
+        private void OnHealthCommitted(MobaHealthChangeResult result)
+        {
+            if (!result.Succeeded || !_structuresByActor.TryGetValue(result.TargetActorId, out var structure)) return;
+            if (structure.Destroyed) return;
             var args = new MobaStructureEventArgs(structure.ActorId, structure.StructureId,
-                structure.Kind, structure.TeamId, request.ActorId, result.AppliedValue, result.TargetHp);
+                structure.Kind, structure.TeamId, result.SourceActorId, result.AppliedValue, result.TargetHp);
             Publish(MobaStructureEvents.Damaged, in args);
-            if (result.TargetHp <= 0f)
+            if (result.TargetHp > 0f) return;
+
+            structure.Destroyed = true;
+            Publish(MobaStructureEvents.Destroyed, in args);
+        }
+
+        private bool TryGetNextTarget(int teamId, out int actorId)
+        {
+            actorId = 0;
+            if (_towersByTeam.TryGetValue(teamId, out var towers))
             {
-                Publish(MobaStructureEvents.Destroyed, in args);
+                for (var i = 0; i < towers.Count; i++)
+                {
+                    if (_structuresByActor.TryGetValue(towers[i], out var tower) && !tower.Destroyed)
+                    {
+                        actorId = tower.ActorId;
+                        return true;
+                    }
+                }
             }
+
+            if (!_baseByTeam.TryGetValue(teamId, out actorId)) return false;
+            return _structuresByActor.TryGetValue(actorId, out var baseStructure) && !baseStructure.Destroyed;
         }
 
         private void Publish(string eventName, in MobaStructureEventArgs args)
@@ -144,8 +184,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
         public void Reset()
         {
-            _baseDamageSubscription?.Dispose();
-            _baseDamageSubscription = null;
+            _healthCommittedSubscription?.Dispose();
+            _healthCommittedSubscription = null;
             if (_spawn is IMobaActorSpawnTransactionService transactions)
             {
                 for (var i = _spawnedStructures.Count - 1; i >= 0; i--)
@@ -158,6 +198,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
             _structures.Clear();
             _structuresByActor.Clear();
             _baseByTeam.Clear();
+            _towersByTeam.Clear();
         }
 
         public void OnDeinit(IWorldResolver services) => Reset();
@@ -173,6 +214,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
             public int ActorId { get; }
             public MobaStructureKind Kind { get; }
             public int TeamId { get; }
+            public bool Destroyed { get; set; }
         }
     }
 }

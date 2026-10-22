@@ -237,7 +237,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 if (asset == null) throw new FileNotFoundException("MOBA Trigger Authoring module is missing", assetPath);
                 var context = new TriggerAuthoringValidationContext
                 {
-                    Types = TriggerTypeDescriptorCatalog.CreateProjectDefaults(),
+                    Types = TriggerTypeDescriptorCatalog.CreateForProject(project),
                     Events = MobaEvents,
                     GlobalBlackboard = new TriggerGlobalBlackboardDescriptorCatalog(
                         TriggerAuthoringProjectDefaults.CreateMobaBlackboardKeys())

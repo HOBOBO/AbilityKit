@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
@@ -170,6 +171,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.EnterGameAndWarmup(reason: "sun shangxiang skill 1 movement-speed curve baseline");
                 var actorId = harness.AssertPlayerActorBound();
                 var baseMoveSpeed = harness.GetActorMoveSpeed(actorId);
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 0f, z: 3f);
                 Assert.IsTrue(harness.Config.TryGetSkill(Skill1.SkillId, out _), "Sun Shangxiang skill 1 config should exist.");
                 HeroSkillHeadlessContract.AssertTriggerActions(
                     harness,
@@ -191,10 +193,12 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.DashId.Value, TriggeringConstants.Actions.Dash);
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.AddBuffId.Value, TriggeringConstants.Actions.AddBuff);
                 HeroSkillHeadlessContract.AssertFreshBuff(harness, actorId, 10070103, 2.0f, "Sun Shangxiang roll should apply the movement-speed Buff.");
+                AssertBuffPresentationCue(harness, actorId, 10070103,
+                    "Sun Shangxiang's roll speed buff should publish an active HUD cue.");
                 HeroSkillHeadlessContract.AssertFreshBuff(harness, actorId, 10070101, 2.0f, "Sun Shangxiang roll should arm the enhanced basic attack Buff.");
 
                 var speedAtCurveStart = harness.GetActorMoveSpeed(actorId);
-                Assert.Greater(speedAtCurveStart, baseMoveSpeed, "Sun Shangxiang roll movement-speed modifier should increase speed immediately.");
+                Assert.Greater(speedAtCurveStart, baseMoveSpeed, "Sun Shangxiang roll should grant the conditional movement-speed bonus when an enemy is nearby.");
                 harness.Tick(15);
                 var speedAtCurveMid = harness.GetActorMoveSpeed(actorId);
                 Assert.GreaterOrEqual(speedAtCurveStart, speedAtCurveMid, "Sun Shangxiang roll movement-speed modifier should follow a decaying curve.");
@@ -210,7 +214,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.AreEqual(10070112, effectiveSkillId, "Sun Shangxiang roll should replace the effective basic attack skill ID.");
                 Assert.AreEqual(10070112, candidates.Resolve(actorId, basicAttackSlot, normalBasicAttackSkillId).EffectiveSkillId);
 
-                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 4f, z: -6f);
+                harness.MoveScenarioActor(targetActorId, new MobaAcceptanceVector3Expectation { x = 4f, y = 0f, z = -6f });
                 harness.Tick(1);
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var cast = skills.TryCastSkill(
@@ -270,6 +274,35 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.Tick(60);
                 Assert.IsFalse(harness.HasActorBuff(actorId, 10070103), "Sun Shangxiang movement-speed Buff should expire after its configured duration.");
                 Assert.AreEqual(baseMoveSpeed, harness.GetActorMoveSpeed(actorId), 0.01f, "Sun Shangxiang movement speed should return to baseline after the curve Buff expires.");
+            }
+        }
+
+        [Test]
+        public void Skill10070101_ShouldNotGrantConditionalMoveSpeedWithoutNearbyEnemies()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(SunShangxiang, "sun_shangxiang_skill_1_no_nearby_enemy_contract_world"))
+            {
+                harness.EnterGameAndWarmup(reason: "sun shangxiang skill 1 should gate its movement-speed bonus on nearby enemies");
+                var actorId = harness.AssertPlayerActorBound();
+                var baseMoveSpeed = harness.GetActorMoveSpeed(actorId);
+                var effectTrace = HeroSkillHeadlessContract.CastSlotAndAssertEffect(
+                    harness,
+                    Skill1,
+                    "sun shangxiang skill 1 without nearby enemies",
+                    aimDir: Vec3.Right);
+
+                harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.DashId.Value, TriggeringConstants.Actions.Dash);
+                HeroSkillHeadlessContract.AssertFreshBuff(harness, actorId, 10070101, 2.0f,
+                    "Sun Shangxiang roll should always arm the enhanced basic attack.");
+                Assert.IsFalse(harness.HasActorBuff(actorId, 10070103),
+                    "Sun Shangxiang should not receive the conditional movement-speed Buff when no enemy is nearby.");
+                Assert.AreEqual(baseMoveSpeed, harness.GetActorMoveSpeed(actorId), 0.001f,
+                    "Sun Shangxiang movement speed should remain unchanged without nearby enemies.");
+                var cues = harness.World.Services.Resolve<MobaPresentationCueSnapshotService>();
+                var cuePrefix = $"buff:{actorId}:10070103:";
+                foreach (var cueKey in cues.ActiveCues.Keys)
+                    Assert.IsFalse(cueKey.StartsWith(cuePrefix, StringComparison.Ordinal),
+                        "No movement-speed HUD cue should be published when the conditional Buff is absent.");
             }
         }
 

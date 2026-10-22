@@ -128,6 +128,46 @@ namespace AbilityKit.Demo.Moba.Services
                 : MobaActionReplayDisposition.ExecuteAccepted;
         }
 
+        /// <summary>
+        /// Authoritative frame inputs contain only commands accepted by the server. They can
+        /// therefore fill a missing action ack before replaying that command.
+        /// </summary>
+        public void RecordAuthoritativeReplayInput(
+            int actorId,
+            int entityVersion,
+            int predictionKey,
+            int skillId,
+            int authoritativeFrame)
+        {
+            if (!_replayActive)
+                throw new InvalidOperationException("BeginReplay must be called before recording replay inputs.");
+            if (actorId <= 0 || entityVersion <= 0 || predictionKey <= 0 || authoritativeFrame < 0)
+                throw new ArgumentOutOfRangeException(nameof(predictionKey));
+            if (authoritativeFrame <= _replayRestoredFrame.Value || authoritativeFrame > _replayToFrame.Value)
+                throw new InvalidOperationException("The authoritative input is outside the active replay window.");
+
+            var key = new ActionKey(actorId, entityVersion, predictionKey);
+            if (_decisions.TryGetValue(key, out var existing))
+            {
+                if (!existing.Accepted)
+                    throw new InvalidOperationException("An authoritative replay input conflicts with a rejected action decision.");
+                return;
+            }
+
+            _decisions.Add(key, new MobaActionAckEntry
+            {
+                ActorId = actorId,
+                EntityVersion = entityVersion,
+                PredictionKey = predictionKey,
+                SkillId = skillId,
+                Accepted = true,
+                AuthoritativeFrame = authoritativeFrame,
+                Reason = (int)MobaActionAckReason.None,
+                InterruptEpoch = GetInterruptEpoch(actorId, entityVersion),
+                AuthoritySequence = 0,
+            });
+        }
+
         public void CompleteReplay(int actorId, int entityVersion, int predictionKey)
         {
             if (!_replayActive)
@@ -275,6 +315,32 @@ namespace AbilityKit.Demo.Moba.Services
         public void Repeat(in MobaActionAckEntry decision)
         {
             if (decision.PredictionKey > 0) _pending.Add(decision);
+        }
+
+        /// <summary>
+        /// Applies an authoritative ack received by a prediction client. Network delivery must
+        /// update the replay journal without re-emitting the entry as a local snapshot.
+        /// </summary>
+        public void ApplyAuthoritative(IReadOnlyList<MobaActionAckEntry> entries)
+        {
+            if (entries == null) return;
+
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                if (entry.ActorId <= 0 || entry.EntityVersion <= 0) continue;
+
+                var actorKey = new ActorKey(entry.ActorId, entry.EntityVersion);
+                if (entry.InterruptEpoch > GetInterruptEpoch(entry.ActorId, entry.EntityVersion))
+                    _interruptEpochs[actorKey] = entry.InterruptEpoch;
+
+                if (entry.PredictionKey <= 0) continue;
+
+                var actionKey = new ActionKey(entry.ActorId, entry.EntityVersion, entry.PredictionKey);
+                _decisions[actionKey] = entry;
+                if (entry.AuthoritySequence > _nextAuthoritySequence)
+                    _nextAuthoritySequence = entry.AuthoritySequence;
+            }
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)

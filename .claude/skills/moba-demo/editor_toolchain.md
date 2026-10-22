@@ -54,6 +54,7 @@
 - **Preview/**：`EditorGameFlowPumpWindow` / `MobaDemoSceneMenu`
 - **SceneGizmos/**：`ActorBuffGizmoDrawer` / `ActorCombatGizmoDrawer` / `NavigationGizmoDrawer`（**NEW**，导航网格+路径线） / `MobaSceneGizmoSettings` / `MobaGizmoSettingsPersistence` / `SceneGizmoSettingsMenu`
 - **CollisionDebug/**：`CollisionWorldGizmoDrawer`
+- **Active AOE Gizmo**：`ActiveAoeGizmoDrawer` 从 `MobaAreaRuntimeService` 读取当前逻辑世界的活动区域，绘制实际中心/半径；菜单 `Moba/Gizmos/Active AOE Areas`，上限 `MobaSceneGizmoSettings.MaxActiveAoes`。
 - **DebugDraw/**
 - **Document/**
 - **Tests/**：23 个 Edit-mode 测试（asmdef `AbilityKit.Demo.Moba.Diagnostics.Core.Tests`）
@@ -68,3 +69,15 @@
 - `NavigationBit = 1 << 6` / `PathBit = 1 << 7`
 - `MaxNavCells` / `NavFreeColor`(绿) / `NavBlockedColor`(红) / `PathColor`(蓝)
 - 菜单 `Moba/Gizmos/Navigation Grid` + `Path Lines` toggle
+
+## 战斗几何可视化开关
+
+`Tools/AbilityKit/Demos/Moba/Gizmos/` 下的开关使用 EditorPrefs 持久化：
+
+- `Collision World`：逻辑碰撞世界中的角色和地图碰撞体。
+- `Attack Range`：角色技能选择范围预览。
+- `Buff Range`：当前 Actor Buff 表现模板半径。
+- `Active AOE Areas`：已经生成、仍在生命周期内的 AOE 实例实际半径。
+- `Navigation Grid` / `Path Lines`：导航网格和活动寻路路径。
+
+AOE 绘制只读逻辑服务，不参与模拟 Tick；技能选择范围、Buff 半径和活动 AOE 使用地面圆环，活动 AOE 另有中心十字。碰撞绘制覆盖 Sphere/Capsule/AABB/OBB，单位、投射物和世界层使用不同颜色。所有绘制都受 `MaxActiveAoes`、`MaxActors`、`MaxNavCells` 等上限约束。

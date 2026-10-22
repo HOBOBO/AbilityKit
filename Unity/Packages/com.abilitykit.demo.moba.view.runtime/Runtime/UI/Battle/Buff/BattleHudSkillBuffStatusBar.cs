@@ -51,6 +51,15 @@ namespace AbilityKit.Game.Flow
             _actorId = actorId;
         }
 
+        public void Clear()
+        {
+            _active.Clear();
+            _scratchKeys.Clear();
+            _activeKeys.Clear();
+            _baselineKeys.Clear();
+            Refresh();
+        }
+
         public void Apply(PresentationCueData[] entries)
         {
             if (entries == null) return;

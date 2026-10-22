@@ -1,4 +1,5 @@
 using System.IO;
+using AbilityKit.Demo.Moba.Services;
 using NUnit.Framework;
 
 namespace AbilityKit.Game.Test.UnitTest
@@ -49,6 +50,15 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsNotNull(summary, "Acceptance summary is required.");
             Assert.IsTrue(File.Exists(summary.traceJsonlPath), $"Trace jsonl artifact missing: {summary.traceJsonlPath}");
             Assert.IsTrue(File.Exists(summary.summaryJsonPath), $"Summary json artifact missing: {summary.summaryJsonPath}");
+        }
+
+        protected static void AssertBuffPresentationCue(MobaSkillConfigTestHarness harness, int actorId, int buffId, string message)
+        {
+            var cues = harness.World.Services.Resolve<MobaPresentationCueSnapshotService>();
+            var prefix = $"buff:{actorId}:{buffId}:";
+            foreach (var key in cues.ActiveCues.Keys)
+                if (key.StartsWith(prefix, System.StringComparison.Ordinal)) return;
+            Assert.Fail(message + $" expected active cue key prefix '{prefix}'.");
         }
     }
 }

@@ -50,10 +50,10 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         public void ApplyTemplate(global::ActorEntity entity, MO.BattleAttributeTemplateMO template)
         {
             if (entity == null || template == null) return;
-            Apply(entity, Prepare(template));
+            Apply(entity, Prepare(template, 1));
         }
 
-        public MobaPreparedActorAttributes Prepare(MO.BattleAttributeTemplateMO template)
+        public MobaPreparedActorAttributes Prepare(MO.BattleAttributeTemplateMO template, int level = 1)
         {
             if (template == null)
             {
@@ -63,39 +63,46 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             var context = new AttributeContext();
             var group = context.GetOrCreateGroup("moba");
 
-            group.SetBase(MobaAttributeIds.HP, template.Hp);
-            group.SetBase(MobaAttributeIds.MAX_HP, template.MaxHp);
-            group.SetBase(MobaAttributeIds.EXTRA_HP, template.ExtraHp);
-            group.SetBase(MobaAttributeIds.PHYSICS_ATTACK, template.PhysicsAttack);
-            group.SetBase(MobaAttributeIds.MAGIC_ATTACK, template.MagicAttack);
-            group.SetBase(MobaAttributeIds.EXTRA_PHYSICS_ATTACK, template.ExtraPhysicsAttack);
-            group.SetBase(MobaAttributeIds.EXTRA_MAGIC_ATTACK, template.ExtraMagicAttack);
-            group.SetBase(MobaAttributeIds.PHYSICS_DEFENSE, template.PhysicsDefense);
-            group.SetBase(MobaAttributeIds.MAGIC_DEFENSE, template.MagicDefense);
-            group.SetBase(MobaAttributeIds.MANA, template.Mana);
-            group.SetBase(MobaAttributeIds.MAX_MANA, template.MaxMana);
-            group.SetBase(MobaAttributeIds.CRITICAL_R, template.CriticalR);
-            group.SetBase(MobaAttributeIds.ATTACK_SPEED_R, template.AttackSpeedR);
-            group.SetBase(MobaAttributeIds.COOLDOWN_REDUCE_R, template.CooldownReduceR);
-            group.SetBase(MobaAttributeIds.PHYSICS_PENETRATION_R, template.PhysicsPenetrationR);
-            group.SetBase(MobaAttributeIds.MAGIC_PENETRATION_R, template.MagicPenetrationR);
-            group.SetBase(MobaAttributeIds.MOVE_SPEED, template.MoveSpeed);
-            group.SetBase(MobaAttributeIds.PHYSICS_BLOODSUCKING_R, template.PhysicsBloodsuckingR);
-            group.SetBase(MobaAttributeIds.MAGIC_BLOODSUCKING_R, template.MagicBloodsuckingR);
-            group.SetBase(MobaAttributeIds.ATTACK_RANGE, template.AttackRange);
-            group.SetBase(MobaAttributeIds.PER_SECOND_BLOOD_R, template.PerSecondBloodR);
-            group.SetBase(MobaAttributeIds.PER_SECOND_MANA_R, template.PerSecondManaR);
-            group.SetBase(MobaAttributeIds.RESILIENCE_R, template.ResilienceR);
+            var levelOffset = System.Math.Max(1, level) - 1;
+            var hp = Grow(template.Hp, template.HpGrowth, levelOffset);
+            var maxHp = Grow(template.MaxHp, template.MaxHpGrowth, levelOffset);
+            var mana = Grow(template.Mana, template.ManaGrowth, levelOffset);
+            var maxMana = Grow(template.MaxMana, template.MaxManaGrowth, levelOffset);
+            group.SetBase(MobaAttributeIds.HP, hp);
+            group.SetBase(MobaAttributeIds.MAX_HP, maxHp);
+            group.SetBase(MobaAttributeIds.EXTRA_HP, Grow(template.ExtraHp, template.ExtraHpGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.PHYSICS_ATTACK, Grow(template.PhysicsAttack, template.PhysicsAttackGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.MAGIC_ATTACK, Grow(template.MagicAttack, template.MagicAttackGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.EXTRA_PHYSICS_ATTACK, Grow(template.ExtraPhysicsAttack, template.ExtraPhysicsAttackGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.EXTRA_MAGIC_ATTACK, Grow(template.ExtraMagicAttack, template.ExtraMagicAttackGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.PHYSICS_DEFENSE, Grow(template.PhysicsDefense, template.PhysicsDefenseGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.MAGIC_DEFENSE, Grow(template.MagicDefense, template.MagicDefenseGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.MANA, mana);
+            group.SetBase(MobaAttributeIds.MAX_MANA, maxMana);
+            group.SetBase(MobaAttributeIds.CRITICAL_R, Grow(template.CriticalR, template.CriticalRGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.ATTACK_SPEED_R, Grow(template.AttackSpeedR, template.AttackSpeedRGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.COOLDOWN_REDUCE_R, Grow(template.CooldownReduceR, template.CooldownReduceRGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.PHYSICS_PENETRATION_R, Grow(template.PhysicsPenetrationR, template.PhysicsPenetrationRGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.MAGIC_PENETRATION_R, Grow(template.MagicPenetrationR, template.MagicPenetrationRGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.MOVE_SPEED, Grow(template.MoveSpeed, template.MoveSpeedGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.PHYSICS_BLOODSUCKING_R, Grow(template.PhysicsBloodsuckingR, template.PhysicsBloodsuckingRGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.MAGIC_BLOODSUCKING_R, Grow(template.MagicBloodsuckingR, template.MagicBloodsuckingRGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.ATTACK_RANGE, Grow(template.AttackRange, template.AttackRangeGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.PER_SECOND_BLOOD_R, Grow(template.PerSecondBloodR, template.PerSecondBloodRGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.PER_SECOND_MANA_R, Grow(template.PerSecondManaR, template.PerSecondManaRGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.RESILIENCE_R, Grow(template.ResilienceR, template.ResilienceRGrowth, levelOffset));
 
             var resources = new ResourceContainer
             {
                 Map = new Dictionary<ResourceType, ResourceState>()
             };
-            EnsureResource(resources, ResourceType.Hp, MobaAttributeIds.MAX_HP, template.Hp, template.MaxHp);
-            EnsureResource(resources, ResourceType.Mana, MobaAttributeIds.MAX_MANA, template.Mana, template.MaxMana);
+            EnsureResource(resources, ResourceType.Hp, MobaAttributeIds.MAX_HP, hp, maxHp);
+            EnsureResource(resources, ResourceType.Mana, MobaAttributeIds.MAX_MANA, mana, maxMana);
             EnsureResource(resources, ResourceType.Rage, default, 0f, 100f);
             return new MobaPreparedActorAttributes(group, context, resources);
         }
+
+        private static float Grow(float value, float growth, int levelOffset) => value + growth * levelOffset;
 
         public void Apply(global::ActorEntity entity, in MobaPreparedActorAttributes prepared)
         {

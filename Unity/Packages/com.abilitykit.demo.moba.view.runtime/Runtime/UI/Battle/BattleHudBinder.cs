@@ -103,6 +103,11 @@ namespace AbilityKit.Game.Flow
             _chargeBars.Clear();
         }
 
+        public void ClearPresentationCues()
+        {
+            _buffBars.Clear();
+        }
+
         public bool TryGetActorWorldPos(int actorId, out Vector3 pos)
         {
             return _actors.TryGetActorWorldPos(actorId, out pos);

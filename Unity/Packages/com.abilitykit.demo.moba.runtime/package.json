@@ -34,6 +34,7 @@
                          "com.abilitykit.combat.collision.abstractions":  "0.1.0",
                          "com.abilitykit.combat.navigation":  "0.1.0",
                          "com.abilitykit.diagnostics":  "0.1.0",
+                         "com.abilitykit.record":  "0.1.0",
                          "com.abilitykit.game.battle.runtime":  "0.1.0",
                          "com.abilitykit.network.battle":  "0.1.0",
                          "com.abilitykit.gameplaytags":  "0.1.0",

@@ -548,6 +548,78 @@
       }
     },
     {
+      "TriggerId": 900005,
+      "EventName": "minion.base_damage",
+      "EventId": 1475934448,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 1396584612,
+          "Args": {},
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ],
+      "ExecutionControl": {
+        "Mode": "always"
+      }
+    },
+    {
+      "TriggerId": 900006,
+      "EventName": "structure.destroyed",
+      "EventId": 249122417,
+      "Priority": 1,
+      "Predicate": {
+        "Kind": "expr",
+        "Nodes": [
+          {
+            "Kind": "CompareNumeric",
+            "CompareOp": "Equal",
+            "Left": {
+              "Kind": "PayloadField",
+              "FieldId": 1190174393,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            }
+          }
+        ]
+      },
+      "Actions": [
+        {
+          "ActionId": 1541686307,
+          "Arity": 2,
+          "Args": {
+            "reason_id": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "win_team_from_event": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "win_team_id": {
+              "Kind": "Const",
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ],
+      "ExecutionControl": {
+        "Mode": "always"
+      }
+    },
+    {
       "TriggerId": 10010000,
       "EventName": "skill.cast.complete",
       "EventId": 1035494462,
@@ -7238,115 +7310,253 @@
     {
       "TriggerId": 10070101,
       "Priority": 50,
+      "Scope": 1,
       "Predicate": {
         "Kind": "none"
       },
-      "Actions": [
-        {
-          "ActionId": 427896051,
-          "Arity": 2,
-          "Args": {
-            "apply_to_caster": {
-              "Kind": "Const",
-              "ConstValue": 1.0,
-              "Scale": 1.0
+      "ExecutionRoot": {
+        "Kind": "Sequence",
+        "Children": [
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 427896051,
+              "Arity": 2,
+              "Args": {
+                "apply_to_caster": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                },
+                "direction_mode": {
+                  "Kind": "Const",
+                  "Scale": 1.0
+                },
+                "duration_ms": {
+                  "Kind": "Const",
+                  "ConstValue": 350.0,
+                  "Scale": 1.0
+                },
+                "hit_trigger_plan_id": {
+                  "Kind": "Const",
+                  "ConstValue": 10070111.0,
+                  "Scale": 1.0
+                },
+                "motion_group_id": {
+                  "Kind": "Const",
+                  "ConstValue": 2.0,
+                  "Scale": 1.0
+                },
+                "priority": {
+                  "Kind": "Const",
+                  "ConstValue": 20.0,
+                  "Scale": 1.0
+                },
+                "speed": {
+                  "Kind": "Const",
+                  "ConstValue": 16.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
             },
-            "direction_mode": {
-              "Kind": "Const",
-              "Scale": 1.0
-            },
-            "duration_ms": {
-              "Kind": "Const",
-              "ConstValue": 350.0,
-              "Scale": 1.0
-            },
-            "hit_trigger_plan_id": {
-              "Kind": "Const",
-              "ConstValue": 10070111.0,
-              "Scale": 1.0
-            },
-            "motion_group_id": {
-              "Kind": "Const",
-              "ConstValue": 2.0,
-              "Scale": 1.0
-            },
-            "priority": {
-              "Kind": "Const",
-              "ConstValue": 20.0,
-              "Scale": 1.0
-            },
-            "speed": {
-              "Kind": "Const",
-              "ConstValue": 16.0,
-              "Scale": 1.0
-            }
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
           },
-          "MaxExecutions": -1,
-          "CanBeInterrupted": true,
-          "RetryMaxRetries": 3
-        },
-        {
-          "ActionId": 1241142882,
-          "Arity": 2,
-          "Args": {
-            "buff_ids": {
-              "Kind": "Const",
-              "ConstValue": 10070104.0,
-              "Scale": 1.0
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1241142882,
+              "Arity": 2,
+              "Args": {
+                "buff_ids": {
+                  "Kind": "Const",
+                  "ConstValue": 10070104.0,
+                  "Scale": 1.0
+                },
+                "target_self": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
             },
-            "buff_ids1": {
-              "Kind": "Const",
-              "ConstValue": 10070103.0,
-              "Scale": 1.0
-            },
-            "target_self": {
-              "Kind": "Const",
-              "ConstValue": 1.0,
-              "Scale": 1.0
-            }
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
           },
-          "MaxExecutions": -1,
-          "CanBeInterrupted": true,
-          "RetryMaxRetries": 3
-        },
-        {
-          "ActionId": 1241142882,
-          "Arity": 2,
-          "Args": {
-            "buff_ids": {
-              "Kind": "Const",
-              "ConstValue": 10070101.0,
-              "Scale": 1.0
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 59565244,
+              "Arity": 2,
+              "Args": {
+                "result": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 22098557,
+                  "KeyId": 1821365020,
+                  "Scale": 1.0,
+                  "Scope": "owner",
+                  "KeyType": 2
+                },
+                "target_filter": {
+                  "Kind": "Const",
+                  "ConstValue": 257.0,
+                  "Scale": 1.0
+                },
+                "target_max_count": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                },
+                "target_order": {
+                  "Kind": "Const",
+                  "ConstValue": 8196.0,
+                  "Scale": 1.0
+                },
+                "target_radius": {
+                  "Kind": "Const",
+                  "ConstValue": 4.0,
+                  "Scale": 1.0
+                },
+                "target_source": {
+                  "Kind": "Const",
+                  "ConstValue": 6.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
             },
-            "target_self": {
-              "Kind": "Const",
-              "ConstValue": 1.0,
-              "Scale": 1.0
-            }
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
           },
-          "MaxExecutions": -1,
-          "CanBeInterrupted": true,
-          "RetryMaxRetries": 3
-        },
-        {
-          "ActionId": 589451731,
-          "Arity": 2,
-          "Args": {
-            "dump_args": {
-              "Kind": "Const",
-              "Scale": 1.0
+          {
+            "Kind": "ForEach",
+            "Collection": {
+              "Kind": "Blackboard",
+              "BoardId": 22098557,
+              "KeyId": 1821365020,
+              "Scale": 1.0,
+              "KeyType": 2
             },
-            "message": {
-              "Kind": "Const",
-              "ConstValue": 115849913.0,
-              "Scale": 1.0
-            }
+            "ItemTarget": {
+              "Kind": "BlackboardTarget",
+              "BoardId": 22098557,
+              "KeyId": 1614299527,
+              "Scale": 1.0,
+              "Scope": "owner",
+              "KeyType": 2
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1241142882,
+                  "Arity": 2,
+                  "Args": {
+                    "buff_ids": {
+                      "Kind": "Const",
+                      "ConstValue": 10070103.0,
+                      "Scale": 1.0
+                    },
+                    "target_self": {
+                      "Kind": "Const",
+                      "ConstValue": 1.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
           },
-          "MaxExecutions": -1,
-          "CanBeInterrupted": true,
-          "RetryMaxRetries": 3
-        }
-      ]
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1241142882,
+              "Arity": 2,
+              "Args": {
+                "buff_ids": {
+                  "Kind": "Const",
+                  "ConstValue": 10070101.0,
+                  "Scale": 1.0
+                },
+                "target_self": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 589451731,
+              "Arity": 2,
+              "Args": {
+                "dump_args": {
+                  "Kind": "Const",
+                  "Scale": 1.0
+                },
+                "message": {
+                  "Kind": "Const",
+                  "ConstValue": 115849913.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
     },
     {
       "TriggerId": 10070111,
@@ -9100,6 +9310,28 @@
     "2060080845": "小乔被动触发：释放技能后添加短暂移速状态"
   },
   "Blackboards": [
+    {
+      "BoardId": 22098557,
+      "Name": "local.module:ability.moba.skills",
+      "Scope": "owner",
+      "OwnerId": "ability.moba.skills",
+      "Keys": [
+        {
+          "KeyId": 1614299527,
+          "Name": "nearby_target",
+          "Type": 2,
+          "CanRead": true,
+          "CanWrite": true
+        },
+        {
+          "KeyId": 1821365020,
+          "Name": "nearby_targets",
+          "Type": 2,
+          "CanRead": true,
+          "CanWrite": true
+        }
+      ]
+    },
     {
       "BoardId": 30479060,
       "Name": "skill",

@@ -95,7 +95,9 @@ namespace AbilityKit.Game.Flow
                             ? _factory.CreateMinion(netId, actor.Code)
                             : actor.Kind == (int)SpawnEntityKind.Summon
                                 ? _factory.CreateSummon(netId, actor.Code, new BattleNetId(actor.OwnerNetId))
-                                : _factory.CreateCharacter(netId, actor.Code);
+                                : actor.Kind == (int)SpawnEntityKind.Building
+                                    ? _factory.CreateBuilding(netId, actor.Code)
+                                    : _factory.CreateCharacter(netId, actor.Code);
                 }
 
                 if (!entity.TryGetRef(out BattleTransformComponent transform) || transform == null)

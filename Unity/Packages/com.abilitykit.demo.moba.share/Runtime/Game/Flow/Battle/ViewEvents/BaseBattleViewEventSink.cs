@@ -193,6 +193,8 @@ namespace AbilityKit.Demo.Moba.Share
             LastProcessedFrame = snapshot.FrameIndex;
         }
 
+        public virtual bool RefreshPresentationState() => false;
+
         /// <summary>
         /// Handles skill presentation state snapshots.
         /// </summary>

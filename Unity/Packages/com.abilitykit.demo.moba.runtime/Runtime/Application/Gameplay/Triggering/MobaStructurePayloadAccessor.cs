@@ -12,11 +12,12 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         private static readonly int StructureIdId = StableStringId.Get("payload:" + MobaStructurePayloadFields.StructureId);
         private static readonly int KindId = StableStringId.Get("payload:" + MobaStructurePayloadFields.Kind);
         private static readonly int TeamIdId = StableStringId.Get("payload:" + MobaStructurePayloadFields.TeamId);
+        private static readonly int WinnerTeamIdId = StableStringId.Get("payload:" + MobaStructurePayloadFields.WinnerTeamId);
         private static readonly int SourceActorIdId = StableStringId.Get("payload:" + MobaStructurePayloadFields.SourceActorId);
         private static readonly int DamageId = StableStringId.Get("payload:" + MobaStructurePayloadFields.Damage);
         private static readonly int RemainingHpId = StableStringId.Get("payload:" + MobaStructurePayloadFields.RemainingHp);
 
-        public static bool SupportsStructureField(int fieldId) => fieldId == StructureActorIdId || fieldId == StructureIdId || fieldId == KindId || fieldId == TeamIdId || fieldId == SourceActorIdId;
+        public static bool SupportsStructureField(int fieldId) => fieldId == StructureActorIdId || fieldId == StructureIdId || fieldId == KindId || fieldId == TeamIdId || fieldId == WinnerTeamIdId || fieldId == SourceActorIdId;
         public static bool SupportsStructureDoubleField(int fieldId) => fieldId == DamageId || fieldId == RemainingHpId || SupportsStructureField(fieldId);
 
         public bool TryGet(in MobaStructureEventArgs args, int fieldId, out int value)
@@ -25,6 +26,7 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
             else if (fieldId == StructureIdId) value = args.StructureId;
             else if (fieldId == KindId) value = (int)args.Kind;
             else if (fieldId == TeamIdId) value = args.TeamId;
+            else if (fieldId == WinnerTeamIdId) value = args.WinnerTeamId;
             else if (fieldId == SourceActorIdId) value = args.SourceActorId;
             else { value = default; return false; }
             return true;

@@ -245,7 +245,7 @@
     "DragThreshold": 12,
     "EnableAim": true,
     "FaceToAim": true,
-    "IndicatorShape": 1,
+    "IndicatorShape": 7,
     "IndicatorWorldWidth": 1.2,
     "LongPressSeconds": 0.35,
     "Name": "sun_shangxiang_cannon_line",

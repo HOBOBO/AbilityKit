@@ -26,6 +26,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         void OnPresentationCueSnapshot(ISnapshotEnvelope packet, PresentationCueData[] entries);
 
+        /// <summary>Requests a one-shot replay of persistent presentation state.</summary>
+        bool RefreshPresentationState();
+
         void Tick();
 
         /// <summary>Releases transient state owned by this sink.</summary>

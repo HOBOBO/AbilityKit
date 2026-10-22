@@ -79,11 +79,12 @@ namespace AbilityKit.Triggering.Eventing
         public void DispatchImmediate(TArgs args, ExecutionControl control)
         {
             SortHandlersIfNeeded();
-            for (int i = 0; i < _handlerCount; i++)
+            var handlers = SnapshotHandlers();
+            for (int i = 0; i < handlers.Length; i++)
             {
                 // ShortCircuit: 硬停止才终止事件通道；优先级软过滤交给 runner 内部处理。
                 if (control != null && control.IsHardStopped) break;
-                _handlers[i].Handler(args, control);
+                handlers[i].Handler(args, control);
             }
         }
 
@@ -100,12 +101,13 @@ namespace AbilityKit.Triggering.Eventing
             for (int e = 0; e < _dispatch.Count; e++)
             {
                 var item = _dispatch[e];
+                var handlers = SnapshotHandlers();
 
-                for (int i = 0; i < _handlerCount; i++)
+                for (int i = 0; i < handlers.Length; i++)
                 {
                     // ShortCircuit: 硬停止才终止事件通道；优先级软过滤交给 runner 内部处理。
                     if (item.Control != null && item.Control.IsHardStopped) break;
-                    _handlers[i].Handler(item.Args, item.Control);
+                    handlers[i].Handler(item.Args, item.Control);
                 }
             }
 
@@ -138,6 +140,13 @@ namespace AbilityKit.Triggering.Eventing
             var newArray = new OrderedHandler<TArgs>[Math.Max(_handlers.Length * 2, min)];
             Array.Copy(_handlers, newArray, _handlerCount);
             _handlers = newArray;
+        }
+
+        private OrderedHandler<TArgs>[] SnapshotHandlers()
+        {
+            var snapshot = new OrderedHandler<TArgs>[_handlerCount];
+            Array.Copy(_handlers, snapshot, _handlerCount);
+            return snapshot;
         }
 
         private void Unsubscribe(Action<TArgs, ExecutionControl> handler)

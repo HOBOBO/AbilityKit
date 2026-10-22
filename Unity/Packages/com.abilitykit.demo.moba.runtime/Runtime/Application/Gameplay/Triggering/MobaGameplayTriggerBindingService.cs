@@ -6,6 +6,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Runtime;
@@ -25,25 +26,36 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         private int _boundGameplayId;
 
         public int BoundGameplayId => _boundGameplayId;
+        public string LastFailureReason { get; private set; }
 
         public bool Bind(GameplayMO gameplay)
         {
             Unbind();
+            LastFailureReason = null;
 
             if (gameplay == null)
             {
+                LastFailureReason = "gameplay is null";
                 Log.Warning("[MobaGameplayTriggerBindingService] bind skipped: gameplay is null");
                 return false;
             }
 
             if (_triggerDb == null || _runner == null)
             {
+                LastFailureReason = "trigger dependencies are missing";
                 Log.Warning($"[MobaGameplayTriggerBindingService] bind skipped: missing trigger deps. gameplayId={gameplay.Id}");
                 return false;
             }
 
-            if (!MobaGameplayTriggerValidator.ValidateGameplay(gameplay, _triggerDb, _eventRegistry))
+            var validation = new MobaRuntimeValidationReport();
+            MobaGameplayTriggerValidator.ValidateGameplay(gameplay, _triggerDb, _eventRegistry, validation);
+            if (validation.ShouldBlockStartup)
+            {
+                LastFailureReason = validation.FormatAllEntries();
+                Log.Error(
+                    $"[MobaGameplayTriggerBindingService] gameplay trigger validation failed. gameplayId={gameplay.Id}\n{validation.FormatAllEntries()}");
                 return false;
+            }
 
             var ok = true;
             var triggerIds = gameplay.TriggerIds;
@@ -65,6 +77,8 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
             }
 
             _boundGameplayId = gameplay.Id;
+            if (!ok && string.IsNullOrEmpty(LastFailureReason))
+                LastFailureReason = "one or more gameplay trigger plans could not be registered";
             Log.Info($"[MobaGameplayTriggerBindingService] gameplay triggers bound. gameplayId={gameplay.Id}, registrations={_registrations.Count}");
             return ok;
         }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Platform.Unity.Presentation;
 using AbilityKit.World.ECS;
 using UnityEngine;
@@ -218,6 +219,30 @@ namespace AbilityKit.Game.Flow
 
             _snapshotController.Bind(_ctx, OnEnterGameSnapshot, OnDamageEventSnapshot,
                 OnSkillStateSnapshot, OnShieldStateSnapshot, OnPresentationCueSnapshot);
+            RequestPresentationBaseline();
+        }
+
+        /// <summary>
+        /// Replays the latest persistent presentation state after the HUD is shown
+        /// again or its view bindings have been rebuilt. The snapshot arrives on the
+        /// next normal battle snapshot collection.
+        /// </summary>
+        public bool RefreshPresentationState()
+        {
+            EnsureSnapshotSubscription();
+            return RequestPresentationBaseline();
+        }
+
+        private bool RequestPresentationBaseline()
+        {
+            if (_ctx is not BattleContext context || !context.TryGetRuntimeWorld(out var world) || world?.Services == null ||
+                !world.Services.TryResolve(out MobaSnapshotRouter router) || router == null ||
+                !router.RequestActiveBaseline())
+                return false;
+
+            _binder?.ClearPresentationCues();
+            _inputController?.ClearPresentationCues();
+            return true;
         }
 
         private void OnEnterGameSnapshot(BattleEnterGameSnapshot res)

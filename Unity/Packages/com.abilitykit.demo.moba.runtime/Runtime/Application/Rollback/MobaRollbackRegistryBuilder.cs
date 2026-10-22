@@ -11,6 +11,7 @@ using AbilityKit.Triggering.Blackboard;
 using AbilityKit.HFSM.Definition;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
@@ -110,6 +111,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                 ownerBlackboards is IOwnerBlackboardSnapshotStore snapshotStore)
             {
                 var ownerKeySources = new List<IMobaOwnerKeySource>();
+                if (world.Services.TryResolve<MobaActorRegistry>(out var ownerKeyActors) && ownerKeyActors != null)
+                    ownerKeySources.Add(new MobaActorRegistryOwnerKeySource(ownerKeyActors, snapshotStore));
                 if (world.Services.TryResolve<MobaPassiveSkillLifecycleService>(out var passives) && passives != null)
                     ownerKeySources.Add(passives);
                 if (world.Services.TryResolve<MobaTriggerPlanSubscriptionService>(out var subscriptions) && subscriptions != null)
@@ -176,6 +179,14 @@ namespace AbilityKit.Demo.Moba.Rollback
                 }
             }
 
+            // ProjectileWorld owns the authoritative kinematic state for projectiles and areas.
+            // Register it separately from actor transforms so a rollback cannot be overwritten by
+            // the projectile tick system on the next frame.
+            var projectileRollbackEnabled =
+                world.Services.TryResolve<IProjectileService>(out var projectiles) && projectiles != null;
+            if (projectileRollbackEnabled)
+                registry.Register(new ProjectileRollbackProvider(projectiles));
+
             if (world.Services.TryResolve<MobaRuntimeContextService>(out var runtimeContexts) && runtimeContexts != null)
                 registry.Register(new MobaContextEntityRollbackProvider(runtimeContexts));
 
@@ -225,12 +236,15 @@ namespace AbilityKit.Demo.Moba.Rollback
 
             if (string.Equals(world.WorldType, MobaBattleWorldBlueprint.Type, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(world.WorldType, "MobaBattle", StringComparison.OrdinalIgnoreCase))
-                ValidateBattleRegistry(registry, minionWavesEnabled);
+                ValidateBattleRegistry(registry, minionWavesEnabled, projectileRollbackEnabled);
 
             return registry;
         }
 
-        private static void ValidateBattleRegistry(RollbackRegistry registry, bool minionWavesEnabled)
+        private static void ValidateBattleRegistry(
+            RollbackRegistry registry,
+            bool minionWavesEnabled,
+            bool projectileRollbackEnabled)
         {
             var requiredKeys = new List<int>
             {
@@ -258,6 +272,8 @@ namespace AbilityKit.Demo.Moba.Rollback
             };
             if (minionWavesEnabled)
                 requiredKeys.Insert(9, MobaMinionRollbackProvider.DefaultKey);
+            if (projectileRollbackEnabled)
+                requiredKeys.Add(ProjectileRollbackProvider.DefaultKey);
             var missing = new List<int>();
             foreach (var key in requiredKeys)
             {
@@ -270,6 +286,36 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (missing.Count != 0)
                 throw new InvalidOperationException(
                     $"Battle rollback registry is incomplete. Missing provider keys: {string.Join(", ", missing)}");
+        }
+
+        private sealed class MobaActorRegistryOwnerKeySource : IMobaOwnerKeySource
+        {
+            private readonly MobaActorRegistry _actors;
+            private readonly IOwnerBlackboardSnapshotStore _store;
+            private readonly List<int> _actorIds = new List<int>();
+
+            public MobaActorRegistryOwnerKeySource(
+                MobaActorRegistry actors,
+                IOwnerBlackboardSnapshotStore store)
+            {
+                _actors = actors ?? throw new ArgumentNullException(nameof(actors));
+                _store = store ?? throw new ArgumentNullException(nameof(store));
+            }
+
+            public string Name => "actors";
+
+            public void CopyActiveOwnerKeys(List<long> destination)
+            {
+                if (destination == null) return;
+                destination.Clear();
+                _actorIds.Clear();
+                _actorIds.AddRange(_actors.CopyActorIdsInOrder());
+                for (var i = 0; i < _actorIds.Count; i++)
+                {
+                    var actorId = _actorIds[i];
+                    if (_store.TryGet(actorId, out _)) destination.Add(actorId);
+                }
+            }
         }
     }
 }

@@ -12,6 +12,40 @@ from tag_excel import (build_tag_usage_report, compile_tag_tables,
 TAG_NAMESPACE = {"GameplayState": 1, "SkillSelection": 2}
 
 
+def validate_tag_hud_presentations(rows, tag_definitions, vfx_rows=()):
+    """Validate the view-channel catalog against published gameplay facts."""
+    tags = {row["Id"]: row for row in tag_definitions}
+    vfx_ids = {row["Id"] for row in vfx_rows}
+    seen = set()
+    allowed_channels = 1 | 2 | 4
+    for row in rows:
+        definition_id = row.get("DefinitionId", 0)
+        owner = f"tag_hud_presentations/{definition_id}"
+        if definition_id in seen:
+            raise ValueError(f"{owner}: duplicate DefinitionId")
+        seen.add(definition_id)
+        tag = tags.get(definition_id)
+        if tag is None or tag.get("Namespace") != TAG_NAMESPACE["GameplayState"] or \
+                tag.get("Status") != 0 or tag.get("Kind") != 1:
+            raise ValueError(f"{owner}: must reference an active gameplay fact tag")
+        name = row.get("DisplayName") or row.get("LocalizationKey")
+        if not name:
+            raise ValueError(f"{owner}: DisplayName or LocalizationKey is required")
+        channel_mask = row.get("ChannelMask", 1)
+        if type(channel_mask) is not int or channel_mask <= 0 or channel_mask & ~allowed_channels:
+            raise ValueError(f"{owner}: invalid ChannelMask")
+        if row.get("HeadTextDurationMs", 0) < 0 or row.get("VfxDurationMs", 0) < 0:
+            raise ValueError(f"{owner}: channel durations cannot be negative")
+        if channel_mask & 4 and row.get("VfxId", 0) <= 0:
+            raise ValueError(f"{owner}: VfxId is required for the Vfx channel")
+        if row.get("VfxId", 0) and row["VfxId"] not in vfx_ids:
+            raise ValueError(f"{owner}: references missing VFX {row['VfxId']}")
+        for component in ("ColorR", "ColorG", "ColorB", "ColorA"):
+            value = row.get(component, 1.0)
+            if not isinstance(value, (int, float)) or not 0.0 <= value <= 1.0:
+                raise ValueError(f"{owner}: {component} must be between 0 and 1")
+
+
 def stable_string_id(name):
     # Matches StableHashV1.Fnv1a32Utf16NonNegative.
     value = 2166136261
@@ -125,6 +159,11 @@ def project_tag_references(tables):
 class Rule:
     def project(self, context):
         context.state["resolve_tags"] = project_tag_references(context.tables)
+        if "tag_hud_presentations" in context.tables:
+            validate_tag_hud_presentations(
+                context.tables["tag_hud_presentations"],
+                context.tables["tag_definitions"],
+                context.tables.get("vfx", []))
 
     def validate_graph(self, graph, tables, external):
         validate_trigger_tag_references(external["triggers"], tables.get("tag_definitions", []),

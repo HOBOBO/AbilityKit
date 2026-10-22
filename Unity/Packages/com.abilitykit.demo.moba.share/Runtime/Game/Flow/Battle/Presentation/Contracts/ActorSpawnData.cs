@@ -25,6 +25,7 @@ namespace AbilityKit.Demo.Moba.Share
         public bool IsProjectile => Kind == ActorSpawnKind.Projectile;
         public bool IsMinion => Kind == ActorSpawnKind.Minion;
         public bool IsSummon => Kind == ActorSpawnKind.Summon;
+        public bool IsBuilding => Kind == ActorSpawnKind.Building;
 
         public ActorSpawnData(
             ActorSpawnKind kind,
@@ -105,5 +106,6 @@ namespace AbilityKit.Demo.Moba.Share
         Projectile = 2,
         Minion = 3,
         Summon = 4,
+        Building = 5,
     }
 }

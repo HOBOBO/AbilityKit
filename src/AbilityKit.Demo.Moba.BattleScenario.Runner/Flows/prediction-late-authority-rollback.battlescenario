@@ -1,0 +1,117 @@
+{
+  "caseId": "prediction-late-authority-rollback",
+  "blocks": [
+    {
+      "$type": "AbilityKit.Demo.Moba.EnvironmentModel.SetPredictionBackendBlock, AbilityKit.Demo.Moba.Environment",
+      "backendId": "headless"
+    },
+    {
+      "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+      "atMs": 0,
+      "name": "network.packet",
+      "parameters": { "direction": "inbound", "opCode": "5202", "seq": "1", "frame": "1" }
+    },
+    {
+      "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+      "atMs": 34,
+      "name": "network.disconnect",
+      "parameters": {}
+    },
+    {
+      "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+      "atMs": 68,
+      "name": "network.packet",
+      "parameters": { "direction": "inbound", "opCode": "5202", "seq": "2", "frame": "2" }
+    },
+    {
+      "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+      "atMs": 102,
+      "name": "network.packet",
+      "parameters": { "direction": "inbound", "opCode": "5202", "seq": "3", "frame": "3" }
+    },
+    {
+      "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+      "atMs": 136,
+      "name": "network.reconnect",
+      "parameters": {}
+    },
+    {
+      "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+      "atMs": 136,
+      "name": "network.packet",
+      "parameters": { "direction": "inbound", "opCode": "5202", "seq": "102", "frame": "2", "hash": "999" }
+    },
+    {
+      "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+      "atMs": 136,
+      "name": "network.packet",
+      "parameters": { "direction": "inbound", "opCode": "5202", "seq": "103", "frame": "3", "hash": "6" }
+    },
+    {
+      "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+      "atMs": 238,
+      "name": "network.packet",
+      "parameters": { "direction": "inbound", "opCode": "5202", "seq": "104", "frame": "4" }
+    },
+    {
+      "$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertPredictionBlock, AbilityKit.Demo.Moba.Environment",
+      "property": "predictedHashes",
+      "comparator": "gte",
+      "expectedValue": "3"
+    },
+    {
+      "$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertPredictionBlock, AbilityKit.Demo.Moba.Environment",
+      "property": "mismatches",
+      "comparator": "eq",
+      "expectedValue": "1"
+    },
+    {
+      "$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertPredictionBlock, AbilityKit.Demo.Moba.Environment",
+      "property": "rollbacks",
+      "comparator": "eq",
+      "expectedValue": "1"
+    },
+    {
+      "$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertPredictionBlock, AbilityKit.Demo.Moba.Environment",
+      "property": "mismatchFrame",
+      "comparator": "eq",
+      "expectedValue": "2"
+    },
+    {
+      "$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertPredictionBlock, AbilityKit.Demo.Moba.Environment",
+      "property": "rollbackFrame",
+      "comparator": "eq",
+      "expectedValue": "1"
+    },
+    {
+      "$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertPredictionBlock, AbilityKit.Demo.Moba.Environment",
+      "property": "confirmedFrame",
+      "comparator": "eq",
+      "expectedValue": "3"
+    },
+    {
+      "$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertPredictionBlock, AbilityKit.Demo.Moba.Environment",
+      "property": "predictedFrame",
+      "comparator": "eq",
+      "expectedValue": "3"
+    },
+    {
+      "$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertPredictionBlock, AbilityKit.Demo.Moba.Environment",
+      "property": "wasReplaying",
+      "comparator": "eq",
+      "expectedValue": "true"
+    },
+    {
+      "$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertPredictionBlock, AbilityKit.Demo.Moba.Environment",
+      "property": "replaying",
+      "comparator": "eq",
+      "expectedValue": "false"
+    },
+    {
+      "$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertPredictionBlock, AbilityKit.Demo.Moba.Environment",
+      "property": "finalHash",
+      "comparator": "eq",
+      "expectedValue": "6"
+    }
+  ]
+}

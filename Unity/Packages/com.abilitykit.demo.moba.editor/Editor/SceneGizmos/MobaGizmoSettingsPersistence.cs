@@ -10,28 +10,34 @@ namespace AbilityKit.Game.Editor.Gizmos
     internal static class MobaGizmoSettingsPersistence
     {
         private const string EnabledMaskKey = "AbilityKit.Game.Editor.Gizmos.EnabledMask.v1";
+        private const string CurrentEnabledMaskKey = "AbilityKit.Game.Editor.Gizmos.EnabledMask.v2";
 
         public static int LoadEnabledMask()
         {
-            return EditorPrefs.GetInt(EnabledMaskKey, 0);
+            return EditorPrefs.GetInt(CurrentEnabledMaskKey, EditorPrefs.GetInt(EnabledMaskKey, 0));
         }
+
+        public static bool HasEnabledMask() =>
+            EditorPrefs.HasKey(CurrentEnabledMaskKey) || EditorPrefs.HasKey(EnabledMaskKey);
 
         public static void SaveEnabledMask(int mask)
         {
-            EditorPrefs.SetInt(EnabledMaskKey, mask);
+            EditorPrefs.SetInt(CurrentEnabledMaskKey, mask);
         }
 
-        public static void EnsureDefaults(int defaultMask)
+        public static void EnsureDefaults(int defaultMask, int addedDefaultMask)
         {
-            if (!EditorPrefs.HasKey(EnabledMaskKey))
+            if (!EditorPrefs.HasKey(CurrentEnabledMaskKey))
             {
-                EditorPrefs.SetInt(EnabledMaskKey, defaultMask);
+                var legacy = EditorPrefs.GetInt(EnabledMaskKey, 0);
+                EditorPrefs.SetInt(CurrentEnabledMaskKey, legacy == 0 ? defaultMask : legacy | addedDefaultMask);
             }
         }
 
         public static void Clear()
         {
             EditorPrefs.DeleteKey(EnabledMaskKey);
+            EditorPrefs.DeleteKey(CurrentEnabledMaskKey);
         }
     }
 }

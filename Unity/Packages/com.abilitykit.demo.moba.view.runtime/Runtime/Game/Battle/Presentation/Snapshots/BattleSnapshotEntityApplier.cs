@@ -126,7 +126,9 @@ namespace AbilityKit.Game.Flow
                             ? factory.CreateMinion(netId, entityCode: entry.EntityCode)
                             : entry.IsSummon
                                 ? factory.CreateSummon(netId, summonId: entry.EntityCode, ownerNetId: new BattleNetId(entry.OwnerActorId))
-                                : factory.CreateCharacter(netId, entityCode: entry.EntityCode);
+                                : entry.IsBuilding
+                                    ? factory.CreateBuilding(netId, modelId: entry.EntityCode)
+                                    : factory.CreateCharacter(netId, entityCode: entry.EntityCode);
                 }
                 else if (!updateExisting)
                 {
@@ -188,6 +190,8 @@ namespace AbilityKit.Game.Flow
                         ? BattleEntityKind.Minion
                         : entry.IsSummon
                             ? BattleEntityKind.Summon
+                            : entry.IsBuilding
+                                ? BattleEntityKind.Building
                         : BattleEntityKind.Character;
                 meta.EntityCode = entry.EntityCode;
             }

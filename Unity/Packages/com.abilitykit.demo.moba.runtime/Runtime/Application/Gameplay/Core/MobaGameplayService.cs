@@ -178,7 +178,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
                 if (!_triggerBindings.Bind(gameplay))
                 {
                     _triggerBindings.Unbind();
-                    error = $"gameplay trigger binding failed. gameplayId={gameplayId}";
+                    error = $"gameplay trigger binding failed. gameplayId={gameplayId}, detail={_triggerBindings.LastFailureReason}";
                     _lastStartFailureReason = error;
                     return false;
                 }

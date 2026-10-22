@@ -21,7 +21,12 @@ namespace AbilityKit.Demo.Moba.Services
         private List<int> _poolCleanupIds;
         private List<int> _targetScratch;
         private HashSet<int> _targetScratchSet;
+        private List<int> _changePoolScratch;
+        private long _changeRevision;
         private readonly IFrameTime _frameTime;
+
+        /// <summary>Raised only after a shield mutation is authoritative and finalized.</summary>
+        public event ShieldChangedHandler Changed;
 
         private Dictionary<int, SharedShieldPool> SharedPools =>
             _sharedPools ?? (_sharedPools = new Dictionary<int, SharedShieldPool>());
@@ -165,24 +170,34 @@ namespace AbilityKit.Demo.Moba.Services
                 var layer = container.Layers[i];
                 if (!CanAbsorb(layer, attack.DamageType, currentFrame)) continue;
 
+                var allocationKind = GetAllocationKind(layer.SharePolicy);
+                if (allocationKind == ShieldAllocationKind.UnsupportedPolicy)
+                {
+                    plan.MarkUnsupportedPolicy(layer.SharePolicy);
+                    continue;
+                }
+
                 var ratio = layer.AbsorbRatio <= Fixed64.Zero ? Fixed64.One : DeterministicMath.Min(Fixed64.One, layer.AbsorbRatio);
                 var available = GetEffectiveCurrentValue(layer);
-                var take = DeterministicMath.Min(available, remainingDamage * ratio);
+                var requested = remainingDamage * ratio;
+                var take = DeterministicMath.Min(available, requested);
                 if (take <= Fixed64.Zero) continue;
 
                 if (layer.UsesSharedPoolValue && layer.SharedPoolId > 0 &&
                     TryGetSharedPoolState(layer.SharedPoolId, out var pool))
                 {
                     var projected = plan.GetProjectedPoolValue(pool.PoolId, pool.CurrentValue);
-                    take = DeterministicMath.Min(projected, remainingDamage * ratio);
+                    take = DeterministicMath.Min(projected, requested);
                     take = DeterministicMath.Min(take, GetMemberCapacity(pool, layer.SharedPoolMemberId, projected));
                     if (take <= Fixed64.Zero) continue;
                     plan.AddPool(layer.InstanceId, layer.SharedPoolId, layer.SharedPoolMemberId,
-                        pool.Version, pool.CurrentValue, take);
+                        pool.Version, pool.CurrentValue, layer.SharePolicy, allocationKind,
+                        requested, take, remainingDamage - take);
                 }
                 else
                 {
-                    plan.AddLayer(layer.InstanceId, layer.CurrentValue, take);
+                    plan.AddLayer(layer.InstanceId, layer.CurrentValue, layer.SharePolicy,
+                        allocationKind, requested, take, remainingDamage - take);
                 }
                 remainingDamage -= take;
             }
@@ -290,9 +305,72 @@ namespace AbilityKit.Demo.Moba.Services
             if (plan == null || plan.Absorbed <= Fixed64.Zero) return;
             if (!_containers.TryGetValue(plan.TargetActorId, out var container) || container == null) return;
 
+            PublishAbsorbChanges(plan);
             RemoveDepleted(container);
             RemoveDepletedSharedPools();
             Recalculate(container);
+        }
+
+        private void PublishAbsorbChanges(ShieldAbsorbPlan plan)
+        {
+            var changed = Changed;
+            if (changed == null || plan == null || plan.Absorbed <= Fixed64.Zero) return;
+
+            var revision = ++_changeRevision;
+            var frame = CurrentFrame();
+            if (_changePoolScratch == null) _changePoolScratch = new List<int>(2);
+            _changePoolScratch.Clear();
+            try
+            {
+                for (var i = 0; i < plan.Entries.Count; i++)
+                {
+                    var entry = plan.Entries[i];
+                    if (entry.PoolId == 0)
+                    {
+                        var newValue = entry.OldValue - entry.ConsumedValue;
+                        PublishChange(changed, new ShieldChangeEvent(revision,
+                            newValue <= Fixed64.Zero ? ShieldChangeKind.Depleted : ShieldChangeKind.Absorbed,
+                            plan.TargetActorId, entry.InstanceId, 0, 0, entry.OldValue,
+                            newValue, frame));
+                        continue;
+                    }
+
+                    if (!_changePoolScratch.Contains(entry.PoolId))
+                    {
+                        _changePoolScratch.Add(entry.PoolId);
+                        if (TryGetSharedPoolState(entry.PoolId, out var pool))
+                        {
+                            var oldValue = entry.OldPoolValue;
+                            for (var m = 0; pool.Members != null && m < pool.Members.Count; m++)
+                            {
+                                var member = pool.Members[m];
+                                if (member == null || !member.Active) continue;
+                                PublishChange(changed, new ShieldChangeEvent(
+                                    revision,
+                                    pool.CurrentValue <= Fixed64.Zero ? ShieldChangeKind.Depleted : ShieldChangeKind.Absorbed,
+                                    member.ActorId, 0, pool.PoolId, pool.Version, oldValue,
+                                    pool.CurrentValue, frame));
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                _changePoolScratch.Clear();
+            }
+        }
+
+        private static void PublishChange(ShieldChangedHandler changed, in ShieldChangeEvent value)
+        {
+            try
+            {
+                changed(in value);
+            }
+            catch
+            {
+                // Presentation and diagnostics must not change the committed result.
+            }
         }
 
         public Fixed64 GetTotalRemainingFixed(int targetActorId)
@@ -764,6 +842,21 @@ namespace AbilityKit.Demo.Moba.Services
             return capacity;
         }
 
+        private static ShieldAllocationKind GetAllocationKind(ShieldSharePolicy policy)
+        {
+            switch (policy)
+            {
+                case ShieldSharePolicy.None:
+                    return ShieldAllocationKind.PersonalLayer;
+                case ShieldSharePolicy.SharedTotalPool:
+                    return ShieldAllocationKind.SharedTotalPool;
+                case ShieldSharePolicy.WeightedMemberShare:
+                    return ShieldAllocationKind.WeightedMemberQuota;
+                default:
+                    return ShieldAllocationKind.UnsupportedPolicy;
+            }
+        }
+
         private static SharedShieldPoolMember FindMember(SharedShieldPool pool, int memberId)
         {
             if (pool?.Members == null) return null;
@@ -1105,21 +1198,41 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int TargetActorId { get; }
         public Fixed64 Absorbed { get; private set; }
+        public int UnsupportedPolicyMask { get; private set; }
+        public bool HasUnsupportedPolicy => UnsupportedPolicyMask != 0;
         internal IReadOnlyList<ShieldAbsorbEntry> Entries => _entries ?? (IReadOnlyList<ShieldAbsorbEntry>)Array.Empty<ShieldAbsorbEntry>();
+        public int AllocationCount => _entries?.Count ?? 0;
+        public ShieldAllocationResult GetAllocation(int index)
+        {
+            if (_entries == null || (uint)index >= (uint)_entries.Count) throw new ArgumentOutOfRangeException(nameof(index));
+            return _entries[index].Allocation;
+        }
 
-        internal void AddLayer(int instanceId, Fixed64 oldValue, Fixed64 consumedValue)
+        internal void AddLayer(int instanceId, Fixed64 oldValue, ShieldSharePolicy policy,
+            ShieldAllocationKind kind, Fixed64 requestedValue, Fixed64 consumedValue,
+            Fixed64 remainingDamageAfter)
         {
             if (_entries == null) _entries = new List<ShieldAbsorbEntry>(1);
-            _entries.Add(ShieldAbsorbEntry.Layer(instanceId, oldValue, consumedValue));
+            _entries.Add(ShieldAbsorbEntry.Layer(instanceId, oldValue, consumedValue,
+                new ShieldAllocationResult(kind, policy, instanceId, 0, 0,
+                    requestedValue, consumedValue, remainingDamageAfter)));
             Absorbed += consumedValue;
         }
 
         internal void AddPool(int instanceId, int poolId, int memberId, int expectedVersion,
-            Fixed64 oldPoolValue, Fixed64 consumedValue)
+            Fixed64 oldPoolValue, ShieldSharePolicy policy, ShieldAllocationKind kind,
+            Fixed64 requestedValue, Fixed64 consumedValue, Fixed64 remainingDamageAfter)
         {
             if (_entries == null) _entries = new List<ShieldAbsorbEntry>(1);
-            _entries.Add(ShieldAbsorbEntry.Pool(instanceId, poolId, memberId, expectedVersion, oldPoolValue, consumedValue));
+            _entries.Add(ShieldAbsorbEntry.Pool(instanceId, poolId, memberId, expectedVersion,
+                oldPoolValue, consumedValue, new ShieldAllocationResult(kind, policy,
+                    instanceId, poolId, memberId, requestedValue, consumedValue, remainingDamageAfter)));
             Absorbed += consumedValue;
+        }
+
+        internal void MarkUnsupportedPolicy(ShieldSharePolicy policy)
+        {
+            if (policy != ShieldSharePolicy.None) UnsupportedPolicyMask |= 1 << (int)policy;
         }
 
         internal Fixed64 GetProjectedPoolValue(int poolId, Fixed64 defaultValue)
@@ -1141,7 +1254,7 @@ namespace AbilityKit.Demo.Moba.Services
     internal readonly struct ShieldAbsorbEntry
     {
         private ShieldAbsorbEntry(int instanceId, int poolId, int poolMemberId, int expectedPoolVersion,
-            Fixed64 oldValue, Fixed64 oldPoolValue, Fixed64 consumedValue)
+            Fixed64 oldValue, Fixed64 oldPoolValue, Fixed64 consumedValue, ShieldAllocationResult allocation)
         {
             InstanceId = instanceId;
             PoolId = poolId;
@@ -1150,14 +1263,17 @@ namespace AbilityKit.Demo.Moba.Services
             OldValue = oldValue;
             OldPoolValue = oldPoolValue;
             ConsumedValue = consumedValue;
+            Allocation = allocation;
         }
 
-        public static ShieldAbsorbEntry Layer(int instanceId, Fixed64 oldValue, Fixed64 consumedValue)
-            => new ShieldAbsorbEntry(instanceId, 0, 0, 0, oldValue, Fixed64.Zero, consumedValue);
+        public static ShieldAbsorbEntry Layer(int instanceId, Fixed64 oldValue, Fixed64 consumedValue,
+            ShieldAllocationResult allocation)
+            => new ShieldAbsorbEntry(instanceId, 0, 0, 0, oldValue, Fixed64.Zero, consumedValue, allocation);
 
         public static ShieldAbsorbEntry Pool(int instanceId, int poolId, int memberId, int version,
-            Fixed64 oldPoolValue, Fixed64 consumedValue)
-            => new ShieldAbsorbEntry(instanceId, poolId, memberId, version, Fixed64.Zero, oldPoolValue, consumedValue);
+            Fixed64 oldPoolValue, Fixed64 consumedValue, ShieldAllocationResult allocation)
+            => new ShieldAbsorbEntry(instanceId, poolId, memberId, version, Fixed64.Zero,
+                oldPoolValue, consumedValue, allocation);
 
         public int InstanceId { get; }
         public int PoolId { get; }
@@ -1166,5 +1282,6 @@ namespace AbilityKit.Demo.Moba.Services
         public Fixed64 OldValue { get; }
         public Fixed64 OldPoolValue { get; }
         public Fixed64 ConsumedValue { get; }
+        public ShieldAllocationResult Allocation { get; }
     }
 }

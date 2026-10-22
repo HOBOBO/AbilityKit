@@ -92,7 +92,7 @@ MonoBehaviour:
         AbilityKit.Ability]], mscorlib
     - Name: 
       Entry: 12
-      Data: 4
+      Data: 6
     - Name: 
       Entry: 7
       Data: 6|AbilityKit.Ability.Config.Authoring.TriggerDefinitionData, AbilityKit.Ability
@@ -2324,6 +2324,874 @@ MonoBehaviour:
       Entry: 8
       Data: 
     - Name: 
+      Entry: 7
+      Data: 136|AbilityKit.Ability.Config.Authoring.TriggerDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 3
+      Data: 900005
+    - Name: Name
+      Entry: 1
+      Data: Minion Push Damages Next Structure
+    - Name: GroupPath
+      Entry: 1
+      Data: trigger_900005
+    - Name: Tags
+      Entry: 7
+      Data: 137|System.Collections.Generic.List`1[[System.String, mscorlib]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 3
+    - Name: 
+      Entry: 1
+      Data: moba
+    - Name: 
+      Entry: 1
+      Data: gameplay
+    - Name: 
+      Entry: 1
+      Data: structure
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Enabled
+      Entry: 5
+      Data: true
+    - Name: EntryMode
+      Entry: 3
+      Data: 0
+    - Name: Event
+      Entry: 1
+      Data: minion.base_damage
+    - Name: Phase
+      Entry: 1
+      Data: immediate
+    - Name: Priority
+      Entry: 3
+      Data: 0
+    - Name: InterruptPriority
+      Entry: 3
+      Data: 0
+    - Name: Scope
+      Entry: 1
+      Data: global
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Schedule
+      Entry: 7
+      Data: 138|AbilityKit.Ability.Config.Authoring.TriggerScheduleData, AbilityKit.Ability
+    - Name: Mode
+      Entry: 1
+      Data: transient
+    - Name: DelayMilliseconds
+      Entry: 3
+      Data: 0
+    - Name: IntervalMilliseconds
+      Entry: 3
+      Data: 0
+    - Name: RepeatCount
+      Entry: 3
+      Data: 0
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Cue
+      Entry: 7
+      Data: 139|AbilityKit.Ability.Config.Authoring.TriggerCueData, AbilityKit.Ability
+    - Name: CueId
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: ExecutionControl
+      Entry: 7
+      Data: 140|AbilityKit.Ability.Config.Authoring.TriggerExecutionControlData,
+        AbilityKit.Ability
+    - Name: Mode
+      Entry: 1
+      Data: always
+    - Name: MaxExecutions
+      Entry: 3
+      Data: 0
+    - Name: CooldownMilliseconds
+      Entry: 4
+      Data: 0
+    - Name: InterruptPolicy
+      Entry: 1
+      Data: none
+    - Name: StopPropagationOnSuccess
+      Entry: 5
+      Data: false
+    - Name: StopPropagationOnFailure
+      Entry: 5
+      Data: false
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Template
+      Entry: 6
+      Data: 
+    - Name: Condition
+      Entry: 6
+      Data: 
+    - Name: Actions
+      Entry: 7
+      Data: 141|AbilityKit.Ability.Config.Authoring.TriggerNodeData, AbilityKit.Ability
+    - Name: NodeId
+      Entry: 1
+      Data: node_l9000050000000001
+    - Name: Enabled
+      Entry: 5
+      Data: true
+    - Name: Kind
+      Entry: 3
+      Data: 1
+    - Name: GroupReference
+      Entry: 6
+      Data: 
+    - Name: Type
+      Entry: 1
+      Data: damage_structure_from_minion
+    - Name: Note
+      Entry: 6
+      Data: 
+    - Name: Arguments
+      Entry: 7
+      Data: 142|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerArgumentData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Condition
+      Entry: 6
+      Data: 
+    - Name: Children
+      Entry: 7
+      Data: 143|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerNodeData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: ElseChildren
+      Entry: 7
+      Data: 144|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerNodeData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Blackboard
+      Entry: 7
+      Data: 145|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerBlackboardVariableData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: CallableParameters
+      Entry: 6
+      Data: 
+    - Name: Note
+      Entry: 1
+      Data: Structure selection and damage transaction are handled by MobaStructureService.
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 146|AbilityKit.Ability.Config.Authoring.TriggerDefinitionData, AbilityKit.Ability
+    - Name: Id
+      Entry: 3
+      Data: 900006
+    - Name: Name
+      Entry: 1
+      Data: Base Destroyed Ends Match
+    - Name: GroupPath
+      Entry: 1
+      Data: trigger_900006
+    - Name: Tags
+      Entry: 7
+      Data: 147|System.Collections.Generic.List`1[[System.String, mscorlib]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 4
+    - Name: 
+      Entry: 1
+      Data: moba
+    - Name: 
+      Entry: 1
+      Data: gameplay
+    - Name: 
+      Entry: 1
+      Data: structure
+    - Name: 
+      Entry: 1
+      Data: victory
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Enabled
+      Entry: 5
+      Data: true
+    - Name: EntryMode
+      Entry: 3
+      Data: 0
+    - Name: Event
+      Entry: 1
+      Data: structure.destroyed
+    - Name: Phase
+      Entry: 1
+      Data: immediate
+    - Name: Priority
+      Entry: 3
+      Data: 1
+    - Name: InterruptPriority
+      Entry: 3
+      Data: 0
+    - Name: Scope
+      Entry: 1
+      Data: global
+    - Name: AllowExternal
+      Entry: 5
+      Data: false
+    - Name: Schedule
+      Entry: 7
+      Data: 148|AbilityKit.Ability.Config.Authoring.TriggerScheduleData, AbilityKit.Ability
+    - Name: Mode
+      Entry: 1
+      Data: transient
+    - Name: DelayMilliseconds
+      Entry: 3
+      Data: 0
+    - Name: IntervalMilliseconds
+      Entry: 3
+      Data: 0
+    - Name: RepeatCount
+      Entry: 3
+      Data: 0
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Cue
+      Entry: 7
+      Data: 149|AbilityKit.Ability.Config.Authoring.TriggerCueData, AbilityKit.Ability
+    - Name: CueId
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: ExecutionControl
+      Entry: 7
+      Data: 150|AbilityKit.Ability.Config.Authoring.TriggerExecutionControlData,
+        AbilityKit.Ability
+    - Name: Mode
+      Entry: 1
+      Data: always
+    - Name: MaxExecutions
+      Entry: 3
+      Data: 0
+    - Name: CooldownMilliseconds
+      Entry: 4
+      Data: 0
+    - Name: InterruptPolicy
+      Entry: 1
+      Data: none
+    - Name: StopPropagationOnSuccess
+      Entry: 5
+      Data: false
+    - Name: StopPropagationOnFailure
+      Entry: 5
+      Data: false
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Template
+      Entry: 6
+      Data: 
+    - Name: Condition
+      Entry: 7
+      Data: 151|AbilityKit.Ability.Config.Authoring.TriggerNodeData, AbilityKit.Ability
+    - Name: NodeId
+      Entry: 1
+      Data: node_l9000060000000001
+    - Name: Enabled
+      Entry: 5
+      Data: true
+    - Name: Kind
+      Entry: 3
+      Data: 0
+    - Name: GroupReference
+      Entry: 6
+      Data: 
+    - Name: Type
+      Entry: 1
+      Data: arg_eq
+    - Name: Note
+      Entry: 6
+      Data: 
+    - Name: Arguments
+      Entry: 7
+      Data: 152|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerArgumentData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 2
+    - Name: 
+      Entry: 7
+      Data: 153|AbilityKit.Ability.Config.Authoring.TriggerArgumentData, AbilityKit.Ability
+    - Name: Name
+      Entry: 1
+      Data: left
+    - Name: Value
+      Entry: 7
+      Data: 154|AbilityKit.Ability.Config.Authoring.TriggerValueRefData, AbilityKit.Ability
+    - Name: Source
+      Entry: 3
+      Data: 1
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: IntegerValue
+      Entry: 3
+      Data: 0
+    - Name: NumberValue
+      Entry: 4
+      Data: 0
+    - Name: BooleanValue
+      Entry: 5
+      Data: false
+    - Name: StringValue
+      Entry: 6
+      Data: 
+    - Name: IntegerListValue
+      Entry: 7
+      Data: 155|System.Collections.Generic.List`1[[System.Int64, mscorlib]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Vector3Value
+      Entry: 7
+      Data: 156|AbilityKit.Ability.Config.Authoring.TriggerVector3Data, AbilityKit.Ability
+    - Name: X
+      Entry: 4
+      Data: 0
+    - Name: Y
+      Entry: 4
+      Data: 0
+    - Name: Z
+      Entry: 4
+      Data: 0
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Fields
+      Entry: 7
+      Data: 157|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerArgumentData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Path
+      Entry: 1
+      Data: structure_kind
+    - Name: Expression
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 158|AbilityKit.Ability.Config.Authoring.TriggerArgumentData, AbilityKit.Ability
+    - Name: Name
+      Entry: 1
+      Data: right
+    - Name: Value
+      Entry: 7
+      Data: 159|AbilityKit.Ability.Config.Authoring.TriggerValueRefData, AbilityKit.Ability
+    - Name: Source
+      Entry: 3
+      Data: 0
+    - Name: Type
+      Entry: 3
+      Data: 2
+    - Name: IntegerValue
+      Entry: 3
+      Data: 1
+    - Name: NumberValue
+      Entry: 4
+      Data: 1
+    - Name: BooleanValue
+      Entry: 5
+      Data: false
+    - Name: StringValue
+      Entry: 6
+      Data: 
+    - Name: IntegerListValue
+      Entry: 7
+      Data: 160|System.Collections.Generic.List`1[[System.Int64, mscorlib]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Vector3Value
+      Entry: 7
+      Data: 161|AbilityKit.Ability.Config.Authoring.TriggerVector3Data, AbilityKit.Ability
+    - Name: X
+      Entry: 4
+      Data: 0
+    - Name: Y
+      Entry: 4
+      Data: 0
+    - Name: Z
+      Entry: 4
+      Data: 0
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Fields
+      Entry: 7
+      Data: 162|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerArgumentData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Path
+      Entry: 6
+      Data: 
+    - Name: Expression
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Condition
+      Entry: 6
+      Data: 
+    - Name: Children
+      Entry: 7
+      Data: 163|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerNodeData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: ElseChildren
+      Entry: 7
+      Data: 164|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerNodeData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Actions
+      Entry: 7
+      Data: 165|AbilityKit.Ability.Config.Authoring.TriggerNodeData, AbilityKit.Ability
+    - Name: NodeId
+      Entry: 1
+      Data: node_l9000060000000002
+    - Name: Enabled
+      Entry: 5
+      Data: true
+    - Name: Kind
+      Entry: 3
+      Data: 1
+    - Name: GroupReference
+      Entry: 6
+      Data: 
+    - Name: Type
+      Entry: 1
+      Data: end_game
+    - Name: Note
+      Entry: 6
+      Data: 
+    - Name: Arguments
+      Entry: 7
+      Data: 166|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerArgumentData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 3
+    - Name: 
+      Entry: 7
+      Data: 167|AbilityKit.Ability.Config.Authoring.TriggerArgumentData, AbilityKit.Ability
+    - Name: Name
+      Entry: 1
+      Data: reason_id
+    - Name: Value
+      Entry: 7
+      Data: 168|AbilityKit.Ability.Config.Authoring.TriggerValueRefData, AbilityKit.Ability
+    - Name: Source
+      Entry: 3
+      Data: 0
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: IntegerValue
+      Entry: 3
+      Data: 0
+    - Name: NumberValue
+      Entry: 4
+      Data: 0
+    - Name: BooleanValue
+      Entry: 5
+      Data: false
+    - Name: StringValue
+      Entry: 6
+      Data: 
+    - Name: IntegerListValue
+      Entry: 7
+      Data: 169|System.Collections.Generic.List`1[[System.Int64, mscorlib]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Vector3Value
+      Entry: 7
+      Data: 170|AbilityKit.Ability.Config.Authoring.TriggerVector3Data, AbilityKit.Ability
+    - Name: X
+      Entry: 4
+      Data: 0
+    - Name: Y
+      Entry: 4
+      Data: 0
+    - Name: Z
+      Entry: 4
+      Data: 0
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Fields
+      Entry: 7
+      Data: 171|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerArgumentData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Path
+      Entry: 6
+      Data: 
+    - Name: Expression
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 172|AbilityKit.Ability.Config.Authoring.TriggerArgumentData, AbilityKit.Ability
+    - Name: Name
+      Entry: 1
+      Data: win_team_id
+    - Name: Value
+      Entry: 7
+      Data: 173|AbilityKit.Ability.Config.Authoring.TriggerValueRefData, AbilityKit.Ability
+    - Name: Source
+      Entry: 3
+      Data: 0
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: IntegerValue
+      Entry: 3
+      Data: 0
+    - Name: NumberValue
+      Entry: 4
+      Data: 0
+    - Name: BooleanValue
+      Entry: 5
+      Data: false
+    - Name: StringValue
+      Entry: 6
+      Data: 
+    - Name: IntegerListValue
+      Entry: 7
+      Data: 174|System.Collections.Generic.List`1[[System.Int64, mscorlib]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Vector3Value
+      Entry: 7
+      Data: 175|AbilityKit.Ability.Config.Authoring.TriggerVector3Data, AbilityKit.Ability
+    - Name: X
+      Entry: 4
+      Data: 0
+    - Name: Y
+      Entry: 4
+      Data: 0
+    - Name: Z
+      Entry: 4
+      Data: 0
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Fields
+      Entry: 7
+      Data: 176|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerArgumentData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Path
+      Entry: 6
+      Data: 
+    - Name: Expression
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 7
+      Data: 177|AbilityKit.Ability.Config.Authoring.TriggerArgumentData, AbilityKit.Ability
+    - Name: Name
+      Entry: 1
+      Data: win_team_from_event
+    - Name: Value
+      Entry: 7
+      Data: 178|AbilityKit.Ability.Config.Authoring.TriggerValueRefData, AbilityKit.Ability
+    - Name: Source
+      Entry: 3
+      Data: 0
+    - Name: Type
+      Entry: 3
+      Data: 1
+    - Name: IntegerValue
+      Entry: 3
+      Data: 1
+    - Name: NumberValue
+      Entry: 4
+      Data: 0
+    - Name: BooleanValue
+      Entry: 5
+      Data: false
+    - Name: StringValue
+      Entry: 6
+      Data: 
+    - Name: IntegerListValue
+      Entry: 7
+      Data: 179|System.Collections.Generic.List`1[[System.Int64, mscorlib]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Vector3Value
+      Entry: 7
+      Data: 180|AbilityKit.Ability.Config.Authoring.TriggerVector3Data, AbilityKit.Ability
+    - Name: X
+      Entry: 4
+      Data: 0
+    - Name: Y
+      Entry: 4
+      Data: 0
+    - Name: Z
+      Entry: 4
+      Data: 0
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Fields
+      Entry: 7
+      Data: 181|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerArgumentData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Path
+      Entry: 6
+      Data: 
+    - Name: Expression
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Condition
+      Entry: 6
+      Data: 
+    - Name: Children
+      Entry: 7
+      Data: 182|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerNodeData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: ElseChildren
+      Entry: 7
+      Data: 183|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerNodeData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: Blackboard
+      Entry: 7
+      Data: 184|System.Collections.Generic.List`1[[AbilityKit.Ability.Config.Authoring.TriggerBlackboardVariableData,
+        AbilityKit.Ability]], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 0
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: CallableParameters
+      Entry: 6
+      Data: 
+    - Name: Note
+      Entry: 1
+      Data: Only the base structure kind ends the match; the winner is read from
+        the destroyed structure event.
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: 
       Entry: 13
       Data: 
     - Name: 
@@ -2342,4 +3210,4 @@ MonoBehaviour:
     - gameplay
     - migrated
   _sourceJsonPath: Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/Sources/moba-gameplay.trigger.json
-  _lastSynchronizedHash: 1dd3adcdbcef46a08b8c411291d951a0240c909b81289abf0168e46e0c09ed0a
+  _lastSynchronizedHash: 3b9d82e5bb21c80d49ea849bd35c68a7424b23eebf34d83d9ac39ab2552d91fd

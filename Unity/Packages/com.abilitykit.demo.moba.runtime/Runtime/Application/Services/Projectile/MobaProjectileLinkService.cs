@@ -18,6 +18,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
     {
         private readonly Dictionary<int, ProjectileId> _projectileByActorId = new Dictionary<int, ProjectileId>();
         private readonly Dictionary<ProjectileId, int> _actorIdByProjectile = new Dictionary<ProjectileId, int>();
+        private readonly Dictionary<ProjectileId, int> _retiredActorIdByProjectile = new Dictionary<ProjectileId, int>();
         private readonly Dictionary<ProjectileId, ProjectileSourceContext> _sourceByProjectile = new Dictionary<ProjectileId, ProjectileSourceContext>();
         private readonly Dictionary<ProjectileId, MobaSkillRuntimeRetainHandle> _retainByProjectile = new Dictionary<ProjectileId, MobaSkillRuntimeRetainHandle>();
         private readonly Dictionary<int, LauncherLink> _launcherByActorId = new Dictionary<int, LauncherLink>();
@@ -39,6 +40,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             EnsureObjectBootstrapRegistered();
             _projectileByActorId[actorId] = projectileId;
             _actorIdByProjectile[projectileId] = actorId;
+            _retiredActorIdByProjectile.Remove(projectileId);
             _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
             PublishProjectileLifecycle(
                 MobaRuntimeObjectLifecycleStage.Created,
@@ -115,6 +117,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public bool TryGetActorId(ProjectileId projectileId, out int actorId)
         {
             return _actorIdByProjectile.TryGetValue(projectileId, out actorId);
+        }
+
+        public bool TryGetRetiredActorId(ProjectileId projectileId, out int actorId)
+        {
+            return _retiredActorIdByProjectile.TryGetValue(projectileId, out actorId);
         }
 
         public bool TryGetSource(ProjectileId projectileId, out ProjectileSourceContext source)
@@ -203,6 +210,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 _sourceByProjectile.TryGetValue(pid, out var capturedSource);
                 _projectileByActorId.Remove(actorId);
                 _actorIdByProjectile.Remove(pid);
+                _retiredActorIdByProjectile[pid] = actorId;
                 _sourceByProjectile.Remove(pid);
                 ConsumeAndReleaseRetain(pid);
                 _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
@@ -225,6 +233,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 _actorIdByProjectile.Remove(projectileId);
                 _projectileByActorId.Remove(actorId);
                 capturedActorId = actorId;
+                _retiredActorIdByProjectile[projectileId] = capturedActorId;
                 removed = true;
             }
 
@@ -258,6 +267,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             ConsumeAndReleaseRetain(projectileId);
             if (wasActive)
             {
+                _retiredActorIdByProjectile[projectileId] = actorId;
                 _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
                 PublishProjectileLifecycle(
                     MobaRuntimeObjectLifecycleStage.Destroyed,
@@ -293,6 +303,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             ReleaseAllRetains();
             _projectileByActorId.Clear();
             _actorIdByProjectile.Clear();
+            _retiredActorIdByProjectile.Clear();
             _sourceByProjectile.Clear();
             _launcherByActorId.Clear();
             _lifecycle?.SetActive(MobaTemporaryEntityKind.Projectile, 0);

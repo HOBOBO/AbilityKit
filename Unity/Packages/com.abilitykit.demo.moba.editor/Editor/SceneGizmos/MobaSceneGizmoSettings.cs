@@ -14,23 +14,28 @@ namespace AbilityKit.Game.Editor.Gizmos
     /// </summary>
     public static class MobaSceneGizmoSettings
     {
+        public const int CollisionBit = 1 << 0;
         public const int AttackBit = 1 << 3;
         public const int BuffBit = 1 << 4;
         public const int SpawnBit = 1 << 5;
         public const int NavigationBit = 1 << 6;
         public const int PathBit = 1 << 7;
+        public const int ActiveAoeBit = 1 << 8;
 
         public static class Masks
         {
+            public static readonly DebugDrawMask Collision = new DebugDrawMask(CollisionBit);
             public static readonly DebugDrawMask Attack = new DebugDrawMask(AttackBit);
             public static readonly DebugDrawMask Buff = new DebugDrawMask(BuffBit);
             public static readonly DebugDrawMask Spawn = new DebugDrawMask(SpawnBit);
+            public static readonly DebugDrawMask ActiveAoe = new DebugDrawMask(ActiveAoeBit);
 
-            public static readonly DebugDrawMask AllMoba = new DebugDrawMask(AttackBit | BuffBit | SpawnBit);
+            public static readonly DebugDrawMask AllMoba = new DebugDrawMask(CollisionBit | AttackBit | BuffBit | SpawnBit | NavigationBit | PathBit | ActiveAoeBit);
         }
 
-        public const int DefaultAttackMask = AttackBit | SpawnBit;
+        public const int DefaultAttackMask = AttackBit | SpawnBit | CollisionBit;
         public const int DefaultBuffMask = BuffBit;
+        public const int DefaultActiveAoeMask = ActiveAoeBit;
 
         private static int s_attackColorR = 255;
         private static int s_attackColorG = 96;
@@ -53,10 +58,13 @@ namespace AbilityKit.Game.Editor.Gizmos
         public static DebugDrawColor SpawnColor =>
             new DebugDrawColor((byte)s_spawnColorR, (byte)s_spawnColorG, (byte)s_spawnColorB, 255);
 
+        public static DebugDrawColor ActiveAoeColor => new DebugDrawColor(255, 96, 220, 255);
+
         public static int MaxBuffPerActor { get; set; } = 8;
         public static int MaxActors { get; set; } = 64;
         public static int MaxAreas { get; set; } = 64;
         public static int MaxNavCells { get; set; } = 2048;
+        public static int MaxActiveAoes { get; set; } = 128;
 
         private static int s_navFreeColorR = 64;
         private static int s_navFreeColorG = 220;
@@ -78,20 +86,26 @@ namespace AbilityKit.Game.Editor.Gizmos
         public static int GetOrCreateEnabledMask()
         {
             var stored = MobaGizmoSettingsPersistence.LoadEnabledMask();
-            return stored == 0 ? DefaultAttackMask | DefaultBuffMask : stored;
+            return MobaGizmoSettingsPersistence.HasEnabledMask()
+                ? stored
+                : DefaultAttackMask | DefaultBuffMask | DefaultActiveAoeMask;
         }
 
         public static bool IsAttackEnabled() => (GetOrCreateEnabledMask() & AttackBit) != 0;
+        public static bool IsCollisionEnabled() => (GetOrCreateEnabledMask() & CollisionBit) != 0;
         public static bool IsBuffEnabled() => (GetOrCreateEnabledMask() & BuffBit) != 0;
         public static bool IsSpawnEnabled() => (GetOrCreateEnabledMask() & SpawnBit) != 0;
         public static bool IsNavigationEnabled() => (GetOrCreateEnabledMask() & NavigationBit) != 0;
         public static bool IsPathEnabled() => (GetOrCreateEnabledMask() & PathBit) != 0;
+        public static bool IsActiveAoeEnabled() => (GetOrCreateEnabledMask() & ActiveAoeBit) != 0;
 
         public static void SetAttackEnabled(bool value) => SetBit(AttackBit, value);
+        public static void SetCollisionEnabled(bool value) => SetBit(CollisionBit, value);
         public static void SetBuffEnabled(bool value) => SetBit(BuffBit, value);
         public static void SetSpawnEnabled(bool value) => SetBit(SpawnBit, value);
         public static void SetNavigationEnabled(bool value) => SetBit(NavigationBit, value);
         public static void SetPathEnabled(bool value) => SetBit(PathBit, value);
+        public static void SetActiveAoeEnabled(bool value) => SetBit(ActiveAoeBit, value);
 
         public static void SetBit(int bit, bool enabled)
         {
@@ -105,7 +119,7 @@ namespace AbilityKit.Game.Editor.Gizmos
 
         public static void Reset()
         {
-            MobaGizmoSettingsPersistence.SaveEnabledMask(DefaultAttackMask | DefaultBuffMask);
+            MobaGizmoSettingsPersistence.SaveEnabledMask(DefaultAttackMask | DefaultBuffMask | DefaultActiveAoeMask);
             RefreshCoreEnabledMask();
         }
 
@@ -119,7 +133,8 @@ namespace AbilityKit.Game.Editor.Gizmos
             var mobaBits = GetOrCreateEnabledMask();
 
             var targeting = DebugDrawEditorSettings.Masks.Targeting.Value;
-            var required = current | targeting | mobaBits;
+            const int managedBits = CollisionBit | AttackBit | BuffBit | SpawnBit | NavigationBit | PathBit | ActiveAoeBit;
+            var required = (current & ~managedBits) | targeting | mobaBits;
 
             if (required != current)
             {
@@ -131,7 +146,9 @@ namespace AbilityKit.Game.Editor.Gizmos
         [InitializeOnLoadMethod]
         private static void Initialize()
         {
-            MobaGizmoSettingsPersistence.EnsureDefaults(DefaultAttackMask | DefaultBuffMask);
+            MobaGizmoSettingsPersistence.EnsureDefaults(
+                DefaultAttackMask | DefaultBuffMask | DefaultActiveAoeMask,
+                CollisionBit | DefaultActiveAoeMask);
             RefreshCoreEnabledMask();
         }
     }

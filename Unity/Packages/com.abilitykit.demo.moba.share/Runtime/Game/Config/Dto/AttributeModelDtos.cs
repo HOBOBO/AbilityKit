@@ -32,6 +32,29 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int PerSecondBloodR;
         public int PerSecondManaR;
         public int ResilienceR;
+        public int HpGrowth;
+        public int MaxHpGrowth;
+        public int ExtraHpGrowth;
+        public int PhysicsAttackGrowth;
+        public int MagicAttackGrowth;
+        public int ExtraPhysicsAttackGrowth;
+        public int ExtraMagicAttackGrowth;
+        public int PhysicsDefenseGrowth;
+        public int MagicDefenseGrowth;
+        public int ManaGrowth;
+        public int MaxManaGrowth;
+        public int CriticalRGrowth;
+        public int AttackSpeedRGrowth;
+        public int CooldownReduceRGrowth;
+        public int PhysicsPenetrationRGrowth;
+        public int MagicPenetrationRGrowth;
+        public float MoveSpeedGrowth;
+        public int PhysicsBloodsuckingRGrowth;
+        public int MagicBloodsuckingRGrowth;
+        public int AttackRangeGrowth;
+        public int PerSecondBloodRGrowth;
+        public int PerSecondManaRGrowth;
+        public int ResilienceRGrowth;
     }
 
     [Serializable]

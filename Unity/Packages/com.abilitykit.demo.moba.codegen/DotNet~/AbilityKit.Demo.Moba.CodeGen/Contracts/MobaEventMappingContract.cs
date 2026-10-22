@@ -14,15 +14,19 @@ namespace AbilityKit.Demo.Moba.CodeGen
         {
             mapping = null!;
             error = null!;
-            if (attribute.ConstructorArguments.Length != 3 ||
+            if ((attribute.ConstructorArguments.Length != 2 && attribute.ConstructorArguments.Length != 3) ||
                 !(attribute.ConstructorArguments[0].Value is string eventId) ||
                 string.IsNullOrWhiteSpace(eventId) ||
                 !(attribute.ConstructorArguments[1].Value is INamedTypeSymbol argsType) ||
-                !(attribute.ConstructorArguments[2].Value is bool isPrefix))
+                (attribute.ConstructorArguments.Length == 3 &&
+                 !(attribute.ConstructorArguments[2].Value is bool)))
             {
                 error = "event ID/prefix, args type, and mapping kind must be compile-time constants";
                 return false;
             }
+
+            var isPrefix = attribute.ConstructorArguments.Length == 3 &&
+                           (bool)attribute.ConstructorArguments[2].Value!;
 
             if (!GeneratedCodeSymbolRules.CanReferenceType(argsType))
             {

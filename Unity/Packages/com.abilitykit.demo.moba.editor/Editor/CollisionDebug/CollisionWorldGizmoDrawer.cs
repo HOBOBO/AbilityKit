@@ -55,7 +55,6 @@ namespace AbilityKit.Game.Editor
                 var max = DebugDrawEditorSettings.MaxItemsPerContributor;
                 if (max <= 0) max = 2048;
 
-                var style = new DebugDrawStyle(DebugDrawEditorSettings.CollisionColor);
                 var mask = DebugDrawEditorSettings.CollisionLayerMask;
 
                 var count = s_shapes.Count;
@@ -66,6 +65,7 @@ namespace AbilityKit.Game.Editor
                     var s = s_shapes[i];
                     if (mask != 0 && s.LayerId >= 0 && s.LayerId < 32 && ((1 << s.LayerId) & mask) == 0) continue;
 
+                    var style = new DebugDrawStyle(ResolveLayerColor(s.LayerId));
                     var shape = s.WorldShape;
                     switch (shape.Type)
                     {
@@ -82,8 +82,49 @@ namespace AbilityKit.Game.Editor
                             draw.DrawWireAabb(in center, in size, in style);
                             break;
                         }
+                        case ColliderShapeType.OBB:
+                            DrawObb(draw, shape.Obb, in style);
+                            break;
                     }
                 }
+            }
+
+            private static DebugDrawColor ResolveLayerColor(int layerId)
+            {
+                // Keep the common MOBA layers visually distinct while preserving the
+                // user-configured collision color for unknown/custom layers.
+                switch (layerId)
+                {
+                    case 0: return new DebugDrawColor(80, 220, 255, 220); // unit
+                    case 1: return new DebugDrawColor(255, 170, 64, 230); // projectile
+                    case 2: return new DebugDrawColor(140, 170, 255, 230); // world
+                    default: return DebugDrawEditorSettings.CollisionColor;
+                }
+            }
+
+            private static void DrawObb(IDebugDraw draw, in Obb obb, in DebugDrawStyle style)
+            {
+                obb.GetCorners(
+                    out var c0, out var c1, out var c2, out var c3,
+                    out var c4, out var c5, out var c6, out var c7);
+
+                DrawEdge(draw, in c0, in c1, in style);
+                DrawEdge(draw, in c0, in c2, in style);
+                DrawEdge(draw, in c1, in c3, in style);
+                DrawEdge(draw, in c2, in c3, in style);
+                DrawEdge(draw, in c4, in c5, in style);
+                DrawEdge(draw, in c4, in c6, in style);
+                DrawEdge(draw, in c5, in c7, in style);
+                DrawEdge(draw, in c6, in c7, in style);
+                DrawEdge(draw, in c0, in c4, in style);
+                DrawEdge(draw, in c1, in c5, in style);
+                DrawEdge(draw, in c2, in c6, in style);
+                DrawEdge(draw, in c3, in c7, in style);
+            }
+
+            private static void DrawEdge(IDebugDraw draw, in Vec3 from, in Vec3 to, in DebugDrawStyle style)
+            {
+                draw.DrawLine(in from, in to, in style);
             }
         }
     }

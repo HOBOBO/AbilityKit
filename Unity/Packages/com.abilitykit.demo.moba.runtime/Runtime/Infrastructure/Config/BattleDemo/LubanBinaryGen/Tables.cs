@@ -59,6 +59,10 @@ public partial class Tables
     /// Buff HUD display configuration.
     /// </summary>
     public BuffHudTemplates BuffHudTemplates {get; }
+    /// <summary>
+    /// Gameplay tag status presentation channels.
+    /// </summary>
+    public TagHudPresentations TagHudPresentations {get; }
 
     public Tables(System.Func<string, ByteBuf> loader)
     {
@@ -102,6 +106,7 @@ public partial class Tables
         Dungeons = new Dungeons(loader("dungeons"));
         ModifierDefinitions = new ModifierDefinitions(loader("modifier_definitions"));
         BuffHudTemplates = new BuffHudTemplates(loader("buff_hud_templates"));
+        TagHudPresentations = new TagHudPresentations(loader("tag_hud_presentations"));
         ResolveRef();
     }
     
@@ -147,6 +152,7 @@ public partial class Tables
         Dungeons.ResolveRef(this);
         ModifierDefinitions.ResolveRef(this);
         BuffHudTemplates.ResolveRef(this);
+        TagHudPresentations.ResolveRef(this);
     }
 }
 

@@ -26,7 +26,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
         public static BattleHudTagPresentationCatalog Load()
         {
             var items = new Dictionary<int, BattleHudTagPresentation>();
-            var asset = Resources.Load<TextAsset>("luban/moba/tag_hud_presentation");
+            var asset = Resources.Load<TextAsset>("luban/moba/tag_hud_presentations");
             if (asset == null || string.IsNullOrWhiteSpace(asset.text))
                 return new BattleHudTagPresentationCatalog(items);
             try

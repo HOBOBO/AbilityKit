@@ -88,6 +88,22 @@ namespace AbilityKit.Demo.Moba.Services
                         evt.EntityVersion,
                         evt.PredictionKey,
                         out var replayDecision);
+                    if (replayDisposition == MobaActionReplayDisposition.DecisionMissing)
+                    {
+                        // The authoritative input stream is itself an accepted server decision.
+                        // ActionAck snapshots may arrive later than the input during rollback.
+                        actionAcks.RecordAuthoritativeReplayInput(
+                            actorId,
+                            evt.EntityVersion,
+                            evt.PredictionKey,
+                            skillId,
+                            frame.Value);
+                        replayDisposition = actionAcks.ResolveReplay(
+                            actorId,
+                            evt.EntityVersion,
+                            evt.PredictionKey,
+                            out replayDecision);
+                    }
                     if (replayDisposition != MobaActionReplayDisposition.ExecuteAccepted)
                     {
                         var accepted = replayDisposition == MobaActionReplayDisposition.SkipDuplicate &&

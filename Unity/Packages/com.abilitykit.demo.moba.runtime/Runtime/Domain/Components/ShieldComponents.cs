@@ -3,6 +3,54 @@ using AbilityKit.Deterministic;
 
 namespace AbilityKit.Demo.Moba.Components
 {
+    public enum ShieldChangeKind
+    {
+        Added = 0,
+        Refreshed = 1,
+        Absorbed = 2,
+        Depleted = 3,
+        Expired = 4,
+        Removed = 5,
+        MemberJoined = 6,
+        MemberLeft = 7,
+        Transferred = 8,
+        RollbackCorrection = 9,
+        ActiveBaseline = 10,
+    }
+
+    public delegate void ShieldChangedHandler(in ShieldChangeEvent change);
+
+    /// <summary>
+    /// Commit-only shield fact. Consumers must rebuild from the snapshot when they
+    /// receive an ActiveBaseline event; this value is not a mutable state handle.
+    /// </summary>
+    public readonly struct ShieldChangeEvent
+    {
+        public ShieldChangeEvent(long revision, ShieldChangeKind kind, int actorId, int instanceId,
+            int poolId, int poolVersion, Fixed64 oldValue, Fixed64 newValue, int frame)
+        {
+            Revision = revision;
+            Kind = kind;
+            ActorId = actorId;
+            InstanceId = instanceId;
+            PoolId = poolId;
+            PoolVersion = poolVersion;
+            OldValue = oldValue;
+            NewValue = newValue;
+            Frame = frame;
+        }
+
+        public long Revision { get; }
+        public ShieldChangeKind Kind { get; }
+        public int ActorId { get; }
+        public int InstanceId { get; }
+        public int PoolId { get; }
+        public int PoolVersion { get; }
+        public Fixed64 OldValue { get; }
+        public Fixed64 NewValue { get; }
+        public int Frame { get; }
+    }
+
     public readonly struct ShieldContainerView
     {
         public ShieldContainerView(int layerCount, int nextInstanceId, Fixed64 totalRemaining, bool dirty)
@@ -61,6 +109,50 @@ namespace AbilityKit.Demo.Moba.Components
         public int LayerCount { get; }
         public bool HasShared { get; }
         public bool HasShield => TotalVisibleValue > Fixed64.Zero;
+    }
+
+    public enum ShieldAllocationKind
+    {
+        PersonalLayer = 0,
+        SharedTotalPool = 1,
+        WeightedMemberQuota = 2,
+        UnsupportedPolicy = 3,
+    }
+
+    /// <summary>
+    /// Value-only explanation of one preview allocation. It is safe to pass to
+    /// diagnostics and presentation because it contains no mutable shield object.
+    /// </summary>
+    public readonly struct ShieldAllocationResult
+    {
+        public ShieldAllocationResult(
+            ShieldAllocationKind kind,
+            ShieldSharePolicy policy,
+            int instanceId,
+            int poolId,
+            int memberId,
+            Fixed64 requestedValue,
+            Fixed64 allocatedValue,
+            Fixed64 remainingDamageAfter)
+        {
+            Kind = kind;
+            Policy = policy;
+            InstanceId = instanceId;
+            PoolId = poolId;
+            MemberId = memberId;
+            RequestedValue = requestedValue;
+            AllocatedValue = allocatedValue;
+            RemainingDamageAfter = remainingDamageAfter;
+        }
+
+        public ShieldAllocationKind Kind { get; }
+        public ShieldSharePolicy Policy { get; }
+        public int InstanceId { get; }
+        public int PoolId { get; }
+        public int MemberId { get; }
+        public Fixed64 RequestedValue { get; }
+        public Fixed64 AllocatedValue { get; }
+        public Fixed64 RemainingDamageAfter { get; }
     }
 
     // 2026-10-12：ShieldContainerComponent/SharedShieldPoolsComponent 两个 [Actor] 组件定义已删除

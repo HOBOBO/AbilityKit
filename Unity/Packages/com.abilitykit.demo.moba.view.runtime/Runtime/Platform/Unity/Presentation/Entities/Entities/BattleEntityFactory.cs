@@ -86,6 +86,16 @@ namespace AbilityKit.Game.Battle.Entity
             return e;
         }
 
+        public EC.IEntity CreateBuilding(BattleNetId netId, int modelId = 0)
+        {
+            EC.IEntity e = _parent.IsValid ? _world.CreateChild(_parent) : _world.Create($"Building_{netId.Value}");
+            e.WithRef(new BattleNetIdComponent { NetId = netId });
+            e.WithRef(new BattleEntityMetaComponent { Kind = BattleEntityKind.Building, EntityCode = modelId });
+            e.WithRef(new BattleTransformComponent());
+            _lookup?.Bind(netId, e);
+            return e;
+        }
+
         public EC.IEntity CreateProjectile(BattleNetId netId, BattleNetId ownerNetId, int entityCode = 0)
         {
             EC.IEntity e;

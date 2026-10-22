@@ -3,10 +3,40 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
+from business.tags import validate_tag_hud_presentations
 from tag_excel import TAG_TABLES, build_tag_usage_report, compile_tag_tables, finalize_tag_usage_report, gate_enum_members, generate_flags_code, preview_tag_rule, preview_tag_template, validate_flag_abi, validate_gate_abi, validate_tag_definitions, validate_tag_abi
 
 
 class TagWorkbookTests(unittest.TestCase):
+    def test_tag_hud_presentations_reference_active_gameplay_facts(self):
+        path = Path(__file__).resolve().parents[1] / "Production/Datas/moba-tag-hud.xlsx"
+        book = load_workbook(path, read_only=True, data_only=True)
+        try:
+            sheet = book["TagHudPresentations"]
+            fields = {cell.value: cell.column for cell in sheet[1] if cell.value}
+            rows = []
+            for index in range(4, sheet.max_row + 1):
+                rows.append({name: sheet.cell(index, column).value for name, column in fields.items()})
+            import json
+            tags_path = Path(__file__).resolve().parents[3] / "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/luban/moba/tag_definitions.json"
+            definitions = json.loads(tags_path.read_text(encoding="utf-8-sig"))
+            validate_tag_hud_presentations(rows, definitions)
+            self.assertEqual({1002, 1504}, {row["DefinitionId"] for row in rows if row["ChannelMask"] == 3})
+        finally:
+            book.close()
+
+    def test_tag_hud_presentations_reject_vfx_channel_without_resource(self):
+        with self.assertRaisesRegex(ValueError, "VfxId is required"):
+            validate_tag_hud_presentations(
+                [{"DefinitionId": 1002, "DisplayName": "霸体", "ChannelMask": 4, "VfxId": 0}],
+                [{"Id": 1002, "Namespace": 1, "Status": 0, "Kind": 1}])
+
+    def test_tag_hud_presentations_reject_unknown_vfx_reference(self):
+        with self.assertRaisesRegex(ValueError, "missing VFX 999"):
+            validate_tag_hud_presentations(
+                [{"DefinitionId": 1002, "DisplayName": "霸体", "ChannelMask": 1, "VfxId": 999}],
+                [{"Id": 1002, "Namespace": 1, "Status": 0, "Kind": 1}],
+                [{"Id": 101}])
     def test_production_control_templates_use_flat_lifecycle_conditions(self):
         path = Path(__file__).resolve().parents[1] / "Production/Datas/J-标签表.xlsx"
         book = load_workbook(path, read_only=True, data_only=True)

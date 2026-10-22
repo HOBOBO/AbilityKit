@@ -71,6 +71,10 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 {
                     it.ProjectileActorId = projectileActorId;
                 }
+                else if (_links != null && _links.TryGetRetiredActorId(e.Projectile, out projectileActorId) && projectileActorId > 0)
+                {
+                    it.ProjectileActorId = projectileActorId;
+                }
                 _entries.Add(it);
             }
 
@@ -82,6 +86,10 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 {
                     it.ProjectileActorId = projectileActorId;
                 }
+                else if (_links != null && _links.TryGetRetiredActorId(e.Projectile, out projectileActorId) && projectileActorId > 0)
+                {
+                    it.ProjectileActorId = projectileActorId;
+                }
                 _entries.Add(it);
             }
 
@@ -90,6 +98,10 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 var e = _exits[i];
                 var it = FromExit(in e);
                 if (_links != null && _links.TryGetActorId(e.Projectile, out var projectileActorId) && projectileActorId > 0)
+                {
+                    it.ProjectileActorId = projectileActorId;
+                }
+                else if (_links != null && _links.TryGetRetiredActorId(e.Projectile, out projectileActorId) && projectileActorId > 0)
                 {
                     it.ProjectileActorId = projectileActorId;
                 }

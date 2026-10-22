@@ -87,7 +87,6 @@ namespace AbilityKit.Game.Editor.Gizmos
                 var maxActors = MobaSceneGizmoSettings.MaxActors;
                 if (maxActors <= 0) maxActors = 64;
 
-                var attackStyle = new DebugDrawStyle(MobaSceneGizmoSettings.AttackColor);
                 var spawnStyle = new DebugDrawStyle(MobaSceneGizmoSettings.SpawnColor);
 
                 var actorCount = 0;
@@ -108,7 +107,7 @@ namespace AbilityKit.Game.Editor.Gizmos
 
                     if (drawAttack)
                     {
-                        DrawAttackRanges(entity, configs, in pos, in attackStyle, draw);
+                        DrawAttackRanges(entity, configs, in pos, draw);
                     }
 
                     actorCount++;
@@ -124,7 +123,6 @@ namespace AbilityKit.Game.Editor.Gizmos
                 global::ActorEntity entity,
                 MobaConfigDatabase configs,
                 in Vec3 pos,
-                in DebugDrawStyle style,
                 IDebugDraw draw)
             {
                 _skillBuffer.Clear();
@@ -138,11 +136,33 @@ namespace AbilityKit.Game.Editor.Gizmos
                     var range = skill.Range;
                     if (range <= 0f) continue;
 
-                    var center = new Vec3(pos.X, pos.Y, pos.Z);
-                    draw.DrawWireSphere(in center, range, in style);
+                    var center = new Vec3(pos.X, pos.Y + 0.025f * (i + 1), pos.Z);
+                    var style = new DebugDrawStyle(ResolveAttackColor(i));
+                    MobaGizmoGeometry.DrawGroundCircle(draw, in center, range, in style);
+
+                    // The center cross keeps small ranges readable when several skill
+                    // previews share the same actor position.
+                    var arm = System.Math.Min(0.35f, System.Math.Max(0.12f, range * 0.08f));
+                    var left = new Vec3(center.X - arm, center.Y, center.Z);
+                    var right = new Vec3(center.X + arm, center.Y, center.Z);
+                    var back = new Vec3(center.X, center.Y, center.Z - arm);
+                    var front = new Vec3(center.X, center.Y, center.Z + arm);
+                    draw.DrawLine(in left, in right, in style);
+                    draw.DrawLine(in back, in front, in style);
                 }
 
                 _skillBuffer.Clear();
+            }
+
+            private static DebugDrawColor ResolveAttackColor(int index)
+            {
+                switch (index % 4)
+                {
+                    case 1: return new DebugDrawColor(255, 150, 64, 220);
+                    case 2: return new DebugDrawColor(255, 220, 64, 220);
+                    case 3: return new DebugDrawColor(255, 96, 180, 220);
+                    default: return MobaSceneGizmoSettings.AttackColor;
+                }
             }
 
             private static void CollectSkillIdsForEntity(

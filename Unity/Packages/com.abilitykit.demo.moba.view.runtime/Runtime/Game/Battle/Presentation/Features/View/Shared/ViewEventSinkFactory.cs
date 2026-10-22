@@ -8,7 +8,7 @@ namespace AbilityKit.Game.Flow
         {
             if (runtime == null) return null;
 
-            return new BattleViewEventSink(
+            var sink = new BattleViewEventSink(
                 runtime.Context,
                 runtime.Query,
                 runtime.Binder,
@@ -19,6 +19,8 @@ namespace AbilityKit.Game.Flow
                 runtime.Resources,
                 handlers: null,
                 hierarchy: runtime.Hierarchy);
+            sink.RefreshPresentationState();
+            return sink;
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba.Services;
@@ -68,6 +69,40 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(health.EmptyCount, Is.EqualTo(2));
             Assert.That(health.LastFrame, Is.EqualTo(8));
             Assert.That(health.LastBatchSnapshotCount, Is.Zero);
+        }
+
+        [Test]
+        public void Router_CollectSnapshots_ReplaysRequestedBaselineOnce()
+        {
+            var emitter = new BaselineEmitter(701, new byte[] { 7, 1 });
+            var router = CreateRouterWithEmitter(emitter);
+            var snapshots = new List<WorldStateSnapshot>();
+
+            Assert.That(router.RequestActiveBaseline(), Is.True);
+            Assert.That(router.CollectSnapshots(new FrameIndex(3), snapshots), Is.EqualTo(1));
+            Assert.That(snapshots, Has.Count.EqualTo(1));
+            Assert.That(snapshots[0].OpCode, Is.EqualTo(701));
+            Assert.That(snapshots[0].Payload, Is.EqualTo(new byte[] { 7, 1 }));
+            Assert.That(emitter.ConsumeCount, Is.EqualTo(1));
+
+            snapshots.Clear();
+            Assert.That(router.CollectSnapshots(new FrameIndex(3), snapshots), Is.Zero);
+            Assert.That(emitter.ConsumeCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Router_TryGetSnapshot_ReplaysRequestedBaselineOnce()
+        {
+            var emitter = new BaselineEmitter(702, new byte[] { 7, 2 });
+            var router = CreateRouterWithEmitter(emitter);
+
+            Assert.That(router.RequestActiveBaseline(), Is.True);
+            Assert.That(router.TryGetSnapshot(new FrameIndex(4), out var snapshot), Is.True);
+            Assert.That(snapshot.OpCode, Is.EqualTo(702));
+            Assert.That(emitter.ConsumeCount, Is.EqualTo(1));
+
+            Assert.That(router.TryGetSnapshot(new FrameIndex(4), out _), Is.False);
+            Assert.That(emitter.ConsumeCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -145,6 +180,17 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(actual.LastBatchSnapshotCount, Is.EqualTo(expected.LastBatchSnapshotCount));
         }
 
+        private static MobaSnapshotRouter CreateRouterWithEmitter(IMobaSnapshotEmitter emitter)
+        {
+            var router = new MobaSnapshotRouter();
+            var field = typeof(MobaSnapshotRouter).GetField(
+                "_emitters",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            field.SetValue(router, new List<IMobaSnapshotEmitter> { emitter });
+            return router;
+        }
+
         private sealed class StubInputCoordinator : IMobaInputCoordinator
         {
             public void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
@@ -193,6 +239,44 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             {
                 RequestCount++;
                 return 0;
+            }
+        }
+
+        private sealed class BaselineEmitter : IMobaSnapshotEmitter, IActiveBaselineSnapshotProvider
+        {
+            private readonly WorldStateSnapshot _snapshot;
+            private bool _requested;
+
+            public BaselineEmitter(int opCode, byte[] payload)
+            {
+                _snapshot = new WorldStateSnapshot(opCode, payload);
+            }
+
+            public int ConsumeCount { get; private set; }
+
+            public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
+            {
+                snapshot = default;
+                return false;
+            }
+
+            public void RequestActiveBaseline()
+            {
+                _requested = true;
+            }
+
+            public bool ConsumeActiveBaselineRequest()
+            {
+                if (!_requested) return false;
+                _requested = false;
+                ConsumeCount++;
+                return true;
+            }
+
+            public bool TryGetActiveBaseline(out WorldStateSnapshot snapshot)
+            {
+                snapshot = _snapshot;
+                return true;
             }
         }
     }

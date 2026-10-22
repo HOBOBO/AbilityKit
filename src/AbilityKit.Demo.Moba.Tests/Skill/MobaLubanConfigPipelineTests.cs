@@ -31,11 +31,24 @@ public sealed class MobaLubanConfigPipelineTests
         Assert.DoesNotContain(definitions, row => row.Name.All(char.IsDigit));
         Assert.DoesNotContain(definitions, row => row.Name.StartsWith("Skill.Hero", StringComparison.Ordinal));
         Assert.Contains(definitions, row => row.Id == 1504 && row.Name == "Debuff.Control.Airborne" &&
-            row.Kind == moba_luban.MobaTagKind.Fact && row.Status == moba_luban.MobaTagStatus.Planned);
+            row.Kind == moba_luban.MobaTagKind.Fact && row.Status == moba_luban.MobaTagStatus.Active);
 
         Assert.True(assets.TryLoadBytes("luban/moba_bytes/skills.bytes", out var skillBytes));
         var skills = new moba_luban.Skills(Luban.ByteBuf.Wrap(skillBytes)).DataList;
         Assert.All(skills, row => Assert.Empty(row.Tags));
+    }
+
+    [Fact]
+    public void Published_tag_presentations_cover_super_armor_and_airborne_head_text()
+    {
+        var assets = new ConsoleTextAssetLoader();
+        Assert.True(assets.TryLoadBytes("luban/moba_bytes/tag_hud_presentations.bytes", out var bytes));
+        var rows = new moba_luban.TagHudPresentations(Luban.ByteBuf.Wrap(bytes)).DataList;
+
+        Assert.Contains(rows, row => row.DefinitionId == 1002 && row.Visible &&
+            (row.ChannelMask & 2) != 0 && row.HeadText == "霸体" && row.HeadTextDurationMs > 0);
+        Assert.Contains(rows, row => row.DefinitionId == 1504 && row.Visible &&
+            (row.ChannelMask & 2) != 0 && row.HeadText == "击飞" && row.HeadTextDurationMs > 0);
     }
 
     [Theory]
@@ -298,7 +311,7 @@ public sealed class MobaLubanConfigPipelineTests
         var triggers = scope.Resolve<TriggerPlanJsonDatabase>();
         // The editor aggregate includes the authored hero trigger plans in
         // addition to the two published rule plans.
-        Assert.Equal(132, triggers.Records.Count);
+        Assert.Equal(133, triggers.Records.Count);
         Assert.True(triggers.TryGetRecordByTriggerId(10070011, out _));
         Assert.True(triggers.TryGetRecordByTriggerId(10010301, out _));
     }
@@ -320,7 +333,7 @@ public sealed class MobaLubanConfigPipelineTests
         Assert.True(JToken.DeepEquals(unity, console));
 
         var triggers = (JArray)unity["Triggers"]!;
-        Assert.Equal(130, triggers.Count);
+        Assert.Equal(131, triggers.Count);
         Assert.Contains(triggers, row => row.Value<int>("TriggerId") == 10070011);
         foreach (var id in new[] { 10010301, 10010311, 10010321 })
         {
@@ -331,7 +344,7 @@ public sealed class MobaLubanConfigPipelineTests
 
         var database = new TriggerPlanJsonDatabase();
         database.LoadFromJson(unity.ToString(), "moba-editor-trigger-aggregate");
-        Assert.Equal(130, database.Records.Count);
+        Assert.Equal(131, database.Records.Count);
         Assert.True(database.TryGetRecordByTriggerId(10010301, out _));
     }
 

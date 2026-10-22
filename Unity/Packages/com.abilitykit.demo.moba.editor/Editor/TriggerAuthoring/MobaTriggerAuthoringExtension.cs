@@ -455,8 +455,8 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
             context.RegisterAction(Action("end_game", "结束游戏", "Action/Gameplay",
                 Optional("reason_id", TriggerValueType.Integer), Optional("win_team_id", TriggerValueType.Integer),
                 Optional("win_team_from_event", TriggerValueType.Integer)));
+            context.RegisterAction(Action("damage_structure_from_minion", "Damage structure from minion", "Action/Gameplay"));
         }
-
         private static TriggerTypeDescriptor Condition(
             string type, string displayName, string category, params TriggerParameterDescriptor[] parameters)
         {

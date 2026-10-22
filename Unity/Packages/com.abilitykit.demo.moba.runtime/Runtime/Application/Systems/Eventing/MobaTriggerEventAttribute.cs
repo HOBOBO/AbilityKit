@@ -9,6 +9,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs.Triggering;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Gameplay.Structures;
+using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Ability.Share.Effect;
 
 namespace AbilityKit.Demo.Moba.Systems
@@ -58,6 +59,7 @@ namespace AbilityKit.Demo.Moba.Systems
     [MobaTriggerEvent(MobaUnitTriggering.Events.Die, typeof(UnitDieEventPayload))]
     [MobaTriggerEvent(MobaStructureEvents.Damaged, typeof(MobaStructureEventArgs))]
     [MobaTriggerEvent(MobaStructureEvents.Destroyed, typeof(MobaStructureEventArgs))]
+    [MobaTriggerEvent(MobaMinionEvents.BaseDamage, typeof(MobaMinionBaseDamageEvent))]
     internal static class MobaTriggerEventMappings
     {
     }

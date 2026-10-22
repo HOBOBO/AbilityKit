@@ -109,8 +109,10 @@ namespace AbilityKit.Game.Flow
                     ? _viewContext.EntityFactory.CreateProjectile(netId, new BattleNetId(data.OwnerNetId), data.Code)
                     : data.Kind == (int)SpawnEntityKind.Minion
                         ? _viewContext.EntityFactory.CreateMinion(netId, data.Code)
-                        : data.Kind == (int)SpawnEntityKind.Summon
-                            ? _viewContext.EntityFactory.CreateSummon(netId, data.Code, new BattleNetId(data.OwnerNetId))
+                    : data.Kind == (int)SpawnEntityKind.Summon
+                        ? _viewContext.EntityFactory.CreateSummon(netId, data.Code, new BattleNetId(data.OwnerNetId))
+                        : data.Kind == (int)SpawnEntityKind.Building
+                            ? _viewContext.EntityFactory.CreateBuilding(netId, data.Code)
                             : _viewContext.EntityFactory.CreateCharacter(netId, data.Code);
             }
 

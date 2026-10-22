@@ -2,5 +2,6 @@
   "attr_types": "Id",
   "brains": "BrainId",
   "battle_start": "RowId",
-  "character_view_actions": "RowId"
+  "character_view_actions": "RowId",
+  "tag_hud_presentations": "DefinitionId"
 }

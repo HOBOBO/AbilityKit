@@ -12,6 +12,21 @@ namespace AbilityKit.Game.Editor.Gizmos
     {
         private const string MenuRoot = "Tools/AbilityKit/Demos/Moba/Gizmos/";
 
+        [MenuItem(MenuRoot + "Collision World", priority = 99)]
+        private static void ToggleCollision()
+        {
+            var enabled = !MobaSceneGizmoSettings.IsCollisionEnabled();
+            MobaSceneGizmoSettings.SetCollisionEnabled(enabled);
+            ShowEnabledToast("Collision World", enabled);
+        }
+
+        [MenuItem(MenuRoot + "Collision World", validate = true)]
+        private static bool ValidateCollision()
+        {
+            Menu.SetChecked(MenuRoot + "Collision World", MobaSceneGizmoSettings.IsCollisionEnabled());
+            return true;
+        }
+
         [MenuItem(MenuRoot + "Attack Range", priority = 100)]
         private static void ToggleAttack()
         {
@@ -87,11 +102,26 @@ namespace AbilityKit.Game.Editor.Gizmos
             return true;
         }
 
+        [MenuItem(MenuRoot + "Active AOE Areas", priority = 112)]
+        private static void ToggleActiveAoes()
+        {
+            var enabled = !MobaSceneGizmoSettings.IsActiveAoeEnabled();
+            MobaSceneGizmoSettings.SetActiveAoeEnabled(enabled);
+            ShowEnabledToast("Active AOE Areas", enabled);
+        }
+
+        [MenuItem(MenuRoot + "Active AOE Areas", validate = true)]
+        private static bool ValidateActiveAoes()
+        {
+            Menu.SetChecked(MenuRoot + "Active AOE Areas", MobaSceneGizmoSettings.IsActiveAoeEnabled());
+            return true;
+        }
+
         [MenuItem(MenuRoot + "Reset Defaults", priority = 200)]
         private static void ResetDefaults()
         {
             MobaSceneGizmoSettings.Reset();
-            EditorUtility.DisplayDialog("Scene Gizmos", "已恢复默认的 Gizmo 开关（Attack + Buff）。", "OK");
+            EditorUtility.DisplayDialog("Scene Gizmos", "已恢复默认的 Gizmo 开关（Collision + Attack + Buff + Active AOE）。", "OK");
         }
 
         [MenuItem(MenuRoot + "Clear Spawn Cache", priority = 201)]

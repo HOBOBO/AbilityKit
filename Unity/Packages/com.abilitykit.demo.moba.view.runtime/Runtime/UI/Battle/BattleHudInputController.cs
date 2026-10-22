@@ -146,6 +146,12 @@ namespace AbilityKit.Game.Flow
             _inputUi.SkillBuffStatusBar.Apply(entries);
         }
 
+        public void ClearPresentationCues()
+        {
+            _pendingBuffCues.Clear();
+            _inputUi?.SkillBuffStatusBar?.Clear();
+        }
+
         public void Dispose()
         {
             _inputEvents.ResetHudAim();

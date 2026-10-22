@@ -75,6 +75,7 @@ namespace AbilityKit.Demo.Moba.Gameplay.Structures
         public const string StructureId = MobaStructureEvents.StructureId;
         public const string Kind = MobaStructureEvents.Kind;
         public const string TeamId = MobaStructureEvents.TeamId;
+        public const string WinnerTeamId = MobaStructureEvents.WinnerTeamId;
         public const string SourceActorId = MobaStructureEvents.SourceActorId;
         public const string Damage = MobaStructureEvents.Damage;
         public const string RemainingHp = MobaStructureEvents.RemainingHp;
@@ -91,6 +92,7 @@ namespace AbilityKit.Demo.Moba.Gameplay.Structures
         public const string SourceActorId = "source_actor_id";
         public const string Damage = "damage";
         public const string RemainingHp = "remaining_hp";
+        public const string WinnerTeamId = "winner_team_id";
     }
 
     public sealed class MobaStructureEventArgs
@@ -102,6 +104,9 @@ namespace AbilityKit.Demo.Moba.Gameplay.Structures
             StructureId = structureId;
             Kind = kind;
             TeamId = teamId;
+            WinnerTeamId = teamId == (int)AbilityKit.Demo.Moba.Team.Team1
+                ? (int)AbilityKit.Demo.Moba.Team.Team2
+                : (int)AbilityKit.Demo.Moba.Team.Team1;
             SourceActorId = sourceActorId;
             Damage = damage;
             RemainingHp = remainingHp;
@@ -111,6 +116,7 @@ namespace AbilityKit.Demo.Moba.Gameplay.Structures
         public int StructureId { get; }
         public MobaStructureKind Kind { get; }
         public int TeamId { get; }
+        public int WinnerTeamId { get; }
         public int SourceActorId { get; }
         public float Damage { get; }
         public float RemainingHp { get; }

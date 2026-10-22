@@ -375,7 +375,7 @@
     "DisplayName": "控制类负面效果",
     "ParentId": 1040,
     "Kind": 0,
-    "Status": 1
+    "Status": 0
   },
   {
     "Id": 1501,
@@ -411,7 +411,7 @@
     "DisplayName": "击飞",
     "ParentId": 1500,
     "Kind": 1,
-    "Status": 1
+    "Status": 0
   },
   {
     "Id": 1505,

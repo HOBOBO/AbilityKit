@@ -79,6 +79,26 @@ namespace AbilityKit.Game.Test.UnitTest
             public bool ShowDisabledHint;
         }
 
+        [Serializable]
+        private sealed class TagHudConfigRoot
+        {
+            public TagHudDTO[] Items;
+        }
+
+        [Serializable]
+        private sealed class TagHudDTO
+        {
+            public int DefinitionId;
+            public bool Visible;
+            public string DisplayName;
+            public string LocalizationKey;
+            public int ChannelMask;
+            public string HeadText;
+            public int HeadTextDurationMs;
+            public int VfxId;
+            public int VfxDurationMs;
+        }
+
         [Test]
         public void SunShangxiangRollBuff_ShouldHaveExportedHudStatus()
         {
@@ -90,6 +110,25 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsNotNull(row, "Sun Shangxiang's roll move-speed Buff needs a HUD display row.");
             Assert.AreEqual("Speed", row.ShortName);
             Assert.IsTrue(row.ShowCountdown, "The roll Buff should show a countdown.");
+        }
+
+        [Test]
+        public void TagHudPresentations_ShouldCoverSuperArmorAndAirborne()
+        {
+            var rows = LoadArray<TagHudConfigRoot, TagHudDTO>(
+                "luban/moba/tag_hud_presentations",
+                root => root.Items);
+
+            var superArmor = Array.Find(rows, item => item != null && item.DefinitionId == 1002);
+            var airborne = Array.Find(rows, item => item != null && item.DefinitionId == 1504);
+            Assert.IsNotNull(superArmor, "SuperArmor needs a production tag presentation row.");
+            Assert.IsNotNull(airborne, "Airborne needs a production tag presentation row.");
+            Assert.AreEqual(3, superArmor.ChannelMask);
+            Assert.AreEqual(3, airborne.ChannelMask);
+            Assert.AreEqual("霸体", superArmor.HeadText);
+            Assert.AreEqual("击飞", airborne.HeadText);
+            Assert.Greater(superArmor.HeadTextDurationMs, 0);
+            Assert.Greater(airborne.HeadTextDurationMs, 0);
         }
 
         [Test]

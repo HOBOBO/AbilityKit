@@ -242,6 +242,61 @@ public sealed class FrameRecordToolsEndToEndTests
     }
 
     [Fact]
+    public async Task DiffCommandLoadsJsonRecordsThroughDefaultCodec()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "abilitykit-record-tools", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var leftPath = Path.Combine(directory, "left.record.json");
+            var rightPath = Path.Combine(directory, "right.record.json");
+            WriteJsonRecord(leftPath, 300u);
+            WriteJsonRecord(rightPath, 301u);
+
+            var result = await RunToolAsync($"diff \"{leftPath}\" \"{rightPath}\"");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
+            using var json = JsonDocument.Parse(result.StandardOutput);
+            Assert.Equal("diverged", json.RootElement.GetProperty("status").GetString());
+            Assert.Equal(20, json.RootElement.GetProperty("firstDivergence").GetProperty("frame").GetInt32());
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task StateDiffCommandReportsRawFixedValueAndReturnsDivergenceCode()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "abilitykit-record-tools", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var leftPath = Path.Combine(directory, "left.state.json");
+            var rightPath = Path.Combine(directory, "right.state.json");
+            WriteCanonicalState(leftPath, "9223372036854775806");
+            WriteCanonicalState(rightPath, "9223372036854775807");
+
+            var result = await RunToolAsync($"state-diff \"{leftPath}\" \"{rightPath}\"");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
+            using var json = JsonDocument.Parse(result.StandardOutput);
+            Assert.Equal("diverged", json.RootElement.GetProperty("status").GetString());
+            var first = json.RootElement.GetProperty("firstDifference");
+            Assert.Equal(73, first.GetProperty("entityId").GetInt64());
+            Assert.Equal("9223372036854775806", first.GetProperty("left").GetProperty("rawValue").GetString());
+            Assert.Equal("9223372036854775807", first.GetProperty("right").GetProperty("rawValue").GetString());
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task DiffCommandReturnsTwoForInvalidUsage()
     {
         var result = await RunToolAsync("diff");
@@ -311,6 +366,47 @@ public sealed class FrameRecordToolsEndToEndTests
         writer.AppendStateHash(10, 1, 100u);
         writer.AppendStateHash(20, 1, finalHash);
         writer.AppendSnapshot(20, 7, new byte[] { 4, 5, 6 });
+    }
+
+    private static void WriteJsonRecord(string path, uint finalHash)
+    {
+        var meta = new FrameRecordMeta
+        {
+            WorldId = "world-1",
+            WorldType = "test",
+            TickRate = 30,
+            RandomSeed = 42,
+            PlayerId = "player-1",
+            StartedAtUnixMs = 1L,
+        };
+        using var writer = new FrameRecordJsonWriter(path, meta);
+        writer.AppendStateHash(10, 1, 100u);
+        writer.AppendStateHash(20, 1, finalHash);
+    }
+
+    private static void WriteCanonicalState(string path, string fixedRaw)
+    {
+        var state = new CanonicalStateFile
+        {
+            WorldId = "world-1",
+            Entries = new List<CanonicalStateEntry>
+            {
+                new()
+                {
+                    Frame = 20,
+                    PhaseId = 4,
+                    EntityId = 73,
+                    ComponentId = 10,
+                    FieldId = 2,
+                    ComponentName = "ActorTransform",
+                    FieldName = "PositionXRaw",
+                    ValueKind = CanonicalValueKind.FixedRaw,
+                    RawValue = fixedRaw,
+                    DisplayValue = "1.0",
+                },
+            },
+        };
+        File.WriteAllText(path, JsonSerializer.Serialize(state));
     }
 
     private sealed record ToolResult(

@@ -29,6 +29,8 @@ python LubanConfig/Moba/export_pipeline.py --check-published
 
 `Production/Datas/*.xlsx` 是 MOBA 数值、资源和 ID 映射表的主数据源，包括模型、技能按钮表现、特效资源及特效表现模板。技能编排由 `SkillFlowCO.asset` 和 ActionEditor 创作；触发器效果由 Trigger Authoring 模块创作；角色 HFSM 与投射物状态机由 MOBA 状态机编辑器创作。各自使用专用导出器发布，详见 [MobaSkillPipeline](../../Docs/MobaSkillPipeline.md)、[MobaTriggerAuthoring](../../Docs/MobaTriggerAuthoring.md) 和 [MobaStateMachineAuthoring](../../Docs/MobaStateMachineAuthoring.md)。Unity package 下的 `Resources/moba`、`Resources/vfx`、`Resources/ability`、`Resources/luban`，以及 Console 配置都由对应导出管线发布，不应直接编辑。
 
+`moba-tag-hud.xlsx` 中的 `TagHudPresentations` 是标签表现的唯一生产源。`ChannelMask` 使用 `1=HudStatus`、`2=HeadText`、`4=Vfx`；一个 Tag 可同时开启多个通道。它以游戏性状态事实 Tag 为键，不为单个英雄重复配置；启用 VFX 通道时必须填写已发布的 `VfxId`。
+
 `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/Moba/Excel/` 中的旧 Excel 副本不参与当前 Luban 导表；正式主源仍是本目录下的 `Production/Datas/`。Unity `Assets` 下没有 Luban 生产表副本。
 
 ## 强类型字段
@@ -41,6 +43,10 @@ python LubanConfig/Moba/export_pipeline.py --check-published
 角色的 `SkillIds`、`PassiveSkillIds` 只在 `J-角色表.xlsx` 的 `角色` 子 sheet 编辑。属性模板只保存数值和普通攻击 ID；导出器从角色表补齐旧 DTO 需要的 `ActiveSkills`、`PassiveSkills`。修饰器定义允许多个 Buff 共用同一个 ID，修改共用定义会影响所有引用它的 Buff。标签定义的 `Namespace` 为 `GameplayState`（`State.*` 和 `Debuff.*`）或 `SkillSelection`（按需配置的 AI 选技分类）；技能表的 `Tags` 默认留空，有筛选需求时才引用 `SkillSelection`。召唤物和玩法表的旧 `Tags` 列也必须留空。标签的 ID 分段、点分层级、预置目录及退休 ID 见 [MobaTagAuthoring](../../Docs/MobaTagAuthoring.md)。`migrations/refine_config_ownership.py`、`migrations/normalize_tag_definitions.py` 和 `migrations/plan_tag_catalog.py` 记录一次性整理，日常改表无需运行。
 
 `J-角色表.xlsx` 的 `属性类型` 子 sheet 按属性逐行定义 `Id/Key/Name/ValueKind/DefaultValue`，ID 与 `BattleAttributeType` 的 1–23 号对应。`ValueKind` 使用 `Flat` 或 `Percent` 枚举；它表示属性值的类型，尚未改变运行时修饰器叠加和公式计算。原表中“战士/法师”两行是横向属性预设，不是属性类型定义；英雄的具体数值继续由 `属性模板` 子 sheet 编辑。属性类型表同时发布到 Luban 与旧 `moba/attr_types.json` 加载路径。新增属性时先扩展运行时枚举和属性定义，再扩展模板与计算规则。`migrations/migrate_attribute_types.py` 是一次性迁移脚本，日常无需运行。
+
+`属性模板` 同时定义 1 级基础值和各属性每级成长值（`*Growth`）。英雄出生属性使用 `基础值 + 每级成长值 × (Level - 1)`，等级来自进入战斗的 `MobaPlayerLoadout.Level`；HP、Mana 的当前值和最大值使用同一等级计算结果初始化。成长字段为 0 时保持旧行为，适合逐英雄渐进填数。百分比属性的 Growth 单位沿用对应属性的现有配置单位。当前成长是出生时计算，不包含对局中的升级事件。
+
+技能等级表的 `ParamNames` 和各等级 `Params` 按同一列序配对。技能 Trigger Action 的数值引用可使用 `payload:skill.param.<名称>`（例如 `payload:skill.param.damage`）；运行时按本次技能等级读取参数，未定义的名称或该行缺少对应值时解析失败，不会静默回退到其他等级。参数名跨技能复用时应保持同一数值语义。
 
 导出时会检查角色、技能、等级、Buff、持续流程、投射物、区域、召唤、特效、运动组、战斗开局与 Pipeline/Trigger Authoring 产物的 ID 引用。`emitters.TemplateId` 引用特效表现模板。
 
@@ -70,6 +76,8 @@ powershell -ExecutionPolicy Bypass -File tools/run-unity-editmode-tests.ps1 -Tes
 ## 表与加载
 
 `Production/luban.conf` 指定 `dataDir: "Datas"`，并通过 `Datas/__tables__.xlsx` 登记生产表；这里是当前唯一生效的 Luban Excel 目录。登记表按逻辑和表现职责分组到下列工作簿，表定义中的 `input` 使用 `子sheet名@工作簿名.xlsx`。中文工作簿名和子 sheet 名只用于编辑定位，英文表名、字段名以及导出的 JSON、`.bytes` 和 C# 类型保持不变。
+
+技能等级参数由 `Production/Datas/moba-skill-level-parameters.xlsx` 逐行维护：`Id` 是行 ID，`SkillId` 和 `Level` 定位技能等级，`ParamIndex` 从 0 连续编号，`ParamName` 在同一技能内固定对应参数序号，`Value` 是该等级的数值。导出前会检查行 ID、复合键、参数序号、命名和等级完整性，并将数据写入临时 `authoring-input` 下 `J-技能表.xlsx` 的旧嵌套 `技能等级` sheet，再按原 Luban DTO 契约生成资源。生产工作簿中的嵌套 sheet 仅保留技能等级元数据（如冷却和消耗）以及导出兼容结构，不再作为技能参数值的编辑入口；无参数技能可不在明细表中出现。
 
 | 工作簿 | 内容 |
 |---|---|

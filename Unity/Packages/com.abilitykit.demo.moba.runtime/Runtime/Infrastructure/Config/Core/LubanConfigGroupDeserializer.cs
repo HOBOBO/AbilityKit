@@ -142,7 +142,30 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 AttackRange = obj["AttackRange"]?.Value<int>() ?? 0,
                 PerSecondBloodR = obj["PerSecondBloodR"]?.Value<int>() ?? 0,
                 PerSecondManaR = obj["PerSecondManaR"]?.Value<int>() ?? 0,
-                ResilienceR = obj["ResilienceR"]?.Value<int>() ?? 0
+                ResilienceR = obj["ResilienceR"]?.Value<int>() ?? 0,
+                HpGrowth = obj["HpGrowth"]?.Value<int>() ?? 0,
+                MaxHpGrowth = obj["MaxHpGrowth"]?.Value<int>() ?? 0,
+                ExtraHpGrowth = obj["ExtraHpGrowth"]?.Value<int>() ?? 0,
+                PhysicsAttackGrowth = obj["PhysicsAttackGrowth"]?.Value<int>() ?? 0,
+                MagicAttackGrowth = obj["MagicAttackGrowth"]?.Value<int>() ?? 0,
+                ExtraPhysicsAttackGrowth = obj["ExtraPhysicsAttackGrowth"]?.Value<int>() ?? 0,
+                ExtraMagicAttackGrowth = obj["ExtraMagicAttackGrowth"]?.Value<int>() ?? 0,
+                PhysicsDefenseGrowth = obj["PhysicsDefenseGrowth"]?.Value<int>() ?? 0,
+                MagicDefenseGrowth = obj["MagicDefenseGrowth"]?.Value<int>() ?? 0,
+                ManaGrowth = obj["ManaGrowth"]?.Value<int>() ?? 0,
+                MaxManaGrowth = obj["MaxManaGrowth"]?.Value<int>() ?? 0,
+                CriticalRGrowth = obj["CriticalRGrowth"]?.Value<int>() ?? 0,
+                AttackSpeedRGrowth = obj["AttackSpeedRGrowth"]?.Value<int>() ?? 0,
+                CooldownReduceRGrowth = obj["CooldownReduceRGrowth"]?.Value<int>() ?? 0,
+                PhysicsPenetrationRGrowth = obj["PhysicsPenetrationRGrowth"]?.Value<int>() ?? 0,
+                MagicPenetrationRGrowth = obj["MagicPenetrationRGrowth"]?.Value<int>() ?? 0,
+                MoveSpeedGrowth = obj["MoveSpeedGrowth"]?.Value<float>() ?? 0f,
+                PhysicsBloodsuckingRGrowth = obj["PhysicsBloodsuckingRGrowth"]?.Value<int>() ?? 0,
+                MagicBloodsuckingRGrowth = obj["MagicBloodsuckingRGrowth"]?.Value<int>() ?? 0,
+                AttackRangeGrowth = obj["AttackRangeGrowth"]?.Value<int>() ?? 0,
+                PerSecondBloodRGrowth = obj["PerSecondBloodRGrowth"]?.Value<int>() ?? 0,
+                PerSecondManaRGrowth = obj["PerSecondManaRGrowth"]?.Value<int>() ?? 0,
+                ResilienceRGrowth = obj["ResilienceRGrowth"]?.Value<int>() ?? 0
             };
             return dto;
         }
@@ -1045,7 +1068,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
             var dto = new SkillLevelTableDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
-                Levels = DeserializeSkillLevels(obj["Levels"])
+                Levels = DeserializeSkillLevels(obj["Levels"]),
+                ParamNames = obj["ParamNames"]?.ToObject<string[]>() ?? Array.Empty<string>()
             };
             return dto;
         }

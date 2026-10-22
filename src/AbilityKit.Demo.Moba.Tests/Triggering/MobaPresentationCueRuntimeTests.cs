@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Triggering;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -225,6 +226,39 @@ public sealed class MobaPresentationCueRuntimeTests
             },
             third => Assert.Equal((int)MobaPresentationCueStage.Refreshed, third.Stage),
             fourth => Assert.Equal((int)MobaPresentationCueStage.Completed, fourth.Stage));
+    }
+
+    [Fact]
+    public void Snapshot_service_active_baseline_replays_current_state_once_and_emits_empty_end_marker()
+    {
+        var phase = new MobaLogicWorldRunGateService();
+        phase.SetInGame("cue active baseline refresh test");
+        var service = new MobaPresentationCueSnapshotService(phase);
+        var entry = CreateEntry(MobaPresentationCueStage.Started, requestKey: "baseline-current");
+        entry.StackCount = 3;
+        entry.RemainingSeconds = 4.5f;
+        service.Start(in entry);
+
+        service.RequestActiveBaseline();
+        Assert.True(service.ConsumeActiveBaselineRequest());
+        Assert.False(service.ConsumeActiveBaselineRequest());
+        Assert.True(service.TryGetActiveBaseline(out var activeSnapshot));
+        var activeEntries = MobaPresentationCueSnapshotCodec.Deserialize(activeSnapshot.Payload);
+        Assert.Equal(2, activeEntries.Length);
+        Assert.Equal(PresentationCueSnapshotKind.ActiveBaseline, (PresentationCueSnapshotKind)activeEntries[0].SnapshotKind);
+        Assert.Equal("baseline-current", activeEntries[0].RequestKey);
+        Assert.Equal(3, activeEntries[0].StackCount);
+        Assert.Equal(4.5f, activeEntries[0].RemainingSeconds);
+        Assert.Equal(PresentationCueSnapshotKind.ActiveBaselineEnd, (PresentationCueSnapshotKind)activeEntries[1].SnapshotKind);
+
+        var remove = entry;
+        remove.Stage = (int)MobaPresentationCueStage.Removed;
+        service.Report(in remove);
+        service.RequestActiveBaseline();
+        Assert.True(service.ConsumeActiveBaselineRequest());
+        Assert.True(service.TryGetActiveBaseline(out var emptySnapshot));
+        var emptyEntries = MobaPresentationCueSnapshotCodec.Deserialize(emptySnapshot.Payload);
+        Assert.Equal(PresentationCueSnapshotKind.ActiveBaselineEnd, (PresentationCueSnapshotKind)Assert.Single(emptyEntries).SnapshotKind);
     }
 
     [Fact]

@@ -216,6 +216,34 @@ public sealed class MobaGeneratorTests
     }
 
     [Fact]
+    public void EventMappingManifest_AcceptsOmittedOptionalMappingKind()
+    {
+        const string source = """
+            using System;
+            namespace AbilityKit.Demo.Moba.Systems
+            {
+                [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true)]
+                public sealed class MobaTriggerEventAttribute : Attribute
+                {
+                    public MobaTriggerEventAttribute(string eventId, Type argsType, bool isPrefix = false) { }
+                }
+                internal static partial class MobaGeneratedEventMappingManifest { }
+                [MobaTriggerEvent("structure.destroyed", typeof(StructureArgs))]
+                [MobaTriggerEvent("minion.", typeof(MinionArgs), true)]
+                internal static class EventMappings { }
+                internal sealed class StructureArgs { }
+                internal sealed class MinionArgs { }
+            }
+            """;
+
+        var result = Run(new MobaEventMappingManifestGenerator(), source);
+
+        Assert.Contains("AddExact<global::AbilityKit.Demo.Moba.Systems.StructureArgs>(registry, \"structure.destroyed\"", result.GeneratedText, StringComparison.Ordinal);
+        Assert.Contains("AddPrefix<global::AbilityKit.Demo.Moba.Systems.MinionArgs>(registry, \"minion.\"", result.GeneratedText, StringComparison.Ordinal);
+        Assert.DoesNotContain(result.Diagnostics, diagnostic => diagnostic.Id == MobaDiagnosticIds.EmptyEventMappingManifestRuleId);
+    }
+
+    [Fact]
     public void PayloadAccessor_GeneratesLegacyAndConversionPaths()
     {
         const string source = """

@@ -3,6 +3,28 @@
   "MapId": 1,
   "Structures": [
     {
+      "Id": 11,
+      "Name": "Team 1 Tower",
+      "Kind": "Tower",
+      "TeamId": 1,
+      "AttributeTemplateId": 2001,
+      "ModelId": 0,
+      "Position": { "X": -8.0, "Y": 0.0, "Z": 0.0 },
+      "YawDegrees": 90.0,
+      "Radius": 1.5
+    },
+    {
+      "Id": 12,
+      "Name": "Team 2 Tower",
+      "Kind": "Tower",
+      "TeamId": 2,
+      "AttributeTemplateId": 2001,
+      "ModelId": 0,
+      "Position": { "X": 8.0, "Y": 0.0, "Z": 0.0 },
+      "YawDegrees": -90.0,
+      "Radius": 1.5
+    },
+    {
       "Id": 1,
       "Name": "Team 1 Base",
       "Kind": "Base",

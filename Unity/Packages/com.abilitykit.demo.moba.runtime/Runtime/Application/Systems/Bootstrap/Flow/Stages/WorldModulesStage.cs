@@ -6,6 +6,7 @@ using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Gameplay.Structures;
+using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Demo.Moba.Predicates;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Triggering.Blackboard;
@@ -65,21 +66,24 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 payloads.RegisterDoubleAccessor<Services.MobaHealthChangeResult>(battleAccessor, MobaBattlePayloadAccessor.SupportsHealthChangeResultField);
                 payloads.RegisterIntAccessor<Events.Unit.UnitDieEventPayload>(battleAccessor, MobaBattlePayloadAccessor.SupportsUnitDieField);
                 payloads.RegisterDoubleAccessor<Events.Unit.UnitDieEventPayload>(battleAccessor, MobaBattlePayloadAccessor.SupportsUnitDieField);
+                var minionBaseDamageAccessor = new MobaMinionBaseDamagePayloadAccessor();
+                payloads.RegisterIntAccessor(minionBaseDamageAccessor, MobaMinionBaseDamagePayloadAccessor.SupportsField);
+                payloads.RegisterDoubleAccessor(minionBaseDamageAccessor, MobaMinionBaseDamagePayloadAccessor.SupportsField);
                 var structureAccessor = new MobaStructurePayloadAccessor();
                 payloads.RegisterIntAccessor<MobaStructureEventArgs>(structureAccessor, MobaStructurePayloadAccessor.SupportsStructureField);
                 payloads.RegisterDoubleAccessor<MobaStructureEventArgs>(structureAccessor, MobaStructurePayloadAccessor.SupportsStructureDoubleField);
 
                 var skillAccessor = new SkillPipelineContextPayloadAccessor(_);
-                payloads.RegisterIntAccessor<SkillPipelineContext>(skillAccessor, SkillPipelineContextPayloadAccessor.SupportsField);
-                payloads.RegisterDoubleAccessor<SkillPipelineContext>(skillAccessor, SkillPipelineContextPayloadAccessor.SupportsField);
+                payloads.RegisterIntAccessor<SkillPipelineContext>(skillAccessor, skillAccessor.SupportsSkillParameterField);
+                payloads.RegisterDoubleAccessor<SkillPipelineContext>(skillAccessor, skillAccessor.SupportsSkillParameterField);
 
                 var skillCastAccessor = new SkillCastContextPayloadAccessor();
-                payloads.RegisterIntAccessor<SkillCastContext>(skillCastAccessor, SkillCastContextPayloadAccessor.SupportsField);
-                payloads.RegisterDoubleAccessor<SkillCastContext>(skillCastAccessor, SkillCastContextPayloadAccessor.SupportsField);
+                payloads.RegisterIntAccessor<SkillCastContext>(skillCastAccessor, skillCastAccessor.SupportsSkillParameterField);
+                payloads.RegisterDoubleAccessor<SkillCastContext>(skillCastAccessor, skillCastAccessor.SupportsSkillParameterField);
 
                 var skillObjectAccessor = new SkillPipelineContextObjectPayloadAccessor(skillAccessor);
-                payloads.RegisterIntAccessor<object>(skillObjectAccessor, SkillPipelineContextObjectPayloadAccessor.SupportsField);
-                payloads.RegisterDoubleAccessor<object>(skillObjectAccessor, SkillPipelineContextObjectPayloadAccessor.SupportsField);
+                payloads.RegisterIntAccessor<object>(skillObjectAccessor, skillObjectAccessor.SupportsSkillParameterField);
+                payloads.RegisterDoubleAccessor<object>(skillObjectAccessor, skillObjectAccessor.SupportsSkillParameterField);
                 return payloads;
             });
             builder.Register<IBlackboardResolver>(WorldLifetime.Singleton, _ => new DictionaryBlackboardResolver());

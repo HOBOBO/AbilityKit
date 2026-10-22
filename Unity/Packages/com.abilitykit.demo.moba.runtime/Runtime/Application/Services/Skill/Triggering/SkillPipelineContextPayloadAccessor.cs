@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.DI;
@@ -64,6 +65,7 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaConfigDatabase _configs;
         private MobaActorLookupService _actors;
         private IFrameTime _time;
+        private readonly Dictionary<int, string> _skillParameterNamesByFieldId = new Dictionary<int, string>();
 
         public SkillPipelineContextPayloadAccessor(MobaConfigDatabase configs, MobaActorLookupService actors, IFrameTime time = null)
         {
@@ -81,6 +83,12 @@ namespace AbilityKit.Demo.Moba.Services
         {
             value = 0;
             if (args == null) return false;
+
+            if (TryGet(in args, fieldId, out double parameterValue))
+            {
+                value = (int)Math.Round(parameterValue);
+                return true;
+            }
 
             if (fieldId == SkillIdId || fieldId == SkillIdLegacyId)
             {
@@ -127,6 +135,8 @@ namespace AbilityKit.Demo.Moba.Services
         {
             value = 0d;
             if (args == null) return false;
+
+            if (TryGetSkillParameter(in args, fieldId, out value)) return true;
 
             if (fieldId == SkillCostId || fieldId == SkillCostLegacyId)
             {
@@ -194,6 +204,44 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             return false;
+        }
+
+        public bool SupportsSkillParameterField(int fieldId)
+        {
+            return SupportsField(fieldId) || ResolveSkillParameterNames().ContainsKey(fieldId);
+        }
+
+        private bool TryGetSkillParameter(in SkillPipelineContext context, int fieldId, out double value)
+        {
+            value = 0d;
+            var names = ResolveSkillParameterNames();
+            if (!names.TryGetValue(fieldId, out var name)) return false;
+            var configs = ResolveConfigs(context);
+            if (configs == null || !configs.TryGetSkill(context.SkillId, out var skill) || skill == null ||
+                !configs.TryGetSkillLevelTable(skill.LevelTableId, out var table) || table == null ||
+                !table.TryGetParameter(Math.Max(1, context.GetSkillLevel()), name, out var parameter)) return false;
+            value = parameter;
+            return true;
+        }
+
+        private Dictionary<int, string> ResolveSkillParameterNames()
+        {
+            if (_skillParameterNamesByFieldId.Count > 0) return _skillParameterNamesByFieldId;
+            var configs = ResolveConfigs(null);
+            if (configs == null) return _skillParameterNamesByFieldId;
+            foreach (var skill in configs.GetAllSkills())
+            {
+                if (skill == null || skill.LevelTableId <= 0 ||
+                    !configs.TryGetSkillLevelTable(skill.LevelTableId, out var table) || table?.ParamNames == null) continue;
+                foreach (var name in table.ParamNames)
+                {
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+                    var fieldId = SkillRulePayloadFields.FieldId("skill.param." + name);
+                    if (!_skillParameterNamesByFieldId.ContainsKey(fieldId))
+                        _skillParameterNamesByFieldId.Add(fieldId, name);
+                }
+            }
+            return _skillParameterNamesByFieldId;
         }
 
         private bool TryGetResource(SkillPipelineContext context, int actorId, ResourceType resourceType, out double current, out double max)
@@ -296,13 +344,64 @@ namespace AbilityKit.Demo.Moba.Services
         nameof(SkillRulePayloadFields.SkillLevel),
         nameof(SkillRulePayloadFields.CasterActorId),
         nameof(SkillRulePayloadFields.TargetActorId))]
-    [GeneratePayloadAccessor(typeof(SkillCastContext), typeof(SkillRulePayloadFields), nameof(SkillRulePayloadFields.SkillId), nameof(SkillCastContext.SkillId), PayloadAccessorValueKind.Int, true)]
-    [GeneratePayloadAccessor(typeof(SkillCastContext), typeof(SkillRulePayloadFields), nameof(SkillRulePayloadFields.SkillSlot), nameof(SkillCastContext.SkillSlot), PayloadAccessorValueKind.Int, true)]
-    [GeneratePayloadAccessor(typeof(SkillCastContext), typeof(SkillRulePayloadFields), nameof(SkillRulePayloadFields.SkillLevel), nameof(SkillCastContext.SkillLevel), PayloadAccessorValueKind.ClampMinOneInt, true)]
-    [GeneratePayloadAccessor(typeof(SkillCastContext), typeof(SkillRulePayloadFields), nameof(SkillRulePayloadFields.CasterActorId), nameof(SkillCastContext.CasterActorId), PayloadAccessorValueKind.Int, true)]
-    [GeneratePayloadAccessor(typeof(SkillCastContext), typeof(SkillRulePayloadFields), nameof(SkillRulePayloadFields.TargetActorId), nameof(SkillCastContext.TargetActorId), PayloadAccessorValueKind.Int, true)]
+    // SkillCastContext has a hand-written accessor because it also resolves
+    // dynamic skill parameters from the active level table.  Do not emit the
+    // generator's fixed TryGet overloads for the same partial type.
     public sealed partial class SkillCastContextPayloadAccessor : IPayloadIntAccessor<SkillCastContext>, IPayloadDoubleAccessor<SkillCastContext>
     {
+        private readonly Dictionary<int, string> _skillParameterNamesByFieldId = new Dictionary<int, string>();
+
+        public bool SupportsSkillParameterField(int fieldId)
+        {
+            return SupportsField(fieldId) || ResolveSkillParameterNames(null).ContainsKey(fieldId);
+        }
+
+        public bool TryGet(in SkillCastContext args, int fieldId, out int value)
+        {
+            value = 0;
+            if (TryGet(in args, fieldId, out double parameterValue))
+            {
+                value = (int)Math.Round(parameterValue);
+                return true;
+            }
+            return false;
+        }
+
+        public bool TryGet(in SkillCastContext args, int fieldId, out double value)
+        {
+            value = 0d;
+            if (args == null) return false;
+            if (fieldId == SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillId) || fieldId == SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillId)) { value = args.SkillId; return true; }
+            if (fieldId == SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillSlot) || fieldId == SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillSlot)) { value = args.SkillSlot; return true; }
+            if (fieldId == SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillLevel) || fieldId == SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillLevel)) { value = Math.Max(1, args.SkillLevel); return true; }
+            if (fieldId == SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterActorId) || fieldId == SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterActorId)) { value = args.CasterActorId; return true; }
+            if (fieldId == SkillRulePayloadFields.FieldId(SkillRulePayloadFields.TargetActorId) || fieldId == SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.TargetActorId)) { value = args.TargetActorId; return true; }
+            var names = ResolveSkillParameterNames(args.WorldServices);
+            if (!names.TryGetValue(fieldId, out var name)) return false;
+            if (args.WorldServices == null || !args.WorldServices.TryResolve<MobaConfigDatabase>(out var configs) || configs == null ||
+                !configs.TryGetSkill(args.SkillId, out var skill) || skill == null ||
+                !configs.TryGetSkillLevelTable(skill.LevelTableId, out var table) || table == null ||
+                !table.TryGetParameter(Math.Max(1, args.SkillLevel), name, out var parameter)) return false;
+            value = parameter;
+            return true;
+        }
+
+        private Dictionary<int, string> ResolveSkillParameterNames(IWorldResolver services)
+        {
+            if (_skillParameterNamesByFieldId.Count > 0) return _skillParameterNamesByFieldId;
+            if (services == null || !services.TryResolve<MobaConfigDatabase>(out var configs) || configs == null) return _skillParameterNamesByFieldId;
+            foreach (var skill in configs.GetAllSkills())
+            {
+                if (skill == null || skill.LevelTableId <= 0 || !configs.TryGetSkillLevelTable(skill.LevelTableId, out var table) || table?.ParamNames == null) continue;
+                foreach (var name in table.ParamNames)
+                {
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+                    var fieldId = SkillRulePayloadFields.FieldId("skill.param." + name);
+                    if (!_skillParameterNamesByFieldId.ContainsKey(fieldId)) _skillParameterNamesByFieldId.Add(fieldId, name);
+                }
+            }
+            return _skillParameterNamesByFieldId;
+        }
     }
 
     public sealed class SkillPipelineContextObjectPayloadAccessor : IPayloadIntAccessor<object>, IPayloadDoubleAccessor<object>
@@ -317,6 +416,11 @@ namespace AbilityKit.Demo.Moba.Services
         public static bool SupportsField(int fieldId)
         {
             return SkillPipelineContextPayloadAccessor.SupportsField(fieldId);
+        }
+
+        public bool SupportsSkillParameterField(int fieldId)
+        {
+            return _inner != null && _inner.SupportsSkillParameterField(fieldId);
         }
 
         public bool TryGet(in object args, int fieldId, out int value)

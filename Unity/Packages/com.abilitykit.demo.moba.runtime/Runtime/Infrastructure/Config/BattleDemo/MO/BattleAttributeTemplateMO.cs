@@ -33,6 +33,29 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int PerSecondBloodR { get; }
         public int PerSecondManaR { get; }
         public int ResilienceR { get; }
+        public int HpGrowth { get; }
+        public int MaxHpGrowth { get; }
+        public int ExtraHpGrowth { get; }
+        public int PhysicsAttackGrowth { get; }
+        public int MagicAttackGrowth { get; }
+        public int ExtraPhysicsAttackGrowth { get; }
+        public int ExtraMagicAttackGrowth { get; }
+        public int PhysicsDefenseGrowth { get; }
+        public int MagicDefenseGrowth { get; }
+        public int ManaGrowth { get; }
+        public int MaxManaGrowth { get; }
+        public int CriticalRGrowth { get; }
+        public int AttackSpeedRGrowth { get; }
+        public int CooldownReduceRGrowth { get; }
+        public int PhysicsPenetrationRGrowth { get; }
+        public int MagicPenetrationRGrowth { get; }
+        public float MoveSpeedGrowth { get; }
+        public int PhysicsBloodsuckingRGrowth { get; }
+        public int MagicBloodsuckingRGrowth { get; }
+        public int AttackRangeGrowth { get; }
+        public int PerSecondBloodRGrowth { get; }
+        public int PerSecondManaRGrowth { get; }
+        public int ResilienceRGrowth { get; }
 
         public BattleAttributeTemplateMO(BattleAttributeTemplateDTO dto)
         {
@@ -64,6 +87,29 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             PerSecondBloodR = dto.PerSecondBloodR;
             PerSecondManaR = dto.PerSecondManaR;
             ResilienceR = dto.ResilienceR;
+            HpGrowth = dto.HpGrowth;
+            MaxHpGrowth = dto.MaxHpGrowth;
+            ExtraHpGrowth = dto.ExtraHpGrowth;
+            PhysicsAttackGrowth = dto.PhysicsAttackGrowth;
+            MagicAttackGrowth = dto.MagicAttackGrowth;
+            ExtraPhysicsAttackGrowth = dto.ExtraPhysicsAttackGrowth;
+            ExtraMagicAttackGrowth = dto.ExtraMagicAttackGrowth;
+            PhysicsDefenseGrowth = dto.PhysicsDefenseGrowth;
+            MagicDefenseGrowth = dto.MagicDefenseGrowth;
+            ManaGrowth = dto.ManaGrowth;
+            MaxManaGrowth = dto.MaxManaGrowth;
+            CriticalRGrowth = dto.CriticalRGrowth;
+            AttackSpeedRGrowth = dto.AttackSpeedRGrowth;
+            CooldownReduceRGrowth = dto.CooldownReduceRGrowth;
+            PhysicsPenetrationRGrowth = dto.PhysicsPenetrationRGrowth;
+            MagicPenetrationRGrowth = dto.MagicPenetrationRGrowth;
+            MoveSpeedGrowth = dto.MoveSpeedGrowth;
+            PhysicsBloodsuckingRGrowth = dto.PhysicsBloodsuckingRGrowth;
+            MagicBloodsuckingRGrowth = dto.MagicBloodsuckingRGrowth;
+            AttackRangeGrowth = dto.AttackRangeGrowth;
+            PerSecondBloodRGrowth = dto.PerSecondBloodRGrowth;
+            PerSecondManaRGrowth = dto.PerSecondManaRGrowth;
+            ResilienceRGrowth = dto.ResilienceRGrowth;
         }
     }
 }

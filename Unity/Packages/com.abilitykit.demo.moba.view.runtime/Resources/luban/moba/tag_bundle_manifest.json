@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "c198b85b2e1e1588c91c6158a96b25faa2cab519631fff569a504a9ece78863c",
+  "bundleVersion": "0ca9d53fdbcd85b32e47f5df836ff8d284cbb6b17642a286331b2c00b475b953",
   "tables": {
-    "buffs": "0c15eb3b37449ae3b5b21bb7c65305e7ef9429260ebc92c73e289ba2099a0d5b",
+    "buffs": "59b44360ca071889134e8594e1fded17b415c8bcba958b505566b968833c82e5",
     "continuous_processes": "e46e178712aae934961ca66e532b19b34a966991abec0dfd701d4307bc7cfc0a",
     "continuous_tag_templates": "cf9d7b9677260957db5fe51318e7ff651733a85db28e9b76303e5093674998b0",
     "skills": "ea937195608386703913aa70f31541ac1dccd01f4ab123b60bc1888862c93c64",
     "tag_behavior_gates": "7dc5ada326ed74f4449d7f3cda6d21979ce4413fd7aa5341758e2b8eb5c53773",
-    "tag_definitions": "b57f1d004b0acfc4e88165bd7fa6c95baffea64ba56055248bd3ad88261cb169",
+    "tag_definitions": "ad44a3022440be1845d55b02110487150add33fe41fce959b19a83afdf53a488",
     "tag_result_flags": "00748238ce85f6775ead2027e52341b24331dfb46c6aca106767dd37d108f277",
     "tag_result_mappings": "23f45a6a7ae471f5ccf6db668844b5c9117035b7d6b961d0fca90fcff8add2d7",
     "tag_rule_groups": "89f68ce651abd96828cd1a2ea840ea8bed2c2856565a98de69d93b1415ece83d",

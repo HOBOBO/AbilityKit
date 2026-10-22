@@ -12,7 +12,7 @@ namespace AbilityKit.Demo.Moba.Services
 {
     [MobaSnapshotEmitter(86)]
     [WorldService(typeof(MobaShieldStateSnapshotService))]
-    public sealed class MobaShieldStateSnapshotService : IService, IMobaSnapshotEmitter
+    public sealed class MobaShieldStateSnapshotService : IService, IMobaSnapshotEmitter, IActiveBaselineSnapshotProvider
     {
         private readonly MobaLogicWorldRunGateService _phase;
         private readonly MobaActorRegistry _registry;
@@ -20,6 +20,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaSnapshotBuffer<MobaShieldStateSnapshotEntry> _entries =
             new MobaSnapshotBuffer<MobaShieldStateSnapshotEntry>(16, 256);
         private FrameIndex _lastFrame = new FrameIndex(-999999);
+        private bool _activeBaselineRequested;
 
         public MobaShieldStateSnapshotService(
             MobaLogicWorldRunGateService phase,
@@ -39,6 +40,39 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
             _lastFrame = frame;
+            return TryBuildSnapshot(out snapshot);
+        }
+
+        /// <summary>
+        /// Builds a complete shield state for reconnect/rollback presentation. Shield
+        /// state is already a value snapshot, so the baseline uses the same codec and
+        /// does not invent a second mutable event store.
+        /// </summary>
+        public bool TryGetActiveBaseline(out WorldStateSnapshot snapshot)
+        {
+            if (!_phase.InGame)
+            {
+                snapshot = default;
+                return false;
+            }
+
+            return TryBuildSnapshot(out snapshot);
+        }
+
+        public void RequestActiveBaseline()
+        {
+            _activeBaselineRequested = true;
+        }
+
+        public bool ConsumeActiveBaselineRequest()
+        {
+            if (!_activeBaselineRequested) return false;
+            _activeBaselineRequested = false;
+            return true;
+        }
+
+        private bool TryBuildSnapshot(out WorldStateSnapshot snapshot)
+        {
             _entries.Clear();
             foreach (var actorId in _registry.CopyActorIdsInOrder())
             {
@@ -66,6 +100,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _entries.ClearAndTrim();
             _lastFrame = new FrameIndex(-999999);
+            _activeBaselineRequested = false;
         }
 
         private static float ToFloat(AbilityKit.Deterministic.Fixed64 value) =>

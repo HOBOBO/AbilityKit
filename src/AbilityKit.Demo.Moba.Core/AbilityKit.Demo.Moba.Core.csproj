@@ -53,6 +53,7 @@
     <ProjectReference Include="..\AbilityKit.World.Entitas\AbilityKit.World.Entitas.csproj" />
     <ProjectReference Include="..\AbilityKit.World.FrameSync\AbilityKit.World.FrameSync.csproj" />
     <ProjectReference Include="..\AbilityKit.World.StateSync\AbilityKit.World.StateSync.csproj" />
+    <ProjectReference Include="..\AbilityKit.Record\AbilityKit.Record.csproj" />
     <ProjectReference Include="..\AbilityKit.Triggering\AbilityKit.Triggering.csproj" />
     <ProjectReference Include="..\AbilityKit.Pipeline\AbilityKit.Pipeline.csproj" />
     <ProjectReference Include="..\AbilityKit.Protocol\AbilityKit.Protocol.csproj" />

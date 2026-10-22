@@ -41,8 +41,29 @@ public sealed partial class DRAttributeTemplates : Luban.BeanBase
         PhysicsDefense = _buf.ReadInt();
         PhysicsPenetrationR = _buf.ReadInt();
         ResilienceR = _buf.ReadInt();
-        OmittedFields = _buf.ReadString();
-        NullFields = _buf.ReadString();
+        HpGrowth = _buf.ReadInt();
+        MaxHpGrowth = _buf.ReadInt();
+        ExtraHpGrowth = _buf.ReadInt();
+        PhysicsAttackGrowth = _buf.ReadInt();
+        MagicAttackGrowth = _buf.ReadInt();
+        ExtraPhysicsAttackGrowth = _buf.ReadInt();
+        ExtraMagicAttackGrowth = _buf.ReadInt();
+        PhysicsDefenseGrowth = _buf.ReadInt();
+        MagicDefenseGrowth = _buf.ReadInt();
+        ManaGrowth = _buf.ReadInt();
+        MaxManaGrowth = _buf.ReadInt();
+        CriticalRGrowth = _buf.ReadInt();
+        AttackSpeedRGrowth = _buf.ReadInt();
+        CooldownReduceRGrowth = _buf.ReadInt();
+        PhysicsPenetrationRGrowth = _buf.ReadInt();
+        MagicPenetrationRGrowth = _buf.ReadInt();
+        MoveSpeedGrowth = _buf.ReadFloat();
+        PhysicsBloodsuckingRGrowth = _buf.ReadInt();
+        MagicBloodsuckingRGrowth = _buf.ReadInt();
+        AttackRangeGrowth = _buf.ReadInt();
+        PerSecondBloodRGrowth = _buf.ReadInt();
+        PerSecondManaRGrowth = _buf.ReadInt();
+        ResilienceRGrowth = _buf.ReadInt();
     }
 
     public static DRAttributeTemplates DeserializeDRAttributeTemplates(ByteBuf _buf)
@@ -151,13 +172,97 @@ public sealed partial class DRAttributeTemplates : Luban.BeanBase
     /// </summary>
     public readonly int ResilienceR;
     /// <summary>
-    /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
     /// </summary>
-    public readonly string OmittedFields;
+    public readonly int HpGrowth;
     /// <summary>
-    /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
     /// </summary>
-    public readonly string NullFields;
+    public readonly int MaxHpGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int ExtraHpGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int PhysicsAttackGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int MagicAttackGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int ExtraPhysicsAttackGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int ExtraMagicAttackGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int PhysicsDefenseGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int MagicDefenseGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int ManaGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int MaxManaGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int CriticalRGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int AttackSpeedRGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int CooldownReduceRGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int PhysicsPenetrationRGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int MagicPenetrationRGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly float MoveSpeedGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int PhysicsBloodsuckingRGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int MagicBloodsuckingRGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int AttackRangeGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int PerSecondBloodRGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int PerSecondManaRGrowth;
+    /// <summary>
+    /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
+    /// </summary>
+    public readonly int ResilienceRGrowth;
    
     public const int __ID__ = 1407018283;
     public override int GetTypeId() => __ID__;
@@ -194,8 +299,29 @@ public sealed partial class DRAttributeTemplates : Luban.BeanBase
         + "PhysicsDefense:" + PhysicsDefense + ","
         + "PhysicsPenetrationR:" + PhysicsPenetrationR + ","
         + "ResilienceR:" + ResilienceR + ","
-        + "OmittedFields:" + OmittedFields + ","
-        + "NullFields:" + NullFields + ","
+        + "HpGrowth:" + HpGrowth + ","
+        + "MaxHpGrowth:" + MaxHpGrowth + ","
+        + "ExtraHpGrowth:" + ExtraHpGrowth + ","
+        + "PhysicsAttackGrowth:" + PhysicsAttackGrowth + ","
+        + "MagicAttackGrowth:" + MagicAttackGrowth + ","
+        + "ExtraPhysicsAttackGrowth:" + ExtraPhysicsAttackGrowth + ","
+        + "ExtraMagicAttackGrowth:" + ExtraMagicAttackGrowth + ","
+        + "PhysicsDefenseGrowth:" + PhysicsDefenseGrowth + ","
+        + "MagicDefenseGrowth:" + MagicDefenseGrowth + ","
+        + "ManaGrowth:" + ManaGrowth + ","
+        + "MaxManaGrowth:" + MaxManaGrowth + ","
+        + "CriticalRGrowth:" + CriticalRGrowth + ","
+        + "AttackSpeedRGrowth:" + AttackSpeedRGrowth + ","
+        + "CooldownReduceRGrowth:" + CooldownReduceRGrowth + ","
+        + "PhysicsPenetrationRGrowth:" + PhysicsPenetrationRGrowth + ","
+        + "MagicPenetrationRGrowth:" + MagicPenetrationRGrowth + ","
+        + "MoveSpeedGrowth:" + MoveSpeedGrowth + ","
+        + "PhysicsBloodsuckingRGrowth:" + PhysicsBloodsuckingRGrowth + ","
+        + "MagicBloodsuckingRGrowth:" + MagicBloodsuckingRGrowth + ","
+        + "AttackRangeGrowth:" + AttackRangeGrowth + ","
+        + "PerSecondBloodRGrowth:" + PerSecondBloodRGrowth + ","
+        + "PerSecondManaRGrowth:" + PerSecondManaRGrowth + ","
+        + "ResilienceRGrowth:" + ResilienceRGrowth + ","
         + "}";
     }
 }

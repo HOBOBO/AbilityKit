@@ -99,6 +99,13 @@ namespace AbilityKit.Game.Flow.Snapshot
             if (ctx is BattleContext battleCtx)
             {
                 battleCtx.ApplyActionAcks(entries);
+                if (battleCtx.TryGetRuntimeWorld(out var world) &&
+                    world?.Services != null &&
+                    world.Services.TryResolve<AbilityKit.Demo.Moba.Services.MobaActionAckSnapshotService>(out var actionAcks) &&
+                    actionAcks != null)
+                {
+                    actionAcks.ApplyAuthoritative(entries);
+                }
             }
         }
 

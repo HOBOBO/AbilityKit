@@ -135,6 +135,21 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         }
 
         /// <summary>
+        /// Rebinds persistent Cue views from the authoritative active-state baseline.
+        /// The next snapshot collection carries the replay; deltas remain unchanged.
+        /// </summary>
+        public bool RefreshPresentationState()
+        {
+            if (_context == null || !_context.TryGetRuntimeWorld(out var world) || world?.Services == null ||
+                !world.Services.TryResolve(out MobaSnapshotRouter router) || router == null ||
+                !router.RequestActiveBaseline())
+                return false;
+
+            _presentationCues.Clear();
+            return true;
+        }
+
+        /// <summary>
         /// Per-frame tick for active projectile shell position updates.
         /// </summary>
         public void Tick()

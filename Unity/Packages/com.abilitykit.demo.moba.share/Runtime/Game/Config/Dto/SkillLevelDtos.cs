@@ -7,6 +7,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
     {
         public int Id;
         public SkillLevelDTO[] Levels;
+        public string[] ParamNames;
     }
 
     [Serializable]

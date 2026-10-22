@@ -40,6 +40,7 @@
     "AbilityKit.Pipeline",
     "AbilityKit.Context",
     "AbilityKit.Diagnostics",
+    "AbilityKit.Record",
     "AbilityKit.Demo.Moba.Diagnostics.Core",
     "AbilityKit.Game.Battle.Runtime",
     "AbilityKit.Network.Battle",

@@ -188,31 +188,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
         internal void CleanupProjectileActorOnExit(ProjectileId projectileId, global::ActorEntity entity, ActorDespawnReason reason, int sourceActorId, long sourceContextId)
         {
             if (entity == null) return;
-            var actorId = entity.hasActorId ? entity.actorId.Value : 0;
-            if (actorId <= 0) return;
-            var frame = TryGetFrame(out var currentFrame) ? currentFrame : 0;
-
-            if (_executionContexts != null && sourceContextId != 0L)
-            {
-                try { _executionContexts.End(sourceContextId, (int)MobaExecutionEndReason.Completed, frame); }
-                catch (System.Exception ex) { Log.Exception(ex, $"[MobaProjectileSyncSystem] end projectile context failed (projectileId={projectileId.Value}, sourceContextId={sourceContextId})"); }
-            }
-
-            if (_skillRuntimes != null && _links != null && _links.TryConsumeRetain(projectileId, out var retainHandle))
-            {
-                try { _skillRuntimes.ReleaseChild(in retainHandle); }
-                catch (System.Exception ex) { Log.Exception(ex, $"[MobaProjectileSyncSystem] release projectile retain failed (projectileId={projectileId.Value})"); }
-            }
-
-            _links?.UnlinkByActorId(actorId);
-            _despawnSnapshots?.Enqueue(actorId, (byte)reason);
-            new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
-                actorId,
-                out _,
-                publishDespawn: true);
-
-            try { entity.Destroy(); }
-            catch (System.Exception ex) { Log.Exception(ex, $"[MobaProjectileSyncSystem] destroy projectile actor failed (actorId={actorId}, projectileId={projectileId.Value}, reason={reason}, sourceActorId={sourceActorId})"); }
+            RequestDespawn(entity, reason, sourceActorId, sourceContextId);
         }
 
         private bool TryGetFrame(out int frame)

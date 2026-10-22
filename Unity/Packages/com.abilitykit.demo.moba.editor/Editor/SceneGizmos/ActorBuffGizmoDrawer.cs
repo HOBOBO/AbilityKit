@@ -88,7 +88,7 @@ namespace AbilityKit.Game.Editor.Gizmos
                         if (radius <= 0f) continue;
 
                         var center = new Vec3(pos.X + template.OffsetX, pos.Y + template.OffsetY, pos.Z + template.OffsetZ);
-                        draw.DrawWireSphere(in center, radius, in style);
+                        MobaGizmoGeometry.DrawGroundCircle(draw, in center, radius, in style);
                     }
                 }
 

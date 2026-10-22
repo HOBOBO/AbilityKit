@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Demo.Moba.Events.Unit;
+using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
@@ -37,6 +38,10 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         public const string ReasonParam = "reason_param";
         public const string UnitActorId = "unit_actor_id";
         public const string KillerActorId = "killer_actor_id";
+        public const string WaveId = "wave_id";
+        public const string SourceTeamId = "source_team_id";
+        public const string TargetTeamId = "target_team_id";
+        public const string Frame = "frame";
 
         public static int FieldId(string fieldName)
         {
@@ -51,6 +56,39 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
                 || MobaBattlePayloadAccessor.SupportsHealRequestField(fieldId)
                 || MobaBattlePayloadAccessor.SupportsHealthChangeResultField(fieldId)
                 || MobaBattlePayloadAccessor.SupportsUnitDieField(fieldId);
+        }
+    }
+
+    public sealed class MobaMinionBaseDamagePayloadAccessor :
+        IPayloadIntAccessor<MobaMinionBaseDamageEvent>, IPayloadDoubleAccessor<MobaMinionBaseDamageEvent>
+    {
+        private static readonly int ActorId = MobaBattlePayloadFields.FieldId("actor_id");
+        private static readonly int SourceTeamId = MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.SourceTeamId);
+        private static readonly int TargetTeamId = MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.TargetTeamId);
+        private static readonly int Damage = MobaBattlePayloadFields.FieldId("damage");
+        private static readonly int Frame = MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.Frame);
+        private static readonly int WaveId = MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.WaveId);
+
+        public static bool SupportsField(int fieldId) => fieldId == ActorId || fieldId == SourceTeamId ||
+            fieldId == TargetTeamId || fieldId == Damage || fieldId == Frame || fieldId == WaveId;
+
+        public bool TryGet(in MobaMinionBaseDamageEvent args, int fieldId, out int value)
+        {
+            if (fieldId == ActorId) value = args.ActorId;
+            else if (fieldId == SourceTeamId) value = args.SourceTeamId;
+            else if (fieldId == TargetTeamId) value = args.TargetTeamId;
+            else if (fieldId == Damage) value = args.Damage;
+            else if (fieldId == Frame) value = args.Frame;
+            else if (fieldId == WaveId) value = (int)args.WaveId;
+            else { value = default; return false; }
+            return true;
+        }
+
+        public bool TryGet(in MobaMinionBaseDamageEvent args, int fieldId, out double value)
+        {
+            if (TryGet(in args, fieldId, out int integer)) value = integer;
+            else { value = default; return false; }
+            return true;
         }
     }
 

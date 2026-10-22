@@ -105,7 +105,10 @@ namespace AbilityKit.Demo.Moba.Services.Projection
                         ? (int)SpawnEntityKind.Summon
                         : e.hasUnitSubType && e.unitSubType.Value == UnitSubType.Minion
                             ? (int)SpawnEntityKind.Minion
-                            : (int)SpawnEntityKind.Character;
+                            : e.hasEntityMainType && e.entityMainType.Value == EntityMainType.Unit &&
+                              e.hasUnitSubType && (e.unitSubType.Value == UnitSubType.Base || e.unitSubType.Value == UnitSubType.Tower)
+                                ? (int)SpawnEntityKind.Building
+                                : (int)SpawnEntityKind.Character;
             // Summons resolve their presentation model from SummonMO, so the
             // projection code is the summon template id rather than the model id.
             var code = e.hasSummonMeta && e.summonMeta != null
