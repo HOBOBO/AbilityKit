@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "displayName": "AbilityKit Network Transport WebSocket",
   "unity": "2022.3",
-  "description": "Optional WebSocket ITransport for AbilityKit (desktop/mobile/server; WebGL needs a platform-specific variant). Drop-in alternative to TcpTransport.",
+  "description": "Optional WebSocket ITransport for AbilityKit, including Unity WebGL through a JavaScript WebSocket bridge.",
   "author": {
     "name": "AbilityKit"
   },

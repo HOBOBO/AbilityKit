@@ -29,7 +29,7 @@ namespace AbilityKit.Network.Room
         event Action<uint, ArraySegment<byte>>? ServerPushReceived;
     }
 
-    public sealed class RoomGatewayWireCodec : INetworkProtocolCodec
+    public sealed class RoomGatewayWireCodec : AbilityKit.Protocol.INetworkProtocolCodec
     {
         public static RoomGatewayWireCodec Instance { get; } = new RoomGatewayWireCodec();
 
@@ -729,7 +729,9 @@ namespace AbilityKit.Network.Room
             public ConnectionRequestTransport(IConnection connection)
             {
                 _connection = connection;
-                _requestClient = new RequestClient(connection);
+                _requestClient = new RequestClient(
+                    connection,
+                    TcpGatewayRequestResponseEnvelopeCodec.Instance);
                 _connection.ServerPushReceived += ForwardServerPush;
             }
 

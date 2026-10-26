@@ -20,23 +20,22 @@ namespace AbilityKit.Network.Sdk
             CancellationToken cancellationToken = default);
     }
 
-    public interface INetworkProtocolCodec
+    /// <summary>Compatibility alias for SDK callers; the canonical codec contract lives in Protocol.</summary>
+    public interface INetworkProtocolCodec : AbilityKit.Protocol.INetworkProtocolCodec
     {
-        ArraySegment<byte> Serialize<T>(in T value);
-        T Deserialize<T>(ArraySegment<byte> payload);
     }
 
     /// <summary>Typed protocol access scoped to one transport and codec.</summary>
     public sealed class NetworkProtocolAgent : IDisposable
     {
         private readonly INetworkProtocolTransport _transport;
-        private readonly INetworkProtocolCodec _codec;
+        private readonly AbilityKit.Protocol.INetworkProtocolCodec _codec;
         private readonly object _gate = new object();
         private readonly Dictionary<uint, Action<ArraySegment<byte>>[]> _handlers =
             new Dictionary<uint, Action<ArraySegment<byte>>[]>();
         private bool _disposed;
 
-        public NetworkProtocolAgent(INetworkProtocolTransport transport, INetworkProtocolCodec codec)
+        public NetworkProtocolAgent(INetworkProtocolTransport transport, AbilityKit.Protocol.INetworkProtocolCodec codec)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _codec = codec ?? throw new ArgumentNullException(nameof(codec));

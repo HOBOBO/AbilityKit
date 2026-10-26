@@ -98,41 +98,57 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 if (!_services.TryResolve<SearchTargetService>(out var search) || search == null)
                 {
-                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "Required target search service is unavailable.");
+                    if (!skill.AllowCastWithoutTarget)
+                    {
+                        return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "Required target search service is unavailable.");
+                    }
                 }
-
-                if (skill.RequiredTargetQueryId <= 0 && castRange <= 0f)
+                else if (skill.RequiredTargetQueryId <= 0 && castRange <= 0f)
                 {
-                    return SkillCastPreparationResult.Failed(
-                        SkillFailureCodes.Cast.ConfigurationInvalid,
-                        $"Resolved cast range must be positive. skillId={skillId}, range={castRange}.");
+                    if (!skill.AllowCastWithoutTarget)
+                    {
+                        return SkillCastPreparationResult.Failed(
+                            SkillFailureCodes.Cast.ConfigurationInvalid,
+                            $"Resolved cast range must be positive. skillId={skillId}, range={castRange}.");
+                    }
                 }
-
-                var targets = new List<int>(1);
-                var found = skill.RequiredTargetQueryId > 0
-                    ? search.TrySearchActorIds(
-                        skill.RequiredTargetQueryId,
-                        actorId,
-                        in casterPos,
-                        finalTargetActorId,
-                        targets,
-                        input.DiagnosticCommandId)
-                    : search.TrySearchActorIds(
-                        NormalAttackTargetQuery.Create(castRange),
-                        actorId,
-                        in casterPos,
-                        finalTargetActorId,
-                        targets,
-                        input.DiagnosticCommandId);
-                if (!found || targets.Count == 0)
+                else
                 {
-                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "No valid target is within cast range.");
-                }
-
-                finalTargetActorId = targets[0];
-                if (!_units.TryResolve(new EcsEntityId(finalTargetActorId), out targetUnit) || targetUnit == null)
-                {
-                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, $"Resolved target not found. targetActorId={finalTargetActorId}.");
+                    var targets = new List<int>(1);
+                    var found = skill.RequiredTargetQueryId > 0
+                        ? search.TrySearchActorIds(
+                            skill.RequiredTargetQueryId,
+                            actorId,
+                            in casterPos,
+                            finalTargetActorId,
+                            targets,
+                            input.DiagnosticCommandId)
+                        : search.TrySearchActorIds(
+                            NormalAttackTargetQuery.Create(castRange),
+                            actorId,
+                            in casterPos,
+                            finalTargetActorId,
+                            targets,
+                            input.DiagnosticCommandId);
+                    if (!found || targets.Count == 0)
+                    {
+                        if (!skill.AllowCastWithoutTarget)
+                        {
+                            return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "No valid target is within cast range.");
+                        }
+                    }
+                    else
+                    {
+                        finalTargetActorId = targets[0];
+                        if (!_units.TryResolve(new EcsEntityId(finalTargetActorId), out targetUnit) || targetUnit == null)
+                        {
+                            if (!skill.AllowCastWithoutTarget)
+                            {
+                                return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, $"Resolved target not found. targetActorId={finalTargetActorId}.");
+                            }
+                            finalTargetActorId = 0;
+                        }
+                    }
                 }
             }
 

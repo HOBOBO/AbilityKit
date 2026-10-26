@@ -22,7 +22,7 @@
 
 ### 1.3 高层 facade 与阶段化 Flow 并存
 
-`GatewayMultiplayerSession` 适合线性/最小 Room 流程，已被 `GatewayBattleClientHost.EnterAsync` 和 Console 路径采用。MOBA 的 hero-pick、loading、恢复与事件驱动交互继续使用 `RoomGatewaySessionFlow` 原子阶段；不以迁入 facade 作为统一性目标。
+`MultiplayerRoomSession` 适合 gateway room 协议下的线性/最小 Room 流程；`MultiplayerClientSession` 组合房间控制连接与可选战斗数据连接。MOBA 的 hero-pick、loading、恢复与事件驱动交互继续使用 `RoomGatewaySessionFlow` 原子阶段；不以迁入客户端组合入口作为统一性目标。
 
 facade 是一次性 host：`Dispose` 不代替 `LeaveRoom`，重连应新建或由项目驱动 staged restore。两连接拓扑只允许 battle 数据面拥有 push 订阅，Room 控制连接必须关闭对应订阅。所有网络 session 的 `Tick` 使用真实墙钟 delta。
 

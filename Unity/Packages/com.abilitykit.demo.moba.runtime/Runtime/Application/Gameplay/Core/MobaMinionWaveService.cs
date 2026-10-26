@@ -31,6 +31,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
         bool TryGetRuntime(int actorId, out MobaMinionRuntimeView runtime);
         int CopyActiveRuntimeViews(List<MobaMinionRuntimeView> destination);
         void SetAiState(int actorId, MobaMinionAiState state);
+        bool SetCombatMovement(int actorId);
     }
 
     [WorldService(typeof(IMobaMinionWaveService), WorldLifetime.Scoped)]
@@ -115,6 +116,37 @@ namespace AbilityKit.Demo.Moba.Gameplay
         {
             if (actorId <= 0 || !_active.TryGetValue(actorId, out var runtime)) return;
             runtime.AiState = state;
+        }
+
+        public bool SetCombatMovement(int actorId)
+        {
+            if (actorId <= 0 || !_active.TryGetValue(actorId, out var state) ||
+                !_actors.TryGet(actorId, out var actor) || actor == null || !actor.hasTransform)
+                return false;
+
+            var position = actor.transform.Value.Position;
+            while (state.Cursor.AdvanceIfReached(in position)) { }
+            if (state.Cursor.IsTerminal)
+            {
+                if (actor.hasMoveInput) actor.ReplaceMoveInput(0f, 0f);
+                return false;
+            }
+
+            var waypoint = state.Cursor.CurrentWaypoint;
+            var dx = waypoint.X - position.X;
+            var dz = waypoint.Z - position.Z;
+            var length = (float)Math.Sqrt(dx * dx + dz * dz);
+            if (length <= 0.0001f)
+            {
+                if (actor.hasMoveInput) actor.ReplaceMoveInput(0f, 0f);
+                return false;
+            }
+
+            var moveX = dx / length;
+            var moveZ = dz / length;
+            if (actor.hasMoveInput) actor.ReplaceMoveInput(moveX, moveZ);
+            else actor.AddMoveInput(moveX, moveZ);
+            return true;
         }
 
         public void Tick()

@@ -48,6 +48,12 @@ namespace AbilityKit.Game.Battle.Vfx
 
         public bool TryCreateEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, int followTargetActorId, in Vector3 position, in Quaternion rotation, int durationMsOverride, out EC.IEntity entity)
         {
+            var followOffset = Vector3.zero;
+            return TryCreateEntity(world, parent, vfxId, followTarget, followTargetActorId, in followOffset, in position, in rotation, durationMsOverride, out entity);
+        }
+
+        public bool TryCreateEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, int followTargetActorId, in Vector3 followOffset, in Vector3 position, in Quaternion rotation, int durationMsOverride, out EC.IEntity entity)
+        {
             entity = default;
             if (world == null) return false;
             if (!parent.IsValid) return false;
@@ -56,9 +62,12 @@ namespace AbilityKit.Game.Battle.Vfx
 
             var durationMs = 650;
             GameObject go;
-            if (_db.TryGet(vfxId, out var dto) && dto != null && !string.IsNullOrEmpty(dto.Resource))
+            if (_db.TryGet(vfxId, out var dto) && dto != null)
             {
-                go = _gameObjects.Create(vfxId, dto.Resource);
+                var resource = string.IsNullOrEmpty(dto.ResourceKey) ? dto.Resource : dto.ResourceKey;
+                go = !string.IsNullOrEmpty(resource)
+                    ? _gameObjects.Create(vfxId, resource)
+                    : _gameObjects.CreatePlaceholder(vfxId);
                 durationMs = dto.DurationMs;
             }
             else
@@ -85,7 +94,7 @@ namespace AbilityKit.Game.Battle.Vfx
                     _hierarchy.ParentActive(BattleViewCategory.ActiveVfx, vfxId, go);
                 }
 
-                entity = _entities.Create(world, parent, vfxId, followTarget, followTargetActorId, go, durationMs);
+                entity = _entities.Create(world, parent, vfxId, followTarget, followTargetActorId, in followOffset, go, durationMs);
                 return true;
             }
             catch
@@ -111,6 +120,7 @@ namespace AbilityKit.Game.Battle.Vfx
             int vfxId,
             EC.IEntityId followTarget,
             int followTargetActorId,
+            in Vector3 followOffset,
             GameObject go,
             int durationMs)
         {
@@ -120,7 +130,7 @@ namespace AbilityKit.Game.Battle.Vfx
                 vfxEntity.SetName($"Vfx_{vfxId}");
                 vfxEntity.WithRef(new BattleVfxComponent { VfxId = vfxId });
                 vfxEntity.WithRef(new BattleViewGameObjectComponent { GameObject = go });
-                vfxEntity.WithRef(new BattleViewFollowComponent { Target = followTarget, TargetActorId = followTargetActorId, Offset = Vector3.zero });
+                vfxEntity.WithRef(new BattleViewFollowComponent { Target = followTarget, TargetActorId = followTargetActorId, Offset = followOffset });
 
                 _lifetime.AttachIfNeeded(vfxEntity, durationMs);
                 return vfxEntity;

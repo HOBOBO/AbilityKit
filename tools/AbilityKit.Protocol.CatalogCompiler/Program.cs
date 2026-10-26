@@ -47,20 +47,30 @@ public static class CatalogCompilerProgram
                 .Select(path => NormalizePath(Path.GetRelativePath(root, path)))
                 .ToArray();
 
-            var manifest = ManifestEmitter.Emit(catalogs, sourceNames);
-            var csharp = CSharpEmitter.Emit(catalogs, sourceNames, options.Namespace, options.ClassName);
+            var manifest = options.ManifestOutput == null ? null : ManifestEmitter.Emit(catalogs, sourceNames);
+            var csharp = options.CSharpOutput == null ? null : CSharpEmitter.Emit(catalogs, sourceNames, options.Namespace, options.ClassName);
             var metadata = options.MetadataOutput == null
                 ? null
                 : ProtocolMetadataEmitter.Emit(catalogs, sourceNames, options.Namespace, options.MetadataClassName);
+            var clientApi = options.ClientApiOutput == null
+                ? null
+                : ProtocolApiEmitter.EmitClients(catalogs, options.ApiNamespace, string.Join(", ", sourceNames));
+            var serverApi = options.ServerApiOutput == null
+                ? null
+                : ProtocolApiEmitter.EmitHandlers(catalogs, options.ApiNamespace, string.Join(", ", sourceNames));
 
             if (options.Check)
             {
-                var manifestCurrent = ReadExisting(options.ManifestOutput);
-                var csharpCurrent = ReadExisting(options.CSharpOutput);
+                var manifestCurrent = options.ManifestOutput == null ? null : ReadExisting(options.ManifestOutput);
+                var csharpCurrent = options.CSharpOutput == null ? null : ReadExisting(options.CSharpOutput);
                 var metadataCurrent = options.MetadataOutput == null ? null : ReadExisting(options.MetadataOutput);
-                var matches = string.Equals(manifestCurrent, manifest, StringComparison.Ordinal) &&
-                              string.Equals(csharpCurrent, csharp, StringComparison.Ordinal) &&
-                              (metadata == null || string.Equals(metadataCurrent, metadata, StringComparison.Ordinal));
+                var clientApiCurrent = options.ClientApiOutput == null ? null : ReadExisting(options.ClientApiOutput);
+                var serverApiCurrent = options.ServerApiOutput == null ? null : ReadExisting(options.ServerApiOutput);
+                var matches = (manifest == null || string.Equals(manifestCurrent, manifest, StringComparison.Ordinal)) &&
+                              (csharp == null || string.Equals(csharpCurrent, csharp, StringComparison.Ordinal)) &&
+                              (metadata == null || string.Equals(metadataCurrent, metadata, StringComparison.Ordinal)) &&
+                              (clientApi == null || string.Equals(clientApiCurrent, clientApi, StringComparison.Ordinal)) &&
+                              (serverApi == null || string.Equals(serverApiCurrent, serverApi, StringComparison.Ordinal));
                 if (!matches)
                 {
                     Console.Error.WriteLine("Generated protocol catalog outputs are stale. Run the catalog compiler without --check.");
@@ -71,10 +81,14 @@ public static class CatalogCompilerProgram
                 return 0;
             }
 
-            WriteIfChanged(options.ManifestOutput, manifest);
-            WriteIfChanged(options.CSharpOutput, csharp);
+            if (options.ManifestOutput != null && manifest != null) WriteIfChanged(options.ManifestOutput, manifest);
+            if (options.CSharpOutput != null && csharp != null) WriteIfChanged(options.CSharpOutput, csharp);
             if (options.MetadataOutput != null && metadata != null)
                 WriteIfChanged(options.MetadataOutput, metadata);
+            if (options.ClientApiOutput != null && clientApi != null)
+                WriteIfChanged(options.ClientApiOutput, clientApi);
+            if (options.ServerApiOutput != null && serverApi != null)
+                WriteIfChanged(options.ServerApiOutput, serverApi);
             Console.WriteLine($"Compiled {catalogs.Count} protocol catalog(s), {catalogs.Sum(c => c.Messages.Count)} message(s).");
             return 0;
         }
@@ -116,9 +130,10 @@ public static class CatalogCompilerProgram
     {
         Console.WriteLine("AbilityKit protocol catalog compiler");
         Console.WriteLine("  --input <file-or-directory>");
-        Console.WriteLine("  --manifest <output.json>");
-        Console.WriteLine("  --csharp <output.g.cs>");
+        Console.WriteLine("  [--manifest <output.json> --csharp <output.g.cs>]");
         Console.WriteLine("  [--metadata <output.g.cs>] [--metadata-class <name>]");
+        Console.WriteLine("  [--client-api <output.g.cs>] [--server-api <output.g.cs>] [--api-namespace <namespace>]");
+        Console.WriteLine("  [--api-assembly <output-dir>] writes ProtocolClients.g.cs and ProtocolHandlers.g.cs together");
         Console.WriteLine("  [--namespace <namespace>] [--class <name>] [--check]");
         Console.WriteLine();
         Console.WriteLine("Editor/workspace and governance commands:");
@@ -141,9 +156,13 @@ public static class CatalogCompilerProgram
 internal sealed class CompilerOptions
 {
     public required string InputPath { get; init; }
-    public required string ManifestOutput { get; init; }
-    public required string CSharpOutput { get; init; }
+    public string? ManifestOutput { get; init; }
+    public string? CSharpOutput { get; init; }
     public string? MetadataOutput { get; init; }
+    public string? ClientApiOutput { get; init; }
+    public string? ServerApiOutput { get; init; }
+    public string ApiNamespace { get; init; } = "AbilityKit.Protocol.GeneratedApi";
+    public string? ApiAssemblyOutput { get; init; }
     public string Namespace { get; init; } = "AbilityKit.Protocol.Generated";
     public string ClassName { get; init; } = "BuiltInProtocolCatalogs";
     public string MetadataClassName { get; init; } = "BuiltInProtocolMetadata";
@@ -157,8 +176,8 @@ internal sealed class CompilerOptions
             return new CompilerOptions
             {
                 InputPath = string.Empty,
-                ManifestOutput = string.Empty,
-                CSharpOutput = string.Empty,
+                ManifestOutput = null,
+                CSharpOutput = null,
                 ShowHelp = true
             };
         }
@@ -167,6 +186,10 @@ internal sealed class CompilerOptions
         string? manifest = null;
         string? csharp = null;
         string? metadata = null;
+        string? clientApi = null;
+        string? serverApi = null;
+        string? apiAssembly = null;
+        var apiNamespace = "AbilityKit.Protocol.GeneratedApi";
         var targetNamespace = "AbilityKit.Protocol.Generated";
         var className = "BuiltInProtocolCatalogs";
         var metadataClassName = "BuiltInProtocolMetadata";
@@ -180,6 +203,10 @@ internal sealed class CompilerOptions
                 case "--manifest": manifest = Next(args, ref i); break;
                 case "--csharp": csharp = Next(args, ref i); break;
                 case "--metadata": metadata = Next(args, ref i); break;
+                case "--client-api": clientApi = Next(args, ref i); break;
+                case "--server-api": serverApi = Next(args, ref i); break;
+                case "--api-assembly": apiAssembly = Next(args, ref i); break;
+                case "--api-namespace": apiNamespace = Next(args, ref i); break;
                 case "--namespace": targetNamespace = Next(args, ref i); break;
                 case "--class": className = Next(args, ref i); break;
                 case "--metadata-class": metadataClassName = Next(args, ref i); break;
@@ -188,8 +215,19 @@ internal sealed class CompilerOptions
             }
         }
 
-        if (string.IsNullOrWhiteSpace(input) || string.IsNullOrWhiteSpace(manifest) || string.IsNullOrWhiteSpace(csharp))
-            throw new ArgumentException("--input, --manifest and --csharp are required.");
+        if (string.IsNullOrWhiteSpace(input))
+            throw new ArgumentException("--input is required.");
+        if (apiAssembly != null && (clientApi != null || serverApi != null))
+            throw new ArgumentException("Use --api-assembly or the individual API outputs, not both.");
+        if (apiAssembly != null)
+        {
+            clientApi = Path.Combine(apiAssembly, "ProtocolClients.g.cs");
+            serverApi = Path.Combine(apiAssembly, "ProtocolHandlers.g.cs");
+        }
+        if ((manifest == null) != (csharp == null))
+            throw new ArgumentException("--manifest and --csharp must be configured together.");
+        if (manifest == null && clientApi == null && serverApi == null)
+            throw new ArgumentException("Configure catalog outputs or protocol API outputs.");
 
         return new CompilerOptions
         {
@@ -197,6 +235,10 @@ internal sealed class CompilerOptions
             ManifestOutput = manifest,
             CSharpOutput = csharp,
             MetadataOutput = metadata,
+            ClientApiOutput = clientApi,
+            ServerApiOutput = serverApi,
+            ApiNamespace = apiNamespace,
+            ApiAssemblyOutput = apiAssembly,
             Namespace = targetNamespace,
             ClassName = className,
             MetadataClassName = metadataClassName,

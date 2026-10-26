@@ -151,7 +151,7 @@ flowchart TB
 | Snapshot | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting` | `FrameSnapshotDispatcher` 的 opCode 路由与 typed handler |
 | StateSync | `Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync` | 预测、服务器修正、状态槽、快照应用 |
 | Coordinator | `Unity/Packages/com.abilitykit.coordinator/Runtime` | 当前仅有会话配置、host/policy 契约和数据 DTO；不含 coordinator/adapter/transport 实现 |
-| Network Room | `Unity/Packages/com.abilitykit.network.room/Runtime` | 阶段化 `RoomGatewaySessionFlow`、线性 `GatewayMultiplayerSession`，以及 Room 远端同步能力绑定 |
+| Network Room | `Unity/Packages/com.abilitykit.network.room/Runtime` | 阶段化 `RoomGatewaySessionFlow`、线性 `MultiplayerRoomSession`，以及 Room 远端同步能力绑定 |
 | Network SDK | `Unity/Packages/com.abilitykit.network.sdk/Runtime` | `NetworkSyncSessionBuilder`、`ReliableEventSessionBuilder` 与恢复策略；装配通用契约，不内置玩法同步算法 |
 | Host Extension | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session`、`Runtime/Client/StateSync` | `FramePacketNetAdapter`、远端输入提交队列 |
 | Record | `Unity/Packages/com.abilitykit.record/Runtime/Record` | 通用容器、事件轨道、固定步长回放、按帧记录文件 |
@@ -301,7 +301,7 @@ sequenceDiagram
 | Shooter 远端会话 | `ShooterClientSession`、`ShooterClientNetworkLauncher`、`ShooterClientBattleHandle`、`ShooterBattleDataPlane` | 业务运行链、测试和多进程 Smoke 均有证据；采用双连接 |
 | Console adapter 实验 | `src/AbilityKit.Demo.Moba.Console/Battle/Sync` | Demo 自有实现；不能声明为通用 coordinator adapter |
 
-`GatewayMultiplayerSession` 是 `network.room` 中面向线性/最小房间流程的高层门面。`GatewayBattleClientHost.EnterAsync` 与 Console `StateSyncAdapter` 已形成真实采用；Shooter 使用同一 Host 的原语构造路径，MOBA 则只复用 `BuildBattleOptions` 并保留自己的阶段化 Room flow。后者不是接入缺失，而是 hero-pick、loading、恢复等事件驱动阶段不适合被压成一次线性调用。
+`MultiplayerRoomSession` 是 `network.room` 中面向线性/最小房间流程的协议层入口；`MultiplayerClientSession` 负责组合房间控制连接与可选的战斗数据连接。Console 和 Shooter 使用共享客户端会话，MOBA 则保留阶段化 Room flow，只复用战斗连接配置组装。后者不是接入缺失，而是 hero-pick、loading、恢复等事件驱动阶段不适合被压成一次线性调用。
 
 该门面是一次性 host：`Dispose` 不代替 `LeaveRoom`，重连应新建门面或由项目驱动 staged restore。两连接拓扑必须关闭 Room 连接上的 battle push 订阅，让独立数据面成为唯一订阅者；`Tick` 接收真实墙钟 delta，不能传加速后的游戏时间。
 

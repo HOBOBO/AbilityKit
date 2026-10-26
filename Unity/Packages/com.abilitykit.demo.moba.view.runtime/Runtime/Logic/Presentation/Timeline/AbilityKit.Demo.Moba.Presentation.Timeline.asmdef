@@ -1,7 +1,7 @@
 {
   "name": "AbilityKit.Demo.Moba.Presentation.Timeline",
   "rootNamespace": "AbilityKit",
-  "references": ["AbilityKit.ActionSchema"],
+  "references": ["AbilityKit.ActionSchema", "AbilityKit.Demo.Moba.Presentation.Core"],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

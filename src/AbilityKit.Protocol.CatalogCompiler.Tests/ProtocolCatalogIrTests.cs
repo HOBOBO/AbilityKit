@@ -99,6 +99,47 @@ public sealed class ProtocolCatalogIrTests
         Assert.Empty(validation.Diagnostics);
     }
 
+    [Fact]
+    public void ApiEmitterProducesTypedClientAndServerContracts()
+    {
+        var catalog = new YamlProtocolSourceParser().Parse("room.protocol.yaml", """
+            schemaVersion: 1
+            catalogId: test.room
+            projectId: test
+            domain: room
+            revision: 1
+            defaultCodec: protobuf
+            messages:
+              - id: login.request
+                opCode: 100
+                direction: c2s
+                kind: request
+                payloadType: Test.LoginReq
+                response: login.response
+              - id: login.response
+                opCode: 100
+                direction: s2c
+                kind: response
+                payloadType: Test.LoginRes
+              - id: room.updated.push
+                opCode: 101
+                direction: s2c
+                kind: push
+                payloadType: Test.RoomUpdated
+            """);
+
+        var client = ProtocolApiEmitter.EmitClients(new[] { catalog }, "Test.Generated");
+        var server = ProtocolApiEmitter.EmitHandlers(new[] { catalog }, "Test.Generated");
+
+        Assert.Contains("public sealed class TestRoomProtocolClient", client);
+        Assert.Contains("Task<global::Test.LoginRes> LoginAsync", client);
+        Assert.Contains("SubscribeRoomUpdated", client);
+        Assert.Contains("public interface ITestRoomProtocolHandlers", server);
+        Assert.Contains("Task<global::Test.LoginRes> LoginAsync", server);
+        Assert.Contains("router.Register(100u, this);", server);
+        Assert.Contains("RawRequestResponseEnvelopeCodec.Instance", server);
+    }
+
     [Theory]
     [InlineData("sideways", "request", "reliable")]
     [InlineData("c2s", "teleport", "reliable")]

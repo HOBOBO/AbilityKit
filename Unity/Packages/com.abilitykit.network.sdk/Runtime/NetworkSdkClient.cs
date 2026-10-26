@@ -23,14 +23,15 @@ namespace AbilityKit.Network.Sdk
 
         internal NetworkSdkClient(
             IConnection connection,
-            NetworkRequestClientFactory? requestClientFactory = null)
+            NetworkRequestClientFactory? requestClientFactory = null,
+            IRequestResponseEnvelopeCodec? responseEnvelopeCodec = null)
         {
             _connection = connection ?? throw new ArgumentNullException(nameof(connection));
             _reconnectableConnection = connection as IReconnectableConnection;
             _diagnosticsSource = connection as INetworkConnectionDiagnosticsSource;
             _requestClient = requestClientFactory != null
                 ? requestClientFactory.Invoke(_connection)
-                : new RequestClient(_connection);
+                : new RequestClient(_connection, responseEnvelopeCodec);
             if (_requestClient == null)
             {
                 throw new InvalidOperationException("Request client factory returned null.");
@@ -93,6 +94,10 @@ namespace AbilityKit.Network.Sdk
         public bool IsConnected => _connection.IsConnected;
 
         public bool SupportsReconnect => _reconnectableConnection != null;
+
+        public string ConnectionId => (_connection as IConnectionIdentity)?.ConnectionId ?? string.Empty;
+
+        public int ConnectionGeneration => (_connection as IConnectionIdentity)?.ConnectionGeneration ?? 0;
 
         public bool SupportsDiagnostics => _diagnosticsSource != null;
 
@@ -254,7 +259,7 @@ namespace AbilityKit.Network.Sdk
             uint opCode, ArraySegment<byte> payload, TimeSpan? timeout, CancellationToken cancellationToken) =>
             SendRawRequestAsync(opCode, payload, timeout, cancellationToken);
 
-        public NetworkProtocolAgent CreateProtocolAgent(INetworkProtocolCodec codec)
+        public NetworkProtocolAgent CreateProtocolAgent(AbilityKit.Protocol.INetworkProtocolCodec codec)
         {
             ThrowIfDisposed();
             return new NetworkProtocolAgent(this, codec);

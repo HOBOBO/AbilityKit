@@ -40,6 +40,12 @@ namespace AbilityKit.Network.Protocol
         {
             private readonly NetworkFrameReader _reader = new NetworkFrameReader();
 
+            public int MaxFrameLength
+            {
+                get => _reader.MaxFrameLength;
+                set => _reader.MaxFrameLength = value;
+            }
+
             public void Reset() => _reader.Reset();
 
             public void Append(ArraySegment<byte> bytes) => _reader.Append(bytes);

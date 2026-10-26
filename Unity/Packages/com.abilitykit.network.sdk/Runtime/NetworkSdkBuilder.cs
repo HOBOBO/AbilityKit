@@ -19,6 +19,7 @@ namespace AbilityKit.Network.Sdk
         private Func<ITransport>? _transportFactory;
         private Action<ConnectionOptions>? _configureConnection;
         private NetworkRequestClientFactory? _requestClientFactory;
+        private IRequestResponseEnvelopeCodec? _responseEnvelopeCodec;
         private NetworkTrafficObserverFactory? _trafficObserverFactory;
         private Action<NetworkTrafficCaptureOptions>? _configureTrafficCapture;
         private IDispatcher? _callbackDispatcher;
@@ -92,6 +93,20 @@ namespace AbilityKit.Network.Sdk
             return this;
         }
 
+        /// <summary>Configures an optional response envelope. The default is a raw response body.</summary>
+        public NetworkSdkBuilder UseResponseEnvelopeCodec(IRequestResponseEnvelopeCodec codec)
+        {
+            _responseEnvelopeCodec = codec ?? throw new ArgumentNullException(nameof(codec));
+            return this;
+        }
+
+        /// <summary>Configures an explicit raw response body without an application envelope.</summary>
+        public NetworkSdkBuilder UseRawResponseBody()
+        {
+            _responseEnvelopeCodec = RawRequestResponseEnvelopeCodec.Instance;
+            return this;
+        }
+
         /// <summary>
         /// Selects the thread that consumes callbacks and the thread that decodes transport bytes.
         /// Use a Unity main-thread dispatcher for callbacks that touch Unity objects.
@@ -117,7 +132,7 @@ namespace AbilityKit.Network.Sdk
 
             try
             {
-                return new NetworkSdkClient(connection, _requestClientFactory);
+                return new NetworkSdkClient(connection, _requestClientFactory, _responseEnvelopeCodec);
             }
             catch
             {

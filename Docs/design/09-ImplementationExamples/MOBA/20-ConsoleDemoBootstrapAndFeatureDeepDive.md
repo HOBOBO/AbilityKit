@@ -18,7 +18,7 @@
 | 特征组件 | `Battle/Flow/FeatureHost.cs` | 拓扑排序 attach/tick/detach |
 | 同步适配器工厂 | `Battle/Sync/SyncAdapterFactory.cs` | 按 SyncMode 创建三种适配器 |
 | 网络权威适配器 | `Battle/Sync/StateSyncAdapter.cs` | 复用双连接宿主，编排英雄选择、加载和 snapshot apply |
-| 共享双连接宿主 | `Unity/Packages/com.abilitykit.network.client/Runtime/GatewayBattleClientHost.cs` | Room 控制连接与独立 battle data plane |
+| 共享双连接客户端会话 | `Unity/Packages/com.abilitykit.network.client/Runtime/MultiplayerClientSession.cs` | Room 控制连接与独立 battle data plane |
 | 输入特征 | `Battle/Input/ConsoleInputFeature.cs` | HUD → PlayerInputCommand → IWorldInputSink |
 | 自动测试 | `AutoTest/AutoTestRunner.cs`、`AutoTest/ConsoleBattleTestScriptDriver.cs` | 共享脚本调度、Console 输入映射和基础验收 |
 | CLI 录制/回放 | `Replay/ConsoleRecordWriter.cs`、`Replay/ConsoleReplayDriver.cs`、`Replay/RecordTypes.cs` | `.akrec` 输入记录格式与按帧索引 |
@@ -202,12 +202,12 @@ public void Tick(float deltaTime)
 
 ### 4.3 StateSyncAdapter（网络权威模式）
 
-**职责：** 使用共享 `GatewayBattleClientHost` 建立 Room 控制连接与独立 battle data-plane 连接，执行正式 staged loading，并消费状态同步 snapshot。
+**职责：** 使用共享 `MultiplayerClientSession` 建立 Room 控制连接与独立 battle data-plane 连接，执行正式 staged loading，并消费状态同步 snapshot。
 
 ```csharp
 Connect(host, port, roomId, playerId)
  └─ EnterHostAsync()
-     ├─ GatewayBattleClientHost.EnterAsync()
+     ├─ MultiplayerClientSession.EnterAsync()
      ├─ room login + join-or-create
      ├─ PickHeroForLocalPlayerAsync()
      ├─ ready + BeginLoading/ReportAssetsLoaded
@@ -504,7 +504,7 @@ while (running) {
 | 模式 | 当前实现 | Console Demo 用途与边界 |
 |---|---|---|
 | `FrameSyncAdapter` | 本地镜像 Context 帧号和逻辑时间 | 默认本地测试入口；不支持远程 Lockstep，角色状态查询仍为空 |
-| `StateSyncAdapter` | 复用 `GatewayBattleClientHost` 双连接宿主，执行 staged room flow、正式 input request 与 snapshot push 消费 | Gateway 状态同步联调入口；真实进程故障、重连收敛和服务部署仍需独立 Smoke 证明 |
+| `StateSyncAdapter` | 复用 `MultiplayerClientSession` 双连接会话，执行 staged room flow、正式 input request 与 snapshot push 消费 | Gateway 状态同步联调入口；真实进程故障、重连收敛和服务部署仍需独立 Smoke 证明 |
 | `HybridSyncAdapter` | 本地 PredictionCoordinator、三类 Handler、手动快照注入 | 预测组件装配实验；网络 Connect 未实现，不能视为联机回滚闭环 |
 
 ### 10.3 为什么 AutoTestInputFeature 不直接提交

@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int TargetLostPolicy { get; }
         public int SkillButtonTemplateId { get; }
         public int RequiredTargetQueryId { get; }
+        public bool AllowCastWithoutTarget { get; }
         public int LevelTableId { get; }
         public int PreCastFlowId { get; }
         public int CastFlowId { get; }
@@ -45,6 +46,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             TargetLostPolicy = dto.TargetLostPolicy;
             SkillButtonTemplateId = dto.SkillButtonTemplateId;
             RequiredTargetQueryId = dto.RequiredTargetQueryId;
+            AllowCastWithoutTarget = dto.AllowCastWithoutTarget;
             LevelTableId = dto.LevelTableId;
             PreCastFlowId = dto.PreCastFlowId;
             CastFlowId = dto.CastFlowId;

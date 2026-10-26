@@ -25,21 +25,20 @@ public sealed class BattleReplicationRuntimeContractTests
 {
     private static NetworkTransport CreateTransport()
     {
-        var options = NetworkTransportOptionsFactory.Create(
-            host: "gw",
-            port: 41001,
-            transportFactory: () => new TcpTransport(),
-            playerIdToUInt: pid => uint.Parse(pid.Value),
-            playerIdFromUInt: n => new PlayerId(n.ToString()),
-            worldIdToUlong: wid => ulong.Parse(wid.Value),
-            worldIdFromUlong: n => new WorldId(n.ToString()),
-            roomId: 999UL,
-            sessionToken: "token",
-            battleId: "battle-1",
-            publicRoomId: "room-1",
-            useFrameSyncInput: false,
-            getReliableEventEpoch: () => "test-epoch",
-            getReliableEventLastAcknowledgedSequence: () => 0L);
+        var options = NetworkTransportOptionsFactory.Create(new NetworkTransportOptionsFactoryOptions
+        {
+            Host = "gw",
+            Port = 41001,
+            TransportFactory = () => new TcpTransport(),
+            IdCodec = NetworkIdCodec.Numeric,
+            RoomId = 999UL,
+            SessionToken = "token",
+            BattleId = "battle-1",
+            PublicRoomId = "room-1",
+            UseFrameSyncInput = false,
+            GetReliableEventEpoch = () => "test-epoch",
+            GetReliableEventLastAcknowledgedSequence = () => 0L
+        });
 
         return new NetworkTransport(options, InlineDispatcher.Instance);
     }

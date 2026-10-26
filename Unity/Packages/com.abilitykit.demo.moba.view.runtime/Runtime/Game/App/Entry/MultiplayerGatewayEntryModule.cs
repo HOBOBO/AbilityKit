@@ -370,6 +370,7 @@ namespace AbilityKit.Game
                 var callbackDispatcher = UnityMainThreadDispatcher.CaptureCurrent();
                 var sdkBuilder = new NetworkSdkBuilder()
                     .UseTransportFactory(() => new TcpTransport())
+                    .UseResponseEnvelopeCodec(TcpGatewayRequestResponseEnvelopeCodec.Instance)
                     .ConfigureConnection(GatewayRoomSdkConnectionPreset.Configure)
                     .UseDispatchers(callbackDispatcher, resources.IoDispatcher);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

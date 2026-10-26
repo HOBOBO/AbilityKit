@@ -6,6 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Core.Buffers;
 using AbilityKit.Network.Abstractions;
+#if UNITY_WEBGL && !UNITY_EDITOR
+using AbilityKit.Network.Transport.WebSocket.WebGL;
+#endif
 
 namespace AbilityKit.Network.Transport.WebSocket
 {
@@ -23,9 +26,13 @@ namespace AbilityKit.Network.Transport.WebSocket
         private readonly string _path;
         private readonly string _scheme;
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+        private WebGlWebSocketBridge _webGlSocket;
+#else
         private ClientWebSocket _socket;
         private CancellationTokenSource _cts;
         private Task _receiveLoop;
+#endif
 
         public WebSocketTransport(string path = "/", bool secure = false)
         {
@@ -37,8 +44,12 @@ namespace AbilityKit.Network.Transport.WebSocket
         {
             get
             {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                return _webGlSocket != null && _webGlSocket.IsConnected;
+#else
                 var s = _socket;
                 return s != null && s.State == WebSocketState.Open;
+#endif
             }
         }
 
@@ -54,11 +65,21 @@ namespace AbilityKit.Network.Transport.WebSocket
 
             lock (_gate)
             {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                if (_webGlSocket != null) throw new InvalidOperationException("Transport already started.");
+                _webGlSocket = new WebGlWebSocketBridge();
+                _webGlSocket.Connected += () => Connected?.Invoke();
+                _webGlSocket.Disconnected += () => Disconnected?.Invoke();
+                _webGlSocket.Error += ex => Error?.Invoke(ex);
+                _webGlSocket.BytesReceived += bytes => BytesReceived?.Invoke(bytes);
+                _webGlSocket.Connect(new Uri($"{_scheme}://{host}:{port}{_path}"));
+#else
                 if (_socket != null) throw new InvalidOperationException("Transport already started.");
                 _cts = new CancellationTokenSource();
                 _socket = new ClientWebSocket();
                 var socket = _socket;
                 _receiveLoop = Task.Run(() => RunAsync(socket, host, port, _cts.Token));
+#endif
             }
         }
 
@@ -66,6 +87,12 @@ namespace AbilityKit.Network.Transport.WebSocket
         {
             if (bytes.Array == null || bytes.Count <= 0) return;
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+            WebGlWebSocketBridge socket;
+            lock (_gate) { socket = _webGlSocket; }
+            if (socket == null || !socket.IsConnected) throw new InvalidOperationException("Not connected.");
+            socket.Send(bytes);
+#else
             ClientWebSocket socket;
             lock (_gate) { socket = _socket; }
             if (socket == null || socket.State != WebSocketState.Open)
@@ -83,10 +110,20 @@ namespace AbilityKit.Network.Transport.WebSocket
                 Close();
                 throw;
             }
+#endif
         }
 
         public void Close()
         {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            WebGlWebSocketBridge socket;
+            lock (_gate)
+            {
+                socket = _webGlSocket;
+                _webGlSocket = null;
+            }
+            socket?.Dispose();
+#else
             ClientWebSocket socket;
             CancellationTokenSource cts;
             lock (_gate)
@@ -112,10 +149,12 @@ namespace AbilityKit.Network.Transport.WebSocket
                 catch { }
                 try { socket.Dispose(); } catch { }
             }
+#endif
         }
 
         public void Dispose() => Close();
 
+#if !UNITY_WEBGL || UNITY_EDITOR
         private async Task RunAsync(ClientWebSocket socket, string host, int port, CancellationToken ct)
         {
             try
@@ -185,5 +224,6 @@ namespace AbilityKit.Network.Transport.WebSocket
                 Close();
             }
         }
+#endif
     }
 }

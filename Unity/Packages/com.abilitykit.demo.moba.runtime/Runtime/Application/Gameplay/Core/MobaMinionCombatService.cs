@@ -5,12 +5,15 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Events.Unit;
 using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Demo.Moba.Gameplay
@@ -24,6 +27,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
     {
         private const long MeleeAttackCooldownMs = 1200;
         private const long RangedAttackCooldownMs = 1500;
+        private const int RangedBasicAttackLauncherId = 31020001;
+        private const int RangedBasicAttackProjectileId = 30020001;
 
         private readonly MobaGameplayService _gameplay;
         private readonly IMobaMinionWaveService _waves;
@@ -38,6 +43,9 @@ namespace AbilityKit.Demo.Moba.Gameplay
         private IDisposable _deathSubscription;
         private long _gameplayId;
         [WorldInject(required: false)] private IEventBus _eventBus;
+        [WorldInject(required: false)] private MobaStructureService _structures;
+        private readonly MobaConfigDatabase _configs;
+        private readonly MobaProjectileService _projectiles;
 
         public MobaMinionCombatService(
             MobaGameplayService gameplay,
@@ -45,6 +53,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
             MobaActorRegistry actors,
             MobaCombatRulesService rules,
             MobaCombatEffectService combat,
+            MobaConfigDatabase configs,
+            MobaProjectileService projectiles,
             IEventBus eventBus = null)
         {
             _gameplay = gameplay ?? throw new ArgumentNullException(nameof(gameplay));
@@ -52,6 +62,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _rules = rules;
             _combat = combat ?? throw new ArgumentNullException(nameof(combat));
+            _configs = configs ?? throw new ArgumentNullException(nameof(configs));
+            _projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));
             _eventBus = eventBus;
 
             if (_eventBus != null)
@@ -143,7 +155,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
                     !CanAttack(attacker.ActorId))
                     continue;
 
-                if (!TryFindNearestEnemyMinion(in attacker, out var targetId, out var distance))
+                if (!TryFindCombatTarget(in attacker, out var targetId, out var distance))
                 {
                     _waves.SetAiState(attacker.ActorId, MobaMinionAiState.FollowingRoute);
                     continue;
@@ -156,6 +168,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
                 if (distance > attackRange)
                 {
                     _waves.SetAiState(attacker.ActorId, MobaMinionAiState.AcquiringTarget);
+                    _waves.SetCombatMovement(attacker.ActorId);
                     continue;
                 }
 
@@ -166,6 +179,35 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
                 var damage = attrs.PhysicsAttack + attrs.ExtraPhysicsAttack;
                 if (damage <= 0f) continue;
+
+                if (attacker.Archetype == MobaMinionArchetype.Ranged)
+                {
+                    if (_configs == null || _projectiles == null ||
+                        !_configs.TryGetProjectileLauncher(RangedBasicAttackLauncherId, out var launcher) || launcher == null ||
+                        !_configs.TryGetProjectile(RangedBasicAttackProjectileId, out var projectile) || projectile == null ||
+                        !_actors.TryGet(targetId, out var targetEntity) || targetEntity == null || !targetEntity.hasTransform)
+                        continue;
+
+                    var sourcePosition = attackerEntity.transform.Value.Position;
+                    var targetPosition = targetEntity.transform.Value.Position;
+                    var direction = new Vec3(targetPosition.X - sourcePosition.X, 0f, targetPosition.Z - sourcePosition.Z);
+                    if (direction.SqrMagnitude <= 0.0001f) continue;
+                    var sourceContext = ProjectileSourceContextBuilder.Create()
+                        .WithActors(attacker.ActorId, targetId)
+                        .WithProjectileConfig(projectile.Id)
+                        .Build();
+                    if (!_projectiles.Launch(attacker.ActorId, launcher, projectile,
+                            in sourcePosition, in direction, in sourceContext))
+                        continue;
+
+                    _nextAttackAtMs[attacker.ActorId] = nowMs + GetCooldownMs(attacker.Archetype, attrs.AttackSpeedR);
+                    var rangedAttack = new MobaMinionAttackEvent(
+                        attacker.ActorId, targetId, attacker.WaveId, attacker.Archetype,
+                        damage, frame);
+                    _attacks.Add(rangedAttack);
+                    Publish(MobaMinionEvents.Attack, in rangedAttack);
+                    continue;
+                }
 
                 var attack = new AttackInfo
                 {
@@ -190,7 +232,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
             }
         }
 
-        private bool TryFindNearestEnemyMinion(
+        private bool TryFindCombatTarget(
             in MobaMinionRuntimeView attacker,
             out int targetId,
             out float distance)
@@ -224,7 +266,21 @@ namespace AbilityKit.Demo.Moba.Gameplay
                 }
             }
 
-            return targetId > 0;
+            if (targetId > 0) return true;
+
+            if (_structures == null) return false;
+            var enemyTeam = attacker.Team == Team.Team1 ? Team.Team2 : Team.Team1;
+            if (!_structures.TryGetNextTarget((int)enemyTeam, out var structureId) ||
+                !_actors.TryGet(structureId, out var structure) || structure == null ||
+                !structure.hasTransform || !IsAlive(structureId, structure))
+                return false;
+
+            var structurePosition = structure.transform.Value.Position;
+            var sdx = structurePosition.X - sourcePosition.X;
+            var sdz = structurePosition.Z - sourcePosition.Z;
+            targetId = structureId;
+            distance = (float)Math.Sqrt(sdx * sdx + sdz * sdz);
+            return true;
         }
 
         private bool CanAttack(int actorId)

@@ -150,6 +150,9 @@ namespace AbilityKit.Demo.Moba.Rollback
                 registry.Register(new MobaMinionRollbackProvider(minionWaves, minionCombat));
             }
 
+            if (world.Services.TryResolve<MobaStructureService>(out var structures) && structures != null)
+                registry.Register(new MobaStructureRollbackProvider(structures));
+
             if (world.Services.TryResolve<MobaActorRegistry>(out var actorRegistry) &&
                 actorRegistry != null)
             {

@@ -69,6 +69,7 @@ namespace AbilityKit.Network.Runtime
         public int ReconnectMaxAttempts = -1;
 
         public int MaxFrameLength = 4 * 1024 * 1024;
+        public bool ValidatePacketHeaders;
 
         public uint HeartbeatOpCode = 0;
 

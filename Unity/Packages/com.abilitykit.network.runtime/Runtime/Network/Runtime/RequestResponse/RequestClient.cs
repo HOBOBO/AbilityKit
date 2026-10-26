@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Concurrent;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
-using AbilityKit.Network.Runtime.TcpGateway;
 
 namespace AbilityKit.Network.Runtime
 {
@@ -22,13 +20,19 @@ namespace AbilityKit.Network.Runtime
     public sealed class RequestClient : IRequestClient
     {
         private readonly IConnection _connection;
-        private readonly ConcurrentDictionary<uint, TaskCompletionSource<ArraySegment<byte>>> _pending = new();
+        private readonly IRequestResponseEnvelopeCodec _responseCodec;
+        private readonly ConcurrentDictionary<uint, PendingRequest> _pending = new();
         private int _nextSeq;
         private bool _disposed;
 
-        public RequestClient(IConnection connection)
+        public RequestClient(
+            IConnection connection,
+            IRequestResponseEnvelopeCodec? responseCodec = null)
         {
             _connection = connection ?? throw new ArgumentNullException(nameof(connection));
+            // Runtime request correlation is transport/protocol neutral. Gateway envelopes are
+            // selected explicitly by NetworkProtocolSession or another protocol adapter.
+            _responseCodec = responseCodec ?? RawRequestResponseEnvelopeCodec.Instance;
             _connection.PacketReceived += OnPacketReceived;
             _connection.Disconnected += OnDisconnected;
             _connection.Error += OnError;
@@ -42,8 +46,8 @@ namespace AbilityKit.Network.Runtime
             var seq = unchecked((uint)Interlocked.Increment(ref _nextSeq));
             if (seq == 0) seq = unchecked((uint)Interlocked.Increment(ref _nextSeq));
 
-            var tcs = new TaskCompletionSource<ArraySegment<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
-            if (!_pending.TryAdd(seq, tcs))
+            var pending = new PendingRequest(opCode);
+            if (!_pending.TryAdd(seq, pending))
             {
                 throw new InvalidOperationException($"Duplicate request seq: {seq}");
             }
@@ -71,7 +75,7 @@ namespace AbilityKit.Network.Runtime
 
                 _connection.Send(opCode, payload, flags: (ushort)NetworkPacketFlags.Request, seq: seq);
                 return AwaitAndReleaseAsync(
-                    tcs.Task,
+                    pending.Completion.Task,
                     timeoutCts,
                     timeoutRegistration,
                     cancellationRegistration);
@@ -108,28 +112,26 @@ namespace AbilityKit.Network.Runtime
         {
             if (seq == 0) return;
 
-            if (!_pending.TryRemove(seq, out var tcs) || tcs == null)
+            if (!_pending.TryRemove(seq, out var pending) || pending == null)
             {
+                return;
+            }
+
+            if (pending.OpCode != opCode)
+            {
+                pending.Completion.TrySetException(new InvalidOperationException(
+                    $"Response opcode mismatch. expected={pending.OpCode} actual={opCode} seq={seq}"));
                 return;
             }
 
             var result = Copy(payload);
             try
             {
-                var decoded = TcpGatewayResponseCodec.Decode(result);
-                if (decoded.StatusCode != TcpGatewayStatusCode.Ok)
-                {
-                    var message = DecodeErrorMessage(decoded.Payload);
-                    var detail = string.IsNullOrWhiteSpace(message) ? string.Empty : $" message={message}";
-                    tcs.TrySetException(new InvalidOperationException($"Gateway response error. statusCode={decoded.StatusCode} opCode={opCode} seq={seq}{detail}"));
-                    return;
-                }
-
-                tcs.TrySetResult(decoded.Payload);
+                pending.Completion.TrySetResult(_responseCodec.Decode(opCode, seq, result));
             }
             catch (Exception ex)
             {
-                tcs.TrySetException(ex);
+                pending.Completion.TrySetException(ex);
             }
         }
 
@@ -145,17 +147,17 @@ namespace AbilityKit.Network.Runtime
 
         private void TryTimeout(uint opCode, uint seq)
         {
-            if (_pending.TryRemove(seq, out var tcs) && tcs != null)
+            if (_pending.TryRemove(seq, out var pending) && pending != null)
             {
-                tcs.TrySetException(new TimeoutException($"Request timeout. opCode={opCode} seq={seq}"));
+                pending.Completion.TrySetException(new TimeoutException($"Request timeout. opCode={opCode} seq={seq}"));
             }
         }
 
         private void TryCancel(uint seq, CancellationToken cancellationToken)
         {
-            if (_pending.TryRemove(seq, out var tcs) && tcs != null)
+            if (_pending.TryRemove(seq, out var pending) && pending != null)
             {
-                tcs.TrySetCanceled(cancellationToken);
+                pending.Completion.TrySetCanceled(cancellationToken);
             }
         }
 
@@ -163,9 +165,9 @@ namespace AbilityKit.Network.Runtime
         {
             foreach (var kv in _pending)
             {
-                if (_pending.TryRemove(kv.Key, out var tcs) && tcs != null)
+                if (_pending.TryRemove(kv.Key, out var pending) && pending != null)
                 {
-                    tcs.TrySetException(ex);
+                    pending.Completion.TrySetException(ex);
                 }
             }
         }
@@ -179,16 +181,6 @@ namespace AbilityKit.Network.Runtime
             var bytes = new byte[src.Count];
             Buffer.BlockCopy(src.Array, src.Offset, bytes, 0, src.Count);
             return new ArraySegment<byte>(bytes);
-        }
-
-        private static string DecodeErrorMessage(ArraySegment<byte> payload)
-        {
-            if (payload.Array == null || payload.Count <= 0) return string.Empty;
-
-            const int maxMessageBytes = 1024;
-            var count = Math.Min(payload.Count, maxMessageBytes);
-            var message = Encoding.UTF8.GetString(payload.Array, payload.Offset, count);
-            return message.Replace('\r', ' ').Replace('\n', ' ').Trim();
         }
 
         private void ThrowIfDisposed()
@@ -207,6 +199,19 @@ namespace AbilityKit.Network.Runtime
 
             FailAll(new ObjectDisposedException(nameof(RequestClient)));
             _pending.Clear();
+        }
+
+        private sealed class PendingRequest
+        {
+            public PendingRequest(uint opCode)
+            {
+                OpCode = opCode;
+                Completion = new TaskCompletionSource<ArraySegment<byte>>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+
+            public uint OpCode { get; }
+            public TaskCompletionSource<ArraySegment<byte>> Completion { get; }
         }
     }
 }

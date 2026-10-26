@@ -338,7 +338,8 @@ namespace AbilityKit.Network.Host
                         _options.CallbackDispatcher,
                         _options.IoDispatcher,
                         _options.FrameCodec,
-                        _clock);
+                        _clock,
+                        _options.MaxFrameLength);
                     _options.ConfigurePipeline?.Invoke(new NetworkPipelineBuilder(session.Pipeline));
                     _sessions.Add(session.Id, session);
                     _requestQueues.Add(

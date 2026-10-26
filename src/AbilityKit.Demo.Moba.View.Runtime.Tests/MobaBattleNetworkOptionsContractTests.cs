@@ -31,21 +31,20 @@ public sealed class MobaBattleNetworkOptionsContractTests
     private const string PublicRoomId = "room-moba";
 
     private static NetworkTransportOptions Build(bool useFrameSyncInput) =>
-        NetworkTransportOptionsFactory.Create(
-            host: Host,
-            port: Port,
-            transportFactory: () => new TcpTransport(),
-            playerIdToUInt: pid => uint.Parse(pid.Value),
-            playerIdFromUInt: n => new PlayerId(n.ToString()),
-            worldIdToUlong: wid => ulong.Parse(wid.Value),
-            worldIdFromUlong: n => new WorldId(n.ToString()),
-            roomId: RoomId,
-            sessionToken: Token,
-            battleId: BattleId,
-            publicRoomId: PublicRoomId,
-            useFrameSyncInput: useFrameSyncInput,
-            getReliableEventEpoch: () => "epoch-1",
-            getReliableEventLastAcknowledgedSequence: () => 42L);
+        NetworkTransportOptionsFactory.Create(new NetworkTransportOptionsFactoryOptions
+        {
+            Host = Host,
+            Port = Port,
+            TransportFactory = () => new TcpTransport(),
+            IdCodec = NetworkIdCodec.Numeric,
+            RoomId = RoomId,
+            SessionToken = Token,
+            BattleId = BattleId,
+            PublicRoomId = PublicRoomId,
+            UseFrameSyncInput = useFrameSyncInput,
+            GetReliableEventEpoch = () => "epoch-1",
+            GetReliableEventLastAcknowledgedSequence = () => 42L
+        });
 
     [Fact]
     public void ProtocolPreset_RoomGatewayOpcodes_AndSession_AreApplied()

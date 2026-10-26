@@ -91,7 +91,17 @@ namespace AbilityKit.Core.Mathematics
                 // 贴边/已穿透：分离法向沿“障碍心→球心”（指向移动体）。开方/归一化走定点内核。
                 var dFixed = DeterministicMathBridge.ToFixed(d);
                 var len = DeterministicMath.Sqrt(dFixed.SqrMagnitude);
-                var sep = len > DeterministicMathBridge.Epsilon ? DeterministicMathBridge.ToVec3(dFixed / len) : -direction;
+                if (len <= DeterministicMathBridge.Epsilon)
+                {
+                    // The mover is exactly at the sphere center. There is no outward
+                    // contact normal; report no blocking hit so an already-overlapped
+                    // mover can recover instead of projecting every escape input to zero.
+                    distance = 0f;
+                    worldNormal = Vec3.Zero;
+                    return false;
+                }
+
+                var sep = DeterministicMathBridge.ToVec3(dFixed / len);
                 worldNormal = sep;
                 if (Vec3.Dot(direction, sep) >= 0f)
                 {
@@ -131,7 +141,16 @@ namespace AbilityKit.Core.Mathematics
                 var closest = obstacle.A + ab * t;
                 var dFixed = DeterministicMathBridge.ToFixed(start - closest);
                 var len = DeterministicMath.Sqrt(dFixed.SqrMagnitude);
-                var sep = len > DeterministicMathBridge.Epsilon ? DeterministicMathBridge.ToVec3(dFixed / len) : -direction;
+                if (len <= DeterministicMathBridge.Epsilon)
+                {
+                    // See the sphere case above: the capsule axis has no unique radial
+                    // normal at its center, so permit the recovery step to leave it.
+                    distance = 0f;
+                    worldNormal = Vec3.Zero;
+                    return false;
+                }
+
+                var sep = DeterministicMathBridge.ToVec3(dFixed / len);
                 worldNormal = sep;
                 if (Vec3.Dot(direction, sep) >= 0f)
                 {
@@ -153,6 +172,27 @@ namespace AbilityKit.Core.Mathematics
             {
                 worldNormal = Vec3.Zero;
                 return false;
+            }
+
+            // CollisionQueries intentionally uses an AABB fallback for the cylindrical
+            // body. That fallback has no face normal, but motion sliding needs the
+            // radial normal at the actual hit point. Reconstruct it from the closest
+            // point on the capsule axis so side impacts do not fall back to -direction.
+            if (n.SqrMagnitude <= MathUtil.Epsilon)
+            {
+                var hitPoint = start + direction * distance;
+                var axis = obstacle.B - obstacle.A;
+                var axisLengthSquared = axis.SqrMagnitude;
+                var axisT = axisLengthSquared > MathUtil.Epsilon
+                    ? MathUtil.Clamp01(Vec3.Dot(hitPoint - obstacle.A, axis) / axisLengthSquared)
+                    : 0f;
+                var closest = obstacle.A + axis * axisT;
+                var radial = hitPoint - closest;
+                var radialFixed = DeterministicMathBridge.ToFixed(radial);
+                var radialLength = DeterministicMath.Sqrt(radialFixed.SqrMagnitude);
+                n = radialLength > DeterministicMathBridge.Epsilon
+                    ? DeterministicMathBridge.ToVec3(radialFixed / radialLength)
+                    : -direction;
             }
 
             worldNormal = n;

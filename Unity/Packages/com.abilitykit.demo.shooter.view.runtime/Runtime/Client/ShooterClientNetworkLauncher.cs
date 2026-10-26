@@ -25,7 +25,7 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly NetworkSdkClientLease _sdkClientLease;
         private readonly NetworkSdkClient _sdkClient;
         private readonly ShooterRoomGatewayConnection _gatewayConnection;
-        private GatewayBattleClientHost? _battleHost;
+        private MultiplayerClientSession? _multiplayerSession;
         private NetworkTransport? _battleTransport;
         private ShooterBattleDataPlane? _battleData;
         private ShooterClientSession? _battleSession;
@@ -42,7 +42,8 @@ namespace AbilityKit.Demo.Shooter.View
             _sdkClientLease = NetworkSdkClientHub.Default.Acquire(
                 _sdkClientKey,
                 new NetworkSdkBuilder()
-                    .UseOwnedConnectionFactory(() => _connection));
+                    .UseOwnedConnectionFactory(() => _connection)
+                    .UseResponseEnvelopeCodec(TcpGatewayRequestResponseEnvelopeCodec.Instance));
             _sdkClient = _sdkClientLease.Client;
             _gatewayConnection = new ShooterRoomGatewayConnection(_sdkClient);
         }
@@ -128,9 +129,9 @@ namespace AbilityKit.Demo.Shooter.View
             // Once the battle host exists it pumps both connections (room + battle); before that,
             // pump the room connection directly. Then run queued battle callbacks (push apply) on
             // this (main) thread — single-threaded with session.Tick, so ApplyGatewayPush can't race it.
-            if (_battleHost != null)
+            if (_multiplayerSession != null)
             {
-                _battleHost.Tick(deltaTime);
+                _multiplayerSession.Tick(deltaTime);
             }
             else
             {
@@ -693,7 +694,7 @@ namespace AbilityKit.Demo.Shooter.View
 
         /// <summary>
         /// Builds the battle data-plane on its OWN connection (two-connection / MOBA topology) via the
-        /// shared <see cref="GatewayBattleClientHost"/> (primitives path: shooter's room control plane is
+        /// shared <see cref="MultiplayerClientSession"/> (primitives path: shooter's room control plane is
         /// its own staged stack, not the facade). The host assembles gateway/session/protocol-preset;
         /// the configure callback adds the shooter-specific input preset, reliable-event cursor, and
         /// raw-downlink mode. Connect is deferred so the <see cref="ShooterBattleDataPlane"/> can
@@ -702,7 +703,7 @@ namespace AbilityKit.Demo.Shooter.View
         /// </summary>
         private IShooterRoomGatewayClient BuildBattleTransport(string host, int port, ShooterRoomGatewayFlowResult flow)
         {
-            var session = new GatewaySessionResult(
+            var session = new MultiplayerRoomSessionResult(
                 flow.SessionToken,
                 flow.RoomId,
                 flow.BattleId,
@@ -711,7 +712,7 @@ namespace AbilityKit.Demo.Shooter.View
                 roomSnapshot: default,
                 subscribed: false);
 
-            _battleHost = new GatewayBattleClientHost(
+            _multiplayerSession = new MultiplayerClientSession(
                 _sdkClient,
                 in session,
                 host,
@@ -719,7 +720,7 @@ namespace AbilityKit.Demo.Shooter.View
                 battleTransportFactory: () => new TcpTransport(),
                 battleDispatcher: InlineDispatcher.Instance);
 
-            _battleTransport = _battleHost.AttachBattle((config, s) =>
+            _battleTransport = _multiplayerSession.AttachBattle((config, s) =>
             {
                 config
                     // Standard room-gateway input uplink preset. Engine retry disabled (no retry policy):
@@ -853,9 +854,9 @@ namespace AbilityKit.Demo.Shooter.View
                 // afterwards so diagnostics never retain a disposed sample client.
                 try
                 {
-                    if (_battleHost != null)
+                    if (_multiplayerSession != null)
                     {
-                        _battleHost.Dispose();
+                        _multiplayerSession.Dispose();
                     }
                     else
                     {

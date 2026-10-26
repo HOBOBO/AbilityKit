@@ -74,7 +74,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                         entry.StartFrame, entry.LocalFrame, entry.CastInstanceId, entry.SkillId)
                 };
                 using (var candidate = new MobaCharacterHfsmRuntime(entry.ActorId,
-                           _definition, 0, Fixed64.Zero))
+                           _definition, 0, Fixed64.Zero, registerForInspection: false))
                 {
                     if (_actors.TryGet(entry.ActorId, out var existing) && existing.hasCharacterHfsm &&
                         (existing.characterHfsm.Runtime == null ||

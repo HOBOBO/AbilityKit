@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using AbilityKit.ActionSchema;
+using AbilityKit.Game.Flow;
 
 namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
 {
@@ -11,12 +14,41 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
         void OnTimelineStop(long skillInstanceId);
     }
 
+    public interface IMobaSkillPresentationRequestSink
+    {
+        void OnPresentationRequest(in PresentationRequest request, GroupDto group, ClipDto clip, float offsetSeconds);
+    }
+
+    public interface IMobaSkillPresentationAsyncRequestSink
+    {
+        Task OnPresentationRequestAsync(
+            PresentationRequest request,
+            GroupDto group,
+            ClipDto clip,
+            float offsetSeconds);
+    }
+
+    /// <summary>
+    /// Optional cancellable form for consumers that load resources asynchronously.
+    /// The non-cancellable interface remains supported for compatibility.
+    /// </summary>
+    public interface IMobaSkillPresentationCancellableAsyncRequestSink
+    {
+        Task OnPresentationRequestAsync(
+            PresentationRequest request,
+            GroupDto group,
+            ClipDto clip,
+            float offsetSeconds,
+            CancellationToken cancellationToken);
+    }
+
     public sealed class MobaSkillPresentationTimelineRuntime
     {
         private const string AnimationType = "AbilityKit.ActionEditorImpl.PlayAnimation";
         private const string ParticleType = "AbilityKit.ActionEditorImpl.PlayParticle";
         private readonly List<(GroupDto Group, ClipDto Clip, int Index)> _clips = new List<(GroupDto, ClipDto, int)>();
         private readonly IMobaSkillPresentationTimelineSink _sink;
+        private readonly CancellationTokenSource _dispatchCancellation = new CancellationTokenSource();
         private readonly long _skillInstanceId;
         private int _next;
         private float _time;
@@ -89,6 +121,8 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
         {
             if (_stopped) return;
             _stopped = true;
+            _dispatchCancellation.Cancel();
+            _dispatchCancellation.Dispose();
             _sink.OnTimelineStop(_skillInstanceId);
         }
 
@@ -100,8 +134,86 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
                 var offset = Math.Max(0, _time - entry.Clip.start);
                 if (entry.Clip.length > 0 && offset >= entry.Clip.length) continue;
                 if (entry.Clip.length == 0 && offset > 0) continue;
-                _sink.OnClipStart(_skillInstanceId, entry.Group, entry.Clip, offset);
+                var request = CreateRequest(entry.Group, entry.Clip, entry.Index, offset);
+                if (_sink is IMobaSkillPresentationCancellableAsyncRequestSink cancellableSink)
+                    _ = DispatchAsync(cancellableSink, request, entry.Group, entry.Clip, offset, _dispatchCancellation.Token);
+                else if (_sink is IMobaSkillPresentationAsyncRequestSink asyncRequestSink)
+                    _ = DispatchAsync(asyncRequestSink, request, entry.Group, entry.Clip, offset);
+                else if (_sink is IMobaSkillPresentationRequestSink requestSink)
+                    requestSink.OnPresentationRequest(in request, entry.Group, entry.Clip, offset);
+                else
+                    _sink.OnClipStart(_skillInstanceId, entry.Group, entry.Clip, offset);
             }
+        }
+
+        private static async Task DispatchAsync(
+            IMobaSkillPresentationAsyncRequestSink sink,
+            PresentationRequest request,
+            GroupDto group,
+            ClipDto clip,
+            float offsetSeconds)
+        {
+            try
+            {
+                await sink.OnPresentationRequestAsync(request, group, clip, offsetSeconds);
+            }
+            catch (Exception exception)
+            {
+                // Timeline dispatch is intentionally fire-and-forget. Keep an
+                // async consumer failure observable without creating an
+                // unobserved task exception on the render loop.
+                System.Diagnostics.Debug.WriteLine(exception);
+            }
+        }
+
+        private static async Task DispatchAsync(
+            IMobaSkillPresentationCancellableAsyncRequestSink sink,
+            PresentationRequest request,
+            GroupDto group,
+            ClipDto clip,
+            float offsetSeconds,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await sink.OnPresentationRequestAsync(
+                    request,
+                    group,
+                    clip,
+                    offsetSeconds,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception exception)
+            {
+                System.Diagnostics.Debug.WriteLine(exception);
+            }
+        }
+
+        private PresentationRequest CreateRequest(
+            GroupDto group,
+            ClipDto clip,
+            int index,
+            float offset)
+        {
+            var resource = clip.args[clip.type == AnimationType ? "clipKey" : "resourceKey"];
+            var durationMs = clip.length > 0 ? (int)Math.Max(1, clip.length * 1000f) : 0;
+            return new PresentationRequest(
+                "timeline:" + _skillInstanceId + ":" + index,
+                assetId: 0,
+                position: new PresentationVector3(0f, 1.1f, 0.55f),
+                attachment: new PresentationAttachment(PresentationAttachmentKind.Actor, group.actorId),
+                durationMs: durationMs,
+                scale: 0.55f,
+                parameters: new[] { new PresentationParameter("offsetSeconds", offset) },
+                resourceKey: clip.type == AnimationType ? string.Empty : resource,
+                assetKind: clip.type == AnimationType ? PresentationAssetKind.Animation : PresentationAssetKind.Particle,
+                playback: clip.type == AnimationType
+                    ? new PresentationPlaybackSpec(clipKey: resource, normalizedTime: offset > 0f ? offset / Math.Max(clip.length, 0.0001f) : 0f)
+                    : PresentationPlaybackSpec.Default);
         }
     }
 }

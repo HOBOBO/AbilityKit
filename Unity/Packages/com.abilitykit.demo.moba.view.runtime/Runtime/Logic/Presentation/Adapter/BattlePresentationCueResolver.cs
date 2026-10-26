@@ -452,5 +452,15 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 return hash;
             }
         }
+
+        public override string ToString()
+        {
+            if (!_hasValue) return string.Empty;
+            if (_hasPredictionKey) return "prediction:" + _predictionKey;
+            if (_hasExternalKey) return "external:" + (_externalKey ?? string.Empty);
+            if (_triggerKey > 0) return "trigger:" + _triggerKey + ":" + _order;
+            if (_triggerEventId > 0) return "event:" + _triggerEventId + ":" + _order;
+            return "action:" + _actionIndex + ":" + _order + ":" + _sourceActorId + ":" + _targetActorId;
+        }
     }
 }

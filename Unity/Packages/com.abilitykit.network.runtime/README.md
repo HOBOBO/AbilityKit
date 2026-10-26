@@ -16,9 +16,8 @@ Runtime/Network/
 ├── Runtime/
 │   ├── Transports/         TcpTransport（内置；WebSocket/LiteNetLib/InMemory 在可选传输包里）
 │   ├── Connections/        ConnectionManager（封装 ITransport → IConnection，含心跳/重连/分帧）
-│   ├── RequestResponse/    RequestClient（opCode + seq 的请求-响应配对）
-│   ├── Gateway/            IGatewayConnection + GatewayConnection（seq 匹配 + 推送分发）
-│   ├── TcpGateway/         TcpGatewayResponseCodec（网关响应解码）
+│   ├── RequestResponse/    RequestClient + NetworkProtocolSession（协议请求/响应 + 推送分发）
+│   ├── TcpGateway/         TcpGatewayResponseCodec（既有网关协议适配）
 │   ├── Sync/               SyncClock / ServerClockEstimator / FastReconnectSession / ReconnectBackoffPolicy / SyncHealthEvent / NetworkDiagnosticsSnapshot / ClientSyncRecoveryCoordinator / SnapshotSendQueue 等
 │   ├── Interpolation/      InterpolationDiagnostics / RemoteInterpolationPlayback（远程插值播放）
 │   ├── Conditioning/       NetworkConditioningMiddleware / NetworkConditionProfile（延迟/抖动/丢包模拟）
@@ -33,7 +32,7 @@ Runtime/Network/
 | `ITransport` | 原始字节传输（Connect/Send/BytesReceived）。TcpTransport 内置；WebSocket/LiteNetLib/InMemory 可选 |
 | `IConnection` | 帧级连接（Open/Send/PacketReceived/ServerPushReceived）。ConnectionManager 是默认实现 |
 | `IReconnectableConnection` | 带重连控制的连接 |
-| `IGatewayConnection` | 网关级连接（SendRequestAsync + 推送注册 + seq 匹配） |
+| `INetworkProtocolSession` | 通用协议会话（SendRequestAsync + 推送注册 + seq 匹配） |
 | `IDispatcher` | 回调线程派发（InlineDispatcher / SynchronizationContextDispatcher） |
 | `IFrameCodec` | 成帧编解码（LengthPrefixedFrameCodec 默认） |
 | `INetworkDiagnostics` | 统一网络诊断快照 |
@@ -42,6 +41,7 @@ Runtime/Network/
 
 - **`ConnectionManager`**：封装 `ITransport` → `NetworkSession`（成帧）→ `IConnection`。内置心跳、重连（`ReconnectBackoffPolicy`）、推送分发。
 - **`RequestClient`**：在 `IConnection` 之上做 seq 配对的请求-响应（带超时 + 取消）。
+- **`NetworkProtocolSession`**：在 `IConnection` 之上提供协议请求与推送的便捷会话；默认使用 Raw response body。Gateway envelope 等协议由调用方显式传入 `IRequestResponseEnvelopeCodec`，因此 runtime 不绑定具体网关。
 - **`SyncClock` / `ServerClockEstimator`**：客户端时钟与服务端时钟的偏移估计。
 - **`FastReconnectSession`**：断线快重连状态机（Connected → Disconnected → Resuming → AwaitingFullSnapshot → Recovered）。
 - **`SyncHealthEvent` / `SyncHealthEventBuffer`**：同步健康事件（Info/Warning/Error）。

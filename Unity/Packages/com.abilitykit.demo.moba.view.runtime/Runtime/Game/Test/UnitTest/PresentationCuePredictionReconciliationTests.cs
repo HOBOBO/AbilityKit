@@ -164,6 +164,51 @@ namespace AbilityKit.Game.Test.UnitTest
                 handler.HandleSnapshot(new[] { CreateBaselineEnd(worldId: 44, generation: 1) });
                 Assert.IsFalse(world.IsAlive(firstEntity));
                 Assert.Throws<System.InvalidOperationException>(() => GetActiveEntityId(handler, key));
+
+                handler.ResetForAuthoritativeBaseline();
+                handler.HandleSnapshot(new[]
+                {
+                    cue,
+                    CreateBaselineEnd(worldId: 44, generation: 1),
+                });
+                Assert.IsTrue(world.IsAlive(GetActiveEntityId(handler, key)));
+            }
+            finally
+            {
+                if (root.IsValid && world.IsAlive(root.Id)) world.DestroyRecursive(root.Id);
+            }
+        }
+
+        [Test]
+        public void View_handler_accumulates_split_baseline_and_overwrites_same_generation()
+        {
+            const int vfxId = 7101;
+            var world = new EntityWorld();
+            var root = world.Create("split-baseline-root");
+            var vfx = new BattleVfxManager(new VfxDatabase(new Dictionary<int, VfxDTO>
+            {
+                [vfxId] = new VfxDTO { Id = vfxId, Resource = "missing/split-baseline", DurationMs = 300 },
+            }));
+            var handler = new BattlePresentationCueViewEventHandler(world, null, vfx, in root);
+            var first = CreateCue("first", 0, PresentationCuePredictionState.None, 0,
+                PresentationCueSnapshotKind.ActiveBaseline, PresentationCueLifetime.PersistentState, 55, 7);
+            var second = CreateCue("second", 0, PresentationCuePredictionState.None, 0,
+                PresentationCueSnapshotKind.ActiveBaseline, PresentationCueLifetime.PersistentState, 55, 7);
+            var firstKey = BattlePresentationCueRequestKey.From(in first);
+            var secondKey = BattlePresentationCueRequestKey.From(in second);
+
+            try
+            {
+                handler.HandleSnapshot(new[] { first });
+                var firstId = GetActiveEntityId(handler, firstKey);
+                handler.HandleSnapshot(new[] { second });
+                Assert.IsTrue(world.IsAlive(firstId));
+                handler.HandleSnapshot(new[] { CreateBaselineEnd(55, 7) });
+                var secondId = GetActiveEntityId(handler, secondKey);
+                Assert.IsFalse(world.IsAlive(firstId));
+
+                handler.HandleSnapshot(new[] { second, CreateBaselineEnd(55, 7) });
+                Assert.AreEqual(secondId, GetActiveEntityId(handler, secondKey));
             }
             finally
             {

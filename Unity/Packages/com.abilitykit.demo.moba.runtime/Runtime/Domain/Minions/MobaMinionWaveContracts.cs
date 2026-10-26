@@ -60,8 +60,7 @@ namespace AbilityKit.Demo.Moba.Minions
     public static class MobaMinionAiStatePolicy
     {
         public static bool ShouldFollowRoute(MobaMinionAiState state) =>
-            state == MobaMinionAiState.FollowingRoute ||
-            state == MobaMinionAiState.AcquiringTarget;
+            state == MobaMinionAiState.FollowingRoute;
     }
 
     public static class MobaMinionLaneSpacingPolicy

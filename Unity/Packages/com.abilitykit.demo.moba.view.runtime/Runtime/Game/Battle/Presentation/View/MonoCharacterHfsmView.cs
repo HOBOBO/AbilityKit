@@ -1,14 +1,17 @@
 using AbilityKit.Game.Battle.Component;
 using UnityEngine;
 using System;
-using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using AbilityKit.ActionSchema;
 using AbilityKit.Game.Flow.Battle.Presentation.Timeline;
+using AbilityKit.Game.Platform.Unity.Presentation;
 
 namespace AbilityKit.Game.Flow
 {
     public sealed class MonoCharacterHfsmView : MonoBehaviour, IFrameSeekableView, ICharacterPresentationSink,
-        IMobaSkillPresentationTimelineSink
+        IMobaSkillPresentationTimelineSink, IMobaSkillPresentationAsyncRequestSink,
+        IMobaSkillPresentationCancellableAsyncRequestSink
     {
         private const int TimelineSkillId = 10020101;
         private const string TimelineResource = "moba/action_timeline/skill_10020101.moba.presentation";
@@ -18,14 +21,16 @@ namespace AbilityKit.Game.Flow
         private Animator _animator;
         private float _secondsPerFrame;
         private MobaSkillPresentationCastDriver _presentation;
-        private readonly List<(GameObject Object, float EndSeconds)> _particles =
-            new List<(GameObject, float)>();
+        private CancellationTokenSource _presentationCancellation;
+        private PresentationUnityBackend _presentationBackend;
+        private PresentationSession<PresentationUnityHandle> _presentationSession;
 
         public void Bind(BattleCharacterHfsmComponent state, int tickRate)
         {
             if (_state != state)
                 StopPresentation();
             _state = state;
+            EnsurePresentationBackend();
             _secondsPerFrame = tickRate > 0 ? 1f / tickRate : 0f;
             if (_animator == null) _animator = GetComponentInChildren<Animator>(true);
             if (state != null) SeekToFrame(state.SnapshotFrame, _secondsPerFrame);
@@ -95,51 +100,110 @@ namespace AbilityKit.Game.Flow
                 }
                 _presentation = new MobaSkillPresentationCastDriver(asset.text, this);
             }
+            if (_presentationCancellation == null)
+                _presentationCancellation = new CancellationTokenSource();
             var elapsed = Mathf.Max(0, frame - action.StartFrame) * secondsPerFrame;
             _presentation.Seek(action.CastInstanceId, elapsed);
-            for (var i = _particles.Count - 1; i >= 0; i--)
-            {
-                if (elapsed < _particles[i].EndSeconds) continue;
-                if (_particles[i].Object != null) Destroy(_particles[i].Object);
-                _particles.RemoveAt(i);
-            }
         }
 
         private void StopPresentation()
         {
+            CancelPendingPresentationLoads();
             _presentation?.Stop();
             _presentation = null;
-            for (var i = _particles.Count - 1; i >= 0; i--)
-                if (_particles[i].Object != null) Destroy(_particles[i].Object);
-            _particles.Clear();
+            if (_presentationBackend != null) _ = _presentationBackend.ClearAsync();
+            _presentationSession = null;
         }
 
         public void OnClipStart(long skillInstanceId, GroupDto group, ClipDto clip, float offsetSeconds)
         {
-            if (clip.type != "AbilityKit.ActionEditorImpl.PlayParticle" || group.actorId != 0)
-            {
-                Debug.LogError("Unsupported XiaoQiao presentation clip or actor binding: " + clip.type);
-                return;
-            }
-            var key = clip.args["resourceKey"];
-            var prefab = Resources.Load<GameObject>(key);
-            if (prefab == null)
-            {
-                Debug.LogError("Missing MOBA presentation prefab: " + key);
-                return;
-            }
-            var instance = Instantiate(prefab, transform);
-            instance.transform.localPosition = new Vector3(0f, 1.1f, 0.55f);
-            instance.transform.localRotation = Quaternion.identity;
-            instance.transform.localScale *= 0.55f;
-            _particles.Add((instance, clip.start + clip.length));
+            var request = CreatePresentationRequest(group, clip, offsetSeconds);
+            if (request.IsValid) _ = PlayPresentationAsync(request, CancellationToken.None);
+        }
+
+        public async Task OnPresentationRequestAsync(
+            PresentationRequest request,
+            GroupDto group,
+            ClipDto clip,
+            float offsetSeconds)
+        {
+            await PlayPresentationAsync(request, _presentationCancellation?.Token ?? CancellationToken.None);
+        }
+
+        public Task OnPresentationRequestAsync(
+            PresentationRequest request,
+            GroupDto group,
+            ClipDto clip,
+            float offsetSeconds,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return PlayPresentationAsync(request, cancellationToken);
         }
 
         public void OnTimelineStop(long skillInstanceId)
         {
-            for (var i = _particles.Count - 1; i >= 0; i--)
-                if (_particles[i].Object != null) Destroy(_particles[i].Object);
-            _particles.Clear();
+            CancelPendingPresentationLoads();
+            if (_presentationBackend != null) _ = _presentationBackend.ClearAsync();
+        }
+
+        private async Task PlayPresentationAsync(PresentationRequest request, CancellationToken cancellationToken)
+        {
+            if (!request.IsValid || !this || !isActiveAndEnabled) return;
+            EnsurePresentationBackend();
+            var session = _presentationSession;
+            if (session == null) return;
+            try
+            {
+                await session.EmitTransientAsync(request, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+            }
+        }
+
+        private PresentationRequest CreatePresentationRequest(GroupDto group, ClipDto clip, float offsetSeconds)
+        {
+            if (clip == null || group == null || group.actorId != 0 || clip.args == null) return default;
+            var isAnimation = clip.type == "AbilityKit.ActionEditorImpl.PlayAnimation";
+            var isParticle = clip.type == "AbilityKit.ActionEditorImpl.PlayParticle";
+            if (!isAnimation && !isParticle) return default;
+            var keyName = isAnimation ? "clipKey" : "resourceKey";
+            if (!clip.args.TryGetValue(keyName, out var resource) || string.IsNullOrWhiteSpace(resource)) return default;
+            return new PresentationRequest(
+                "timeline:" + _state?.Action.CastInstanceId + ":" + clip.start,
+                assetId: 0,
+                position: new PresentationVector3(0f, 1.1f, 0.55f),
+                attachment: new PresentationAttachment(PresentationAttachmentKind.Actor, 0),
+                durationMs: clip.length > 0 ? Mathf.Max(1, Mathf.RoundToInt(clip.length * 1000f)) : 0,
+                scale: 0.55f,
+                parameters: new[] { new PresentationParameter("offsetSeconds", offsetSeconds) },
+                resourceKey: isParticle ? resource : string.Empty,
+                assetKind: isParticle ? PresentationAssetKind.Particle : PresentationAssetKind.Animation,
+                playback: new PresentationPlaybackSpec(clipKey: isAnimation ? resource : null));
+        }
+
+        private void EnsurePresentationBackend()
+        {
+            if (_presentationBackend != null) return;
+            _presentationBackend = new PresentationUnityBackend(transform);
+            _presentationSession = new PresentationSession<PresentationUnityHandle>(_presentationBackend);
+        }
+
+        private void Update()
+        {
+            _presentationBackend?.Tick(Time.deltaTime);
+        }
+
+        private void CancelPendingPresentationLoads()
+        {
+            _presentationCancellation?.Cancel();
+            _presentationCancellation?.Dispose();
+            _presentationCancellation = null;
         }
 
         private void OnDisable() => StopPresentation();

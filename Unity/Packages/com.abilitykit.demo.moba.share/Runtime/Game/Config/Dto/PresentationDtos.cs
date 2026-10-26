@@ -7,7 +7,19 @@ namespace AbilityKit.Demo.Moba.Share.Config
     {
         public int Id;
         public string Resource;
+        public string ResourceKey;
+        public int AssetKind;
         public int DurationMs;
+        public int DelayMs;
+        public int IntervalMs;
+        public int PlayCount = 1;
+        public bool Loop;
+        public float Speed = 1f;
+        public string ClipKey;
+        public string PolicyGroup;
+        public bool Unique;
+        public int MinIntervalMs;
+        public int MaxActive;
     }
 
     [Serializable]
@@ -19,6 +31,19 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int Kind;
         public int AssetId;
         public int DefaultDurationMs;
+
+        public int AssetKind;
+        public string ResourceKey;
+        public string ClipKey;
+        public int DelayMs;
+        public int IntervalMs;
+        public int PlayCount = 1;
+        public bool Loop;
+        public float Speed = 1f;
+        public string PolicyGroup;
+        public bool Unique;
+        public int MinIntervalMs;
+        public int MaxActive;
 
         public int AttachMode;
         public string Socket;

@@ -13,6 +13,7 @@
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -29,6 +30,7 @@
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -45,6 +47,7 @@
     "SkillType": 5,
     "Tags": [],
     "PreviewVfxId": 90001002,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -61,6 +64,7 @@
     "SkillType": 5,
     "Tags": [],
     "PreviewVfxId": 90001001,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -77,6 +81,7 @@
     "SkillType": 4,
     "Tags": [],
     "PreviewVfxId": 90001003,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -93,6 +98,7 @@
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -109,6 +115,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90002001,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -125,6 +132,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90002002,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -141,6 +149,7 @@
     "SkillType": 4,
     "Tags": [],
     "PreviewVfxId": 90002003,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -157,6 +166,7 @@
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -173,6 +183,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90003001,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -189,6 +200,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90003002,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -205,6 +217,7 @@
     "SkillType": 4,
     "Tags": [],
     "PreviewVfxId": 90003003,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -221,6 +234,7 @@
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -237,6 +251,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90004001,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -253,6 +268,7 @@
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -269,6 +285,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90004002,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -285,6 +302,7 @@
     "SkillType": 4,
     "Tags": [],
     "PreviewVfxId": 90004003,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -301,6 +319,7 @@
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -317,6 +336,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90005001,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -334,6 +354,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90005002,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -350,6 +371,7 @@
     "SkillType": 4,
     "Tags": [],
     "PreviewVfxId": 90005003,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -366,6 +388,7 @@
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -382,6 +405,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90006001,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -398,6 +422,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90006002,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -414,6 +439,7 @@
     "SkillType": 4,
     "Tags": [],
     "PreviewVfxId": 90006003,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -430,6 +456,7 @@
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -446,6 +473,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90007001,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -462,6 +490,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90007002,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -478,6 +507,7 @@
     "SkillType": 4,
     "Tags": [],
     "PreviewVfxId": 90007004,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -494,6 +524,7 @@
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -506,10 +537,12 @@
     "Name": "鲁班七号-普通攻击",
     "PreCastFlowId": 0,
     "Range": 8,
+    "RequiredTargetQueryId": 0,
     "SkillButtonTemplateId": 1,
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": true,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -526,6 +559,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90008002,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -542,6 +576,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 90008004,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -558,6 +593,7 @@
     "SkillType": 4,
     "Tags": [],
     "PreviewVfxId": 90008006,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -574,6 +610,7 @@
     "SkillType": 2,
     "Tags": [],
     "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
     "ExecutionBlockedResultMask": 4
   }
 ]

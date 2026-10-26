@@ -56,6 +56,24 @@ public sealed class NetworkPacketRouterTests
     }
 
     [Fact]
+    public void Dispatch_OptionalHeaderValidationRejectsInvalidSequenceAndConflictingKinds()
+    {
+        var router = new NetworkPacketRouter(headerValidator: NetworkPacketHeaderValidation.Validate);
+        var handled = 0;
+        router.Register(21, NetworkPacketDispatchKind.Request, _ => handled++);
+
+        Assert.Equal(NetworkPacketDispatchOutcome.BoundaryRejected, router.DispatchDetailed(
+            new NetworkPacketHeader(NetworkPacketFlags.Request, 21, 0, 0), default));
+        Assert.Equal(NetworkPacketDispatchOutcome.BoundaryRejected, router.DispatchDetailed(
+            new NetworkPacketHeader(NetworkPacketFlags.Request | NetworkPacketFlags.Response, 21, 1, 0), default));
+        Assert.Equal(NetworkPacketDispatchOutcome.Handled, router.DispatchDetailed(
+            new NetworkPacketHeader(NetworkPacketFlags.Request, 21, 1, 0), default));
+
+        Assert.Equal(1, handled);
+        Assert.Equal(2, router.GetSnapshot().BoundaryRejectedCount);
+    }
+
+    [Fact]
     public void Dispatch_IsolatesHandlerExceptionsAndContinuesOtherHandlers()
     {
         var reported = 0;

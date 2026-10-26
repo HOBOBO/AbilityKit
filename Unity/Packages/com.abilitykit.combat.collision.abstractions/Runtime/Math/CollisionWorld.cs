@@ -179,7 +179,7 @@ namespace AbilityKit.Core.Mathematics
             out RaycastHit hit);
     }
 
-    public sealed class NaiveCollisionWorld : ICollisionWorld, IOrientedBoxSweepCollisionWorld, ISphereSweepCollisionWorld, Combat.Collision.ICollisionLayerRelation
+    public sealed class NaiveCollisionWorld : ICollisionWorld, IOrientedBoxSweepCollisionWorld, ISphereSweepCollisionWorld, IShapeOverlapCollisionWorld, Combat.Collision.ICollisionLayerRelation
     {
         private struct Entry
         {
@@ -431,6 +431,88 @@ namespace AbilityKit.Core.Mathematics
             return count;
         }
 
+        public int OverlapShape(in OverlapShapeQuery shape, in Combat.Collision.LayerFilter filter, List<ColliderId> results)
+        {
+            if (results == null) throw new ArgumentNullException(nameof(results));
+            if (shape.Kind == OverlapShapeKind.Rectangle
+                && (shape.Width <= 0f || shape.Length <= 0f)
+                || shape.Kind != OverlapShapeKind.Rectangle && shape.Radius <= 0f)
+            {
+                return 0;
+            }
+            var forward = shape.Forward.SqrMagnitude > 0.000001f ? shape.Forward.Normalized : Vec3.Forward;
+            var right = Vec3.Cross(Vec3.Up, forward).Normalized;
+            if (right.SqrMagnitude <= 0.000001f) right = Vec3.Right;
+            var count = 0;
+            for (var i = 0; i < _entries.Count; i++)
+            {
+                var e = _entries[i];
+                if (!e.Alive || !filter.IsLayerIncluded(e.LayerId) || filter.ShouldIgnore(i + 1)) continue;
+                var worldShape = ToWorldShape(in e.Transform, in e.LocalShape);
+                var center = GetShapeCenter(in worldShape);
+                var radius = GetShapeRadius(in worldShape);
+                if (!MatchesShape(in shape, in center, radius, in forward, in right)) continue;
+                results.Add(new ColliderId(i + 1));
+                count++;
+            }
+            return count;
+        }
+
+        private static Vec3 GetShapeCenter(in ColliderShape shape)
+        {
+            switch (shape.Type)
+            {
+                case ColliderShapeType.Sphere: return shape.Sphere.Center;
+                case ColliderShapeType.Capsule: return (shape.Capsule.A + shape.Capsule.B) * 0.5f;
+                case ColliderShapeType.Aabb: return (shape.Aabb.Min + shape.Aabb.Max) * 0.5f;
+                case ColliderShapeType.OBB: return shape.Obb.Center;
+                default: return Vec3.Zero;
+            }
+        }
+
+        private static float GetShapeRadius(in ColliderShape shape)
+        {
+            switch (shape.Type)
+            {
+                case ColliderShapeType.Sphere: return shape.Sphere.Radius;
+                case ColliderShapeType.Capsule:
+                    return (shape.Capsule.B - shape.Capsule.A).Magnitude * 0.5f + shape.Capsule.Radius;
+                case ColliderShapeType.Aabb: return (shape.Aabb.Max - shape.Aabb.Min).Magnitude * 0.5f;
+                case ColliderShapeType.OBB: return shape.Obb.HalfExtents.Magnitude;
+                default: return 0f;
+            }
+        }
+
+        private static bool MatchesShape(in OverlapShapeQuery shape, in Vec3 center, float padding, in Vec3 forward, in Vec3 right)
+        {
+            var relative = center - shape.Anchor;
+            relative = new Vec3(relative.X, 0f, relative.Z);
+            var radial = relative.Magnitude;
+            if (shape.Kind == OverlapShapeKind.Circle) return radial <= shape.Radius + padding;
+            if (shape.Kind == OverlapShapeKind.Sector)
+            {
+                if (radial > shape.Radius + padding) return false;
+                if (radial <= 0.0001f || shape.HalfAngleDeg >= 179.999f) return true;
+                var halfAngle = shape.HalfAngleDeg * (float)(Math.PI / 180.0);
+                if (padding > 0f)
+                {
+                    var tangentDenominator = MathUtil.Sqrt(MathUtil.Max(0f, radial * radial - padding * padding));
+                    var paddingAngle = DeterministicMathBridge.Atan2(padding, tangentDenominator);
+                    halfAngle = MathUtil.Min((float)Math.PI, halfAngle + paddingAngle);
+                }
+                var cos = DeterministicMathBridge.Cos(halfAngle);
+                return Vec3.Dot(relative, forward) / radial >= cos;
+            }
+
+            var localForward = Vec3.Dot(relative, forward);
+            var localRight = Vec3.Dot(relative, right);
+            var halfWidth = shape.Width * 0.5f;
+            var halfLength = shape.Length * 0.5f;
+            var minForward = shape.AnchorAtOrigin ? -padding : -halfLength - padding;
+            var maxForward = shape.AnchorAtOrigin ? shape.Length + padding : halfLength + padding;
+            return localForward >= minForward && localForward <= maxForward && Math.Abs(localRight) <= halfWidth + padding;
+        }
+
         private static ColliderShape ToWorldShape(in Transform3 t, in ColliderShape local)
         {
             switch (local.Type)
@@ -507,5 +589,62 @@ namespace AbilityKit.Core.Mathematics
 
             return new Aabb(wMin, wMax);
         }
+    }
+
+    /// <summary>
+    /// Broadphase-backed overlap query for area effects. The query is expressed on
+    /// the XZ plane; implementations may use the collider's conservative bounds
+    /// for the final narrow phase.
+    /// </summary>
+    public enum OverlapShapeKind
+    {
+        Circle = 0,
+        Sector = 1,
+        Rectangle = 2,
+    }
+
+    public readonly struct OverlapShapeQuery
+    {
+        public readonly OverlapShapeKind Kind;
+        public readonly Vec3 Anchor;
+        public readonly Vec3 Forward;
+        public readonly float Radius;
+        public readonly float HalfAngleDeg;
+        public readonly float Width;
+        public readonly float Length;
+        public readonly bool AnchorAtOrigin;
+
+        public OverlapShapeQuery(
+            OverlapShapeKind kind,
+            in Vec3 anchor,
+            in Vec3 forward,
+            float radius,
+            float halfAngleDeg = 0f,
+            float width = 0f,
+            float length = 0f,
+            bool anchorAtOrigin = true)
+        {
+            Kind = kind;
+            Anchor = anchor;
+            Forward = DeterministicMathBridge.Normalize(in forward);
+            Radius = MathUtil.Max(0f, radius);
+            HalfAngleDeg = MathUtil.Clamp(halfAngleDeg, 0f, 180f);
+            Width = MathUtil.Max(0f, width);
+            Length = MathUtil.Max(0f, length);
+            if (Kind == OverlapShapeKind.Rectangle)
+            {
+                if (Width <= 0f) Width = Radius * 2f;
+                if (Length <= 0f) Length = Radius * 2f;
+            }
+            AnchorAtOrigin = anchorAtOrigin;
+        }
+    }
+
+    public interface IShapeOverlapCollisionWorld
+    {
+        int OverlapShape(
+            in OverlapShapeQuery shape,
+            in Combat.Collision.LayerFilter filter,
+            List<ColliderId> results);
     }
 }

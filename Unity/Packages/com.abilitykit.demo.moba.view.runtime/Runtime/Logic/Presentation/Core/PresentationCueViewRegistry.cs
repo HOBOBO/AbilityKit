@@ -20,36 +20,30 @@ namespace AbilityKit.Game.Flow
     /// </summary>
     public sealed class PresentationCueViewRegistry<TKey, TPayload, THandle>
     {
-        private readonly IPresentationCueViewPort<TKey, TPayload, THandle> _port;
-        private readonly IEqualityComparer<TKey> _keyComparer;
-        private readonly Dictionary<TKey, THandle> _active;
-        private readonly List<TKey> _clearBuffer = new List<TKey>();
+        private readonly PresentationInstanceRegistry<TKey, TPayload, THandle> _instances;
 
         public PresentationCueViewRegistry(
             IPresentationCueViewPort<TKey, TPayload, THandle> port,
             IEqualityComparer<TKey> keyComparer = null)
         {
-            _port = port ?? throw new ArgumentNullException(nameof(port));
-            _keyComparer = keyComparer ?? EqualityComparer<TKey>.Default;
-            _active = new Dictionary<TKey, THandle>(_keyComparer);
+            _instances = new PresentationInstanceRegistry<TKey, TPayload, THandle>(port, keyComparer);
         }
 
-        public int ActiveCount => _active.Count;
+        public int ActiveCount => _instances.ActiveCount;
 
-        public long CreatedCount { get; private set; }
+        public long CreatedCount => _instances.CreatedCount;
 
-        public long UpdatedCount { get; private set; }
+        public long UpdatedCount => _instances.UpdatedCount;
 
-        public long DestroyedCount { get; private set; }
+        public long DestroyedCount => _instances.DestroyedCount;
 
-        public long FailedCreateCount { get; private set; }
+        public long FailedCreateCount => _instances.FailedCreateCount;
 
-        public long StaleHandleCount { get; private set; }
+        public long StaleHandleCount => _instances.StaleHandleCount;
 
         public bool Apply(in PresentationCueReconciliationDecision<TKey, TPayload> decision)
         {
-            if (!decision.Accepted ||
-                _keyComparer.Equals(decision.Key, default(TKey)))
+            if (!decision.Accepted)
             {
                 return false;
             }
@@ -58,12 +52,12 @@ namespace AbilityKit.Game.Flow
             {
                 case PresentationCueCommandKind.EnsureActive:
                     var payload = decision.Payload;
-                    return EnsureActive(decision.Key, in payload);
+                    return _instances.EnsureActive(decision.Key, in payload);
                 case PresentationCueCommandKind.Stop:
-                    return Stop(decision.Key);
+                    return _instances.Stop(decision.Key);
                 case PresentationCueCommandKind.EmitTransient:
                     var transientPayload = decision.Payload;
-                    return EmitTransient(decision.Key, in transientPayload);
+                    return _instances.EmitTransient(decision.Key, in transientPayload);
                 default:
                     return false;
             }
@@ -71,136 +65,32 @@ namespace AbilityKit.Game.Flow
 
         public bool TryGetHandle(TKey key, out THandle handle)
         {
-            if (_keyComparer.Equals(key, default(TKey)))
-            {
-                handle = default(THandle);
-                return false;
-            }
-
-            return _active.TryGetValue(key, out handle);
+            return _instances.TryGetHandle(key, out handle);
         }
 
         public bool EnsureActive(TKey key, in TPayload payload)
         {
-            if (_keyComparer.Equals(key, default(TKey))) return false;
-
-            if (_active.TryGetValue(key, out var existing))
-            {
-                if (_port.IsAlive(existing))
-                {
-                    _port.Update(existing, in payload);
-                    UpdatedCount++;
-                    return true;
-                }
-
-                _active.Remove(key);
-                StaleHandleCount++;
-            }
-
-            if (!_port.TryCreate(key, in payload, out var created))
-            {
-                FailedCreateCount++;
-                return false;
-            }
-
-            _active.Add(key, created);
-            CreatedCount++;
-            return true;
+            return _instances.EnsureActive(key, in payload);
         }
 
         public bool Stop(TKey key)
         {
-            if (_keyComparer.Equals(key, default(TKey)) ||
-                !_active.TryGetValue(key, out var handle))
-            {
-                return false;
-            }
-
-            if (_port.IsAlive(handle))
-            {
-                _port.Destroy(handle);
-                DestroyedCount++;
-            }
-            else
-            {
-                StaleHandleCount++;
-            }
-
-            _active.Remove(key);
-            return true;
+            return _instances.Stop(key);
         }
 
         public bool EmitTransient(TKey key, in TPayload payload)
         {
-            if (_keyComparer.Equals(key, default(TKey))) return false;
-            if (!_port.TryCreate(key, in payload, out var handle))
-            {
-                FailedCreateCount++;
-                return false;
-            }
-
-            CreatedCount++;
-            if (_port.IsAlive(handle))
-            {
-                _port.Destroy(handle);
-                DestroyedCount++;
-            }
-
-            return true;
+            return _instances.EmitTransient(key, in payload);
         }
 
         public void Clear()
         {
-            if (_active.Count == 0) return;
-
-            _clearBuffer.Clear();
-            foreach (var pair in _active)
-            {
-                _clearBuffer.Add(pair.Key);
-            }
-
-            List<Exception> failures = null;
-            for (var i = 0; i < _clearBuffer.Count; i++)
-            {
-                try
-                {
-                    Stop(_clearBuffer[i]);
-                }
-                catch (Exception exception)
-                {
-                    failures ??= new List<Exception>();
-                    failures.Add(exception);
-                }
-            }
-
-            _clearBuffer.Clear();
-            if (failures != null)
-            {
-                throw new AggregateException(
-                    "One or more presentation cue views failed to stop.",
-                    failures);
-            }
+            _instances.Clear();
         }
 
         public void ReconcileActiveSet(IReadOnlyCollection<TKey> desiredKeys)
         {
-            var desired = new HashSet<TKey>(_keyComparer);
-            if (desiredKeys != null)
-            {
-                foreach (var key in desiredKeys)
-                {
-                    if (!_keyComparer.Equals(key, default(TKey))) desired.Add(key);
-                }
-            }
-
-            _clearBuffer.Clear();
-            foreach (var pair in _active)
-            {
-                if (!desired.Contains(pair.Key)) _clearBuffer.Add(pair.Key);
-            }
-
-            for (var i = 0; i < _clearBuffer.Count; i++) Stop(_clearBuffer[i]);
-            _clearBuffer.Clear();
+            _instances.ReconcileActiveSet(desiredKeys);
         }
     }
 }

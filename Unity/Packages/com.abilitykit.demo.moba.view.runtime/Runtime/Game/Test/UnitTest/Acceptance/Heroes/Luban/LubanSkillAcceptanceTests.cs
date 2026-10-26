@@ -66,6 +66,14 @@ namespace AbilityKit.Game.Test.UnitTest
                     "Luban normal attacks should consume a single projectile hit.");
                 Assert.AreEqual(10080012, basicProjectile.OnHitEffectId,
                     "Luban basic projectile must resolve the damage trigger rather than recursively firing another projectile.");
+                Assert.IsTrue(harness.Config.TryGetProjectileLauncher(31080001, out var basicLauncher));
+                Assert.AreEqual(1, basicLauncher.CountPerShot,
+                    "Luban normal attacks should emit exactly one projectile.");
+                Assert.AreEqual(0f, basicLauncher.FanAngleDeg,
+                    "Only the passive sweep should use a fan-shaped projectile spread.");
+                Assert.IsTrue(harness.Config.TryGetSkill(10080001, out var basicAttack));
+                Assert.IsTrue(basicAttack.AllowCastWithoutTarget,
+                    "Luban basic attack should be configurable to fire into its aim direction without a target.");
                 Assert.IsTrue(harness.Config.TryGetProjectile(30080301, out var sweepProjectile));
                 Assert.AreEqual(10080004, sweepProjectile.OnHitEffectId,
                     "Luban sweep projectile must resolve the sweep damage trigger rather than recursively firing another sweep.");
@@ -169,6 +177,77 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void BasicAttack_ShouldFireInAimDirectionWhenNoTargetIsAvailable()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(Luban, "luban_basic_attack_targetless_contract_world"))
+            {
+                harness.EnterGameAndWarmup(reason: "luban targetless basic attack contract");
+                var actorId = harness.AssertPlayerActorBound();
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                var cast = skills.TryCastBySlot(actorId, 4, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
+
+                Assert.IsTrue(cast.Success,
+                    "Luban basic attack should release directionally when AllowCastWithoutTarget is enabled.");
+                var spawn = TickUntilProjectileSnapshot(harness, 30080001, ProjectileEventKind.Spawn, 30);
+                Assert.AreEqual(30080001, spawn.TemplateId);
+            }
+        }
+
+        [Test]
+        public void BasicAttack_ShouldTrackExplicitTargetAwayFromAimDirection()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(Luban, "luban_basic_attack_tracking_contract_world"))
+            {
+                harness.EnterGameAndWarmup(reason: "luban basic attack tracking contract");
+                var actorId = harness.AssertPlayerActorBound();
+                // Keep the target clearly inside the projectile collision path. A target
+                // exactly at the old four-unit sample point could sit on the edge of the
+                // headless collision proxy and make this tracking contract timing-sensitive.
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, actorId: 9013, x: 2f, z: 0f);
+                var targetHp = harness.GetActorHp(targetActorId);
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                var cast = skills.TryCastBySlot(actorId, 4, aimPos: default, aimDir: Vec3.Forward, targetActorId: targetActorId);
+
+                Assert.IsTrue(cast.Success,
+                    "Luban should accept an explicit in-range target even when the submitted aim points elsewhere.");
+                var spawn = TickUntilProjectileSnapshot(harness, 30080001, ProjectileEventKind.Spawn, 30);
+                Assert.Greater(spawn.ForwardX, 0.8f,
+                    "An explicit target should rotate the basic-attack projectile toward the target.");
+                TickUntilProjectileSnapshot(harness, spawn.ProjectileId, ProjectileEventKind.Hit, 30, byProjectileId: true);
+                Assert.Less(harness.GetActorHp(targetActorId), targetHp,
+                    "The normal-attack projectile should track the selected target instead of continuing along the raw aim direction.");
+            }
+        }
+
+        [Test]
+        public void BasicAttack_ShouldAutoTrackNearestInRangeTargetAndHitOnlyOneTarget()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(Luban, "luban_basic_attack_auto_tracking_single_target_world"))
+            {
+                harness.EnterGameAndWarmup(reason: "luban basic attack auto tracking contract");
+                var actorId = harness.AssertPlayerActorBound();
+                var trackedTarget = HeroSkillHeadlessContract.SpawnEnemyHero(harness, actorId: 9014, x: 2f, z: 0f);
+                var aimLaneTarget = HeroSkillHeadlessContract.SpawnEnemyHero(harness, actorId: 9015, x: 0f, z: 3f);
+                var trackedHp = harness.GetActorHp(trackedTarget);
+                var aimLaneHp = harness.GetActorHp(aimLaneTarget);
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                var cast = skills.TryCastBySlot(actorId, 4, aimPos: default, aimDir: Vec3.Forward, targetActorId: 0);
+
+                Assert.IsTrue(cast.Success,
+                    "Luban should auto-acquire an enemy inside normal-attack range when no explicit target id is supplied.");
+                var spawn = TickUntilProjectileSnapshot(harness, 30080001, ProjectileEventKind.Spawn, 30);
+                Assert.Greater(spawn.ForwardX, 0.8f,
+                    "The normal-attack bullet should turn toward the nearest in-range target instead of following the fixed aim lane.");
+                TickUntilProjectileSnapshot(harness, spawn.ProjectileId, ProjectileEventKind.Hit, 30, byProjectileId: true);
+
+                Assert.Less(harness.GetActorHp(trackedTarget), trackedHp,
+                    "The selected target should be hit by the single-target normal attack.");
+                Assert.AreEqual(aimLaneHp, harness.GetActorHp(aimLaneTarget),
+                    "The normal-attack projectile must not deal sweep-style area damage to another target in the aim lane.");
+            }
+        }
+
+        [Test]
         public void BasicAttack_ShouldSpawnDedicatedBulletAndPublishCounterCue()
         {
             using (var harness = HeroSkillHeadlessContract.CreateHarness(Luban, "luban_basic_attack_presentation_contract_world"))
@@ -200,8 +279,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.EnterGameAndWarmup(reason: "luban sweep multi target contract");
                 var actorId = harness.AssertPlayerActorBound();
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
-                var left = HeroSkillHeadlessContract.SpawnEnemyHero(harness, actorId: 9011, x: -1.1f, z: 4f);
-                var right = HeroSkillHeadlessContract.SpawnEnemyHero(harness, actorId: 9012, x: 1.1f, z: 4f);
+                var left = HeroSkillHeadlessContract.SpawnEnemyHero(harness, actorId: 9011, x: -0.4f, z: 4f);
+                var right = HeroSkillHeadlessContract.SpawnEnemyHero(harness, actorId: 9012, x: 0.4f, z: 4f);
                 var leftHp = harness.GetActorHp(left);
                 var rightHp = harness.GetActorHp(right);
 

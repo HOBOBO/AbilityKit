@@ -23,6 +23,10 @@ namespace AbilityKit.Network.Runtime
             float remainingReconnectDelaySeconds,
             float secondsSinceLastReceive,
             float secondsSinceLastHeartbeatSend,
+            long bytesReceivedCount,
+            long bytesSentCount,
+            long packetsReceivedCount,
+            long packetsSentCount,
             int pipelineMiddlewareCount,
             NetworkPacketRouterSnapshot? packetRouter)
         {
@@ -42,6 +46,10 @@ namespace AbilityKit.Network.Runtime
             RemainingReconnectDelaySeconds = remainingReconnectDelaySeconds;
             SecondsSinceLastReceive = secondsSinceLastReceive;
             SecondsSinceLastHeartbeatSend = secondsSinceLastHeartbeatSend;
+            BytesReceivedCount = bytesReceivedCount;
+            BytesSentCount = bytesSentCount;
+            PacketsReceivedCount = packetsReceivedCount;
+            PacketsSentCount = packetsSentCount;
             PipelineMiddlewareCount = pipelineMiddlewareCount;
             PacketRouter = packetRouter;
         }
@@ -62,6 +70,10 @@ namespace AbilityKit.Network.Runtime
         public float RemainingReconnectDelaySeconds { get; }
         public float SecondsSinceLastReceive { get; }
         public float SecondsSinceLastHeartbeatSend { get; }
+        public long BytesReceivedCount { get; }
+        public long BytesSentCount { get; }
+        public long PacketsReceivedCount { get; }
+        public long PacketsSentCount { get; }
         public int PipelineMiddlewareCount { get; }
         public NetworkPacketRouterSnapshot? PacketRouter { get; }
     }

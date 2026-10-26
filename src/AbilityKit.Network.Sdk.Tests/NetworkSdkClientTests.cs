@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.TcpGateway;
 using Xunit;
 
@@ -296,6 +297,7 @@ public sealed class NetworkSdkClientTests
         var connection = new ObservableConnection();
         using var client = new NetworkSdkBuilder()
             .UseConnectionFactory(() => connection)
+            .UseResponseEnvelopeCodec(TcpGatewayRequestResponseEnvelopeCodec.Instance)
             .Build();
 
         var request = client.SendRawRequestAsync(1001, Bytes(7, 8));

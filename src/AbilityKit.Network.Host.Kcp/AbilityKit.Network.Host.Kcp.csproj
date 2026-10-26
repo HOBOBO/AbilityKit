@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit</RootNamespace>
+    <AssemblyName>AbilityKit.Network.Host.Kcp</AssemblyName>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.network.host.kcp/Runtime/**/*.cs"
+             Exclude="../../Unity/Packages/com.abilitykit.network.host.kcp/Runtime/**/*.asmdef" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AbilityKit.Network.Host/AbilityKit.Network.Host.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Transport.Kcp/AbilityKit.Network.Transport.Kcp.csproj" />
+  </ItemGroup>
+</Project>

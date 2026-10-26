@@ -1,6 +1,6 @@
 # com.abilitykit.network.client
 
-两连接多人战斗客户端宿主（`GatewayBattleClientHost`）：把"房间控制面连接 + 战斗数据面连接"的组装、凭证传递和推送绑定纪律收进一个组件，替代各 demo 各自手拼的 300-700 行接入外壳。
+多人网络会话（`MultiplayerClientSession`）：把"房间控制面连接 + 战斗数据面连接"的组装、凭证传递和推送绑定纪律收进一个组件，替代各 demo 各自手拼的 300-700 行接入外壳。
 
 ## 解决什么
 
@@ -13,16 +13,16 @@
 ## 用法
 
 ```csharp
-var host = await GatewayBattleClientHost.EnterAsync(
+var client = await MultiplayerClientSession.EnterAsync(
     "127.0.0.1", 4000, "player-1",
     new RoomGatewayLaunchSpec(region, serverId, "yourgame", "title", maxPlayers, gameplayId, ruleSetId, configVersion, protocolVersion, "yourgame-world", clientId),
     configureBattle: config => config
         .UseRoomGatewayStateSyncInput(battleId, playerIdToUInt, worldIdToUlong)
         .WithSnapshotDeserializer(payload => /* decode snapshot push */));
 
-host.Battle.StateSyncSnapshotPushed += snapshot => { /* apply */ };
-host.Tick(realDeltaTime);   // 必须是真实墙钟间隔，不是游戏逻辑帧 delta
-host.Dispose();
+client.Battle.StateSyncSnapshotPushed += snapshot => { /* apply */ };
+client.Tick(realDeltaTime);   // 必须是真实墙钟间隔，不是游戏逻辑帧 delta
+client.Dispose();
 ```
 
 `configureBattle` 收到的是已预填网关地址 + 会话身份 + room-gateway 协议预设的 `NetworkBattleConfig`，只需补玩法回调（输入/快照/帧反序列化），不要在回调里调 `Build()`。

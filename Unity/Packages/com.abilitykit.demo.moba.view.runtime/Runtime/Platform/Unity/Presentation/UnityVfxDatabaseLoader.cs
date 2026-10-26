@@ -21,7 +21,12 @@ namespace AbilityKit.Game.Platform.Unity.Presentation
         {
             if (string.IsNullOrEmpty(json))
                 throw new InvalidOperationException($"Vfx json is empty: {sourceName ?? "<memory>"}");
-            return VfxDatabase.FromEntries(JsonConvert.DeserializeObject<VfxDTO[]>(json));
+            var database = VfxDatabase.FromEntries(JsonConvert.DeserializeObject<VfxDTO[]>(json));
+            var errors = database.Validate();
+            if (errors.Count > 0)
+                throw new InvalidOperationException(
+                    "Invalid VFX configuration " + (sourceName ?? "<memory>") + ": " + string.Join("; ", errors));
+            return database;
         }
     }
 }

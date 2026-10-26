@@ -40,10 +40,12 @@ namespace AbilityKit.Network.Protocol
             }
         }
 
-        private sealed class BodyOnlyFrameDecoder : IFrameDecoder
+        private sealed class BodyOnlyFrameDecoder : IFrameDecoder, IFrameDecoderLimits
         {
             private ArraySegment<byte> _pending;
             private bool _hasPending;
+
+            public int MaxFrameLength { get; set; } = 4 * 1024 * 1024;
 
             public void Reset()
             {
@@ -67,6 +69,7 @@ namespace AbilityKit.Network.Protocol
                 _hasPending = false;
 
                 if (_pending.Array == null) throw new InvalidOperationException("Invalid frame.");
+                if (_pending.Count > MaxFrameLength) throw new InvalidOperationException($"Frame too large: {_pending.Count}.");
                 if (_pending.Count < NetworkPacketHeader.Size) throw new InvalidOperationException("Frame too small.");
 
                 var span = new ReadOnlySpan<byte>(_pending.Array, _pending.Offset, _pending.Count);

@@ -794,6 +794,15 @@
         "com.abilitykit.network.runtime": "0.1.0"
       }
     },
+    "com.abilitykit.network.host.kcp": {
+      "version": "file:com.abilitykit.network.host.kcp",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.network.host": "0.1.0",
+        "com.abilitykit.network.transport.kcp": "0.1.0"
+      }
+    },
     "com.abilitykit.network.room": {
       "version": "file:com.abilitykit.network.room",
       "depth": 0,
@@ -825,6 +834,14 @@
     },
     "com.abilitykit.network.transport.inmemory": {
       "version": "file:com.abilitykit.network.transport.inmemory",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.network.runtime": "0.1.0"
+      }
+    },
+    "com.abilitykit.network.transport.kcp": {
+      "version": "file:com.abilitykit.network.transport.kcp",
       "depth": 0,
       "source": "embedded",
       "dependencies": {

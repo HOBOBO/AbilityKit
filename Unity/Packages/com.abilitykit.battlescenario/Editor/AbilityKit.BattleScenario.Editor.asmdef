@@ -3,6 +3,7 @@
   "rootNamespace": "AbilityKit.BattleScenario.Editor",
   "references": [
     "AbilityKit.BattleScenario",
+    "AbilityKit.BattleScenario.Unity",
     "AbilityKit.Scenario",
     "AbilityKit.Editor.Platform"
   ],

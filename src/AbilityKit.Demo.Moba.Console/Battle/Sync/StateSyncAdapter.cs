@@ -20,8 +20,8 @@ using BattleWorldId = AbilityKit.Ability.World.Abstractions.WorldId;
 namespace AbilityKit.Demo.Moba.Console.Battle.Sync
 {
     /// <summary>
-    /// State-sync adapter on the shared two-connection client host
-    /// (<see cref="GatewayBattleClientHost"/>: room control plane + battle data plane on its own
+    /// State-sync adapter on the shared two-connection client
+    /// (<see cref="MultiplayerClientSession"/>: room control plane + battle data plane on its own
     /// NetworkTransport connection). This adapter keeps only demo-specific pieces: the full
     /// battle-start flow hooks (hero-pick/loading), the snapshot apply, and the one-shot-host
     /// rebuild reconnect policy.
@@ -30,7 +30,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Sync
     {
         private ConsoleBattleContext _context;
         private BattleStartConfig _config;
-        private GatewayBattleClientHost _host;
+        private MultiplayerClientSession _host;
         private bool _entering;
         private bool _enterRequested;
         private string _host_ = "localhost";
@@ -149,7 +149,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Sync
                         ["syncTemplateId"] = "state-sync-authority",
                     });
 
-                var host = await GatewayBattleClientHost.EnterAsync(
+                var host = await MultiplayerClientSession.EnterAsync(
                     _host_, _port, _playerId, launchSpec,
                     configureBattle: ConfigureBattle,
                     battleDispatcher: InlineDispatcher.Instance,
@@ -187,7 +187,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Sync
         /// session identity, room-gateway protocol preset are already applied). Engine retry off;
         /// per-submit results are not consumed by this demo.
         /// </summary>
-        private void ConfigureBattle(NetworkBattleConfig config, GatewaySessionResult session)
+        private void ConfigureBattle(NetworkBattleConfig config, MultiplayerRoomSessionResult session)
         {
             var playerId = (uint)Math.Max(1, _localActorId);
             config

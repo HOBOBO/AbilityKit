@@ -16,10 +16,25 @@ using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Battle
 {
+    public sealed class NetworkTransportOptionsFactoryOptions
+    {
+        public string Host { get; set; } = string.Empty;
+        public int Port { get; set; }
+        public Func<ITransport>? TransportFactory { get; set; }
+        public NetworkIdCodec IdCodec { get; set; } = NetworkIdCodec.Numeric;
+        public ulong RoomId { get; set; }
+        public string SessionToken { get; set; } = string.Empty;
+        public string BattleId { get; set; } = string.Empty;
+        public string PublicRoomId { get; set; } = string.Empty;
+        public bool UseFrameSyncInput { get; set; }
+        public Func<string>? GetReliableEventEpoch { get; set; }
+        public Func<long>? GetReliableEventLastAcknowledgedSequence { get; set; }
+    }
+
     /// <summary>
     /// Builds <see cref="NetworkTransportOptions"/> for the MOBA demo. The shared room-gateway
     /// protocol prefill (gateway/session/protocol preset) comes from
-    /// <see cref="GatewayBattleClientHost.BuildBattleOptions"/> — the same assembly step the shooter
+    /// <see cref="MultiplayerClientSession.BuildBattleOptions"/> — the same assembly step the shooter
     /// and console demos use — so all three converge on one protocol-setup source of truth. Only the
     /// MOBA-specific callbacks (framesync/statesync input, snapshot+frame deserializers, reliable-event
     /// cursor) are added here. The shared host builds MOBA's transport with dual dispatchers;
@@ -27,40 +42,34 @@ namespace AbilityKit.Game.Battle
     /// </summary>
     public static class NetworkTransportOptionsFactory
     {
-        public static NetworkTransportOptions Create(
-            string host,
-            int port,
-            Func<ITransport> transportFactory,
-            Func<PlayerId, uint> playerIdToUInt,
-            Func<uint, PlayerId> playerIdFromUInt,
-            Func<WorldId, ulong> worldIdToUlong,
-            Func<ulong, WorldId> worldIdFromUlong,
-            ulong roomId,
-            string sessionToken,
-            string battleId = "",
-            string publicRoomId = "",
-            bool useFrameSyncInput = false,
-            Func<string>? getReliableEventEpoch = null,
-            Func<long>? getReliableEventLastAcknowledgedSequence = null)
+        public static NetworkTransportOptions Create(NetworkTransportOptionsFactoryOptions options)
         {
+            if (options == null) throw new ArgumentNullException(nameof(options));
+            var host = options.Host;
+            var port = options.Port;
+            var transportFactory = options.TransportFactory;
+            var idCodec = options.IdCodec ?? throw new ArgumentException("Network ID codec is required.", nameof(options));
+            var roomId = options.RoomId;
+            var sessionToken = options.SessionToken;
+            var battleId = options.BattleId;
+            var publicRoomId = options.PublicRoomId;
+            var useFrameSyncInput = options.UseFrameSyncInput;
+            var getReliableEventEpoch = options.GetReliableEventEpoch;
+            var getReliableEventLastAcknowledgedSequence = options.GetReliableEventLastAcknowledgedSequence;
             if (string.IsNullOrWhiteSpace(host)) throw new ArgumentException("Host is required.", nameof(host));
             if (port <= 0) throw new ArgumentOutOfRangeException(nameof(port));
             if (transportFactory == null) throw new ArgumentNullException(nameof(transportFactory));
-            if (playerIdToUInt == null) throw new ArgumentNullException(nameof(playerIdToUInt));
-            if (playerIdFromUInt == null) throw new ArgumentNullException(nameof(playerIdFromUInt));
-            if (worldIdToUlong == null) throw new ArgumentNullException(nameof(worldIdToUlong));
-            if (worldIdFromUlong == null) throw new ArgumentNullException(nameof(worldIdFromUlong));
             if (string.IsNullOrWhiteSpace(battleId))
             {
                 throw new ArgumentException("Battle id is required for authoritative input submission.", nameof(battleId));
             }
 
             // Shared prefill (gateway address + session identity + room-gateway protocol preset) via the
-            // same static assembly step the other demos use — see GatewayBattleClientHost.BuildBattleOptions.
-            var session = new GatewaySessionResult(
+            // same static assembly step the other demos use — see MultiplayerClientSession.BuildBattleOptions.
+            var session = new MultiplayerRoomSessionResult(
                 sessionToken, publicRoomId, battleId, roomId, playerId: 0u, roomSnapshot: default, subscribed: false);
 
-            return GatewayBattleClientHost.BuildBattleOptions(
+            return MultiplayerClientSession.BuildBattleOptions(
                 in session,
                 host,
                 port,
@@ -78,8 +87,8 @@ namespace AbilityKit.Game.Battle
                                 var req = sequenced.Request;
                                 var frameWire = new WireSubmitFrameInputReq(
                                     s.NumericRoomId,
-                                    worldIdToUlong(req.WorldId),
-                                    playerIdToUInt(req.Input.Player),
+                                    idCodec.Encode(req.WorldId),
+                                    idCodec.Encode(req.Input.Player),
                                     req.Input.Frame.Value,
                                     req.Input.OpCode,
                                     req.Input.Payload ?? Array.Empty<byte>());
@@ -101,8 +110,8 @@ namespace AbilityKit.Game.Battle
                         // authoritative-frame retry request. Engine-level input retry stays disabled here.
                         config.UseRoomGatewayStateSyncInput(
                             s.BattleId,
-                            playerIdToUInt,
-                            worldIdToUlong);
+                            idCodec.Encode,
+                            idCodec.Encode);
                     }
 
                     config
@@ -114,24 +123,24 @@ namespace AbilityKit.Game.Battle
                         .WithFrameDeserializer(payload =>
                         {
                             var push = WireCustomBinary.DeserializeFramePushedPush(payload);
-                            var worldId = worldIdFromUlong(push.WorldId);
+                            var worldId = idCodec.DecodeWorld(push.WorldId);
                             var frame = new FrameIndex(push.Frame);
                             var inputs = (IReadOnlyList<PlayerInputCommand>)(push.Inputs == null || push.Inputs.Length == 0
                                 ? Array.Empty<PlayerInputCommand>()
-                                : ConvertInputs(frame, push.Inputs, playerIdFromUInt));
+                                : ConvertInputs(frame, push.Inputs, idCodec));
                             return new FramePacket(worldId, frame, inputs, snapshot: null);
                         })
                         .WithReliableEventCursor(getReliableEventEpoch, getReliableEventLastAcknowledgedSequence);
                 });
         }
 
-        private static PlayerInputCommand[] ConvertInputs(FrameIndex frame, WireInputItem[] inputs, Func<uint, PlayerId> playerIdFromUInt)
+        private static PlayerInputCommand[] ConvertInputs(FrameIndex frame, WireInputItem[] inputs, NetworkIdCodec idCodec)
         {
             var arr = new PlayerInputCommand[inputs.Length];
             for (int i = 0; i < inputs.Length; i++)
             {
                 var it = inputs[i];
-                arr[i] = new PlayerInputCommand(frame, playerIdFromUInt(it.PlayerId), it.OpCode, it.Payload);
+                arr[i] = new PlayerInputCommand(frame, idCodec.DecodePlayer(it.PlayerId), it.OpCode, it.Payload);
             }
             return arr;
         }

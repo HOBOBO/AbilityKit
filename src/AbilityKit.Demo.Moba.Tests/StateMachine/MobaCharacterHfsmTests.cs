@@ -6,6 +6,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.HFSM.Definition;
+using AbilityKit.HFSM.Inspection;
 using Newtonsoft.Json.Linq;
 using System.Text;
 using Xunit;
@@ -14,6 +15,35 @@ namespace AbilityKit.Demo.Moba.Tests.StateMachine;
 
 public sealed class MobaCharacterHfsmTests
 {
+    [Fact]
+    public void RuntimeRegistersNamedMachineAndUnregistersItOnDispose()
+    {
+        var backend = new RecordingInspectionBackend();
+        using (RuntimeInspectionHub.InstallBackend(backend))
+        {
+            var runtime = new MobaCharacterHfsmRuntime(17,
+                MobaCharacterHfsmProfile.CreateDefinition(), 0, Fixed64.Zero);
+            Assert.Equal("MobaHero/Actor_17", backend.RegisteredName);
+            Assert.NotNull(backend.RegisteredRuntime);
+            runtime.Dispose();
+            Assert.Same(backend.RegisteredRuntime, backend.UnregisteredRuntime);
+        }
+    }
+
+    [Fact]
+    public void RecoveryValidationRuntimeDoesNotRegisterWithInspectionHub()
+    {
+        var backend = new RecordingInspectionBackend();
+        using (RuntimeInspectionHub.InstallBackend(backend))
+        using (var runtime = new MobaCharacterHfsmRuntime(17,
+                   MobaCharacterHfsmProfile.CreateDefinition(), 0, Fixed64.Zero,
+                   registerForInspection: false))
+        {
+            Assert.Null(backend.RegisteredRuntime);
+            Assert.Null(backend.UnregisteredRuntime);
+        }
+    }
+
     [Fact]
     public void AuthoredDefinitionMatchesDefaultRuntimeGraph()
     {
@@ -261,6 +291,19 @@ public sealed class MobaCharacterHfsmTests
         public readonly List<CharacterLogIntent> Logs = new();
         public void OnPlay(in CharacterPlaybackIntent intent) => Plays.Add(intent);
         public void OnLog(in CharacterLogIntent intent) => Logs.Add(intent);
+    }
+
+    private sealed class RecordingInspectionBackend : IRuntimeInspectionRegistryBackend,
+        IRuntimeInspectionNamedRegistryBackend
+    {
+        public string? RegisteredName { get; private set; }
+        public object? RegisteredRuntime { get; private set; }
+        public object? UnregisteredRuntime { get; private set; }
+
+        public void Register(string name, object runtime)
+        { RegisteredName = name; RegisteredRuntime = runtime; }
+        public void AutoRegister(object runtime) => RegisteredRuntime = runtime;
+        public void Unregister(object runtime) => UnregisteredRuntime = runtime;
     }
 
     private static Fixed64 Time(int frame) => Fixed64.FromRaw(frame * 1000L);

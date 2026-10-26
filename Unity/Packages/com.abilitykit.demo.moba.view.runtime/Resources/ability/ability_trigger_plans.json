@@ -8298,6 +8298,31 @@
               "Kind": "Const",
               "ConstValue": 30080001.0,
               "Scale": 1.0
+            },
+            "target_filter": {
+              "Kind": "Const",
+              "ConstValue": 257.0,
+              "Scale": 1.0
+            },
+            "target_max_count": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "target_radius": {
+              "Kind": "Const",
+              "ConstValue": 8.0,
+              "Scale": 1.0
+            },
+            "target_source": {
+              "Kind": "Const",
+              "ConstValue": 6.0,
+              "Scale": 1.0
+            },
+            "track_target": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
             }
           },
           "MaxExecutions": -1,
@@ -8393,6 +8418,31 @@
             "projectile_id": {
               "Kind": "Const",
               "ConstValue": 30080301.0,
+              "Scale": 1.0
+            },
+            "target_filter": {
+              "Kind": "Const",
+              "ConstValue": 257.0,
+              "Scale": 1.0
+            },
+            "target_max_count": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "target_radius": {
+              "Kind": "Const",
+              "ConstValue": 8.0,
+              "Scale": 1.0
+            },
+            "target_source": {
+              "Kind": "Const",
+              "ConstValue": 6.0,
+              "Scale": 1.0
+            },
+            "track_target": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
               "Scale": 1.0
             }
           },
@@ -8564,6 +8614,31 @@
             "projectile_id": {
               "Kind": "Const",
               "ConstValue": 30080001.0,
+              "Scale": 1.0
+            },
+            "target_filter": {
+              "Kind": "Const",
+              "ConstValue": 257.0,
+              "Scale": 1.0
+            },
+            "target_max_count": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "target_radius": {
+              "Kind": "Const",
+              "ConstValue": 8.0,
+              "Scale": 1.0
+            },
+            "target_source": {
+              "Kind": "Const",
+              "ConstValue": 6.0,
+              "Scale": 1.0
+            },
+            "track_target": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
               "Scale": 1.0
             }
           },

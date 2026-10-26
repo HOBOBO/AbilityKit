@@ -1,4 +1,7 @@
 using AbilityKit.Combat.Collision;
+using AbilityKit.Combat.MotionSystem.Collision;
+using AbilityKit.Combat.MotionSystem.Constraints;
+using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services.Motion;
 using Xunit;
@@ -130,6 +133,78 @@ public sealed class MobaMotionCollisionWorldAdapterTests
         Assert.Equal(9.5f, appliedDelta.Magnitude, 2);
     }
 
+    [Fact]
+    public void Capsule_center_overlap_allows_recovery_movement()
+    {
+        var world = new NaiveCollisionWorld();
+        AddCapsule(world, Vec3.Zero, radius: 1f, height: 3f, MobaCollisionLayers.WorldId);
+        var adapter = new MobaMotionCollisionWorldAdapter(world, null);
+        var solver = new ConfigurableMotionSolver(
+            adapter,
+            (int _, in MotionState _, in MotionOutput _, float _) => new MotionConstraints(
+                new MotionCollisionConstraints(
+                    enable: true,
+                    allowPassThrough: false,
+                    endOverlapPolicy: MotionEndOverlapPolicy.AllowInside,
+                    radius: 0.5f,
+                    skin: 0f,
+                    obstacleMask: MobaCollisionLayers.WorldMask,
+                    ignoreMask: 0,
+                    slideAlongWalls: true,
+                    maxSlideIterations: 2,
+                    wallSlideSpeedRecovery: 1f),
+                MotionLeashConstraints.Disabled));
+
+        var state = new MotionState(Vec3.Zero);
+        var input = new MotionOutput { DesiredDelta = new Vec3(0.25f, 0f, 0f) };
+        var result = solver.Solve(0, in state, in input, 1f / 30f);
+
+        Assert.Equal(input.DesiredDelta, result.AppliedDelta);
+    }
+
+    [Fact]
+    public void Capsule_side_hit_reports_radial_normal_for_wall_slide()
+    {
+        var world = new GridCollisionWorld(cellSize: 4f, initialCapacity: 8);
+        AddCapsule(world, Vec3.Zero, radius: 1f, height: 3f, MobaCollisionLayers.WorldId);
+        var adapter = new MobaMotionCollisionWorldAdapter(world, null);
+        var start = new Vec3(-3f, 0f, 0f);
+        var delta = new Vec3(4f, 0f, 2f);
+
+        var collided = adapter.Sweep(
+            moverId: 0,
+            in start,
+            in delta,
+            radius: 0.5f,
+            obstacleMask: MobaCollisionLayers.WorldMask,
+            ignoreMask: 0,
+            out var hit,
+            out var appliedDelta);
+
+        Assert.True(collided);
+        Assert.True(hit.Normal.X < -0.8f, $"Expected radial side normal, got {hit.Normal}");
+        Assert.True(appliedDelta.Z > 0f, "The sweep must retain the approach's tangential component.");
+
+        var solver = new ConfigurableMotionSolver(
+            adapter,
+            (int _, in MotionState _, in MotionOutput _, float _) => new MotionConstraints(
+                new MotionCollisionConstraints(
+                    enable: true,
+                    allowPassThrough: false,
+                    endOverlapPolicy: MotionEndOverlapPolicy.AllowInside,
+                    radius: 0.5f,
+                    skin: 0f,
+                    obstacleMask: MobaCollisionLayers.WorldMask,
+                    ignoreMask: 0,
+                    slideAlongWalls: true,
+                    maxSlideIterations: 2,
+                    wallSlideSpeedRecovery: 1f),
+                MotionLeashConstraints.Disabled));
+        var state = new MotionState(start);
+        var result = solver.Solve(0, in state, new MotionOutput { DesiredDelta = delta }, 1f / 30f);
+        Assert.True(result.AppliedDelta.Z > 0f, "The motion solver must preserve movement along the capsule surface.");
+    }
+
     private static ColliderId AddBox(
         ICollisionWorld world,
         in Vec3 center,
@@ -138,6 +213,22 @@ public sealed class MobaMotionCollisionWorldAdapterTests
     {
         var transform = new Transform3(center, Quat.Identity, Vec3.One);
         var shape = ColliderShape.CreateAabb(-halfExtents, halfExtents);
+        return world.Add(in transform, in shape, layerId);
+    }
+
+    private static ColliderId AddCapsule(
+        ICollisionWorld world,
+        in Vec3 center,
+        float radius,
+        float height,
+        int layerId)
+    {
+        var transform = new Transform3(center, Quat.Identity, Vec3.One);
+        var halfHeight = height * 0.5f;
+        var shape = ColliderShape.CreateCapsule(
+            new Vec3(0f, -halfHeight, 0f),
+            new Vec3(0f, halfHeight, 0f),
+            radius);
         return world.Add(in transform, in shape, layerId);
     }
 }

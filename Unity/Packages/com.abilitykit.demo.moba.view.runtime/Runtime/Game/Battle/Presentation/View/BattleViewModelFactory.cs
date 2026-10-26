@@ -169,9 +169,33 @@ namespace AbilityKit.Game.Flow
             }
 
             if (go == null) return null;
+            ApplyProjectileVisibilityTint(go);
             go.name = $"Projectile_{actorId}";
             _attachRoots.Ensure(go);
             return go;
+        }
+
+        private static void ApplyProjectileVisibilityTint(GameObject projectile)
+        {
+            var renderers = projectile.GetComponentsInChildren<Renderer>(true);
+            var darkTint = new Color(0.12f, 0.15f, 0.17f, 1f);
+            var block = new MaterialPropertyBlock();
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var renderer = renderers[i];
+                if (renderer == null) continue;
+                renderer.GetPropertyBlock(block);
+                var materials = renderer.sharedMaterials;
+                for (var materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    var material = materials[materialIndex];
+                    if (material == null) continue;
+                    if (material.HasProperty("_BaseColor")) block.SetColor("_BaseColor", darkTint);
+                    if (material.HasProperty("_Color")) block.SetColor("_Color", darkTint);
+                }
+                renderer.SetPropertyBlock(block);
+                block.Clear();
+            }
         }
 
         private GameObject InstantiateOrFallback(MobaConfigDatabase configs, int modelId, System.Func<GameObject> fallback)

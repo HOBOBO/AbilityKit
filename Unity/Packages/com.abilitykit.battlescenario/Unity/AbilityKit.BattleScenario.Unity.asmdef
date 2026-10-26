@@ -1,0 +1,16 @@
+{
+  "name": "AbilityKit.BattleScenario.Unity",
+  "rootNamespace": "AbilityKit.BattleScenario.Unity",
+  "references": [
+    "AbilityKit.BattleScenario",
+    "AbilityKit.Scenario"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "versionDefines": [],
+  "noEngineReferences": false
+}

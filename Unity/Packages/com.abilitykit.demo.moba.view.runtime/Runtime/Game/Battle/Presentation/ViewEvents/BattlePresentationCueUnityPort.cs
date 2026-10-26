@@ -2,6 +2,9 @@ using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Vfx;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;
 using EntityBattleNetId = AbilityKit.Game.Battle.Entity.BattleNetId;
@@ -17,6 +20,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
     {
         private readonly IBattleEntityQuery _query;
         private readonly BattlePresentationCueVfxSpawner _spawner;
+        private readonly BattleVfxPresentationBackend _backend;
 
         public BattlePresentationCueUnityPort(
             IBattleEntityQuery query,
@@ -24,11 +28,12 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             _query = query;
             _spawner = spawner;
+            _backend = new BattleVfxPresentationBackend(spawner, ResolveFollowTarget);
         }
 
         public bool IsAlive(EC.IEntityId handle)
         {
-            return _spawner != null && _spawner.IsAlive(handle);
+            return _backend.IsAlive(handle);
         }
 
         public bool TryCreate(
@@ -37,28 +42,15 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             out EC.IEntityId handle)
         {
             handle = default;
-            if (_spawner == null) return false;
+            if (!_backend.CanPlay) return false;
 
-            var position = ToVector3(BattlePresentationCuePlacementResolver.ResolvePosition(in payload, this));
-            var followActorId = BattlePresentationCuePlacementResolver.ResolveFollowActorId(in payload, this);
-            var followTarget = TryResolveActorEntity(followActorId, out var target) ? target.Id : default;
-            if (!_spawner.TrySpawn(
-                    payload.VfxId,
-                    in position,
-                    followTarget,
-                    payload.DurationMsOverride,
-                    payload.Scale,
-                    payload.Radius,
-                    payload.StackCount,
-                    payload.MaxStackCount,
-                    payload.ElapsedSeconds,
-                    payload.RemainingSeconds,
-                    out var entity))
+            if (!TryCreateRequest(key, in payload, out var request) ||
+                !_backend.TryPlay(in request, out var createdHandle))
             {
                 return false;
             }
 
-            handle = entity.Id;
+            handle = createdHandle;
             return true;
         }
 
@@ -66,25 +58,59 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             EC.IEntityId handle,
             in BattlePresentationCueSpawnRequest payload)
         {
-            _spawner?.Update(
-                handle,
-                payload.Scale,
-                payload.Radius,
-                payload.DurationMsOverride,
-                payload.StackCount,
-                payload.MaxStackCount,
-                payload.ElapsedSeconds,
-                payload.RemainingSeconds);
+            if (TryCreateRequest(default, in payload, out var request)) _backend.Update(handle, in request);
         }
 
         public void Destroy(EC.IEntityId handle)
         {
-            _spawner?.Destroy(handle);
+            _backend.Stop(handle);
         }
 
-        private static Vector3 ToVector3(SnapshotVec3 value)
+        private bool TryCreateRequest(
+            BattlePresentationCueRequestKey key,
+            in BattlePresentationCueSpawnRequest payload,
+            out PresentationRequest request)
         {
-            return new Vector3(value.X, value.Y, value.Z);
+            request = default;
+            if (payload.IsEmpty) return false;
+            var position = BattlePresentationCuePlacementResolver.ResolvePosition(in payload, this);
+            var followActorId = BattlePresentationCuePlacementResolver.ResolveFollowActorId(in payload, this);
+            var attachment = followActorId > 0
+                ? new PresentationAttachment(
+                    PresentationAttachmentKind.Actor,
+                    followActorId,
+                    offset: new PresentationVector3(payload.Offset.X, payload.Offset.Y, payload.Offset.Z))
+                : default;
+            var parameters = new List<PresentationParameter>(4)
+            {
+                new PresentationParameter("stackCount", payload.StackCount),
+                new PresentationParameter("maxStackCount", payload.MaxStackCount),
+                new PresentationParameter("elapsedSeconds", payload.ElapsedSeconds),
+                new PresentationParameter("remainingSeconds", payload.RemainingSeconds),
+            };
+            if (!_spawner.TryCreatePresentationRequest(
+                    payload.VfxId,
+                    key.IsEmpty ? payload.RequestKey.ToString() : key.ToString(),
+                    new PresentationVector3(position.X, position.Y, position.Z),
+                    out var configured,
+                    attachment,
+                    PresentationRotation.Identity,
+                    payload.Scale)) return false;
+            request = new PresentationRequest(
+                configured.LogicalKey,
+                configured.AssetId,
+                configured.Position,
+                configured.Rotation,
+                configured.Attachment,
+                payload.DurationMsOverride > 0 ? payload.DurationMsOverride : configured.DurationMs,
+                payload.Scale,
+                payload.Radius,
+                parameters,
+                configured.ResourceKey,
+                configured.AssetKind,
+                configured.Playback,
+                configured.Policy);
+            return request.IsValid;
         }
 
         public bool TryGetPosition(int actorId, out SnapshotVec3 position)
@@ -108,6 +134,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             if (actorId <= 0 || _query == null) return false;
 
             return _query.TryResolve(new EntityBattleNetId(actorId), out entity);
+        }
+
+        private EC.IEntityId ResolveFollowTarget(int actorId)
+        {
+            return TryResolveActorEntity(actorId, out var entity) ? entity.Id : default;
         }
     }
 
@@ -138,6 +169,32 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             }
         }
 
+        public bool TryResolveVfxId(in PresentationRequest request, out int vfxId)
+        {
+            vfxId = 0;
+            return _vfx != null && _vfx.TryResolvePresentationVfxId(in request, out vfxId);
+        }
+
+        public bool TryCreatePresentationRequest(
+            int vfxId,
+            string logicalKey,
+            PresentationVector3 position,
+            out PresentationRequest request,
+            PresentationAttachment attachment,
+            PresentationRotation rotation,
+            float scale)
+        {
+            request = default;
+            return _vfx != null && _vfx.TryCreatePresentationRequest(
+                vfxId,
+                logicalKey,
+                position,
+                out request,
+                attachment,
+                rotation,
+                scale);
+        }
+
         public bool IsAlive(EC.IEntityId id)
         {
             return id.IsValid && _world != null && _world.IsAlive(id);
@@ -147,6 +204,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             int vfxId,
             in Vector3 position,
             EC.IEntityId followTarget,
+            in Quaternion rotation,
+            in Vector3 followOffset,
+            int followTargetActorId,
             int durationMsOverride,
             float scale,
             float radius,
@@ -164,9 +224,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                     _vfxNode,
                     vfxId,
                     followTarget,
-                    0,
+                    followTargetActorId,
+                    in followOffset,
                     in position,
-                    Quaternion.identity,
+                    in rotation,
                     durationMsOverride,
                     out entity))
             {
@@ -179,6 +240,29 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         }
 
         public bool TrySpawn(
+            in PresentationRequest request,
+            EC.IEntityId followTarget,
+            out EC.IEntity entity)
+        {
+            entity = default;
+            if (!CanSpawn || !_vfx.TryCreatePresentationVfxEntity(
+                    _world,
+                    _vfxNode,
+                    in request,
+                    followTarget,
+                    out entity)) return false;
+
+            ApplyPresentationScale(entity, request.Scale, request.Radius);
+            ApplyCueState(
+                entity,
+                ReadInt(request.Parameters, "stackCount"),
+                ReadInt(request.Parameters, "maxStackCount"),
+                ReadFloat(request.Parameters, "elapsedSeconds"),
+                ReadFloat(request.Parameters, "remainingSeconds"));
+            return true;
+        }
+
+        public bool TrySpawn(
             int vfxId,
             in Vector3 position,
             EC.IEntityId followTarget,
@@ -187,10 +271,15 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             float radius,
             out EC.IEntity entity)
         {
+            var rotation = Quaternion.identity;
+            var followOffset = Vector3.zero;
             return TrySpawn(
                 vfxId,
                 in position,
                 followTarget,
+                in rotation,
+                in followOffset,
+                0,
                 durationMsOverride,
                 scale,
                 radius,
@@ -222,6 +311,19 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             ApplyPresentationScale(id, scale, radius);
             RefreshLifetime(id, durationMsOverride);
             ApplyCueState(id, stackCount, maxStackCount, elapsedSeconds, remainingSeconds);
+        }
+
+        private static int ReadInt(IReadOnlyList<PresentationParameter> parameters, string key)
+        {
+            return (int)ReadFloat(parameters, key);
+        }
+
+        private static float ReadFloat(IReadOnlyList<PresentationParameter> parameters, string key)
+        {
+            if (parameters == null) return 0f;
+            for (var i = 0; i < parameters.Count; i++)
+                if (parameters[i].Key == key) return parameters[i].Value;
+            return 0f;
         }
 
         private void ApplyCueState(
@@ -295,6 +397,196 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
             var entity = _world.Wrap(id);
             ApplyPresentationScale(entity, scale, radius);
+        }
+    }
+
+    internal sealed class BattleVfxPresentationBackend : IPresentationBackend<EC.IEntityId>
+    {
+        private readonly BattlePresentationCueVfxSpawner _spawner;
+        private readonly System.Func<int, EC.IEntityId> _resolveTarget;
+
+        public BattleVfxPresentationBackend(
+            BattlePresentationCueVfxSpawner spawner,
+            System.Func<int, EC.IEntityId> resolveTarget)
+        {
+            _spawner = spawner;
+            _resolveTarget = resolveTarget;
+        }
+
+        public bool IsAlive(EC.IEntityId handle) => _spawner != null && _spawner.IsAlive(handle);
+        public bool CanPlay => _spawner != null && _spawner.CanSpawn;
+
+        public bool TryPlay(in PresentationRequest request, out EC.IEntityId handle)
+        {
+            var target = request.Attachment.ActorId > 0
+                ? _resolveTarget?.Invoke(request.Attachment.ActorId) ?? default
+                : default;
+            return TryPlay(in request, target, out handle);
+        }
+
+        public bool TryPlay(
+            in PresentationRequest request,
+            EC.IEntityId directFollowTarget,
+            out EC.IEntityId handle)
+        {
+            handle = default;
+            if (!request.IsValid) return false;
+            if (!_spawner.TrySpawn(
+                    in request,
+                    directFollowTarget,
+                    out var entity)) return false;
+            handle = entity.Id;
+            return true;
+        }
+
+        public Task<PresentationHandle<EC.IEntityId>> PlayAsync(
+            in PresentationRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(TryPlay(in request, out var handle)
+                ? new PresentationHandle<EC.IEntityId>(handle, stop: StopAsync)
+                : null);
+        }
+
+        public Task<PresentationHandle<EC.IEntityId>> PlayAsync(
+            in PresentationRequest request,
+            EC.IEntityId directFollowTarget,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(TryPlay(in request, directFollowTarget, out var handle)
+                ? new PresentationHandle<EC.IEntityId>(handle, stop: StopAsync)
+                : null);
+        }
+
+        public void Update(EC.IEntityId handle, in PresentationRequest request)
+        {
+            _spawner?.Update(
+                handle,
+                request.Scale,
+                request.Radius,
+                request.DurationMs,
+                ReadInt(request.Parameters, "stackCount"),
+                ReadInt(request.Parameters, "maxStackCount"),
+                ReadFloat(request.Parameters, "elapsedSeconds"),
+                ReadFloat(request.Parameters, "remainingSeconds"));
+        }
+
+        public void Stop(EC.IEntityId handle) => _spawner?.Destroy(handle);
+
+        public Task StopAsync(EC.IEntityId handle)
+        {
+            Stop(handle);
+            return Task.CompletedTask;
+        }
+
+        private static int ReadInt(IReadOnlyList<PresentationParameter> parameters, string key)
+        {
+            return (int)ReadFloat(parameters, key);
+        }
+
+        private static float ReadFloat(IReadOnlyList<PresentationParameter> parameters, string key)
+        {
+            if (parameters == null) return 0f;
+            for (var i = 0; i < parameters.Count; i++)
+                if (parameters[i].Key == key) return parameters[i].Value;
+            return 0f;
+        }
+    }
+
+    internal sealed class BattleVfxPresentationService
+    {
+        private readonly BattleVfxPresentationBackend _backend;
+        private readonly PresentationSession<EC.IEntityId> _session;
+
+        public BattleVfxPresentationService(
+            EC.IECWorld world,
+            BattleVfxManager vfx,
+            in EC.IEntity vfxNode,
+            System.Func<int, EC.IEntityId> resolveTarget = null)
+        {
+            _backend = new BattleVfxPresentationBackend(
+                new BattlePresentationCueVfxSpawner(world, vfx, in vfxNode),
+                resolveTarget);
+            _session = new PresentationSession<EC.IEntityId>(_backend);
+        }
+
+        public bool TryPlay(in PresentationRequest request, EC.IEntityId followTarget, out EC.IEntityId handle)
+        {
+            return _backend.TryPlay(in request, followTarget, out handle);
+        }
+
+        public Task<PresentationHandle<EC.IEntityId>> PlayAsync(
+            in PresentationRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            return _session.PlayAsync(request, cancellationToken: cancellationToken);
+        }
+
+        public Task<PresentationHandle<EC.IEntityId>> PlayAsync(
+            in PresentationRequest request,
+            EC.IEntityId followTarget,
+            CancellationToken cancellationToken = default)
+        {
+            return _backend.PlayAsync(in request, followTarget, cancellationToken);
+        }
+
+        public Task<PresentationHandle<EC.IEntityId>> PlayTransientAsync(
+            in PresentationRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            return _session.EmitTransientAsync(request, cancellationToken);
+        }
+
+        public Task StopAsync(string logicalKey) => _session.StopAsync(logicalKey);
+        public Task ClearAsync() => _session.ClearAsync();
+
+        public bool TryPlayTransient(
+            string logicalKey,
+            int vfxId,
+            in Vector3 position,
+            int durationMs,
+            out EC.IEntityId handle)
+        {
+            var request = new PresentationRequest(
+                logicalKey,
+                vfxId,
+                new PresentationVector3(position.x, position.y, position.z),
+                durationMs: durationMs);
+            return _backend.TryPlay(in request, out handle);
+        }
+
+        public void PlayTransient(
+            string logicalKey,
+            int vfxId,
+            in Vector3 position,
+            int durationMs)
+        {
+            var request = new PresentationRequest(
+                logicalKey,
+                vfxId,
+                new PresentationVector3(position.x, position.y, position.z),
+                durationMs: durationMs);
+            _ = PlayTransientSafelyAsync(request);
+        }
+
+        private async Task PlayTransientSafelyAsync(PresentationRequest request)
+        {
+            try
+            {
+                var handle = await PlayTransientAsync(request).ConfigureAwait(false);
+                if (handle == null) return;
+                try { await handle.Ready.ConfigureAwait(false); }
+                catch { await handle.StopAsync().ConfigureAwait(false); }
+            }
+            catch (System.OperationCanceledException)
+            {
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogException(exception);
+            }
         }
     }
 }

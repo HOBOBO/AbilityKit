@@ -7,6 +7,7 @@ namespace AbilityKit.Network.Host
     {
         public int MaxConnections { get; set; } = 128;
         public int MaxPendingRequestsPerSession { get; set; } = 256;
+        public int MaxFrameLength { get; set; } = 4 * 1024 * 1024;
         public TimeSpan IdleTimeout { get; set; } = TimeSpan.Zero;
         public TimeSpan EstablishmentTimeout { get; set; } = TimeSpan.Zero;
         public IFrameCodec FrameCodec { get; set; }

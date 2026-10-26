@@ -103,6 +103,38 @@ public sealed class MobaCompleteBattleLifecycleSmokeTests
         });
     }
 
+    [Fact]
+    public void Ranged_minions_chase_and_launch_authoritative_projectiles_when_in_range()
+    {
+        using var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        bootstrapper.Initialize();
+        bootstrapper.Start();
+        for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();
+        bootstrapper.SetupBattle();
+
+        var services = bootstrapper.RuntimeServices!;
+        var waves = services.Resolve<MobaMinionWaveService>();
+        var combat = services.Resolve<MobaMinionCombatService>();
+        var projectileLinks = services.Resolve<AbilityKit.Demo.Moba.Services.Projectile.MobaProjectileLinkService>();
+        var observedRangedAttack = false;
+        var observedProjectile = false;
+        var attacks = new List<MobaMinionAttackEvent>();
+        var actors = services.Resolve<MobaActorRegistry>();
+        for (var frame = 0; frame < 1200 && (!observedRangedAttack || !observedProjectile); frame++)
+        {
+            bootstrapper.Tick();
+            combat.DrainAttacks(attacks);
+            observedRangedAttack = attacks.Any(attack => attack.Archetype == MobaMinionArchetype.Ranged);
+            observedProjectile |= projectileLinks.ActiveCount > 0 || actors.Entries.Any(entry =>
+                entry.Value != null && entry.Value.hasEntityMainType &&
+                entry.Value.entityMainType.Value == EntityMainType.Projectile);
+        }
+
+        Assert.True(waves.ActiveCount > 0);
+        Assert.True(observedRangedAttack, "Ranged minions should enter range and emit their attack event.");
+        Assert.True(observedProjectile, "Ranged attacks should use the authoritative projectile actor/link lifecycle.");
+    }
+
     [Theory]
     [InlineData(1, 2)]
     [InlineData(2, 1)]

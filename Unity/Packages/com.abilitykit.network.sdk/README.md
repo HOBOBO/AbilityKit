@@ -141,7 +141,8 @@ Unity 业务若访问场景对象或 UI，应注入主线程 callback dispatcher
 | TCP | `network.runtime/TcpTransport` | SDK 有契约测试；Orleans 有 TCP smoke 链路 | Room、Battle、Moba、Shooter 的默认或实际运行路径；未发现客户端 transport 级独立真实 socket 回环测试 |
 | InMemory | `network.transport.inmemory` | linked-pair 同步回环测试；另有一条较弱的 SDK 集成测试 | 面向进程内测试；不模拟 socket、延迟、丢包、乱序、线程切换或真实断网 |
 | LiteNet | `network.transport.litenet` | 本机 LiteNetLib UDP echo round-trip | 客户端候选实现；未发现 AbilityKit LiteNet/UDP 服务端网关和生产消费者，未做真实弱网或性能对比 |
-| WebSocket | `network.transport.websocket` | 本机 `HttpListener` echo round-trip；Orleans Gateway 服务端路径/帧协议/生命周期契约测试 | 客户端候选实现；Unity WebGL 不支持。Orleans Gateway 已注册可配置服务端，但默认关闭，仍未形成生产默认链路 |
+| WebSocket | `network.transport.websocket` | 本机 `HttpListener` echo round-trip；Unity WebGL JavaScript bridge；Orleans Gateway 服务端路径/帧协议/生命周期契约测试 | 客户端候选实现；WebGL 需要浏览器允许的 `ws/wss` endpoint。Orleans Gateway 已注册可配置服务端，但默认关闭，仍未形成生产默认链路 |
+| KCP | `network.transport.kcp`；`network.host.kcp` | KCP client/server UDP echo；listener + channel 回环测试 | 可选可靠 UDP 通道；客户端和服务端需配置相同 `ConversationId`，ET 派生源码许可证限制包外再分发 |
 | GameFramework bridge | `gameframework.network` 的 `IConnection` 适配 | Shooter 接入路径存在 | 走 connection factory，不是 `ITransport` 实现 |
 
 不能从“实现存在”或“本机 echo 测试通过”推导生产成熟。当前 TCP 有业务运行时采用；三个独立 transport 包有实现和局部测试，但没有同等级生产采用证据。
@@ -191,7 +192,8 @@ var room = sdk.CreateRoomClient();
 - SDK Builder/Client：Room、Battle、Moba、Shooter 有 E2 运行时消费者；`AbilityKit.Network.Sdk.Tests` 提供 E3 生命周期和请求契约测试。
 - TCP：是当前生产默认及 Orleans smoke 主路径，可视为 E2/E4 链路证据；这不替代 transport 自身的 socket 边界专项测试。
 - InMemory、LiteNet：实现为 E0，独立回环测试为 E3；未发现 AbilityKit 生产消费者，不标记 E2。
-- WebSocket：客户端和 Orleans Gateway 服务端实现为 E0，独立回环与 Gateway 服务端契约测试为 E3；默认关闭，未发现 AbilityKit 生产消费者，不标记 E2。
+- WebSocket：客户端、WebGL bridge 和 Orleans Gateway 服务端实现为 E0，独立回环与 Gateway 服务端契约测试为 E3；默认关闭，未发现 AbilityKit 生产消费者，不标记 E2。
+- KCP：客户端、服务端 listener/channel 和 UDP 回环测试为 E0/E3；尚未标记生产链路，且 ET 派生源码需遵循其仓库许可证。
 - 尚未形成统一 E5 transport 矩阵，也没有真实弱网、跨平台、WebGL 或多协议服务端门禁。
 
 ## 十、源码阅读路径
@@ -213,6 +215,8 @@ var room = sdk.CreateRoomClient();
 ## 十二、强类型协议 Agent
 
 `NetworkSdkClient.CreateProtocolAgent(codec)` 在现有连接与请求链上提供强类型协议收发。`codec` 实现 `INetworkProtocolCodec`；Agent 不持有 SDK 的所有权，应先释放 Agent 再释放 SDK。
+
+新项目可由 catalog 编译器生成域级 `XxxProtocolClient`，将 catalog/message id 和泛型参数隐藏在生成代码中；通过 `NetworkSdkBuilder.UseRawResponseBody()` 使用无 envelope 的通用协议，使用既有 Gateway envelope 的项目则显式使用 `TcpGatewayRequestResponseEnvelopeCodec`。详见仓库根目录 `Docs/ProtocolNetworkCodegenGuide.md`。
 
 ```csharp
 using var agent = sdk.CreateProtocolAgent(codec);

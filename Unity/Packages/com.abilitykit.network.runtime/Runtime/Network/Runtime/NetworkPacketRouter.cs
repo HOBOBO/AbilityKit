@@ -19,6 +19,15 @@ namespace AbilityKit.Network.Runtime
         BoundaryRejected = 2
     }
 
+    public enum NetworkPacketHeaderFailureKind
+    {
+        None = 0,
+        ConflictingKinds = 1,
+        MissingSequence = 2,
+        UnexpectedSequence = 3,
+        UnknownFlags = 4
+    }
+
     public readonly struct NetworkPacketDispatch
     {
         public NetworkPacketDispatch(NetworkPacketDispatchKind kind, NetworkPacketHeader header, ArraySegment<byte> payload)
@@ -128,13 +137,16 @@ namespace AbilityKit.Network.Runtime
         private long _unknownCount;
         private long _exceptionCount;
         private long _boundaryRejectedCount;
+        private readonly NetworkPacketHeaderValidator _headerValidator;
 
         public NetworkPacketRouter(
             Action<Exception> exceptionHandler = null,
-            NetworkPacketBoundaryValidator boundaryValidator = null)
+            NetworkPacketBoundaryValidator boundaryValidator = null,
+            NetworkPacketHeaderValidator headerValidator = null)
         {
             _exceptionHandler = exceptionHandler;
             _boundaryValidator = boundaryValidator;
+            _headerValidator = headerValidator;
         }
 
         public void Register(uint opCode, NetworkPacketDispatchKind kind, NetworkPacketRouteHandler handler)
@@ -203,6 +215,12 @@ namespace AbilityKit.Network.Runtime
                     lock (_gate) _boundaryRejectedCount++;
                     return NetworkPacketDispatchOutcome.BoundaryRejected;
                 }
+            }
+
+            if (_headerValidator != null && !_headerValidator(header, out var headerFailure))
+            {
+                lock (_gate) { _unknownCount++; _boundaryRejectedCount++; }
+                return NetworkPacketDispatchOutcome.BoundaryRejected;
             }
 
             var kind = ResolveKind(header.Flags);
@@ -296,6 +314,49 @@ namespace AbilityKit.Network.Runtime
             if ((flags & NetworkPacketFlags.Response) != 0) return NetworkPacketDispatchKind.Response;
             if ((flags & NetworkPacketFlags.Request) != 0) return NetworkPacketDispatchKind.Request;
             return NetworkPacketDispatchKind.Unknown;
+        }
+    }
+
+    public delegate bool NetworkPacketHeaderValidator(
+        NetworkPacketHeader header,
+        out NetworkPacketHeaderFailureKind failureKind);
+
+    public static class NetworkPacketHeaderValidation
+    {
+        public static bool Validate(NetworkPacketHeader header, out NetworkPacketHeaderFailureKind failureKind)
+        {
+            var kinds = header.Flags & (NetworkPacketFlags.Request | NetworkPacketFlags.Response | NetworkPacketFlags.ServerPush);
+            var kindCount = 0;
+            if ((kinds & NetworkPacketFlags.Request) != 0) kindCount++;
+            if ((kinds & NetworkPacketFlags.Response) != 0) kindCount++;
+            if ((kinds & NetworkPacketFlags.ServerPush) != 0) kindCount++;
+
+            const NetworkPacketFlags known = NetworkPacketFlags.Compressed |
+                NetworkPacketFlags.Encrypted | NetworkPacketFlags.Heartbeat |
+                NetworkPacketFlags.Request | NetworkPacketFlags.Response |
+                NetworkPacketFlags.ServerPush;
+            if ((header.Flags & ~known) != 0)
+            {
+                failureKind = NetworkPacketHeaderFailureKind.UnknownFlags;
+                return false;
+            }
+            if (kindCount > 1)
+            {
+                failureKind = NetworkPacketHeaderFailureKind.ConflictingKinds;
+                return false;
+            }
+            if ((kinds & (NetworkPacketFlags.Request | NetworkPacketFlags.Response)) != 0 && header.Seq == 0)
+            {
+                failureKind = NetworkPacketHeaderFailureKind.MissingSequence;
+                return false;
+            }
+            if ((kinds & NetworkPacketFlags.ServerPush) != 0 && header.Seq != 0)
+            {
+                failureKind = NetworkPacketHeaderFailureKind.UnexpectedSequence;
+                return false;
+            }
+            failureKind = NetworkPacketHeaderFailureKind.None;
+            return true;
         }
     }
 }

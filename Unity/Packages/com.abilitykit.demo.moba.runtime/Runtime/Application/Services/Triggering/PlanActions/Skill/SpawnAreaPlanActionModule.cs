@@ -96,6 +96,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var delayFrames = ResolveDelayFrames(aoe.DelayMs, ctx.Context);
             var frame = ResolveFrame(ctx.Context);
             var offset = new Vec3(aoe.OffsetX + args.OffsetX, aoe.OffsetY + args.OffsetY, aoe.OffsetZ + args.OffsetZ);
+            var aimDirection = input.AimDirection;
+            var areaForward = input.HasAimDirection
+                ? DeterministicMathBridge.Normalize(in aimDirection)
+                : Vec3.Forward;
+            if (areaForward.SqrMagnitude <= 0.000001f) areaForward = Vec3.Forward;
 
             if (!args.HasTargetRequest)
             {
@@ -110,7 +115,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 center = center + offset;
                 LogInvestigation(ctx,
                     $"resolved area params center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} stayIntervalFrames={stayIntervalFrames} delayFrames={delayFrames} collisionMask={collisionLayerMask} frame={frame}");
-                if (SpawnOneArea(projectiles, areaRuntime, executionContexts, args, aoe, input, ctx, in center, input.TargetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId) &&
+                if (SpawnOneArea(projectiles, areaRuntime, executionContexts, args, aoe, input, ctx, in center, in areaForward, input.TargetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId) &&
                     (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, runtimeAreaId, out var outputError) ||
                      !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, 1, out outputError)))
                 {
@@ -148,7 +153,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     center = center + offset;
                     LogInvestigation(ctx,
                         $"resolved target area params target={targetActorId} center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} stayIntervalFrames={stayIntervalFrames} delayFrames={delayFrames} collisionMask={collisionLayerMask} frame={frame}");
-                    if (SpawnOneArea(projectiles, areaRuntime, executionContexts, args, aoe, input, ctx, in center, targetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId))
+                    if (SpawnOneArea(projectiles, areaRuntime, executionContexts, args, aoe, input, ctx, in center, in areaForward, targetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId))
                     {
                         if (firstRuntimeAreaId == 0) firstRuntimeAreaId = runtimeAreaId;
                         spawned++;
@@ -180,6 +185,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             MobaSummonActionInput input,
             ExecCtx<IWorldResolver> ctx,
             in Vec3 center,
+            in Vec3 forward,
             int targetActorId,
             float radius,
             int lifetimeFrames,
@@ -228,7 +234,27 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             LogInvestigation(ctx,
                 $"resolved area context source={sourceContextId} parent={origin.EffectiveParentContextId} root={rootContextId} owner={ownerContextId} target={targetActorId}");
 
-            var spawnParams = new AreaSpawnParams(input.CasterActorId, in center, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames);
+            var shapeKind = args.ShapeKind < (int)OverlapShapeKind.Circle || args.ShapeKind > (int)OverlapShapeKind.Rectangle
+                ? OverlapShapeKind.Circle
+                : (OverlapShapeKind)args.ShapeKind;
+            var initialRadius = args.InitialRadius > 0f ? args.InitialRadius : radius;
+            var width = args.Width > 0f ? args.Width : radius * 2f;
+            var length = args.Length > 0f ? args.Length : radius * 2f;
+            var spawnParams = new AreaSpawnParams(
+                input.CasterActorId,
+                in center,
+                radius,
+                lifetimeFrames,
+                collisionLayerMask,
+                stayIntervalFrames,
+                shapeKind,
+                forward,
+                args.HalfAngleDeg,
+                width,
+                length,
+                args.AnchorAtOrigin,
+                args.RadiusGrowthPerFrame,
+                initialRadius);
             var areaId = projectiles.SpawnArea(in spawnParams, frame);
             if (areaId.Value <= 0)
             {

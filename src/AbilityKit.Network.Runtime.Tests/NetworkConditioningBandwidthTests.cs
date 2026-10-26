@@ -200,6 +200,23 @@ public sealed class NetworkPipelineMutationTests
         Assert.Equal(1, pipeline.Count);
     }
 
+    [Fact]
+    public void NamedMiddleware_CanBeInsertedReplacedAndRemoved()
+    {
+        var calls = new List<string>();
+        var pipeline = new NetworkPipeline();
+        pipeline.AddNamed("codec", new RecordingMiddleware("codec", calls));
+        pipeline.AddBefore("codec", "metrics", new RecordingMiddleware("metrics", calls));
+        pipeline.AddAfter("codec", "compression", new RecordingMiddleware("compression", calls));
+        Assert.True(pipeline.Replace("metrics", "metrics-v2", new RecordingMiddleware("metrics-v2", calls)));
+
+        pipeline.ProcessOutbound(new StubSessionContext(), default, default, (_, _) => calls.Add("terminal"));
+        Assert.Equal(new[] { "metrics-v2", "codec", "compression", "terminal" }, calls);
+        Assert.True(pipeline.RemoveByName("compression"));
+        Assert.False(pipeline.RemoveByName("compression"));
+        Assert.Throws<InvalidOperationException>(() => pipeline.AddNamed("codec", new RecordingMiddleware("duplicate", calls)));
+    }
+
     private sealed class RecordingMiddleware : INetworkMiddleware
     {
         private readonly string _name;

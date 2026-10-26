@@ -87,7 +87,10 @@ namespace AbilityKit.HFSM.Visualization
 
             var name = AutoRegisterNameProvider != null
                 ? AutoRegisterNameProvider(fsm)
-                : fsm.GetType().Name;
+                : fsm is AbilityKit.HFSM.Inspection.IRuntimeInspectionName named &&
+                  !string.IsNullOrWhiteSpace(named.InspectionName)
+                    ? named.InspectionName
+                    : fsm.GetType().Name;
 
             Register(name, fsm);
         }
@@ -683,9 +686,10 @@ namespace AbilityKit.HFSM.Visualization
             _installation = RuntimeInspectionHub.InstallBackend(new UnityLiveRegistryBackend());
         }
 
-        private sealed class UnityLiveRegistryBackend : IRuntimeInspectionRegistryBackend
+        private sealed class UnityLiveRegistryBackend : IRuntimeInspectionRegistryBackend, IRuntimeInspectionNamedRegistryBackend
         {
             public void AutoRegister(object runtime) => LiveRegistry.AutoRegister(runtime);
+            public void Register(string name, object runtime) => LiveRegistry.Register(name, runtime);
             public void Unregister(object runtime) => LiveRegistry.Unregister(runtime);
         }
     }

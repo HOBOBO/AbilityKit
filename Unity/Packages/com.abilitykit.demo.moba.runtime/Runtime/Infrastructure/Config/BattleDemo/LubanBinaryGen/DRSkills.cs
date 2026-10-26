@@ -33,6 +33,7 @@ public sealed partial class DRSkills : Luban.BeanBase
         NullFields = _buf.ReadString();
         {int n0 = _buf.ReadSize(); ExecutionBlockedFlagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ExecutionBlockedFlagIds.Add(_e0);}}
         PreviewVfxId = _buf.ReadInt();
+        AllowCastWithoutTarget = _buf.ReadBool();
     }
 
     public static DRSkills DeserializeDRSkills(ByteBuf _buf)
@@ -108,6 +109,10 @@ public sealed partial class DRSkills : Luban.BeanBase
     /// ?????????????? VFX ID?0 ????????
     /// </summary>
     public readonly int PreviewVfxId;
+    /// <summary>
+    /// 无有效目标时是否允许按瞄准方向空放。
+    /// </summary>
+    public readonly bool AllowCastWithoutTarget;
    
     public const int __ID__ = 491147888;
     public override int GetTypeId() => __ID__;
@@ -136,6 +141,7 @@ public sealed partial class DRSkills : Luban.BeanBase
         + "NullFields:" + NullFields + ","
         + "ExecutionBlockedFlagIds:" + Luban.StringUtil.CollectionToString(ExecutionBlockedFlagIds) + ","
         + "PreviewVfxId:" + PreviewVfxId + ","
+        + "AllowCastWithoutTarget:" + AllowCastWithoutTarget + ","
         + "}";
     }
 }

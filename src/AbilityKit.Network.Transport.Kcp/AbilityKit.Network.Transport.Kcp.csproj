@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit</RootNamespace>
+    <AssemblyName>AbilityKit.Network.Transport.Kcp</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.network.transport.kcp/Runtime/**/*.cs"
+             Exclude="../../Unity/Packages/com.abilitykit.network.transport.kcp/Runtime/**/*.asmdef" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
+  </ItemGroup>
+</Project>

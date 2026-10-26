@@ -17,13 +17,13 @@
 | | MOBA / Shooter | Tiny / Turn |
 |---|---|---|
 | 拓扑 | **双连接**：房间控制面 + 战斗数据面（`NetworkTransport`） | **单连接**：帧同步直接走 Room 连接 |
-| 框架门面 | `com.abilitykit.network.client` 的 `GatewayBattleClientHost`（259 行，单文件单包） | **无对应门面**，只有原语 |
+| 框架门面 | `com.abilitykit.network.client` 的 `MultiplayerClientSession`（组合 Room 控制连接与 battle data plane） | **无对应门面**，只有原语 |
 | 同步载体 | 独立战斗传输 + 快照/事件 | `RoomClient.FrameSyncFrameReceived` + `RoomGatewayFrameInbox`（Room 帧同步 opcode `121`/`122`/`9006`） |
 | Tiny 的依赖 | — | **不依赖** `network.client`，也不依赖任何 `network.transport.*` |
 
 `com.abilitykit.network.client/README.md` 自述其定位是"把'房间控制面连接 + 战斗数据面连接'的组装、凭证传递和推送绑定纪律收进一个组件，**替代各 demo 各自手拼的 300-700 行接入外壳**"。Tiny 的 `TinyBattleSession`(627) + `TinyGatewayClient`(147) = **774 行**，正落在这个区间——而且 `TinyBattleSessionTests` 里一大批用例（`OldBattleSubscriptionCannotReplaceNewBattle`、`OlderPollCannotReplaceNewBattleInSameRoom`、`LateJoinCannotReplaceRestoredRoom`…）正是在手工守护 README 说的"推送绑定纪律"（observerKey 单槽 last-writer-wins）**要靠约定而非结构**的那类竞态。
 
-**判读**：Tiny 绕过 `GatewayBattleClientHost` **在拓扑上是有理由的**——那个宿主是双连接拓扑的产物，而 Tiny 的同步不走战斗数据面。但这意味着：**选择单连接拓扑，就没有结构化的接入宿主可复用**，会话纪律得自己写、自己测。这是"复杂项目该选哪条拓扑"的核心权衡点。
+**判读**：Tiny 绕过 `MultiplayerClientSession` **在拓扑上是有理由的**——该会话组合双连接拓扑，而 Tiny 的同步不走战斗数据面。但这意味着：**选择单连接拓扑，就没有结构化的接入会话可复用**，会话纪律得自己写、自己测。这是"复杂项目该选哪条拓扑"的核心权衡点。
 
 ## Tiny 用到 vs 不用（同一问题的两面）
 

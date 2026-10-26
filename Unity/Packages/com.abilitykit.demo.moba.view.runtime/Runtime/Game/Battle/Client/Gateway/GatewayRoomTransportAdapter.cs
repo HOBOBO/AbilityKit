@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Room;
 using AbilityKit.Network.Runtime;
-using AbilityKit.Network.Runtime.Gateway;
+using AbilityKit.Network.Runtime.TcpGateway;
 using AbilityKit.Network.Sdk;
 
 namespace AbilityKit.Game.Battle.Agent
@@ -35,7 +35,9 @@ namespace AbilityKit.Game.Battle.Agent
                 throw new ArgumentNullException(nameof(connection));
             }
 
-            var gateway = GatewayConnection.Create(connection);
+            var gateway = NetworkProtocolSession.Create(
+                connection,
+                TcpGatewayRequestResponseEnvelopeCodec.Instance);
             _sendRequestAsync = async (opCode, payload, timeout, cancellationToken) =>
             {
                 var response = await gateway.SendRequestAsync(

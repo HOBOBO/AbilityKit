@@ -307,6 +307,19 @@ namespace AbilityKit.Game.Flow
                 keysToStop);
         }
 
+        /// <summary>
+        /// Starts an authoritative snapshot within the current stream generation.
+        /// Snapshot revisions replace the remembered prediction/revision history;
+        /// the view registry is reconciled separately against the snapshot key set.
+        /// </summary>
+        public void BeginAuthoritativeSnapshot(long generation)
+        {
+            _entries.Clear();
+            _receiptOrder.Clear();
+            _activeKeys.Clear();
+            if (generation > CurrentGeneration) CurrentGeneration = generation;
+        }
+
         public TKey[] ReconcileActiveSet(IReadOnlyCollection<TKey> desiredKeys)
         {
             var desired = new HashSet<TKey>(_comparer);

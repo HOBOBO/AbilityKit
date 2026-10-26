@@ -35,7 +35,8 @@ namespace AbilityKit.Network.Host
             IDispatcher callbackDispatcher = null,
             IDispatcher ioDispatcher = null,
             IFrameCodec frameCodec = null,
-            IMonotonicClock clock = null)
+            IMonotonicClock clock = null,
+            int maxFrameLength = 4 * 1024 * 1024)
         {
             _channel = channel ?? throw new ArgumentNullException(nameof(channel));
             _dispatcher = callbackDispatcher ?? InlineDispatcher.Instance;
@@ -43,6 +44,8 @@ namespace AbilityKit.Network.Host
             _frameCodec = frameCodec ?? LengthPrefixedFrameCodec.Instance;
             _clock = clock ?? StopwatchMonotonicClock.Instance;
             _decoder = _frameCodec.CreateDecoder();
+            if (maxFrameLength <= 0) throw new ArgumentOutOfRangeException(nameof(maxFrameLength));
+            if (_decoder is IFrameDecoderLimits limits) limits.MaxFrameLength = maxFrameLength;
             _context = new SessionContext(this, _dispatcher);
             _openedTimestamp = _clock.Timestamp;
             _lastActivityTimestamp = _openedTimestamp;

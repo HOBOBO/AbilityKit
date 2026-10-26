@@ -2,10 +2,20 @@ using System;
 
 namespace AbilityKit.HFSM.Inspection
 {
+    public interface IRuntimeInspectionName
+    {
+        string InspectionName { get; }
+    }
+
     public interface IRuntimeInspectionRegistryBackend
     {
         void AutoRegister(object runtime);
         void Unregister(object runtime);
+    }
+
+    public interface IRuntimeInspectionNamedRegistryBackend
+    {
+        void Register(string name, object runtime);
     }
 
     public static class RuntimeInspectionHub
@@ -40,6 +50,17 @@ namespace AbilityKit.HFSM.Inspection
             lock (SyncRoot)
                 backend = _backend;
             backend?.AutoRegister(runtime);
+        }
+
+        public static void Register(string name, object runtime)
+        {
+            IRuntimeInspectionRegistryBackend backend;
+            lock (SyncRoot)
+                backend = _backend;
+            if (backend is IRuntimeInspectionNamedRegistryBackend named)
+                named.Register(name, runtime);
+            else
+                backend?.AutoRegister(runtime);
         }
 
         public static void Unregister(object runtime)

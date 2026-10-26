@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 
@@ -15,7 +16,16 @@ namespace AbilityKit.Network.Runtime
         NetworkPacketRouter PacketRouter { get; }
     }
 
-    public sealed class NetworkSession : INetworkRuntimeSession, IProtocolRoutedConnection
+    /// <summary>Optional transport counters exposed by sessions that collect I/O diagnostics.</summary>
+    public interface INetworkRuntimeSessionDiagnostics
+    {
+        long BytesReceivedCount { get; }
+        long BytesSentCount { get; }
+        long PacketsReceivedCount { get; }
+        long PacketsSentCount { get; }
+    }
+
+    public sealed class NetworkSession : INetworkRuntimeSession, INetworkRuntimeSessionDiagnostics, IProtocolRoutedConnection
     {
         private readonly ITransport _transport;
         private readonly IDispatcher _dispatcher;
@@ -26,6 +36,10 @@ namespace AbilityKit.Network.Runtime
         private readonly NetworkPipeline _pipeline;
         private readonly NetworkPacketRouter _packetRouter;
         private readonly SessionContext _context;
+        private long _bytesReceived;
+        private long _bytesSent;
+        private long _packetsReceived;
+        private long _packetsSent;
 
         private bool _started;
 
@@ -33,18 +47,22 @@ namespace AbilityKit.Network.Runtime
             ITransport transport,
             IDispatcher dispatcher = null,
             IFrameCodec frameCodec = null,
-            ProtocolPacketBoundaryValidator boundaryValidator = null)
+            ProtocolPacketBoundaryValidator boundaryValidator = null,
+            int maxFrameLength = 4 * 1024 * 1024,
+            bool validatePacketHeaders = false)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _dispatcher = dispatcher ?? InlineDispatcher.Instance;
             _ioDispatcher = _dispatcher;
             _frameCodec = frameCodec ?? LengthPrefixedFrameCodec.Instance;
             _frameDecoder = _frameCodec.CreateDecoder();
+            ConfigureDecoderLimit(_frameDecoder, maxFrameLength);
 
             _pipeline = new NetworkPipeline();
             _packetRouter = new NetworkPacketRouter(
                 exception => _dispatcher.Post(() => Error?.Invoke(exception)),
-                boundaryValidator == null ? null : boundaryValidator.Validate);
+                boundaryValidator == null ? null : boundaryValidator.Validate,
+                validatePacketHeaders ? NetworkPacketHeaderValidation.Validate : null);
             _context = new SessionContext(this, _dispatcher);
         }
 
@@ -53,18 +71,22 @@ namespace AbilityKit.Network.Runtime
             IDispatcher callbackDispatcher,
             IDispatcher ioDispatcher,
             IFrameCodec frameCodec = null,
-            ProtocolPacketBoundaryValidator boundaryValidator = null)
+            ProtocolPacketBoundaryValidator boundaryValidator = null,
+            int maxFrameLength = 4 * 1024 * 1024,
+            bool validatePacketHeaders = false)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _dispatcher = callbackDispatcher ?? InlineDispatcher.Instance;
             _ioDispatcher = ioDispatcher ?? InlineDispatcher.Instance;
             _frameCodec = frameCodec ?? LengthPrefixedFrameCodec.Instance;
             _frameDecoder = _frameCodec.CreateDecoder();
+            ConfigureDecoderLimit(_frameDecoder, maxFrameLength);
 
             _pipeline = new NetworkPipeline();
             _packetRouter = new NetworkPacketRouter(
                 exception => _dispatcher.Post(() => Error?.Invoke(exception)),
-                boundaryValidator == null ? null : boundaryValidator.Validate);
+                boundaryValidator == null ? null : boundaryValidator.Validate,
+                validatePacketHeaders ? NetworkPacketHeaderValidation.Validate : null);
             _context = new SessionContext(this, _dispatcher);
         }
 
@@ -80,6 +102,10 @@ namespace AbilityKit.Network.Runtime
         public NetworkPipeline Pipeline => _pipeline;
 
         public NetworkPacketRouter PacketRouter => _packetRouter;
+        public long BytesReceivedCount => Interlocked.Read(ref _bytesReceived);
+        public long BytesSentCount => Interlocked.Read(ref _bytesSent);
+        public long PacketsReceivedCount => Interlocked.Read(ref _packetsReceived);
+        public long PacketsSentCount => Interlocked.Read(ref _packetsSent);
 
         public void Start()
         {
@@ -160,9 +186,11 @@ namespace AbilityKit.Network.Runtime
         {
             try
             {
+                Interlocked.Add(ref _bytesReceived, bytes.Count);
                 _frameDecoder.Append(bytes);
                 while (_frameDecoder.TryRead(out var header, out var payload))
                 {
+                    Interlocked.Increment(ref _packetsReceived);
                     _pipeline.ProcessInbound(_context, header, payload, DispatchPacketReceived);
                 }
             }
@@ -212,6 +240,8 @@ namespace AbilityKit.Network.Runtime
         {
             var frame = _frameCodec.Encode(header, payload);
             _transport.Send(frame);
+            Interlocked.Add(ref _bytesSent, frame.Count);
+            Interlocked.Increment(ref _packetsSent);
         }
 
         private static ArraySegment<byte> Copy(ArraySegment<byte> bytes)
@@ -224,6 +254,12 @@ namespace AbilityKit.Network.Runtime
             var copy = new byte[bytes.Count];
             Buffer.BlockCopy(bytes.Array, bytes.Offset, copy, 0, bytes.Count);
             return new ArraySegment<byte>(copy);
+        }
+
+        private static void ConfigureDecoderLimit(IFrameDecoder decoder, int maxFrameLength)
+        {
+            if (maxFrameLength <= 0) throw new ArgumentOutOfRangeException(nameof(maxFrameLength));
+            if (decoder is IFrameDecoderLimits limits) limits.MaxFrameLength = maxFrameLength;
         }
 
         private sealed class SessionContext : AbilityKit.Network.Abstractions.ISessionContext

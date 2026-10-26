@@ -40,12 +40,12 @@ AbilityKit 的多人联网底层已经是一套玩法无关的 SDK（`network.sd
 - **同步会话装配**：`NetworkSyncSessionBuilder` 解析 Profile、冻结配置、校验本地能力并按策略绑定 Room 远端声明
 - **可靠事件骨架**：`ReliableEventSessionBuilder` 提供 cursor、checkpoint、权威 baseline 与 flush/retry/circuit 生命周期
 
-## 🆕 最快接入路径：GatewayMultiplayerSession
+## 🆕 最快接入路径：MultiplayerRoomSession
 
 `network.room` 新增的高层会话门面。新项目用 **~10 行代码**完成从零到"进战斗 + 订阅状态同步"：
 
 ```csharp
-var session = await GatewayMultiplayerSession.CreateAsync(
+var session = await MultiplayerRoomSession.CreateAsync(
     "127.0.0.1", 4000, "player-1",
     RoomGatewayLaunchSpec.CreateDefault("yourgame", "yourgame-world"),
     transportFactory: () => new TcpTransport(),  // 当前生产与 Smoke 默认路径
@@ -65,7 +65,7 @@ session.Dispose();
 | 包 | 客户端实现与局部测试 | 生产采用 / 服务端前提 |
 |---|---|---|
 | `network.runtime` / `TcpTransport` | 裸 TCP 实现；SDK 有契约测试 | Room、Battle、Moba、Shooter 和 Orleans Smoke 的默认或实际路径 |
-| `network.transport.websocket` | `ClientWebSocket`；本机 `HttpListener` echo round-trip；Orleans Gateway 服务端契约测试 | 未发现生产消费者；不支持 Unity WebGL；Orleans Gateway 已注册可配置服务端，但默认关闭 |
+| `network.transport.websocket` | `ClientWebSocket`；Unity WebGL JavaScript bridge；本机 `HttpListener` echo round-trip；Orleans Gateway 服务端契约测试 | 未发现生产消费者；Orleans Gateway 已注册可配置服务端，但默认关闭；WebGL 需要浏览器允许的 `ws/wss` endpoint |
 | `network.transport.litenet` | LiteNetLib `ReliableOrdered`；本机 UDP echo round-trip | 未发现生产消费者和 AbilityKit UDP/LiteNet 网关；没有真实弱网或 TCP 性能对比证据 |
 | `network.transport.inmemory` | linked-pair 同步回环测试 | 仅适合进程内测试，不模拟 socket、时延、丢包、乱序或异步线程 |
 | `network.battle.config` | `NetworkBattleConfig` 高层配置 builder | 封装标准 room-gateway 协议预设，不改变 transport 的服务端前提 |
@@ -236,8 +236,8 @@ coordinator 当初的设想是"逻辑层不关心帧同步/状态同步，宿主
 - **P2.2（已完成 2026-08-09）**：shooter 客户端数据面迁移到统一引擎 —— 两连接拓扑（房间控制面 + 独立 battle NetworkTransport 连接）；`ShooterBattleTransportGatewayClient` 适配 `NetworkTransport.SendInputAsync`（per-submit 结果），`ShooterBattleDataPlane` 经 `RawServerPushReceived` 喂既有 `ApplyGatewayPush`（push 在主线程 drain，不与 `session.Tick` 竞争）；`ShooterRoomGatewayConnection` 收缩为房间控制面 + battle-state facade（`NotifyBattlePushDispatched`）。退役了 `ShooterRoomGatewayClient`/`ShooterRoomGatewayConnection` 的手写战斗胶水。multiprocess smoke（含 recoverable-retry 3 次注入故障 + 重连）全绿、`diffStatus=Identical`。
 ### 当前收敛结论
 
-- `GatewayMultiplayerSession` 已有 Host/Console 消费者，适合作为线性/最小流程入口；MOBA 的 hero-pick/loading/restore 保持阶段化 Flow，不以迁入 facade 作为统一性指标。
-- `GatewayMultiplayerSession` 是一次性 host；`Dispose` 不主动 LeaveRoom，重连应新建或使用 staged restore；`Tick` 必须传真实墙钟 delta。
+- `MultiplayerRoomSession` 已有 Host/Console 消费者，适合作为线性/最小流程入口；MOBA 的 hero-pick/loading/restore 保持阶段化 Flow，不以迁入 facade 作为统一性指标。
+- `MultiplayerRoomSession` 是一次性 host；`Dispose` 不主动 LeaveRoom，重连应新建或使用 staged restore；`Tick` 必须传真实墙钟 delta。
 - `NetworkSyncSessionBuilder` 和 Room 远端能力声明负责稳定装配协议，预测、插值、回滚和表现对账算法继续由项目注册。
 - 三套预测实现只在稳定接口、指标和失败语义上收敛，不强制合并成单一算法。
 - WebSocket 服务端已有默认关闭的注册路径，仍需真实部署 E2E；LiteNet/UDP server listener 仍未闭环。

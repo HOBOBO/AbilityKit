@@ -136,42 +136,56 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 casterPos = casterEntity.transform.Value.Position;
             }
 
-            var requiresTargetResolution = args.TrackTarget
-                || args.TargetRequest.UsesTemplate
+            var hasTargetRequest = args.TargetRequest.UsesTemplate
                 || args.TargetRequest.TargetActorId > 0
-                || args.TargetRequest.TargetPayloadActorId > 0;
+                || args.TargetRequest.TargetPayloadActorId > 0
+                || args.TargetRequest.SourceCode != MobaActionTargetSourceCode.ContextTarget;
+            var requiresTargetResolution = hasTargetRequest || (args.TrackTarget && input.HasTargetActor);
             if (requiresTargetResolution)
             {
                 var effectInput = new MobaEffectActionInput(in coreInput);
                 var targets = PooledMobaPlanActionLists.GetIntList();
                 try
                 {
-                    if (!MobaActionTargetResolver.TryResolveTargets(in args.TargetRequest, in coreInput, in effectInput, ctx, ActionName, targets)
-                        || targets.Count == 0)
+                    // Tracking is opportunistic for attacks: a target selected by the cast
+                    // is authoritative, while a configured nearby-target query may acquire
+                    // one. If the query finds nothing, retain the submitted aim direction
+                    // so targetless attacks remain valid directional releases.
+                    var optionalTrackingQuery = args.TrackTarget
+                        && !input.HasTargetActor
+                        && args.TargetRequest.TargetActorId <= 0
+                        && args.TargetRequest.TargetPayloadActorId <= 0;
+                    var resolved = optionalTrackingQuery
+                        ? MobaActionTargetResolver.TryResolveTargetCollection(in args.TargetRequest, in coreInput, in effectInput, ctx, ActionName, targets)
+                        : MobaActionTargetResolver.TryResolveTargets(in args.TargetRequest, in coreInput, in effectInput, ctx, ActionName, targets);
+                    if ((!resolved || targets.Count == 0) && !optionalTrackingQuery)
                     {
                         LogRejected(ctx, "target query found no target");
                         return;
                     }
 
-                    targetActorId = targets[0];
+                    if (targets.Count > 0) targetActorId = targets[0];
                 }
                 finally
                 {
                     PooledMobaPlanActionLists.Release(targets);
                 }
 
-                if (actorRegistry == null
-                    || !actorRegistry.TryGet(targetActorId, out var targetEntity)
-                    || targetEntity == null
-                    || !targetEntity.hasTransform)
+                if (targetActorId > 0)
                 {
-                    LogRejected(ctx, $"target actor is missing transform. targetActorId={targetActorId}");
-                    return;
-                }
+                    if (actorRegistry == null
+                        || !actorRegistry.TryGet(targetActorId, out var targetEntity)
+                        || targetEntity == null
+                        || !targetEntity.hasTransform)
+                    {
+                        LogRejected(ctx, $"target actor is missing transform. targetActorId={targetActorId}");
+                        return;
+                    }
 
-                aimPos = targetEntity.transform.Value.Position;
-                var targetDelta = new Vec3(aimPos.X - casterPos.X, 0f, aimPos.Z - casterPos.Z);
-                if (!targetDelta.Equals(Vec3.Zero)) aimDir = DeterministicMathBridge.Normalize(in targetDelta);
+                    aimPos = targetEntity.transform.Value.Position;
+                    var targetDelta = new Vec3(aimPos.X - casterPos.X, 0f, aimPos.Z - casterPos.Z);
+                    if (!targetDelta.Equals(Vec3.Zero)) aimDir = DeterministicMathBridge.Normalize(in targetDelta);
+                }
             }
             else if (!aimDir.Equals(Vec3.Zero))
             {

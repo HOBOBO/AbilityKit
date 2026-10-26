@@ -63,7 +63,7 @@ AbilityKit 当前把这些职责拆成几层：
 | Coordinator 配置与契约 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Core` | `SessionConfig`、枚举、host/policy、drive gate、spawn service 等；不含 coordinator 实现 |
 | Coordinator 数据对象 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Data` | payload codec、实体状态、帧快照、端点、输入和 spawn DTO |
 | Gateway flow | `Unity/Packages/com.abilitykit.network.room/Runtime/RoomGatewaySessionFlow.cs` | create/join/ready/loading/start/subscribe/restore 阶段编排 |
-| Gateway 高层门面 | `Unity/Packages/com.abilitykit.network.room/Runtime/GatewayMultiplayerSession.cs` | 线性/最小房间流程入口；已由 Gateway Host/Console 路径采用，复杂阶段仍用原子 Flow |
+| 房间线性流程入口 | `Unity/Packages/com.abilitykit.network.room/Runtime/MultiplayerRoomSession.cs` | gateway room 协议的线性/最小流程入口；双连接组合由 `network.client` 的 `MultiplayerClientSession` 提供，复杂阶段仍用原子 Flow |
 | 同步会话装配 | `Unity/Packages/com.abilitykit.network.sdk/Runtime/NetworkSyncSessionBuilder.cs` | Profile 解析、本地校验、远端能力协商、controller 工厂与不可变 descriptor |
 | 可靠事件会话 | `Unity/Packages/com.abilitykit.network.sdk/Runtime/ReliableEventSessionBuilder.cs` | cursor、checkpoint store、权威 baseline、flush/retry/circuit 与生命周期诊断 |
 | Room 能力绑定 | `Unity/Packages/com.abilitykit.network.room/Runtime/RoomGatewayNetworkSyncSessionBinding.cs` | 把 wire capability metadata 转换并绑定到同步 session |
@@ -169,7 +169,7 @@ flowchart TB
 
 `RoomGatewaySessionFlow` 位于 `com.abilitykit.network.room`。它面向 `IRoomGatewaySessionClient` 提供原子阶段，由业务会话决定 create、join、restore、ready、loading、start 和 subscribe 的组合顺序。它不拥有本地 world，也不驱动每帧输入或 battle push。
 
-`GatewayMultiplayerSession.CreateAsync` 与 `RunRoomFlowAsync` 已覆盖 create/join、join 失败或异常时 fallback create、ready 前后 hook、可选 battle-start 等待和可选 Room 连接订阅。`GatewayBattleClientHost.EnterAsync` 实际消费该流程，Console `StateSyncAdapter` 又通过 Host 进入；因此“零消费者/E0”结论已经失效。
+`MultiplayerRoomSession.CreateAsync` 与 `RunRoomFlowAsync` 已覆盖 create/join、join 失败或异常时 fallback create、ready 前后 hook、可选 battle-start 等待和可选 Room 连接订阅。`MultiplayerClientSession.EnterAsync` 组合该流程与战斗数据连接，Console `StateSyncAdapter` 使用统一入口；因此“零消费者/E0”结论已经失效。
 
 它仍只适合线性/最小流程。MOBA 的 hero-pick、loading、恢复和阶段化交互继续由 `RoomGatewaySessionFlow` 与项目状态机驱动；强行迁移到 facade 会丢失表达力。facade 是一次性 host，`Dispose` 不主动 `LeaveRoom`，重连需新建或由项目运行 staged restore。`Tick` 必须使用真实墙钟 delta。
 
@@ -710,7 +710,7 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 1. `Unity/Packages/com.abilitykit.coordinator/Runtime/Core`：当前保留的配置和 host/policy 契约。
 2. `Unity/Packages/com.abilitykit.coordinator/Runtime/Data`：当前保留的数据对象和 codec。
 3. `Unity/Packages/com.abilitykit.network.room/Runtime/RoomGatewaySessionFlow.cs`：阶段化 create/join/ready/loading/start/restore 编排。
-4. `Unity/Packages/com.abilitykit.network.room/Runtime/GatewayMultiplayerSession.cs`：线性流程门面、hook、订阅开关与一次性 host 边界。
+4. `Unity/Packages/com.abilitykit.network.room/Runtime/MultiplayerRoomSession.cs`：线性流程门面、hook、订阅开关与一次性 host 边界。
 5. `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientNetworkLauncher.cs`：Room 控制面与 battle 数据面的装配。
 6. `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterBattleDataPlane.cs`：push 排队和主线程 Drain。
 7. `Unity/Packages/com.abilitykit.host.extension/Runtime/Client/StateSync/RemoteClientInputSubmitQueue.cs`：远端输入背压和最新值替换。

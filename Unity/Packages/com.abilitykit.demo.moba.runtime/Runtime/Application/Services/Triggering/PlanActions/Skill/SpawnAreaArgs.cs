@@ -14,6 +14,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly float OffsetX;
         public readonly float OffsetY;
         public readonly float OffsetZ;
+        public readonly int ShapeKind;
+        public readonly float HalfAngleDeg;
+        public readonly float Width;
+        public readonly float Length;
+        public readonly float InitialRadius;
+        public readonly float RadiusGrowthPerFrame;
+        public readonly bool AnchorAtOrigin;
         public readonly bool HasTargetRequest;
         public readonly MobaActionTargetRequest TargetRequest;
         public readonly BlackboardWriteTarget ResultTarget;
@@ -30,6 +37,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             float offsetX,
             float offsetY,
             float offsetZ,
+            int shapeKind = 0,
+            float halfAngleDeg = 0f,
+            float width = 0f,
+            float length = 0f,
+            float initialRadius = 0f,
+            float radiusGrowthPerFrame = 0f,
+            bool anchorAtOrigin = true,
             bool hasTargetRequest = false,
             MobaActionTargetRequest targetRequest = default,
             BlackboardWriteTarget resultTarget = default,
@@ -45,6 +59,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             OffsetX = offsetX;
             OffsetY = offsetY;
             OffsetZ = offsetZ;
+            ShapeKind = shapeKind;
+            HalfAngleDeg = halfAngleDeg;
+            Width = width;
+            Length = length;
+            InitialRadius = initialRadius;
+            RadiusGrowthPerFrame = radiusGrowthPerFrame;
+            AnchorAtOrigin = anchorAtOrigin;
             HasTargetRequest = hasTargetRequest;
             TargetRequest = targetRequest;
             ResultTarget = resultTarget;

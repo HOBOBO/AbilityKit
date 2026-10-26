@@ -396,7 +396,7 @@ namespace AbilityKit.Demo.Moba.Tests.Minions
 
         [Theory]
         [InlineData(MobaMinionAiState.FollowingRoute, true)]
-        [InlineData(MobaMinionAiState.AcquiringTarget, true)]
+        [InlineData(MobaMinionAiState.AcquiringTarget, false)]
         [InlineData(MobaMinionAiState.Attacking, false)]
         [InlineData(MobaMinionAiState.Dead, false)]
         [InlineData(MobaMinionAiState.Terminal, false)]

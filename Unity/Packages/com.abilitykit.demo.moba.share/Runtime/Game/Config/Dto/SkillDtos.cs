@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
 
         public int SkillButtonTemplateId;
         public int RequiredTargetQueryId;
+        public bool AllowCastWithoutTarget;
 
         public int LevelTableId;
         public int PreCastFlowId;

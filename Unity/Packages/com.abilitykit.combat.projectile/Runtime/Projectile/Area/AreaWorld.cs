@@ -33,7 +33,17 @@ namespace AbilityKit.Combat.Projectile
             a.Id = new AreaId(_nextId++);
             a.OwnerId = p.OwnerId;
             a.Center = p.Center;
-            a.Radius = p.Radius;
+            a.Radius = p.InitialRadius > 0f ? Math.Min(p.InitialRadius, p.Radius) : p.Radius;
+            a.MaxRadius = p.Radius;
+            a.ShapeKind = p.ShapeKind == OverlapShapeKind.Sector || p.ShapeKind == OverlapShapeKind.Rectangle
+                ? p.ShapeKind
+                : OverlapShapeKind.Circle;
+            a.Forward = p.Forward.SqrMagnitude > 0.000001f ? p.Forward.Normalized : Vec3.Forward;
+            a.HalfAngleDeg = p.HalfAngleDeg;
+            a.Width = p.Width;
+            a.Length = p.Length;
+            a.AnchorAtOrigin = p.AnchorAtOrigin;
+            a.RadiusGrowthPerFrame = Math.Max(0f, p.RadiusGrowthPerFrame);
             a.LifetimeFramesLeft = p.LifetimeFrames;
             a.LayerMask = p.CollisionLayerMask;
             a.StayIntervalFrames = p.StayIntervalFrames;
@@ -96,7 +106,24 @@ namespace AbilityKit.Combat.Projectile
                 // 查询当前重叠目标。
                 var curr = a.GetCurrListAndClear();
                 var filter = new LayerFilter(a.LayerMask);
-                var count = _collision.OverlapSphere(new Sphere(a.Center, a.Radius), in filter, curr);
+                int count;
+                if (a.ShapeKind != OverlapShapeKind.Circle && _collision is IShapeOverlapCollisionWorld shapeWorld)
+                {
+                    var shape = new OverlapShapeQuery(
+                        a.ShapeKind,
+                        in a.Center,
+                        in a.Forward,
+                        a.Radius,
+                        a.HalfAngleDeg,
+                        a.Width,
+                        a.Length,
+                        a.AnchorAtOrigin);
+                    count = shapeWorld.OverlapShape(in shape, in filter, curr);
+                }
+                else
+                {
+                    count = _collision.OverlapSphere(new Sphere(a.Center, a.Radius), in filter, curr);
+                }
                 if (count > 1)
                 {
                     curr.Sort(CompareCollider);
@@ -163,6 +190,8 @@ namespace AbilityKit.Combat.Projectile
                 // 交换上一帧和当前帧列表，供下一帧使用。
                 a.SwapLists();
 
+                if (a.RadiusGrowthPerFrame > 0f)
+                    a.Radius = Math.Min(a.Radius + a.RadiusGrowthPerFrame, a.MaxRadius);
                 a.LifetimeFramesLeft--;
             }
         }
@@ -189,6 +218,14 @@ namespace AbilityKit.Combat.Projectile
             public int OwnerId;
             public Vec3 Center;
             public float Radius;
+            public float MaxRadius;
+            public float RadiusGrowthPerFrame;
+            public OverlapShapeKind ShapeKind;
+            public Vec3 Forward;
+            public float HalfAngleDeg;
+            public float Width;
+            public float Length;
+            public bool AnchorAtOrigin;
             public int LifetimeFramesLeft;
             public int LayerMask;
 
@@ -220,6 +257,14 @@ namespace AbilityKit.Combat.Projectile
                 OwnerId = 0;
                 Center = Vec3.Zero;
                 Radius = 0f;
+                MaxRadius = 0f;
+                RadiusGrowthPerFrame = 0f;
+                ShapeKind = OverlapShapeKind.Circle;
+                Forward = Vec3.Forward;
+                HalfAngleDeg = 0f;
+                Width = 0f;
+                Length = 0f;
+                AnchorAtOrigin = true;
                 LifetimeFramesLeft = 0;
                 LayerMask = 0;
                 StayIntervalFrames = 0;

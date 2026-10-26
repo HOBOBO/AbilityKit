@@ -311,7 +311,7 @@ public sealed class MobaLubanConfigPipelineTests
         var triggers = scope.Resolve<TriggerPlanJsonDatabase>();
         // The editor aggregate includes the authored hero trigger plans in
         // addition to the two published rule plans.
-        Assert.Equal(133, triggers.Records.Count);
+        Assert.Equal(135, triggers.Records.Count);
         Assert.True(triggers.TryGetRecordByTriggerId(10070011, out _));
         Assert.True(triggers.TryGetRecordByTriggerId(10010301, out _));
     }
@@ -333,7 +333,7 @@ public sealed class MobaLubanConfigPipelineTests
         Assert.True(JToken.DeepEquals(unity, console));
 
         var triggers = (JArray)unity["Triggers"]!;
-        Assert.Equal(131, triggers.Count);
+        Assert.Equal(133, triggers.Count);
         Assert.Contains(triggers, row => row.Value<int>("TriggerId") == 10070011);
         foreach (var id in new[] { 10010301, 10010311, 10010321 })
         {
@@ -344,7 +344,7 @@ public sealed class MobaLubanConfigPipelineTests
 
         var database = new TriggerPlanJsonDatabase();
         database.LoadFromJson(unity.ToString(), "moba-editor-trigger-aggregate");
-        Assert.Equal(131, database.Records.Count);
+        Assert.Equal(133, database.Records.Count);
         Assert.True(database.TryGetRecordByTriggerId(10010301, out _));
     }
 

@@ -356,7 +356,7 @@ flowchart TB
 | Host | `Unity/Packages/com.abilitykit.host/Runtime` | `src/AbilityKit.Host` | - |
 | Host Extension | `Unity/Packages/com.abilitykit.host.extension/Runtime` | `src/AbilityKit.Host.Extension` | 客户端帧包适配与输入 single-flight 队列；不拥有 Room 或 battle 连接生命周期 |
 | Coordinator | `Unity/Packages/com.abilitykit.coordinator/Runtime` | package-linked build entry | 当前仅配置、契约、DTO 与 codec；旧 SessionCoordinator、Local/Remote/Hybrid adapter 和 remote transport 实现不在当前 Package |
-| Network Room | `Unity/Packages/com.abilitykit.network.room/Runtime` | package-linked build entry | `RoomGatewaySessionFlow` 提供阶段化控制面；`GatewayMultiplayerSession` 已用于 Host/Console 线性流程；Room 能力 binding 对接同步 session，但两者都不拥有玩法算法 |
+| Network Room | `Unity/Packages/com.abilitykit.network.room/Runtime` | package-linked build entry | `RoomGatewaySessionFlow` 提供阶段化控制面；`MultiplayerRoomSession` 已用于 Host/Console 线性流程；Room 能力 binding 对接同步 session，但两者都不拥有玩法算法 |
 | Shooter Client Network | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client` | `src/AbilityKit.Demo.Shooter.Runtime.Tests` | E2 双连接业务链：Room 控制连接与独立 battle transport；push 经 receive-thread enqueue 后由主线程 Drain，E3 契约测试与 E4/E5 另行分层 |
 | FrameSync | `Unity/Packages/com.abilitykit.world.framesync/Runtime` | `src/AbilityKit.World.FrameSync` | `Server/Orleans/src/AbilityKit.Orleans.Contracts/FrameSync` |
 | Snapshot | `Unity/Packages/com.abilitykit.world.snapshot/Runtime` | `src/AbilityKit.World.Snapshot` | `Server/Orleans/src/AbilityKit.Orleans.Contracts/Battle` |

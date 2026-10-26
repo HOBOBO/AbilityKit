@@ -15,6 +15,8 @@ using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.Map;
+using AbilityKit.Demo.Moba.Services.Projectile;
+using AbilityKit.Demo.Moba.Services.Projectile.Launch;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Triggering.Eventing;
 
@@ -29,12 +31,17 @@ namespace AbilityKit.Demo.Moba.Gameplay
         private readonly MobaActorRegistry _actors;
         private readonly MobaConfigDatabase _configs;
         private readonly MobaDamageService _damage;
+        [WorldInject(required: false)] private MobaProjectileService _projectiles;
+        [WorldInject(required: false)] private MobaCombatRulesService _combatRules;
+        [WorldInject(required: false)] private MobaGameplayService _gameplay;
         private readonly MobaActorAttributeInitializer _attributes = new MobaActorAttributeInitializer();
         private readonly List<MobaActorSpawnResult> _spawnedStructures = new List<MobaActorSpawnResult>();
         private readonly Dictionary<int, StructureRuntime> _structures = new Dictionary<int, StructureRuntime>();
         private readonly Dictionary<int, StructureRuntime> _structuresByActor = new Dictionary<int, StructureRuntime>();
         private readonly Dictionary<int, int> _baseByTeam = new Dictionary<int, int>();
         private readonly Dictionary<int, List<int>> _towersByTeam = new Dictionary<int, List<int>>();
+        private readonly Dictionary<int, long> _nextAttackAtMs = new Dictionary<int, long>();
+        private readonly List<int> _structureActorScratch = new List<int>();
         private IDisposable _healthCommittedSubscription;
         private IEventBus _events;
         [WorldInject(required: false)] private MobaActorSpawnSnapshotService _spawnSnapshots;
@@ -56,6 +63,34 @@ namespace AbilityKit.Demo.Moba.Gameplay
         }
 
         public IReadOnlyDictionary<int, int> BaseActorsByTeam => _baseByTeam;
+
+        public bool TryGetNextTarget(int teamId, out int actorId)
+        {
+            return TryGetNextTargetInternal(teamId, out actorId);
+        }
+
+        public void CopyAttackCooldowns(List<MobaStructureAttackCooldownState> destination)
+        {
+            if (destination == null) throw new ArgumentNullException(nameof(destination));
+            destination.Clear();
+            foreach (var item in _nextAttackAtMs)
+                destination.Add(new MobaStructureAttackCooldownState(item.Key, item.Value));
+            destination.Sort((left, right) => left.ActorId.CompareTo(right.ActorId));
+        }
+
+        public void RestoreAttackCooldowns(IReadOnlyList<MobaStructureAttackCooldownState> cooldowns)
+        {
+            if (cooldowns == null) throw new ArgumentNullException(nameof(cooldowns));
+            _nextAttackAtMs.Clear();
+            for (var i = 0; i < cooldowns.Count; i++)
+            {
+                var item = cooldowns[i];
+                if (item.ActorId <= 0 || item.NextAttackAtMs < 0 ||
+                    (i > 0 && cooldowns[i - 1].ActorId >= item.ActorId))
+                    throw new InvalidOperationException("Invalid structure attack cooldown state.");
+                _nextAttackAtMs.Add(item.ActorId, item.NextAttackAtMs);
+            }
+        }
 
         public void Prepare(MobaMapStructureResource resource)
         {
@@ -137,6 +172,92 @@ namespace AbilityKit.Demo.Moba.Gameplay
             return true;
         }
 
+        public void Tick()
+        {
+            if (_gameplay == null || !_gameplay.IsRunning || _projectiles == null || _configs == null) return;
+            var nowMs = _gameplay.GetClockState().ElapsedMilliseconds;
+            _structureActorScratch.Clear();
+            foreach (var actorId in _structuresByActor.Keys) _structureActorScratch.Add(actorId);
+            _structureActorScratch.Sort();
+
+            for (var i = 0; i < _structureActorScratch.Count; i++)
+            {
+                var attackerId = _structureActorScratch[i];
+                if (!_structuresByActor.TryGetValue(attackerId, out var structure) || structure.Destroyed ||
+                    !_actors.TryGet(attackerId, out var attacker) || attacker == null ||
+                    !attacker.hasTransform || !attacker.hasAttributeGroup || !IsAlive(attackerId, attacker) ||
+                    (_combatRules != null && !_combatRules.CanAttack(attackerId)))
+                    continue;
+
+                var attrs = attacker.GetMobaAttrs();
+                var range = attrs.AttackRange;
+                var damage = attrs.PhysicsAttack + attrs.ExtraPhysicsAttack;
+                if (range <= 0f || damage <= 0f) continue;
+                if (_nextAttackAtMs.TryGetValue(attackerId, out var nextAt) && nowMs < nextAt) continue;
+                if (!TryFindEnemyInRange(attackerId, structure.TeamId, range, out var targetId) ||
+                    !_actors.TryGet(targetId, out var target) || target == null || !target.hasTransform)
+                    continue;
+                if (!_configs.TryGetProjectileLauncher(31020001, out var launcher) || launcher == null ||
+                    !_configs.TryGetProjectile(30020001, out var projectile) || projectile == null)
+                    continue;
+
+                var source = attacker.transform.Value.Position;
+                var destination = target.transform.Value.Position;
+                var direction = new Vec3(destination.X - source.X, 0f, destination.Z - source.Z);
+                if (direction.SqrMagnitude <= 0.0001f) continue;
+                var context = ProjectileSourceContextBuilder.Create()
+                    .WithActors(attackerId, targetId)
+                    .WithProjectileConfig(projectile.Id)
+                    .Build();
+                if (_projectiles.Launch(attackerId, launcher, projectile, in source, in direction, in context))
+                    _nextAttackAtMs[attackerId] = nowMs + GetAttackCooldownMs(attrs.AttackSpeedR);
+            }
+        }
+
+        private bool TryFindEnemyInRange(int attackerId, int teamId, float range, out int targetId)
+        {
+            targetId = 0;
+            var source = _actors.TryGet(attackerId, out var attacker) && attacker != null && attacker.hasTransform
+                ? attacker.transform.Value.Position : default;
+            var bestDistanceSq = range * range;
+            foreach (var pair in _actors.Entries)
+            {
+                var candidateId = pair.Key;
+                var candidate = pair.Value;
+                if (candidateId == attackerId || candidate == null || !candidate.hasTransform ||
+                    !candidate.hasTeam || (int)candidate.team.Value == teamId ||
+                    !candidate.hasAttributeGroup || !IsAlive(candidateId, candidate) ||
+                    !candidate.hasEntityMainType || !candidate.hasUnitSubType)
+                    continue;
+                var kind = MobaEntityKindResolver.Resolve(candidate.entityMainType.Value, candidate.unitSubType.Value);
+                if (kind != MobaEntityKind.Minion && kind != MobaEntityKind.Hero)
+                    continue;
+                var position = candidate.transform.Value.Position;
+                var dx = position.X - source.X;
+                var dz = position.Z - source.Z;
+                var distanceSq = dx * dx + dz * dz;
+                if (distanceSq > bestDistanceSq) continue;
+                if (targetId == 0 || distanceSq < bestDistanceSq || candidateId < targetId)
+                {
+                    targetId = candidateId;
+                    bestDistanceSq = distanceSq;
+                }
+            }
+            return targetId > 0;
+        }
+
+        private bool IsAlive(int actorId, global::ActorEntity actor)
+        {
+            return _combatRules != null ? _combatRules.IsAlive(actorId) : actor.GetMobaAttrs().Hp > 0f;
+        }
+
+        private static long GetAttackCooldownMs(float attackSpeed)
+        {
+            const long baseCooldownMs = 1500;
+            var multiplier = attackSpeed <= 0f ? 1f : Math.Max(0.25f, 1f - attackSpeed / 100f);
+            return Math.Max(1L, (long)Math.Round(baseCooldownMs * multiplier));
+        }
+
         private void OnHealthCommitted(MobaHealthChangeResult result)
         {
             if (!result.Succeeded || !_structuresByActor.TryGetValue(result.TargetActorId, out var structure)) return;
@@ -150,7 +271,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
             Publish(MobaStructureEvents.Destroyed, in args);
         }
 
-        private bool TryGetNextTarget(int teamId, out int actorId)
+        private bool TryGetNextTargetInternal(int teamId, out int actorId)
         {
             actorId = 0;
             if (_towersByTeam.TryGetValue(teamId, out var towers))
@@ -199,6 +320,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
             _structuresByActor.Clear();
             _baseByTeam.Clear();
             _towersByTeam.Clear();
+            _nextAttackAtMs.Clear();
+            _structureActorScratch.Clear();
         }
 
         public void OnDeinit(IWorldResolver services) => Reset();
@@ -216,5 +339,13 @@ namespace AbilityKit.Demo.Moba.Gameplay
             public int TeamId { get; }
             public bool Destroyed { get; set; }
         }
+    }
+
+    public readonly struct MobaStructureAttackCooldownState
+    {
+        public MobaStructureAttackCooldownState(int actorId, long nextAttackAtMs)
+        { ActorId = actorId; NextAttackAtMs = nextAttackAtMs; }
+        public int ActorId { get; }
+        public long NextAttackAtMs { get; }
     }
 }

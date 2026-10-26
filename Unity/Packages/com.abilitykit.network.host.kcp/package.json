@@ -1,0 +1,12 @@
+{
+  "name": "com.abilitykit.network.host.kcp",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Network Host KCP",
+  "unity": "2021.3",
+  "description": "Optional KCP listener and server channels for AbilityKit NetworkHost.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.network.host": "0.1.0",
+    "com.abilitykit.network.transport.kcp": "0.1.0"
+  }
+}

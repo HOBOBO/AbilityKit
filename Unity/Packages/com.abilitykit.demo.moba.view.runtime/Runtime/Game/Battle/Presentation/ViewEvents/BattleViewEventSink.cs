@@ -103,6 +103,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         public void OnEnterGameSnapshot(ISnapshotEnvelope packet, BattleEnterGameSnapshot res)
         {
+            _projectileEvents?.Clear();
+            _areaEvents?.Clear();
+            RefreshPresentationState();
             _dirtyViews.Refresh();
         }
 
@@ -140,12 +143,12 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         /// </summary>
         public bool RefreshPresentationState()
         {
+            _presentationCues.ResetForAuthoritativeBaseline();
             if (_context == null || !_context.TryGetRuntimeWorld(out var world) || world?.Services == null ||
                 !world.Services.TryResolve(out MobaSnapshotRouter router) || router == null ||
                 !router.RequestActiveBaseline())
                 return false;
 
-            _presentationCues.Clear();
             return true;
         }
 

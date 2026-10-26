@@ -19,6 +19,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             BattlePresentationCueSpawnRequest,
             EC.IEntityId> _views;
         private readonly HashSet<BattlePresentationCueRequestKey> _baselineKeys = new();
+        private bool _baselineInProgress;
         private long _worldId;
 
         public long ConfirmedPredictionCount => _reconciliation.ConfirmedCount;
@@ -68,34 +69,43 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             {
                 BeginReconciliationGeneration(first.Generation);
             }
-
-            var isBaseline = false;
-            _baselineKeys.Clear();
+            else if (first.Generation > 0 && first.Generation < _reconciliation.CurrentGeneration)
+            {
+                return;
+            }
 
             for (int i = 0; i < entries.Length; i++)
             {
                 if (entries[i].SnapshotKind == PresentationCueSnapshotKind.ActiveBaseline)
                 {
-                    isBaseline = true;
+                    if (!_baselineInProgress)
+                    {
+                        _baselineInProgress = true;
+                        _baselineKeys.Clear();
+                        _reconciliation.BeginAuthoritativeSnapshot(
+                            entries[i].Generation > 0 ? entries[i].Generation : _reconciliation.CurrentGeneration);
+                    }
                     var key = BattlePresentationCueRequestKey.From(in entries[i]);
                     if (!key.IsEmpty) _baselineKeys.Add(key);
                 }
 
                 if (entries[i].SnapshotKind == PresentationCueSnapshotKind.ActiveBaselineEnd)
                 {
-                    isBaseline = true;
+                    if (!_baselineInProgress)
+                    {
+                        _reconciliation.BeginAuthoritativeSnapshot(_reconciliation.CurrentGeneration);
+                        _baselineKeys.Clear();
+                    }
+                    _baselineInProgress = false;
+                    _reconciliation.ReconcileActiveSet(_baselineKeys);
+                    _views.ReconcileActiveSet(_baselineKeys);
+                    _baselineKeys.Clear();
                     continue;
                 }
 
                 HandleSnapshotEntry(entries[i]);
             }
 
-            if (isBaseline)
-            {
-                _reconciliation.ReconcileActiveSet(_baselineKeys);
-                _views.ReconcileActiveSet(_baselineKeys);
-                _baselineKeys.Clear();
-            }
         }
 
         private void HandleSnapshotEntry(in PresentationCueData data)
@@ -137,12 +147,23 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
             _views.Clear();
             _baselineKeys.Clear();
+            _baselineInProgress = false;
             return _reconciliation.BeginGeneration(generation).Applied;
         }
 
         public void Clear()
         {
+            _baselineInProgress = false;
+            _baselineKeys.Clear();
             BeginReconciliationGeneration(_reconciliation.CurrentGeneration + 1);
+        }
+
+        internal void ResetForAuthoritativeBaseline()
+        {
+            _baselineInProgress = false;
+            _baselineKeys.Clear();
+            _views.Clear();
+            _reconciliation.BeginAuthoritativeSnapshot(_reconciliation.CurrentGeneration);
         }
 
         internal bool TryGetActiveEntityId(

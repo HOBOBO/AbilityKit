@@ -4,6 +4,7 @@ using AbilityKit.Ability.Config;
 using AbilityKit.Deterministic;
 using AbilityKit.HFSM.Definition;
 using AbilityKit.HFSM.Runtime;
+using AbilityKit.HFSM.Inspection;
 
 namespace AbilityKit.Demo.Moba.Services.StateMachine
 {
@@ -123,28 +124,33 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         public MobaCharacterActionState Action;
     }
 
-    public sealed class MobaCharacterHfsmRuntime : IDisposable
+    public sealed class MobaCharacterHfsmRuntime : IDisposable, IRuntimeInspectionName
     {
         private readonly int _actorId;
         private readonly StateMachineDefinition _definition;
         private readonly MobaCharacterHfsmFacts _facts = new MobaCharacterHfsmFacts();
         private readonly StateMachineRuntime<MobaCharacterHfsmFacts> _machine;
+        private readonly bool _registeredForInspection;
         private MobaCharacterActionState _action;
         private bool _disposed;
 
-        public MobaCharacterHfsmRuntime(int actorId, StateMachineDefinition definition, int frame, Fixed64 time)
+        public MobaCharacterHfsmRuntime(int actorId, StateMachineDefinition definition, int frame, Fixed64 time,
+            bool registerForInspection = true)
         {
             if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));
             _actorId = actorId;
             _definition = definition ?? throw new ArgumentNullException(nameof(definition));
+            _registeredForInspection = registerForInspection;
             _machine = new StateMachineRuntime<MobaCharacterHfsmFacts>(_facts, definition,
                 MobaCharacterHfsmProfile.CreateBindings());
             _facts.Alive = true;
             _machine.Initialize(frame, time);
+            if (_registeredForInspection) RuntimeInspectionHub.Register(InspectionName, _machine);
             UpdateAction(frame);
         }
 
         public long DefinitionHash => _machine.DefinitionHash;
+        public string InspectionName => "MobaHero/Actor_" + _actorId;
         public int Frame => _machine.CurrentFrame;
         public Fixed64 Time => _machine.CurrentTime;
         public MobaCharacterActionState Action => _action;
@@ -229,7 +235,14 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         {
             if (_disposed) return;
             _disposed = true;
-            if (_machine.IsInitialized && !_machine.IsFaulted) _machine.Shutdown();
+            try
+            {
+                if (_machine.IsInitialized && !_machine.IsFaulted) _machine.Shutdown();
+            }
+            finally
+            {
+                if (_registeredForInspection) RuntimeInspectionHub.Unregister(_machine);
+            }
         }
     }
 }

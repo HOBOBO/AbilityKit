@@ -26,11 +26,20 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var offsetX = ReadFloat(namedArgs, ctx, 0f, "offset_x", "offsetx", "x");
             var offsetY = ReadFloat(namedArgs, ctx, 0f, "offset_y", "offsety", "y");
             var offsetZ = ReadFloat(namedArgs, ctx, 0f, "offset_z", "offsetz", "z");
+            var shapeKind = ReadInt(namedArgs, ctx, 0, "shape_kind", "shapekind", "shape");
+            var halfAngleDeg = ReadFloat(namedArgs, ctx, 0f, "half_angle_deg", "halfangledeg", "sector_half_angle");
+            var width = ReadFloat(namedArgs, ctx, 0f, "width", "shape_width");
+            var length = ReadFloat(namedArgs, ctx, 0f, "length", "shape_length");
+            var initialRadius = ReadFloat(namedArgs, ctx, 0f, "initial_radius", "initialradius");
+            var radiusGrowthPerFrame = ReadFloat(namedArgs, ctx, 0f, "radius_growth_per_frame", "radiusgrowthperframe", "growth_per_frame");
+            var anchorAtOrigin = ReadBoolNonZero(namedArgs, ctx, true, "anchor_at_origin", "anchoratorigin", "front_anchor");
             var hasTargetRequest = HasExplicitTargetRequest(namedArgs);
             var targetRequest = hasTargetRequest ? MobaActionTargetSchemaReader.Read(namedArgs, ctx) : default;
             TryReadBlackboardTarget(namedArgs, out var resultTarget, "result", "result_id", "area_result");
             TryReadBlackboardTarget(namedArgs, out var resultCountTarget, "result_count", "spawn_count");
-            return new SpawnAreaArgs(areaId, positionMode, radiusOverride, durationFrames, durationMs, stayIntervalFrames, collisionLayerMaskOverride, offsetX, offsetY, offsetZ, hasTargetRequest, targetRequest, resultTarget, resultCountTarget);
+            return new SpawnAreaArgs(areaId, positionMode, radiusOverride, durationFrames, durationMs, stayIntervalFrames, collisionLayerMaskOverride, offsetX, offsetY, offsetZ,
+                shapeKind, halfAngleDeg, width, length, initialRadius, radiusGrowthPerFrame, anchorAtOrigin,
+                hasTargetRequest, targetRequest, resultTarget, resultCountTarget);
         }
 
         private static bool HasExplicitTargetRequest(Dictionary<string, ActionArgValue> namedArgs)
@@ -51,7 +60,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 "target_filter_code", "targetfiltercode",
                 "target_filter_param", "targetfilterparam",
                 "target_radius", "targetradius",
-                "target_half_angle_deg", "targethalfanglegdeg",
+                "target_half_angle_deg", "targethalfangledeg",
                 "target_order", "targetorder",
                 "target_order_code", "targetordercode",
                 "target_order_param", "targetorderparam",

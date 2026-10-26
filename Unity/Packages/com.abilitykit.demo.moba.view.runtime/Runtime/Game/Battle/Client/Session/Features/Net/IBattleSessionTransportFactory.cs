@@ -24,6 +24,10 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class DefaultBattleSessionTransportFactory : IBattleSessionTransportFactory
     {
+        internal static uint ParsePlayerId(PlayerId playerId) => NetworkIdCodec.Numeric.Encode(playerId);
+
+        internal static ulong ParseWorldId(WorldId worldId) => NetworkIdCodec.Numeric.Encode(worldId);
+
         public IBattleLogicTransport CreateGatewayRemoteTransport(
             BattleStartPlan plan,
             uint localPlayerId,
@@ -32,19 +36,18 @@ namespace AbilityKit.Game.Flow
             IDispatcher ioDispatcher)
         {
             var gateway = plan.Gateway;
-            var gatewayOptions = NetworkTransportOptionsFactory.Create(
-                host: gateway.Host,
-                port: gateway.Port,
-                transportFactory: () => new TcpTransport(),
-                playerIdToUInt: ParsePlayerId,
-                playerIdFromUInt: n => new PlayerId(n.ToString()),
-                worldIdToUlong: ParseWorldId,
-                worldIdFromUlong: n => new WorldId(n.ToString()),
-                roomId: roomId,
-                sessionToken: gateway.SessionToken,
-                battleId: gateway.BattleId,
-                publicRoomId: gateway.JoinRoomId,
-                useFrameSyncInput: SessionSimRuntimeTuning.ShouldUseFrameSyncInput(plan.Sync.SyncMode));
+            var gatewayOptions = NetworkTransportOptionsFactory.Create(new NetworkTransportOptionsFactoryOptions
+            {
+                Host = gateway.Host,
+                Port = gateway.Port,
+                TransportFactory = () => new TcpTransport(),
+                IdCodec = NetworkIdCodec.Numeric,
+                RoomId = roomId,
+                SessionToken = gateway.SessionToken,
+                BattleId = gateway.BattleId,
+                PublicRoomId = gateway.JoinRoomId,
+                UseFrameSyncInput = SessionSimRuntimeTuning.ShouldUseFrameSyncInput(plan.Sync.SyncMode)
+            });
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             MobaProtocolDecoderModule.Register(NetworkTrafficMonitor.Default.Decoders);
@@ -60,22 +63,9 @@ namespace AbilityKit.Game.Flow
             };
 #endif
 
-            return GatewayBattleClientHost.CreateBattleTransport(
+            return MultiplayerClientSession.CreateBattleTransport(
                 gatewayOptions, callbackDispatcher, ioDispatcher, connect: false);
         }
 
-        internal static uint ParsePlayerId(PlayerId playerId)
-        {
-            return uint.TryParse(playerId.Value, out var value)
-                ? value
-                : throw new FormatException($"PlayerId '{playerId.Value}' is not a valid unsigned integer.");
-        }
-
-        internal static ulong ParseWorldId(WorldId worldId)
-        {
-            return ulong.TryParse(worldId.Value, out var value)
-                ? value
-                : throw new FormatException($"WorldId '{worldId.Value}' is not a valid unsigned integer.");
-        }
     }
 }

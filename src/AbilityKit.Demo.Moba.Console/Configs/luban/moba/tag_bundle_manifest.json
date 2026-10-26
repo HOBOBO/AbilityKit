@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "0ca9d53fdbcd85b32e47f5df836ff8d284cbb6b17642a286331b2c00b475b953",
+  "bundleVersion": "3d048e65fe7b80090fda879693867823eaf91c27a77963c4b54ab5638d8b3620",
   "tables": {
     "buffs": "59b44360ca071889134e8594e1fded17b415c8bcba958b505566b968833c82e5",
     "continuous_processes": "e46e178712aae934961ca66e532b19b34a966991abec0dfd701d4307bc7cfc0a",
     "continuous_tag_templates": "cf9d7b9677260957db5fe51318e7ff651733a85db28e9b76303e5093674998b0",
-    "skills": "ea937195608386703913aa70f31541ac1dccd01f4ab123b60bc1888862c93c64",
+    "skills": "ab43d6f6bbce8a7f641c9c606741b720345dfd4a3bba5f9a6f283028ee3ff757",
     "tag_behavior_gates": "7dc5ada326ed74f4449d7f3cda6d21979ce4413fd7aa5341758e2b8eb5c53773",
     "tag_definitions": "ad44a3022440be1845d55b02110487150add33fe41fce959b19a83afdf53a488",
     "tag_result_flags": "00748238ce85f6775ead2027e52341b24331dfb46c6aca106767dd37d108f277",

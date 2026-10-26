@@ -299,6 +299,9 @@ namespace AbilityKit.BattleScenario
         /// <summary>障碍位置。</summary>
         public TestVector3 Position { get; set; }
 
+        /// <summary>碰撞配置引用。</summary>
+        public string CollisionProfileId { get; set; } = "default";
+
         /// <inheritdoc/>
         public override void Compile(BattleScenarioBuilder builder) => builder.AddObstacle(new TestObstacle
         {
@@ -306,6 +309,7 @@ namespace AbilityKit.BattleScenario
             Shape = Shape,
             Size = Size,
             Position = Position,
+            CollisionProfileId = CollisionProfileId,
         });
     }
 }

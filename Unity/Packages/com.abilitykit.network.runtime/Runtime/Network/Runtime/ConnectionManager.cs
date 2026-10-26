@@ -13,7 +13,8 @@ namespace AbilityKit.Network.Runtime
     public sealed class ConnectionManager :
         IConnection,
         IReconnectableConnection,
-        INetworkConnectionDiagnosticsSource
+        INetworkConnectionDiagnosticsSource,
+        IConnectionIdentity
     {
         private readonly Func<ITransport> _transportFactory;
         private readonly ConnectionOptions _options;
@@ -68,6 +69,9 @@ namespace AbilityKit.Network.Runtime
 
         public bool IsConnected => _transport != null && _transport.IsConnected;
 
+        public string ConnectionId => _connectionId;
+        public int ConnectionGeneration => _connectionGeneration;
+
         /// <summary>
         /// 当前会话的中间件管线。会话未建立（未 Open 或已断开）时返回 null。
         /// 调用方可在 <see cref="Connected"/> 事件后通过 <see cref="NetworkPipeline.Add"/>
@@ -83,6 +87,7 @@ namespace AbilityKit.Network.Runtime
         {
             var scheduler = _reconnectScheduler;
             var packetRouter = _session?.PacketRouter?.GetSnapshot();
+            var ioDiagnostics = _session as INetworkRuntimeSessionDiagnostics;
             return new NetworkConnectionDiagnosticsSnapshot(
                 _connectionId,
                 _connectionGeneration,
@@ -100,6 +105,10 @@ namespace AbilityKit.Network.Runtime
                 scheduler.RemainingDelaySeconds,
                 _timeSinceLastReceive,
                 _timeSinceLastHeartbeatSend,
+                ioDiagnostics?.BytesReceivedCount ?? 0L,
+                ioDiagnostics?.BytesSentCount ?? 0L,
+                ioDiagnostics?.PacketsReceivedCount ?? 0L,
+                ioDiagnostics?.PacketsSentCount ?? 0L,
                 _session?.Pipeline?.Count ?? 0,
                 packetRouter);
         }
@@ -255,7 +264,9 @@ namespace AbilityKit.Network.Runtime
                         _dispatcher,
                         _ioDispatcher,
                         frameCodec,
-                        _options.PacketBoundaryValidator);
+                        _options.PacketBoundaryValidator,
+                        _options.MaxFrameLength,
+                        _options.ValidatePacketHeaders);
                 if (_session == null)
                 {
                     throw new InvalidOperationException("Network session factory returned null.");

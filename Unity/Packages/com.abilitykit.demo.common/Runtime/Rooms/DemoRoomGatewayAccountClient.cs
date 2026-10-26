@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.TcpGateway;
 using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Room;
 
@@ -50,6 +51,7 @@ namespace AbilityKit.Demo.Common.Rooms
                 new NetworkSdkBuilder()
                     .UseOwnedConnectionFactory(
                         () => connection ?? throw new ArgumentNullException(nameof(connection)))
+                    .UseResponseEnvelopeCodec(TcpGatewayRequestResponseEnvelopeCodec.Instance)
                     .Build(),
                 ownsSdkClient: true)
         {

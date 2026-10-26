@@ -14,7 +14,7 @@ var flow = new RoomGatewaySessionFlow(rooms);
 
 The session owns the SDK client and Room client, including cleanup after a
 connection failure. It does not log in, create a room, or select a sync mode.
-Use `GatewayMultiplayerSession.CreateAsync` for the existing automatic
+Use `MultiplayerRoomSession.CreateAsync` for the existing automatic
 guest-login-to-battle flow.
 
 `NetworkSdkClient` owns generic transport and request dispatch. `RoomGatewayWireSessionClient`
@@ -126,12 +126,12 @@ var sub = await flow.SubscribeStateSyncAsync(...);
 var restore = await flow.RestoreAsync(...);   // 按 NextStep 续上
 ```
 
-## 🆕 GatewayMultiplayerSession（新项目快速接入）
+## 🆕 MultiplayerRoomSession（新项目快速接入）
 
 新项目用 **~10 行代码**完成"连接 → 登录 → 建房/加入 → 准备 → 开战 → 订阅状态同步"：
 
 ```csharp
-var session = await GatewayMultiplayerSession.CreateAsync(
+var session = await MultiplayerRoomSession.CreateAsync(
     "127.0.0.1", 4000, "player-1",
     new RoomGatewayLaunchSpec(region, serverId, "yourgame", "title", maxPlayers, gameplayId, ruleSetId, configVersion, protocolVersion, "yourgame-world", clientId));
 // session.SdkClient — 战斗数据面；session.Result — roomId/battleId/playerId/RoomSnapshot
@@ -145,7 +145,7 @@ session.Dispose();
 - **`afterJoinAndBeforeReady` 钩子** —— 在 Join 与 SetReady 之间插入 hero-pick / loadout 配置（MOBA 类流程）
 - **`afterReadyAndBeforeBattleStart` 钩子** —— 在 SetReady 与开战等待之间驱动 loading 阶段（BeginLoading + ReportAssetsLoaded），供需要服务端提交战斗世界后才推快照的流程用
 
-**可注入/可测试**：房间流程编排核心是公开的 `GatewayMultiplayerSession.RunRoomFlowAsync(RoomGatewaySessionFlow flow, ...)`，可用任意 `IRoomGatewaySessionClientBase` 构建的 flow 驱动（含 fake client 单测，见 `src/AbilityKit.Network.Room.Tests/GatewayMultiplayerSessionTests.cs`）。
+**可注入/可测试**：房间流程编排核心是公开的 `MultiplayerRoomSession.RunRoomFlowAsync(RoomGatewaySessionFlow flow, ...)`，可用任意 `IRoomGatewaySessionClientBase` 构建的 flow 驱动（含 fake client 单测，见 `src/AbilityKit.Network.Room.Tests/MultiplayerRoomSessionTests.cs`）。
 
 > 状态（2026-08-10）：门面已灵活化/可注入/可扩展并测试。**首个真实消费者已接入并端到端验证**：Console demo `StateSyncAdapter` 经 `RunRoomFlowAsync` 编排 seam + 两个钩子完成 join-or-create → hero-pick → ready → loading → 等开战 → subscribe 全链路，对本地 Orleans 网关收到权威快照流（1189 帧推送）。MOBA 评估结论：不接入门面（其房间栈已在 `RoomGatewaySessionFlow` 分阶段 API 上，状态机承载交互阶段，线性门面表达不了）。优化路线见 `Docs/design/07-NetworkSynchronization/08-NetworkOptimizationPlan.md`。
 

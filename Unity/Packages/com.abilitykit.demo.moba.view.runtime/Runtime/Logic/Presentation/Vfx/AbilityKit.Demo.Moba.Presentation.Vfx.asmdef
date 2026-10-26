@@ -1,7 +1,7 @@
 {
   "name": "AbilityKit.Demo.Moba.Presentation.Vfx",
   "rootNamespace": "AbilityKit",
-  "references": ["AbilityKit.Demo.Moba.Share"],
+  "references": ["AbilityKit.Demo.Moba.Share", "AbilityKit.Demo.Moba.Presentation.Core"],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

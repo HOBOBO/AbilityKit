@@ -97,6 +97,65 @@ public sealed class GridCollisionWorldTests
     }
 
     [Fact]
+    public void OverlapShape_sector_checks_direction_and_inflates_target_boundary()
+    {
+        var world = new GridCollisionWorld(cellSize: 1f, initialCapacity: 8);
+        var forwardTarget = AddSphere(world, new Vec3(0f, 0f, 3f), 0.5f);
+        var edgeTarget = AddSphere(world, new Vec3(1.8f, 0f, 3f), 0.5f);
+        AddSphere(world, new Vec3(0f, 0f, -3f), 0.5f);
+        var shape = new OverlapShapeQuery(OverlapShapeKind.Sector,
+            new Vec3(0f, 0f, 0f), Vec3.Forward, radius: 4f, halfAngleDeg: 30f);
+        var results = new List<ColliderId>();
+
+        var count = ((IShapeOverlapCollisionWorld)world).OverlapShape(in shape, new LayerFilter(WorldMask), results);
+
+        Assert.Equal(2, count);
+        Assert.Contains(forwardTarget, results);
+        Assert.Contains(edgeTarget, results);
+    }
+
+    [Fact]
+    public void OverlapShape_rectangle_supports_front_and_center_anchors()
+    {
+        var world = new GridCollisionWorld(cellSize: 1f, initialCapacity: 8);
+        var frontTarget = AddSphere(world, new Vec3(0f, 0f, 3f), 0.2f);
+        var backTarget = AddSphere(world, new Vec3(0f, 0f, -1.5f), 0.2f);
+        var filter = new LayerFilter(WorldMask);
+        var results = new List<ColliderId>();
+        var frontAnchored = new OverlapShapeQuery(OverlapShapeKind.Rectangle,
+            Vec3.Zero, Vec3.Forward, radius: 0f, width: 2f, length: 4f, anchorAtOrigin: true);
+
+        var frontCount = ((IShapeOverlapCollisionWorld)world).OverlapShape(in frontAnchored, in filter, results);
+
+        Assert.Equal(1, frontCount);
+        Assert.Contains(frontTarget, results);
+        results.Clear();
+        var centerAnchored = new OverlapShapeQuery(OverlapShapeKind.Rectangle,
+            Vec3.Zero, Vec3.Forward, radius: 0f, width: 2f, length: 4f, anchorAtOrigin: false);
+
+        var centerCount = ((IShapeOverlapCollisionWorld)world).OverlapShape(in centerAnchored, in filter, results);
+
+        Assert.Equal(1, centerCount);
+        Assert.Contains(backTarget, results);
+    }
+
+    [Fact]
+    public void OverlapShape_respects_existing_results_list_contents()
+    {
+        var world = new GridCollisionWorld(cellSize: 1f, initialCapacity: 8);
+        var target = AddSphere(world, new Vec3(0f, 0f, 1f), 0.2f);
+        var shape = new OverlapShapeQuery(OverlapShapeKind.Circle,
+            Vec3.Zero, Vec3.Forward, radius: 2f);
+        var results = new List<ColliderId> { new ColliderId(99) };
+
+        var count = ((IShapeOverlapCollisionWorld)world).OverlapShape(in shape, new LayerFilter(WorldMask), results);
+
+        Assert.Equal(1, count);
+        Assert.Equal(new ColliderId(99), results[0]);
+        Assert.Contains(target, results);
+    }
+
+    [Fact]
     public void Rotated_obb_sweep_is_equivalent_between_grid_and_naive()
     {
         // 同一旋转 OBB 障碍下 Grid 与 Naive 的扫掠应一致：修复前 Grid 查不到 OBB（false）而

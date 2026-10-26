@@ -16,4 +16,11 @@ namespace AbilityKit.Network.Abstractions
 
         void Send(ArraySegment<byte> bytes);
     }
+
+    public enum NetworkSendResult
+    {
+        Sent = 0,
+        Rejected = 1,
+        Disconnected = 2
+    }
 }

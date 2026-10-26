@@ -1,15 +1,26 @@
 using System;
+using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Network.Protocol
 {
-    public sealed class NetworkFrameReader
+    public sealed class NetworkFrameReader : IFrameDecoderLimits
     {
         private const int MinBufferSize = 4 + NetworkPacketHeader.Size;
 
         private byte[] _buffer;
         private int _count;
 
-        public int MaxFrameLength { get; set; } = 4 * 1024 * 1024;
+        private int _maxFrameLength = 4 * 1024 * 1024;
+
+        public int MaxFrameLength
+        {
+            get => _maxFrameLength;
+            set
+            {
+                if (value <= 0) throw new ArgumentOutOfRangeException(nameof(value));
+                _maxFrameLength = value;
+            }
+        }
 
         public NetworkFrameReader(int initialCapacity = 8 * 1024)
         {
@@ -26,6 +37,8 @@ namespace AbilityKit.Network.Protocol
         {
             if (bytes.Array == null) throw new ArgumentException("Invalid bytes.", nameof(bytes));
             if (bytes.Count == 0) return;
+
+            ValidateIncomingLength(bytes);
 
             EnsureCapacity(_count + bytes.Count);
             Buffer.BlockCopy(bytes.Array, bytes.Offset, _buffer, _count, bytes.Count);
@@ -88,6 +101,27 @@ namespace AbilityKit.Network.Protocol
                 Buffer.BlockCopy(_buffer, 0, newBuf, 0, _count);
             }
             _buffer = newBuf;
+        }
+
+        private void ValidateIncomingLength(ArraySegment<byte> bytes)
+        {
+            // Reject an oversized first frame before growing the accumulation buffer. A single
+            // transport chunk may contain several valid frames, so only inspect the first prefix.
+            Span<byte> prefix = stackalloc byte[4];
+            var prefixCount = Math.Min(4, _count);
+            for (var i = 0; i < prefixCount; i++) prefix[i] = _buffer[i];
+            var incomingOffset = 0;
+            while (prefixCount < 4 && incomingOffset < bytes.Count)
+            {
+                prefix[prefixCount++] = bytes.Array![bytes.Offset + incomingOffset++];
+            }
+
+            if (prefixCount == 4 &&
+                NetworkFrameCodec.TryReadLengthPrefix(prefix, out var frameLength) &&
+                frameLength > (uint)MaxFrameLength)
+            {
+                throw new InvalidOperationException($"Frame too large: {frameLength}.");
+            }
         }
     }
 }

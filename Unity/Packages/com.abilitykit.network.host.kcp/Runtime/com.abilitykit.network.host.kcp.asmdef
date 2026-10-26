@@ -1,0 +1,17 @@
+{
+    "name": "AbilityKit.Network.Host.Kcp",
+    "rootNamespace": "AbilityKit",
+    "references": [
+        "AbilityKit.Network.Host",
+        "AbilityKit.Network.Transport.Kcp"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

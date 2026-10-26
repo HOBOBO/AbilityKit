@@ -32,5 +32,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
             _areaViews?.HandleSnapshot(_binder, _query, entries);
         }
+
+        public void Clear()
+        {
+            _areaViews?.Clear();
+        }
     }
 }

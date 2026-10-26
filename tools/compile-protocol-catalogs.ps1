@@ -18,7 +18,10 @@
 #>
 [CmdletBinding()]
 param(
-    [switch]$Check
+    [switch]$Check,
+    [string]$ApiOutput,
+    [string]$ApiCatalog,
+    [string]$ApiNamespace = 'AbilityKit.Protocol.GeneratedApi'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,4 +49,21 @@ if ($Check) {
 & dotnet @compilerArguments
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
+}
+
+if (-not [string]::IsNullOrWhiteSpace($ApiOutput)) {
+    if ([string]::IsNullOrWhiteSpace($ApiCatalog)) {
+        throw '-ApiCatalog is required when -ApiOutput is specified so generated APIs stay scoped to one consumer.'
+    }
+    $apiArguments = @(
+        'run', '--project', $compilerProject, '--',
+        '--input', $ApiCatalog,
+        '--api-assembly', $ApiOutput,
+        '--api-namespace', $ApiNamespace
+    )
+    if ($Check) { $apiArguments += '--check' }
+    & dotnet @apiArguments
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
 }

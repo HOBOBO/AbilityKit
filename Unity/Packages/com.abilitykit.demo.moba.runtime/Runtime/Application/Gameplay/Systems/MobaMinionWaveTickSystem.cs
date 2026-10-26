@@ -11,6 +11,7 @@ namespace AbilityKit.Demo.Moba.Gameplay.Systems
     {
         private MobaMinionWaveService _minions;
         private MobaMinionCombatService _combat;
+        private MobaStructureService _structures;
         private MobaLogicWorldRunGateService _phase;
         private IMobaGameplayFeatureSet _features;
 
@@ -21,6 +22,7 @@ namespace AbilityKit.Demo.Moba.Gameplay.Systems
         {
             Services.TryResolve(out _minions);
             Services.TryResolve(out _combat);
+            Services.TryResolve(out _structures);
             Services.TryResolve(out _phase);
             Services.TryResolve(out _features);
         }
@@ -31,20 +33,35 @@ namespace AbilityKit.Demo.Moba.Gameplay.Systems
             {
                 _minions?.Reset();
                 _combat?.Reset();
+                _structures?.Reset();
                 return;
             }
 
             if (_features != null && _features.IsConfigured &&
-                !_features.IsEnabled(MobaGameplayFeatureIds.MinionWaves))
+                !_features.IsEnabled(MobaGameplayFeatureIds.MinionWaves) &&
+                !_features.IsEnabled(MobaGameplayFeatureIds.Structures))
             {
                 _minions?.Reset();
                 _combat?.Reset();
+                _structures?.Reset();
                 return;
             }
 
-            if (_minions == null) return;
-            _minions.Tick();
-            _combat?.Tick();
+            if (_features == null || !_features.IsConfigured ||
+                _features.IsEnabled(MobaGameplayFeatureIds.Structures))
+                _structures?.Tick();
+
+            if (_features == null || !_features.IsConfigured ||
+                _features.IsEnabled(MobaGameplayFeatureIds.MinionWaves))
+            {
+                _minions?.Tick();
+                _combat?.Tick();
+            }
+            else
+            {
+                _minions?.Reset();
+                _combat?.Reset();
+            }
         }
     }
 }

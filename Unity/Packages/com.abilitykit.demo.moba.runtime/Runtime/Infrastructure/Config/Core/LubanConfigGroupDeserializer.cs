@@ -189,6 +189,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 SkillButtonTemplateId = obj["SkillButtonTemplateId"]?.Value<int>() ?? 0,
                 RequiredTargetQueryId = obj["RequiredTargetQueryId"]?.Value<int>() ?? 0,
+                AllowCastWithoutTarget = obj["AllowCastWithoutTarget"]?.Value<bool>() ?? false,
                 LevelTableId = obj["LevelTableId"]?.Value<int>() ?? 0,
                 PreCastFlowId = obj["PreCastFlowId"]?.Value<int>() ?? 0,
                 CastFlowId = obj["CastFlowId"]?.Value<int>() ?? 0,
