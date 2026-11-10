@@ -23,7 +23,19 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            variables.Set(args.KeyId, args.Value);
+            var key = args.KeyId;
+            if (args.ScopePayloadFieldId != 0)
+            {
+                if (triggerArgs == null || ctx.Payloads == null ||
+                    !ctx.Payloads.TryGetInt(in triggerArgs, args.ScopePayloadFieldId, out var scopeId) || scopeId <= 0)
+                {
+                    return;
+                }
+
+                key = args.ResolveKey(scopeId);
+            }
+
+            variables.Set(key, args.Value);
         }
     }
 }

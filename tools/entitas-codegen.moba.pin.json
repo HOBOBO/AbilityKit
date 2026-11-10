@@ -302,8 +302,18 @@
           "custom": false,
           "serialize": false,
           "coverage": "provider:MobaCharacterHfsmRollbackProvider"
+        },
+        {
+          "name": "ChampionLevel",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": null
         }
       ]
+    },
+    "Game": {
+      "components": []
     }
   }
 }

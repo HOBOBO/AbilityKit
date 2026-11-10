@@ -12,6 +12,8 @@ using AbilityKit.Core.Mathematics;
 using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Search;
+using AbilityKit.Demo.Moba.Services.Behavior.AI;
+using AbilityKit.Demo.Moba.Input;
 using AbilityKit.Moba.Behavior;
 
 namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
@@ -22,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     /// publish their request each tick. Persistent state belongs under memory.* rather than in
     /// transient fact or intent keys.
     /// </summary>
-    internal sealed class MobaBTreeDecision : IBehaviorDecision, IBehaviorRuntimeSnapshot, IDisposable
+    internal sealed class MobaBTreeDecision : IBehaviorDecision, IBehaviorRuntimeSnapshot, IMobaActorIntentDecision, IDisposable
     {
         private readonly TreeRuntime _tree;
         private readonly MobaBTreeRuntimeContext _runtimeContext;
@@ -32,6 +34,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         public string DecisionType => "MobaBTree";
         public string SnapshotType => "MobaBTree.Runtime.v2";
         public string CurrentState { get; private set; } = "Running";
+        public MobaActorIntent CurrentIntent { get; private set; } = MobaActorIntent.Hold;
         internal Blackboard Blackboard => _tree.Blackboard;
 
         private MobaBTreeDecision(
@@ -51,7 +54,10 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             MobaBrainSkillSelectionPolicy skillSelectionPolicy = MobaBrainSkillSelectionPolicy.FirstReady,
             string debugName = null,
             string debugOwnerLabel = null,
-            MobaSkillLoadoutService skillLoadout = null)
+            MobaSkillLoadoutService skillLoadout = null,
+            ulong randomSeed = 0,
+            ulong randomScope = 0,
+            long ownerActorId = 0)
         {
             if (string.IsNullOrEmpty(json)) return null;
 
@@ -79,12 +85,19 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             // Dispose 时自动注销
             var options = new TreeRunOptions
             {
+                // Derive an isolated tree stream from the same match seed used by the world random
+                // service. Node streams remain independent, while all runtimes share one algorithm.
+                Seed = DeterministicRandom.DeriveSeed(randomSeed, randomScope),
                 DebugName = string.IsNullOrEmpty(debugName) ? null : debugName,
                 DebugOwnerLabel = debugOwnerLabel,
             };
             var tree = TreeRuntime.Create(definition, MobaBTreeCatalog.Registry, services, options, new MobaBTreeAssetResolver());
             tree.Enable(0, Fixed64.Zero);
-            return new MobaBTreeDecision(tree, runtimeContext);
+            var decision = new MobaBTreeDecision(tree, runtimeContext);
+            if (ownerActorId > 0 && ownerActorId <= int.MaxValue && registry != null &&
+                registry.TryGet((int)ownerActorId, out var owner) && owner != null && owner.hasTransform)
+                CaptureLaunchHeading(tree.Blackboard, owner.transform.Value.Forward);
+            return decision;
         }
 
         /// <summary>
@@ -152,17 +165,18 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             }
 
             var parameters = new Dictionary<string, object>();
-            var outputKind = (MobaBTreeIntentKind)bb.GetInt64(MobaBTreeKeys.OutputKind);
-            if (outputKind == MobaBTreeIntentKind.Move && bb.GetBool(MobaBTreeKeys.HasMove))
+            if (bb.GetBool(MobaBTreeKeys.HasMove))
             {
-                parameters["MoveTarget"] = new Vec3(
-                    bb.GetFixed64(MobaBTreeKeys.MoveX).ToSingle(),
-                    bb.GetFixed64(MobaBTreeKeys.MoveY).ToSingle(),
-                    bb.GetFixed64(MobaBTreeKeys.MoveZ).ToSingle());
+                if (!bb.GetBool(MobaBTreeKeys.MoveIsDirection))
+                    parameters["MoveTarget"] = new Vec3(
+                        bb.GetFixed64(MobaBTreeKeys.MoveX).ToSingle(),
+                        bb.GetFixed64(MobaBTreeKeys.MoveY).ToSingle(),
+                        bb.GetFixed64(MobaBTreeKeys.MoveZ).ToSingle());
                 parameters["MoveSpeed"] = world.GetMoveSpeed(context.OwnerId, 5f);
+                parameters["MoveStopRange"] = bb.GetFixed64(MobaBTreeKeys.MoveStopRange).ToSingle();
                 CurrentState = "Chasing";
             }
-            else if (outputKind == MobaBTreeIntentKind.Cast && bb.GetBool(MobaBTreeKeys.HasCast))
+            if (bb.GetBool(MobaBTreeKeys.HasCast))
             {
                 parameters[MobaBrainExecutor.SkillIdParam] = (int)bb.GetInt64(MobaBTreeKeys.CastSkillId);
                 parameters[MobaBrainExecutor.SkillSlotParam] = (int)bb.GetInt64(MobaBTreeKeys.CastSkillSlot);
@@ -178,12 +192,32 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                     bb.GetFixed64(MobaBTreeKeys.CastDirectionZ).ToSingle());
                 CurrentState = "Casting";
             }
-            else
+            else if (!bb.GetBool(MobaBTreeKeys.HasMove))
             {
                 CurrentState = "Holding";
             }
 
+            CurrentIntent = ReadIntent(bb);
             return DecisionResult.Continue(CurrentState).WithParams(parameters);
+        }
+
+        private static MobaActorIntent ReadIntent(Blackboard bb)
+        {
+            var intent = MobaActorIntent.Hold;
+            if (bb.GetBool(MobaBTreeKeys.HasMove))
+            {
+                var value = new Vec3(bb.GetFixed64(MobaBTreeKeys.MoveX).ToSingle(),
+                    bb.GetFixed64(MobaBTreeKeys.MoveY).ToSingle(), bb.GetFixed64(MobaBTreeKeys.MoveZ).ToSingle());
+                intent = bb.GetBool(MobaBTreeKeys.MoveIsDirection)
+                    ? MobaActorIntent.MoveDirection(value.X, value.Z)
+                    : MobaActorIntent.MoveTo(in value, bb.GetFixed64(MobaBTreeKeys.MoveStopRange).ToSingle());
+            }
+            if (bb.GetBool(MobaBTreeKeys.HasCast))
+                intent = intent.WithCast((int)bb.GetInt64(MobaBTreeKeys.CastSkillSlot),
+                    (int)bb.GetInt64(MobaBTreeKeys.CastSkillId), (int)bb.GetInt64(MobaBTreeKeys.CastTargetActorId),
+                    new Vec3(bb.GetFixed64(MobaBTreeKeys.CastAimX).ToSingle(), bb.GetFixed64(MobaBTreeKeys.CastAimY).ToSingle(), bb.GetFixed64(MobaBTreeKeys.CastAimZ).ToSingle()),
+                    new Vec3(bb.GetFixed64(MobaBTreeKeys.CastDirectionX).ToSingle(), bb.GetFixed64(MobaBTreeKeys.CastDirectionY).ToSingle(), bb.GetFixed64(MobaBTreeKeys.CastDirectionZ).ToSingle()));
+            return intent;
         }
 
         public void Dispose()
@@ -192,6 +226,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             _disposed = true;
             _runtimeContext.EndEvaluation();
             _tree.Dispose();
+            CurrentIntent = MobaActorIntent.Hold;
             CurrentState = "Disposed";
         }
 
@@ -207,12 +242,27 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             if (_disposed || payload == null || payload.Length == 0) return;
             var json = System.Text.Encoding.UTF8.GetString(payload);
             _tree.RestoreState(TreeJson.LoadSnapshot(json));
+            CurrentIntent = ReadIntent(_tree.Blackboard);
             _reportedRunningRoot = false;
+        }
+
+        private static void CaptureLaunchHeading(Blackboard bb, Vec3 forward)
+        {
+            var x = Fixed64.FromSingle(forward.X);
+            var z = Fixed64.FromSingle(forward.Z);
+            var length = DeterministicMath.Sqrt(x * x + z * z);
+            if (length <= Fixed64.Zero) return;
+            bb.SetFixed64(MobaBTreeKeys.LaunchHeadingX, x / length);
+            bb.SetFixed64(MobaBTreeKeys.LaunchHeadingZ, z / length);
+            bb.SetBool(MobaBTreeKeys.LaunchHeadingValid, true);
         }
 
         private static void SyncFrameFacts(Blackboard bb, IBehaviorContext context, IWorldQuery world)
         {
             var ownerPosition = world.GetPosition(context.OwnerId);
+            var forward = world.GetForward(context.OwnerId);
+            bb.SetFixed64(MobaBTreeKeys.OwnerForwardX, Fixed64.FromSingle(forward.X));
+            bb.SetFixed64(MobaBTreeKeys.OwnerForwardZ, Fixed64.FromSingle(forward.Z));
             bb.SetInt64(MobaBTreeKeys.OwnerId, context.OwnerId.Value);
             bb.SetFixed64(MobaBTreeKeys.OwnerX, Fixed64.FromSingle(ownerPosition.X));
             bb.SetFixed64(MobaBTreeKeys.OwnerY, Fixed64.FromSingle(ownerPosition.Y));

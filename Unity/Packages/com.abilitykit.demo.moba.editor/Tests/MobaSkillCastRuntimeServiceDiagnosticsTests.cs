@@ -407,6 +407,23 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(parsed.Magnitude.CaptureTarget, Is.EqualTo(captureTarget));
         }
 
+        [Test]
+        public void SpawnAreaSchema_ParsesGroupClaimWithoutMakingAreaOneShot()
+        {
+            var args = new Dictionary<string, ActionArgValue>
+            {
+                ["area_id"] = ActionArgValue.OfConst(42030301, "area_id"),
+                ["area_group_key"] = ActionArgValue.OfConst(3, "area_group_key"),
+                ["claim_targets_within_group"] = ActionArgValue.OfConst(1, "claim_targets_within_group"),
+            };
+
+            var parsed = SpawnAreaSchema.Instance.ParseArgs(args, default);
+
+            Assert.That(parsed.AreaId, Is.EqualTo(42030301));
+            Assert.That(parsed.GroupKey, Is.EqualTo(3));
+            Assert.That(parsed.ClaimTargetsWithinGroup, Is.True);
+        }
+
         [TestCase(true)]
         [TestCase(false)]
         public void DamageAttributeSource_SkillCaster_RejectsMissingRuntimeDependency(bool provideHandle)

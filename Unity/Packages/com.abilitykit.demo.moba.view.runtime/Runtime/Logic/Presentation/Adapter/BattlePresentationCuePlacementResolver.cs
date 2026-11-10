@@ -28,10 +28,26 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             IPresentationActorPlacementSource actors)
         {
             if (actors == null) return 0;
+
+            // Area cues are placed at their authoritative footprint and carry
+            // their own cast direction. Attaching them to the source actor
+            // would let follow synchronization replace that direction with
+            // the actor's current facing.
+            if (HasAreaFootprint(in request)) return 0;
+
             if (request.TargetActorId > 0 && actors.HasActor(request.TargetActorId)) return request.TargetActorId;
             if (request.FirstTargetActorId > 0 && actors.HasActor(request.FirstTargetActorId)) return request.FirstTargetActorId;
             if (request.SourceActorId > 0 && actors.HasActor(request.SourceActorId)) return request.SourceActorId;
             return 0;
+        }
+
+        private static bool HasAreaFootprint(in BattlePresentationCueSpawnRequest request)
+        {
+            return request.ShapeKind != 0 ||
+                request.HalfAngleDeg > 0f ||
+                request.Width > 0f ||
+                request.Length > 0f ||
+                request.Radius > 0f;
         }
 
         private static SnapshotVec3 ResolveActorPosition(

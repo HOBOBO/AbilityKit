@@ -34,6 +34,23 @@ class RelationGraphTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "requires a skill_flows ID"):
             graph.validate([ReferenceSpec("skills", "CastFlowId", "skill_flows", True)])
 
+    def test_any_value_records_the_resolved_namespace(self):
+        graph = RelationGraph({"rules": [{"id": 30}],
+                               "triggers": [{"TriggerId": 20}]})
+        graph.check_any_value("flow/phase/RulePlan", {"TriggerIds": [20, 30]},
+                              "TriggerIds", ("rules", "triggers"))
+        self.assertEqual(["triggers", "rules"], [edge["target"] for edge in graph.edges])
+        with self.assertRaisesRegex(ValueError, "references missing one of rules or triggers IDs 99"):
+            graph.check_any_value("flow/phase/RulePlan", {"TriggerIds": [99]},
+                                  "TriggerIds", ("rules", "triggers"))
+
+    def test_any_value_rejects_ambiguous_ids(self):
+        graph = RelationGraph({"rules": [{"id": 20}],
+                               "triggers": [{"TriggerId": 20}]})
+        with self.assertRaisesRegex(ValueError, "references ambiguous rules or triggers ID 20"):
+            graph.check_any_value("flow/phase/RulePlan", {"TriggerIds": [20]},
+                                  "TriggerIds", ("rules", "triggers"))
+
 
 if __name__ == "__main__":
     unittest.main()

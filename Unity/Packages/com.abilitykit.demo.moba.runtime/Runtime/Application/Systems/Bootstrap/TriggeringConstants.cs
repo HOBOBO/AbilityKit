@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Systems
         {
             public const string GiveDamage = "give_damage";
             public const string AdjustDamageNumber = "adjust_damage_number";
+            public const string SetAttackCritical = "set_attack_critical";
             public const string TakeDamage = "take_damage";
             public const string DebugLog = "debug_log";
             public const string ShootProjectile = "shoot_projectile";
@@ -58,6 +59,9 @@ namespace AbilityKit.Demo.Moba.Systems
             public const string AwardTeamKillScore = "award_team_kill_score";
             public const string ScheduleHeroRespawn = "schedule_hero_respawn";
             public const string AdvanceGameplayCounter = "advance_gameplay_counter";
+            public const string SetHfsmParameter = "set_hfsm_parameter";
+            public const string AdjustDamageFromGameplayCounter = "adjust_damage_from_gameplay_counter";
+            public const string ConsumeGameplayCounter = "consume_gameplay_counter";
             public const string ExecuteTrigger = "execute_trigger";
             public const string QueryTargetCollection = "query_target_collection";
 
@@ -70,6 +74,7 @@ namespace AbilityKit.Demo.Moba.Systems
             // 资源类 Action。
             public const string ConsumeResource = "consume_resource";
             public const string ModifyResource = "modify_resource";
+            public const string RefundSkillCostOnKill = "refund_skill_cost_on_kill";
             public const string ConvertResourceToHeal = "convert_resource_to_heal";
             public const string StartCooldown = "start_cooldown";
             public const string ResetCooldown = "reset_cooldown";
@@ -147,6 +152,7 @@ namespace AbilityKit.Demo.Moba.Systems
         /// 获取预定义的Action ID
         /// </summary>
         public static ActionId GiveDamageId => GetActionId(Actions.GiveDamage);
+        public static ActionId SetAttackCriticalId => GetActionId(Actions.SetAttackCritical);
         public static ActionId TakeDamageId => GetActionId(Actions.TakeDamage);
         public static ActionId HealId => GetActionId(Actions.Heal);
         public static ActionId DebugLogId => GetActionId(Actions.DebugLog);
@@ -171,6 +177,8 @@ namespace AbilityKit.Demo.Moba.Systems
         public static ActionId SetGameplayVarId => GetActionId(Actions.SetGameplayVar);
         public static ActionId AddGameplayVarId => GetActionId(Actions.AddGameplayVar);
         public static ActionId AdvanceGameplayCounterId => GetActionId(Actions.AdvanceGameplayCounter);
+        public static ActionId AdjustDamageFromGameplayCounterId => GetActionId(Actions.AdjustDamageFromGameplayCounter);
+        public static ActionId ConsumeGameplayCounterId => GetActionId(Actions.ConsumeGameplayCounter);
         public static ActionId ExecuteTriggerId => GetActionId(Actions.ExecuteTrigger);
         public static ActionId QueryTargetCollectionId => GetActionId(Actions.QueryTargetCollection);
 

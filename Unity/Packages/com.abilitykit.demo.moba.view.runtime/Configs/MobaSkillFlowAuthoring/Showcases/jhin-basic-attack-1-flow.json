@@ -1,0 +1,23 @@
+{
+  "Id": 30010601,
+  "Name": "Jhin - Basic Attack 1",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 2,
+      "PhaseId": "skill_30010601_shot",
+      "Timeline": {
+        "DurationMs": 100,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30010601,
+            "ExecuteMode": 0,
+            "AbortOnFailure": true,
+            "EventTag": "jhin_basic_attack_1"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -21,7 +21,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             options = options ?? new MobaAcceptanceRunOptions();
             var expectation = LoadExpectation(expectationPath);
-            return RunSkillExpectation(expectation, options.ArtifactDirectory, options.ExportArtifacts, options.ShouldExportTraceText, expectationPath);
+            return RunSkillExpectation(expectation, options.ArtifactDirectory, options.ExportArtifacts, options.ShouldExportTraceText, expectationPath, options.RunId);
         }
 
         public static MobaAcceptanceSummary RunSkillExpectation(MobaAcceptanceExpectation expectation, string artifactDirectory = null, bool exportArtifacts = true)
@@ -37,12 +37,19 @@ namespace AbilityKit.Game.Test.UnitTest
         public static MobaAcceptanceSummary RunSkillExpectation(MobaAcceptanceRunOptions options, MobaAcceptanceExpectation expectation)
         {
             options = options ?? new MobaAcceptanceRunOptions();
-            return RunSkillExpectation(expectation, options.ArtifactDirectory, options.ExportArtifacts, options.ShouldExportTraceText, expectationPath: null);
+            return RunSkillExpectation(expectation, options.ArtifactDirectory, options.ExportArtifacts, options.ShouldExportTraceText, expectationPath: null, runId: options.RunId);
         }
 
         private static MobaAcceptanceSummary RunSkillExpectation(MobaAcceptanceExpectation expectation, string artifactDirectory, bool exportArtifacts, bool exportTraceText, string expectationPath)
         {
+            return RunSkillExpectation(expectation, artifactDirectory, exportArtifacts, exportTraceText, expectationPath, null);
+        }
+
+        private static MobaAcceptanceSummary RunSkillExpectation(MobaAcceptanceExpectation expectation, string artifactDirectory, bool exportArtifacts, bool exportTraceText, string expectationPath, string runId)
+        {
             Assert.IsNotNull(expectation, "Acceptance expectation must not be null.");
+            var startedAt = DateTime.UtcNow;
+            var runStopwatch = Stopwatch.StartNew();
 
             var caseId = string.IsNullOrEmpty(expectation.caseId) ? "moba_acceptance" : expectation.caseId;
             var worldId = ResolveWorldId(expectation, caseId);
@@ -54,10 +61,11 @@ namespace AbilityKit.Game.Test.UnitTest
             var tracePath = MobaAcceptanceTraceExporter.GetTraceJsonlPath(artifactDirectory, caseId);
             var traceTextPath = MobaAcceptanceTraceExporter.GetTraceTextPath(artifactDirectory, caseId);
             var summaryPath = MobaAcceptanceTraceExporter.GetSummaryJsonPath(artifactDirectory, caseId);
+            runId = MobaAcceptanceArtifactV1Adapter.GetRunId(runId);
 
             return HasScenarioFlow(expectation)
-                ? RunScenarioExpectation(expectation, artifactDirectory, exportArtifacts, exportTraceText, expectationPath, tracePath, traceTextPath, summaryPath)
-                : RunLegacySkillExpectation(expectation, artifactDirectory, exportArtifacts, exportTraceText, expectationPath, tracePath, traceTextPath, summaryPath);
+                ? RunScenarioExpectation(expectation, artifactDirectory, exportArtifacts, exportTraceText, expectationPath, tracePath, traceTextPath, summaryPath, runId, startedAt, runStopwatch)
+                : RunLegacySkillExpectation(expectation, artifactDirectory, exportArtifacts, exportTraceText, expectationPath, tracePath, traceTextPath, summaryPath, runId, startedAt, runStopwatch);
         }
 
         public static MobaAcceptanceBatchSummary RunExpectationDirectory(string expectationDirectory = null, string artifactDirectory = null, bool exportArtifacts = true, bool recursive = true)
@@ -95,6 +103,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(Directory.Exists(resolvedExpectationDirectory), $"Acceptance expectation directory missing: {expectationDirectory}");
 
             var directory = MobaAcceptanceTraceExporter.ResolveArtifactDirectory(artifactDirectory);
+            var runId = MobaAcceptanceArtifactV1Adapter.GetRunId(null);
             var searchOption = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
             var files = Directory.GetFiles(resolvedExpectationDirectory, "*.expected.json", searchOption);
             Array.Sort(files, StringComparer.OrdinalIgnoreCase);
@@ -103,7 +112,7 @@ namespace AbilityKit.Game.Test.UnitTest
             for (var i = 0; i < files.Length; i++)
             {
                 if (!ShouldRunExpectationFile(files[i], categoryFilter, tagFilter)) continue;
-                results.Add(RunExpectationFileForBatch(files[i], directory, exportArtifacts, exportTraceText));
+                results.Add(RunExpectationFileForBatch(files[i], directory, exportArtifacts, exportTraceText, runId));
             }
 
             stopwatch.Stop();
@@ -111,6 +120,7 @@ namespace AbilityKit.Game.Test.UnitTest
             if (exportArtifacts)
             {
                 ExportBatchSummary(batch);
+                MobaAcceptanceArtifactV1Adapter.ExportBatch(directory, runId, batch);
             }
 
             return batch;
@@ -182,7 +192,7 @@ namespace AbilityKit.Game.Test.UnitTest
             return Path.Combine(directory, "batch_summary.json");
         }
 
-        private static MobaAcceptanceCaseRunResult RunExpectationFileForBatch(string expectationPath, string artifactDirectory, bool exportArtifacts, bool exportTraceText)
+        private static MobaAcceptanceCaseRunResult RunExpectationFileForBatch(string expectationPath, string artifactDirectory, bool exportArtifacts, bool exportTraceText, string runId)
         {
             var stopwatch = Stopwatch.StartNew();
             var result = new MobaAcceptanceCaseRunResult
@@ -193,14 +203,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             try
             {
-                result.summary = RunSkillExpectationFile(
-                    new MobaAcceptanceRunOptions
-                    {
-                        ArtifactDirectory = artifactDirectory,
-                        ExportArtifacts = exportArtifacts,
-                        TraceExport = exportTraceText ? new MobaAcceptanceTraceExportOptions() : null
-                    },
-                    expectationPath);
+                result.summary = RunSkillExpectation(LoadExpectation(expectationPath), artifactDirectory, exportArtifacts, exportTraceText, expectationPath, runId);
                 result.caseId = result.summary != null ? result.summary.caseId : string.Empty;
                 result.passed = result.summary != null && result.summary.result != null && result.summary.result.passed;
             }
@@ -297,7 +300,7 @@ namespace AbilityKit.Game.Test.UnitTest
             File.WriteAllText(path, JsonUtility.ToJson(batch, true));
         }
 
-        private static MobaAcceptanceSummary RunLegacySkillExpectation(MobaAcceptanceExpectation expectation, string artifactDirectory, bool exportArtifacts, bool exportTraceText, string expectationPath, string tracePath, string traceTextPath, string summaryPath)
+        private static MobaAcceptanceSummary RunLegacySkillExpectation(MobaAcceptanceExpectation expectation, string artifactDirectory, bool exportArtifacts, bool exportTraceText, string expectationPath, string tracePath, string traceTextPath, string summaryPath, string runId, DateTime startedAt, Stopwatch runStopwatch)
         {
             Assert.IsNotNull(expectation.config, $"Acceptance expectation {expectation.caseId} must include config section.");
             Assert.IsNotNull(expectation.input, $"Acceptance expectation {expectation.caseId} must include input section.");
@@ -329,13 +332,14 @@ namespace AbilityKit.Game.Test.UnitTest
                 {
                     MobaAcceptanceTraceExporter.Export(artifactDirectory, summary, records, exportArtifacts, exportTraceText);
                 }
+                if (exportArtifacts) MobaAcceptanceArtifactV1Adapter.ExportCase(MobaAcceptanceTraceExporter.ResolveArtifactDirectory(artifactDirectory), runId, startedAt.ToString("O"), runStopwatch.ElapsedMilliseconds, summary, records);
 
                 MobaAcceptanceExpectationAssert.AssertMatches(expectation, records, harness);
                 return summary;
             }
         }
 
-        private static MobaAcceptanceSummary RunScenarioExpectation(MobaAcceptanceExpectation expectation, string artifactDirectory, bool exportArtifacts, bool exportTraceText, string expectationPath, string tracePath, string traceTextPath, string summaryPath)
+        private static MobaAcceptanceSummary RunScenarioExpectation(MobaAcceptanceExpectation expectation, string artifactDirectory, bool exportArtifacts, bool exportTraceText, string expectationPath, string tracePath, string traceTextPath, string summaryPath, string runId, DateTime startedAt, Stopwatch runStopwatch)
         {
             using (var harness = MobaSkillConfigTestHarness.CreateForScenario(expectation, worldId: expectation.worldId, tickRate: expectation.tickRate))
             {
@@ -358,6 +362,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 {
                     MobaAcceptanceTraceExporter.Export(artifactDirectory, summary, records, exportArtifacts, exportTraceText);
                 }
+                if (exportArtifacts) MobaAcceptanceArtifactV1Adapter.ExportCase(MobaAcceptanceTraceExporter.ResolveArtifactDirectory(artifactDirectory), runId, startedAt.ToString("O"), runStopwatch.ElapsedMilliseconds, summary, records);
 
                 MobaAcceptanceExpectationAssert.AssertMatches(expectation, records, harness);
                 MobaAcceptanceExpectationAssert.AssertStateMatches(expectation, records, harness);

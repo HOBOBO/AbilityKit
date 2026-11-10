@@ -18,14 +18,14 @@ namespace AbilityKit.Game.Battle.Component
         public BattleCharacterHfsmComponent(StateMachineDefinition definition = null,
             CharacterPresentationActionCatalog catalog = null, int entityCode = 0)
         {
-            _definition = definition ?? MobaCharacterHfsmProfile.CreateDefinition();
+            _definition = definition ?? MobaCharacterHfsmProfile.CreateGenericDefinition();
             EntityCode = entityCode;
             _catalog = (catalog ?? CharacterPresentationActionCatalog.CreateDefault())
                 .CreateForEntityCode(entityCode);
             _catalog.ValidateAgainst(_definition);
             _actions = new CharacterPresentationActionRunner(_catalog);
             _machine = new StateMachineRuntime<MobaCharacterHfsmFacts>(_owner,
-                _definition, MobaCharacterHfsmProfile.CreateBindings());
+                _definition, MobaCharacterHfsmProfile.CreateBindings(_definition));
         }
 
         public MobaCharacterActionState Action { get; private set; }
@@ -44,7 +44,13 @@ namespace AbilityKit.Game.Battle.Component
             if (snapshot.Machine.DefinitionHash != DefinitionHash || !snapshot.Machine.Initialized ||
                 !string.Equals(path, snapshot.Action.Path, StringComparison.Ordinal) ||
                 snapshot.Action.LocalFrame < 0 || snapshot.Action.StartFrame < 0 ||
-                snapshot.Action.LocalFrame != snapshot.Machine.Frame - snapshot.Action.StartFrame)
+                snapshot.Action.LocalFrame != snapshot.Machine.Frame - snapshot.Action.StartFrame ||
+                (snapshot.Mode != null &&
+                 (snapshot.Mode.Frame != snapshot.Machine.Frame ||
+                  !string.Equals(snapshot.Mode.Current.ModeId, snapshot.Action.ModeId, StringComparison.Ordinal) ||
+                  snapshot.Mode.Current.InstanceId != snapshot.Action.ModeInstanceId ||
+                  snapshot.Mode.Current.StartFrame != snapshot.Action.ModeStartFrame ||
+                  snapshot.Mode.Current.LocalFrame != snapshot.Action.ModeLocalFrame)))
                 throw new InvalidOperationException("Character view action and HFSM hierarchy differ.");
             _machine.RestoreSnapshot(snapshot.Machine);
             _snapshotFrame = snapshot.Machine.Frame;
@@ -56,7 +62,8 @@ namespace AbilityKit.Game.Battle.Component
             if (data.SnapshotFrame < _snapshotFrame) return;
             _snapshotFrame = data.SnapshotFrame;
             Action = new MobaCharacterActionState(data.Path, data.InstanceId,
-                data.StartFrame, data.LocalFrame, data.CastInstanceId, data.SkillId);
+                data.StartFrame, data.LocalFrame, data.CastInstanceId, data.SkillId,
+                data.ModeId, data.ModeInstanceId, data.ModeStartFrame, data.ModeLocalFrame);
         }
 
         public CharacterPlaybackIntent? Evaluate(int frame, int tickRate,
@@ -64,7 +71,7 @@ namespace AbilityKit.Game.Battle.Component
         {
             if (frame < SnapshotFrame || string.IsNullOrEmpty(Action.Path)) return null;
             var localFrame = checked(Action.LocalFrame + frame - SnapshotFrame);
-            return _actions.Evaluate(Action.Path, Action.InstanceId, localFrame, frame, tickRate, sink);
+            return _actions.Evaluate(Action.Path, Action.InstanceId, localFrame, frame, tickRate, sink, Action.SkillId);
         }
     }
 }

@@ -32,24 +32,27 @@ namespace AbilityKit.Ability.Editor.Utilities
                 ,Exact("minion.base_damage", "Minion base damage", "Minion", "MobaMinionBaseDamageEvent", MinionBaseDamageFields(), false, true),
                 Exact("structure.damaged", "Structure damaged", "Structure", "MobaStructureEventArgs", StructureFields(), false, true),
                 Exact("structure.destroyed", "Structure destroyed", "Structure", "MobaStructureEventArgs", StructureFields(), false, true),
+                Exact("unit.die", "单位死亡", "单位", "UnitDieEventPayload", UnitDieFields(), false, true),
             };
             AddExactEvents(events, new[]
             {
                 "skill.precast.start", "skill.precast.complete", "skill.precast.fail", "skill.precast.interrupt",
-                "skill.cast.start", "skill.cast.complete", "skill.cast.fail", "skill.cast.interrupt"
+                "skill.cast.start", "skill.cast.complete", "skill.cast.fail", "skill.cast.interrupt",
+                "skill.basic_attack.launched"
             }, "技能", "SkillCastContext", SkillFields());
             AddExactEvents(events, new[]
             {
                 "buff.apply", "buff.remove", "buff.interval", "buff.stack", "buff.refresh", "buff.tick",
                 "buff.end", "buff.added", "buff.removed", "buff.stack_changed", "buff.effect_tick", "on_buff_added"
             }, "增益效果", "BuffEventArgs", BuffFields());
-            AddExactEvents(events, new[] { "projectile.spawn", "projectile.tick", "projectile.hit", "projectile.exit" },
+            AddExactEvents(events, new[] { "projectile.spawn", "projectile.tick", "projectile.exit" },
                 "投射物", "ProjectileEventArgs", ProjectileFields());
+            events.Add(Exact("projectile.hit", "投射物命中", "投射物", "ProjectileHitArgs", ProjectileHitFields(), false, true));
             AddExactEvents(events, new[] { "area.spawn", "area.tick", "area.enter", "area.exit", "area.end" },
                 "区域", "AreaEventArgs", AreaFields());
             AddExactEvents(events, new[] { "summon.spawn", "summon.despawn", "summon.die" },
                 "召唤物", "SummonEventPayload", SummonFields());
-            AddExactEvents(events, new[] { "unit.spawn", "unit.despawn", "unit.die", "unit.respawn" },
+            AddExactEvents(events, new[] { "unit.spawn", "unit.despawn", "unit.respawn" },
                 "单位", "UnitEventPayload", UnitFields());
             AddExactEvents(events, new[] { "gameplay.started", "gameplay.tick", "gameplay.time_expired", "gameplay.score_changed", "gameplay.ended" },
                 "玩法", "GameplayLifecycleEventArgs", GameplayFields(), true);
@@ -204,6 +207,24 @@ namespace AbilityKit.Ability.Editor.Utilities
             };
         }
 
+        private static List<TriggerPayloadFieldData> ProjectileHitFields()
+        {
+            return new List<TriggerPayloadFieldData>
+            {
+                Field("source_actor_id", TriggerValueType.Integer), Field("target_actor_id", TriggerValueType.Integer),
+                Field("projectile_template_id", TriggerValueType.Integer), Field("projectile_id", TriggerValueType.Integer),
+                Field("frame", TriggerValueType.Integer), Field("point", TriggerValueType.Vector3),
+                Field("normal", TriggerValueType.Vector3),
+                Field("projectile_distance_travelled", TriggerValueType.Number),
+                Field("projectile_elapsed_seconds", TriggerValueType.Number),
+                Field("projectile_elapsed_frames", TriggerValueType.Integer),
+                Field("projectile_spawn_frame", TriggerValueType.Integer),
+                Field("projectile_spawn_position_x", TriggerValueType.Number),
+                Field("projectile_spawn_position_y", TriggerValueType.Number),
+                Field("projectile_spawn_position_z", TriggerValueType.Number)
+            };
+        }
+
         private static List<TriggerPayloadFieldData> SummonFields()
         {
             return new List<TriggerPayloadFieldData>
@@ -221,6 +242,17 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Field("unit_actor_id", TriggerValueType.Integer), Field("team", TriggerValueType.Integer),
                 Field("main_type", TriggerValueType.Integer), Field("unit_sub_type", TriggerValueType.Integer),
                 Field("owner_player_id", TriggerValueType.Integer), Field("killer_actor_id", TriggerValueType.Integer)
+            };
+        }
+
+        private static List<TriggerPayloadFieldData> UnitDieFields()
+        {
+            return new List<TriggerPayloadFieldData>
+            {
+                Field("unit_actor_id", TriggerValueType.Integer), Field("target_actor_id", TriggerValueType.Integer),
+                Field("killer_actor_id", TriggerValueType.Integer), Field("attacker_actor_id", TriggerValueType.Integer),
+                Field("damage_type", TriggerValueType.Integer), Field("reason_kind", TriggerValueType.Integer),
+                Field("reason_param", TriggerValueType.Integer), Field("damage_value", TriggerValueType.Number)
             };
         }
 

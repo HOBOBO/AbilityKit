@@ -22,7 +22,7 @@ public sealed class GeneratedPayloadAccessorContractTests
     {
         foreach (var fieldName in GetConstantFieldValues(typeof(MobaBattlePayloadFields)))
         {
-            Assert.True(MobaBattlePayloadFields.IsKnownFieldId(MobaBattlePayloadFields.FieldId(fieldName)));
+            Assert.True(MobaBattlePayloadFields.IsKnownFieldId(MobaBattlePayloadFields.FieldId(fieldName)), fieldName);
         }
     }
 

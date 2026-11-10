@@ -98,6 +98,7 @@ namespace AbilityKit.Game.Flow
             _options = new ReliableEventDeliveryOptions
             {
                 MaxPendingBatches = 32,
+                MaxPendingEvents = 512,
                 MaxAcknowledgementAttempts = 3,
                 InvalidateOnEventSinkFailure = false,
                 AcknowledgementRetryDelay = retryDelay
@@ -108,6 +109,10 @@ namespace AbilityKit.Game.Flow
         internal long LastAcknowledgedSequence => _session?.LastAcknowledgedSequence ?? 0L;
         internal bool AwaitingBaseline => _session?.AwaitingBaseline ?? false;
         internal int PendingBatchCount => _session?.PendingBatchCount ?? 0;
+        internal long PendingEventCount => _session?.PendingEventCount ?? 0L;
+        internal long RecoveryWindowId => _session?.RecoveryWindowId ?? 0L;
+        internal long PendingOverflowCount => _session?.PendingOverflowCount ?? 0L;
+        internal long PendingInvalidBatchCount => _session?.PendingInvalidBatchCount ?? 0L;
 
         internal void BeginGeneration(
             NetworkSyncSessionDescriptor syncSession,

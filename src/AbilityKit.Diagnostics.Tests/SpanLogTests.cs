@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Threading.Tasks;
 using AbilityKit.Diagnostics;
 using Xunit;
 
@@ -86,5 +87,37 @@ public sealed class SpanLogTests
 
         var snapshot = profiler.GetSnapshot();
         Assert.Empty(snapshot.Spans);
+    }
+
+    [Fact]
+    public void Clear_discards_pending_thread_local_spans()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Start();
+        profiler.Record("pending.span", 1_000_000L);
+
+        profiler.Clear();
+
+        Assert.Empty(profiler.GetSnapshot().Spans);
+        Assert.Equal(0L, profiler.GetSnapshot().SpansDropped);
+    }
+
+    [Fact]
+    public void Concurrent_span_writes_are_merged_from_thread_local_buffers()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Start();
+
+        Parallel.For(0, 4, worker =>
+        {
+            for (var i = 0; i < 100; i++)
+            {
+                profiler.Record($"worker.{worker}", 1_000L);
+            }
+        });
+
+        var snapshot = profiler.GetSnapshot();
+        Assert.Equal(400, snapshot.Spans.Count);
+        Assert.Equal(0L, snapshot.SpansDropped);
     }
 }

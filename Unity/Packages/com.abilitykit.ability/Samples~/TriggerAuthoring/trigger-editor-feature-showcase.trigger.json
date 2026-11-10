@@ -487,7 +487,7 @@
                   "name": "left",
                   "value": {
                     "source": "Payload",
-                    "type": "Number",
+                    "type": "Integer",
                     "integerValue": 0,
                     "numberValue": 0.0,
                     "booleanValue": false,
@@ -824,7 +824,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 1000,
+                "integerValue": 1,
                 "numberValue": 0.0,
                 "booleanValue": false,
                 "integerListValue": [],
@@ -844,64 +844,22 @@
           "enabled": true,
           "kind": "Action",
           "groupReference": "",
-          "type": "attr_effect_duration",
+          "type": "debug_log",
           "arguments": [
             {
-              "name": "attr",
+              "name": "message",
               "value": {
                 "source": "Constant",
                 "type": "String",
-                "integerValue": 0,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "op",
-              "value": {
-                "source": "Constant",
-                "type": "String",
-                "integerValue": 0,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "value",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "integerValue": 0,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "stringValue": "Buff applied; timed attribute modifiers belong to the configured Buff template."
               }
             }
           ],
           "children": [],
           "elseChildren": []
         },
-        "blackboard": []
+        "blackboard": [],
+        "note": "Observe Buff application. Timed attributes are configured on the Buff, not through attr_effect_duration."
       },
       {
         "id": 910005,
@@ -992,7 +950,7 @@
                   "name": "left",
                   "value": {
                     "source": "Payload",
-                    "type": "Number",
+                    "type": "Integer",
                     "path": "stack_count"
                   }
                 },
@@ -1050,7 +1008,7 @@
                     "name": "left",
                     "value": {
                       "source": "Payload",
-                      "type": "Number",
+                      "type": "Integer",
                       "path": "stack_count"
                     }
                   },
@@ -1110,7 +1068,7 @@
                         "name": "left",
                         "value": {
                           "source": "Payload",
-                          "type": "Number",
+                          "type": "Integer",
                           "path": "stack_count"
                         }
                       },
@@ -1161,7 +1119,7 @@
                             "name": "left",
                             "value": {
                               "source": "Payload",
-                              "type": "Number",
+                              "type": "Integer",
                               "path": "stack_count"
                             }
                           },
@@ -1385,8 +1343,8 @@
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "integerListValue": [
-                      21001,
-                      21002
+                      1,
+                      101
                     ],
                     "vector3Value": {
                       "x": 0.0,

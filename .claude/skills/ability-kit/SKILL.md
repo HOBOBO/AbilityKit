@@ -5,6 +5,8 @@ description: AbilityKit MOBA 技能框架速查与实现约束。涵盖两套触
 
 # AbilityKit 能力指引
 
+用于 MOBA 英雄/技能及其共享执行链时，先读 [`moba-skill-authoring`](../moba-skill-authoring/SKILL.md) 的机制准入节及 [`Docs/MobaMechanismGovernance.md`](../../../Docs/MobaMechanismGovernance.md)。禁止按英雄身份增加执行特例；规范未覆盖、冲突或需要新增/改变机制时，先提方案，等待用户明确确认。本文的框架扩展方法不是自行扩展机制的授权；规范内复用和恢复既定契约的修复可按任务继续。
+
 基于当前源码核校（2026-07-31）。⚠ 稳定化工程已把 25 个核心框架包推到 `0.1.0` Beta（基础层/同步/战斗/技能/网络/流/上下文），每包已开 `AbilityKitStable=true`（警告即错误 + 可空硬错误，core 的剩余标注由 core.csproj NoWarn 逐码追踪）。本目录按业务域分子目录。
 
 ## 最重要的架构事实（必读）

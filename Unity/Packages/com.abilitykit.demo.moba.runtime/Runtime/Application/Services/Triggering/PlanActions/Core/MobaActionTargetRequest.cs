@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Share.Config;
@@ -122,6 +123,34 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
     internal static class MobaActionTargetResolver
     {
+        public static bool TryResolveDirectPayloadTarget(object payload, out int actorId)
+        {
+            actorId = 0;
+            if (payload is MobaTriggerConditionContext condition
+                && condition.TargetActorId > 0)
+            {
+                actorId = condition.TargetActorId;
+                return true;
+            }
+
+            if (payload is MobaTriggerConditionContext conditionContext)
+            {
+                payload = conditionContext.Payload;
+            }
+
+            if (payload is IMobaActorContextProvider actorContext
+                && actorContext.TryGetTargetActorId(out actorId)
+                && actorId > 0)
+            {
+                return true;
+            }
+
+            return payload is MobaCombatExecutionContext executionContext
+                && executionContext.Payload is IMobaActorContextProvider originalPayload
+                && originalPayload.TryGetTargetActorId(out actorId)
+                && actorId > 0;
+        }
+
         public static bool TryResolveTargets(
             in MobaActionTargetRequest request,
             in MobaPlanActionInput coreInput,

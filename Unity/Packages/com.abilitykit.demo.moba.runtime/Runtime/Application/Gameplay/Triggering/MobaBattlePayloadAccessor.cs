@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Events.Unit;
 using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
 
@@ -9,6 +12,8 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
 {
     public static class MobaBattlePayloadFields
     {
+        private static readonly HashSet<int> RegisteredSkillParameterFieldIds = new HashSet<int>();
+
         public const string AttackerActorId = "attacker_actor_id";
         public const string TargetActorId = "target_actor_id";
         public const string DamageValue = "damage_value";
@@ -42,10 +47,47 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         public const string SourceTeamId = "source_team_id";
         public const string TargetTeamId = "target_team_id";
         public const string Frame = "frame";
+        public const string ProjectileDistanceTravelled = "projectile_distance_travelled";
+        public const string ProjectileElapsedSeconds = "projectile_elapsed_seconds";
+        public const string ProjectileElapsedFrames = "projectile_elapsed_frames";
+        public const string ProjectileSpawnFrame = "projectile_spawn_frame";
+        public const string ProjectileSpawnPositionX = "projectile_spawn_position_x";
+        public const string ProjectileSpawnPositionY = "projectile_spawn_position_y";
+        public const string ProjectileSpawnPositionZ = "projectile_spawn_position_z";
+        public const string ProjectileTargetHp = "projectile_target_hp";
+        public const string ProjectileTargetMaxHp = "projectile_target_max_hp";
+        public const string ProjectileTargetMissingHealthRatio = "projectile_target_missing_health_ratio";
+        public const string ProjectileSkillLevel = "projectile_skill_level";
 
         public static int FieldId(string fieldName)
         {
             return StableStringId.Get("payload:" + fieldName);
+        }
+
+        /// <summary>
+        /// Registers level-table parameter names as ProjectileHit payload fields.
+        /// The registration is deliberately driven by loaded config so gameplay
+        /// trigger validation can accept only parameters that actually exist.
+        /// </summary>
+        public static void RegisterSkillParameterFields(MobaConfigDatabase configs)
+        {
+            if (configs == null) return;
+            foreach (var skill in configs.GetAllSkills())
+            {
+                if (skill == null || skill.LevelTableId <= 0 ||
+                    !configs.TryGetSkillLevelTable(skill.LevelTableId, out var table) ||
+                    table?.ParamNames == null) continue;
+                foreach (var name in table.ParamNames)
+                {
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+                    RegisteredSkillParameterFieldIds.Add(FieldId("skill_level_" + name));
+                }
+            }
+        }
+
+        public static bool IsRegisteredSkillParameterField(int fieldId)
+        {
+            return RegisteredSkillParameterFieldIds.Contains(fieldId);
         }
 
         public static bool IsKnownFieldId(int fieldId)
@@ -55,7 +97,11 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
                 || MobaBattlePayloadAccessor.SupportsDamageResultField(fieldId)
                 || MobaBattlePayloadAccessor.SupportsHealRequestField(fieldId)
                 || MobaBattlePayloadAccessor.SupportsHealthChangeResultField(fieldId)
-                || MobaBattlePayloadAccessor.SupportsUnitDieField(fieldId);
+                || MobaBattlePayloadAccessor.SupportsUnitDieField(fieldId)
+                || MobaBattlePayloadAccessor.SupportsUnitEventField(fieldId)
+                || MobaBattlePayloadAccessor.SupportsProjectileHitField(fieldId)
+                || IsRegisteredSkillParameterField(fieldId)
+                || MobaMinionBaseDamagePayloadAccessor.SupportsField(fieldId);
         }
     }
 
@@ -102,6 +148,8 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         nameof(MobaBattlePayloadFields.CritType),
         nameof(MobaBattlePayloadFields.ReasonKind),
         nameof(MobaBattlePayloadFields.ReasonParam),
+        nameof(MobaBattlePayloadFields.TargetHp),
+        nameof(MobaBattlePayloadFields.TargetMaxHp),
         nameof(MobaBattlePayloadFields.BaseDamage),
         nameof(MobaBattlePayloadFields.DamageRate),
         nameof(MobaBattlePayloadFields.FlatBonus),
@@ -135,6 +183,7 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         nameof(MobaBattlePayloadFields.ReasonKind),
         nameof(MobaBattlePayloadFields.ReasonParam),
         nameof(MobaBattlePayloadFields.DamageValue),
+        nameof(MobaBattlePayloadFields.ShieldAbsorb),
         nameof(MobaBattlePayloadFields.TargetHp),
         nameof(MobaBattlePayloadFields.TargetMaxHp))]
     [GeneratePayloadFieldIds(
@@ -176,6 +225,26 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         nameof(MobaBattlePayloadFields.ReasonKind),
         nameof(MobaBattlePayloadFields.ReasonParam),
         nameof(MobaBattlePayloadFields.DamageValue))]
+    [GeneratePayloadFieldIds(
+        typeof(MobaBattlePayloadFields),
+        "SupportsUnitEventField",
+        false,
+        nameof(MobaBattlePayloadFields.UnitActorId))]
+    [GeneratePayloadFieldIds(
+        typeof(MobaBattlePayloadFields),
+        "SupportsProjectileHitField",
+        false,
+        nameof(MobaBattlePayloadFields.ProjectileDistanceTravelled),
+        nameof(MobaBattlePayloadFields.ProjectileElapsedSeconds),
+        nameof(MobaBattlePayloadFields.ProjectileElapsedFrames),
+        nameof(MobaBattlePayloadFields.ProjectileSpawnFrame),
+        nameof(MobaBattlePayloadFields.ProjectileSpawnPositionX),
+        nameof(MobaBattlePayloadFields.ProjectileSpawnPositionY),
+        nameof(MobaBattlePayloadFields.ProjectileSpawnPositionZ),
+        nameof(MobaBattlePayloadFields.ProjectileTargetHp),
+        nameof(MobaBattlePayloadFields.ProjectileTargetMaxHp),
+        nameof(MobaBattlePayloadFields.ProjectileTargetMissingHealthRatio),
+        nameof(MobaBattlePayloadFields.ProjectileSkillLevel))]
     public sealed partial class MobaBattlePayloadAccessor :
         IPayloadIntAccessor<AttackInfo>,
         IPayloadDoubleAccessor<AttackInfo>,
@@ -188,7 +257,11 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         IPayloadIntAccessor<MobaHealthChangeResult>,
         IPayloadDoubleAccessor<MobaHealthChangeResult>,
         IPayloadIntAccessor<UnitDieEventPayload>,
-        IPayloadDoubleAccessor<UnitDieEventPayload>
+        IPayloadDoubleAccessor<UnitDieEventPayload>,
+        IPayloadIntAccessor<UnitEventPayload>,
+        IPayloadDoubleAccessor<UnitEventPayload>,
+        IPayloadIntAccessor<ProjectileHitArgs>,
+        IPayloadDoubleAccessor<ProjectileHitArgs>
     {
         public bool TryGet(in AttackInfo args, int fieldId, out int value)
         {
@@ -243,6 +316,8 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
             else if (fieldId == DamageRateId) value = args.DamageRate.Value;
             else if (fieldId == FlatBonusId) value = args.FlatBonus.Value;
             else if (fieldId == FinalDamageId) value = args.FinalDamage.Value;
+            else if (fieldId == TargetHpId) value = args.TargetHp;
+            else if (fieldId == TargetMaxHpId) value = args.TargetMaxHp;
             else if (TryGet(in args, fieldId, out int intValue)) value = intValue;
             else return false;
 
@@ -321,6 +396,12 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
             if (fieldId == DamageValueId)
             {
                 value = args.Value;
+                return true;
+            }
+
+            if (fieldId == ShieldAbsorbId)
+            {
+                value = args.ShieldAbsorb;
                 return true;
             }
 
@@ -470,6 +551,78 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
 
             value = 0d;
             return false;
+        }
+
+        public bool TryGet(in UnitEventPayload args, int fieldId, out int value)
+        {
+            if (fieldId == UnitActorIdId)
+            {
+                value = args.ActorId;
+                return true;
+            }
+
+            value = 0;
+            return false;
+        }
+
+        public bool TryGet(in UnitEventPayload args, int fieldId, out double value)
+        {
+            if (TryGet(in args, fieldId, out int intValue))
+            {
+                value = intValue;
+                return true;
+            }
+
+            value = 0d;
+            return false;
+        }
+
+        public bool TryGet(in ProjectileHitArgs args, int fieldId, out int value)
+        {
+            if (args == null)
+            {
+                value = 0;
+                return false;
+            }
+
+            if (fieldId == ProjectileElapsedFramesId) value = args.ElapsedFrames;
+            else if (fieldId == ProjectileSpawnFrameId) value = args.SpawnFrame;
+            else
+            {
+                value = 0;
+                return false;
+            }
+
+            return true;
+        }
+
+        public bool TryGet(in ProjectileHitArgs args, int fieldId, out double value)
+        {
+            if (args == null)
+            {
+                value = 0d;
+                return false;
+            }
+
+            if (fieldId == ProjectileDistanceTravelledId) value = args.DistanceTravelled;
+            else if (fieldId == ProjectileElapsedSecondsId) value = args.ElapsedSeconds;
+            else if (fieldId == ProjectileElapsedFramesId) value = args.ElapsedFrames;
+            else if (fieldId == ProjectileSpawnFrameId) value = args.SpawnFrame;
+            else if (fieldId == ProjectileSpawnPositionXId) value = args.SpawnPosition.X;
+            else if (fieldId == ProjectileSpawnPositionYId) value = args.SpawnPosition.Y;
+            else if (fieldId == ProjectileSpawnPositionZId) value = args.SpawnPosition.Z;
+            else if (fieldId == ProjectileTargetHpId) value = args.TargetHp;
+            else if (fieldId == ProjectileTargetMaxHpId) value = args.TargetMaxHp;
+            else if (fieldId == ProjectileTargetMissingHealthRatioId) value = args.TargetMissingHealthRatio;
+            else if (fieldId == ProjectileSkillLevelId) value = args.SkillLevel;
+            else if (args.TryGetSkillParameter(fieldId, out value)) return true;
+            else
+            {
+                value = 0d;
+                return false;
+            }
+
+            return true;
         }
     }
 }

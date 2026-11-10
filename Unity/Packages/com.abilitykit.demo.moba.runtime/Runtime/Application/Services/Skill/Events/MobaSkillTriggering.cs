@@ -17,6 +17,8 @@ namespace AbilityKit.Demo.Moba.Services
             public const string CastComplete = "skill.cast.complete";
             public const string CastFail = "skill.cast.fail";
             public const string CastInterrupt = "skill.cast.interrupt";
+            // Published only after a normal-attack projectile launch commits.
+            public const string BasicAttackLaunched = "skill.basic_attack.launched";
         }
 
         public static class Args

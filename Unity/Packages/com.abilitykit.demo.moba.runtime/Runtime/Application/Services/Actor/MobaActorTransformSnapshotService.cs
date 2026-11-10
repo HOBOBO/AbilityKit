@@ -55,7 +55,15 @@ namespace AbilityKit.Demo.Moba.Services
                 var transform = e.transform.Value;
                 var p = transform.Position;
                 var forward = transform.Forward;
-                Add(new MobaActorTransformSnapshotEntry(id, p.X, p.Y, p.Z, forward.X, forward.Y, forward.Z));
+                Add(new MobaActorTransformSnapshotEntry(
+                    id,
+                    p.X,
+                    p.Y,
+                    p.Z,
+                    forward.X,
+                    forward.Y,
+                    forward.Z,
+                    transform.Scale.X));
             }
         }
 

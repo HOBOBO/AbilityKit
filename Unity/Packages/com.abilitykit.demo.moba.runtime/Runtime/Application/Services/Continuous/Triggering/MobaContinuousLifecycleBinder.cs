@@ -146,8 +146,12 @@ namespace AbilityKit.Demo.Moba.Services
             if (continuous == null) return;
             if (!(continuous.Config is IMobaContinuousProjectionConfig projection)) return;
             var key = (projection.OwnerActorId, projection.ModifierSourceId);
-            if (!_owners.TryGetValue(key, out var registered) || !ReferenceEquals(registered, continuous)) return;
-
+            if (_owners.TryGetValue(key, out var owner) && !ReferenceEquals(owner, continuous)) return;
+            // Cleanup is source-owned and must be idempotent.  The continuous
+            // manager may notify Ended after Unregistered (or vice versa), so
+            // an absent registration must still permit cleanup. A conflicting
+            // registration belongs to another instance and must be preserved,
+            // including when registration failure invokes compensation.
             _modifierProjectors?.Clear(projection);
         }
     }

@@ -62,12 +62,26 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (projectileCode <= 0) return false;
             var hitPolicyKind = ProjectileHitPolicyKind.ExitOnHit;
             var hitPolicyParam = 0;
-            if (_configs != null && _configs.TryGetProjectile(projectileCode, out var projectileConfig) &&
-                projectileConfig != null && projectileConfig.HitPolicyKind == ProjectileHitPolicyKind.Pierce)
+            var bounceSearchRadius = 0f;
+            var trackingArcHeight = 0f;
+            var trackingArcHeightPerUnit = 0f;
+            var trackingArcDurationSeconds = 0f;
+            var hitUnitSubType = 0;
+            ProjectileMO projectileConfig = null;
+            if (_configs != null && _configs.TryGetProjectile(projectileCode, out projectileConfig) &&
+                projectileConfig != null)
             {
-                hitPolicyKind = ProjectileHitPolicyKind.Pierce;
-                hitPolicyParam = projectileConfig.HitsRemaining == -1
-                    ? -1 : Math.Max(1, projectileConfig.HitsRemaining);
+                if (!projectileConfig.TryResolveRuntimeSettings(out hitPolicyKind, out hitPolicyParam,
+                        out _, out var hitPolicyError))
+                {
+                    Log.Warning($"[MobaProjectileService] projectile configuration rejected. projectileCode={projectileCode} error={hitPolicyError}");
+                    return false;
+                }
+                bounceSearchRadius = projectileConfig.BounceSearchRadius;
+                trackingArcHeight = projectileConfig.TrackingArcHeight;
+                trackingArcHeightPerUnit = projectileConfig.TrackingArcHeightPerUnit;
+                trackingArcDurationSeconds = projectileConfig.TrackingArcDurationSeconds;
+                hitUnitSubType = projectileConfig.HitUnitSubType;
             }
             if (_skillParamModifiers != null)
             {
@@ -150,10 +164,16 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     maxDistance: maxDistance,
                     collisionLayerMask: collisionMask,
                     ignoreCollider: ignore,
-                    hitsRemaining: hitPolicyKind == ProjectileHitPolicyKind.Pierce ? 0 : 1,
+                    hitsRemaining: hitPolicyKind == ProjectileHitPolicyKind.Pierce ? 0 :
+                        hitPolicyKind == ProjectileHitPolicyKind.Bounce ? hitPolicyParam : 1,
                     hitPolicyKind: hitPolicyKind,
                     hitPolicyParam: hitPolicyParam,
-                    hitFilter: new MobaTeamProjectileHitFilter(_registry));
+                    hitFilter: new MobaTeamProjectileHitFilter(_registry, hitUnitSubType),
+                    trackingTargetActorId: sourceContext.InitialTargetActorId,
+                    trackingArcHeight: trackingArcHeight,
+                    trackingArcHeightPerUnit: trackingArcHeightPerUnit,
+                    trackingArcDurationSeconds: trackingArcDurationSeconds,
+                    bounceSearchRadius: bounceSearchRadius);
 
                 ProjectileId pid;
                 switch (emitterType)
@@ -223,10 +243,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         private sealed class MobaTeamProjectileHitFilter : IProjectileHitFilter, IProjectileCollisionResponseResolver
         {
             private readonly MobaActorRegistry _registry;
+            private readonly int _hitUnitSubType;
 
-            public MobaTeamProjectileHitFilter(MobaActorRegistry registry)
+            public MobaTeamProjectileHitFilter(MobaActorRegistry registry, int hitUnitSubType = 0)
             {
                 _registry = registry;
+                _hitUnitSubType = hitUnitSubType;
             }
 
             public bool ShouldHit(int ownerId, ColliderId collider, int frame)
@@ -267,10 +289,20 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 }
 
                 // 不在 actor 注册表里的 collider 是静态世界/障碍物（墙体），应挡住投射物而非穿透。
-                if (hitEntity == null) return ProjectileCollisionResponse.Block;
+                if (hitEntity == null)
+                {
+                    return ProjectileCollisionResponse.Block;
+                }
 
                 // 不命中自身。
                 if (hitEntity.hasActorId && hitEntity.actorId.Value == ownerId) return ProjectileCollisionResponse.Ignore;
+
+                if (_hitUnitSubType > 0 &&
+                    (!hitEntity.hasEntityMainType || hitEntity.entityMainType.Value != EntityMainType.Unit ||
+                     !hitEntity.hasUnitSubType || (int)hitEntity.unitSubType.Value != _hitUnitSubType))
+                {
+                    return ProjectileCollisionResponse.Ignore;
+                }
 
                 var targetTeam = hitEntity.hasTeam ? hitEntity.team.Value : Team.None;
 
@@ -441,6 +473,13 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (request.CasterActorId <= 0) { result = MobaProjectileLaunchResult.Failed("Caster actor id is invalid"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
             if (request.Launcher == null) { result = MobaProjectileLaunchResult.Failed("Launcher config is null"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
             if (request.Projectile == null) { result = MobaProjectileLaunchResult.Failed("Projectile config is null"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
+            if (!request.Projectile.TryResolveRuntimeSettings(out var hitPolicyKind,
+                    out var hitPolicyParam, out var hitsRemaining, out var hitPolicyError))
+            {
+                result = MobaProjectileLaunchResult.Failed($"Projectile hit policy configuration is invalid. projectileId={request.Projectile.Id} error={hitPolicyError}");
+                Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}");
+                return false;
+            }
             if (request.CountPerShot <= 0) { result = MobaProjectileLaunchResult.Failed($"Projectile count per shot is invalid. countPerShot={request.CountPerShot}"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
             if (request.FanAngleDeg < 0f) { result = MobaProjectileLaunchResult.Failed($"Projectile fan angle is invalid. fanAngleDeg={request.FanAngleDeg}"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
             if (request.DurationMs < 0) { result = MobaProjectileLaunchResult.Failed($"Projectile duration is invalid. durationMs={request.DurationMs}"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
@@ -527,15 +566,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (caster.hasCollisionId) ignore = caster.collisionId.Value;
 
             var startFrame = frameTime != null ? frameTime.Frame.Value : 0;
-            var hitPolicyKind = projectile.HitPolicyKind;
-            var hitPolicyParam = 0;
-            var hitsRemaining = 1;
-            if (hitPolicyKind == ProjectileHitPolicyKind.Pierce)
-            {
-                hitPolicyParam = projectile.HitsRemaining == -1 ? -1 : (projectile.HitsRemaining > 0 ? projectile.HitsRemaining : 1);
-                hitsRemaining = 0;
-            }
-
             var baseSpawn = new ProjectileSpawnParams(
                 ownerId: casterActorId,
                 templateId: projectile.Id,
@@ -557,14 +587,18 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 hitPolicyKind: hitPolicyKind,
                 hitPolicyParam: hitPolicyParam,
                 tickIntervalFrames: tickIntervalFrames,
-                hitFilter: new MobaTeamProjectileHitFilter(_registry),
+                hitFilter: new MobaTeamProjectileHitFilter(_registry, projectile.HitUnitSubType),
                 hitCooldownFrames: hitCooldownFrames,
                 startSuspended: hasStateMachine,
                 trackingTargetActorId: request.TrackTarget ? request.SourceContext.InitialTargetActorId : 0,
                 collisionHalfExtents: new Vec3(
                     projectile.CollisionWidth * 0.5f,
                     projectile.CollisionHeight * 0.5f,
-                    projectile.CollisionLength * 0.5f));
+                    projectile.CollisionLength * 0.5f),
+                trackingArcHeight: projectile.TrackingArcHeight,
+                trackingArcHeightPerUnit: projectile.TrackingArcHeightPerUnit,
+                trackingArcDurationSeconds: projectile.TrackingArcDurationSeconds,
+                bounceSearchRadius: projectile.BounceSearchRadius);
 
             if (!_actorSpawn.TrySpawn(in launcherRequest, out var launcherSpawnResult) || !launcherSpawnResult.Success)
             {

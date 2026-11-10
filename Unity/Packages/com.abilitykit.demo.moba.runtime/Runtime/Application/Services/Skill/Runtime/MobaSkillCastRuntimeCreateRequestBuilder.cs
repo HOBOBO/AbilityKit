@@ -8,6 +8,7 @@ namespace AbilityKit.Demo.Moba.Services
         private int _baseSkillId;
         private int _skillSlot;
         private int _skillLevel;
+        private int _championLevel;
         private int _sequence;
         private int _casterActorId;
         private int _targetActorId;
@@ -15,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Services
         private Vec3 _aimDir;
         private long _rootContextId;
         private long _diagnosticCommandId;
+        private MobaSkillLevelParameterSnapshot _levelParameters;
 
         private MobaSkillCastRuntimeCreateRequestBuilder()
         {
@@ -32,6 +34,7 @@ namespace AbilityKit.Demo.Moba.Services
             _baseSkillId = 0;
             _skillSlot = 0;
             _skillLevel = 0;
+            _championLevel = 0;
             _sequence = 0;
             _casterActorId = 0;
             _targetActorId = 0;
@@ -39,6 +42,7 @@ namespace AbilityKit.Demo.Moba.Services
             _aimDir = Vec3.Forward;
             _rootContextId = 0L;
             _diagnosticCommandId = 0L;
+            _levelParameters = MobaSkillLevelParameterSnapshot.Empty;
             return this;
         }
 
@@ -50,6 +54,7 @@ namespace AbilityKit.Demo.Moba.Services
             _baseSkillId = context.BaseSkillId;
             _skillSlot = context.SkillSlot;
             _skillLevel = context.SkillLevel;
+            _championLevel = context.ChampionLevel;
             _sequence = context.Sequence;
             _casterActorId = context.CasterActorId;
             _targetActorId = context.TargetActorId;
@@ -90,6 +95,18 @@ namespace AbilityKit.Demo.Moba.Services
             return this;
         }
 
+        public MobaSkillCastRuntimeCreateRequestBuilder WithChampionLevel(int championLevel)
+        {
+            _championLevel = championLevel;
+            return this;
+        }
+
+        public MobaSkillCastRuntimeCreateRequestBuilder WithLevelParameters(MobaSkillLevelParameterSnapshot parameters)
+        {
+            _levelParameters = parameters ?? MobaSkillLevelParameterSnapshot.Empty;
+            return this;
+        }
+
         public MobaSkillCastRuntimeCreateRequest Build()
         {
             return new MobaSkillCastRuntimeCreateRequest(
@@ -103,7 +120,9 @@ namespace AbilityKit.Demo.Moba.Services
                 in _aimDir,
                 _rootContextId,
                 _diagnosticCommandId,
-                _baseSkillId);
+                _baseSkillId,
+                _levelParameters,
+                _championLevel);
         }
     }
 }

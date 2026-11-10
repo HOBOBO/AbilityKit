@@ -13,20 +13,26 @@ namespace AbilityKit.Diagnostics
         private readonly string _name;
         private readonly long _startTimestamp;
         private readonly long _contextId;
+        private readonly bool _hasDetailedState;
+        private readonly long _generation;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal ProbeToken(IProfiler profiler, string name, long startTimestamp, long contextId = 0L)
+        internal ProbeToken(IProfiler profiler, string name, long startTimestamp, long contextId = 0L, bool hasDetailedState = false, long generation = 0L)
         {
             _profiler = profiler;
             _name = name;
             _startTimestamp = startTimestamp;
             _contextId = contextId;
+            _hasDetailedState = hasDetailedState;
+            _generation = generation;
         }
 
         internal IProfiler Profiler => _profiler;
         internal string Name => _name;
         internal long StartTimestamp => _startTimestamp;
         internal long ContextId => _contextId;
+        internal bool HasDetailedState => _hasDetailedState;
+        internal long Generation => _generation;
 
         /// <summary>
         /// 完成本次探针采样。

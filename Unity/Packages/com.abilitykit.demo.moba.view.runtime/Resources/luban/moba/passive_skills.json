@@ -36,8 +36,7 @@
     "Name": "墨子-机关术",
     "TriggerIds": [
       10040000,
-      10040001,
-      10040002
+      10040001
     ]
   },
   {
@@ -54,8 +53,7 @@
     "Name": "嬴政-王者审判",
     "TriggerIds": [
       10060000,
-      10060002,
-      10060003
+      10060002
     ]
   },
   {
@@ -74,8 +72,41 @@
     "Name": "鲁班七号-火力压制",
     "TriggerIds": [
       10080002,
-      10080003,
       10080005
     ]
+  },
+  {
+    "Id": 30010000,
+    "ContinuousProcessIds": [],
+    "CooldownMs": 0,
+    "Name": "Jhin - Whisper",
+    "TriggerIds": [
+      30010001,
+      30010002,
+      30010003,
+      30010004
+    ]
+  },
+  {
+    "Id": 30030000,
+    "CooldownMs": 0,
+    "Name": "安妮-嗜火",
+    "TriggerIds": [
+      30030002,
+      30030004,
+      30030005,
+      30030006,
+      30030007,
+      30030008
+    ]
+  },
+  {
+    "Id": 30020000,
+    "ContinuousProcessIds": [
+      30020010
+    ],
+    "CooldownMs": 0,
+    "Name": "Jinx - Switcheroo mode candidates",
+    "TriggerIds": []
   }
 ]

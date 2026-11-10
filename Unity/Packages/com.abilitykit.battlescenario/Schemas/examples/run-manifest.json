@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "producerVersion": "battle-scenario-adapter/0.1.0",
+  "runId": "run-2026-11-04-001",
+  "createdAt": "2026-11-04T02:30:00Z",
+  "build": { "repository": "AbilityKit", "commit": "a1b2c3d4", "buildId": "local-001" },
+  "artifacts": [
+    { "kind": "batch-summary", "uri": "batch_summary.json", "contentType": "application/json" },
+    { "kind": "case-summary", "uri": "cases/jinx-w-charged-shot-hit_summary.json", "contentType": "application/json" },
+    { "kind": "trace", "uri": "cases/jinx-w-charged-shot-hit_trace.jsonl", "contentType": "application/x-ndjson" }
+  ]
+}

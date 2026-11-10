@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -10,10 +11,313 @@ namespace AbilityKit.Diagnostics
     /// </summary>
     public sealed class EditorProfiler : IProfiler
     {
+        private enum MetricOperationKind
+        {
+            CounterAdd,
+            GaugeSet,
+            DurationSummary,
+            SampleValue
+        }
+
+        private struct PendingMetricOperation
+        {
+            public MetricOperationKind Kind;
+            public string Name;
+            public long Value;
+            public double DoubleValue;
+            public long Timestamp;
+            public long Generation;
+        }
+
+        /// <summary>
+        /// Immutable read-only gate used by the high-frequency counter and gauge paths.
+        /// Replacing one reference keeps configuration changes atomic without taking the
+        /// profiler aggregation lock for every metric write.
+        /// </summary>
+        private sealed class MetricGateSnapshot
+        {
+            public long Generation;
+            public bool IsCollectionEnabled;
+            public bool CollectsDetailedData;
+            public HashSet<string> DisabledCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public Dictionary<string, double> CategorySampleRates = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            public Dictionary<string, double> MetricSampleRates = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            public Dictionary<string, string> MetricCategories = new Dictionary<string, string>(StringComparer.Ordinal);
+            public double DefaultSampleRate;
+
+            public string GetCategory(string name)
+            {
+                if (!string.IsNullOrEmpty(name) && MetricCategories.TryGetValue(name, out var category) && !string.IsNullOrEmpty(category))
+                {
+                    return category;
+                }
+
+                return EditorProfiler.GetCategory(name);
+            }
+
+            public double GetSampleRate(string category, string metric)
+            {
+                if (!string.IsNullOrEmpty(metric) && MetricSampleRates.TryGetValue(metric, out var metricRate))
+                {
+                    return metricRate;
+                }
+
+                if (!string.IsNullOrEmpty(category) && CategorySampleRates.TryGetValue(category, out var categoryRate))
+                {
+                    return categoryRate;
+                }
+
+                return DefaultSampleRate;
+            }
+        }
+
+        private sealed class ThreadMetricBuffer
+        {
+            private readonly object _sync = new object();
+            private PendingMetricOperation[] _operations;
+            private int _head;
+            private int _count;
+            private long _dropped;
+
+            public ThreadMetricBuffer(int capacity)
+            {
+                _operations = new PendingMetricOperation[Math.Max(1, capacity)];
+            }
+
+            public long Resize(int capacity)
+            {
+                capacity = Math.Max(1, capacity);
+                lock (_sync)
+                {
+                    if (capacity == _operations.Length)
+                    {
+                        return 0L;
+                    }
+
+                    var keep = Math.Min(_count, capacity);
+                    var skipped = _count - keep;
+                    var next = new PendingMetricOperation[capacity];
+                    var oldest = (_head - _count + _operations.Length) % _operations.Length;
+                    for (var i = 0; i < keep; i++)
+                    {
+                        next[i] = _operations[(oldest + skipped + i) % _operations.Length];
+                    }
+
+                    _operations = next;
+                    _count = keep;
+                    _head = keep == capacity ? 0 : keep;
+                    return skipped;
+                }
+            }
+
+            public void Add(in PendingMetricOperation operation)
+            {
+                lock (_sync)
+                {
+                    if (_count == _operations.Length)
+                    {
+                        _dropped++;
+                    }
+                    else
+                    {
+                        _count++;
+                    }
+
+                    _operations[_head] = operation;
+                    _head = (_head + 1) % _operations.Length;
+                }
+            }
+
+            public void Reset()
+            {
+                lock (_sync)
+                {
+                    _head = 0;
+                    _count = 0;
+                    _dropped = 0L;
+                }
+            }
+
+            public void DrainTo(Action<PendingMetricOperation> apply, ref long dropped)
+            {
+                lock (_sync)
+                {
+                    dropped += _dropped;
+                    _dropped = 0L;
+                    var oldest = (_head - _count + _operations.Length) % _operations.Length;
+                    for (var i = 0; i < _count; i++)
+                    {
+                        apply(_operations[(oldest + i) % _operations.Length]);
+                    }
+
+                    _head = 0;
+                    _count = 0;
+                }
+            }
+        }
+
+        private sealed class ThreadSpanBuffer
+        {
+            private readonly object _sync = new object();
+            private ProfilerSpanRecord[] _records;
+            private int _head;
+            private int _count;
+            private long _dropped;
+
+            public ThreadSpanBuffer(int capacity)
+            {
+                _records = new ProfilerSpanRecord[Math.Max(1, capacity)];
+            }
+
+            public void Add(in ProfilerSpanRecord record)
+            {
+                lock (_sync)
+                {
+                    if (_count == _records.Length)
+                    {
+                        _dropped++;
+                    }
+                    else
+                    {
+                        _count++;
+                    }
+
+                    _records[_head] = record;
+                    _head = (_head + 1) % _records.Length;
+                }
+            }
+
+            public void Reset(int capacity)
+            {
+                lock (_sync)
+                {
+                    if (_records.Length != Math.Max(1, capacity))
+                    {
+                        _records = new ProfilerSpanRecord[Math.Max(1, capacity)];
+                    }
+
+                    _head = 0;
+                    _count = 0;
+                    _dropped = 0L;
+                }
+            }
+
+            public void DrainTo(ProfilerSpanRecord[] destination, ref int head, ref int count, ref long dropped)
+            {
+                lock (_sync)
+                {
+                    dropped += _dropped;
+                    _dropped = 0L;
+
+                    var oldest = (_head - _count + _records.Length) % _records.Length;
+                    for (var i = 0; i < _count; i++)
+                    {
+                        var record = _records[(oldest + i) % _records.Length];
+                        if (destination.Length == 0)
+                        {
+                            dropped++;
+                            continue;
+                        }
+
+                        if (count == destination.Length)
+                        {
+                            dropped++;
+                        }
+                        else
+                        {
+                            count++;
+                        }
+
+                        destination[head] = record;
+                        head = (head + 1) % destination.Length;
+                    }
+
+                    _head = 0;
+                    _count = 0;
+                }
+            }
+        }
+
+        private sealed class SampleRingBuffer
+        {
+            private double[] _values;
+            private int _start;
+            private int _count;
+
+            public SampleRingBuffer(int capacity)
+            {
+                _values = new double[Math.Max(1, capacity)];
+            }
+
+            public void Add(double value)
+            {
+                if (_count < _values.Length)
+                {
+                    _values[(_start + _count) % _values.Length] = value;
+                    _count++;
+                    return;
+                }
+
+                _values[_start] = value;
+                _start = (_start + 1) % _values.Length;
+            }
+
+            public void Resize(int capacity)
+            {
+                capacity = Math.Max(1, capacity);
+                if (capacity == _values.Length)
+                {
+                    return;
+                }
+
+                var existing = ToList();
+                var next = new double[capacity];
+                var copyStart = Math.Max(0, existing.Count - capacity);
+                var copyCount = existing.Count - copyStart;
+                for (var i = 0; i < copyCount; i++)
+                {
+                    next[i] = existing[copyStart + i];
+                }
+
+                _values = next;
+                _start = 0;
+                _count = copyCount;
+            }
+
+            public List<double> ToList()
+            {
+                var result = new List<double>(_count);
+                for (var i = 0; i < _count; i++)
+                {
+                    result.Add(_values[(_start + i) % _values.Length]);
+                }
+
+                return result;
+            }
+        }
+
         private struct RateSample
         {
             public long Timestamp;
             public long Value;
+        }
+
+        /// <summary>
+        /// Incremental rolling-window state for a counter rate. Each queue contains
+        /// samples for one window, so refreshes evict only samples that crossed a
+        /// boundary instead of rescanning the complete 60-second queue.
+        /// </summary>
+        private sealed class RateWindowState
+        {
+            public readonly Queue<RateSample> Samples = new Queue<RateSample>(64);
+            public readonly Queue<RateSample> FiveSecondSamples = new Queue<RateSample>(64);
+            public readonly Queue<RateSample> OneSecondSamples = new Queue<RateSample>(64);
+            public long Count60Seconds;
+            public long Count5Seconds;
+            public long Count1Second;
+            public long LastTimestamp;
+            public long LastRefreshTimestamp;
+            public bool RequiresFullRefresh;
         }
 
         private sealed class ActiveFrame
@@ -35,18 +339,23 @@ namespace AbilityKit.Diagnostics
 
         private const int DefaultMaxSamplesPerMetric = 512;
         private const int DefaultMaxDiagnosticEvents = 256;
+        private const int DefaultMetricBufferCapacity = 256;
         private const long EventCooldownMilliseconds = 1000L;
 
         private readonly object _lock = new object();
+        private readonly List<ThreadMetricBuffer> _threadMetricBuffers = new List<ThreadMetricBuffer>();
+        private readonly ThreadLocal<ThreadMetricBuffer> _threadMetricBuffer;
+        private readonly List<ThreadSpanBuffer> _threadSpanBuffers = new List<ThreadSpanBuffer>();
+        private readonly ThreadLocal<ThreadSpanBuffer> _threadSpanBuffer;
         private readonly FlameRoot _root = new FlameRoot();
         private readonly Dictionary<string, MetricDefinition> _metrics = new Dictionary<string, MetricDefinition>(128);
-        private readonly Dictionary<string, long> _sampleDecisions = new Dictionary<string, long>(128);
+        private readonly ConcurrentDictionary<string, long> _sampleDecisions = new ConcurrentDictionary<string, long>(StringComparer.Ordinal);
         private readonly List<DiagnosticsSessionRecord> _sessionHistory = new List<DiagnosticsSessionRecord>(16);
         private readonly Dictionary<string, CounterRecord> _counters = new Dictionary<string, CounterRecord>(128);
         private readonly Dictionary<string, GaugeRecord> _gauges = new Dictionary<string, GaugeRecord>(128);
-        private readonly Dictionary<string, List<double>> _samples = new Dictionary<string, List<double>>(128);
+        private readonly Dictionary<string, SampleRingBuffer> _samples = new Dictionary<string, SampleRingBuffer>(128);
         private readonly Dictionary<string, DurationSummaryRecord> _durationSummaries = new Dictionary<string, DurationSummaryRecord>(128);
-        private readonly Dictionary<string, Queue<RateSample>> _rateSamples = new Dictionary<string, Queue<RateSample>>(128);
+        private readonly Dictionary<string, RateWindowState> _rateSamples = new Dictionary<string, RateWindowState>(128);
         private readonly Dictionary<string, RateRecord> _rates = new Dictionary<string, RateRecord>(128);
         private readonly Dictionary<string, DurationThresholdRule> _durationThresholds = new Dictionary<string, DurationThresholdRule>(64);
         private readonly Dictionary<string, RateThresholdRule> _rateThresholds = new Dictionary<string, RateThresholdRule>(64);
@@ -56,6 +365,8 @@ namespace AbilityKit.Diagnostics
         private ProfilerOptions _options = ProfilerOptions.CreateDefault();
         private volatile bool _isEnabled;
         private int _sessionIndex;
+        private long _metricGeneration;
+        private MetricGateSnapshot _metricGate;
 
         // 时间线 span 环形缓冲：按完成顺序记录 (名称, 起点, 时长, 关联上下文, 线程, 帧号)，
         // 供 chrome/speedscope 导出真实时间轴。容量由 ProfilerOptions.MaxSpanEvents 控制。
@@ -64,9 +375,15 @@ namespace AbilityKit.Diagnostics
         private int _spanCount;
         private long _spansDropped;
         private long _currentFrame;
+        private int _spanBufferCapacity;
+        private long _metricOperationsDropped;
 
         public EditorProfiler()
         {
+            _threadMetricBuffer = new ThreadLocal<ThreadMetricBuffer>(CreateThreadMetricBuffer);
+            _threadSpanBuffer = new ThreadLocal<ThreadSpanBuffer>(CreateThreadSpanBuffer);
+            _metricGeneration = 0L;
+            _metricGate = BuildMetricGateSnapshotLocked();
             ResetSessionIdentity();
         }
 
@@ -76,7 +393,8 @@ namespace AbilityKit.Diagnostics
         {
             lock (_lock)
             {
-                _isEnabled = true;
+                _isEnabled = false;
+                _metricGeneration++;
                 _sessionIndex++;
                 ClearLocked();
                 var capacity = _options == null ? 0 : _options.MaxSpanEvents;
@@ -84,10 +402,17 @@ namespace AbilityKit.Diagnostics
                 _spanHead = 0;
                 _spanCount = 0;
                 _spansDropped = 0;
-                _currentFrame = 0;
+                Volatile.Write(ref _currentFrame, 0L);
+                _spanBufferCapacity = capacity > 0 ? Math.Max(1, Math.Min(capacity, 256)) : 0;
+                for (var i = 0; i < _threadSpanBuffers.Count; i++)
+                {
+                    _threadSpanBuffers[i].Reset(_spanBufferCapacity);
+                }
                 _root.SessionId = $"{_sessionIndex}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
                 _root.StartTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 _root.EndTimestamp = 0L;
+                PublishMetricGateLocked();
+                _isEnabled = true;
             }
         }
 
@@ -96,17 +421,23 @@ namespace AbilityKit.Diagnostics
         /// </summary>
         public void SetFrame(long frame)
         {
-            lock (_lock)
-            {
-                _currentFrame = frame;
-            }
+            // Frame association is an atomic value and does not need the aggregation lock.
+            Volatile.Write(ref _currentFrame, frame);
         }
 
         public void Stop()
         {
             lock (_lock)
             {
+                // Atomically close the current metric generation before flushing. Producers
+                // that raced with Stop retain the old generation and are counted as dropped.
+                PublishMetricGateLocked(forceCollectionDisabled: true);
                 _isEnabled = false;
+                FlushMetricBuffersLocked();
+                _metricGeneration++;
+                PublishMetricGateLocked(forceCollectionDisabled: true);
+                FlushMetricBuffersLocked();
+                FlushSpanBuffersLocked();
                 _root.EndTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             }
         }
@@ -115,9 +446,13 @@ namespace AbilityKit.Diagnostics
         {
             lock (_lock)
             {
+                var wasEnabled = _isEnabled;
+                PublishMetricGateLocked(forceCollectionDisabled: true);
+                _metricGeneration++;
                 ClearLocked();
                 _sessionHistory.Clear();
                 ResetSessionIdentity();
+                PublishMetricGateLocked(forceCollectionDisabled: !wasEnabled);
             }
         }
 
@@ -125,7 +460,51 @@ namespace AbilityKit.Diagnostics
         {
             lock (_lock)
             {
-                _options = (options ?? ProfilerOptions.CreateDefault()).Clone();
+                var next = (options ?? ProfilerOptions.CreateDefault()).Clone();
+                _options = next;
+
+                // A detailed scope owns an entry in the per-thread flame stack. If collection is
+                // downgraded while scopes are active, discard those entries rather than allowing
+                // a later Standard session to inherit stale nesting state.
+                if (!next.CollectsDetailedData)
+                {
+                    _threadStacks.Clear();
+                }
+
+                var maxSamples = next.MaxSamplesPerMetric <= 0 ? DefaultMaxSamplesPerMetric : next.MaxSamplesPerMetric;
+                foreach (var buffer in _samples.Values)
+                {
+                    buffer.Resize(maxSamples);
+                }
+
+                var maxMetricOperations = next.MaxMetricOperationsPerThread <= 0 ? DefaultMetricBufferCapacity : next.MaxMetricOperationsPerThread;
+                for (var i = 0; i < _threadMetricBuffers.Count; i++)
+                {
+                    _metricOperationsDropped += _threadMetricBuffers[i].Resize(maxMetricOperations);
+                }
+
+                PublishMetricGateLocked();
+            }
+        }
+
+        /// <summary>
+        /// Returns whether the current session is allowed to collect data.
+        /// IsEnabled intentionally continues to represent the session lifecycle for backwards
+        /// compatibility; this property represents the effective collection switch.
+        /// </summary>
+        public bool IsCollecting
+        {
+            get
+            {
+                if (!_isEnabled)
+                {
+                    return false;
+                }
+
+                lock (_lock)
+                {
+                    return _options != null && _options.IsCollectionEnabled;
+                }
             }
         }
 
@@ -152,6 +531,7 @@ namespace AbilityKit.Diagnostics
                 }
 
                 _metrics[metric.Name] = metric;
+                PublishMetricGateLocked();
             }
         }
 
@@ -159,6 +539,7 @@ namespace AbilityKit.Diagnostics
         {
             lock (_lock)
             {
+                FlushMetricBuffersLocked();
                 return new Dictionary<string, MetricDefinition>(_metrics);
             }
         }
@@ -230,13 +611,24 @@ namespace AbilityKit.Diagnostics
         /// </summary>
         public void EmitEvent(DiagnosticSeverity severity, string category, string name, string message, double value = 0d, double threshold = 0d)
         {
-            if (string.IsNullOrEmpty(name))
+            if (!_isEnabled || string.IsNullOrEmpty(name))
+            {
+                return;
+            }
+
+            var gate = Volatile.Read(ref _metricGate);
+            if (gate == null || !gate.IsCollectionEnabled)
             {
                 return;
             }
 
             lock (_lock)
             {
+                if (_options == null || !_options.CollectsDetailedData)
+                {
+                    return;
+                }
+
                 AddEventLocked(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), severity, category, name, message, value, threshold, respectCooldown: false);
             }
         }
@@ -254,6 +646,22 @@ namespace AbilityKit.Diagnostics
             }
 
             var startTimestamp = Stopwatch.GetTimestamp();
+            var gate = Volatile.Read(ref _metricGate);
+            if (gate == null || !gate.IsCollectionEnabled)
+            {
+                return default;
+            }
+
+            if (!gate.CollectsDetailedData)
+            {
+                if (!ShouldRecord(name, MetricKind.Duration, gate))
+                {
+                    return default;
+                }
+
+                return new ProbeToken(this, name, startTimestamp, contextId, hasDetailedState: false, generation: gate.Generation);
+            }
+
             lock (_lock)
             {
                 if (!ShouldRecordLocked(name, MetricKind.Duration))
@@ -262,13 +670,18 @@ namespace AbilityKit.Diagnostics
                 }
 
                 EnsureMetricLocked(name, MetricKind.Duration, "ms");
+                if (!_options.CollectsDetailedData)
+                {
+                    return new ProbeToken(this, name, startTimestamp, contextId, hasDetailedState: false, generation: _metricGeneration);
+                }
+
                 var threadId = Thread.CurrentThread.ManagedThreadId;
                 var stack = GetThreadStack(threadId);
                 var category = GetMetricCategoryLocked(name);
                 var parent = stack.Count > 0 ? stack.Peek().Node : _root.GetOrCreateRoot(category);
                 var node = parent.GetOrCreateChild(name, category);
                 stack.Push(new ActiveFrame(name, category, node, startTimestamp));
-                return new ProbeToken(this, name, startTimestamp, contextId);
+                return new ProbeToken(this, name, startTimestamp, contextId, hasDetailedState: true, generation: _metricGeneration);
             }
         }
 
@@ -281,95 +694,242 @@ namespace AbilityKit.Diagnostics
 
             var nowTimestamp = Stopwatch.GetTimestamp();
             var elapsedNanoseconds = TicksToNanoseconds(nowTimestamp - token.StartTimestamp);
-            lock (_lock)
-            {
-                var threadId = Thread.CurrentThread.ManagedThreadId;
-                var stack = GetThreadStack(threadId);
-                if (stack.Count == 0)
-                {
-                    RecordDurationLocked(token.Name, elapsedNanoseconds, attachToCurrentStack: true);
-                    AppendSpanLocked(token.Name, token.StartTimestamp, elapsedNanoseconds, token.ContextId, threadId);
-                    return;
-                }
+            var appendSpan = false;
+            var threadId = Thread.CurrentThread.ManagedThreadId;
+            var frame = 0L;
 
-                var top = stack.Peek();
-                if (string.Equals(top.Name, token.Name, StringComparison.Ordinal))
-                {
-                    CompleteFrameLocked(stack, stack.Pop(), elapsedNanoseconds);
-                    AppendSpanLocked(token.Name, token.StartTimestamp, elapsedNanoseconds, token.ContextId, threadId);
-                    return;
-                }
-
-                // 乱序 Complete：向下弹出直到目标帧。目标帧上方的未配对帧按各自开始时间
-                // 依次强制收尾（自顶向下），不丢弃任何帧的数据；目标帧最后收尾。
-                var popped = new List<ActiveFrame>();
-                ActiveFrame targetFrame = null;
-                while (stack.Count > 0)
-                {
-                    var frame = stack.Pop();
-                    popped.Add(frame);
-                    if (string.Equals(frame.Name, token.Name, StringComparison.Ordinal))
-                    {
-                        targetFrame = frame;
-                        break;
-                    }
-                }
-
-                if (targetFrame == null)
-                {
-                    // 目标不在本线程栈上（已收尾过或跨线程）：恢复栈，本次 elapsed 记为
-                    // 独立时长，绝不归属到栈顶的无关帧上。
-                    for (int i = popped.Count - 1; i >= 0; i--)
-                    {
-                        stack.Push(popped[i]);
-                    }
-
-                    RecordDurationLocked(token.Name, elapsedNanoseconds, attachToCurrentStack: true);
-                    AppendSpanLocked(token.Name, token.StartTimestamp, elapsedNanoseconds, token.ContextId, threadId);
-                    return;
-                }
-
-                // popped = [顶帧, ..., 目标帧]（弹出顺序）。i 从 0（顶）到目标前一帧：
-                // 各自收尾并把耗时累计到列表中的下一帧（即其父帧）。
-                for (int i = 0; i < popped.Count - 1; i++)
-                {
-                    var frame = popped[i];
-                    var frameElapsed = TicksToNanoseconds(nowTimestamp - frame.StartTimestamp);
-                    RecordFrameMeasurementLocked(frame, frameElapsed);
-                    popped[i + 1].ChildNanoseconds += frameElapsed;
-                }
-
-                CompleteFrameLocked(stack, targetFrame, elapsedNanoseconds);
-                AppendSpanLocked(token.Name, token.StartTimestamp, elapsedNanoseconds, token.ContextId, threadId);
-            }
-        }
-
-        private void AppendSpanLocked(string name, long startTimestamp, long elapsedNanoseconds, long contextId, int threadId)
-        {
-            if (_spans.Length == 0 || elapsedNanoseconds < 0L)
+            var gate = Volatile.Read(ref _metricGate);
+            if (gate == null || !gate.IsCollectionEnabled)
             {
                 return;
             }
 
-            if (_spanCount == _spans.Length)
+            if (token.Generation != gate.Generation)
             {
-                _spansDropped++;
-            }
-            else
-            {
-                _spanCount++;
+                return;
             }
 
-            _spans[_spanHead] = new ProfilerSpanRecord
+            if (!token.HasDetailedState)
+            {
+                EnqueueDurationSummary(token.Name, elapsedNanoseconds, token.Generation);
+                return;
+            }
+
+            lock (_lock)
+            {
+                if (_options == null || !_options.IsCollectionEnabled || _metricGeneration != token.Generation)
+                {
+                    return;
+                }
+
+                if (!_options.CollectsDetailedData)
+                {
+                    EnqueueDurationSummary(token.Name, elapsedNanoseconds, token.Generation);
+                    return;
+                }
+
+                var stack = GetThreadStack(threadId);
+                if (stack.Count == 0)
+                {
+                    RecordDurationLocked(token.Name, elapsedNanoseconds, attachToCurrentStack: true);
+                    appendSpan = true;
+                    frame = Volatile.Read(ref _currentFrame);
+                }
+                else
+                {
+                    var top = stack.Peek();
+                    if (string.Equals(top.Name, token.Name, StringComparison.Ordinal))
+                    {
+                        CompleteFrameLocked(stack, stack.Pop(), elapsedNanoseconds);
+                        appendSpan = true;
+                        frame = Volatile.Read(ref _currentFrame);
+                    }
+                    else
+                    {
+                        var popped = new List<ActiveFrame>();
+                        ActiveFrame targetFrame = null;
+                        while (stack.Count > 0)
+                        {
+                            var activeFrame = stack.Pop();
+                            popped.Add(activeFrame);
+                            if (string.Equals(activeFrame.Name, token.Name, StringComparison.Ordinal))
+                            {
+                                targetFrame = activeFrame;
+                                break;
+                            }
+                        }
+
+                        if (targetFrame == null)
+                        {
+                            for (var i = popped.Count - 1; i >= 0; i--)
+                            {
+                                stack.Push(popped[i]);
+                            }
+
+                            RecordDurationLocked(token.Name, elapsedNanoseconds, attachToCurrentStack: true);
+                        }
+                        else
+                        {
+                            for (var i = 0; i < popped.Count - 1; i++)
+                            {
+                                var activeFrame = popped[i];
+                                var frameElapsed = TicksToNanoseconds(nowTimestamp - activeFrame.StartTimestamp);
+                                RecordFrameMeasurementLocked(activeFrame, frameElapsed);
+                                popped[i + 1].ChildNanoseconds += frameElapsed;
+                            }
+
+                            CompleteFrameLocked(stack, targetFrame, elapsedNanoseconds);
+                        }
+
+                        appendSpan = true;
+                        frame = Volatile.Read(ref _currentFrame);
+                    }
+                }
+            }
+
+            if (appendSpan)
+            {
+                AppendSpan(token.Name, token.StartTimestamp, elapsedNanoseconds, token.ContextId, threadId, frame);
+            }
+        }
+
+        private void AppendSpan(string name, long startTimestamp, long elapsedNanoseconds, long contextId, int threadId, long frame)
+        {
+            if (_spanBufferCapacity <= 0 || elapsedNanoseconds < 0L)
+            {
+                return;
+            }
+
+            var buffer = _threadSpanBuffer.Value;
+            buffer.Add(new ProfilerSpanRecord
             {
                 Name = name,
                 StartTimestamp = startTimestamp,
                 DurationNanoseconds = elapsedNanoseconds,
                 ContextId = contextId,
                 ThreadId = threadId,
-                Frame = _currentFrame
+                Frame = frame
+            });
+        }
+
+        private ThreadMetricBuffer CreateThreadMetricBuffer()
+        {
+            lock (_lock)
+            {
+                var capacity = _options == null || _options.MaxMetricOperationsPerThread <= 0
+                    ? DefaultMetricBufferCapacity
+                    : _options.MaxMetricOperationsPerThread;
+                var buffer = new ThreadMetricBuffer(capacity);
+                _threadMetricBuffers.Add(buffer);
+                return buffer;
+            }
+        }
+
+        private void FlushMetricBuffersLocked()
+        {
+            for (var i = 0; i < _threadMetricBuffers.Count; i++)
+            {
+                _threadMetricBuffers[i].DrainTo(ApplyMetricOperationLocked, ref _metricOperationsDropped);
+            }
+        }
+
+        private void ApplyMetricOperationLocked(PendingMetricOperation operation)
+        {
+            if (operation.Generation != _metricGeneration)
+            {
+                _metricOperationsDropped++;
+                return;
+            }
+
+            if (operation.Kind == MetricOperationKind.CounterAdd)
+            {
+                ApplyCounterAddLocked(operation.Name, operation.Value, operation.Timestamp);
+                return;
+            }
+
+            if (operation.Kind == MetricOperationKind.DurationSummary)
+            {
+                RecordDurationSummaryOnlyLocked(operation.Name, operation.Value);
+                return;
+            }
+
+            if (operation.Kind == MetricOperationKind.SampleValue)
+            {
+                ApplySampleLocked(operation.Name, operation.DoubleValue);
+                return;
+            }
+
+            ApplyGaugeSetLocked(operation.Name, operation.Value, operation.Timestamp);
+        }
+
+        private void EnqueueDurationSummary(string name, long nanoseconds, long generation)
+        {
+            if (nanoseconds < 0L)
+            {
+                return;
+            }
+
+            _threadMetricBuffer.Value.Add(new PendingMetricOperation
+            {
+                Kind = MetricOperationKind.DurationSummary,
+                Name = name,
+                Value = nanoseconds,
+                Timestamp = 0L,
+                Generation = generation
+            });
+        }
+
+        private void ApplyCounterAddLocked(string counter, long value, long timestamp)
+        {
+            EnsureMetricLocked(counter, MetricKind.Counter, "count");
+            if (!_counters.TryGetValue(counter, out var record))
+            {
+                record = new CounterRecord
+                {
+                    Name = counter,
+                    MinValue = value,
+                    MaxValue = value
+                };
+            }
+
+            record.Value += value;
+            record.Delta += value;
+            record.SampleCount++;
+            record.MinValue = record.SampleCount == 1 ? value : Math.Min(record.MinValue, record.Value);
+            record.MaxValue = record.SampleCount == 1 ? value : Math.Max(record.MaxValue, record.Value);
+            record.MeanValue = record.SampleCount <= 0 ? record.Value : (double)record.Value / record.SampleCount;
+            _counters[counter] = record;
+            UpdateRateLocked(counter, value, timestamp);
+        }
+
+        private void ApplyGaugeSetLocked(string name, long value, long timestamp)
+        {
+            EnsureMetricLocked(name, MetricKind.Gauge, "value");
+            _gauges[name] = new GaugeRecord
+            {
+                Name = name,
+                Value = value,
+                Timestamp = timestamp
             };
-            _spanHead = (_spanHead + 1) % _spans.Length;
+        }
+
+        private ThreadSpanBuffer CreateThreadSpanBuffer()
+        {
+            var buffer = new ThreadSpanBuffer(Math.Max(1, _spanBufferCapacity));
+            lock (_lock)
+            {
+                _threadSpanBuffers.Add(buffer);
+            }
+
+            return buffer;
+        }
+
+        private void FlushSpanBuffersLocked()
+        {
+            for (var i = 0; i < _threadSpanBuffers.Count; i++)
+            {
+                _threadSpanBuffers[i].DrainTo(_spans, ref _spanHead, ref _spanCount, ref _spansDropped);
+            }
         }
 
         private void RecordFrameMeasurementLocked(ActiveFrame frame, long elapsedNanoseconds)
@@ -403,6 +963,26 @@ namespace AbilityKit.Diagnostics
                 return;
             }
 
+            var gate = Volatile.Read(ref _metricGate);
+            if (gate == null || !gate.IsCollectionEnabled)
+            {
+                return;
+            }
+
+            if (!gate.CollectsDetailedData)
+            {
+                if (ShouldRecord(name, MetricKind.Duration, gate))
+                {
+                    EnqueueDurationSummary(name, nanoseconds, gate.Generation);
+                }
+
+                return;
+            }
+
+            var appendSpan = false;
+            var startTimestamp = 0L;
+            var frame = 0L;
+            var threadId = Thread.CurrentThread.ManagedThreadId;
             lock (_lock)
             {
                 if (!ShouldRecordLocked(name, MetricKind.Duration))
@@ -411,12 +991,24 @@ namespace AbilityKit.Diagnostics
                 }
 
                 EnsureMetricLocked(name, MetricKind.Duration, "ms");
+                if (!_options.CollectsDetailedData)
+                {
+                    RecordDurationSummaryOnlyLocked(name, nanoseconds);
+                    return;
+                }
+
                 RecordDurationLocked(name, nanoseconds, attachToCurrentStack: true);
 
-                // 外部测量只有时长：起点按“现在 - 时长”合成，时间线视图仍可对齐。
+                // ??????????????? - ????????????????
                 var now = Stopwatch.GetTimestamp();
-                var startTimestamp = now - NanosecondsToTicks(nanoseconds);
-                AppendSpanLocked(name, startTimestamp, nanoseconds, 0L, Thread.CurrentThread.ManagedThreadId);
+                startTimestamp = now - NanosecondsToTicks(nanoseconds);
+                frame = Volatile.Read(ref _currentFrame);
+                appendSpan = true;
+            }
+
+            if (appendSpan)
+            {
+                AppendSpan(name, startTimestamp, nanoseconds, 0L, threadId, frame);
             }
         }
 
@@ -432,33 +1024,20 @@ namespace AbilityKit.Diagnostics
                 return;
             }
 
-            lock (_lock)
+            var gate = Volatile.Read(ref _metricGate);
+            if (!ShouldRecord(counter, MetricKind.Counter, gate))
             {
-                if (!ShouldRecordLocked(counter, MetricKind.Counter))
-                {
-                    return;
-                }
-
-                EnsureMetricLocked(counter, MetricKind.Counter, "count");
-                if (!_counters.TryGetValue(counter, out var record))
-                {
-                    record = new CounterRecord
-                    {
-                        Name = counter,
-                        MinValue = value,
-                        MaxValue = value
-                    };
-                }
-
-                record.Value += value;
-                record.Delta += value;
-                record.SampleCount++;
-                record.MinValue = record.SampleCount == 1 ? value : Math.Min(record.MinValue, record.Value);
-                record.MaxValue = record.SampleCount == 1 ? value : Math.Max(record.MaxValue, record.Value);
-                record.MeanValue = record.SampleCount <= 0 ? record.Value : (double)record.Value / record.SampleCount;
-                _counters[counter] = record;
-                UpdateRateLocked(counter, value);
+                return;
             }
+
+            _threadMetricBuffer.Value.Add(new PendingMetricOperation
+            {
+                Kind = MetricOperationKind.CounterAdd,
+                Name = counter,
+                Value = value,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Generation = gate.Generation
+            });
         }
 
         public void SetGauge(string name, long value)
@@ -468,21 +1047,20 @@ namespace AbilityKit.Diagnostics
                 return;
             }
 
-            lock (_lock)
+            var gate = Volatile.Read(ref _metricGate);
+            if (!ShouldRecord(name, MetricKind.Gauge, gate))
             {
-                if (!ShouldRecordLocked(name, MetricKind.Gauge))
-                {
-                    return;
-                }
-
-                EnsureMetricLocked(name, MetricKind.Gauge, "value");
-                _gauges[name] = new GaugeRecord
-                {
-                    Name = name,
-                    Value = value,
-                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                };
+                return;
             }
+
+            _threadMetricBuffer.Value.Add(new PendingMetricOperation
+            {
+                Kind = MetricOperationKind.GaugeSet,
+                Name = name,
+                Value = value,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Generation = gate.Generation
+            });
         }
 
         public void Sample(string name, double value)
@@ -492,16 +1070,19 @@ namespace AbilityKit.Diagnostics
                 return;
             }
 
-            lock (_lock)
+            var gate = Volatile.Read(ref _metricGate);
+            if (!ShouldRecord(name, MetricKind.Sample, gate))
             {
-                if (!ShouldRecordLocked(name, MetricKind.Sample))
-                {
-                    return;
-                }
-
-                EnsureMetricLocked(name, MetricKind.Sample, "value");
-                AddSampleLocked(name, value);
+                return;
             }
+
+            _threadMetricBuffer.Value.Add(new PendingMetricOperation
+            {
+                Kind = MetricOperationKind.SampleValue,
+                Name = name,
+                DoubleValue = value,
+                Generation = gate.Generation
+            });
         }
 
         public FlameRoot GetRoot()
@@ -516,6 +1097,7 @@ namespace AbilityKit.Diagnostics
         {
             lock (_lock)
             {
+                FlushMetricBuffersLocked();
                 return new Dictionary<string, CounterRecord>(_counters);
             }
         }
@@ -524,6 +1106,7 @@ namespace AbilityKit.Diagnostics
         {
             lock (_lock)
             {
+                FlushMetricBuffersLocked();
                 return new Dictionary<string, GaugeRecord>(_gauges);
             }
         }
@@ -532,6 +1115,7 @@ namespace AbilityKit.Diagnostics
         {
             lock (_lock)
             {
+                FlushMetricBuffersLocked();
                 return CloneSamplesLocked();
             }
         }
@@ -543,6 +1127,7 @@ namespace AbilityKit.Diagnostics
         {
             lock (_lock)
             {
+                FlushMetricBuffersLocked();
                 RefreshRatesLocked(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
                 return new Dictionary<string, RateRecord>(_rates);
             }
@@ -555,6 +1140,7 @@ namespace AbilityKit.Diagnostics
         {
             lock (_lock)
             {
+                FlushMetricBuffersLocked();
                 return new Dictionary<string, DurationSummaryRecord>(_durationSummaries);
             }
         }
@@ -566,6 +1152,7 @@ namespace AbilityKit.Diagnostics
         {
             lock (_lock)
             {
+                FlushMetricBuffersLocked();
                 return new List<DiagnosticEventRecord>(_events);
             }
         }
@@ -582,8 +1169,25 @@ namespace AbilityKit.Diagnostics
         {
             lock (_lock)
             {
-                var snapshot = CreateSnapshotLocked(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-                var record = DiagnosticsSessionRecord.FromSnapshot(snapshot, label);
+                // A saved session only stores aggregate metadata. Avoid cloning the flame
+                // tree, samples and span timeline just to calculate these counts; callers
+                // that need the complete payload can request GetSnapshot explicitly.
+                FlushMetricBuffersLocked();
+                var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                RefreshRatesLocked(now);
+                var endTimestamp = GetSnapshotEndTimestampLocked();
+                var record = new DiagnosticsSessionRecord
+                {
+                    SessionId = _root.SessionId,
+                    Label = label ?? string.Empty,
+                    SavedTimestamp = now,
+                    DurationMilliseconds = Math.Max(0L, endTimestamp - _root.StartTimestamp),
+                    CounterCount = _counters.Count,
+                    GaugeCount = _gauges.Count,
+                    SampleCount = _samples.Count,
+                    EventCount = _events.Count,
+                    MetricCount = _metrics.Count
+                };
                 _sessionHistory.Add(record);
                 return record;
             }
@@ -591,6 +1195,7 @@ namespace AbilityKit.Diagnostics
 
         private ProfilerSnapshot CreateSnapshotLocked(long now)
         {
+            FlushMetricBuffersLocked();
             RefreshRatesLocked(now);
             return new ProfilerSnapshot
             {
@@ -607,12 +1212,14 @@ namespace AbilityKit.Diagnostics
                 Options = _options.Clone(),
                 Sessions = new List<DiagnosticsSessionRecord>(_sessionHistory),
                 Spans = CloneSpansLocked(),
-                SpansDropped = _spansDropped
+                SpansDropped = _spansDropped,
+                MetricOperationsDropped = _metricOperationsDropped
             };
         }
 
         private List<ProfilerSpanRecord> CloneSpansLocked()
         {
+            FlushSpanBuffersLocked();
             if (_spanCount == 0)
             {
                 return new List<ProfilerSpanRecord>();
@@ -652,6 +1259,17 @@ namespace AbilityKit.Diagnostics
             CheckDurationThresholdLocked(name, milliseconds);
         }
 
+        private void RecordDurationSummaryOnlyLocked(string name, long nanoseconds)
+        {
+            if (nanoseconds < 0L)
+            {
+                return;
+            }
+
+            EnsureMetricLocked(name, MetricKind.Duration, "ms");
+            UpdateDurationSummaryLocked(name, nanoseconds / 1000000.0d);
+        }
+
         private Stack<ActiveFrame> GetThreadStack(int threadId)
         {
             if (!_threadStacks.TryGetValue(threadId, out var stack))
@@ -665,18 +1283,20 @@ namespace AbilityKit.Diagnostics
 
         private void AddSampleLocked(string name, double value)
         {
-            if (!_samples.TryGetValue(name, out var list))
+            if (!_samples.TryGetValue(name, out var buffer))
             {
-                list = new List<double>(16);
-                _samples[name] = list;
+                var maxSamples = _options == null || _options.MaxSamplesPerMetric <= 0 ? DefaultMaxSamplesPerMetric : _options.MaxSamplesPerMetric;
+                buffer = new SampleRingBuffer(maxSamples);
+                _samples[name] = buffer;
             }
 
-            list.Add(value);
-            var maxSamples = _options == null || _options.MaxSamplesPerMetric <= 0 ? DefaultMaxSamplesPerMetric : _options.MaxSamplesPerMetric;
-            if (list.Count > maxSamples)
-            {
-                list.RemoveRange(0, list.Count - maxSamples);
-            }
+            buffer.Add(value);
+        }
+
+        private void ApplySampleLocked(string name, double value)
+        {
+            EnsureMetricLocked(name, MetricKind.Sample, "value");
+            AddSampleLocked(name, value);
         }
 
         private void UpdateDurationSummaryLocked(string name, double milliseconds)
@@ -701,15 +1321,35 @@ namespace AbilityKit.Diagnostics
 
         private void UpdateRateLocked(string name, long value)
         {
-            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            if (!_rateSamples.TryGetValue(name, out var queue))
+            UpdateRateLocked(name, value, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        }
+
+        private void UpdateRateLocked(string name, long value, long timestamp)
+        {
+            if (!_rateSamples.TryGetValue(name, out var state))
             {
-                queue = new Queue<RateSample>(64);
-                _rateSamples[name] = queue;
+                state = new RateWindowState();
+                _rateSamples[name] = state;
             }
 
             // Math.Abs(long.MinValue) 会抛 OverflowException，取 long.MaxValue 作为封顶。
-            queue.Enqueue(new RateSample { Timestamp = now, Value = value == long.MinValue ? long.MaxValue : Math.Abs(value) });
+            var sample = new RateSample { Timestamp = timestamp, Value = value == long.MinValue ? long.MaxValue : Math.Abs(value) };
+            if (state.Samples.Count > 0 && timestamp < state.LastTimestamp)
+            {
+                // Different thread-local buffers can be drained in an order that does
+                // not match their wall-clock timestamps. Defer to a one-time rebuild
+                // so the incremental queues never hide an expired sample behind a newer one.
+                state.RequiresFullRefresh = true;
+            }
+
+            state.LastTimestamp = Math.Max(state.LastTimestamp, timestamp);
+            state.Samples.Enqueue(sample);
+            state.FiveSecondSamples.Enqueue(sample);
+            state.OneSecondSamples.Enqueue(sample);
+            state.Count60Seconds += sample.Value;
+            state.Count5Seconds += sample.Value;
+            state.Count1Second += sample.Value;
+            var now = timestamp;
             RefreshRateLocked(name, now);
             CheckRateThresholdLocked(name, now);
         }
@@ -724,40 +1364,106 @@ namespace AbilityKit.Diagnostics
 
         private void RefreshRateLocked(string name, long now)
         {
-            if (!_rateSamples.TryGetValue(name, out var queue))
+            if (!_rateSamples.TryGetValue(name, out var state))
             {
                 return;
             }
 
-            while (queue.Count > 0 && now - queue.Peek().Timestamp > 60000L)
+            if (now < state.LastRefreshTimestamp)
             {
-                queue.Dequeue();
+                state.RequiresFullRefresh = true;
             }
 
-            long count1Second = 0L;
-            long count5Seconds = 0L;
-            long count60Seconds = 0L;
-            foreach (var sample in queue)
+            if (state.RequiresFullRefresh)
             {
-                var age = now - sample.Timestamp;
-                if (age <= 1000L) count1Second += sample.Value;
-                if (age <= 5000L) count5Seconds += sample.Value;
-                count60Seconds += sample.Value;
+                RebuildRateWindowsLocked(state, now);
             }
+            else
+            {
+                ExpireRateWindowsLocked(state, now);
+            }
+
+            state.LastRefreshTimestamp = now;
 
             _rates.TryGetValue(name, out var record);
             record.Name = name;
             record.TotalCount = _counters.TryGetValue(name, out var counter) ? counter.Value : record.TotalCount;
-            record.Count1Second = count1Second;
-            record.Count5Seconds = count5Seconds;
-            record.Count60Seconds = count60Seconds;
-            record.PeakPerSecond = Math.Max(record.PeakPerSecond, count1Second);
-            record.LastTimestamp = queue.Count == 0 ? record.LastTimestamp : now;
+            record.Count1Second = state.Count1Second;
+            record.Count5Seconds = state.Count5Seconds;
+            record.Count60Seconds = state.Count60Seconds;
+            record.PeakPerSecond = Math.Max(record.PeakPerSecond, state.Count1Second);
+            record.LastTimestamp = state.Samples.Count == 0 ? record.LastTimestamp : now;
             _rates[name] = record;
+        }
+
+        private static void ExpireRateWindowsLocked(RateWindowState state, long now)
+        {
+
+            while (state.Samples.Count > 0 && now - state.Samples.Peek().Timestamp > 60000L)
+            {
+                state.Count60Seconds -= state.Samples.Dequeue().Value;
+            }
+
+            while (state.FiveSecondSamples.Count > 0 && now - state.FiveSecondSamples.Peek().Timestamp > 5000L)
+            {
+                state.Count5Seconds -= state.FiveSecondSamples.Dequeue().Value;
+            }
+
+            while (state.OneSecondSamples.Count > 0 && now - state.OneSecondSamples.Peek().Timestamp > 1000L)
+            {
+                state.Count1Second -= state.OneSecondSamples.Dequeue().Value;
+            }
+        }
+
+        private static void RebuildRateWindowsLocked(RateWindowState state, long now)
+        {
+            var retained = new List<RateSample>(state.Samples.Count);
+            foreach (var sample in state.Samples)
+            {
+                if (now - sample.Timestamp <= 60000L)
+                {
+                    retained.Add(sample);
+                }
+            }
+
+            retained.Sort((left, right) => left.Timestamp.CompareTo(right.Timestamp));
+            state.Samples.Clear();
+            state.FiveSecondSamples.Clear();
+            state.OneSecondSamples.Clear();
+            state.Count60Seconds = 0L;
+            state.Count5Seconds = 0L;
+            state.Count1Second = 0L;
+            state.LastTimestamp = 0L;
+
+            foreach (var sample in retained)
+            {
+                state.Samples.Enqueue(sample);
+                state.Count60Seconds += sample.Value;
+                state.LastTimestamp = Math.Max(state.LastTimestamp, sample.Timestamp);
+
+                if (now - sample.Timestamp <= 5000L)
+                {
+                    state.FiveSecondSamples.Enqueue(sample);
+                    state.Count5Seconds += sample.Value;
+                }
+
+                if (now - sample.Timestamp <= 1000L)
+                {
+                    state.OneSecondSamples.Enqueue(sample);
+                    state.Count1Second += sample.Value;
+                }
+            }
+
+            state.RequiresFullRefresh = false;
         }
 
         private void CheckDurationThresholdLocked(string name, double milliseconds)
         {
+            if (_options == null || !_options.CollectsDetailedData)
+            {
+                return;
+            }
+
             if (!_durationThresholds.TryGetValue(name, out var rule))
             {
                 return;
@@ -784,6 +1490,11 @@ namespace AbilityKit.Diagnostics
 
         private void CheckRateThresholdLocked(string name, long now)
         {
+            if (_options == null || !_options.CollectsDetailedData)
+            {
+                return;
+            }
+
             if (!_rateThresholds.TryGetValue(name, out var rule) || !_rates.TryGetValue(name, out var rate))
             {
                 return;
@@ -840,15 +1551,60 @@ namespace AbilityKit.Diagnostics
             var samples = new Dictionary<string, List<double>>(_samples.Count);
             foreach (var kvp in _samples)
             {
-                samples[kvp.Key] = new List<double>(kvp.Value);
+                samples[kvp.Key] = kvp.Value.ToList();
             }
 
             return samples;
         }
 
+        private bool ShouldRecord(string name, MetricKind kind, MetricGateSnapshot gate)
+        {
+            if (gate == null || !gate.IsCollectionEnabled)
+            {
+                return false;
+            }
+
+            if (!gate.CollectsDetailedData && kind == MetricKind.Sample)
+            {
+                return false;
+            }
+
+            var category = gate.GetCategory(name);
+            if (gate.DisabledCategories.Contains(category))
+            {
+                return false;
+            }
+
+            var sampleRate = gate.GetSampleRate(category, name);
+            if (sampleRate >= 1d)
+            {
+                return true;
+            }
+
+            if (sampleRate <= 0d)
+            {
+                return false;
+            }
+
+            var interval = Math.Max(1L, (long)Math.Round(1d / sampleRate));
+            var count = _sampleDecisions.AddOrUpdate(
+                name,
+                1L,
+                (_, previous) => previous == long.MaxValue ? 1L : previous + 1L);
+            return count % interval == 0L;
+        }
+
         private bool ShouldRecordLocked(string name, MetricKind kind)
         {
-            if (_options == null || !_options.Enabled)
+            if (_options == null || !_options.IsCollectionEnabled)
+            {
+                return false;
+            }
+
+            // Summary mode intentionally excludes raw samples. This keeps the low-cost
+            // production path bounded while duration summaries remain available through
+            // Begin/Complete and Record.
+            if (_options.CollectionLevel == ProfilerCollectionLevel.Summary && kind == MetricKind.Sample)
             {
                 return false;
             }
@@ -875,6 +1631,46 @@ namespace AbilityKit.Diagnostics
             count++;
             _sampleDecisions[name] = count;
             return count % interval == 0L;
+        }
+
+        private MetricGateSnapshot BuildMetricGateSnapshotLocked(bool forceCollectionDisabled = false)
+        {
+            var options = _options ?? ProfilerOptions.CreateDefault();
+            var disabledCategories = new HashSet<string>(options.DisabledCategories ?? new HashSet<string>(), StringComparer.OrdinalIgnoreCase);
+            var categoryRates = new Dictionary<string, double>(options.CategorySampleRates ?? new Dictionary<string, double>(), StringComparer.OrdinalIgnoreCase);
+            var metricRates = new Dictionary<string, double>(options.MetricSampleRates ?? new Dictionary<string, double>(), StringComparer.OrdinalIgnoreCase);
+            var metricCategories = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var metric in _metrics)
+            {
+                metricCategories[metric.Key] = string.IsNullOrEmpty(metric.Value.Category) ? GetCategory(metric.Key) : metric.Value.Category;
+            }
+
+            return new MetricGateSnapshot
+            {
+                Generation = _metricGeneration,
+                IsCollectionEnabled = !forceCollectionDisabled && options.IsCollectionEnabled,
+                CollectsDetailedData = !forceCollectionDisabled && options.CollectsDetailedData,
+                DisabledCategories = disabledCategories,
+                CategorySampleRates = categoryRates,
+                MetricSampleRates = metricRates,
+                MetricCategories = metricCategories,
+                DefaultSampleRate = ClampSampleRate(options.DefaultSampleRate)
+            };
+        }
+
+        private void PublishMetricGateLocked(bool forceCollectionDisabled = false)
+        {
+            Volatile.Write(ref _metricGate, BuildMetricGateSnapshotLocked(forceCollectionDisabled));
+        }
+
+        private static double ClampSampleRate(double value)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value) || value <= 0d)
+            {
+                return 0d;
+            }
+
+            return value >= 1d ? 1d : value;
         }
 
         private void EnsureMetricLocked(string name, MetricKind kind, string unit)
@@ -913,10 +1709,19 @@ namespace AbilityKit.Diagnostics
             _eventCooldowns.Clear();
             _events.Clear();
             _threadStacks.Clear();
+            _metricOperationsDropped = 0L;
+            for (var i = 0; i < _threadMetricBuffers.Count; i++)
+            {
+                _threadMetricBuffers[i].Reset();
+            }
+            for (var i = 0; i < _threadSpanBuffers.Count; i++)
+            {
+                _threadSpanBuffers[i].Reset(_spanBufferCapacity);
+            }
             _spanHead = 0;
             _spanCount = 0;
             _spansDropped = 0;
-            _currentFrame = 0;
+            Volatile.Write(ref _currentFrame, 0L);
         }
 
         private void ResetSessionIdentity()
@@ -994,6 +1799,9 @@ namespace AbilityKit.Diagnostics
 
         /// <summary>环形缓冲覆盖（丢弃）的 span 数量。非零表示时间线不完整。</summary>
         public long SpansDropped;
+
+        /// <summary>线程本地指标缓冲区因容量不足而丢弃的操作数量。</summary>
+        public long MetricOperationsDropped;
     }
 
     /// <summary>

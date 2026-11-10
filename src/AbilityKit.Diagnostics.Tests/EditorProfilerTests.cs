@@ -174,6 +174,7 @@ public sealed class EditorProfilerTests
         Assert.True(defaults.Enabled);
         Assert.Equal(512, defaults.MaxSamplesPerMetric);
         Assert.Equal(256, defaults.MaxDiagnosticEvents);
+        Assert.Equal(256, defaults.MaxMetricOperationsPerThread);
     }
 
     [Fact]
@@ -184,10 +185,129 @@ public sealed class EditorProfilerTests
         profiler.Start();
 
         Assert.True(profiler.IsEnabled); // Start 仍然生效，但选项关闭采集
+        Assert.False(profiler.IsCollecting);
         profiler.Record("net.call", Ms(1));
         profiler.Increment("combat.hit");
         Assert.Empty(profiler.GetDurationSummaries());
         Assert.Empty(profiler.GetCounters());
+    }
+
+    [Fact]
+    public void Reconfiguring_to_off_blocks_new_thread_local_metric_writes()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Start();
+
+        profiler.Increment("combat.before");
+        profiler.Configure(ProfilerOptions.CreateDisabled());
+        profiler.Increment("combat.after");
+
+        var counters = profiler.GetCounters();
+        Assert.Single(counters);
+        Assert.Equal(1L, counters["combat.before"].Value);
+        Assert.DoesNotContain("combat.after", counters.Keys);
+    }
+
+    [Fact]
+    public void Completing_a_token_after_switching_to_off_does_not_collect()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Start();
+        var active = profiler.Begin("net.active");
+
+        profiler.Configure(ProfilerOptions.CreateDisabled());
+        profiler.Complete(active);
+
+        Assert.Empty(profiler.GetDurationSummaries());
+        Assert.Equal(0L, FindNode(profiler.GetRoot(), "net.active")!.HitCount);
+    }
+
+    [Fact]
+    public void Completing_a_detailed_token_after_restart_does_not_pollute_the_new_session()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Start();
+        var active = profiler.Begin("net.active");
+
+        profiler.Stop();
+        profiler.Start();
+        profiler.Complete(active);
+
+        var snapshot = profiler.GetSnapshot();
+        Assert.Empty(snapshot.Durations);
+        Assert.Empty(snapshot.Spans);
+        Assert.Empty(snapshot.Root.Roots);
+    }
+
+    [Fact]
+    public void Summary_level_keeps_low_cost_metrics_without_detailed_trace_data()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Configure(new ProfilerOptions { CollectionLevel = ProfilerCollectionLevel.Summary });
+        profiler.Start();
+
+        Assert.True(profiler.IsEnabled);
+        Assert.True(profiler.IsCollecting);
+
+        var token = profiler.Begin("net.call");
+        profiler.Complete(token);
+        profiler.Record("net.record", Ms(1));
+        profiler.Increment("combat.hit");
+        profiler.SetGauge("net.frame", 7L);
+        profiler.Sample("net.raw", 1d);
+        profiler.EmitEvent(DiagnosticSeverity.Warning, "net", "net.warning", "ignored");
+
+        Assert.Equal(1L, profiler.GetDurationSummaries()["net.call"].Count);
+        Assert.Equal(1L, profiler.GetDurationSummaries()["net.record"].Count);
+        Assert.Single(profiler.GetCounters());
+        Assert.Single(profiler.GetGauges());
+        Assert.Empty(profiler.GetSamples());
+        Assert.Empty(profiler.GetEvents());
+
+        var snapshot = profiler.GetSnapshot();
+        Assert.Empty(snapshot.Root.Roots);
+        Assert.Empty(snapshot.Spans);
+        Assert.Equal(0L, snapshot.SpansDropped);
+    }
+
+    [Fact]
+    public void Off_level_keeps_session_lifecycle_but_collects_no_data()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Configure(new ProfilerOptions { CollectionLevel = ProfilerCollectionLevel.Off });
+        profiler.Start();
+
+        Assert.True(profiler.IsEnabled);
+        Assert.False(profiler.IsCollecting);
+        profiler.Record("net.call", Ms(1));
+        profiler.Increment("combat.hit");
+        profiler.SetGauge("net.frame", 7L);
+        profiler.Sample("net.raw", 1d);
+
+        Assert.Empty(profiler.GetDurationSummaries());
+        Assert.Empty(profiler.GetCounters());
+        Assert.Empty(profiler.GetGauges());
+        Assert.Empty(profiler.GetSamples());
+        Assert.Empty(profiler.GetMetrics());
+    }
+
+    [Fact]
+    public void Downgrading_from_standard_clears_active_detailed_scope_state()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Start();
+        var active = profiler.Begin("net.active");
+
+        profiler.Configure(new ProfilerOptions { CollectionLevel = ProfilerCollectionLevel.Summary });
+        profiler.Complete(active);
+
+        var next = profiler.Begin("net.next");
+        profiler.Complete(next);
+
+        Assert.Equal(1L, profiler.GetDurationSummaries()["net.next"].Count);
+        var root = profiler.GetRoot();
+        Assert.Equal(0, root.Roots["net"].Children["net.active"].HitCount);
+        Assert.DoesNotContain("net.next", root.Roots["net"].Children.Keys);
     }
 
     // ------------------------------------------------------------- Begin / Complete
@@ -560,6 +680,60 @@ public sealed class EditorProfilerTests
         Assert.Equal(new[] { 3d, 4d, 5d }, profiler.GetSamples()["net.delta"]);
     }
 
+    [Fact]
+    public void Sample_operations_are_aggregated_after_concurrent_thread_local_writes()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Start();
+
+        Parallel.For(0, 4, _ =>
+        {
+            for (var i = 0; i < 50; i++)
+            {
+                profiler.Sample("net.concurrent", i);
+            }
+        });
+
+        var samples = profiler.GetSamples()["net.concurrent"];
+        Assert.Equal(200, samples.Count);
+        Assert.Equal(0L, profiler.GetSnapshot().MetricOperationsDropped);
+    }
+
+    [Fact]
+    public void Sample_operation_buffer_is_bounded_and_reports_dropped_writes()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Start();
+
+        for (var i = 0; i < 300; i++)
+        {
+            profiler.Sample("net.overflow", i);
+        }
+
+        var snapshot = profiler.GetSnapshot();
+        Assert.Equal(256, snapshot.Samples["net.overflow"].Count);
+        Assert.Equal(299d, snapshot.Samples["net.overflow"][^1]);
+        Assert.Equal(44L, snapshot.MetricOperationsDropped);
+    }
+
+    [Fact]
+    public void Metric_operation_buffer_capacity_can_be_tuned_at_runtime()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Start();
+
+        for (var i = 0; i < 10; i++)
+        {
+            profiler.Increment("combat.resize");
+        }
+
+        profiler.Configure(new ProfilerOptions { MaxMetricOperationsPerThread = 4 });
+
+        var snapshot = profiler.GetSnapshot();
+        Assert.Equal(4L, snapshot.Counters["combat.resize"].Value);
+        Assert.Equal(6L, snapshot.MetricOperationsDropped);
+    }
+
     // ------------------------------------------------------------- 事件与阈值
 
     [Fact]
@@ -814,6 +988,42 @@ public sealed class EditorProfilerTests
         counterMetric.Increment("combat.hit");
         Assert.Equal(MetricKind.Counter, counterMetric.GetMetrics()["combat.hit"].Kind);
         Assert.Equal("count", counterMetric.GetMetrics()["combat.hit"].Unit);
+    }
+
+    [Fact]
+    public void Counter_operations_are_aggregated_after_concurrent_thread_local_writes()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Start();
+
+        Parallel.For(0, 4, _ =>
+        {
+            for (var i = 0; i < 50; i++)
+            {
+                profiler.Increment("combat.concurrent");
+            }
+        });
+
+        var counter = profiler.GetCounters()["combat.concurrent"];
+        Assert.Equal(200L, counter.Value);
+        Assert.Equal(200L, counter.SampleCount);
+        Assert.Equal(0L, profiler.GetSnapshot().MetricOperationsDropped);
+    }
+
+    [Fact]
+    public void Metric_operation_buffer_is_bounded_and_reports_dropped_writes()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Start();
+
+        for (var i = 0; i < 300; i++)
+        {
+            profiler.Increment("combat.overflow");
+        }
+
+        var snapshot = profiler.GetSnapshot();
+        Assert.Equal(256L, snapshot.Counters["combat.overflow"].Value);
+        Assert.Equal(44L, snapshot.MetricOperationsDropped);
     }
 
     // ------------------------------------------------------------- 快照与隔离

@@ -70,7 +70,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 _projectileStatsProvider = new BattleProjectilePoolStatsProvider(_projectileEvents.PoolForStats);
                 _poolStatsOverlay.RegisterProvider(_projectileStatsProvider);
             }
-            _summonEvents = handlers.CreateSummonEvents(query, vfx, in vfxNode);
+            _summonEvents = handlers.CreateSummonEvents(query, vfx, in vfxNode, resources);
             _deathEvents = handlers.CreateDeathEvents(query, vfx, in vfxNode);
             _respawnEvents = handlers.CreateRespawnEvents(query, vfx, in vfxNode);
             _presentationCues = handlers.CreatePresentationCues(ctx, query, vfx, in vfxNode);
@@ -250,9 +250,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public BattleSummonViewEventHandler CreateSummonEvents(
             IBattleEntityQuery query,
             BattleVfxManager vfx,
-            in EC.IEntity vfxNode)
+            in EC.IEntity vfxNode,
+            BattleViewResourceProvider resources = null)
         {
-            return new BattleSummonViewEventHandler(query, vfx, in vfxNode);
+            return new BattleSummonViewEventHandler(query, vfx, in vfxNode,
+                configs: resources?.GetOrLoadConfigs());
         }
 
         public BattleActorDeathViewEventHandler CreateDeathEvents(

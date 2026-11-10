@@ -56,6 +56,7 @@ public static class ActorComponentSerialization {
         w.Write(e.hasSkillLoadout);
         if (e.hasSkillLoadout) {
             var p = e.skillLoadout;
+            w.Write(p.HeroId);
             w.Write(p.ActiveSkills == null ? -1 : p.ActiveSkills.Length);
             if (p.ActiveSkills != null) {
                 for (var i = 0; i < p.ActiveSkills.Length; i++) {
@@ -96,6 +97,11 @@ public static class ActorComponentSerialization {
             w.Write((int)(p.Reason));
             w.Write(p.SourceActorId);
             w.Write(p.SourceContextId);
+        }
+        w.Write(e.hasChampionLevel);
+        if (e.hasChampionLevel) {
+            var p = e.championLevel;
+            w.Write(p.Value);
         }
     }
 
@@ -155,6 +161,7 @@ public static class ActorComponentSerialization {
             e.RemoveSkillCastTimelineRuntime();
         }
         if (r.ReadBoolean()) {
+            var heroId = r.ReadInt32();
             var activeSkillsCount = r.ReadInt32();
             var activeSkills = activeSkillsCount < 0 ? null : new AbilityKit.Demo.Moba.Components.ActiveSkillRuntime[activeSkillsCount];
             for (var i = 0; i < activeSkillsCount; i++) {
@@ -180,7 +187,7 @@ public static class ActorComponentSerialization {
                 passiveSkills[i].CooldownDurationMs = r.ReadInt32();
                 passiveSkills[i].CooldownEndTimeMs = r.ReadInt64();
             }
-            e.ReplaceSkillLoadout(activeSkills, passiveSkills);
+            e.ReplaceSkillLoadout(heroId, activeSkills, passiveSkills);
         } else if (e.hasSkillLoadout) {
             e.RemoveSkillLoadout();
         }
@@ -200,6 +207,12 @@ public static class ActorComponentSerialization {
             e.ReplaceActorDespawnRequest(requestFrame, minConfirmedFrame, reason, sourceActorId, sourceContextId);
         } else if (e.hasActorDespawnRequest) {
             e.RemoveActorDespawnRequest();
+        }
+        if (r.ReadBoolean()) {
+            var value = r.ReadInt32();
+            e.ReplaceChampionLevel(value);
+        } else if (e.hasChampionLevel) {
+            e.RemoveChampionLevel();
         }
     }
 }

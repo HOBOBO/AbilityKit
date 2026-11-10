@@ -12,6 +12,7 @@ namespace AbilityKit.Game.Flow
 
             // A reused slot must not inherit gestures or input gating from the previous skill.
             view.ResetPresentationState();
+            view.ApplyPresentation(spec.Name, spec.IconId);
             var cfg = view.Config;
             cfg.LongPressSeconds = template != null && template.LongPressSeconds > 0f
                 ? template.LongPressSeconds
@@ -28,6 +29,7 @@ namespace AbilityKit.Game.Flow
             cfg.IndicatorShape = spec.IndicatorShape;
             cfg.IndicatorLengthPixels = spec.UiLengthPixels;
             cfg.IndicatorWidthPixels = spec.UiWidthPixels;
+            cfg.IndicatorAngleDegrees = spec.AngleDegrees;
             cfg.PreviewVfxId = spec.PreviewVfxId;
 
             view.Config = cfg;

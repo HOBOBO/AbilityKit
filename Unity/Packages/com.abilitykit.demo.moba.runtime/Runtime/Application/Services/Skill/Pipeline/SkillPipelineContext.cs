@@ -7,6 +7,8 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Pipeline;
+using AbilityKit.Demo.Moba.Services.StateMachine;
+using AbilityKit.Modifiers;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -44,6 +46,203 @@ namespace AbilityKit.Demo.Moba.Services
         public int TargetActorId { get; private set; }
         public Vec3 AimPos { get; private set; }
         public Vec3 AimDir { get; private set; }
+
+        private string _characterModeId;
+        private int _characterModePriority;
+        private long _characterModeOwnerId;
+        private long _characterModeInstanceId;
+        private bool _characterModeCleanupRegistered;
+        private bool _hfsmParameterCleanupRegistered;
+        private long _hfsmParameterOwnerId;
+
+        public string CharacterModeId => _characterModeId ?? string.Empty;
+        public long CharacterModeOwnerId => _characterModeOwnerId;
+        public long CharacterModeInstanceId
+        {
+            get
+            {
+                RefreshCharacterModeInstance();
+                return _characterModeInstanceId;
+            }
+        }
+
+        /// <summary>Requests a character mode owned by this cast. The binding is rollback state,
+        /// and its exit is reattached after rollback instead of relying on a transient closure.</summary>
+        public bool TrySetCharacterMode(string modeId, int priority)
+        {
+            if (string.IsNullOrWhiteSpace(modeId) || modeId.Length > 64 || priority < 0 ||
+                !TryGetCharacterHfsm(out var hfsm)) return false;
+            var ownerId = ResolveCharacterModeOwnerId();
+            if (ownerId <= 0) return false;
+            if (!hfsm.RequestModeEnter(modeId, priority, ownerId)) return false;
+            _characterModeId = modeId;
+            _characterModePriority = priority;
+            _characterModeOwnerId = ownerId;
+            _characterModeInstanceId = 0L;
+            RegisterCharacterModeCleanup();
+            return true;
+        }
+
+        public bool TryClearCharacterMode(
+            MobaCharacterModeTransitionReason reason = MobaCharacterModeTransitionReason.ExitRequested)
+        {
+            if (string.IsNullOrEmpty(_characterModeId) || _characterModeOwnerId <= 0) return false;
+            var requested = RequestCharacterModeExit(reason);
+            if (!requested) return false;
+            _characterModeId = null;
+            _characterModePriority = 0;
+            _characterModeOwnerId = 0L;
+            _characterModeInstanceId = 0L;
+            return requested;
+        }
+
+        /// <summary>Writes a source-owned HFSM parameter for this cast. The cast
+        /// owns the contribution until completion, cancellation, death or rollback.</summary>
+        public bool TrySetHfsmParameter(int parameterId, float value, int priority = 0)
+        {
+            if (WorldServices == null || CasterActorId <= 0 ||
+                !MobaCharacterHfsmParameterService.IsValidParameterId(parameterId) ||
+                !WorldServices.TryResolve<MobaCharacterHfsmParameterService>(out var parameters) || parameters == null)
+                return false;
+            if (!parameters.SupportsOperation(CasterActorId, parameterId, (int)ModifierOp.Override)) return false;
+            var ownerId = SourceContextId > 0 ? SourceContextId : RuntimeId;
+            if (ownerId <= 0) return false;
+            var modifier = ModifierData.Override(ModifierKey.FromPacked((uint)parameterId), value,
+                sourceId: SkillId);
+            modifier.Priority = priority;
+            parameters.Set(CasterActorId, ownerId, parameterId, in modifier);
+            _hfsmParameterOwnerId = ownerId;
+            RegisterHfsmParameterCleanup();
+            return true;
+        }
+
+        private const string PreparedParameterPrefix = "cast.prepared.parameter.";
+        private const string ParametersCommittedKey = "cast.prepared.committed";
+
+        public MobaPreparedParameterSnapshot[] GetPreparedParameterSnapshots()
+        {
+            var result = new List<MobaPreparedParameterSnapshot>();
+            foreach (var pair in SharedData)
+                if (pair.Key.StartsWith(PreparedParameterPrefix, StringComparison.Ordinal) && pair.Value is float value &&
+                    int.TryParse(pair.Key.Substring(PreparedParameterPrefix.Length), out var id))
+                    result.Add(new MobaPreparedParameterSnapshot(id, value));
+            result.Sort((left, right) => left.TargetParameterId.CompareTo(right.TargetParameterId));
+            return result.ToArray();
+        }
+
+        internal bool CanCommitPreparedParameters()
+        {
+            var samples = GetPreparedParameterSnapshots();
+            if (samples.Length == 0) return true;
+            if (WorldServices == null || (SourceContextId <= 0 && RuntimeId <= 0) ||
+                !WorldServices.TryResolve<MobaCharacterHfsmParameterService>(out var parameters) || parameters == null) return false;
+            foreach (var sample in samples)
+                if (float.IsNaN(sample.Value) || float.IsInfinity(sample.Value) ||
+                    !parameters.SupportsOperation(CasterActorId, sample.TargetParameterId, (int)ModifierOp.Override)) return false;
+            return true;
+        }
+
+        public bool CommitPreparedParameters()
+        {
+            if (GetData(ParametersCommittedKey, false)) return true;
+            if (!CanCommitPreparedParameters()) return false;
+            var samples = GetPreparedParameterSnapshots();
+            foreach (var sample in samples)
+                if (!TrySetHfsmParameter(sample.TargetParameterId, sample.Value))
+                {
+                    TryClearHfsmParameters();
+                    return false;
+                }
+            SetData(ParametersCommittedKey, true);
+            if (samples.Length > 0) SynchronizeCharacterHfsm();
+            return true;
+        }
+
+        internal void SynchronizeCharacterHfsm()
+        {
+            if (TryGetCharacterHfsm(out var hfsm))
+            {
+                var basicSlot = 0;
+                if (WorldServices.TryResolve<MobaActorLookupService>(out var actors) &&
+                    actors.TryGetActorEntity(CasterActorId, out var actor) && actor.hasSkillLoadout)
+                    basicSlot = actor.skillLoadout.ActiveSkills?.Length ?? 0;
+                hfsm.SyncCastContext(SourceContextId, SkillId, SkillSlot, basicSlot);
+                hfsm.SyncAim(AimPos, AimDir);
+                hfsm.ReevaluateCurrentFrame();
+            }
+        }
+
+        public bool TryClearHfsmParameters()
+        {
+            if (_hfsmParameterOwnerId <= 0 || WorldServices == null || CasterActorId <= 0 ||
+                !WorldServices.TryResolve<MobaCharacterHfsmParameterService>(out var parameters) || parameters == null)
+                return false;
+            parameters.ClearSource(CasterActorId, _hfsmParameterOwnerId);
+            _hfsmParameterOwnerId = 0L;
+            return true;
+        }
+
+        private void RegisterHfsmParameterCleanup()
+        {
+            if (_hfsmParameterCleanupRegistered) return;
+            _hfsmParameterCleanupRegistered = true;
+            RegisterCleanup(() =>
+            {
+                if (_hfsmParameterOwnerId > 0 && WorldServices != null && CasterActorId > 0 &&
+                    WorldServices.TryResolve<MobaCharacterHfsmParameterService>(out var parameters) && parameters != null)
+                    parameters.ClearSource(CasterActorId, _hfsmParameterOwnerId);
+                _hfsmParameterOwnerId = 0L;
+                _hfsmParameterCleanupRegistered = false;
+            });
+        }
+
+        private long ResolveCharacterModeOwnerId() =>
+            SourceContextId > 0 ? SourceContextId : RuntimeHandle.IsValid ? RuntimeHandle.RuntimeId : 0L;
+
+        private bool TryGetCharacterHfsm(out MobaCharacterHfsmRuntime hfsm)
+        {
+            hfsm = null;
+            if (WorldServices == null || CasterActorId <= 0 ||
+                !WorldServices.TryResolve<MobaActorLookupService>(out var actors) || actors == null ||
+                !actors.TryGetActorEntity(CasterActorId, out var actor) || actor == null ||
+                !actor.hasCharacterHfsm) return false;
+            hfsm = actor.characterHfsm.Runtime;
+            return hfsm != null;
+        }
+
+        private void RefreshCharacterModeInstance()
+        {
+            if (_characterModeOwnerId <= 0 || !TryGetCharacterHfsm(out var hfsm)) return;
+            var mode = hfsm.Mode;
+            if (mode.OwnerInstanceId == _characterModeOwnerId &&
+                string.Equals(mode.ModeId, _characterModeId, StringComparison.Ordinal))
+                _characterModeInstanceId = mode.InstanceId;
+            else
+                _characterModeInstanceId = 0L;
+        }
+
+        private bool RequestCharacterModeExit(MobaCharacterModeTransitionReason reason)
+        {
+            if (!TryGetCharacterHfsm(out var hfsm)) return false;
+            return hfsm.RequestModeExit(_characterModeId, _characterModeOwnerId,
+                -1, reason);
+        }
+
+        private void RegisterCharacterModeCleanup()
+        {
+            if (_characterModeCleanupRegistered) return;
+            _characterModeCleanupRegistered = true;
+            RegisterCleanup(() =>
+            {
+                if (_characterModeOwnerId > 0 && !string.IsNullOrEmpty(_characterModeId))
+                    RequestCharacterModeExit(MobaCharacterModeTransitionReason.Interrupted);
+                _characterModeId = null;
+                _characterModePriority = 0;
+                _characterModeOwnerId = 0L;
+                _characterModeInstanceId = 0L;
+                _characterModeCleanupRegistered = false;
+            });
+        }
 
         public IWorldResolver WorldServices { get; private set; }
         public AbilityKit.Triggering.Eventing.IEventBus EventBus { get; private set; }
@@ -173,6 +372,8 @@ namespace AbilityKit.Demo.Moba.Services
             _elapsedRaw = 0L;
 
             SharedData.Clear();
+            foreach (var sample in request.ParameterSnapshots ?? Array.Empty<MobaPreparedParameterSnapshot>())
+                SharedData.Add(PreparedParameterPrefix + sample.TargetParameterId, sample.Value);
             FailReason = null;
             SkillLevel = triggerContext?.SkillLevel ?? 0;
             ResolvedConfiguration = triggerContext?.ResolvedConfiguration ?? default;
@@ -184,6 +385,13 @@ namespace AbilityKit.Demo.Moba.Services
 
             _disposables.Clear();
             _cleanupActions.Clear();
+            _characterModeId = null;
+            _characterModePriority = 0;
+            _characterModeOwnerId = 0L;
+            _characterModeInstanceId = 0L;
+            _characterModeCleanupRegistered = false;
+            _hfsmParameterOwnerId = 0L;
+            _hfsmParameterCleanupRegistered = false;
 
             RuntimeHandle = triggerContext != null ? triggerContext.RuntimeHandle : default;
             RuntimeId = RuntimeHandle.IsValid ? RuntimeHandle.RuntimeId : triggerContext?.RuntimeId ?? 0L;
@@ -293,11 +501,13 @@ namespace AbilityKit.Demo.Moba.Services
             var shared = new SkillSharedDataRollbackEntry[keys.Count];
             for (var i = 0; i < keys.Count; i++)
                 shared[i] = SkillSharedDataRollbackEntry.Capture(keys[i], SharedData[keys[i]]);
+            RefreshCharacterModeInstance();
             return new SkillPipelineContextRollbackState(
                 _elapsedRaw, Frame, TargetActorId, AimPos, AimDir, CastSequence,
                 TimelineNextEventIndex, InputReleased, SkillCooldownMs, FailReason,
                 SourceContextId, DiagnosticCommandId, CastFlowId, ResolvedConfiguration,
-                IsAborted, StartTime, shared);
+                IsAborted, StartTime, _characterModeId, _characterModePriority,
+                _characterModeOwnerId, _characterModeInstanceId, _hfsmParameterOwnerId, shared);
         }
 
         internal void RestoreRollbackState(in SkillPipelineContextRollbackState state)
@@ -323,6 +533,15 @@ namespace AbilityKit.Demo.Moba.Services
             InputReleased = state.InputReleased;
             IsAborted = state.IsAborted;
             StartTime = state.StartTime;
+            _characterModeId = state.CharacterModeId;
+            _characterModePriority = state.CharacterModePriority;
+            _characterModeOwnerId = state.CharacterModeOwnerId;
+            _characterModeInstanceId = state.CharacterModeInstanceId;
+            _characterModeCleanupRegistered = false;
+            if (!string.IsNullOrEmpty(_characterModeId)) RegisterCharacterModeCleanup();
+            _hfsmParameterOwnerId = state.HfsmParameterOwnerId;
+            _hfsmParameterCleanupRegistered = false;
+            if (_hfsmParameterOwnerId > 0) RegisterHfsmParameterCleanup();
             this.SetSourceContextId(SourceContextId);
             SharedData.Clear();
             foreach (var item in state.SharedData) SharedData.Add(item.Key, item.ToValue());
@@ -405,6 +624,11 @@ namespace AbilityKit.Demo.Moba.Services
 
             _disposables.Clear();
             _cleanupActions.Clear();
+            _characterModeId = null;
+            _characterModePriority = 0;
+            _characterModeOwnerId = 0L;
+            _characterModeInstanceId = 0L;
+            _characterModeCleanupRegistered = false;
 
             RuntimeHandle = default;
             RuntimeId = 0L;
@@ -440,6 +664,8 @@ namespace AbilityKit.Demo.Moba.Services
             bool inputReleased, int skillCooldownMs, string failReason, long sourceContextId,
             long diagnosticCommandId, int castFlowId,
             ResolvedSkillCastConfiguration resolvedConfiguration, bool isAborted, float startTime,
+            string characterModeId, int characterModePriority, long characterModeOwnerId,
+            long characterModeInstanceId, long hfsmParameterOwnerId,
             SkillSharedDataRollbackEntry[] sharedData)
         {
             ElapsedRaw = elapsedRaw;
@@ -458,6 +684,11 @@ namespace AbilityKit.Demo.Moba.Services
             ResolvedConfiguration = resolvedConfiguration;
             IsAborted = isAborted;
             StartTime = startTime;
+            CharacterModeId = characterModeId;
+            CharacterModePriority = characterModePriority;
+            CharacterModeOwnerId = characterModeOwnerId;
+            CharacterModeInstanceId = characterModeInstanceId;
+            HfsmParameterOwnerId = hfsmParameterOwnerId;
             SharedData = sharedData ?? Array.Empty<SkillSharedDataRollbackEntry>();
         }
 
@@ -477,6 +708,11 @@ namespace AbilityKit.Demo.Moba.Services
         public ResolvedSkillCastConfiguration ResolvedConfiguration { get; }
         public bool IsAborted { get; }
         public float StartTime { get; }
+        public string CharacterModeId { get; }
+        public int CharacterModePriority { get; }
+        public long CharacterModeOwnerId { get; }
+        public long CharacterModeInstanceId { get; }
+        public long HfsmParameterOwnerId { get; }
         public SkillSharedDataRollbackEntry[] SharedData { get; }
     }
 
@@ -553,6 +789,7 @@ namespace AbilityKit.Demo.Moba.Services
         public readonly Vec3 AimPos;
         public readonly Vec3 AimDir;
 
+        public readonly MobaPreparedParameterSnapshot[] ParameterSnapshots;
         public readonly IWorldResolver WorldServices;
         public readonly AbilityKit.Triggering.Eventing.IEventBus EventBus;
         public readonly IUnitFacade CasterUnit;
@@ -568,8 +805,11 @@ namespace AbilityKit.Demo.Moba.Services
             IWorldResolver worldServices,
             AbilityKit.Triggering.Eventing.IEventBus eventBus,
             IUnitFacade casterUnit,
-            IUnitFacade targetUnit)
+            IUnitFacade targetUnit,
+            MobaPreparedParameterSnapshot[] parameterSnapshots = null)
         {
+            ParameterSnapshots = parameterSnapshots == null ? Array.Empty<MobaPreparedParameterSnapshot>() :
+                (MobaPreparedParameterSnapshot[])parameterSnapshots.Clone();
             SkillId = skillId;
             SkillSlot = skillSlot;
             CasterActorId = casterActorId;

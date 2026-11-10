@@ -2,11 +2,57 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Text;
 using AbilityKit.Diagnostics;
 
 namespace AbilityKit.Diagnostics.Exporters
 {
+    internal static class TextWriterExtensions
+    {
+        public static TextWriter Append(this TextWriter writer, string value)
+        {
+            writer.Write(value);
+            return writer;
+        }
+
+        public static TextWriter Append(this TextWriter writer, char value)
+        {
+            writer.Write(value);
+            return writer;
+        }
+
+        public static TextWriter Append(this TextWriter writer, int value)
+        {
+            writer.Write(value.ToString(CultureInfo.InvariantCulture));
+            return writer;
+        }
+
+        public static TextWriter Append(this TextWriter writer, long value)
+        {
+            writer.Write(value.ToString(CultureInfo.InvariantCulture));
+            return writer;
+        }
+
+        public static TextWriter Append(this TextWriter writer, double value)
+        {
+            writer.Write(value.ToString(CultureInfo.InvariantCulture));
+            return writer;
+        }
+
+        public static TextWriter AppendLine(this TextWriter writer, string value)
+        {
+            writer.WriteLine(value);
+            return writer;
+        }
+
+        public static TextWriter AppendLine(this TextWriter writer)
+        {
+            writer.WriteLine();
+            return writer;
+        }
+    }
+
     /// <summary>
     /// Speedscope import format exporter。快照含 span 时间线时输出真实时间序（可看逐帧尖峰与调用次序），
     /// 否则回退到聚合节点的事件对（层级占比视图）。
@@ -17,14 +63,28 @@ namespace AbilityKit.Diagnostics.Exporters
 
         public void Export(ProfilerSnapshot snapshot, string filePath)
         {
-            JsonExporter.WriteAllText(filePath, ExportToString(snapshot));
+            using (var writer = JsonExporter.CreateWriter(filePath))
+            {
+                WriteTo(snapshot, writer);
+            }
         }
 
         public string ExportToString(ProfilerSnapshot snapshot)
         {
+            var sb = new StringBuilder(4096);
+            using (var writer = new StringWriter(sb, CultureInfo.InvariantCulture))
+            {
+                WriteTo(snapshot, writer);
+            }
+
+            return sb.ToString();
+        }
+
+        private static void WriteTo(ProfilerSnapshot snapshot, TextWriter writer)
+        {
             var frames = new List<string>();
             var frameIndex = new Dictionary<string, int>(StringComparer.Ordinal);
-            var events = new List<string>();
+            var events = new List<(int Frame, long At, bool Open)>();
             var currentValue = 0L;
             var timeline = false;
 
@@ -37,72 +97,63 @@ namespace AbilityKit.Diagnostics.Exporters
                     if (span.StartTimestamp < baseTimestamp) baseTimestamp = span.StartTimestamp;
                 }
 
-                // speedscope evented 要求事件按时间升序（嵌套 span 的 O/C 必须交错），
-                // 先收集所有 O/C 再统一排序；同时刻先关后开（相邻兄弟 span 的共享边界）。
-                var timelineEvents = new List<(long At, bool Open, int Frame)>(snapshot.Spans.Count * 2);
+                events.Capacity = Math.Max(events.Capacity, snapshot.Spans.Count * 2);
                 foreach (var span in snapshot.Spans)
                 {
                     var index = GetFrameIndex(span.Name, frames, frameIndex);
                     var startValue = (long)((span.StartTimestamp - baseTimestamp) * 1000000000.0d / Stopwatch.Frequency);
                     var endValue = startValue + Math.Max(1L, span.DurationNanoseconds);
-                    timelineEvents.Add((Math.Max(0L, startValue), true, index));
-                    timelineEvents.Add((endValue, false, index));
+                    events.Add((index, Math.Max(0L, startValue), true));
+                    events.Add((index, endValue, false));
                     if (endValue > currentValue) currentValue = endValue;
                 }
 
-                timelineEvents.Sort((a, b) => a.At != b.At ? a.At.CompareTo(b.At) : (a.Open == b.Open ? 0 : (a.Open ? 1 : -1)));
-                foreach (var timelineEvent in timelineEvents)
-                {
-                    var type = timelineEvent.Open ? "O" : "C";
-                    events.Add($"{{\"type\": \"{type}\", \"frame\": {timelineEvent.Frame}, \"at\": {timelineEvent.At}}}");
-                }
+                events.Sort((a, b) => a.At != b.At ? a.At.CompareTo(b.At) : (a.Open == b.Open ? 0 : (a.Open ? 1 : -1)));
             }
-            else
+            else if (snapshot.Root != null)
             {
                 foreach (var root in snapshot.Root.Roots.Values)
                 {
-                    AppendSpeedscopeEvents(root, currentValue, frames, frameIndex, events);
-                    currentValue += Math.Max(1L, root.TotalNanoseconds);
+                    currentValue = AppendSpeedscopeEvents(root, currentValue, frames, frameIndex, events);
                 }
             }
 
-            var sb = new StringBuilder(4096);
-            sb.AppendLine("{");
-            sb.AppendLine("  \"$schema\": \"https://www.speedscope.app/file-format-schema.json\",");
-            sb.AppendLine("  \"shared\": {");
-            sb.AppendLine("    \"frames\": [");
+            writer.WriteLine("{");
+            writer.WriteLine("  \"$schema\": \"https://www.speedscope.app/file-format-schema.json\",");
+            writer.WriteLine("  \"shared\": {");
+            writer.WriteLine("    \"frames\": [");
             for (var i = 0; i < frames.Count; i++)
             {
-                sb.AppendLine($"      {{\"name\": \"{JsonExporter.EscapeJson(frames[i])}\"}}{(i < frames.Count - 1 ? "," : string.Empty)}");
+                writer.WriteLine($"      {{\"name\": \"{JsonExporter.EscapeJson(frames[i])}\"}}{(i < frames.Count - 1 ? "," : string.Empty)}");
             }
-            sb.AppendLine("    ]");
-            sb.AppendLine("  },");
-            sb.AppendLine("  \"profiles\": [");
-            sb.AppendLine("    {");
-            sb.AppendLine("      \"type\": \"evented\",");
-            sb.AppendLine($"      \"name\": \"AbilityKit Diagnostics{(timeline ? " (timeline)" : string.Empty)}\",");
-            sb.AppendLine("      \"unit\": \"nanoseconds\",");
-            sb.AppendLine("      \"startValue\": 0,");
-            sb.AppendLine($"      \"endValue\": {Math.Max(1L, currentValue)},");
-            sb.AppendLine("      \"events\": [");
+            writer.WriteLine("    ]");
+            writer.WriteLine("  },");
+            writer.WriteLine("  \"profiles\": [");
+            writer.WriteLine("    {");
+            writer.WriteLine("      \"type\": \"evented\",");
+            writer.WriteLine($"      \"name\": \"AbilityKit Diagnostics{(timeline ? " (timeline)" : string.Empty)}\",");
+            writer.WriteLine("      \"unit\": \"nanoseconds\",");
+            writer.WriteLine("      \"startValue\": 0,");
+            writer.WriteLine($"      \"endValue\": {Math.Max(1L, currentValue)},");
+            writer.WriteLine("      \"events\": [");
             for (var i = 0; i < events.Count; i++)
             {
-                sb.AppendLine($"        {events[i]}{(i < events.Count - 1 ? "," : string.Empty)}");
+                var evt = events[i];
+                writer.WriteLine($"        {{\"type\": \"{(evt.Open ? "O" : "C")}\", \"frame\": {evt.Frame}, \"at\": {evt.At}}}{(i < events.Count - 1 ? "," : string.Empty)}");
             }
-            sb.AppendLine("      ]");
-            sb.AppendLine("    }");
-            sb.AppendLine("  ],");
-            sb.AppendLine($"  \"name\": \"AbilityKit Diagnostics {JsonExporter.EscapeJson(snapshot.SessionId)}\",");
-            sb.AppendLine("  \"exporter\": \"AbilityKit.Diagnostics\"");
-            sb.AppendLine("}");
-            return sb.ToString();
+            writer.WriteLine("      ]");
+            writer.WriteLine("    }");
+            writer.WriteLine("  ],");
+            writer.WriteLine($"  \"name\": \"AbilityKit Diagnostics {JsonExporter.EscapeJson(snapshot.SessionId)}\",");
+            writer.WriteLine("  \"exporter\": \"AbilityKit.Diagnostics\"");
+            writer.WriteLine("}");
         }
 
-        private static long AppendSpeedscopeEvents(FlameNode node, long startValue, List<string> frames, Dictionary<string, int> frameIndex, List<string> events)
+        private static long AppendSpeedscopeEvents(FlameNode node, long startValue, List<string> frames, Dictionary<string, int> frameIndex, List<(int Frame, long At, bool Open)> events)
         {
             var index = GetFrameIndex(node.Name, frames, frameIndex);
             var endValue = startValue + Math.Max(1L, node.TotalNanoseconds);
-            events.Add($"{{\"type\": \"O\", \"frame\": {index}, \"at\": {startValue}}}");
+            events.Add((index, startValue, true));
 
             var childStart = startValue;
             foreach (var child in node.Children.Values)
@@ -110,18 +161,14 @@ namespace AbilityKit.Diagnostics.Exporters
                 childStart = AppendSpeedscopeEvents(child, childStart, frames, frameIndex, events);
             }
 
-            events.Add($"{{\"type\": \"C\", \"frame\": {index}, \"at\": {endValue}}}");
+            events.Add((index, endValue, false));
             return endValue;
         }
 
         private static int GetFrameIndex(string name, List<string> frames, Dictionary<string, int> frameIndex)
         {
             name = string.IsNullOrEmpty(name) ? "unnamed" : name;
-            if (frameIndex.TryGetValue(name, out var index))
-            {
-                return index;
-            }
-
+            if (frameIndex.TryGetValue(name, out var index)) return index;
             index = frames.Count;
             frames.Add(name);
             frameIndex[name] = index;
@@ -135,22 +182,55 @@ namespace AbilityKit.Diagnostics.Exporters
     /// </summary>
     public sealed class ChromePerfExporter : IExporter
     {
+        private readonly struct TraceEvent
+        {
+            public readonly string Name;
+            public readonly string Category;
+            public readonly double Timestamp;
+            public readonly double Duration;
+            public readonly int ThreadId;
+            public readonly long Hits;
+            public readonly double SelfMilliseconds;
+            public readonly long Frame;
+            public readonly long ContextId;
+            public readonly bool IsSpan;
+
+            public TraceEvent(string name, string category, double timestamp, double duration, int threadId, long hits, double selfMilliseconds, long frame, long contextId, bool isSpan)
+            {
+                Name = name; Category = category; Timestamp = timestamp; Duration = duration; ThreadId = threadId;
+                Hits = hits; SelfMilliseconds = selfMilliseconds; Frame = frame; ContextId = contextId; IsSpan = isSpan;
+            }
+        }
         public string Extension => ".chrome-perf.json";
 
         public void Export(ProfilerSnapshot snapshot, string filePath)
         {
-            JsonExporter.WriteAllText(filePath, ExportToString(snapshot));
+            using (var writer = JsonExporter.CreateWriter(filePath))
+            {
+                WriteTo(snapshot, writer);
+            }
         }
 
         public string ExportToString(ProfilerSnapshot snapshot)
         {
-            var events = new List<string>();
+            var sb = new StringBuilder(4096);
+            using (var writer = new StringWriter(sb, CultureInfo.InvariantCulture))
+            {
+                WriteTo(snapshot, writer);
+            }
+
+            return sb.ToString();
+        }
+
+        private static void WriteTo(ProfilerSnapshot snapshot, TextWriter writer)
+        {
+            var events = new List<TraceEvent>();
             var usesTimeline = snapshot.Spans != null && snapshot.Spans.Count > 0;
             if (usesTimeline)
             {
                 AppendTimelineEvents(snapshot.Spans, events);
             }
-            else
+            else if (snapshot.Root != null)
             {
                 var startMicroseconds = 0d;
                 foreach (var root in snapshot.Root.Roots.Values)
@@ -160,30 +240,49 @@ namespace AbilityKit.Diagnostics.Exporters
                 }
             }
 
-            var sb = new StringBuilder(4096);
-            sb.AppendLine("{");
-            sb.AppendLine("  \"traceEvents\": [");
+            writer.WriteLine("{");
+            writer.WriteLine("  \"traceEvents\": [");
             for (var i = 0; i < events.Count; i++)
             {
-                sb.AppendLine($"    {events[i]}{(i < events.Count - 1 ? "," : string.Empty)}");
+                WriteEvent(writer, events[i]);
+                writer.WriteLine(i < events.Count - 1 ? "," : string.Empty);
             }
-            sb.AppendLine("  ],");
-            sb.AppendLine("  \"metadata\": {");
-            sb.AppendLine($"    \"sessionId\": \"{JsonExporter.EscapeJson(snapshot.SessionId)}\",");
-            sb.AppendLine($"    \"timeline\": \"{(usesTimeline ? "spans" : "aggregated")}\",");
+            writer.WriteLine("  ],");
+            writer.WriteLine("  \"metadata\": {");
+            writer.WriteLine($"    \"sessionId\": \"{JsonExporter.EscapeJson(snapshot.SessionId)}\",");
+            writer.WriteLine($"    \"timeline\": \"{(usesTimeline ? "spans" : "aggregated")}\",");
             if (usesTimeline)
             {
-                sb.AppendLine($"    \"spansDropped\": {snapshot.SpansDropped},");
+                writer.WriteLine($"    \"spansDropped\": {snapshot.SpansDropped},");
             }
-            sb.AppendLine($"    \"exportedAt\": \"{DateTimeOffset.UtcNow:O}\"");
-            sb.AppendLine("  }");
-            sb.AppendLine("}");
-            return sb.ToString();
+            writer.WriteLine($"    \"metricOperationsDropped\": {snapshot.MetricOperationsDropped},");
+            writer.WriteLine($"    \"exportedAt\": \"{DateTimeOffset.UtcNow:O}\"");
+            writer.WriteLine("  }");
+            writer.WriteLine("}");
         }
 
-        private static void AppendTimelineEvents(List<ProfilerSpanRecord> spans, List<string> events)
+        private static void WriteEvent(TextWriter writer, TraceEvent evt)
         {
-            // ts 轴归一到首条 span 起点，单位微秒；帧号与关联上下文放在 args 里。
+            writer.Write("    {\"name\":\""); writer.Write(JsonExporter.EscapeJson(evt.Name));
+            writer.Write("\",\"cat\":\""); writer.Write(JsonExporter.EscapeJson(evt.Category));
+            writer.Write("\",\"ph\":\"X\",\"ts\":"); writer.Write(evt.Timestamp.ToString("F3", CultureInfo.InvariantCulture));
+            writer.Write(",\"dur\":"); writer.Write(evt.Duration.ToString("F3", CultureInfo.InvariantCulture));
+            writer.Write(",\"pid\":1,\"tid\":"); writer.Write(evt.ThreadId.ToString(CultureInfo.InvariantCulture));
+            if (evt.IsSpan)
+            {
+                writer.Write(",\"args\":{\"frame\":"); writer.Write(evt.Frame.ToString(CultureInfo.InvariantCulture));
+                writer.Write(",\"cid\":"); writer.Write(evt.ContextId.ToString(CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                writer.Write(",\"args\":{\"hits\":"); writer.Write(evt.Hits.ToString(CultureInfo.InvariantCulture));
+                writer.Write(",\"selfMs\":"); writer.Write(JsonExporter.Format(evt.SelfMilliseconds));
+            }
+            writer.Write("}}");
+        }
+
+        private static void AppendTimelineEvents(List<ProfilerSpanRecord> spans, List<TraceEvent> events)
+        {
             var baseTimestamp = long.MaxValue;
             foreach (var span in spans)
             {
@@ -198,33 +297,15 @@ namespace AbilityKit.Diagnostics.Exporters
             {
                 var startMicroseconds = (span.StartTimestamp - baseTimestamp) * 1000000.0d / Stopwatch.Frequency;
                 var durationMicroseconds = Math.Max(0.1d, span.DurationNanoseconds / 1000.0d);
-                events.Add("{"
-                    + $"\"name\":\"{JsonExporter.EscapeJson(span.Name)}\","
-                    + "\"cat\":\"span\","
-                    + "\"ph\":\"X\","
-                    + $"\"ts\":{startMicroseconds.ToString("F3", CultureInfo.InvariantCulture)},"
-                    + $"\"dur\":{durationMicroseconds.ToString("F3", CultureInfo.InvariantCulture)},"
-                    + "\"pid\":1,"
-                    + $"\"tid\":{span.ThreadId},"
-                    + $"\"args\":{{\"frame\":{span.Frame},\"cid\":{span.ContextId}}}"
-                    + "}");
+                events.Add(new TraceEvent(span.Name, "span", startMicroseconds, durationMicroseconds, span.ThreadId, 0, 0d, span.Frame, span.ContextId, true));
             }
         }
 
-        private static void AppendTraceEvents(FlameNode node, double startMicroseconds, int depth, List<string> events)
+        private static void AppendTraceEvents(FlameNode node, double startMicroseconds, int depth, List<TraceEvent> events)
         {
             var category = string.IsNullOrEmpty(node.Category) ? "default" : node.Category;
             var durationMicroseconds = Math.Max(1d, node.TotalNanoseconds / 1000.0d);
-            events.Add("{"
-                + $"\"name\":\"{JsonExporter.EscapeJson(node.Name)}\","
-                + $"\"cat\":\"{JsonExporter.EscapeJson(category)}\","
-                + "\"ph\":\"X\","
-                + $"\"ts\":{startMicroseconds.ToString("F3", CultureInfo.InvariantCulture)},"
-                + $"\"dur\":{durationMicroseconds.ToString("F3", CultureInfo.InvariantCulture)},"
-                + "\"pid\":1,"
-                + $"\"tid\":{depth + 1},"
-                + $"\"args\":{{\"hits\":{node.HitCount},\"selfMs\":{JsonExporter.Format(node.SelfNanoseconds / 1000000.0d)}}}"
-                + "}");
+            events.Add(new TraceEvent(node.Name, category, startMicroseconds, durationMicroseconds, depth + 1, node.HitCount, node.SelfNanoseconds / 1000000.0d, 0, 0, false));
 
             var childStart = startMicroseconds;
             foreach (var child in node.Children.Values)
@@ -246,7 +327,10 @@ namespace AbilityKit.Diagnostics.Exporters
 
         public void Export(ProfilerSnapshot snapshot, string filePath)
         {
-            JsonExporter.WriteAllText(filePath, ExportToString(snapshot));
+            using (var writer = JsonExporter.CreateWriter(filePath))
+            {
+                FlameGraphSvgBuilder.Write(snapshot, writer);
+            }
         }
 
         public string ExportToString(ProfilerSnapshot snapshot)
@@ -281,6 +365,17 @@ namespace AbilityKit.Diagnostics.Exporters
         };
 
         public static string Build(ProfilerSnapshot snapshot)
+        {
+            var sb = new StringBuilder(8192);
+            using (var writer = new StringWriter(sb, CultureInfo.InvariantCulture))
+            {
+                Write(snapshot, writer);
+            }
+
+            return sb.ToString();
+        }
+
+        public static void Write(ProfilerSnapshot snapshot, TextWriter writer)
         {
             var roots = new List<FlameNode>();
             if (snapshot.Root != null)
@@ -317,25 +412,23 @@ namespace AbilityKit.Diagnostics.Exporters
             }
 
             var height = HeaderHeight + LegendHeight + (maxDepth + 1) * (RowHeight + RowGap) + 24 + TopSelfCount * 18 + 14;
-            var sb = new StringBuilder(8192);
-            sb.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"").Append(Width)
+            writer.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"").Append(Width)
                 .Append("\" height=\"").Append(height)
                 .Append("\" viewBox=\"0 0 ").Append(Width).Append(' ').Append(height)
                 .Append("\" font-family=\"Consolas, 'Courier New', monospace\">\n");
 
-            AppendStylesAndHeader(sb, snapshot, grandTotal, categories);
-            AppendLegend(sb, categories);
+            AppendStylesAndHeader(writer, snapshot, grandTotal, categories);
+            AppendLegend(writer, categories);
 
             // 自底向上：depth 0（类目根）在火焰区最下方。
             var flameBaseY = HeaderHeight + LegendHeight + maxDepth * (RowHeight + RowGap);
             foreach (var frame in frames)
             {
-                AppendFrame(sb, frame, flameBaseY - frame.Depth * (RowHeight + RowGap), categories);
+                AppendFrame(writer, frame, flameBaseY - frame.Depth * (RowHeight + RowGap), categories);
             }
 
-            AppendTopSelfTime(sb, frames, flameBaseY + RowHeight + 18);
-            sb.Append("</svg>\n");
-            return sb.ToString();
+            AppendTopSelfTime(writer, frames, flameBaseY + RowHeight + 18);
+            writer.Append("</svg>\n");
         }
 
         private readonly struct FrameLayout
@@ -408,7 +501,7 @@ namespace AbilityKit.Diagnostics.Exporters
         }
 
         private static void AppendStylesAndHeader(
-            StringBuilder sb,
+            TextWriter sb,
             ProfilerSnapshot snapshot,
             long grandTotal,
             Dictionary<string, int> categories)
@@ -439,7 +532,7 @@ namespace AbilityKit.Diagnostics.Exporters
                 .Append(" ms · ").Append(categories.Count).Append(" metric families · width = total time · hover for totals</text>\n");
         }
 
-        private static void AppendLegend(StringBuilder sb, Dictionary<string, int> categories)
+        private static void AppendLegend(TextWriter sb, Dictionary<string, int> categories)
         {
             if (categories.Count == 0) return;
 
@@ -457,7 +550,7 @@ namespace AbilityKit.Diagnostics.Exporters
             }
         }
 
-        private static void AppendFrame(StringBuilder sb, FrameLayout frame, double y, Dictionary<string, int> categories)
+        private static void AppendFrame(TextWriter sb, FrameLayout frame, double y, Dictionary<string, int> categories)
         {
             var node = frame.Node;
             var slot = GetSlot(node, categories);
@@ -491,7 +584,7 @@ namespace AbilityKit.Diagnostics.Exporters
                 .Append(EscapeText(text)).Append("</text>\n");
         }
 
-        private static void AppendTopSelfTime(StringBuilder sb, List<FrameLayout> frames, double startY)
+        private static void AppendTopSelfTime(TextWriter sb, List<FrameLayout> frames, double startY)
         {
             var ranked = new List<FlameNode>(frames.Count);
             foreach (var frame in frames)
@@ -580,26 +673,39 @@ namespace AbilityKit.Diagnostics.Exporters
 
         public void Export(ProfilerSnapshot snapshot, string filePath)
         {
-            JsonExporter.WriteAllText(filePath, ExportToString(snapshot));
+            using (var writer = JsonExporter.CreateWriter(filePath))
+            {
+                WriteTo(snapshot, writer);
+            }
         }
 
         public string ExportToString(ProfilerSnapshot snapshot)
         {
-            var roots = new List<FlameNode>(snapshot.Root.Roots.Values);
             var sb = new StringBuilder(4096);
-            sb.AppendLine("{");
-            sb.AppendLine("  \"name\": \"AbilityKit Diagnostics\",");
-            sb.AppendLine("  \"children\": [");
-            for (var i = 0; i < roots.Count; i++)
+            using (var writer = new StringWriter(sb, CultureInfo.InvariantCulture))
             {
-                AppendTreeNode(sb, roots[i], 2, i < roots.Count - 1);
+                WriteTo(snapshot, writer);
             }
-            sb.AppendLine("  ]");
-            sb.AppendLine("}");
             return sb.ToString();
         }
 
-        private static void AppendTreeNode(StringBuilder sb, FlameNode node, int indentLevel, bool comma)
+        private static void WriteTo(ProfilerSnapshot snapshot, TextWriter writer)
+        {
+            var roots = snapshot.Root == null
+                ? new List<FlameNode>()
+                : new List<FlameNode>(snapshot.Root.Roots.Values);
+            writer.AppendLine("{");
+            writer.AppendLine("  \"name\": \"AbilityKit Diagnostics\",");
+            writer.AppendLine("  \"children\": [");
+            for (var i = 0; i < roots.Count; i++)
+            {
+                AppendTreeNode(writer, roots[i], 2, i < roots.Count - 1);
+            }
+            writer.AppendLine("  ]");
+            writer.AppendLine("}");
+        }
+
+        private static void AppendTreeNode(TextWriter sb, FlameNode node, int indentLevel, bool comma)
         {
             var indent = new string(' ', indentLevel * 2);
             sb.AppendLine($"{indent}{{");

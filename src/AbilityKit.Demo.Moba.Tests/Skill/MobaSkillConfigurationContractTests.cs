@@ -3,11 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Console.Bootstrap;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Triggering.Runtime.Config.Plans;
+using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Runtime.Plan.Json;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Skill;
@@ -67,6 +73,216 @@ public sealed class MobaSkillConfigurationContractTests
     }
 
     [Fact]
+    public void Duplicate_trigger_reference_in_one_phase_blocks_startup()
+    {
+        var duplicateTriggerId = 900101011;
+        var configs = CreateConfigDatabase(
+            cost: 0,
+            phases: new[]
+            {
+                new SkillPhaseDTO
+                {
+                    Type = (int)SkillPhaseType.RulePlan,
+                    PhaseId = "release",
+                    RulePlan = new SkillRulePlanPhaseDTO
+                    {
+                        TriggerIds = new[] { duplicateTriggerId, duplicateTriggerId },
+                    },
+                },
+                CreateRulePlanPhase("commit", 900101012),
+            });
+
+        var report = Validate(configs);
+
+        var error = Assert.Single(report.Entries, entry =>
+            entry.Code == "moba.skill.contract.duplicate_trigger_reference");
+        Assert.True(error.BlocksStartup);
+        Assert.Equal("skill.9901001.castFlow.9903001.phases[0].rulePlan.triggerIds[1]", error.Path);
+        Assert.True(report.ShouldBlockStartup);
+    }
+
+    [Fact]
+    public void Rule_plan_owner_bound_trigger_blocks_startup_with_scope_contract_error()
+    {
+        const int triggerId = 9904001;
+        var configs = CreateConfigDatabase(
+            cost: 0,
+            phases: new[]
+            {
+                CreateRulePlanPhase("release", triggerId),
+            });
+        var triggers = CreateTriggerDatabase(triggerId, TriggerPlanScope.OwnerBound);
+
+        var report = Validate(configs, triggers);
+
+        var error = Assert.Single(report.Entries, entry =>
+            entry.Code == "moba.skill.contract.invalid_trigger_scope");
+        Assert.True(error.BlocksStartup);
+        Assert.Equal("skill.9901001.castFlow.9903001.phases[0].rulePlan.triggerIds[0]", error.Path);
+        Assert.True(report.ShouldBlockStartup);
+    }
+
+    [Fact]
+    public void Rule_plan_global_trigger_satisfies_scope_contract()
+    {
+        const int triggerId = 9904002;
+        var configs = CreateConfigDatabase(
+            cost: 0,
+            phases: new[]
+            {
+                CreateRulePlanPhase("release", triggerId),
+            });
+        var triggers = CreateTriggerDatabase(triggerId, TriggerPlanScope.Global);
+
+        var report = Validate(configs, triggers);
+
+        Assert.DoesNotContain(report.Entries, entry =>
+            entry.Code == "moba.skill.contract.invalid_trigger_scope");
+    }
+
+    [Fact]
+    public void Window_trigger_owner_bound_scope_blocks_startup()
+    {
+        const int triggerId = 9904003;
+        var configs = CreateConfigDatabase(
+            cost: 0,
+            phases: new[]
+            {
+                new SkillPhaseDTO
+                {
+                    Type = (int)SkillPhaseType.Window,
+                    PhaseId = "charge",
+                    Window = new SkillWindowPhaseDTO
+                    {
+                        WindowId = "charge.primary",
+                        Kind = (int)SkillWindowKind.Charge,
+                        OpenTriggerIds = new[] { triggerId },
+                    },
+                },
+            });
+        var report = Validate(configs, CreateTriggerDatabase(triggerId, TriggerPlanScope.OwnerBound));
+
+        var error = Assert.Single(report.Entries, entry =>
+            entry.Code == "moba.skill.contract.invalid_trigger_scope");
+        Assert.True(error.BlocksStartup);
+        Assert.Equal("skill.9901001.castFlow.9903001.phases[0].window.openTriggerIds[0]", error.Path);
+    }
+
+    [Fact]
+    public void Timeline_effect_owner_bound_scope_blocks_startup()
+    {
+        const int triggerId = 9904004;
+        var configs = CreateConfigDatabase(
+            cost: 0,
+            phases: new[]
+            {
+                new SkillPhaseDTO
+                {
+                    Type = (int)SkillPhaseType.Timeline,
+                    PhaseId = "cast",
+                    Timeline = new SkillTimelinePhaseDTO
+                    {
+                        Events = new[]
+                        {
+                            new SkillTimelineEventDTO
+                            {
+                                AtMs = 0,
+                                EffectId = triggerId,
+                                ExecuteMode = (int)EffectExecuteMode.InternalOnly,
+                            },
+                        },
+                    },
+                },
+            });
+        var report = Validate(configs, CreateTriggerDatabase(triggerId, TriggerPlanScope.OwnerBound));
+
+        var error = Assert.Single(report.Entries, entry =>
+            entry.Code == "moba.skill.contract.invalid_trigger_scope");
+        Assert.True(error.BlocksStartup);
+        Assert.Equal("skill.9901001.castFlow.9903001.phases[0].timeline.events[0].effectId", error.Path);
+    }
+
+    [Fact]
+    public void Area_direct_trigger_owner_bound_scope_blocks_startup()
+    {
+        const int triggerId = 9904005;
+        var configs = CreateConfigDatabase(
+            cost: 0,
+            phases: CreateResourceContractPhases(),
+            areas: new[]
+            {
+                new AoeDTO
+                {
+                    Id = 9905001,
+                    DurationMs = 1000,
+                    Radius = 1f,
+                    OnEnterTriggerIds = new[] { triggerId },
+                },
+            });
+
+        var report = Validate(configs, CreateTriggerDatabase(triggerId, TriggerPlanScope.OwnerBound));
+
+        var error = Assert.Single(report.Entries, entry =>
+            entry.Code == "moba.skill.contract.invalid_trigger_scope");
+        Assert.True(error.BlocksStartup);
+        Assert.Equal("aoe.9905001.onEnterTriggerIds[0]", error.Path);
+    }
+
+    [Fact]
+    public void Unsupported_phase_type_blocks_startup_before_runtime_construction()
+    {
+        var configs = CreateConfigDatabase(
+            cost: 0,
+            phases: new[]
+            {
+                new SkillPhaseDTO { Type = 9999, PhaseId = "unsupported" },
+            });
+
+        var report = Validate(configs);
+
+        var error = Assert.Single(report.Entries, entry =>
+            entry.Code == "moba.skill.configuration.unsupported_phase");
+        Assert.True(error.BlocksStartup);
+        Assert.True(report.ShouldBlockStartup);
+    }
+
+    [Fact]
+    public void Empty_composite_phase_blocks_startup_before_runtime_construction()
+    {
+        var configs = CreateConfigDatabase(
+            cost: 0,
+            phases: new[]
+            {
+                new SkillPhaseDTO
+                {
+                    Type = (int)SkillPhaseType.Sequence,
+                    PhaseId = "empty_sequence",
+                    Children = Array.Empty<SkillPhaseDTO>(),
+                },
+            });
+
+        var report = Validate(configs);
+
+        var error = Assert.Single(report.Entries, entry =>
+            entry.Code == "moba.skill.configuration.empty_composite_phase");
+        Assert.True(error.BlocksStartup);
+        Assert.True(report.ShouldBlockStartup);
+    }
+
+    [Fact]
+    public void Empty_skill_flow_blocks_startup_before_runtime_construction()
+    {
+        var configs = CreateConfigDatabase(cost: 0, phases: Array.Empty<SkillPhaseDTO>());
+
+        var report = Validate(configs);
+
+        var error = Assert.Single(report.Entries, entry =>
+            entry.Code == "moba.skill.configuration.empty_flow");
+        Assert.True(error.BlocksStartup);
+        Assert.True(report.ShouldBlockStartup);
+    }
+
+    [Fact]
     public void Explicit_reservation_inside_race_cannot_be_guaranteed_by_a_later_commit()
     {
         var reserve = new SkillPhaseDTO
@@ -101,6 +317,28 @@ public sealed class MobaSkillConfigurationContractTests
         var report = Validate(configs);
         Assert.Contains(report.Entries, entry => entry.Code == "moba.skill.contract.invalid_cast_policy");
         Assert.True(report.ShouldBlockStartup);
+    }
+
+    [Theory]
+    [InlineData(new[] { "damage" }, new float[0])]
+    [InlineData(new[] { "damage", "DAMAGE" }, new[] { 10f, 20f })]
+    [InlineData(new[] { "damage" }, new[] { float.NaN })]
+    [InlineData(new string[0], new[] { 10f })]
+    public void Invalid_named_skill_level_parameters_block_startup(string[] paramNames, float[] values)
+    {
+        var configs = CreateConfigDatabase(
+            cost: 0,
+            phases: CreateResourceContractPhases(),
+            paramNames: paramNames,
+            paramsValues: values);
+
+        var report = Validate(configs);
+
+        var error = Assert.Single(report.Entries, entry =>
+            entry.Code == "moba.skill.configuration.invalid_level_parameters");
+        Assert.True(error.BlocksStartup);
+        Assert.True(report.ShouldBlockStartup);
+        Assert.Contains("skillId=", error.Message);
     }
 
     [Fact]
@@ -151,21 +389,122 @@ public sealed class MobaSkillConfigurationContractTests
         Assert.Equal(2400, cooldownMs);
     }
 
-    private static MobaRuntimeValidationReport Validate(MobaConfigDatabase configs)
+    [Theory]
+    [InlineData(ProjectileHitPolicyKind.ExitOnHit, 0, 0, 1)]
+    [InlineData(ProjectileHitPolicyKind.Pierce, 3, 3, 0)]
+    [InlineData(ProjectileHitPolicyKind.Pierce, -1, -1, 0)]
+    [InlineData(ProjectileHitPolicyKind.Bounce, 3, 3, 3)]
+    public void Projectile_hit_policy_resolves_authored_values_to_runtime_contract(
+        ProjectileHitPolicyKind policy, int authoredHits, int expectedPolicyParam, int expectedHitsRemaining)
+    {
+        var projectile = new ProjectileMO(new ProjectileDTO
+        {
+            Id = 9001,
+            HitPolicyKind = (int)policy,
+            HitsRemaining = authoredHits,
+        });
+
+        Assert.True(projectile.TryResolveRuntimeSettings(out var resolvedPolicy, out var policyParam,
+            out var hitsRemaining, out var error), error);
+        Assert.Equal(policy, resolvedPolicy);
+        Assert.Equal(expectedPolicyParam, policyParam);
+        Assert.Equal(expectedHitsRemaining, hitsRemaining);
+    }
+
+    [Theory]
+    [InlineData(ProjectileHitPolicyKind.Pierce, 0)]
+    [InlineData(ProjectileHitPolicyKind.Bounce, 0)]
+    [InlineData((ProjectileHitPolicyKind)9876, 1)]
+    public void Invalid_projectile_hit_policy_is_rejected_by_runtime_config_validation(
+        ProjectileHitPolicyKind policy, int authoredHits)
+    {
+        var configs = new MobaConfigDatabase();
+        var result = configs.ReloadFromDtoArrays(
+            new Dictionary<Type, Array>
+            {
+                [typeof(ProjectileDTO)] = new[]
+                {
+                    new ProjectileDTO
+                    {
+                        Id = 9002,
+                        HitPolicyKind = (int)policy,
+                        HitsRemaining = authoredHits,
+                    },
+                },
+            },
+            strict: false);
+        Assert.True(result.Succeeded, result.Error);
+
+        var report = Validate(configs);
+
+        var error = Assert.Single(report.Entries, entry =>
+            entry.Path == "projectile.9002.hitPolicy");
+        Assert.True(error.BlocksStartup);
+        Assert.True(report.ShouldBlockStartup);
+    }
+
+    [Fact]
+    public void Non_finite_projectile_arc_configuration_is_rejected()
+    {
+        var projectile = new ProjectileMO(new ProjectileDTO
+        {
+            Id = 9003,
+            TrackingArcHeightPerUnit = float.NaN,
+        });
+
+        Assert.False(projectile.TryResolveRuntimeSettings(out _, out _, out _, out var error));
+        Assert.Contains("TrackingArcHeightPerUnit", error);
+    }
+
+    [Fact]
+    public void Projectile_hit_unit_subtype_defaults_to_any_and_rejects_negative_values()
+    {
+        var anyUnit = new ProjectileMO(new ProjectileDTO { Id = 9004 });
+        Assert.True(anyUnit.TryResolveRuntimeSettings(out _, out _, out _, out var anyError), anyError);
+        Assert.Equal(0, anyUnit.HitUnitSubType);
+
+        var heroOnly = new ProjectileMO(new ProjectileDTO { Id = 9005, HitUnitSubType = (int)UnitSubType.Hero });
+        Assert.True(heroOnly.TryResolveRuntimeSettings(out _, out _, out _, out var heroError), heroError);
+        Assert.Equal((int)UnitSubType.Hero, heroOnly.HitUnitSubType);
+
+        var invalid = new ProjectileMO(new ProjectileDTO { Id = 9006, HitUnitSubType = -1 });
+        Assert.False(invalid.TryResolveRuntimeSettings(out _, out _, out _, out var error));
+        Assert.Contains("HitUnitSubType", error);
+    }
+
+    private static MobaRuntimeValidationReport Validate(
+        MobaConfigDatabase configs,
+        TriggerPlanJsonDatabase triggers = null)
     {
         var report = new MobaRuntimeValidationReport();
         var context = new MobaRuntimeValidationContext(
-            new TestWorldResolver(configs),
+            new TestWorldResolver(configs, triggers),
             "test",
             MobaRuntimeValidationInvocation.Manual);
         new MobaBattleConfigReferenceValidator().Validate(in context, report);
         return report;
     }
 
+    private static TriggerPlanJsonDatabase CreateTriggerDatabase(int triggerId, TriggerPlanScope scope)
+    {
+        var plans = new TriggerPlanJsonDatabase();
+        var plan = new TriggerPlan<object>(phase: 0, priority: 0, triggerId: triggerId);
+        plans.AddRecord(new TriggerPlanJsonDatabase.Record(
+            triggerId,
+            eventName: string.Empty,
+            eventId: 0,
+            scope: scope,
+            in plan));
+        return plans;
+    }
+
     private static MobaConfigDatabase CreateConfigDatabase(
         int cost,
         SkillPhaseDTO[] phases,
-        Action<SkillDTO> configureSkill = null)
+        Action<SkillDTO> configureSkill = null,
+        string[] paramNames = null,
+        float[] paramsValues = null,
+        AoeDTO[] areas = null)
     {
         var configs = new MobaConfigDatabase();
         var skill = new SkillDTO
@@ -190,14 +529,15 @@ public sealed class MobaSkillConfigurationContractTests
                         Id = LevelTableId,
                         Levels = new[]
                         {
-                            new SkillLevelDTO
-                            {
-                                CooldownMs = 1000,
-                                Cost = cost,
-                                Params = Array.Empty<float>(),
-                            },
+                        new SkillLevelDTO
+                        {
+                            CooldownMs = 1000,
+                            Cost = cost,
+                            Params = paramsValues ?? Array.Empty<float>(),
                         },
                     },
+                    ParamNames = paramNames ?? Array.Empty<string>(),
+                },
                 },
                 [typeof(SkillFlowDTO)] = new[]
                 {
@@ -208,6 +548,7 @@ public sealed class MobaSkillConfigurationContractTests
                         Phases = phases,
                     },
                 },
+                [typeof(AoeDTO)] = areas ?? Array.Empty<AoeDTO>(),
             },
             strict: false);
 
@@ -242,9 +583,13 @@ public sealed class MobaSkillConfigurationContractTests
     {
         private readonly Dictionary<Type, object> _services = new();
 
-        public TestWorldResolver(MobaConfigDatabase configs)
+        public TestWorldResolver(MobaConfigDatabase configs, TriggerPlanJsonDatabase triggers = null)
         {
             _services[typeof(MobaConfigDatabase)] = configs;
+            if (triggers != null)
+            {
+                _services[typeof(TriggerPlanJsonDatabase)] = triggers;
+            }
         }
 
         public object Resolve(Type serviceType)

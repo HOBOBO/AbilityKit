@@ -34,13 +34,13 @@ namespace AbilityKit.Demo.Moba.Share
         private void Subscribe()
         {
             _subscriptions.Add(_snapshots.Subscribe<EnterGameData>(MobaOpCodes.Snapshot.EnterGame, OnEnterGameSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<ActorTransformData[]>(MobaOpCodes.Snapshot.ActorTransform, OnActorTransformSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<ActorDespawnData[]>(MobaOpCodes.Snapshot.ActorDespawn, OnActorDespawnSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<SkillStateData[]>(MobaOpCodes.Snapshot.SkillState, OnSkillStateSnapshot));
+            _subscriptions.Add(_snapshots.SubscribeList<ActorTransformData>(MobaOpCodes.Snapshot.ActorTransform, OnActorTransformSnapshot));
+            _subscriptions.Add(_snapshots.SubscribeList<ActorDespawnData>(MobaOpCodes.Snapshot.ActorDespawn, OnActorDespawnSnapshot));
+            _subscriptions.Add(_snapshots.SubscribeList<SkillStateData>(MobaOpCodes.Snapshot.SkillState, OnSkillStateSnapshot));
             _subscriptions.Add(_snapshots.Subscribe<ShieldStateData[]>(MobaOpCodes.Snapshot.ShieldState, OnShieldStateSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<ProjectileEventData[]>(MobaOpCodes.Snapshot.ProjectileEvent, OnProjectileEventSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<AreaEventData[]>(MobaOpCodes.Snapshot.AreaEvent, OnAreaEventSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<DamageEventData[]>(MobaOpCodes.Snapshot.DamageEvent, OnDamageEventSnapshot));
+            _subscriptions.Add(_snapshots.SubscribeList<ProjectileEventData>(MobaOpCodes.Snapshot.ProjectileEvent, OnProjectileEventSnapshot));
+            _subscriptions.Add(_snapshots.SubscribeList<AreaEventData>(MobaOpCodes.Snapshot.AreaEvent, OnAreaEventSnapshot));
+            _subscriptions.Add(_snapshots.SubscribeList<DamageEventData>(MobaOpCodes.Snapshot.DamageEvent, OnDamageEventSnapshot));
             _subscriptions.Add(_snapshots.Subscribe<PresentationCueData[]>(MobaOpCodes.Snapshot.PresentationCue, OnPresentationCueSnapshot));
             _subscriptions.Add(_snapshots.Subscribe<StateHashData>(MobaOpCodes.Snapshot.StateHash, OnStateHashSnapshot));
             _subscriptions.Add(_snapshots.Subscribe<GameplayClockData>(GameplayClockSnapshotCodec.OpCode, OnGameplayClockSnapshot));
@@ -56,7 +56,7 @@ namespace AbilityKit.Demo.Moba.Share
             _sink.OnEnterGameSnapshot(in snapshot);
         }
 
-        private void OnActorTransformSnapshot(int frameIndex, ActorTransformData[] data)
+        private void OnActorTransformSnapshot(int frameIndex, IReadOnlyList<ActorTransformData> data)
         {
             var snapshot = new FrameSnapshotData(
                 frameIndex, 
@@ -66,7 +66,7 @@ namespace AbilityKit.Demo.Moba.Share
             _sink.OnActorTransformSnapshot(in snapshot);
         }
 
-        private void OnActorDespawnSnapshot(int frameIndex, ActorDespawnData[] data)
+        private void OnActorDespawnSnapshot(int frameIndex, IReadOnlyList<ActorDespawnData> data)
         {
             var snapshot = new FrameSnapshotData(
                 frameIndex,
@@ -76,7 +76,7 @@ namespace AbilityKit.Demo.Moba.Share
             _sink.OnActorDespawnSnapshot(in snapshot);
         }
 
-        private void OnSkillStateSnapshot(int frameIndex, SkillStateData[] data)
+        private void OnSkillStateSnapshot(int frameIndex, IReadOnlyList<SkillStateData> data)
         {
             var snapshot = new FrameSnapshotData(
                 frameIndex,
@@ -92,7 +92,7 @@ namespace AbilityKit.Demo.Moba.Share
             _sink.OnShieldStateSnapshot(in snapshot);
         }
 
-        private void OnProjectileEventSnapshot(int frameIndex, ProjectileEventData[] data)
+        private void OnProjectileEventSnapshot(int frameIndex, IReadOnlyList<ProjectileEventData> data)
         {
             var snapshot = new FrameSnapshotData(
                 frameIndex, 
@@ -102,7 +102,7 @@ namespace AbilityKit.Demo.Moba.Share
             _sink.OnProjectileEventSnapshot(in snapshot);
         }
 
-        private void OnAreaEventSnapshot(int frameIndex, AreaEventData[] data)
+        private void OnAreaEventSnapshot(int frameIndex, IReadOnlyList<AreaEventData> data)
         {
             var snapshot = new FrameSnapshotData(
                 frameIndex, 
@@ -112,7 +112,7 @@ namespace AbilityKit.Demo.Moba.Share
             _sink.OnAreaEventSnapshot(in snapshot);
         }
 
-        private void OnDamageEventSnapshot(int frameIndex, DamageEventData[] data)
+        private void OnDamageEventSnapshot(int frameIndex, IReadOnlyList<DamageEventData> data)
         {
             var snapshot = new FrameSnapshotData(
                 frameIndex, 

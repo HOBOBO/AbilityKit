@@ -1,6 +1,7 @@
 using AbilityKit.Game.Battle.Component;
 using UnityEngine;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.ActionSchema;
@@ -13,17 +14,38 @@ namespace AbilityKit.Game.Flow
         IMobaSkillPresentationTimelineSink, IMobaSkillPresentationAsyncRequestSink,
         IMobaSkillPresentationCancellableAsyncRequestSink
     {
-        private const int TimelineSkillId = 10020101;
-        private const string TimelineResource = "moba/action_timeline/skill_10020101.moba.presentation";
+        private const string TimelineResourcePrefix = "moba/action_timeline/skill_";
+        private const string TimelineResourceSuffix = ".moba.presentation";
         public event Action<CharacterPlaybackIntent> PlaybackRequested;
         public event Action<CharacterLogIntent> LogRequested;
         private BattleCharacterHfsmComponent _state;
         private Animator _animator;
         private float _secondsPerFrame;
         private MobaSkillPresentationCastDriver _presentation;
-        private CancellationTokenSource _presentationCancellation;
+        private int _presentationSkillId;
         private PresentationUnityBackend _presentationBackend;
         private PresentationSession<PresentationUnityHandle> _presentationSession;
+        private Task _presentationClearTask = Task.CompletedTask;
+        private MobaPresentationTemplateResolver _presentationTemplateResolver;
+        private readonly PresentationRateResolver _presentationRateResolver = new PresentationRateResolver();
+        private readonly Dictionary<long, HashSet<PresentationHandle<PresentationUnityHandle>>> _timelineHandles =
+            new Dictionary<long, HashSet<PresentationHandle<PresentationUnityHandle>>>();
+
+        public PresentationRateResolver PresentationRateResolver => _presentationRateResolver;
+
+        public void SetPresentationRate(in PresentationRateSource source)
+        {
+            _presentationRateResolver.Set(in source);
+            if (_animator != null) _animator.speed = _presentationRateResolver.ResolveRate(PresentationRateChannel.Action);
+        }
+
+        public bool RemovePresentationRate(string sourceId)
+        {
+            var removed = _presentationRateResolver.Remove(sourceId);
+            if (removed && _animator != null)
+                _animator.speed = _presentationRateResolver.ResolveRate(PresentationRateChannel.Action);
+            return removed;
+        }
 
         public void Bind(BattleCharacterHfsmComponent state, int tickRate)
         {
@@ -33,6 +55,9 @@ namespace AbilityKit.Game.Flow
             EnsurePresentationBackend();
             _secondsPerFrame = tickRate > 0 ? 1f / tickRate : 0f;
             if (_animator == null) _animator = GetComponentInChildren<Animator>(true);
+            // A snapshot can update the existing component instance. Re-seek
+            // on every bind so action changes received after the initial spawn
+            // also reach the Animator for characters and summons alike.
             if (state != null) SeekToFrame(state.SnapshotFrame, _secondsPerFrame);
         }
 
@@ -47,6 +72,8 @@ namespace AbilityKit.Game.Flow
             var duration = secondsPerFrame > 0f ? secondsPerFrame : _secondsPerFrame;
             var tickRate = duration > 0f ? Mathf.RoundToInt(1f / duration) : 0;
             if (tickRate <= 0) return;
+            if (_animator != null)
+                _animator.speed = _presentationRateResolver.ResolveRate(PresentationRateChannel.Action);
             SeekPresentation(frameIndex, duration);
             var playback = _state.Evaluate(frameIndex, tickRate, this);
             if (!playback.HasValue || _animator == null ||
@@ -84,35 +111,48 @@ namespace AbilityKit.Game.Flow
         private void SeekPresentation(int frame, float secondsPerFrame)
         {
             var action = _state.Action;
-            var casting = action.SkillId == TimelineSkillId && action.CastInstanceId > 0;
+            var casting = action.SkillId > 0 && action.CastInstanceId > 0;
             if (!casting)
             {
                 StopPresentation();
                 return;
             }
-            if (_presentation == null)
+            if (_presentationSkillId != action.SkillId)
             {
-                var asset = Resources.Load<TextAsset>(TimelineResource);
+                _presentation?.Stop();
+                _presentation = null;
+                var skillId = action.SkillId;
+                _presentationSkillId = skillId;
+                var resource = TimelineResourcePrefix + skillId + TimelineResourceSuffix;
+                var asset = Resources.Load<TextAsset>(resource);
                 if (asset == null)
                 {
-                    Debug.LogError("Missing MOBA presentation timeline: " + TimelineResource);
+                    Debug.LogError("Missing MOBA presentation timeline: " + resource);
                     return;
                 }
-                _presentation = new MobaSkillPresentationCastDriver(asset.text, this);
+                _presentationTemplateResolver ??= new MobaPresentationTemplateResolver();
+                _presentation = new MobaSkillPresentationCastDriver(
+                    asset.text, this, _presentationTemplateResolver, _presentationRateResolver);
             }
-            if (_presentationCancellation == null)
-                _presentationCancellation = new CancellationTokenSource();
+            if (_presentation == null) return;
             var elapsed = Mathf.Max(0, frame - action.StartFrame) * secondsPerFrame;
-            _presentation.Seek(action.CastInstanceId, elapsed);
+            _presentation.SeekWithRate(action.CastInstanceId, elapsed);
         }
 
         private void StopPresentation()
         {
-            CancelPendingPresentationLoads();
+            // Keep one backend/session for the lifetime of this view.  The
+            // backend increments its generation before clearing entries, so
+            // requests that were still loading for the old timeline are
+            // rejected while requests for the next cast can use the same
+            // session safely.  Replacing the backend here creates a window in
+            // which an async timeline dispatch can observe a null session.
             _presentation?.Stop();
             _presentation = null;
-            if (_presentationBackend != null) _ = _presentationBackend.ClearAsync();
-            _presentationSession = null;
+            _presentationSkillId = 0;
+            StopAllTimelineHandles();
+            if (_presentationBackend != null)
+                _presentationClearTask = QueuePresentationClearAsync(_presentationClearTask);
         }
 
         public void OnClipStart(long skillInstanceId, GroupDto group, ClipDto clip, float offsetSeconds)
@@ -127,7 +167,7 @@ namespace AbilityKit.Game.Flow
             ClipDto clip,
             float offsetSeconds)
         {
-            await PlayPresentationAsync(request, _presentationCancellation?.Token ?? CancellationToken.None);
+            await PlayPresentationAsync(request, CancellationToken.None);
         }
 
         public Task OnPresentationRequestAsync(
@@ -137,25 +177,66 @@ namespace AbilityKit.Game.Flow
             float offsetSeconds,
             CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
             return PlayPresentationAsync(request, cancellationToken);
         }
 
         public void OnTimelineStop(long skillInstanceId)
         {
-            CancelPendingPresentationLoads();
-            if (_presentationBackend != null) _ = _presentationBackend.ClearAsync();
+            StopTimelineHandles(skillInstanceId);
         }
 
         private async Task PlayPresentationAsync(PresentationRequest request, CancellationToken cancellationToken)
         {
-            if (!request.IsValid || !this || !isActiveAndEnabled) return;
+            if (!request.IsValid || !this || !isActiveAndEnabled)
+            {
+                if (!request.IsValid)
+                    Debug.LogWarning("[MobaPresentation] Ignored invalid timeline request key=" + request.LogicalKey +
+                        " asset=" + request.AssetId + " resource=" + request.ResourceKey);
+                return;
+            }
+            // A timeline transition can dispatch its next clip in the same
+            // frame that the previous cast is being cleared.  Serialize the
+            // backend reset so the new request cannot race the generation
+            // increment/entry cleanup of the old cast.
+            var clearTask = _presentationClearTask;
+            if (clearTask != null && !clearTask.IsCompleted)
+                await clearTask;
             EnsurePresentationBackend();
             var session = _presentationSession;
-            if (session == null) return;
+            if (session == null)
+            {
+                Debug.LogWarning("[MobaPresentation] Timeline session unavailable key=" + request.LogicalKey);
+                return;
+            }
             try
             {
-                await session.EmitTransientAsync(request, cancellationToken);
+                var handle = await session.EmitTransientAsync(request, cancellationToken);
+                if (handle == null)
+                {
+                    Debug.LogWarning("[MobaPresentation] Timeline request produced no handle key=" + request.LogicalKey +
+                        " asset=" + request.AssetId + " resource=" + request.ResourceKey +
+                        " cancelled=" + cancellationToken.IsCancellationRequested);
+                    return;
+                }
+                var skillInstanceId = ParseSkillInstanceId(request.LogicalKey);
+                var stopImmediately = false;
+                lock (_timelineHandles)
+                {
+                    if (skillInstanceId <= 0 || cancellationToken.IsCancellationRequested)
+                    {
+                        stopImmediately = true;
+                    }
+                    else
+                    {
+                        if (!_timelineHandles.TryGetValue(skillInstanceId, out var handles))
+                        {
+                            handles = new HashSet<PresentationHandle<PresentationUnityHandle>>();
+                            _timelineHandles[skillInstanceId] = handles;
+                        }
+                        handles.Add(handle);
+                    }
+                }
+                if (stopImmediately) await handle.StopAsync();
             }
             catch (OperationCanceledException)
             {
@@ -175,7 +256,7 @@ namespace AbilityKit.Game.Flow
             var keyName = isAnimation ? "clipKey" : "resourceKey";
             if (!clip.args.TryGetValue(keyName, out var resource) || string.IsNullOrWhiteSpace(resource)) return default;
             return new PresentationRequest(
-                "timeline:" + _state?.Action.CastInstanceId + ":" + clip.start,
+                "timeline:" + _state?.Action.CastInstanceId + ":legacy:" + clip.start + ":" + clip.type,
                 assetId: 0,
                 position: new PresentationVector3(0f, 1.1f, 0.55f),
                 attachment: new PresentationAttachment(PresentationAttachmentKind.Actor, 0),
@@ -187,11 +268,64 @@ namespace AbilityKit.Game.Flow
                 playback: new PresentationPlaybackSpec(clipKey: isAnimation ? resource : null));
         }
 
+        private static long ParseSkillInstanceId(string logicalKey)
+        {
+            if (string.IsNullOrEmpty(logicalKey) || !logicalKey.StartsWith("timeline:", StringComparison.Ordinal))
+                return 0;
+            var end = logicalKey.IndexOf(':', "timeline:".Length);
+            return end < 0 || !long.TryParse(logicalKey.Substring("timeline:".Length,
+                end - "timeline:".Length), out var id) ? 0 : id;
+        }
+
+        private void StopTimelineHandles(long skillInstanceId)
+        {
+            PresentationHandle<PresentationUnityHandle>[] handles;
+            lock (_timelineHandles)
+            {
+                if (!_timelineHandles.TryGetValue(skillInstanceId, out var owned)) return;
+                _timelineHandles.Remove(skillInstanceId);
+                handles = new PresentationHandle<PresentationUnityHandle>[owned.Count];
+                owned.CopyTo(handles);
+            }
+            for (var i = 0; i < handles.Length; i++)
+                if (handles[i] != null) _ = handles[i].StopAsync();
+        }
+
+        private void StopAllTimelineHandles()
+        {
+            long[] instances;
+            lock (_timelineHandles)
+            {
+                instances = new long[_timelineHandles.Count];
+                _timelineHandles.Keys.CopyTo(instances, 0);
+            }
+            for (var i = 0; i < instances.Length; i++) StopTimelineHandles(instances[i]);
+        }
+
         private void EnsurePresentationBackend()
         {
-            if (_presentationBackend != null) return;
-            _presentationBackend = new PresentationUnityBackend(transform);
+            if (_presentationBackend != null)
+            {
+                if (_presentationSession == null)
+                    _presentationSession = new PresentationSession<PresentationUnityHandle>(_presentationBackend);
+                return;
+            }
+            _presentationBackend = new PresentationUnityBackend(transform, rateResolver: _presentationRateResolver);
             _presentationSession = new PresentationSession<PresentationUnityHandle>(_presentationBackend);
+        }
+
+        private async Task QueuePresentationClearAsync(Task previous)
+        {
+            if (previous != null && !previous.IsCompleted)
+            {
+                try { await previous; }
+                catch { }
+            }
+            if (_presentationBackend != null)
+            {
+                try { await _presentationBackend.ClearAsync(); }
+                catch (Exception exception) { Debug.LogException(exception); }
+            }
         }
 
         private void Update()
@@ -199,13 +333,9 @@ namespace AbilityKit.Game.Flow
             _presentationBackend?.Tick(Time.deltaTime);
         }
 
-        private void CancelPendingPresentationLoads()
+        private void OnDisable()
         {
-            _presentationCancellation?.Cancel();
-            _presentationCancellation?.Dispose();
-            _presentationCancellation = null;
+            StopPresentation();
         }
-
-        private void OnDisable() => StopPresentation();
     }
 }

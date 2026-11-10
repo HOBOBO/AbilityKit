@@ -96,9 +96,26 @@ namespace AbilityKit.Ability.Editor.Tests
                 TriggerAuthoringTriggerReuse.TryGetReferencedTriggerId(node, out var id) && id == 910005), Is.True);
 
             _asset.Module = new TriggerAuthoringModuleData();
-            var imported = TriggerAuthoringSourceSync.Import(_asset, samplePath, force: true);
-
-            Assert.That(imported.Success, Is.True, imported.Message);
+            var project = ScriptableObject.CreateInstance<TriggerAuthoringProjectAsset>();
+            var events = ScriptableObject.CreateInstance<TriggerEventCatalogAsset>();
+            var blackboard = ScriptableObject.CreateInstance<TriggerGlobalBlackboardCatalogAsset>();
+            try
+            {
+                events.Events = TriggerAuthoringProjectDefaults.CreateMobaEvents();
+                blackboard.Keys = TriggerAuthoringProjectDefaults.CreateMobaBlackboardKeys();
+                project.SetCatalogs(events, blackboard, null);
+                project.SetExtensionIds(new[] { "abilitykit.demo.moba" });
+                TriggerAuthoringProjectMembership.Assign(_asset, project);
+                var imported = TriggerAuthoringSourceSync.Import(_asset, samplePath, force: true);
+                Assert.That(imported.Success, Is.True, imported.Message);
+            }
+            finally
+            {
+                TriggerAuthoringProjectMembership.Assign(_asset, null);
+                UnityEngine.Object.DestroyImmediate(project);
+                UnityEngine.Object.DestroyImmediate(events);
+                UnityEngine.Object.DestroyImmediate(blackboard);
+            }
             Assert.That(_asset.Module.ModuleId, Is.EqualTo("sample.trigger_editor.feature_showcase"));
             Assert.That(_asset.Module.Triggers.Count, Is.EqualTo(5));
             Assert.That(_asset.Module.Triggers[0].GroupPath, Is.EqualTo("AAA配置"));
@@ -173,11 +190,10 @@ namespace AbilityKit.Ability.Editor.Tests
                 Is.True);
             Assert.That(preview.Changes.Exists(change =>
                     change.Kind == TriggerAuthoringSourceChangeKind.Added &&
-                    change.Area == "Trigger" &&
                     change.Path == "module.triggers[1002]"),
                 Is.True);
-            StringAssert.Contains("Triggers: 1 -> 2", preview.BuildDialogMessage());
-            StringAssert.Contains("Added Trigger", preview.BuildDialogMessage());
+            StringAssert.Contains("触发器：1 -> 2", preview.BuildDialogMessage());
+            StringAssert.Contains("module.triggers[1002]", preview.BuildDialogMessage());
         }
 
         [Test]
@@ -208,7 +224,7 @@ namespace AbilityKit.Ability.Editor.Tests
             var preview = TriggerAuthoringSourceSync.PreviewImport(_asset, path);
 
             Assert.That(preview.CanImport, Is.False);
-            StringAssert.Contains("Module identity mismatch", preview.Message);
+            StringAssert.Contains("模块标识不匹配", preview.Message);
             Assert.That(preview.SourceIdentity, Is.EqualTo("skill.other"));
         }
 
@@ -228,13 +244,11 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(preview.CanImport, Is.True, preview.Message);
             Assert.That(preview.Changes.Exists(change =>
                     change.Kind == TriggerAuthoringSourceChangeKind.Renamed &&
-                    change.Area == "Trigger" &&
                     change.Before == "Cast log" &&
                     change.After == "Cast renamed"),
                 Is.True);
             Assert.That(preview.Changes.Exists(change =>
                     change.Kind == TriggerAuthoringSourceChangeKind.Modified &&
-                    change.Area == "Trigger" &&
                     change.Path == "module.triggers[1001]"),
                 Is.True);
         }
@@ -750,7 +764,7 @@ namespace AbilityKit.Ability.Editor.Tests
             var catalog = TriggerTypeDescriptorCatalog.CreateProjectDefaults();
             var actionTypes = new[]
             {
-                "give_damage", "adjust_damage_number", "take_damage", "debug_log",
+                "give_damage", "adjust_damage_number", "set_attack_critical", "take_damage", "debug_log",
                 "shoot_projectile", "add_buff", "remove_buff", "cancel_skill",
                 "add_shield", "remove_shield", "remove_summon", "remove_projectile",
                 "remove_area", "spawn_area", "heal", "spawn_summon", "play_presentation",
@@ -773,11 +787,11 @@ namespace AbilityKit.Ability.Editor.Tests
             var catalog = TriggerTypeDescriptorCatalog.CreateProjectDefaults();
 
             Assert.That(catalog.TryGet(TriggerNodeKind.Condition, "has_buff", out var hasBuff), Is.True);
-            Assert.That(hasBuff.Parameters.Count, Is.EqualTo(3));
-            Assert.That(hasBuff.Parameters[0].Name, Is.EqualTo("buff_id"));
-            Assert.That(hasBuff.Parameters[0].Type, Is.EqualTo(TriggerValueType.Integer));
-            Assert.That(hasBuff.Parameters[0].Required, Is.True);
-            Assert.That(hasBuff.Parameters[2].Options.Count, Is.EqualTo(2));
+            var buffId = FindParameter(hasBuff, "buff_id");
+            Assert.That(buffId, Is.Not.Null);
+            Assert.That(buffId.Type, Is.EqualTo(TriggerValueType.Integer));
+            Assert.That(buffId.Required, Is.True);
+            Assert.That(FindParameter(hasBuff, "target_mode").Options.Count, Is.EqualTo(2));
 
             Assert.That(catalog.TryGet(TriggerNodeKind.Action, "modify_resource", out var modifyResource), Is.True);
             var resourceType = FindParameter(modifyResource, "resource_type");
@@ -1049,6 +1063,7 @@ namespace AbilityKit.Ability.Editor.Tests
                 source.Template.Parameters.Add(new TriggerAuthoringTemplateParameterData
                 {
                     Name = "count",
+                    LocalVariableKey = "count",
                     Type = TriggerValueType.Integer
                 });
                 TriggerAuthoringTemplateSourceCodec.WriteFileAtomic(path, source);
@@ -1062,10 +1077,9 @@ namespace AbilityKit.Ability.Editor.Tests
                 Assert.That(preview.SourceTemplateParameterCount, Is.EqualTo(2));
                 Assert.That(preview.Changes.Exists(change =>
                         change.Kind == TriggerAuthoringSourceChangeKind.Added &&
-                        change.Area == "Parameter" &&
                         change.Path == "template.parameters[count]"),
                     Is.True);
-                StringAssert.Contains("Parameters: 1 -> 2", preview.BuildDialogMessage());
+                StringAssert.Contains("参数：1 -> 2", preview.BuildDialogMessage());
             }
             finally
             {

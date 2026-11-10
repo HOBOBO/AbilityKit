@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using System.Linq;
 using System.IO;
 using AbilityKit.Demo.Moba;
@@ -12,15 +13,20 @@ using AbilityKit.Demo.Moba.Gameplay.Structures;
 using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Events.Unit;
 using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Config;
+using AbilityKit.Demo.Moba.Console.Bootstrap;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Trace;
+using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
@@ -41,7 +47,7 @@ public sealed class MobaCompleteBattleLifecycleSmokeTests
     [Fact]
     public void Map_gameplay_bootstrap_spawns_first_minion_wave()
     {
-        using var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        using var bootstrapper = CreateLaneBattle();
         bootstrapper.Initialize();
         bootstrapper.Start();
         for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();
@@ -106,7 +112,7 @@ public sealed class MobaCompleteBattleLifecycleSmokeTests
     [Fact]
     public void Ranged_minions_chase_and_launch_authoritative_projectiles_when_in_range()
     {
-        using var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        using var bootstrapper = CreateLaneBattle();
         bootstrapper.Initialize();
         bootstrapper.Start();
         for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();
@@ -140,7 +146,7 @@ public sealed class MobaCompleteBattleLifecycleSmokeTests
     [InlineData(2, 1)]
     public void Minion_push_destroys_tower_then_base_and_publishes_winner(int sourceTeam, int targetTeam)
     {
-        using var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        using var bootstrapper = CreateLaneBattle();
         bootstrapper.Initialize();
         bootstrapper.Start();
         for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();
@@ -719,6 +725,39 @@ public sealed class MobaCompleteBattleLifecycleSmokeTests
         Assert.True(gameplay.GetClockState().ElapsedMilliseconds > 0);
         Assert.Equal(2d, scores.Get(1002));
         Assert.Equal(0, gameplay.LastResult.WinTeamId);
+    }
+
+    private static ConsoleBattleBootstrapper CreateLaneBattle()
+    {
+        // Production skill acceptance disables lane modules; these tests opt in
+        // through gameplay configuration before map/bootstrap stages run.
+        var assets = new LaneGameplayAssets();
+        var configs = new MobaConfigDatabase(textAssetLoader: assets);
+        configs.LoadFromGroups(MobaLubanConfigGroups.Create(assets,
+            MobaRuntimeConfigTableRegistry.Tables
+                .Where(table => table.FilePath != MobaConfigPaths.GameplaysFile)
+                .Select(table => table.FilePath).ToArray()));
+        return new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault(), mobaConfig: configs);
+    }
+
+    private sealed class LaneGameplayAssets : ITextAssetLoader
+    {
+        private readonly ConsoleTextAssetLoader _inner = new();
+
+        public bool TryLoadText(string path, out string text)
+        {
+            if (!_inner.TryLoadText(path, out text)) return false;
+            if (path == "luban/moba/gameplays.json" || path == "luban/moba/gameplays")
+            {
+                var gameplays = JArray.Parse(text);
+                foreach (var gameplay in gameplays)
+                    gameplay["FeatureIds"] = new JArray(MobaGameplayFeatureIds.MinionWaves, MobaGameplayFeatureIds.Structures);
+                text = gameplays.ToString();
+            }
+            return true;
+        }
+
+        public bool TryLoadBytes(string path, out byte[] bytes) => _inner.TryLoadBytes(path, out bytes);
     }
 
     private static DamageResult ExecuteLethalDamage(

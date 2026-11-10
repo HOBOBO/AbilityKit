@@ -122,6 +122,94 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void JhinLoadout_BindsFourSkillSlotsAndBasicAttackWithPresentationMetadata()
+        {
+            var resolver = new BattleHudSkillButtonTemplateResolver();
+            var jhin = CreateLoadout("jhin", 3001, 30010601,
+                30010101, 30010201, 30010301, 30010401);
+
+            Assert.AreEqual(5, resolver.ResolveSkillButtonCount(jhin));
+
+            var expected = new[]
+            {
+                (slot: 1, id: 30010101, template: 24, icon: 901, shape: SkillAimIndicatorShape.SelfCircle),
+                (slot: 2, id: 30010201, template: 25, icon: 902, shape: SkillAimIndicatorShape.DirectionLine),
+                (slot: 3, id: 30010301, template: 26, icon: 903, shape: SkillAimIndicatorShape.TargetCircle),
+                (slot: 4, id: 30010401, template: 27, icon: 904, shape: SkillAimIndicatorShape.Sector),
+                (slot: 5, id: 30010601, template: 1, icon: 0, shape: SkillAimIndicatorShape.Hidden),
+            };
+
+            foreach (var item in expected)
+            {
+                Assert.IsTrue(resolver.TryResolveSkill(jhin, item.slot, out var skill, out var template, out var spec));
+                Assert.AreEqual(item.id, skill.Id);
+                Assert.AreEqual(item.template, template.Id);
+                Assert.AreEqual(item.icon, spec.IconId);
+                Assert.AreEqual(item.shape, spec.IndicatorShape);
+                Assert.IsFalse(string.IsNullOrWhiteSpace(spec.Name));
+            }
+        }
+
+        [Test]
+        public void AnnieLoadout_ResolvesFourConfiguredSkillsAndBasicAttack()
+        {
+            var resolver = new BattleHudSkillButtonTemplateResolver();
+            var annie = CreateLoadout("annie", 3003, 30030101,
+                30030201, 30030301, 30030401, 30030501);
+
+            Assert.AreEqual(5, resolver.ResolveSkillButtonCount(annie));
+
+            var expected = new[]
+            {
+                (slot: 1, id: 30030201, template: 28, shape: SkillAimIndicatorShape.SelfCircle),
+                (slot: 2, id: 30030301, template: 30, shape: SkillAimIndicatorShape.FanArea),
+                (slot: 3, id: 30030401, template: 1, shape: SkillAimIndicatorShape.Hidden),
+                (slot: 4, id: 30030501, template: 29, shape: SkillAimIndicatorShape.TargetCircle),
+                (slot: 5, id: 30030101, template: 1, shape: SkillAimIndicatorShape.Hidden),
+            };
+
+            foreach (var item in expected)
+            {
+                Assert.IsTrue(resolver.TryResolveSkill(annie, item.slot, out var skill, out var template, out var spec),
+                    "Annie HUD slot failed to resolve: " + item.slot);
+                Assert.AreEqual(item.id, skill.Id);
+                Assert.AreEqual(item.template, template.Id);
+                Assert.AreEqual(item.shape, spec.IndicatorShape);
+            }
+
+            Assert.IsTrue(resolver.TryResolveSkill(annie, 1, out _, out var qTemplate, out var qSpec));
+            Assert.IsTrue(qTemplate.EnableAim);
+            Assert.AreEqual((int)SkillUsePointMode.None, qTemplate.UsePointMode,
+                "Annie Q locks a single target and should expose acquisition range without a ground-point aim.");
+            Assert.AreEqual(6f, qTemplate.SelfRadius, 0.001f,
+                "Annie Q's caster-centered acquisition indicator must match its six-unit target query.");
+            Assert.AreEqual(SkillAimIndicatorShape.SelfCircle, qSpec.IndicatorShape);
+
+            Assert.IsTrue(resolver.TryResolveSkill(annie, 2, out _, out var wTemplate, out var wSpec));
+            Assert.AreEqual((int)SkillAimMode.Direction, wTemplate.AimMode);
+            Assert.AreEqual((int)SkillAimIndicatorShape.FanArea, wTemplate.IndicatorShape);
+            Assert.AreEqual(90f, wTemplate.FanAngleDegrees, 0.001f,
+                "Annie W's 45-degree half-angle sector must be previewed as a 90-degree fan.");
+            Assert.AreEqual(5.5f, wTemplate.FanRadius, 0.001f,
+                "Annie W's fan radius must match its authored sector target query.");
+            Assert.AreEqual(SkillAimIndicatorShape.FanArea, wSpec.IndicatorShape);
+
+            Assert.IsTrue(resolver.TryResolveSkill(annie, 3, out _, out var eTemplate, out var eSpec));
+            Assert.IsFalse(eTemplate.EnableAim,
+                "Annie E is a self-cast shield and should release without directional aiming.");
+            Assert.AreEqual(SkillAimIndicatorShape.Hidden, eSpec.IndicatorShape);
+
+            Assert.IsTrue(resolver.TryResolveSkill(annie, 4, out _, out var rTemplate, out var rSpec));
+            Assert.AreEqual((int)SkillAimMode.Point, rTemplate.AimMode);
+            Assert.AreEqual((int)SkillUsePointMode.TargetPoint, rTemplate.UsePointMode);
+            Assert.AreEqual(4.5f, rTemplate.IndicatorWorldWidth, 0.001f,
+                "Annie R's target circle radius must match its 4.5-unit impact query.");
+            Assert.AreEqual(SkillAimIndicatorShape.TargetCircle, rSpec.IndicatorShape);
+
+            Assert.IsFalse(resolver.TryResolveSkill(annie, 6, out _, out _, out _));
+        }
+
+        [Test]
         public void SkillStateSnapshot_SwitchesSlotTemplateAndRestoresBaseSkill()
         {
             var root = new GameObject("SkillCandidateHud.Root", typeof(RectTransform), typeof(Canvas));

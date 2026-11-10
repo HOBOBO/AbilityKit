@@ -4,6 +4,24 @@ using System.Collections.Generic;
 namespace AbilityKit.Diagnostics
 {
     /// <summary>
+    /// Controls how much runtime diagnostic data is collected.
+    /// </summary>
+    public enum ProfilerCollectionLevel
+    {
+        /// <summary>Disable collection while keeping the profiler session available.</summary>
+        Off = 0,
+
+        /// <summary>Keep low-cost counters, gauges, rates and duration summaries.</summary>
+        Summary = 1,
+
+        /// <summary>Collect the normal flame tree, samples, events and span timeline.</summary>
+        Standard = 2,
+
+        /// <summary>Reserved for detailed diagnostic adapters and verbose trace data.</summary>
+        Verbose = 3
+    }
+
+    /// <summary>
     /// 聚合后的火焰图节点。
     /// </summary>
     public sealed class FlameNode
@@ -400,6 +418,13 @@ namespace AbilityKit.Diagnostics
         public bool Enabled = true;
 
         /// <summary>
+        /// Runtime collection level. The default remains Standard for backwards compatibility
+        /// when an EditorProfiler is explicitly started; production code still uses NullProfiler
+        /// unless a diagnostics implementation is installed.
+        /// </summary>
+        public ProfilerCollectionLevel CollectionLevel = ProfilerCollectionLevel.Standard;
+
+        /// <summary>
         /// 默认采样率，范围为 0..1。
         /// </summary>
         public double DefaultSampleRate = 1d;
@@ -413,6 +438,12 @@ namespace AbilityKit.Diagnostics
         /// 最多保留的诊断事件数。
         /// </summary>
         public int MaxDiagnosticEvents = 256;
+
+        /// <summary>
+        /// Maximum number of pending metric operations retained per producer thread.
+        /// Counter, gauge, duration-summary and raw-sample writes share this budget.
+        /// </summary>
+        public int MaxMetricOperationsPerThread = 256;
 
         /// <summary>
         /// 时间线 span 环形缓冲容量（按完成顺序保留最近 N 条）。0 表示禁用时间线记录。
@@ -443,6 +474,28 @@ namespace AbilityKit.Diagnostics
         }
 
         /// <summary>
+        /// Creates options that keep the profiler installed but disable all collection.
+        /// </summary>
+        public static ProfilerOptions CreateDisabled()
+        {
+            return new ProfilerOptions
+            {
+                Enabled = false,
+                CollectionLevel = ProfilerCollectionLevel.Off
+            };
+        }
+
+        /// <summary>
+        /// Gets whether the configured level permits collection.
+        /// </summary>
+        public bool IsCollectionEnabled => Enabled && CollectionLevel != ProfilerCollectionLevel.Off;
+
+        /// <summary>
+        /// Gets whether detailed data structures should be populated.
+        /// </summary>
+        public bool CollectsDetailedData => IsCollectionEnabled && CollectionLevel >= ProfilerCollectionLevel.Standard;
+
+        /// <summary>
         /// 返回选项的独立副本。
         /// </summary>
         public ProfilerOptions Clone()
@@ -450,9 +503,11 @@ namespace AbilityKit.Diagnostics
             var clone = new ProfilerOptions
             {
                 Enabled = Enabled,
+                CollectionLevel = CollectionLevel,
                 DefaultSampleRate = DefaultSampleRate,
                 MaxSamplesPerMetric = MaxSamplesPerMetric,
                 MaxDiagnosticEvents = MaxDiagnosticEvents,
+                MaxMetricOperationsPerThread = MaxMetricOperationsPerThread,
                 MaxSpanEvents = MaxSpanEvents,
                 DisabledCategories = new HashSet<string>(DisabledCategories ?? new HashSet<string>(), StringComparer.OrdinalIgnoreCase),
                 CategorySampleRates = new Dictionary<string, double>(CategorySampleRates ?? new Dictionary<string, double>(), StringComparer.OrdinalIgnoreCase),

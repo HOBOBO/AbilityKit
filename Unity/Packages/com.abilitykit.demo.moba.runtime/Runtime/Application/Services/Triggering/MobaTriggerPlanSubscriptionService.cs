@@ -98,6 +98,22 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
         public void OnInit(IWorldResolver services)
         {
+            // OnInit may be called again by a hot-reload or world reinitialization path.
+            // Tear down old runtime registrations before replacing the plan indexes;
+            // otherwise callbacks keep executing plans that are no longer indexed.
+            if (_regsByOwnerKey.Count > 0)
+            {
+                var ownerKeys = new List<long>(_regsByOwnerKey.Keys);
+                for (int i = 0; i < ownerKeys.Count; i++) Stop(ownerKeys[i]);
+            }
+            else
+            {
+                _evaluationsByOwnerKey.Clear();
+            }
+
+            _byTriggerId.Clear();
+            _argsTypeByTriggerId.Clear();
+
             try
             {
                 var records = _db?.Records;
@@ -114,7 +130,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             }
             catch (Exception ex)
             {
+                _byTriggerId.Clear();
+                _argsTypeByTriggerId.Clear();
                 Log.Exception(ex, "[MobaTriggerPlanSubscriptionService] build triggerId map failed");
+                throw;
             }
         }
 
@@ -147,9 +166,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             }
 
             RemoveStaleRegistrations(ownerKey, regs, triggerIds);
+            RemoveStaleEvaluations(ownerKey, triggerIds);
             if (regs.Count == 0)
             {
                 _regsByOwnerKey.Remove(ownerKey);
+                _evaluationsByOwnerKey.Remove(ownerKey);
                 _ownerBlackboards.Release(ownerKey);
             }
         }
@@ -173,7 +194,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
                     throw new InvalidOperationException($"Owner-bound trigger event is not registered. triggerId={record.TriggerId} eventName={record.EventName}");
                 }
 
-                _argsTypeByTriggerId[record.TriggerId] = argsType.IsClass ? argsType : typeof(object);
+                if (!argsType.IsClass)
+                {
+                    throw new InvalidOperationException(
+                        $"Owner-bound trigger event args must be a reference type. triggerId={record.TriggerId} eventName={record.EventName} argsType={argsType.FullName}");
+                }
+
+                _argsTypeByTriggerId[record.TriggerId] = argsType;
             }
         }
 
@@ -328,6 +355,28 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
                     regs.Remove(triggerId);
                     DisposeRegistration(ownerKey, registration);
                 }
+            }
+            finally
+            {
+                s_intListPool.Release(stale);
+            }
+        }
+
+        private void RemoveStaleEvaluations(long ownerKey, IReadOnlyList<int> desiredTriggerIds)
+        {
+            if (!_evaluationsByOwnerKey.TryGetValue(ownerKey, out var evaluations) || evaluations == null || evaluations.Count == 0)
+                return;
+
+            var stale = s_intListPool.Get();
+            try
+            {
+                foreach (var pair in evaluations)
+                {
+                    if (!ContainsTriggerId(desiredTriggerIds, pair.Key)) stale.Add(pair.Key);
+                }
+
+                for (int i = 0; i < stale.Count; i++) evaluations.Remove(stale[i]);
+                if (evaluations.Count == 0) _evaluationsByOwnerKey.Remove(ownerKey);
             }
             finally
             {

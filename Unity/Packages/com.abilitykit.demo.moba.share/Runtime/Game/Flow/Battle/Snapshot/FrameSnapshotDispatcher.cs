@@ -25,7 +25,7 @@ namespace AbilityKit.Demo.Moba.Share
     /// vs <c>ISnapshotDispatcher</c>）隔离。如果未来要统一，建议保留本类的 .NET 友好
     /// 抽象，把 world.snapshot 框架版的接口延伸到不依赖 <c>ISnapshotEnvelope</c> 的场景。
     /// </summary>
-    public sealed class FrameSnapshotDispatcher : IFrameSnapshotDispatcher
+    public sealed class FrameSnapshotDispatcher : IFrameSnapshotDispatcher, IFrameSnapshotListDispatcher
     {
         private readonly Dictionary<int, List<SnapshotSubscription>> _subscriptions = new Dictionary<int, List<SnapshotSubscription>>();
         private readonly object _lock = new object();
@@ -64,6 +64,17 @@ namespace AbilityKit.Demo.Moba.Share
         }
 
         /// <summary>
+        /// Subscribes to a snapshot collection without requiring the producer to
+        /// materialize an array. Array subscriptions remain supported and are
+        /// materialized only when an array subscriber is present.
+        /// </summary>
+        public IDisposable SubscribeList<T>(int opCode, Action<int, IReadOnlyList<T>> handler)
+        {
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
+            return Subscribe<IReadOnlyList<T>>(opCode, handler);
+        }
+
+        /// <summary>
         /// 取消订阅
         /// </summary>
         /// <param name="subscription">订阅句柄</param>
@@ -99,12 +110,22 @@ namespace AbilityKit.Demo.Moba.Share
             Dispatch(frameIndex, MobaOpCodes.Snapshot.ActorTransform, data);
         }
 
+        public void DispatchActorTransform(int frameIndex, in IReadOnlyList<ActorTransformData> data)
+        {
+            DispatchList(frameIndex, MobaOpCodes.Snapshot.ActorTransform, data);
+        }
+
         /// <summary>
         /// 分发弹道事件
         /// </summary>
         public void DispatchProjectileEvent(int frameIndex, in ProjectileEventData[] data)
         {
             Dispatch(frameIndex, MobaOpCodes.Snapshot.ProjectileEvent, data);
+        }
+
+        public void DispatchProjectileEvent(int frameIndex, in IReadOnlyList<ProjectileEventData> data)
+        {
+            DispatchList(frameIndex, MobaOpCodes.Snapshot.ProjectileEvent, data);
         }
 
         /// <summary>
@@ -115,12 +136,22 @@ namespace AbilityKit.Demo.Moba.Share
             Dispatch(frameIndex, MobaOpCodes.Snapshot.AreaEvent, data);
         }
 
+        public void DispatchAreaEvent(int frameIndex, in IReadOnlyList<AreaEventData> data)
+        {
+            DispatchList(frameIndex, MobaOpCodes.Snapshot.AreaEvent, data);
+        }
+
         /// <summary>
         /// 分发伤害事件
         /// </summary>
         public void DispatchDamageEvent(int frameIndex, in DamageEventData[] data)
         {
             Dispatch(frameIndex, MobaOpCodes.Snapshot.DamageEvent, data);
+        }
+
+        public void DispatchDamageEvent(int frameIndex, in IReadOnlyList<DamageEventData> data)
+        {
+            DispatchList(frameIndex, MobaOpCodes.Snapshot.DamageEvent, data);
         }
 
         /// <summary>
@@ -147,12 +178,22 @@ namespace AbilityKit.Demo.Moba.Share
             Dispatch(frameIndex, MobaOpCodes.Snapshot.ActorSpawn, data);
         }
 
+        public void DispatchActorSpawn(int frameIndex, in IReadOnlyList<ActorSpawnData> data)
+        {
+            DispatchList(frameIndex, MobaOpCodes.Snapshot.ActorSpawn, data);
+        }
+
         /// <summary>
         /// Dispatches actor removal events.
         /// </summary>
         public void DispatchActorDespawn(int frameIndex, in ActorDespawnData[] data)
         {
             Dispatch(frameIndex, MobaOpCodes.Snapshot.ActorDespawn, data);
+        }
+
+        public void DispatchActorDespawn(int frameIndex, in IReadOnlyList<ActorDespawnData> data)
+        {
+            DispatchList(frameIndex, MobaOpCodes.Snapshot.ActorDespawn, data);
         }
 
         /// <summary>
@@ -163,6 +204,11 @@ namespace AbilityKit.Demo.Moba.Share
             Dispatch(frameIndex, MobaOpCodes.Snapshot.SkillState, data);
         }
 
+        public void DispatchSkillState(int frameIndex, in IReadOnlyList<SkillStateData> data)
+        {
+            DispatchList(frameIndex, MobaOpCodes.Snapshot.SkillState, data);
+        }
+
         /// <summary>
         /// 分发快照数据
         /// </summary>
@@ -171,6 +217,44 @@ namespace AbilityKit.Demo.Moba.Share
         /// <param name="opCode">操作码</param>
         /// <param name="data">数据</param>
         public void Dispatch<T>(int frameIndex, int opCode, T data)
+        {
+            DispatchObject(frameIndex, opCode, data);
+        }
+
+        private void DispatchList<T>(int frameIndex, int opCode, IReadOnlyList<T> data)
+        {
+            if (_isDisposed || data == null) return;
+
+            List<SnapshotSubscription> list;
+            lock (_lock)
+            {
+                if (!_subscriptions.TryGetValue(opCode, out list) || list.Count == 0)
+                    return;
+            }
+
+            T[] array = null;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var subscription = list[i];
+                object payload = data;
+                if (subscription.DataType == typeof(T[]))
+                {
+                    array ??= data as T[] ?? CopyToArray(data);
+                    payload = array;
+                }
+
+                try
+                {
+                    subscription.InvokeObject(frameIndex, payload);
+                }
+                catch (Exception ex)
+                {
+                    LogException(ex, subscription.OpCode);
+                }
+            }
+        }
+
+        private void DispatchObject(int frameIndex, int opCode, object data)
         {
             if (_isDisposed) return;
 
@@ -186,13 +270,20 @@ namespace AbilityKit.Demo.Moba.Share
             {
                 try
                 {
-                    list[i].Invoke(frameIndex, data);
+                    list[i].InvokeObject(frameIndex, data);
                 }
                 catch (Exception ex)
                 {
                     LogException(ex, list[i].OpCode);
                 }
             }
+        }
+
+        private static T[] CopyToArray<T>(IReadOnlyList<T> data)
+        {
+            var result = new T[data.Count];
+            for (int i = 0; i < data.Count; i++) result[i] = data[i];
+            return result;
         }
 
         /// <summary>
@@ -253,7 +344,7 @@ namespace AbilityKit.Demo.Moba.Share
             _handler = handler;
         }
 
-        public void Invoke<T>(int frameIndex, T data)
+        public void InvokeObject(int frameIndex, object data)
         {
             _handler(frameIndex, data);
         }

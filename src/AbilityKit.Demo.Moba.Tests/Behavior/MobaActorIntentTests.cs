@@ -50,6 +50,19 @@ public sealed class MobaActorIntentTests
     }
 
     [Fact]
+    public void TargetMovementIntent_PreservesAndValidatesStopRange()
+    {
+        var target = new Vec3(3f, 0f, 4f);
+        var intent = MobaActorIntent.MoveTo(in target, 2.5f);
+        var invalid = MobaActorIntent.MoveTo(in target, -1f);
+
+        Assert.Equal(2.5f, intent.MoveStopRange);
+        Assert.True(intent.IsValid());
+        Assert.False(invalid.IsValid());
+        Assert.Equal(0f, MobaActorIntent.MoveTo(in target).MoveStopRange);
+    }
+
+    [Fact]
     public void CastIntent_RejectsInvalidAimAndSkillSlot()
     {
         var invalidAim = MobaActorIntent.Cast(

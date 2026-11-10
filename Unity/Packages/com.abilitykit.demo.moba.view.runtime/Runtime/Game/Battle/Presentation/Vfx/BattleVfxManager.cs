@@ -5,6 +5,7 @@ using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.Flow;
+using AbilityKit.Game.Platform.Unity.Presentation;
 using AbilityKit.World.ECS;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;
@@ -31,6 +32,10 @@ namespace AbilityKit.Game.Battle.Vfx
         private EC.IEntity _tickRoot;
         private BattleViewBinder _tickBinder;
         private IBattleEntityQuery _tickQuery;
+        private readonly Dictionary<EC.IEntityId, PresentationRequest> _requests = new Dictionary<EC.IEntityId, PresentationRequest>();
+        private readonly IPresentationLifetimeAdapter<GameObject> _lifetimeAdapter;
+        private readonly IPresentationOrderingAdapter<GameObject> _orderingAdapter = new UnityPresentationOrderingAdapter();
+        private readonly PresentationRateResolver _rateResolver = new PresentationRateResolver();
 
         public BattleVfxManager(VfxDatabase db)
             : this(db, null)
@@ -55,10 +60,12 @@ namespace AbilityKit.Game.Battle.Vfx
         {
         }
 
-        internal BattleVfxManager(VfxDatabase db, BattleVfxManagerComponentFactory components, BattleViewHierarchyManager hierarchy, IBattleAssetLookup assets)
+        internal BattleVfxManager(VfxDatabase db, BattleVfxManagerComponentFactory components, BattleViewHierarchyManager hierarchy, IBattleAssetLookup assets,
+            IPresentationLifetimeAdapter<GameObject> lifetimeAdapter = null)
         {
             if (db == null) throw new ArgumentNullException(nameof(db));
             _database = db;
+            _lifetimeAdapter = lifetimeAdapter ?? new UnityPresentationLifetimeAdapter();
             components ??= new BattleVfxManagerComponentFactory();
 
             var prefabs = components.CreatePrefabs(assets);
@@ -67,7 +74,7 @@ namespace AbilityKit.Game.Battle.Vfx
             _prefabs = prefabs;
             _pool = pool;
             _factory = components.CreateEntityFactory(db, prefabs, lifetime, pool, hierarchy);
-            _followController = components.CreateFollowController(lifetime);
+            _followController = components.CreateFollowController(lifetime, _lifetimeAdapter);
             _defaultPresentationEmitter = EmitQueuedPresentation;
         }
 
@@ -172,6 +179,27 @@ namespace AbilityKit.Game.Battle.Vfx
             var policy = request.Policy;
             if (!policy.IsConfigured) _database.TryGetPolicy(vfxId, out policy);
             var policyKey = BuildPolicyKey(request, policy, vfxId);
+            if (request.Lifecycle.Stack != PresentationStackPolicy.Independent)
+            {
+                var sameKey = new List<EC.IEntityId>();
+                foreach (var pair in _requests)
+                {
+                    if (!world.IsAlive(pair.Key) || pair.Value.LogicalKey != request.LogicalKey ||
+                        pair.Value.Attachment.ActorId != request.Attachment.ActorId) continue;
+                    var existing = world.Wrap(pair.Key);
+                    if (request.Lifecycle.Stack == PresentationStackPolicy.RejectSameKey &&
+                        existing.TryGetRef(out BattlePresentationLifetimeComponent life) && life != null && !life.State.IsStopping) return false;
+                    sameKey.Add(pair.Key);
+                }
+                if (request.Lifecycle.Stack == PresentationStackPolicy.ReplaceSameKey)
+                {
+                    var replacing = 0;
+                    foreach (var previous in sameKey)
+                        if (_policyKeys.TryGetValue(previous, out var previousKey) && previousKey == policyKey) replacing++;
+                    if (!_policies.CanAcquire(policyKey, in policy, DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond, replacing)) return false;
+                    foreach (var previous in sameKey) DestroyVfxEntity(world, previous);
+                }
+            }
             var nowMs = DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond;
             if (!_policies.TryAcquire(policyKey, in policy, nowMs)) return false;
 
@@ -179,14 +207,71 @@ namespace AbilityKit.Game.Battle.Vfx
             var rotation = new Quaternion(request.Rotation.X, request.Rotation.Y, request.Rotation.Z, request.Rotation.W);
             var offset = new Vector3(request.Attachment.Offset.X, request.Attachment.Offset.Y, request.Attachment.Offset.Z);
             var followActorId = request.Attachment.ActorId > 0 ? request.Attachment.ActorId : 0;
-            if (!TryCreateVfxEntity(world, parent, vfxId, followTarget, followActorId, in offset, in position, in rotation, request.DurationMs, out entity))
+            try
             {
-                _policies.Release(policyKey);
-                return false;
+                if (!TryCreateVfxEntity(world, parent, vfxId, followTarget, followActorId, in offset, in position, in rotation, request.DurationMs, out entity))
+                {
+                    _policies.Release(policyKey);
+                    return false;
+                }
             }
+            catch { _policies.Release(policyKey); throw; }
 
             _policyKeys[entity.Id] = policyKey;
+            _requests[entity.Id] = request;
+            entity.WithRef(new BattlePresentationLifetimeComponent { Request = request });
+            if (entity.TryGetRef(out BattleViewGameObjectComponent visual) && visual?.GameObject != null)
+            {
+                var go = visual.GameObject;
+                BattlePresentationScaleState.ApplyCueScale(go, request.Scale, request.Radius);
+                var scales = go.GetComponent<BattlePresentationScaleState>();
+                var state = go.GetComponent<UnityPresentationInstanceState>() ?? go.AddComponent<UnityPresentationInstanceState>();
+                state.Bind("BattleVfx", in request, scales.BaseModelScale, scales.Sources, _rateResolver, requestScaleInSources: true);
+                state.OrderingAdapter = _orderingAdapter;
+                state.RefreshResolution(PresentationRateChannel.Vfx | PresentationRateChannel.CueLifetime,
+                    PresentationScaleChannel.Vfx | PresentationScaleChannel.Cue);
+                _followController.SyncPresentation(world, entity, null, null, initial: true);
+            }
             return true;
+        }
+
+        public void UpdatePresentationLifetime(EC.IECWorld world, EC.IEntityId id, in PresentationRequest request)
+        {
+            if (world == null || !world.IsAlive(id)) return;
+            if (world.Wrap(id).TryGetRef(out BattlePresentationLifetimeComponent life) && life != null && !life.State.IsStopping)
+            {
+                life.Request = request;
+                var entity = world.Wrap(id);
+                if (entity.TryGetRef(out BattleViewGameObjectComponent visual) && visual?.GameObject != null)
+                {
+                    var state = visual.GameObject.GetComponent<UnityPresentationInstanceState>();
+                    if (state != null) state.UpdateRequest(in request);
+                    if (entity.TryGetRef(out BattleViewFollowComponent follow) && follow != null)
+                    {
+                        if (follow.TargetActorId != request.Attachment.ActorId) follow.Target = default;
+                        follow.TargetActorId = request.Attachment.ActorId;
+                    }
+                    _followController.SyncPresentation(world, entity, null, null, initial: true);
+                }
+                // Stack identity belongs to creation; payload updates must not change it.
+            }
+        }
+
+        /// <summary>Normal request stop can drain; teardown/replacement always use DestroyVfxEntity.</summary>
+        public void StopPresentationVfxEntity(EC.IECWorld world, EC.IEntityId id)
+        {
+            if (world == null || !world.IsAlive(id)) return;
+            var entity = world.Wrap(id);
+            if (entity.TryGetRef(out BattlePresentationLifetimeComponent life) && life != null)
+            {
+                if (life.State.IsStopping) return;
+                var policy = life.Request.Lifecycle;
+                var canDrain = policy.Stop == PresentationStopPolicy.Drain &&
+                    entity.TryGetRef(out BattleViewGameObjectComponent view) && view != null &&
+                    _lifetimeAdapter.TryBeginDrain(view.GameObject);
+                if (!life.State.RequestStop(in policy, canDrain)) return;
+            }
+            DestroyVfxEntity(world, id);
         }
 
         /// <summary>
@@ -227,6 +312,13 @@ namespace AbilityKit.Game.Battle.Vfx
 
         public void Tick(in EC.IEntity vfxRoot, BattleViewBinder binder, IBattleEntityQuery query)
         {
+            if (vfxRoot.IsValid)
+            {
+                _clearIds.Clear();
+                foreach (var id in _requests.Keys) if (!vfxRoot.World.IsAlive(id)) _clearIds.Add(id);
+                foreach (var id in _clearIds) ReleasePolicy(id);
+                _clearIds.Clear();
+            }
             _followController.Tick(vfxRoot, binder, query, DestroyVfxEntity);
             _tickRoot = vfxRoot;
             _tickBinder = binder;
@@ -273,6 +365,7 @@ namespace AbilityKit.Game.Battle.Vfx
             _presentationQueue.Clear();
             _presentationEmitter = null;
             _policyKeys.Clear();
+            _requests.Clear();
             _policies.Clear();
             _tickRoot = default;
             _tickBinder = null;
@@ -304,17 +397,12 @@ namespace AbilityKit.Game.Battle.Vfx
 
             if (!TryCreatePresentationVfxEntity(_tickRoot.World, _tickRoot, in request, followTarget, out var entity)) return false;
 
-            if (entity.TryGetRef(out BattleViewGameObjectComponent goComponent) &&
-                goComponent != null && goComponent.GameObject != null)
-            {
-                goComponent.GameObject.transform.localScale = Vector3.one * request.Scale *
-                    (request.Radius > 0f ? request.Radius : 1f);
-            }
             return true;
         }
 
         private void ReleasePolicy(EC.IEntityId id)
         {
+            _requests.Remove(id);
             if (!_policyKeys.TryGetValue(id, out var policyKey)) return;
             _policyKeys.Remove(id);
             _policies.Release(policyKey);
@@ -409,9 +497,10 @@ namespace AbilityKit.Game.Battle.Vfx
             return new BattleVfxEntityFactory(db, prefabs, lifetime, pool: pool, hierarchy: hierarchy);
         }
 
-        public BattleVfxFollowController CreateFollowController(BattleVfxLifetimePolicy lifetime)
+        public BattleVfxFollowController CreateFollowController(BattleVfxLifetimePolicy lifetime,
+            IPresentationLifetimeAdapter<GameObject> lifetimeAdapter = null)
         {
-            return new BattleVfxFollowController(lifetime);
+            return new BattleVfxFollowController(lifetime, lifetimeAdapter: lifetimeAdapter);
         }
     }
 }

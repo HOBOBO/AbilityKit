@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Ability.World.DI;
@@ -119,6 +120,13 @@ namespace AbilityKit.Demo.Moba.Services
                     diagnostics?.Counter("moba.damage.targetMissing");
                     TryCollectDamageCalculation(attack, null, BattleDiagnosticDamageStage.TargetMissing, 0f);
                     return null;
+                }
+
+                if (target.hasAttributeGroup && target.hasResourceContainer)
+                {
+                    var targetAttributes = new MobaAttrs(target);
+                    attack.TargetHp = targetAttributes.Hp;
+                    attack.TargetMaxHp = targetAttributes.MaxHp;
                 }
 
                 Publish(DamagePipelineEvents.AttackCreated, attack);
@@ -256,6 +264,7 @@ namespace AbilityKit.Demo.Moba.Services
                     ReasonParam = attack.ReasonParam,
                     CombatFlags = attack.CombatFlags,
                     Value = committed.AppliedValue,
+                    ShieldAbsorb = MobaResourceFixedConvert.ToSingle(calc.ShieldAbsorb.FixedValue),
                     TargetHp = committed.Succeeded ? committed.TargetHp : targetAttributes.Hp,
                     TargetMaxHp = committed.Succeeded ? committed.TargetMaxHp : targetAttributes.MaxHp,
                 };

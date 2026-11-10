@@ -82,6 +82,14 @@ namespace AbilityKit.Demo.Moba.Services.Search
         public bool TrySearchActorIds(int queryTemplateId, int casterActorId, in Vec3 aimPos,
             int explicitTargetActorId, List<int> results, long diagnosticCommandId = 0L)
         {
+            var aimDir = Vec3.Zero;
+            return TrySearchActorIds(queryTemplateId, casterActorId, in aimPos, in aimDir,
+                explicitTargetActorId, results, diagnosticCommandId);
+        }
+
+        public bool TrySearchActorIds(int queryTemplateId, int casterActorId, in Vec3 aimPos,
+            in Vec3 aimDir, int explicitTargetActorId, List<int> results, long diagnosticCommandId = 0L)
+        {
             if (results == null) throw new ArgumentNullException(nameof(results));
             results.Clear();
 
@@ -98,6 +106,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
                     queryTemplateId,
                     casterActorId,
                     in aimPos,
+                    in aimDir,
                     explicitTargetActorId,
                     maxCountOverride: 0);
                 return ExecuteSearch(in query, context, results, queryTemplateId, casterActorId,
@@ -112,6 +121,14 @@ namespace AbilityKit.Demo.Moba.Services.Search
         public bool TrySearchActorIds(SearchQueryTemplateMO template, int casterActorId, in Vec3 aimPos,
             int explicitTargetActorId, List<int> results, long diagnosticCommandId = 0L)
         {
+            var aimDir = Vec3.Zero;
+            return TrySearchActorIds(template, casterActorId, in aimPos, in aimDir,
+                explicitTargetActorId, results, diagnosticCommandId);
+        }
+
+        public bool TrySearchActorIds(SearchQueryTemplateMO template, int casterActorId, in Vec3 aimPos,
+            in Vec3 aimDir, int explicitTargetActorId, List<int> results, long diagnosticCommandId = 0L)
+        {
             if (results == null) throw new ArgumentNullException(nameof(results));
             results.Clear();
 
@@ -123,7 +140,8 @@ namespace AbilityKit.Demo.Moba.Services.Search
             var context = RentContext();
             try
             {
-                if (!_queryBuilder.TryBuild(template, context, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride: 0, out var query))
+                if (!_queryBuilder.TryBuild(template, context, casterActorId, in aimPos, in aimDir,
+                    explicitTargetActorId, maxCountOverride: 0, out var query))
                 {
                     throw new InvalidOperationException($"Search query builder failed without diagnostics. templateId={template.Id}");
                 }
@@ -271,8 +289,23 @@ namespace AbilityKit.Demo.Moba.Services.Search
             int explicitTargetActorId,
             int maxCountOverride)
         {
+            var aimDir = Vec3.Zero;
+            return BuildQuery(context, queryTemplateId, casterActorId, in aimPos, in aimDir,
+                explicitTargetActorId, maxCountOverride);
+        }
+
+        private SearchQuery BuildQuery(
+            SearchContext context,
+            int queryTemplateId,
+            int casterActorId,
+            in Vec3 aimPos,
+            in Vec3 aimDir,
+            int explicitTargetActorId,
+            int maxCountOverride)
+        {
             var template = GetTemplate(queryTemplateId);
-            if (!_queryBuilder.TryBuild(template, context, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride, out var query))
+            if (!_queryBuilder.TryBuild(template, context, casterActorId, in aimPos, in aimDir,
+                explicitTargetActorId, maxCountOverride, out var query))
             {
                 throw new InvalidOperationException($"Search query builder failed without diagnostics. templateId={queryTemplateId}");
             }

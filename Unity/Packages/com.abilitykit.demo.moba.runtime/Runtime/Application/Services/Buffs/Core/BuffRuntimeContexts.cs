@@ -119,6 +119,24 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
     }
 
     /// <summary>
+    /// 原子替换 Buff 请求。PreviousBuffId 成功结束前，NextBuffId 必须已经完成生命周期激活。
+    /// </summary>
+    internal struct BuffReplaceRequest
+    {
+        public int TargetActorId;
+        public int PreviousBuffId;
+        public int NextBuffId;
+        public int SourceActorId;
+        public int DurationOverrideMs;
+        public long PreviousSourceContextId;
+        public long NextSourceContextId;
+        public MobaExecutionEndReason Reason;
+        public BuffOriginContext Origin;
+
+        public bool IsValid => TargetActorId > 0 && PreviousBuffId > 0 && NextBuffId > 0 && PreviousBuffId != NextBuffId;
+    }
+
+    /// <summary>
     /// Buff 运行时匹配键。普通 apply 按 buff/source 匹配；sourceContextId 非零时按显式实例匹配。
     /// </summary>
     internal readonly struct BuffRuntimeKey

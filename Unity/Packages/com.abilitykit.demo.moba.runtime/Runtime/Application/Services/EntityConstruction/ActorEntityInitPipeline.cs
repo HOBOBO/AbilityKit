@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Config;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Behavior;
+using AbilityKit.Demo.Moba.Services.StateMachine;
+using AbilityKit.HFSM.Definition;
 using AbilityKit.Protocol.Moba;
 using MO = AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 
@@ -101,9 +104,32 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             {
                 new ModelInitializer(),
                 new AttributeInitializer(_attributes),
-                new SkillInitializer(_skills),
+                new SkillInitializer(this, _skills),
                 new BrainInitializer(this)
             };
+        }
+
+        private void RegisterCharacterHfsmProfile(global::ActorEntity entity, int heroId)
+        {
+            if (entity == null || !entity.hasActorId || _services == null ||
+                !_services.TryResolve<MobaCharacterHfsmParameterService>(out var parameters) || parameters == null)
+                return;
+
+            StateMachineDefinition definition;
+            if (_services.TryResolve<MobaCharacterHfsmProfileCatalog>(out var profiles) && profiles != null)
+            {
+                definition = profiles.Resolve(heroId);
+            }
+            else if (_services.TryResolve<ITextAssetLoader>(out var loader) && loader != null)
+            {
+                definition = MobaCharacterHfsmProfile.LoadDefinition(loader, heroId);
+            }
+            else
+            {
+                definition = MobaCharacterHfsmProfile.CreateGenericDefinition();
+            }
+
+            parameters.RegisterActorProfile(entity.actorId.Value, definition);
         }
 
         private void ApplyConfiguredBrain(global::ActorEntity entity, in MobaPlayerLoadout loadout)
@@ -236,16 +262,21 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             {
                 var prepared = (MobaPreparedActorAttributes)preparedState;
                 _initializer.Apply(context.Entity, in prepared);
+                var level = System.Math.Max(1, context.Loadout.Level);
+                if (context.Entity.hasChampionLevel) context.Entity.ReplaceChampionLevel(level);
+                else context.Entity.AddChampionLevel(level);
             }
         }
 
         [MobaActorInitializer("core.skills", 300)]
         private sealed class SkillInitializer : IMobaActorInitializerStep
         {
+            private readonly ActorEntityInitPipeline _pipeline;
             private readonly MobaActorSkillLoadoutInitializer _initializer;
 
-            public SkillInitializer(MobaActorSkillLoadoutInitializer initializer)
+            public SkillInitializer(ActorEntityInitPipeline pipeline, MobaActorSkillLoadoutInitializer initializer)
             {
+                _pipeline = pipeline;
                 _initializer = initializer;
             }
 
@@ -268,6 +299,9 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             {
                 var prepared = (MobaPreparedActorSkillLoadout)preparedState;
                 _initializer.Apply(context.Entity, in prepared);
+                if (context.Entity.hasSkillLoadout)
+                    context.Entity.skillLoadout.HeroId = context.Loadout.HeroId;
+                _pipeline.RegisterCharacterHfsmProfile(context.Entity, context.Loadout.HeroId);
             }
         }
 

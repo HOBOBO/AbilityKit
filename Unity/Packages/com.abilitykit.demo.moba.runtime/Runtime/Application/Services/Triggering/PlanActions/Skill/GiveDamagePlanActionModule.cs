@@ -61,7 +61,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     targets);
                 if (!resolvedTargets
                     && args.TargetRequest.SourceCode == MobaActionTargetSourceCode.ContextTarget
-                    && TryResolveDirectPayloadTarget(triggerArgs, out var directPayloadTarget))
+                    && MobaActionTargetResolver.TryResolveDirectPayloadTarget(triggerArgs, out var directPayloadTarget))
                 {
                     targets.Add(directPayloadTarget);
                     resolvedTargets = true;
@@ -81,7 +81,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
                 for (int i = 0; i < targets.Count; i++)
                 {
-                    ExecuteDamage(combat, args, effectInput, ctx, attackerActorId, targets[i]);
+                    ExecuteDamage(triggerArgs, combat, args, effectInput, ctx, attackerActorId, targets[i]);
                 }
             }
             finally
@@ -92,7 +92,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         [MobaModifierConsumes(MobaSkillParamModifierKeys.Damage.Ids.RequestedBase,
             MobaParameterStage.Hit, MobaModifierSampleTiming.EventSample)]
-        private static void ExecuteDamage(MobaCombatEffectService combat, GiveDamageArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, int attackerActorId, int targetActorId)
+        private static void ExecuteDamage(object triggerArgs, MobaCombatEffectService combat, GiveDamageArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, int attackerActorId, int targetActorId)
         {
             if (targetActorId <= 0)
             {
@@ -101,7 +101,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var origin = input.BuildOrigin(attackerActorId, targetActorId, MobaExecutionKind.EffectExecution, 0);
-            if (!TryResolveRequestedDamage(args, input, ctx, attackerActorId, targetActorId, out var attributeSourceActorId, out var requestedDamage, out var failure))
+            if (!TryResolveRequestedDamage(triggerArgs, args, input, ctx, attackerActorId, targetActorId, out var attributeSourceActorId, out var requestedDamage, out var failure))
             {
                 MobaPlanActionDiagnostics.Rejected(
                     ctx.Context,
@@ -193,6 +193,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
 
         internal static bool TryResolveRequestedDamage(
+            object triggerArgs,
             GiveDamageArgs args,
             MobaEffectActionInput input,
             ExecCtx<IWorldResolver> ctx,
@@ -218,45 +219,251 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                         default,
                         out var magnitude,
                         out _,
-                        out failure))
+                    out failure))
                     return false;
                 attributeSourceActorId = attackerActorId;
                 requestedDamage = MobaResourceFixedConvert.ToFixed(magnitude);
-                return true;
             }
-            if (args.SourceAttackRatio == 0f) return true;
+            else
+            {
+                requestedDamage = MobaResourceFixedConvert.ToFixed(args.DamageValue);
+                if (!string.IsNullOrWhiteSpace(args.DamageValueSkillLevelParameter))
+                {
+                    if (!TryResolveSkillLevelParameter(input.ExecutionContext, ctx, args.DamageValueSkillLevelParameter, out requestedDamage, out failure))
+                        return false;
+                }
+                if (args.SourceAttackRatio != 0f)
+                {
+                    var skillRuntimeHandle = input.ExecutionContext.SkillRuntimeHandle;
+                    MobaSkillCastRuntimeService skillRuntimes = null;
+                    if (args.AttributeSource == DamageAttributeSourceKind.SkillCaster)
+                        ctx.Context.TryResolve(out skillRuntimes);
+                    if (!TryResolveAttributeSourceActorId(
+                            args.AttributeSource,
+                            in skillRuntimeHandle,
+                            skillRuntimes,
+                            attackerActorId,
+                            out attributeSourceActorId,
+                            out failure))
+                        return false;
+                    if (!ctx.Context.TryResolve<MobaActorLookupService>(out var actors) || actors == null)
+                    {
+                        failure = "MobaActorLookupService is unavailable";
+                        return false;
+                    }
+                    if (!actors.TryGetActorEntity(attributeSourceActorId, out var sourceActor) || sourceActor == null)
+                    {
+                        failure = $"attribute source actor {attributeSourceActorId} was not found";
+                        return false;
+                    }
+                    if (!sourceActor.hasAttributeGroup)
+                    {
+                        failure = $"attribute source actor {attributeSourceActorId} has no attribute group";
+                        return false;
+                    }
 
-            var skillRuntimeHandle = input.ExecutionContext.SkillRuntimeHandle;
-            MobaSkillCastRuntimeService skillRuntimes = null;
-            if (args.AttributeSource == DamageAttributeSourceKind.SkillCaster)
-                ctx.Context.TryResolve(out skillRuntimes);
-            if (!TryResolveAttributeSourceActorId(
-                    args.AttributeSource,
-                    in skillRuntimeHandle,
-                    skillRuntimes,
-                    attackerActorId,
-                    out attributeSourceActorId,
-                    out failure))
-                return false;
-            if (!ctx.Context.TryResolve<MobaActorLookupService>(out var actors) || actors == null)
-            {
-                failure = "MobaActorLookupService is unavailable";
-                return false;
+                    var attrs = sourceActor.GetMobaAttrs();
+                    var sourceAttack = MobaResourceFixedConvert.ToFixed(args.DamageType == DamageType.Magic ? attrs.MagicAttack : attrs.PhysicsAttack);
+                    requestedDamage += sourceAttack * MobaResourceFixedConvert.ToFixed(args.SourceAttackRatio);
+                }
             }
-            if (!actors.TryGetActorEntity(attributeSourceActorId, out var sourceActor) || sourceActor == null)
-            {
-                failure = $"attribute source actor {attributeSourceActorId} was not found";
+
+            if (!TryResolveDamageValueRef(triggerArgs, args, input, ctx, out var flightBonus, out failure))
                 return false;
-            }
-            if (!sourceActor.hasAttributeGroup)
+
+            var missingHealthRatio = Fixed64.Zero;
+            var targetMaxHealth = Fixed64.Zero;
+            var missingHealthCoefficient = MobaResourceFixedConvert.ToFixed(args.TargetMissingHpRatioCoefficient);
+            if (!string.IsNullOrWhiteSpace(args.TargetMissingHpRatioSkillLevelParameter)
+                || args.TargetMissingHpRatioCoefficient != 0f
+                || args.HasTargetMissingHpBonusMin
+                || args.HasTargetMissingHpBonusMax)
             {
-                failure = $"attribute source actor {attributeSourceActorId} has no attribute group";
+                if (!TryResolveTargetMissingHealthRatio(targetActorId, ctx, out missingHealthRatio, out targetMaxHealth, out failure))
+                    return false;
+
+                if (!string.IsNullOrWhiteSpace(args.TargetMissingHpRatioSkillLevelParameter)
+                    && !TryResolveSkillLevelParameter(input.ExecutionContext, ctx, args.TargetMissingHpRatioSkillLevelParameter, out missingHealthCoefficient, out failure))
+                    return false;
+            }
+
+            var damageScale = MobaResourceFixedConvert.ToFixed(args.DamageScale);
+            if (!string.IsNullOrWhiteSpace(args.DamageScaleSkillLevelParameter)
+                && !TryResolveSkillLevelParameter(input.ExecutionContext, ctx, args.DamageScaleSkillLevelParameter, out damageScale, out failure))
+                return false;
+            requestedDamage = ApplyDamageFormula(
+                requestedDamage,
+                flightBonus,
+                missingHealthRatio,
+                targetMaxHealth,
+                missingHealthCoefficient,
+                damageScale,
+                args);
+            return true;
+        }
+
+        internal static Fixed64 ApplyDamageFormula(
+            Fixed64 baseDamage,
+            Fixed64 flightBonus,
+            Fixed64 targetMissingHealthRatio,
+            Fixed64 targetMaxHealth,
+            Fixed64 targetMissingHealthCoefficient,
+            Fixed64 damageScale,
+            GiveDamageArgs args)
+        {
+            var missingHpBonus = targetMissingHealthRatio * targetMaxHealth * targetMissingHealthCoefficient;
+            if (args.HasTargetMissingHpBonusMin || args.HasTargetMissingHpBonusMax)
+            {
+                var min = args.HasTargetMissingHpBonusMin
+                    ? MobaResourceFixedConvert.ToFixed(args.TargetMissingHpBonusMin)
+                    : Fixed64.Zero;
+                var max = args.HasTargetMissingHpBonusMax
+                    ? MobaResourceFixedConvert.ToFixed(args.TargetMissingHpBonusMax)
+                    : Fixed64.MaxValue;
+                missingHpBonus = DeterministicMath.Clamp(missingHpBonus, min, max);
+            }
+
+            var damage = (baseDamage + flightBonus + missingHpBonus) * damageScale;
+            if (args.HasDamageMin || args.HasDamageMax)
+            {
+                var min = args.HasDamageMin ? MobaResourceFixedConvert.ToFixed(args.DamageMin) : Fixed64.Zero;
+                var max = args.HasDamageMax ? MobaResourceFixedConvert.ToFixed(args.DamageMax) : Fixed64.MaxValue;
+                damage = DeterministicMath.Clamp(damage, min, max);
+            }
+            return damage;
+        }
+
+        private static bool TryResolveTargetMissingHealthRatio(
+            int targetActorId,
+            ExecCtx<IWorldResolver> ctx,
+            out Fixed64 ratio,
+            out Fixed64 maxHealth,
+            out string failure)
+        {
+            ratio = Fixed64.Zero;
+            maxHealth = Fixed64.Zero;
+            failure = null;
+            if (targetActorId <= 0
+                || !ctx.Context.TryResolve<MobaActorLookupService>(out var actors)
+                || actors == null
+                || !actors.TryGetActorEntity(targetActorId, out var target)
+                || target == null
+                || !target.hasAttributeGroup
+                || !target.hasResourceContainer)
+            {
+                failure = $"target health is unavailable for actor {targetActorId}";
                 return false;
             }
 
-            var attrs = sourceActor.GetMobaAttrs();
-            var sourceAttack = MobaResourceFixedConvert.ToFixed(args.DamageType == DamageType.Magic ? attrs.MagicAttack : attrs.PhysicsAttack);
-            requestedDamage += sourceAttack * MobaResourceFixedConvert.ToFixed(args.SourceAttackRatio);
+            var attrs = new MobaAttrs(target);
+            maxHealth = MobaResourceFixedConvert.ToFixed(attrs.MaxHp);
+            if (maxHealth <= Fixed64.Zero)
+            {
+                failure = $"target max HP must be positive for actor {targetActorId}";
+                return false;
+            }
+
+            ratio = DeterministicMath.Clamp(Fixed64.One - attrs.FixedHp / maxHealth, Fixed64.Zero, Fixed64.One);
+            return true;
+        }
+
+        private static bool TryResolveSkillLevelParameter(
+            in MobaCombatExecutionContext executionContext,
+            ExecCtx<IWorldResolver> ctx,
+            string parameterName,
+            out Fixed64 value,
+            out string failure)
+        {
+            value = Fixed64.Zero;
+            failure = null;
+            var handle = executionContext.SkillRuntimeHandle;
+            if (string.IsNullOrWhiteSpace(parameterName)
+                || !handle.IsValid
+                || !ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var runtimes)
+                || runtimes == null
+                || !runtimes.TryGetLevelParameter(in handle, parameterName, out var parameterValue))
+            {
+                failure = $"skill level parameter '{parameterName}' is unavailable for the current skill runtime";
+                return false;
+            }
+
+            value = MobaResourceFixedConvert.ToFixed(parameterValue);
+            return true;
+        }
+
+        internal static bool TryAddDamageValueRef(
+            object triggerArgs,
+            NumericValueRef damageValueRef,
+            bool hasDamageValueRef,
+            ExecCtx<IWorldResolver> ctx,
+            ref Fixed64 requestedDamage,
+            out string failure)
+        {
+            failure = null;
+            if (!hasDamageValueRef) return true;
+            if (!NumericValueRefResolver.TryResolve(damageValueRef, triggerArgs, ctx, out var dynamicDamage))
+            {
+                failure = $"cannot resolve damage_value_ref ({damageValueRef.Kind}) from trigger payload";
+                return false;
+            }
+
+            requestedDamage += MobaResourceFixedConvert.ToFixed((float)dynamicDamage);
+            return true;
+        }
+
+        private static bool TryResolveDamageValueRef(
+            object triggerArgs,
+            GiveDamageArgs args,
+            MobaEffectActionInput input,
+            ExecCtx<IWorldResolver> ctx,
+            out Fixed64 flightBonus,
+            out string failure)
+        {
+            flightBonus = Fixed64.Zero;
+            failure = null;
+            if (!args.HasDamageValueRef) return true;
+            if (!NumericValueRefResolver.TryResolve(args.DamageValueRef, triggerArgs, ctx, out var dynamicValue))
+            {
+                failure = $"cannot resolve damage_value_ref ({args.DamageValueRef.Kind}) from trigger payload";
+                return false;
+            }
+
+            flightBonus = MobaResourceFixedConvert.ToFixed((float)dynamicValue);
+            if (string.IsNullOrWhiteSpace(args.DamageValueRefSkillLevelParameter)) return true;
+            if (!TryResolveSkillLevelParameter(input.ExecutionContext, ctx, args.DamageValueRefSkillLevelParameter, out var coefficient, out failure))
+            {
+                flightBonus = Fixed64.Zero;
+                return false;
+            }
+
+            flightBonus *= coefficient;
+            return true;
+        }
+
+        internal static bool TryAddDamageValueRef(
+            object triggerArgs,
+            GiveDamageArgs args,
+            MobaEffectActionInput input,
+            ExecCtx<IWorldResolver> ctx,
+            ref Fixed64 requestedDamage,
+            out string failure)
+        {
+            failure = null;
+            if (!args.HasDamageValueRef) return true;
+            if (!NumericValueRefResolver.TryResolve(args.DamageValueRef, triggerArgs, ctx, out var dynamicDamage))
+            {
+                failure = $"cannot resolve damage_value_ref ({args.DamageValueRef.Kind}) from trigger payload";
+                return false;
+            }
+
+            var amount = MobaResourceFixedConvert.ToFixed((float)dynamicDamage);
+            if (!string.IsNullOrWhiteSpace(args.DamageValueRefSkillLevelParameter))
+            {
+                if (!TryResolveSkillLevelParameter(input.ExecutionContext, ctx, args.DamageValueRefSkillLevelParameter, out var multiplier, out failure))
+                    return false;
+                amount *= multiplier;
+            }
+            requestedDamage += amount;
             return true;
         }
 
@@ -410,33 +617,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     .Append(" parent=").Append(node.ParentContextId)
                     .Append(" childCount=").Append(childCount);
             }
-        }
-
-        private static bool TryResolveDirectPayloadTarget(object payload, out int actorId)
-        {
-            actorId = 0;
-            if (payload is MobaTriggerConditionContext condition
-                && condition.TargetActorId > 0)
-            {
-                actorId = condition.TargetActorId;
-                return true;
-            }
-            if (payload is MobaTriggerConditionContext conditionContext)
-            {
-                payload = conditionContext.Payload;
-            }
-
-            if (payload is IMobaActorContextProvider actorContext
-                && actorContext.TryGetTargetActorId(out actorId)
-                && actorId > 0)
-            {
-                return true;
-            }
-
-            return payload is MobaCombatExecutionContext executionContext
-                && executionContext.Payload is IMobaActorContextProvider originalPayload
-                && originalPayload.TryGetTargetActorId(out actorId)
-                && actorId > 0;
         }
 
         public static int ResolveProjectileTemplateId(in MobaCombatExecutionContext executionContext)

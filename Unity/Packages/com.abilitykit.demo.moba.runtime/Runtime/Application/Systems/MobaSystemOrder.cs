@@ -55,6 +55,7 @@ namespace AbilityKit.Demo.Moba.Systems
         /// <summary>移动 Tick</summary>
         public const int MotionTick = Base + WorldSystemOrder.Normal + 50;
 
+
         // ========== 技能系统 (Execute/Normal) ==========
         /// <summary>被动技能触发注册</summary>
         public const int PassiveSkillTriggers = Base + WorldSystemOrder.Normal + 85;
@@ -88,8 +89,10 @@ namespace AbilityKit.Demo.Moba.Systems
         // ========== 清理系统 (PostExecute/Late) ==========
         /// <summary>实体管理器清理</summary>
         public const int EntityManagerCleanup = Base + WorldSystemOrder.Late + 5;
-        // Character state samples the effects of skill, buff and combat systems before despawn.
-        public const int CharacterHfsmTick = Base + WorldSystemOrder.Late + 4;
+        // Character state runs after skill effects have committed but before
+        // buff/continuous reconciliation, so state-entry logic actions can
+        // enqueue their buffs and have them projected in the same frame.
+        public const int CharacterHfsmTick = Base + WorldSystemOrder.Normal + 290;
         /// <summary>投射物同步</summary>
         public const int ProjectileSync = Base + WorldSystemOrder.Late + 10;
         /// <summary>投射物发射器清理</summary>

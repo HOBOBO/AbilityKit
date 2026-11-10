@@ -148,6 +148,9 @@
   {
     "Id": 3013,
     "Name": "通用-减速标记",
+    "ActivationBlockedTags": [
+      "State.Immunity.Slow"
+    ],
     "ApplicationTags": [
       "Debuff.Slow"
     ],

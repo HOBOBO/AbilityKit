@@ -315,7 +315,7 @@ public sealed class MobaSkillFlowAcceptanceTests
             actor.AddTeam(Team.Team1);
             actor.AddTransform(new Transform3(Vec3.Zero, Quat.Identity, Vec3.One));
             SkillOne = NewSkill(Instant);
-            actor.AddSkillLoadout(new[] { SkillOne, NewSkill(Charge), NewSkill(Volley) }, Array.Empty<PassiveSkillRuntime>());
+            actor.AddSkillLoadout(0, new[] { SkillOne, NewSkill(Charge), NewSkill(Volley) }, Array.Empty<PassiveSkillRuntime>());
             Mana = new ResourceState { Current = Fixed64.FromInt32(100), LastMax = Fixed64.FromInt32(100) };
             actor.AddResourceContainer(new ResourceContainer
             {

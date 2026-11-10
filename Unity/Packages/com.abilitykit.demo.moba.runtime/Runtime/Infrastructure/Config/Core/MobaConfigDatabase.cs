@@ -11,6 +11,7 @@ using SkillMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SkillMO;
 using PassiveSkillMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.PassiveSkillMO;
 using SkillFlowMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SkillFlowMO;
 using SkillLevelTableMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SkillLevelTableMO;
+using HeroLevelSkillGrowthParameterMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.HeroLevelSkillGrowthParameterMO;
 using AttrTypeMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.AttrTypeMO;
 using ModelMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ModelMO;
 using BuffMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.BuffMO;
@@ -474,6 +475,17 @@ using MotionGroupMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.MotionGroupMO;
         public bool TryGetPassiveSkill(int id, out PassiveSkillMO mo) => GetTable<PassiveSkillMO>().TryGet(id, out mo);
         public bool TryGetSkillFlow(int id, out SkillFlowMO mo) => GetTable<SkillFlowMO>().TryGet(id, out mo);
         public bool TryGetSkillLevelTable(int id, out SkillLevelTableMO mo) => GetTable<SkillLevelTableMO>().TryGet(id, out mo);
+        public bool TryGetHeroLevelSkillGrowthParameter(int skillId, int championLevel, string column, out float value)
+        {
+            value = 0f;
+            if (skillId <= 0 || championLevel <= 0 || string.IsNullOrWhiteSpace(column)) return false;
+            foreach (var row in GetTable<HeroLevelSkillGrowthParameterMO>().All())
+            {
+                if (row.SkillId != skillId || row.ChampionLevel != championLevel) continue;
+                return row.TryGetValue(column, out value);
+            }
+            return false;
+        }
         public bool TryGetAttrType(int id, out AttrTypeMO mo) => GetTable<AttrTypeMO>().TryGet(id, out mo);
         public bool TryGetModel(int id, out ModelMO mo) => GetTable<ModelMO>().TryGet(id, out mo);
         public bool TryGetBuff(int id, out BuffMO mo) => GetTable<BuffMO>().TryGet(id, out mo);

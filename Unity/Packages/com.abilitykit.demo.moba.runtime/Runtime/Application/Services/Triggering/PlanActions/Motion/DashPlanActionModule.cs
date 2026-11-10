@@ -112,10 +112,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 completionCollisionPolicy = new MotionCollisionConstraints(
                     enable: true,
                     allowPassThrough: true,
-                    // For a wall-piercing dash, an endpoint inside world geometry
-                    // must resolve through the travel direction to the far edge.
-                    // A nearest-free search can incorrectly choose the entrance side.
-                    endOverlapPolicy: MotionEndOverlapPolicy.ProjectAlongDirection,
+                    // Travel may cross walls; only the final endpoint is corrected
+                    // to its nearest free edge, including when the last frame starts inside.
+                    endOverlapPolicy: MotionEndOverlapPolicy.ProjectToNearestFree,
                     radius: DashCollisionRadius,
                     skin: 0f,
                     obstacleMask: MobaCollisionLayers.WorldMask,

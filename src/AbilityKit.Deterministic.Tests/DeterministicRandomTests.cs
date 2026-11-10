@@ -49,4 +49,17 @@ public sealed class DeterministicRandomTests
             Assert.InRange(value, -5, 6);
         }
     }
+
+    [Fact]
+    public void DeriveSeed_IsStableAndScopeSpecific()
+    {
+        var first = DeterministicRandom.DeriveSeed(1234, 7);
+        var repeat = DeterministicRandom.DeriveSeed(1234, 7);
+        var otherScope = DeterministicRandom.DeriveSeed(1234, 8);
+        var otherRoot = DeterministicRandom.DeriveSeed(1235, 7);
+
+        Assert.Equal(first, repeat);
+        Assert.NotEqual(first, otherScope);
+        Assert.NotEqual(first, otherRoot);
+    }
 }

@@ -30,6 +30,11 @@ namespace AbilityKit.Modifiers
 
         /// <summary>上下文浮点值</summary>
         ContextFloat = 5,
+
+        /// <summary>当前施法运行时快照中的技能等级参数</summary>
+        SkillLevelParameter = 6,
+        /// <summary>Hero-level growth value column for the source skill.</summary>
+        HeroLevelSkillParameter = 7,
     }
 
     // ============================================================================

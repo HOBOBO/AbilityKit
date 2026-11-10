@@ -171,6 +171,11 @@ namespace AbilityKit.Game.Battle.Vfx
                             if (_hierarchy != null) ResetInstanceToBucket(go, vfxId);
                             else ResetInstance(go);
                             go.SetActive(false);
+                            var diagnostics = go.GetComponent<AbilityKit.Game.Platform.Unity.Presentation.UnityPresentationInstanceState>();
+                            if (diagnostics != null) diagnostics.ResetForReuse();
+                            var scaleState = go.GetComponent<AbilityKit.Game.Battle.Component.BattlePresentationScaleState>();
+                            if (scaleState != null) scaleState.Sources.Clear();
+                            AbilityKit.Game.Platform.Unity.Presentation.UnityPresentationLifetimeAdapter.ResetForReuse(go);
                         },
                         onDestroy: go => DestroySafely(go)));
                 _pools[vfxId] = pool;

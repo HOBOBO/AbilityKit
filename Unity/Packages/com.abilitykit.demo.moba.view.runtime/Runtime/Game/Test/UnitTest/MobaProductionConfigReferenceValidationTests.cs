@@ -26,9 +26,16 @@ namespace AbilityKit.Game.Test.UnitTest
             var catalog = new MobaActorBrainCatalog();
             try
             {
-                Assert.That(MobaActorBrainCatalogJsonLoader.Load(loader, catalog), Is.EqualTo(3));
+                // The catalog grows as summon brains are added.  Validate the
+                // loaded production set by its required entries instead of a
+                // stale fixed count (Annie's Tibbers brain is now included).
+                Assert.That(MobaActorBrainCatalogJsonLoader.Load(loader, catalog), Is.GreaterThanOrEqualTo(3));
                 Assert.That(catalog.TryGet(100, out var brain), Is.True);
                 Assert.That(brain.DecisionName, Is.EqualTo("generic_hero_combat_bt"));
+                Assert.That(catalog.TryGet(101, out var launchBrain), Is.True);
+                Assert.That(launchBrain.DecisionName, Is.EqualTo("launch_heading_combat_bt"));
+                Assert.That(catalog.TryGet(30030501, out var tibbersBrain), Is.True);
+                Assert.That(tibbersBrain.DecisionName, Is.EqualTo("summon_warden_bt"));
             }
             finally
             {
@@ -162,6 +169,31 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(secondPlayerLoadout.AttributeTemplateId, Is.EqualTo(1002));
             Assert.That(secondPlayerLoadout.BasicAttackSkillId, Is.EqualTo(10020001));
             Assert.That(secondPlayerLoadout.SkillIds, Is.EqualTo(new[] { 10020101, 10020201, 10020301 }));
+        }
+
+        [Test]
+        public void LocalBattlePreset_ShouldLoadJhinWithQwerAndFourShotBasicAttack()
+        {
+            const string localPresetPath =
+                "Packages/com.abilitykit.demo.moba.view.runtime/Configs/BattleStart/BattleStartPreset_本地.asset";
+            var preset = AssetDatabase.LoadAssetAtPath<BattleStartPresetSO>(localPresetPath);
+
+            Assert.That(preset, Is.Not.Null, localPresetPath);
+            Assert.That(preset.HostMode, Is.EqualTo(BattleHostMode.Local));
+            Assert.That(preset.PlayersSO, Is.Not.Null);
+            Assert.That(preset.PlayersSO.Team1Players, Is.Not.Empty);
+
+            var jhin = preset.PlayersSO.Team1Players[0];
+            Assert.That(jhin.HeroId, Is.EqualTo(3001));
+            Assert.That(jhin.AttributeTemplateId, Is.EqualTo(3001));
+            Assert.That(jhin.BasicAttackSkillId, Is.EqualTo(30010601));
+            Assert.That(jhin.SkillIds, Is.EqualTo(new[] { 30010101, 30010201, 30010301, 30010401 }));
+
+            Assert.That(preset.PlayersSO.Team2Players, Is.Not.Empty);
+            Assert.That(preset.PlayersSO.Team2Players[0].HeroId, Is.EqualTo(1002),
+                "Keep a separate opponent available for local skill acceptance.");
+            Assert.That(preset.PlayersSO.Team2Players[0].BasicAttackSkillId, Is.EqualTo(10020001),
+                "The local opponent should also use a published basic attack skill.");
         }
 
         [Test]

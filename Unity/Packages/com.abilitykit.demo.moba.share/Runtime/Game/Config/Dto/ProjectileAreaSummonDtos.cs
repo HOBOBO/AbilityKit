@@ -33,6 +33,11 @@ namespace AbilityKit.Demo.Moba.Share.Config
 
         public int HitPolicyKind;
         public int HitsRemaining;
+        public int HitUnitSubType;
+        public float BounceSearchRadius;
+        public float TrackingArcHeight;
+        public float TrackingArcHeightPerUnit;
+        public float TrackingArcDurationSeconds;
         public int HitCooldownMs;
         public int TickIntervalMs;
 
@@ -79,6 +84,9 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int[] OnExitTriggerIds;
         public int[] OnIntervalTriggerIds;
         public int IntervalMs;
+
+        // When armed, consume the first valid enemy enter atomically and remove the area.
+        public bool ConsumeOnFirstEnter;
     }
 
     [Serializable]
@@ -128,6 +136,15 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int[] PassiveSkillIds;
 
         public int BrainId;
+
+        /// <summary>召唤物出生表现特效 ID；0 表示不播放。</summary>
+        public int SpawnVfxId;
+
+        /// <summary>召唤物死亡表现特效 ID；0 表示不播放。</summary>
+        public int DeathVfxId;
+
+        /// <summary>召唤物主动销毁表现特效 ID；0 表示不播放。</summary>
+        public int DespawnVfxId;
 
         /// <summary>继承属性配置 id：指向属性继承表（summon_attr_inherits）获取继承属性占比。0 = 不继承。</summary>
         public int InheritAttributeConfigId;

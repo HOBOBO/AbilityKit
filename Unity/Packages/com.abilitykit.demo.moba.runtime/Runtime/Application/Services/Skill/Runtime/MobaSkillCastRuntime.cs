@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Core.Pooling;
 using AbilityKit.Demo.Moba.Components;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -76,6 +77,13 @@ namespace AbilityKit.Demo.Moba.Services
 
     public sealed class MobaSkillRuntimeLifecycleHookService
     {
+        private static readonly ObjectPool<List<IMobaSkillRuntimeLifecycleHook>> s_dispatchPool = Pools.GetPool(
+            createFunc: () => new List<IMobaSkillRuntimeLifecycleHook>(4),
+            onRelease: list => list.Clear(),
+            defaultCapacity: 4,
+            maxSize: 32,
+            collectionCheck: false);
+
         private readonly List<IMobaSkillRuntimeLifecycleHook> _hooks = new List<IMobaSkillRuntimeLifecycleHook>(4);
 
         public int Count => _hooks.Count;
@@ -98,19 +106,32 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void Notify(in MobaSkillRuntimeLifecycleEvent lifecycleEvent)
         {
+            // Dispatch a stable snapshot. Hooks are allowed to unregister themselves,
+            // remove another hook, or register a follow-up hook while handling an event;
+            // those changes apply to the next event and cannot skip or duplicate this one.
+            var dispatch = s_dispatchPool.Get();
             Exception firstFailure = null;
-            for (var i = 0; i < _hooks.Count; i++)
+            try
             {
-                try
+                dispatch.AddRange(_hooks);
+                for (var i = 0; i < dispatch.Count; i++)
                 {
-                    _hooks[i]?.OnSkillRuntimeLifecycle(in lifecycleEvent);
-                }
-                catch (Exception ex)
-                {
-                    if (firstFailure == null) firstFailure = ex;
-                    else AbilityKit.Core.Logging.Log.Exception(ex, "Additional skill runtime lifecycle hook failed.");
+                    try
+                    {
+                        dispatch[i]?.OnSkillRuntimeLifecycle(in lifecycleEvent);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (firstFailure == null) firstFailure = ex;
+                        else AbilityKit.Core.Logging.Log.Exception(ex, "Additional skill runtime lifecycle hook failed.");
+                    }
                 }
             }
+            finally
+            {
+                s_dispatchPool.Release(dispatch);
+            }
+
             if (firstFailure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstFailure).Throw();
         }
     }
@@ -225,6 +246,30 @@ namespace AbilityKit.Demo.Moba.Services
         public int WaitingChildrenRuntimes { get; }
         public int PendingChildren { get; }
         public bool HasWaitingChildren => WaitingChildrenRuntimes > 0 || PendingChildren > 0;
+    }
+
+    public readonly struct MobaSkillRuntimeRetentionValidation
+    {
+        public MobaSkillRuntimeRetentionValidation(
+            int activeRuntimes,
+            int pendingChildren,
+            int retainHandles,
+            int orphanedRetains,
+            int untrackedChildren)
+        {
+            ActiveRuntimes = activeRuntimes;
+            PendingChildren = pendingChildren;
+            RetainHandles = retainHandles;
+            OrphanedRetains = orphanedRetains;
+            UntrackedChildren = untrackedChildren;
+        }
+
+        public int ActiveRuntimes { get; }
+        public int PendingChildren { get; }
+        public int RetainHandles { get; }
+        public int OrphanedRetains { get; }
+        public int UntrackedChildren { get; }
+        public bool IsValid => OrphanedRetains == 0 && UntrackedChildren == 0;
     }
 
     public enum MobaSkillRuntimeBlackboardScope
@@ -858,10 +903,12 @@ namespace AbilityKit.Demo.Moba.Services
             BaseSkillId = request.BaseSkillId;
             SkillSlot = request.SkillSlot;
             SkillLevel = request.SkillLevel;
+            ChampionLevel = request.ChampionLevel;
             Sequence = request.Sequence;
             CasterActorId = request.CasterActorId;
             TargetActorId = request.TargetActorId;
             DiagnosticCommandId = request.DiagnosticCommandId;
+            LevelParameters = request.LevelParameters ?? MobaSkillLevelParameterSnapshot.Empty;
             AimPos = request.AimPos;
             AimDir = request.AimDir;
             Stage = SkillCastStage.PreCast;
@@ -875,6 +922,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int BaseSkillId { get; private set; }
         public int SkillSlot { get; }
         public int SkillLevel { get; }
+        public int ChampionLevel { get; }
         public int Sequence { get; }
         public int CasterActorId { get; }
         public int TargetActorId { get; private set; }
@@ -887,6 +935,7 @@ namespace AbilityKit.Demo.Moba.Services
         public bool IsEnded { get; internal set; }
         public MobaSkillRuntimeEndReason EndReason { get; internal set; }
         public int PendingChildren => _children.Count;
+        public MobaSkillLevelParameterSnapshot LevelParameters { get; private set; }
         public MobaSkillRuntimeBlackboard Blackboard { get; } = new MobaSkillRuntimeBlackboard();
         public IReadOnlyList<MobaSkillRuntimeChildRef> Children => _children;
 
@@ -1040,7 +1089,9 @@ namespace AbilityKit.Demo.Moba.Services
                 EndReason,
                 _children.ToArray(),
                 Blackboard.CaptureRollbackSnapshot(),
-                BaseSkillId);
+                BaseSkillId,
+                LevelParameters,
+                ChampionLevel);
         }
 
         internal void RestoreRollbackSnapshot(in MobaSkillCastRuntimeSnapshot snapshot)
@@ -1057,6 +1108,7 @@ namespace AbilityKit.Demo.Moba.Services
             IsEnding = snapshot.IsEnding;
             IsEnded = snapshot.IsEnded;
             EndReason = snapshot.EndReason;
+            LevelParameters = snapshot.LevelParameters ?? MobaSkillLevelParameterSnapshot.Empty;
             _children.Clear();
             if (snapshot.Children != null) _children.AddRange(snapshot.Children);
             Blackboard.RestoreRollbackSnapshot(snapshot.BlackboardEntries);
@@ -1088,7 +1140,7 @@ namespace AbilityKit.Demo.Moba.Services
             int sequence, int casterActorId, int targetActorId, Vec3 aimPos, Vec3 aimDir, SkillCastStage stage,
             bool pipelineEnded, bool isEnding, bool isEnded, MobaSkillRuntimeEndReason endReason,
             MobaSkillRuntimeChildRef[] children, MobaSkillRuntimeBlackboardSnapshotEntry[] blackboardEntries,
-            int baseSkillId)
+            int baseSkillId, MobaSkillLevelParameterSnapshot levelParameters = null, int championLevel = 0)
         {
             RuntimeId = runtimeId; Generation = generation; RootContextId = rootContextId;
             SkillId = skillId; BaseSkillId = baseSkillId; SkillSlot = skillSlot; SkillLevel = skillLevel; Sequence = sequence;
@@ -1096,6 +1148,8 @@ namespace AbilityKit.Demo.Moba.Services
             Stage = stage; PipelineEnded = pipelineEnded; IsEnding = isEnding; IsEnded = isEnded; EndReason = endReason;
             Children = children ?? Array.Empty<MobaSkillRuntimeChildRef>();
             BlackboardEntries = blackboardEntries ?? Array.Empty<MobaSkillRuntimeBlackboardSnapshotEntry>();
+            LevelParameters = levelParameters ?? MobaSkillLevelParameterSnapshot.Empty;
+            ChampionLevel = championLevel;
         }
 
         public long RuntimeId { get; }
@@ -1105,6 +1159,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int BaseSkillId { get; }
         public int SkillSlot { get; }
         public int SkillLevel { get; }
+        public int ChampionLevel { get; }
         public int Sequence { get; }
         public int CasterActorId { get; }
         public int TargetActorId { get; }
@@ -1117,6 +1172,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillRuntimeEndReason EndReason { get; }
         public MobaSkillRuntimeChildRef[] Children { get; }
         public MobaSkillRuntimeBlackboardSnapshotEntry[] BlackboardEntries { get; }
+        public MobaSkillLevelParameterSnapshot LevelParameters { get; }
     }
 
     public readonly struct MobaSkillCastRuntimeCreateRequest
@@ -1132,7 +1188,9 @@ namespace AbilityKit.Demo.Moba.Services
             in Vec3 aimDir,
             long rootContextId,
             long diagnosticCommandId = 0L,
-            int baseSkillId = 0)
+            int baseSkillId = 0,
+            MobaSkillLevelParameterSnapshot levelParameters = null,
+            int championLevel = 0)
         {
             SkillId = skillId;
             BaseSkillId = baseSkillId;
@@ -1145,12 +1203,15 @@ namespace AbilityKit.Demo.Moba.Services
             AimDir = aimDir;
             RootContextId = rootContextId;
             DiagnosticCommandId = diagnosticCommandId;
+            LevelParameters = levelParameters ?? MobaSkillLevelParameterSnapshot.Empty;
+            ChampionLevel = championLevel;
         }
 
         public int SkillId { get; }
         public int BaseSkillId { get; }
         public int SkillSlot { get; }
         public int SkillLevel { get; }
+        public int ChampionLevel { get; }
         public int Sequence { get; }
         public int CasterActorId { get; }
         public int TargetActorId { get; }
@@ -1158,5 +1219,6 @@ namespace AbilityKit.Demo.Moba.Services
         public Vec3 AimDir { get; }
         public long RootContextId { get; }
         public long DiagnosticCommandId { get; }
+        public MobaSkillLevelParameterSnapshot LevelParameters { get; }
     }
 }

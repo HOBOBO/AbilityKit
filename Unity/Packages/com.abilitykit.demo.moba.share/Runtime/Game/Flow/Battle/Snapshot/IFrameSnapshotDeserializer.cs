@@ -166,4 +166,21 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         void DispatchSkillState(int frameIndex, in SkillStateData[] data);
     }
+
+    /// <summary>
+    /// Optional list-first snapshot dispatch contract. Implementations consume
+    /// the list synchronously; subscribers must copy it if they need to retain it.
+    /// The array methods on <see cref="IFrameSnapshotDispatcher"/> remain the
+    /// compatibility contract.
+    /// </summary>
+    public interface IFrameSnapshotListDispatcher
+    {
+        void DispatchActorTransform(int frameIndex, in System.Collections.Generic.IReadOnlyList<ActorTransformData> data);
+        void DispatchProjectileEvent(int frameIndex, in System.Collections.Generic.IReadOnlyList<ProjectileEventData> data);
+        void DispatchAreaEvent(int frameIndex, in System.Collections.Generic.IReadOnlyList<AreaEventData> data);
+        void DispatchDamageEvent(int frameIndex, in System.Collections.Generic.IReadOnlyList<DamageEventData> data);
+        void DispatchActorSpawn(int frameIndex, in System.Collections.Generic.IReadOnlyList<ActorSpawnData> data);
+        void DispatchActorDespawn(int frameIndex, in System.Collections.Generic.IReadOnlyList<ActorDespawnData> data);
+        void DispatchSkillState(int frameIndex, in System.Collections.Generic.IReadOnlyList<SkillStateData> data);
+    }
 }

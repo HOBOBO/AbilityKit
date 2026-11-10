@@ -6,6 +6,8 @@ namespace AbilityKit.Combat.Projectile
     {
         ExitOnHit = 0,
         Pierce = 1,
+        /// <summary>Retarget after each hit until the configured maximum number of hit targets is reached.</summary>
+        Bounce = 2,
     }
 
     public readonly struct ProjectileSpawnParams
@@ -20,6 +22,10 @@ namespace AbilityKit.Combat.Projectile
         public readonly Vec3 Direction;
         public readonly float Speed;
         public readonly int TrackingTargetActorId;
+        public readonly float TrackingArcHeight;
+        public readonly float TrackingArcHeightPerUnit;
+        public readonly float TrackingArcDurationSeconds;
+        public readonly float BounceSearchRadius;
 
         public readonly int ReturnAfterFrames;
         public readonly float ReturnSpeed;
@@ -36,11 +42,14 @@ namespace AbilityKit.Combat.Projectile
         public readonly int HitsRemaining;
 
         public readonly ProjectileHitPolicyKind HitPolicyKind;
+        /// <summary>For Bounce, the maximum number of distinct target hits including the initial hit; for Pierce, maximum hits.</summary>
         public readonly int HitPolicyParam;
 
         public readonly int TickIntervalFrames;
 
         public readonly IProjectileHitFilter HitFilter;
+        /// <summary>Optional stable key for resolving the filter after importing into another world.</summary>
+        public readonly int HitFilterKey;
         public readonly int HitCooldownFrames;
 
         public readonly bool StartSuspended;
@@ -74,7 +83,12 @@ namespace AbilityKit.Combat.Projectile
             int patternSlotIndex = 0,
             int patternSlotCount = 1,
             int trackingTargetActorId = 0,
-            Vec3 collisionHalfExtents = default)
+            Vec3 collisionHalfExtents = default,
+            float trackingArcHeight = 0f,
+            float trackingArcDurationSeconds = 0f,
+            float bounceSearchRadius = 0f,
+            float trackingArcHeightPerUnit = 0f,
+            int hitFilterKey = 0)
         {
             OwnerId = ownerId;
             TemplateId = templateId;
@@ -85,6 +99,10 @@ namespace AbilityKit.Combat.Projectile
             Direction = direction;
             Speed = speed;
             TrackingTargetActorId = trackingTargetActorId;
+            TrackingArcHeight = MathUtil.Max(0f, trackingArcHeight);
+            TrackingArcHeightPerUnit = MathUtil.Max(0f, trackingArcHeightPerUnit);
+            TrackingArcDurationSeconds = MathUtil.Max(0f, trackingArcDurationSeconds);
+            BounceSearchRadius = MathUtil.Max(0f, bounceSearchRadius);
             ReturnAfterFrames = returnAfterFrames;
             ReturnSpeed = returnSpeed;
             ReturnStopDistance = returnStopDistance;
@@ -106,6 +124,7 @@ namespace AbilityKit.Combat.Projectile
             TickIntervalFrames = tickIntervalFrames;
 
             HitFilter = hitFilter;
+            HitFilterKey = hitFilterKey;
             HitCooldownFrames = hitCooldownFrames;
 
             StartSuspended = startSuspended;
@@ -138,11 +157,63 @@ namespace AbilityKit.Combat.Projectile
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
                 hitCooldownFrames: HitCooldownFrames,
+                hitFilterKey: HitFilterKey,
                 startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
-                collisionHalfExtents: CollisionHalfExtents);
+                collisionHalfExtents: CollisionHalfExtents,
+                trackingArcHeight: TrackingArcHeight,
+                trackingArcDurationSeconds: TrackingArcDurationSeconds,
+                bounceSearchRadius: BounceSearchRadius,
+                trackingArcHeightPerUnit: TrackingArcHeightPerUnit);
+        }
+
+        public ProjectileSpawnParams WithTrackingArc(float arcHeight, float durationSeconds = 0f)
+        {
+            return new ProjectileSpawnParams(
+                ownerId: OwnerId, templateId: TemplateId,
+                launcherActorId: LauncherActorId, rootActorId: RootActorId,
+                spawnFrame: SpawnFrame, position: Position, direction: Direction,
+                speed: Speed, returnAfterFrames: ReturnAfterFrames,
+                returnSpeed: ReturnSpeed, returnStopDistance: ReturnStopDistance,
+                lifetimeFrames: LifetimeFrames, maxDistance: MaxDistance,
+                collisionLayerMask: CollisionLayerMask, ignoreCollider: IgnoreCollider,
+                hitPolicy: HitPolicy, hitsRemaining: HitsRemaining,
+                hitPolicyKind: HitPolicyKind, hitPolicyParam: HitPolicyParam,
+                tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
+                hitCooldownFrames: HitCooldownFrames, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
+                patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
+                trackingTargetActorId: TrackingTargetActorId,
+                collisionHalfExtents: CollisionHalfExtents,
+                trackingArcHeight: arcHeight,
+                trackingArcDurationSeconds: durationSeconds,
+                trackingArcHeightPerUnit: TrackingArcHeightPerUnit,
+                bounceSearchRadius: BounceSearchRadius);
+        }
+
+        /// <summary>Sets additional arc height per world unit of planar target distance. The value is sampled at each segment start.</summary>
+        public ProjectileSpawnParams WithTrackingArcHeightPerUnit(float heightPerUnit)
+        {
+            return new ProjectileSpawnParams(
+                ownerId: OwnerId, templateId: TemplateId,
+                launcherActorId: LauncherActorId, rootActorId: RootActorId,
+                spawnFrame: SpawnFrame, position: Position, direction: Direction,
+                speed: Speed, returnAfterFrames: ReturnAfterFrames,
+                returnSpeed: ReturnSpeed, returnStopDistance: ReturnStopDistance,
+                lifetimeFrames: LifetimeFrames, maxDistance: MaxDistance,
+                collisionLayerMask: CollisionLayerMask, ignoreCollider: IgnoreCollider,
+                hitPolicy: HitPolicy, hitsRemaining: HitsRemaining,
+                hitPolicyKind: HitPolicyKind, hitPolicyParam: HitPolicyParam,
+                tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
+                hitCooldownFrames: HitCooldownFrames, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
+                patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
+                trackingTargetActorId: TrackingTargetActorId,
+                collisionHalfExtents: CollisionHalfExtents,
+                trackingArcHeight: TrackingArcHeight,
+                trackingArcDurationSeconds: TrackingArcDurationSeconds,
+                bounceSearchRadius: BounceSearchRadius,
+                trackingArcHeightPerUnit: heightPerUnit);
         }
 
         public ProjectileSpawnParams WithSpeed(float speed)
@@ -158,10 +229,14 @@ namespace AbilityKit.Combat.Projectile
                 hitPolicy: HitPolicy, hitsRemaining: HitsRemaining,
                 hitPolicyKind: HitPolicyKind, hitPolicyParam: HitPolicyParam,
                 tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
-                hitCooldownFrames: HitCooldownFrames, startSuspended: StartSuspended,
+                hitCooldownFrames: HitCooldownFrames, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
-                collisionHalfExtents: CollisionHalfExtents);
+                collisionHalfExtents: CollisionHalfExtents,
+                trackingArcHeight: TrackingArcHeight,
+                trackingArcDurationSeconds: TrackingArcDurationSeconds,
+                bounceSearchRadius: BounceSearchRadius,
+                trackingArcHeightPerUnit: TrackingArcHeightPerUnit);
         }
 
         public ProjectileSpawnParams WithLifetimeFrames(int lifetimeFrames)
@@ -177,10 +252,14 @@ namespace AbilityKit.Combat.Projectile
                 hitPolicy: HitPolicy, hitsRemaining: HitsRemaining,
                 hitPolicyKind: HitPolicyKind, hitPolicyParam: HitPolicyParam,
                 tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
-                hitCooldownFrames: HitCooldownFrames, startSuspended: StartSuspended,
+                hitCooldownFrames: HitCooldownFrames, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
-                collisionHalfExtents: CollisionHalfExtents);
+                collisionHalfExtents: CollisionHalfExtents,
+                trackingArcHeight: TrackingArcHeight,
+                trackingArcHeightPerUnit: TrackingArcHeightPerUnit,
+                trackingArcDurationSeconds: TrackingArcDurationSeconds,
+                bounceSearchRadius: BounceSearchRadius);
         }
 
         public ProjectileSpawnParams WithHitPolicyParam(int hitPolicyParam)
@@ -196,10 +275,14 @@ namespace AbilityKit.Combat.Projectile
                 hitPolicy: null, hitsRemaining: HitsRemaining,
                 hitPolicyKind: HitPolicyKind, hitPolicyParam: hitPolicyParam,
                 tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
-                hitCooldownFrames: HitCooldownFrames, startSuspended: StartSuspended,
+                hitCooldownFrames: HitCooldownFrames, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
-                collisionHalfExtents: CollisionHalfExtents);
+                collisionHalfExtents: CollisionHalfExtents,
+                trackingArcHeight: TrackingArcHeight,
+                trackingArcHeightPerUnit: TrackingArcHeightPerUnit,
+                trackingArcDurationSeconds: TrackingArcDurationSeconds,
+                bounceSearchRadius: BounceSearchRadius);
         }
 
         public ProjectileSpawnParams WithPosition(in Vec3 position)
@@ -227,11 +310,16 @@ namespace AbilityKit.Combat.Projectile
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
                 hitCooldownFrames: HitCooldownFrames,
+                hitFilterKey: HitFilterKey,
                 startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
-                collisionHalfExtents: CollisionHalfExtents);
+                collisionHalfExtents: CollisionHalfExtents,
+                trackingArcHeight: TrackingArcHeight,
+                trackingArcHeightPerUnit: TrackingArcHeightPerUnit,
+                trackingArcDurationSeconds: TrackingArcDurationSeconds,
+                bounceSearchRadius: BounceSearchRadius);
         }
 
         public ProjectileSpawnParams WithPatternSlot(int slotIndex, int slotCount)
@@ -259,11 +347,16 @@ namespace AbilityKit.Combat.Projectile
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
                 hitCooldownFrames: HitCooldownFrames,
+                hitFilterKey: HitFilterKey,
                 startSuspended: StartSuspended,
                 patternSlotIndex: slotIndex,
                 patternSlotCount: slotCount,
                 trackingTargetActorId: TrackingTargetActorId,
-                collisionHalfExtents: CollisionHalfExtents);
+                collisionHalfExtents: CollisionHalfExtents,
+                trackingArcHeight: TrackingArcHeight,
+                trackingArcHeightPerUnit: TrackingArcHeightPerUnit,
+                trackingArcDurationSeconds: TrackingArcDurationSeconds,
+                bounceSearchRadius: BounceSearchRadius);
         }
 
         public ProjectileSpawnParams WithSpawnFrame(int spawnFrame)
@@ -291,11 +384,16 @@ namespace AbilityKit.Combat.Projectile
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
                 hitCooldownFrames: HitCooldownFrames,
+                hitFilterKey: HitFilterKey,
                 startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
-                collisionHalfExtents: CollisionHalfExtents);
+                collisionHalfExtents: CollisionHalfExtents,
+                trackingArcHeight: TrackingArcHeight,
+                trackingArcHeightPerUnit: TrackingArcHeightPerUnit,
+                trackingArcDurationSeconds: TrackingArcDurationSeconds,
+                bounceSearchRadius: BounceSearchRadius);
         }
     }
 }

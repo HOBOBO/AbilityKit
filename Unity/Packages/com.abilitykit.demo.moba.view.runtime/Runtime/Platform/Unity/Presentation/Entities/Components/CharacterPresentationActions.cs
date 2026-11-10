@@ -16,6 +16,9 @@ namespace AbilityKit.Game.Battle.Component
         [JsonProperty("seconds")] public decimal Seconds;
         [JsonProperty("animatorState")] public string AnimatorState;
         [JsonProperty("frameCount")] public int FrameCount;
+        // FrameCount is authored in the model/source animation rate. A zero
+        // value inherits the catalog rate for backwards compatibility.
+        [JsonProperty("frameRate")] public decimal FrameRate;
         [JsonProperty("loop")] public bool Loop;
         [JsonProperty("layer")] public int Layer;
     }
@@ -29,12 +32,16 @@ namespace AbilityKit.Game.Battle.Component
         public readonly string ActionId;
         public readonly string AnimatorState;
         public readonly int FrameCount;
+        public readonly int AuthoredFrameCount;
+        public readonly float AuthoredFrameRate;
+        public readonly float DurationSeconds;
         public readonly bool Loop;
         public readonly int Layer;
         public readonly int BindingVersion;
 
         public CharacterPlaybackIntent(string path, long instanceId, int frame, int localFrame,
-            string actionId, string animatorState, int frameCount, bool loop, int layer, int bindingVersion)
+            string actionId, string animatorState, int frameCount, bool loop, int layer, int bindingVersion,
+            int authoredFrameCount = 0, float authoredFrameRate = 0f, float durationSeconds = 0f)
         {
             Path = path;
             InstanceId = instanceId;
@@ -43,6 +50,9 @@ namespace AbilityKit.Game.Battle.Component
             ActionId = actionId;
             AnimatorState = animatorState;
             FrameCount = frameCount;
+            AuthoredFrameCount = authoredFrameCount > 0 ? authoredFrameCount : frameCount;
+            AuthoredFrameRate = authoredFrameRate;
+            DurationSeconds = durationSeconds;
             Loop = loop;
             Layer = layer;
             BindingVersion = bindingVersion;
@@ -76,11 +86,20 @@ namespace AbilityKit.Game.Battle.Component
     public sealed class CharacterPresentationActionCatalog
     {
         public const string ResourcePath = "moba/character_view_actions";
+        public const float DefaultAuthoredFrameRate = 24f;
         private readonly Dictionary<string, CharacterPresentationAction> _states =
             new Dictionary<string, CharacterPresentationAction>(StringComparer.Ordinal);
         private readonly List<VariantDto> _variants = new List<VariantDto>();
+        private readonly Dictionary<string, CharacterPresentationAction> _runtimeOverrides =
+            new Dictionary<string, CharacterPresentationAction>(StringComparer.Ordinal);
+        private readonly Dictionary<string, HashSet<int>> _variantEntityCodesByPath =
+            new Dictionary<string, HashSet<int>>(StringComparer.Ordinal);
+        // Zero denotes the shared/headless catalog. Entity-specific variants
+        // are only eligible on a catalog created for a positive entity code.
+        private int _entityCode;
 
         public int Version { get; private set; } = 1;
+        public float AuthoredFrameRate { get; private set; } = DefaultAuthoredFrameRate;
 
         public static CharacterPresentationActionCatalog Load(ITextAssetLoader loader)
         {
@@ -103,6 +122,9 @@ namespace AbilityKit.Game.Battle.Component
             if (dto == null || dto.SchemaVersion != 1 || dto.States == null)
                 throw new InvalidOperationException("Unsupported character presentation catalog.");
             var catalog = new CharacterPresentationActionCatalog();
+            catalog.AuthoredFrameRate = dto.FrameRate > 0
+                ? (float)dto.FrameRate
+                : DefaultAuthoredFrameRate;
             foreach (var entry in dto.States)
             {
                 if (entry == null || string.IsNullOrWhiteSpace(entry.Path) || entry.Action == null)
@@ -119,12 +141,19 @@ namespace AbilityKit.Game.Battle.Component
                     if (variant == null || variant.EntityCode <= 0 ||
                         string.IsNullOrEmpty(variant.Path) || string.IsNullOrEmpty(variant.ActionId) ||
                         variant.Action == null ||
-                        !keys.Add(variant.EntityCode + "/" + variant.Path + "/" + variant.ActionId))
+                        variant.SkillId < 0 ||
+                        !keys.Add(variant.EntityCode + "/" + variant.Path + "/" + variant.ActionId + "/" + variant.SkillId))
                         throw new InvalidOperationException("Character presentation variant is invalid or duplicated.");
                     if (!catalog._states.ContainsKey(variant.Path))
                         throw new InvalidOperationException("Character presentation variant has unknown state path.");
                     ValidateAction(variant.Action, new HashSet<string>(StringComparer.Ordinal));
                     catalog._variants.Add(variant);
+                    if (!catalog._variantEntityCodesByPath.TryGetValue(variant.Path, out var entityCodes))
+                    {
+                        entityCodes = new HashSet<int>();
+                        catalog._variantEntityCodesByPath.Add(variant.Path, entityCodes);
+                    }
+                    entityCodes.Add(variant.EntityCode);
                 }
                 foreach (var variant in catalog._variants)
                     catalog.CreateForEntityCode(variant.EntityCode);
@@ -134,14 +163,59 @@ namespace AbilityKit.Game.Battle.Component
 
         public CharacterPresentationActionCatalog CreateForEntityCode(int entityCode)
         {
-            if (entityCode <= 0) return this;
+            if (entityCode <= 0)
+            {
+                // Keep the instance shared so live replacement/preview edits
+                // remain visible to components using the default catalog. The
+                // TryGet path below suppresses authored variants for it.
+                _entityCode = 0;
+                return this;
+            }
             var result = new CharacterPresentationActionCatalog();
+            result._entityCode = entityCode;
             foreach (var entry in _states)
                 result._states.Add(entry.Key, Clone(entry.Value));
             result.Version = Version;
+            foreach (var entry in _runtimeOverrides)
+                result._runtimeOverrides.Add(entry.Key, Clone(entry.Value));
+            foreach (var entry in _variantEntityCodesByPath)
+                result._variantEntityCodesByPath.Add(entry.Key, new HashSet<int>(entry.Value));
+            result.AuthoredFrameRate = AuthoredFrameRate;
             foreach (var variant in _variants)
                 if (variant.EntityCode == entityCode)
-                    result.ReplaceAction(variant.Path, variant.ActionId, variant.Action);
+                    result._variants.Add(variant);
+            return result;
+        }
+
+        /// <summary>
+        /// Creates the action catalog view supported by a concrete HFSM
+        /// definition.  The shared catalog contains actions for several
+        /// actor families; unsupported paths are omitted for definitions that
+        /// do not expose those states (for example a summon's compact HFSM).
+        /// This keeps runtime binding generic while preserving strict
+        /// validation for a catalog used directly by authoring/tests.
+        /// </summary>
+        public CharacterPresentationActionCatalog CreateForDefinition(StateMachineDefinition definition)
+        {
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
+            var paths = new HashSet<string>(StringComparer.Ordinal);
+            CollectPaths(definition, definition.RootMachineId, string.Empty, paths);
+            var result = new CharacterPresentationActionCatalog
+            {
+                _entityCode = _entityCode,
+                Version = Version,
+                AuthoredFrameRate = AuthoredFrameRate
+            };
+            foreach (var entry in _states)
+                if (paths.Contains(entry.Key)) result._states.Add(entry.Key, Clone(entry.Value));
+            foreach (var entry in _runtimeOverrides)
+                if (paths.Contains(entry.Key.Substring(0, entry.Key.IndexOf('\u001f'))))
+                    result._runtimeOverrides.Add(entry.Key, Clone(entry.Value));
+            foreach (var variant in _variants)
+                if (paths.Contains(variant.Path)) result._variants.Add(variant);
+            foreach (var entry in _variantEntityCodesByPath)
+                if (paths.Contains(entry.Key))
+                    result._variantEntityCodesByPath.Add(entry.Key, new HashSet<int>(entry.Value));
             return result;
         }
 
@@ -152,7 +226,12 @@ namespace AbilityKit.Game.Battle.Component
             CollectPaths(definition, definition.RootMachineId, string.Empty, paths);
             foreach (var path in _states.Keys)
                 if (!paths.Contains(path))
+                {
+                    if (_variantEntityCodesByPath.TryGetValue(path, out var entityCodes) &&
+                        (_entityCode <= 0 || !entityCodes.Contains(_entityCode)))
+                        continue;
                     throw new InvalidOperationException("Character presentation state path is unknown: " + path);
+                }
         }
 
         private static void CollectPaths(StateMachineDefinition definition, string machineId,
@@ -182,7 +261,39 @@ namespace AbilityKit.Game.Battle.Component
         }
 
         internal bool TryGet(string path, out CharacterPresentationAction action) =>
-            _states.TryGetValue(path ?? string.Empty, out action);
+            TryGet(path, 0, out action);
+
+        internal bool TryGet(string path, int skillId, out CharacterPresentationAction action)
+        {
+            if (!_states.TryGetValue(path ?? string.Empty, out var root))
+            {
+                action = null;
+                return false;
+            }
+
+            action = Clone(root);
+            // A skill-specific variant overrides the entity-wide variant in the
+            // same slot. Applying the generic variant first keeps the fallback
+            // behavior for actions that do not declare a skill override.
+            if (_entityCode > 0)
+            {
+                for (var i = 0; i < _variants.Count; i++)
+                {
+                    var variant = _variants[i];
+                    if (variant.SkillId == 0 || (skillId > 0 && variant.SkillId == skillId))
+                        Replace(action, variant.ActionId, variant.Action);
+                }
+            }
+            // Runtime replacements are local to this catalog instance and must
+            // win over authored entity/skill variants. This is used by live
+            // actor replacement and preview overrides.
+            var runtimeKey = (path ?? string.Empty) + "\u001f" + (skillId > 0 ? skillId.ToString() : "0");
+            if (!_runtimeOverrides.TryGetValue(runtimeKey, out var runtimeAction) && skillId > 0)
+                _runtimeOverrides.TryGetValue((path ?? string.Empty) + "\u001f0", out runtimeAction);
+            if (runtimeAction != null)
+                action = Clone(runtimeAction);
+            return true;
+        }
 
         public void ReplaceAction(string path, string actionId, CharacterPresentationAction replacement)
         {
@@ -193,6 +304,7 @@ namespace AbilityKit.Game.Battle.Component
                 throw new InvalidOperationException("Character presentation action slot is unknown: " + actionId);
             ValidateAction(next, new HashSet<string>(StringComparer.Ordinal));
             _states[path] = next;
+            _runtimeOverrides[path + "\u001f0"] = Clone(next);
             Version = checked(Version + 1);
         }
 
@@ -221,7 +333,8 @@ namespace AbilityKit.Game.Battle.Component
             {
                 Id = source.Id, Type = source.Type, Message = source.Message,
                 Seconds = source.Seconds, AnimatorState = source.AnimatorState,
-                FrameCount = source.FrameCount, Loop = source.Loop, Layer = source.Layer
+                FrameCount = source.FrameCount, FrameRate = source.FrameRate,
+                Loop = source.Loop, Layer = source.Layer
             };
             if (source.Actions != null)
             {
@@ -247,7 +360,7 @@ namespace AbilityKit.Game.Battle.Component
                         throw new InvalidOperationException("Wait action duration must be non-negative.");
                     break;
                 case "play":
-                    if (action.FrameCount < 0 || action.Layer < 0 || action.Actions != null)
+                    if (action.FrameCount < 0 || action.FrameRate < 0 || action.Layer < 0 || action.Actions != null)
                         throw new InvalidOperationException("Play action frame count and layer must be non-negative.");
                     break;
                 case "log":
@@ -268,6 +381,7 @@ namespace AbilityKit.Game.Battle.Component
         private sealed class CatalogDto
         {
             [JsonProperty("schemaVersion")] public int SchemaVersion;
+            [JsonProperty("frameRate")] public decimal FrameRate;
             [JsonProperty("states")] public List<StateDto> States;
             [JsonProperty("variants")] public List<VariantDto> Variants;
         }
@@ -281,6 +395,7 @@ namespace AbilityKit.Game.Battle.Component
         private sealed class VariantDto
         {
             [JsonProperty("entityCode")] public int EntityCode;
+            [JsonProperty("skillId")] public int SkillId;
             [JsonProperty("path")] public string Path;
             [JsonProperty("actionId")] public string ActionId;
             [JsonProperty("action")] public CharacterPresentationAction Action;
@@ -300,7 +415,7 @@ namespace AbilityKit.Game.Battle.Component
             _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
 
         public CharacterPlaybackIntent? Evaluate(string path, long instanceId, int localFrame,
-            int frame, int tickRate, ICharacterPresentationSink sink = null)
+            int frame, int tickRate, ICharacterPresentationSink sink = null, int skillId = 0)
         {
             if (localFrame < 0 || tickRate <= 0) throw new ArgumentOutOfRangeException(nameof(localFrame));
             if (_instanceId != instanceId)
@@ -309,7 +424,7 @@ namespace AbilityKit.Game.Battle.Component
                 _logged.Clear();
                 _lastPlayFrame = int.MinValue;
             }
-            if (!_catalog.TryGet(path, out var root)) return null;
+            if (!_catalog.TryGet(path, skillId, out var root)) return null;
             CharacterPlaybackIntent? playback = null;
             var cursor = 0;
             Execute(root, path, instanceId, localFrame, frame, tickRate, sink, ref cursor, ref playback);
@@ -333,7 +448,15 @@ namespace AbilityKit.Game.Battle.Component
             if (action.Type == "sequence")
             {
                 foreach (var child in action.Actions)
+                {
                     Execute(child, path, instanceId, localFrame, frame, tickRate, sink, ref cursor, ref playback);
+                    // A loop owns the remainder of this sequence until the HFSM
+                    // changes state. Later actions are only reachable after a
+                    // non-looping play (or wait) advances the cursor past them.
+                    if (playback.HasValue && playback.Value.Loop &&
+                        playback.Value.LocalFrame == localFrame - cursor)
+                        return;
+                }
                 return;
             }
             if (action.Type == "wait")
@@ -351,10 +474,30 @@ namespace AbilityKit.Game.Battle.Component
                 }
                 return;
             }
+            var authoredRate = action.FrameRate > 0
+                ? (float)action.FrameRate
+                : _catalog.AuthoredFrameRate;
+            var logicalFrameCount = ToLogicalFrameCount(action.FrameCount, authoredRate, tickRate);
             if (cursor <= localFrame)
                 playback = new CharacterPlaybackIntent(path, instanceId, frame, localFrame - cursor,
-                    action.Id, action.AnimatorState, action.FrameCount, action.Loop,
-                    action.Layer, _catalog.Version);
+                    action.Id, action.AnimatorState, logicalFrameCount, action.Loop,
+                    action.Layer, _catalog.Version, action.FrameCount, authoredRate,
+                    action.FrameCount > 0 && authoredRate > 0
+                        ? action.FrameCount / authoredRate
+                        : 0f);
+            // A non-looping play owns its authored frame span in the sequence.
+            // Looping plays hold the current action until the HFSM changes state.
+            if (!action.Loop && logicalFrameCount > 0)
+                cursor = checked(cursor + logicalFrameCount);
+        }
+
+        private static int ToLogicalFrameCount(int authoredFrameCount, float authoredRate, int tickRate)
+        {
+            if (authoredFrameCount <= 0) return authoredFrameCount;
+            if (authoredRate <= 0f || tickRate <= 0) return authoredFrameCount;
+            var logical = (double)authoredFrameCount * tickRate / authoredRate;
+            if (logical >= int.MaxValue) return int.MaxValue;
+            return Math.Max(1, (int)Math.Ceiling(logical - 1e-9));
         }
     }
 }

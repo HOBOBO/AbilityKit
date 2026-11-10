@@ -64,7 +64,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             for (var i = 0; i < featureIds.Count; i++)
                 features.Enable(featureIds[i]);
 
-            if (features.IsEnabled(MobaGameplayFeatureIds.Structures))
+            var structuresEnabled = features.IsEnabled(MobaGameplayFeatureIds.Structures);
+            if (structuresEnabled)
             {
                 if (!services.TryResolve<IMobaMapStructureRuntimeConfig>(out var structures) || structures == null)
                     throw new InvalidOperationException(
@@ -75,8 +76,15 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 structureService.Prepare(structures.Resource);
                 Log.Info($"[MapRuntimeStage] optional structure feature enabled. mapId={mapId}, gameplayId={gameplayId}");
             }
+            else if (services.TryResolve<MobaStructureService>(out var disabledStructureService) && disabledStructureService != null)
+            {
+                // A scoped world can be reused across local matches. Clear a
+                // previous match's towers/bases when the next gameplay opts out.
+                disabledStructureService.Reset();
+            }
 
-            if (features.IsEnabled(MobaGameplayFeatureIds.MinionWaves))
+            var minionWavesEnabled = features.IsEnabled(MobaGameplayFeatureIds.MinionWaves);
+            if (minionWavesEnabled)
             {
                 if (!services.TryResolve<IMobaMinionRouteRuntimeConfig>(out var minionRoutes) || minionRoutes == null)
                     throw new InvalidOperationException(
@@ -84,6 +92,13 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
                 minionRoutes.Prepare(maps.CurrentMap);
                 Log.Info($"[MapRuntimeStage] optional minion wave feature enabled. mapId={mapId}, gameplayId={gameplayId}");
+            }
+            else
+            {
+                if (services.TryResolve<MobaMinionWaveService>(out var disabledMinionWaves) && disabledMinionWaves != null)
+                    disabledMinionWaves.Reset();
+                if (services.TryResolve<MobaMinionCombatService>(out var disabledMinionCombat) && disabledMinionCombat != null)
+                    disabledMinionCombat.Reset();
             }
 
             if (services.TryResolve<MobaNavigationService>(out var navigation) && navigation != null)

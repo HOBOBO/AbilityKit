@@ -1,6 +1,7 @@
 using MemoryPack;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Pooling;
@@ -20,8 +21,25 @@ namespace AbilityKit.Combat.Projectile
         bool TryGetTrackingTargetPosition(int targetActorId, out Vec3 position);
     }
 
+    /// <summary>Supplies actor identity and deterministic retargeting for bouncing projectiles.</summary>
+    public interface IProjectileBounceTargetProvider : IProjectileTrackingTargetProvider
+    {
+        bool TryResolveActorId(ColliderId collider, out int actorId);
+
+        /// <remarks>Apply owner/team eligibility, exclude hitActorIds, and break ties stably (for example by actor id).</remarks>
+        bool TrySelectNextTarget(int ownerId, int hitActorId, in Vec3 projectilePosition, IReadOnlyList<int> hitActorIds,
+            float searchRadius, out int targetActorId, out Vec3 targetPosition);
+    }
+
     public sealed class ProjectileWorld
     {
+        private sealed class ReferenceComparer<T> : IEqualityComparer<T> where T : class
+        {
+            public static readonly ReferenceComparer<T> Instance = new ReferenceComparer<T>();
+            public bool Equals(T? x, T? y) => ReferenceEquals(x, y);
+            public int GetHashCode(T obj) => RuntimeHelpers.GetHashCode(obj);
+        }
+
         private static readonly ObjectPool<Projectile> Pool = Pools.GetPool(
             key: "Projectile",
             createFunc: () => new Projectile(),
@@ -33,10 +51,18 @@ namespace AbilityKit.Combat.Projectile
 
         private readonly ICollisionWorld _collision;
         private readonly List<Projectile> _active = new List<Projectile>(128);
+        // Filters may hold world references and therefore stay out of the binary snapshot.
+        // Keys let a restored projectile reconnect to the same runtime filter instance.
+        private readonly Dictionary<int, IProjectileHitFilter> _hitFilters = new Dictionary<int, IProjectileHitFilter>();
+        private readonly Dictionary<IProjectileHitFilter, int> _hitFilterKeys =
+            new Dictionary<IProjectileHitFilter, int>(ReferenceComparer<IProjectileHitFilter>.Instance);
         private IProjectileReturnTargetProvider _returnTargetProvider;
         private IProjectileTrackingTargetProvider _trackingTargetProvider;
+        private IProjectileBounceTargetProvider _bounceTargetProvider;
+        private IProjectileHitFilterResolver _hitFilterResolver;
 
         private int _nextId = 1;
+        private int _nextHitFilterKey = 1;
 
         public ProjectileWorld(ICollisionWorld collision)
         {
@@ -53,10 +79,37 @@ namespace AbilityKit.Combat.Projectile
             _trackingTargetProvider = provider;
         }
 
+        public void SetBounceTargetProvider(IProjectileBounceTargetProvider provider)
+        {
+            _bounceTargetProvider = provider;
+            // A bounce provider owns actor lookup and therefore must also keep the selected actor position current.
+            if (provider != null && _trackingTargetProvider == null)
+                _trackingTargetProvider = provider;
+        }
+
+        /// <summary>
+        /// Supplies filters when a rollback snapshot is imported into a different world
+        /// instance. The resolver is only called for non-zero filter keys not already
+        /// registered by this world.
+        /// </summary>
+        public void SetHitFilterResolver(IProjectileHitFilterResolver resolver)
+        {
+            _hitFilterResolver = resolver;
+        }
+
         public int ActiveCount => _active.Count;
 
         public ProjectileId Spawn(in ProjectileSpawnParams p)
         {
+            // Validate/resolve behavior before acquiring a pooled instance so invalid config
+            // cannot leak a projectile when the policy factory rejects it.
+            var hitPolicy = p.HitPolicy ?? ProjectileHitPolicyFactory.Create(p.HitPolicyKind, p.HitPolicyParam);
+            var hitFilter = p.HitFilter;
+            var hitFilterKey = p.HitFilterKey;
+            if (hitFilter == null && hitFilterKey > 0)
+                hitFilter = ResolveHitFilter(hitFilterKey);
+            hitFilter = hitFilter ?? DefaultProjectileHitFilter.Instance;
+            hitFilterKey = BindHitFilter(hitFilter, hitFilterKey);
             var proj = Pool.Get();
             proj.Id = new ProjectileId(_nextId++);
             proj.OwnerId = p.OwnerId;
@@ -65,9 +118,32 @@ namespace AbilityKit.Combat.Projectile
             proj.RootActorId = p.RootActorId;
             proj.SpawnFrame = p.SpawnFrame;
             proj.Position = p.Position.ToFixed();
+            proj.SpawnPosition = proj.Position;
             proj.Direction = p.Direction.ToFixed();
             proj.Speed = p.Speed.ToFixed();
+            proj.DistanceTravelled = Fixed64.Zero;
             proj.TrackingTargetActorId = p.TrackingTargetActorId;
+            proj.TrackingArcHeightPerUnit = p.TrackingArcHeightPerUnit.ToFixed();
+            proj.TrackingArcBaseHeight = p.TrackingArcHeight.ToFixed();
+            proj.TrackingArcHeight = proj.TrackingArcBaseHeight;
+            proj.TrackingArcElapsed = Fixed64.Zero;
+            proj.TrackingArcStartY = proj.Position.Y;
+            proj.TrackingArcEndY = proj.Position.Y;
+            proj.BounceSearchRadius = p.BounceSearchRadius.ToFixed();
+            proj.TrackingArcDuration = p.TrackingArcDurationSeconds.ToFixed();
+            proj.TrackingArcDurationConfigured = p.TrackingArcDurationSeconds > 0f;
+            if (proj.TrackingTargetActorId > 0 && _trackingTargetProvider != null &&
+                _trackingTargetProvider.TryGetTrackingTargetPosition(proj.TrackingTargetActorId, out var arcTarget))
+            {
+                var planar = new FixedVec3(
+                    arcTarget.X.ToFixed() - proj.Position.X,
+                    Fixed64.Zero,
+                    arcTarget.Z.ToFixed() - proj.Position.Z);
+                proj.TrackingArcEndY = arcTarget.Y.ToFixed();
+                proj.TrackingArcHeight = proj.TrackingArcBaseHeight + planar.Magnitude * proj.TrackingArcHeightPerUnit;
+                if (!proj.TrackingArcDurationConfigured && proj.TrackingArcDuration <= Fixed64.Zero && proj.Speed > Fixed64.Zero)
+                    proj.TrackingArcDuration = planar.Magnitude / proj.Speed;
+            }
             proj.ReturnAfterFrames = p.ReturnAfterFrames;
             proj.ReturnSpeed = p.ReturnSpeed.ToFixed();
             proj.ReturnStopDistance = p.ReturnStopDistance.ToFixed();
@@ -79,11 +155,17 @@ namespace AbilityKit.Combat.Projectile
             proj.CollisionHalfExtents = p.CollisionHalfExtents.ToFixed();
             proj.HitPolicyKind = p.HitPolicyKind;
             proj.HitPolicyParam = p.HitPolicyParam;
-            proj.HitPolicy = p.HitPolicy ?? ProjectileHitPolicyFactory.Create(p.HitPolicyKind, p.HitPolicyParam);
+            proj.HitPolicy = hitPolicy;
             proj.HitsRemaining = p.HitsRemaining;
+            // Bounce's configured parameter is the authoritative distinct-hit budget. The
+            // historical spawn default is 1, so normalize that default to the policy budget.
+            if (p.HitPolicy == null && p.HitPolicyKind == ProjectileHitPolicyKind.Bounce &&
+                p.HitPolicyParam > 0 && p.HitsRemaining == 1)
+                proj.HitsRemaining = p.HitPolicyParam;
             proj.TickIntervalFrames = p.TickIntervalFrames;
             proj.NextTickFrame = 0;
-            proj.HitFilter = p.HitFilter ?? DefaultProjectileHitFilter.Instance;
+            proj.HitFilter = hitFilter;
+            proj.HitFilterKey = hitFilterKey;
             proj.HitCooldownFrames = p.HitCooldownFrames;
             proj.LastHitCollider = default;
             proj.LastHitAllowedFrame = 0;
@@ -112,7 +194,11 @@ namespace AbilityKit.Combat.Projectile
                 projectile.RootActorId,
                 projectile.PatternSlotIndex,
                 projectile.PatternSlotCount,
-                projectile.IsSuspended);
+                projectile.IsSuspended,
+                projectile.SpawnPosition.ToVec3(),
+                projectile.DistanceTravelled.ToSingle(),
+                projectile.SpawnFrame,
+                projectile.ElapsedSeconds.ToSingle());
             return true;
         }
 
@@ -177,6 +263,11 @@ namespace AbilityKit.Combat.Projectile
                     launcherActorId: p.LauncherActorId,
                     rootActorId: p.RootActorId,
                     spawnFrame: p.SpawnFrame,
+                    spawnPositionX: p.SpawnPosition.X.RawValue,
+                    spawnPositionY: p.SpawnPosition.Y.RawValue,
+                    spawnPositionZ: p.SpawnPosition.Z.RawValue,
+                    distanceTravelledRaw: p.DistanceTravelled.RawValue,
+                    elapsedSecondsRaw: p.ElapsedSeconds.RawValue,
                     returnAfterFrames: p.ReturnAfterFrames,
                     returnSpeedRaw: p.ReturnSpeed.RawValue,
                     returnStopDistanceRaw: p.ReturnStopDistance.RawValue,
@@ -184,15 +275,31 @@ namespace AbilityKit.Combat.Projectile
                     isSuspended: p.IsSuspended ? 1 : 0,
                     patternSlotIndex: p.PatternSlotIndex,
                     patternSlotCount: p.PatternSlotCount,
-                    trackingTargetActorId: p.TrackingTargetActorId
+                    trackingTargetActorId: p.TrackingTargetActorId,
+                    trackingArcHeightRaw: p.TrackingArcHeight.RawValue,
+                    trackingArcDurationRaw: p.TrackingArcDuration.RawValue,
+                    trackingArcElapsedRaw: p.TrackingArcElapsed.RawValue,
+                    trackingArcStartYRaw: p.TrackingArcStartY.RawValue,
+                    trackingArcEndYRaw: p.TrackingArcEndY.RawValue,
+                    hitActorIds: p.HitActorIds.ToArray(),
+                    trackingArcDurationConfigured: p.TrackingArcDurationConfigured ? 1 : 0,
+                    bounceSearchRadiusRaw: p.BounceSearchRadius.RawValue,
+                    trackingArcHeightPerUnitRaw: p.TrackingArcHeightPerUnit.RawValue,
+                    trackingArcBaseHeightRaw: p.TrackingArcBaseHeight.RawValue,
+                    totalHitCount: p.TotalHitCount,
+                    hitFilterKey: p.HitFilterKey,
+                    hitCooldownFrames: p.HitCooldownFrames,
+                    lastHitCollider: p.LastHitCollider.Value,
+                    lastHitAllowedFrame: p.LastHitAllowedFrame
                 );
             }
 
             return MemoryPackSerializer.Serialize(new ProjectileWorldSnapshotPayload(
-                version: 7,
+                version: 14,
                 frame: frame,
                 nextId: _nextId,
-                items: items
+                items: items,
+                nextHitFilterKey: _nextHitFilterKey
             ));
         }
 
@@ -203,6 +310,8 @@ namespace AbilityKit.Combat.Projectile
 
             var snap = MemoryPackSerializer.Deserialize<ProjectileWorldSnapshotPayload>(payload);
             _nextId = snap.NextId <= 0 ? 1 : snap.NextId;
+            _nextHitFilterKey = snap.NextHitFilterKey <= 0 ? 1 : snap.NextHitFilterKey;
+            TrimHitFilters(_nextHitFilterKey);
 
             if (snap.Items == null || snap.Items.Length == 0) return;
 
@@ -218,6 +327,12 @@ namespace AbilityKit.Combat.Projectile
                 p.LauncherActorId = it.LauncherActorId;
                 p.RootActorId = it.RootActorId;
                 p.SpawnFrame = it.SpawnFrame;
+                p.SpawnPosition = new FixedVec3(
+                    Fixed64.FromRaw(it.SpawnPositionX),
+                    Fixed64.FromRaw(it.SpawnPositionY),
+                    Fixed64.FromRaw(it.SpawnPositionZ));
+                p.DistanceTravelled = Fixed64.FromRaw(it.DistanceTravelledRaw);
+                p.ElapsedSeconds = Fixed64.FromRaw(it.ElapsedSecondsRaw);
                 p.Position = new FixedVec3(
                     Fixed64.FromRaw(it.PositionX),
                     Fixed64.FromRaw(it.PositionY),
@@ -228,6 +343,16 @@ namespace AbilityKit.Combat.Projectile
                     Fixed64.FromRaw(it.DirectionZ));
                 p.Speed = Fixed64.FromRaw(it.SpeedRaw);
                 p.TrackingTargetActorId = it.TrackingTargetActorId;
+                p.TrackingArcHeight = Fixed64.FromRaw(it.TrackingArcHeightRaw);
+                p.TrackingArcBaseHeight = Fixed64.FromRaw(it.TrackingArcBaseHeightRaw);
+                p.TrackingArcHeightPerUnit = Fixed64.FromRaw(it.TrackingArcHeightPerUnitRaw);
+                p.TrackingArcDuration = Fixed64.FromRaw(it.TrackingArcDurationRaw);
+                p.TrackingArcDurationConfigured = it.TrackingArcDurationConfigured != 0;
+                p.TrackingArcElapsed = Fixed64.FromRaw(it.TrackingArcElapsedRaw);
+                p.TrackingArcStartY = Fixed64.FromRaw(it.TrackingArcStartYRaw);
+                p.TrackingArcEndY = Fixed64.FromRaw(it.TrackingArcEndYRaw);
+                p.BounceSearchRadius = Fixed64.FromRaw(it.BounceSearchRadiusRaw);
+                if (it.HitActorIds != null) p.HitActorIds.AddRange(it.HitActorIds);
                 p.ReturnAfterFrames = it.ReturnAfterFrames;
                 p.ReturnSpeed = Fixed64.FromRaw(it.ReturnSpeedRaw);
                 p.ReturnStopDistance = Fixed64.FromRaw(it.ReturnStopDistanceRaw);
@@ -246,16 +371,72 @@ namespace AbilityKit.Combat.Projectile
                 p.HitPolicy = ProjectileHitPolicyFactory.Create(it.HitPolicyKind, it.HitPolicyParam);
                 p.TickIntervalFrames = it.TickIntervalFrames;
                 p.NextTickFrame = it.NextTickFrame;
-                p.HitFilter = DefaultProjectileHitFilter.Instance;
-                p.HitCooldownFrames = 0;
-                p.LastHitCollider = default;
-                p.LastHitAllowedFrame = 0;
+                p.TotalHitCount = it.TotalHitCount;
+                p.HitFilterKey = it.HitFilterKey;
+                p.HitFilter = ResolveHitFilter(it.HitFilterKey);
+                p.HitCooldownFrames = it.HitCooldownFrames;
+                p.LastHitCollider = new ColliderId(it.LastHitCollider);
+                p.LastHitAllowedFrame = it.LastHitAllowedFrame;
                 p.IsSuspended = it.IsSuspended != 0;
                 p.PatternSlotIndex = it.PatternSlotIndex;
                 p.PatternSlotCount = it.PatternSlotCount;
 
                 _active.Add(p);
             }
+        }
+
+        private int BindHitFilter(IProjectileHitFilter filter, int requestedKey)
+        {
+            if (filter == null || ReferenceEquals(filter, DefaultProjectileHitFilter.Instance)) return 0;
+
+            if (requestedKey > 0)
+            {
+                if (_hitFilters.TryGetValue(requestedKey, out var existing) &&
+                    !ReferenceEquals(existing, filter))
+                    throw new InvalidOperationException($"Projectile hit filter key {requestedKey} is already bound to another instance.");
+
+                _hitFilters[requestedKey] = filter;
+                _hitFilterKeys[filter] = requestedKey;
+                if (_nextHitFilterKey <= requestedKey) _nextHitFilterKey = requestedKey + 1;
+                return requestedKey;
+            }
+
+            if (_hitFilterKeys.TryGetValue(filter, out var existingKey)) return existingKey;
+            while (_nextHitFilterKey <= 0 || _hitFilters.ContainsKey(_nextHitFilterKey))
+                _nextHitFilterKey++;
+            var key = _nextHitFilterKey++;
+            _hitFilters[key] = filter;
+            _hitFilterKeys[filter] = key;
+            return key;
+        }
+
+        private IProjectileHitFilter ResolveHitFilter(int key)
+        {
+            if (key <= 0) return DefaultProjectileHitFilter.Instance;
+            if (_hitFilters.TryGetValue(key, out var filter) && filter != null) return filter;
+
+            filter = _hitFilterResolver?.Resolve(key);
+            if (filter == null)
+                throw new InvalidOperationException($"Projectile hit filter key {key} is not registered and no resolver returned an instance.");
+            BindHitFilter(filter, key);
+            return filter;
+        }
+
+        private void TrimHitFilters(int nextKey)
+        {
+            if (_hitFilters.Count == 0) return;
+            var removed = new List<IProjectileHitFilter>();
+            var keys = new List<int>();
+            foreach (var pair in _hitFilters)
+            {
+                if (pair.Key >= nextKey)
+                {
+                    keys.Add(pair.Key);
+                    removed.Add(pair.Value);
+                }
+            }
+            for (var i = 0; i < keys.Count; i++) _hitFilters.Remove(keys[i]);
+            for (var i = 0; i < removed.Count; i++) _hitFilterKeys.Remove(removed[i]);
         }
 
         public void Clear()
@@ -344,6 +525,7 @@ namespace AbilityKit.Combat.Projectile
                     p.DistanceLeft = Fixed64.Zero;
                 }
 
+                var hasTrackingTarget = false;
                 if (p.IsReturning)
                 {
                     if (_returnTargetProvider == null ||
@@ -390,6 +572,22 @@ namespace AbilityKit.Combat.Projectile
                     }
 
                     var to = targetPos.ToFixed() - p.Position;
+                    hasTrackingTarget = true;
+                    to = new FixedVec3(to.X, Fixed64.Zero, to.Z);
+                    if (p.TrackingArcHeightPerUnit > Fixed64.Zero || p.TrackingArcBaseHeight > Fixed64.Zero)
+                    {
+                        if (!p.TrackingArcDurationConfigured && p.TrackingArcDuration <= Fixed64.Zero && p.Speed > Fixed64.Zero)
+                        {
+                            p.TrackingArcStartY = p.Position.Y;
+                            p.TrackingArcElapsed = Fixed64.Zero;
+                            p.TrackingArcDuration = to.Magnitude / p.Speed;
+                        }
+                        p.TrackingArcEndY = targetPos.Y.ToFixed();
+                        // Freeze one distance-scaled arc height for this segment. Target motion
+                        // changes the endpoint, but does not make the arc height oscillate per tick.
+                        if (p.TrackingArcElapsed <= Fixed64.Zero && p.TrackingArcHeightPerUnit > Fixed64.Zero)
+                            p.TrackingArcHeight = p.TrackingArcBaseHeight + to.Magnitude * p.TrackingArcHeightPerUnit;
+                    }
                     if (to.SqrMagnitude > Fixed64.Zero)
                     {
                         p.Direction = to.Normalized;
@@ -398,10 +596,31 @@ namespace AbilityKit.Combat.Projectile
 
                 var speed = (p.IsReturning && p.ReturnSpeed > Fixed64.Zero) ? p.ReturnSpeed : p.Speed;
                 var move = speed * fixedDeltaSeconds;
+                var hasDistanceLimit = p.DistanceLeft > Fixed64.Zero;
                 if (move <= Fixed64.Zero)
                 {
                     p.LifetimeFramesLeft--;
                     continue;
+                }
+
+                var dir = p.Direction;
+                var hasTrackingArc = hasTrackingTarget && p.TrackingArcHeight > Fixed64.Zero && p.TrackingArcDuration > Fixed64.Zero;
+                var arcDeltaY = Fixed64.Zero;
+                var arcProgressStart = Fixed64.Zero;
+                var arcProgressEnd = Fixed64.Zero;
+                if (hasTrackingArc)
+                {
+                    arcProgressStart = p.TrackingArcElapsed / p.TrackingArcDuration;
+                    p.TrackingArcElapsed += fixedDeltaSeconds;
+                    var progress = p.TrackingArcElapsed / p.TrackingArcDuration;
+                    if (progress > Fixed64.One) progress = Fixed64.One;
+                    arcProgressEnd = progress;
+                    var currentArc = Fixed64.FromInt32(4) * p.TrackingArcHeight * progress * (Fixed64.One - progress);
+                    var currentY = p.TrackingArcStartY + (p.TrackingArcEndY - p.TrackingArcStartY) * progress + currentArc;
+                    arcDeltaY = currentY - p.Position.Y;
+                    var horizontalDirection = new FixedVec3(dir.X, Fixed64.Zero, dir.Z);
+                    if (horizontalDirection.SqrMagnitude > Fixed64.Zero)
+                        dir = horizontalDirection.Normalized;
                 }
 
                 if (p.DistanceLeft > Fixed64.Zero && move > p.DistanceLeft)
@@ -409,7 +628,29 @@ namespace AbilityKit.Combat.Projectile
                     move = p.DistanceLeft;
                 }
 
-                var dir = p.Direction;
+                if (hasTrackingArc && move > Fixed64.Zero)
+                {
+                    var horizontalStep = new FixedVec3(dir.X * move, Fixed64.Zero, dir.Z * move);
+                    var arcStep = new FixedVec3(horizontalStep.X, arcDeltaY, horizontalStep.Z);
+                    var arcDistance = arcStep.Magnitude;
+                    if (p.DistanceLeft > Fixed64.Zero && arcDistance > p.DistanceLeft)
+                    {
+                        var budgetScale = p.DistanceLeft / arcDistance;
+                        arcStep = arcStep * budgetScale;
+                        arcDistance = p.DistanceLeft;
+                    }
+                    if (arcDistance > Fixed64.Zero)
+                    {
+                        dir = arcStep / arcDistance;
+                        move = arcDistance;
+                        p.Direction = dir;
+                    }
+                }
+
+                var arcSweepPending = hasTrackingArc && move > Fixed64.Zero;
+                var arcSweepStart = p.Position;
+                var arcSweepEnd = p.Position + dir * move;
+
                 var remaining = move;
 
                 // 单帧内允许多次命中（穿透），同时保持确定性上限。
@@ -423,6 +664,7 @@ namespace AbilityKit.Combat.Projectile
                 var hitColliderIdsThisTick = p.HitColliderIdsThisTick;
                 Array.Clear(hitColliderIdsThisTick, 0, hitColliderIdsThisTick.Length);
                 var hitColliderCount = 0;
+                var skippedDistanceThisTick = Fixed64.Zero;
                 if (p.IgnoreCollider.Value != 0)
                 {
                     hitColliderIdsThisTick[hitColliderCount++] = p.IgnoreCollider.Value;
@@ -430,15 +672,53 @@ namespace AbilityKit.Combat.Projectile
 
                 while (remaining > Fixed64.Zero)
                 {
-                    if (!TrySweepSkippingIgnored(origin, dir, remaining, p.CollisionLayerMask, hitColliderIdsThisTick, hitColliderCount, p.CollisionHalfExtents, out var hit))
+                    RaycastHit hit;
+                    Fixed64 sweptDistance;
+                    if (arcSweepPending)
+                    {
+                        arcSweepPending = false;
+                        if (TrySweepTrackingArcSegments(
+                                arcSweepStart,
+                                arcSweepEnd,
+                                arcProgressStart,
+                                arcProgressEnd,
+                                p.TrackingArcHeight,
+                                p.TrackingArcStartY,
+                                p.TrackingArcEndY,
+                                p.CollisionLayerMask,
+                                hitColliderIdsThisTick,
+                                hitColliderCount,
+                                p.CollisionHalfExtents,
+                                out hit,
+                                out sweptDistance,
+                                out var segmentDirection))
+                        {
+                            dir = segmentDirection;
+                        }
+                        else
+                        {
+                            origin = arcSweepEnd;
+                            remaining = Fixed64.Zero;
+                            break;
+                        }
+                    }
+                    else if (!TrySweepSkippingIgnored(origin, dir, remaining, p.CollisionLayerMask, hitColliderIdsThisTick, hitColliderCount, p.CollisionHalfExtents, out hit))
                     {
                         // 剩余线段内没有命中。
                         origin = origin + dir * remaining;
                         remaining = Fixed64.Zero;
                         break;
                     }
+                    else
+                    {
+                        sweptDistance = Fixed64.FromSingle(hit.Distance);
+                    }
 
-                    var hitEvt = new ProjectileHitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame, hitCount: 0);
+                    var cumulativeHitDistance = p.DistanceTravelled + skippedDistanceThisTick + sweptDistance;
+                    var elapsedAtHit = p.ElapsedSeconds + EstimateElapsedWithinTick(
+                        fixedDeltaSeconds, skippedDistanceThisTick + sweptDistance, move);
+                    var hitEvt = new ProjectileHitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame, hitCount: 0,
+                        spawnPosition: p.SpawnPosition.ToVec3(), distanceTravelled: cumulativeHitDistance.ToSingle(), elapsedFrames: Math.Max(0, frame - p.SpawnFrame), spawnFrame: p.SpawnFrame, elapsedSeconds: elapsedAtHit.ToSingle());
                     var collisionResponse = ResolveCollisionResponse(p, hit.Collider, frame);
 
                     if (collisionResponse == ProjectileCollisionResponse.Block)
@@ -452,13 +732,14 @@ namespace AbilityKit.Combat.Projectile
                     // 命中过滤和按碰撞体冷却。
                     if (collisionResponse == ProjectileCollisionResponse.Ignore)
                     {
+                        skippedDistanceThisTick += sweptDistance + EpsilonAdvance;
                         if (hitColliderCount < hitColliderIdsThisTick.Length)
                         {
                             hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
                         }
 
                         origin = hit.Point.ToFixed() + dir * EpsilonAdvance;
-                        remaining -= Fixed64.FromSingle(hit.Distance) + EpsilonAdvance;
+                        remaining -= sweptDistance + EpsilonAdvance;
                         hitCount++;
                         if (hitCount >= maxHitsPerStep || remaining <= Fixed64.Zero)
                         {
@@ -470,13 +751,39 @@ namespace AbilityKit.Combat.Projectile
 
                     if (p.HitCooldownFrames > 0 && hit.Collider.Equals(p.LastHitCollider) && frame < p.LastHitAllowedFrame)
                     {
+                        skippedDistanceThisTick += sweptDistance + EpsilonAdvance;
                         if (hitColliderCount < hitColliderIdsThisTick.Length)
                         {
                             hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
                         }
 
                         origin = hit.Point.ToFixed() + dir * EpsilonAdvance;
-                        remaining -= Fixed64.FromSingle(hit.Distance) + EpsilonAdvance;
+                        remaining -= sweptDistance + EpsilonAdvance;
+                        hitCount++;
+                        if (hitCount >= maxHitsPerStep || remaining <= Fixed64.Zero)
+                        {
+                            remaining = Fixed64.Zero;
+                            break;
+                        }
+                        continue;
+                    }
+
+                    // Bounce is limited to distinct actors across the projectile's lifetime.
+                    // A target can own multiple colliders, and the next tracking arc starts at
+                    // the previous hit point, so suppress every collider that resolves to an
+                    // actor already in the bounce history before applying hit policy again.
+                    if (p.HitPolicyKind == ProjectileHitPolicyKind.Bounce &&
+                        _bounceTargetProvider != null &&
+                        _bounceTargetProvider.TryResolveActorId(hit.Collider, out var candidateActorId) &&
+                        p.HitActorIds.Contains(candidateActorId))
+                    {
+                        if (hitColliderCount < hitColliderIdsThisTick.Length)
+                        {
+                            hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
+                        }
+
+                        origin = hit.Point.ToFixed() + dir * EpsilonAdvance;
+                        remaining -= sweptDistance + EpsilonAdvance;
                         hitCount++;
                         if (hitCount >= maxHitsPerStep || remaining <= Fixed64.Zero)
                         {
@@ -498,8 +805,9 @@ namespace AbilityKit.Combat.Projectile
 
                     if (alreadyHitThisTick)
                     {
+                        skippedDistanceThisTick += sweptDistance + EpsilonAdvance;
                         origin = hit.Point.ToFixed() + dir * EpsilonAdvance;
-                        remaining -= Fixed64.FromSingle(hit.Distance) + EpsilonAdvance;
+                        remaining -= sweptDistance + EpsilonAdvance;
                         hitCount++;
                         if (hitCount >= maxHitsPerStep || remaining <= Fixed64.Zero)
                         {
@@ -515,7 +823,11 @@ namespace AbilityKit.Combat.Projectile
                     }
 
                     p.TotalHitCount++;
-                    hitEvents?.Add(new ProjectileHitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame, p.TotalHitCount));
+                    var hitDistance = p.DistanceTravelled + skippedDistanceThisTick + sweptDistance;
+                    var elapsedAtAcceptedHit = p.ElapsedSeconds + EstimateElapsedWithinTick(
+                        fixedDeltaSeconds, skippedDistanceThisTick + sweptDistance, move);
+                    hitEvents?.Add(new ProjectileHitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame, p.TotalHitCount,
+                        p.SpawnPosition.ToVec3(), hitDistance.ToSingle(), Math.Max(0, frame - p.SpawnFrame), p.SpawnFrame, elapsedAtAcceptedHit.ToSingle()));
                     if (p.HitCooldownFrames > 0)
                     {
                         p.LastHitCollider = hit.Collider;
@@ -535,8 +847,75 @@ namespace AbilityKit.Combat.Projectile
                     }
 
                     // 命中后继续推进到命中点之后。
+                    if (p.HitPolicyKind == ProjectileHitPolicyKind.Bounce)
+                    {
+                        if (_bounceTargetProvider == null ||
+                            !_bounceTargetProvider.TryResolveActorId(hit.Collider, out var hitActorId) || hitActorId <= 0)
+                        {
+                            exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Hit, frame, hit.Point));
+                            RemoveAtSwapBack(i);
+                            i--;
+                            goto NextProjectile;
+                        }
+
+                        if (!p.HitActorIds.Contains(hitActorId)) p.HitActorIds.Add(hitActorId);
+                        if (!_bounceTargetProvider.TrySelectNextTarget(p.OwnerId, hitActorId, hit.Point, p.HitActorIds,
+                                p.BounceSearchRadius.ToSingle(),
+                                out var nextActorId, out var nextTargetPosition) ||
+                            nextActorId <= 0 || p.HitActorIds.Contains(nextActorId))
+                        {
+                            exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Hit, frame, hit.Point));
+                            RemoveAtSwapBack(i);
+                            i--;
+                            goto NextProjectile;
+                        }
+
+                        var nextDirection = nextTargetPosition.ToFixed() - hit.Point.ToFixed();
+                        if (nextDirection.SqrMagnitude <= Fixed64.Zero)
+                        {
+                            exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Hit, frame, hit.Point));
+                            RemoveAtSwapBack(i);
+                            i--;
+                            goto NextProjectile;
+                        }
+
+                        var fixedArcDuration = p.TrackingArcDuration;
+                        var arcDurationConfigured = p.TrackingArcDurationConfigured;
+                        var nextPlanar = new FixedVec3(
+                            nextTargetPosition.X.ToFixed() - hit.Point.ToFixed().X,
+                            Fixed64.Zero,
+                            nextTargetPosition.Z.ToFixed() - hit.Point.ToFixed().Z);
+                        p.TrackingTargetActorId = nextActorId;
+                        p.TrackingArcDurationConfigured = arcDurationConfigured;
+                        if (arcDurationConfigured)
+                        {
+                            p.TrackingArcDuration = fixedArcDuration;
+                        }
+                        else if (p.Speed > Fixed64.Zero)
+                        {
+                            p.TrackingArcDuration = nextPlanar.Magnitude / p.Speed;
+                        }
+                        else
+                        {
+                            p.TrackingArcDuration = Fixed64.Zero;
+                        }
+                        p.TrackingArcElapsed = Fixed64.Zero;
+                        p.TrackingArcStartY = hit.Point.ToFixed().Y;
+                        p.TrackingArcEndY = nextTargetPosition.Y.ToFixed();
+                        p.TrackingArcHeight = p.TrackingArcBaseHeight + nextPlanar.Magnitude * p.TrackingArcHeightPerUnit;
+                        p.Direction = nextDirection.Normalized;
+                        dir = p.Direction;
+                        arcSweepPending = false;
+                        if (p.TrackingArcHeight > Fixed64.Zero)
+                        {
+                            origin = hit.Point.ToFixed();
+                            remaining = Fixed64.Zero;
+                            break;
+                        }
+                    }
+
                     origin = hit.Point.ToFixed() + dir * EpsilonAdvance;
-                    remaining -= Fixed64.FromSingle(hit.Distance) + EpsilonAdvance;
+                    remaining -= sweptDistance + EpsilonAdvance;
                     hitCount++;
                     if (hitCount >= maxHitsPerStep || remaining <= Fixed64.Zero)
                     {
@@ -548,14 +927,17 @@ namespace AbilityKit.Combat.Projectile
 
                 p.Position = origin;
                 p.LifetimeFramesLeft--;
+                p.ElapsedSeconds += fixedDeltaSeconds;
 
                 // 移动后发送周期性 Tick 事件。
                 EmitTickIfDue(p, frame, tickEvents);
 
-                if (p.DistanceLeft > Fixed64.Zero)
+                var travelled = (p.Position - arcSweepStart).Magnitude;
+                p.DistanceTravelled += travelled;
+                if (hasDistanceLimit)
                 {
-                    p.DistanceLeft -= move;
-                    if (p.DistanceLeft <= Fixed64.Zero)
+                    p.DistanceLeft -= travelled;
+                    if (p.DistanceLeft <= EpsilonAdvance)
                     {
                         exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.MaxDistance, frame, p.Position.ToVec3()));
                         RemoveAtSwapBack(i);
@@ -577,6 +959,88 @@ namespace AbilityKit.Combat.Projectile
 
             tickEvents?.Add(new ProjectileTickEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, frame, p.Position.ToVec3()));
             p.NextTickFrame = frame + p.TickIntervalFrames;
+        }
+
+        private static Fixed64 EstimateElapsedWithinTick(Fixed64 fixedDeltaSeconds, Fixed64 travelled, Fixed64 stepDistance)
+        {
+            if (fixedDeltaSeconds <= Fixed64.Zero || travelled <= Fixed64.Zero || stepDistance <= Fixed64.Zero)
+                return Fixed64.Zero;
+            var ratio = travelled / stepDistance;
+            if (ratio < Fixed64.Zero) ratio = Fixed64.Zero;
+            if (ratio > Fixed64.One) ratio = Fixed64.One;
+            return fixedDeltaSeconds * ratio;
+        }
+
+        private bool TrySweepTrackingArcSegments(
+            in FixedVec3 start,
+            in FixedVec3 end,
+            Fixed64 progressStart,
+            Fixed64 progressEnd,
+            Fixed64 arcHeight,
+            Fixed64 arcStartY,
+            Fixed64 arcEndY,
+            int layerMask,
+            int[] ignoredColliderIds,
+            int ignoredColliderCount,
+            in FixedVec3 halfExtents,
+            out RaycastHit hit,
+            out Fixed64 distanceAlongPath,
+            out FixedVec3 hitDirection)
+        {
+            // Fixed segment count keeps the collision path deterministic and prevents a high arc
+            // from being tested as one long chord. The simulation path remains authoritative.
+            const int segmentCount = 16;
+            var previous = start;
+            var travelled = Fixed64.Zero;
+            var endCurveY = EvaluateTrackingArcY(progressEnd, arcHeight, arcStartY, arcEndY);
+            var endCorrection = end.Y - endCurveY;
+
+            for (var segment = 1; segment <= segmentCount; segment++)
+            {
+                var t = Fixed64.FromRatio(segment, segmentCount);
+                var progress = progressStart + (progressEnd - progressStart) * t;
+                var curveY = EvaluateTrackingArcY(progress, arcHeight, arcStartY, arcEndY);
+                var correctedY = curveY + endCorrection * t;
+                var point = new FixedVec3(
+                    start.X + (end.X - start.X) * t,
+                    correctedY,
+                    start.Z + (end.Z - start.Z) * t);
+                var delta = point - previous;
+                var segmentLength = delta.Magnitude;
+                if (segmentLength <= Fixed64.Zero)
+                {
+                    previous = point;
+                    continue;
+                }
+
+                var direction = delta / segmentLength;
+                if (TrySweepSkippingIgnored(previous, direction, segmentLength, layerMask, ignoredColliderIds, ignoredColliderCount, halfExtents, out hit))
+                {
+                    distanceAlongPath = travelled + Fixed64.FromSingle(hit.Distance);
+                    hitDirection = direction;
+                    return true;
+                }
+
+                travelled += segmentLength;
+                previous = point;
+            }
+
+            hit = default;
+            distanceAlongPath = travelled;
+            hitDirection = FixedVec3.Zero;
+            return false;
+        }
+
+        private static Fixed64 EvaluateTrackingArcY(
+            Fixed64 progress,
+            Fixed64 arcHeight,
+            Fixed64 arcStartY,
+            Fixed64 arcEndY)
+        {
+            if (progress < Fixed64.Zero) progress = Fixed64.Zero;
+            if (progress > Fixed64.One) progress = Fixed64.One;
+            var arc = Fixed64.FromInt32(4) * arcHeight * progress * (Fixed64.One - progress);
+            return arcStartY + (arcEndY - arcStartY) * progress + arc;
         }
 
         private bool TryResolveReturnTarget(int launcherActorId, int rootActorId, out Vec3 position)
@@ -716,19 +1180,21 @@ namespace AbilityKit.Combat.Projectile
         [MemoryPackOrder(1)] public readonly FrameIndex Frame;
         [MemoryPackOrder(2)] public readonly int NextId;
         [MemoryPackOrder(3)] public readonly ProjectileWorldSnapshotItem[] Items;
+        [MemoryPackOrder(4)] public readonly int NextHitFilterKey;
 
-        public ProjectileWorldSnapshotPayload(int version, FrameIndex frame, int nextId, ProjectileWorldSnapshotItem[] items)
+        public ProjectileWorldSnapshotPayload(int version, FrameIndex frame, int nextId, ProjectileWorldSnapshotItem[] items, int nextHitFilterKey = 1)
         {
             Version = version;
             Frame = frame;
             NextId = nextId;
             Items = items;
+            NextHitFilterKey = nextHitFilterKey;
         }
     }
 
 
     /// <summary>
-    /// 回滚快照条目（schema v7）。定点字段以 Q32.32 raw long 存储，跨平台位一致；
+    /// 回滚快照条目（schema v14）。定点字段以 Q32.32 raw long 存储，跨平台位一致；
     /// Vec3/float 不再直接进入快照。
     /// </summary>
     [MemoryPackable]
@@ -768,6 +1234,26 @@ namespace AbilityKit.Combat.Projectile
         [MemoryPackOrder(30)] public readonly long HalfExtentsX;
         [MemoryPackOrder(31)] public readonly long HalfExtentsY;
         [MemoryPackOrder(32)] public readonly long HalfExtentsZ;
+        [MemoryPackOrder(33)] public readonly long TrackingArcHeightRaw;
+        [MemoryPackOrder(34)] public readonly long TrackingArcDurationRaw;
+        [MemoryPackOrder(35)] public readonly long TrackingArcElapsedRaw;
+        [MemoryPackOrder(36)] public readonly long TrackingArcStartYRaw;
+        [MemoryPackOrder(37)] public readonly long TrackingArcEndYRaw;
+        [MemoryPackOrder(38)] public readonly int[] HitActorIds;
+        [MemoryPackOrder(39)] public readonly int TrackingArcDurationConfigured;
+        [MemoryPackOrder(40)] public readonly long BounceSearchRadiusRaw;
+        [MemoryPackOrder(41)] public readonly long TrackingArcHeightPerUnitRaw;
+        [MemoryPackOrder(42)] public readonly long TrackingArcBaseHeightRaw;
+        [MemoryPackOrder(43)] public readonly int TotalHitCount;
+        [MemoryPackOrder(44)] public readonly int HitFilterKey;
+        [MemoryPackOrder(45)] public readonly int HitCooldownFrames;
+        [MemoryPackOrder(46)] public readonly int LastHitCollider;
+        [MemoryPackOrder(47)] public readonly int LastHitAllowedFrame;
+        [MemoryPackOrder(48)] public readonly long SpawnPositionX;
+        [MemoryPackOrder(49)] public readonly long SpawnPositionY;
+        [MemoryPackOrder(50)] public readonly long SpawnPositionZ;
+        [MemoryPackOrder(51)] public readonly long DistanceTravelledRaw;
+        [MemoryPackOrder(52)] public readonly long ElapsedSecondsRaw;
 
         public ProjectileWorldSnapshotItem(
             int id,
@@ -802,7 +1288,27 @@ namespace AbilityKit.Combat.Projectile
             int isSuspended,
             int patternSlotIndex,
             int patternSlotCount,
-            int trackingTargetActorId)
+            int trackingTargetActorId,
+            long trackingArcHeightRaw = 0,
+            long trackingArcDurationRaw = 0,
+            long trackingArcElapsedRaw = 0,
+            long trackingArcStartYRaw = 0,
+            long trackingArcEndYRaw = 0,
+            int[] hitActorIds = null,
+            int trackingArcDurationConfigured = 0,
+            long bounceSearchRadiusRaw = 0,
+            long trackingArcHeightPerUnitRaw = 0,
+            long trackingArcBaseHeightRaw = 0,
+            int totalHitCount = 0,
+            int hitFilterKey = 0,
+            int hitCooldownFrames = 0,
+            int lastHitCollider = 0,
+            int lastHitAllowedFrame = 0,
+            long spawnPositionX = 0,
+            long spawnPositionY = 0,
+            long spawnPositionZ = 0,
+            long distanceTravelledRaw = 0,
+            long elapsedSecondsRaw = 0)
         {
             Id = id;
             OwnerId = ownerId;
@@ -837,6 +1343,26 @@ namespace AbilityKit.Combat.Projectile
             PatternSlotIndex = patternSlotIndex;
             PatternSlotCount = patternSlotCount;
             TrackingTargetActorId = trackingTargetActorId;
+            TrackingArcHeightRaw = trackingArcHeightRaw;
+            TrackingArcDurationRaw = trackingArcDurationRaw;
+            TrackingArcElapsedRaw = trackingArcElapsedRaw;
+            TrackingArcStartYRaw = trackingArcStartYRaw;
+            TrackingArcEndYRaw = trackingArcEndYRaw;
+            HitActorIds = hitActorIds;
+            TrackingArcDurationConfigured = trackingArcDurationConfigured;
+            BounceSearchRadiusRaw = bounceSearchRadiusRaw;
+            TrackingArcHeightPerUnitRaw = trackingArcHeightPerUnitRaw;
+            TrackingArcBaseHeightRaw = trackingArcBaseHeightRaw;
+            TotalHitCount = totalHitCount;
+            HitFilterKey = hitFilterKey;
+            HitCooldownFrames = hitCooldownFrames;
+            LastHitCollider = lastHitCollider;
+            LastHitAllowedFrame = lastHitAllowedFrame;
+            SpawnPositionX = spawnPositionX;
+            SpawnPositionY = spawnPositionY;
+            SpawnPositionZ = spawnPositionZ;
+            DistanceTravelledRaw = distanceTravelledRaw;
+            ElapsedSecondsRaw = elapsedSecondsRaw;
         }
     }
 

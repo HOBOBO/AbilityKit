@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "https://abilitykit.dev/schemas/battle-scenario/artifact-v1.schema.json",
+  "title": "BattleScenario Artifact v1",
+  "description": "Gameplay-neutral run manifest, case summary, batch summary, and trace record contracts.",
+  "oneOf": [
+    { "$ref": "#/$defs/runManifest" },
+    { "$ref": "#/$defs/caseSummary" },
+    { "$ref": "#/$defs/batchSummary" },
+    { "$ref": "#/$defs/traceRecord" }
+  ],
+  "$defs": {
+    "status": {
+      "type": "string",
+      "enum": ["passed", "failed", "error", "skipped", "needs-trace"]
+    },
+    "artifactReference": {
+      "type": "object",
+      "required": ["kind", "uri", "contentType"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "uri": { "type": "string", "minLength": 1, "description": "Relative URI or stable object-store URI; never a producer-local absolute path." },
+        "contentType": { "type": "string", "minLength": 1 },
+        "sizeBytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" }
+      },
+      "additionalProperties": true
+    },
+    "buildContext": {
+      "type": "object",
+      "properties": {
+        "repository": { "type": "string" },
+        "branch": { "type": "string" },
+        "commit": { "type": "string" },
+        "buildId": { "type": "string" },
+        "trigger": { "type": "string" },
+        "executor": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "executionContext": {
+      "type": "object",
+      "properties": {
+        "runner": { "type": "string" },
+        "backend": { "type": "string" },
+        "seed": { "type": ["integer", "null"] },
+        "tickRate": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "profile": { "type": "string" },
+        "environmentId": { "type": "string" },
+        "configurationVersion": { "type": "string" },
+        "configurationHash": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "assertionCounts": {
+      "type": "object",
+      "required": ["total", "passed", "failed"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "caseSummary": {
+      "type": "object",
+      "required": ["schemaVersion", "producerVersion", "runId", "suiteId", "caseId", "status", "startedAt", "durationMs", "artifacts"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "producerVersion": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "suiteId": { "type": "string", "minLength": 1 },
+        "caseId": { "type": "string", "minLength": 1 },
+        "contentHash": { "type": "string" },
+        "displayName": { "type": "string" },
+        "status": { "$ref": "#/$defs/status" },
+        "failureCode": { "type": ["string", "null"] },
+        "message": { "type": "string" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "build": { "$ref": "#/$defs/buildContext" },
+        "execution": { "$ref": "#/$defs/executionContext" },
+        "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "assertions": { "$ref": "#/$defs/assertionCounts" },
+        "determinismFingerprint": { "type": "string" },
+        "artifacts": { "type": "array", "items": { "$ref": "#/$defs/artifactReference" } },
+        "extensions": { "type": "object", "description": "Project-owned data keyed by reverse-DNS or stable project namespace, e.g. com.abilitykit.moba." }
+      },
+      "additionalProperties": true
+    },
+    "batchSummary": {
+      "type": "object",
+      "required": ["schemaVersion", "producerVersion", "runId", "suiteId", "startedAt", "durationMs", "status", "counts", "cases"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "producerVersion": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "suiteId": { "type": "string", "minLength": 1 },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "status": { "$ref": "#/$defs/status" },
+        "build": { "$ref": "#/$defs/buildContext" },
+        "filters": { "type": "object" },
+        "counts": {
+          "type": "object",
+          "required": ["total", "passed", "failed", "errors", "skipped"],
+          "properties": {
+            "total": { "type": "integer", "minimum": 0 },
+            "passed": { "type": "integer", "minimum": 0 },
+            "failed": { "type": "integer", "minimum": 0 },
+            "errors": { "type": "integer", "minimum": 0 },
+            "skipped": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": true
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["caseId", "status", "summaryUri"],
+            "properties": {
+              "caseId": { "type": "string", "minLength": 1 },
+              "status": { "$ref": "#/$defs/status" },
+              "failureCode": { "type": ["string", "null"] },
+              "summaryUri": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": true
+          }
+        },
+        "artifacts": { "type": "array", "items": { "$ref": "#/$defs/artifactReference" } },
+        "extensions": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "runManifest": {
+      "type": "object",
+      "required": ["schemaVersion", "producerVersion", "runId", "createdAt", "artifacts"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "producerVersion": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "build": { "$ref": "#/$defs/buildContext" },
+        "artifacts": { "type": "array", "items": { "$ref": "#/$defs/artifactReference" } }
+      },
+      "additionalProperties": true
+    },
+    "traceRecord": {
+      "type": "object",
+      "required": ["schemaVersion", "runId", "caseId", "nodeId", "kind", "frame"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "caseId": { "type": "string", "minLength": 1 },
+        "nodeId": { "type": ["string", "integer"] },
+        "parentId": { "type": ["string", "integer", "null"] },
+        "rootId": { "type": ["string", "integer", "null"] },
+        "kind": { "type": "string", "minLength": 1 },
+        "frame": { "type": "integer", "minimum": 0 },
+        "timeMs": { "type": ["number", "null"], "minimum": 0 },
+        "configId": { "type": ["string", "integer", "null"] },
+        "attributes": { "type": "object" },
+        "extensions": { "type": "object" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

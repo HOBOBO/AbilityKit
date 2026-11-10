@@ -1,0 +1,1 @@
+{"schemaVersion":1,"runId":"run-2026-11-04-001","caseId":"jinx-w-charged-shot-hit","nodeId":1001,"parentId":null,"rootId":1001,"kind":"SkillCast","frame":12,"timeMs":400,"configId":22002,"attributes":{"actor":"player","target":"dummy"},"extensions":{"com.abilitykit.moba":{"kindValue":1,"sourceActorId":101,"targetActorId":202,"isRoot":true}}}

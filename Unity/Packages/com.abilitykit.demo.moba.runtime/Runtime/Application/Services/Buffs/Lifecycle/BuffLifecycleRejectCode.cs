@@ -22,6 +22,12 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
         RemoveBuffsComponentMissing = 202,
         RemoveNoActiveRuntimes = 203,
         RemoveRuntimeNotFound = 204,
+        ReplaceInvalidRequest = 300,
+        ReplaceTargetNotFound = 301,
+        ReplaceBuffsComponentMissing = 302,
+        ReplacePreviousRuntimeNotFound = 303,
+        ReplaceNextRuntimeMissingAfterApply = 304,
+        ReplaceCommitFailed = 305,
     }
 
     internal static class BuffLifecycleRejectCodes
@@ -42,6 +48,12 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
         public const string RemoveBuffsComponentMissing = "buff.remove.buffsComponentMissing";
         public const string RemoveNoActiveRuntimes = "buff.remove.noActiveRuntimes";
         public const string RemoveRuntimeNotFound = "buff.remove.runtimeNotFound";
+        public const string ReplaceInvalidRequest = "buff.replace.invalidRequest";
+        public const string ReplaceTargetNotFound = "buff.replace.targetNotFound";
+        public const string ReplaceBuffsComponentMissing = "buff.replace.buffsComponentMissing";
+        public const string ReplacePreviousRuntimeNotFound = "buff.replace.previousRuntimeNotFound";
+        public const string ReplaceNextRuntimeMissingAfterApply = "buff.replace.nextRuntimeMissingAfterApply";
+        public const string ReplaceCommitFailed = "buff.replace.commitFailed";
 
         public static string ToCode(BuffLifecycleRejectCode code)
         {
@@ -62,6 +74,12 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
                 case BuffLifecycleRejectCode.RemoveBuffsComponentMissing: return RemoveBuffsComponentMissing;
                 case BuffLifecycleRejectCode.RemoveNoActiveRuntimes: return RemoveNoActiveRuntimes;
                 case BuffLifecycleRejectCode.RemoveRuntimeNotFound: return RemoveRuntimeNotFound;
+                case BuffLifecycleRejectCode.ReplaceInvalidRequest: return ReplaceInvalidRequest;
+                case BuffLifecycleRejectCode.ReplaceTargetNotFound: return ReplaceTargetNotFound;
+                case BuffLifecycleRejectCode.ReplaceBuffsComponentMissing: return ReplaceBuffsComponentMissing;
+                case BuffLifecycleRejectCode.ReplacePreviousRuntimeNotFound: return ReplacePreviousRuntimeNotFound;
+                case BuffLifecycleRejectCode.ReplaceNextRuntimeMissingAfterApply: return ReplaceNextRuntimeMissingAfterApply;
+                case BuffLifecycleRejectCode.ReplaceCommitFailed: return ReplaceCommitFailed;
                 case BuffLifecycleRejectCode.None: return null;
                 case BuffLifecycleRejectCode.LifecycleRejected:
                 default:

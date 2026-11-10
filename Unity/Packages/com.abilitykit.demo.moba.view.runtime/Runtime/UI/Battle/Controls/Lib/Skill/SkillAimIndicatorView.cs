@@ -51,7 +51,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             SetElement(_ring, _ringImage, IsAnchorShape(shape), fromAnchored);
             SetElement(_dot, _dotImage, IsDotShape(shape), target);
             SetElement(_range, _rangeImage, IsRangeShape(shape), ResolveRangePosition(shape, fromAnchored, target));
-            ApplySprites(shape);
+            ApplySprites(shape, config.IndicatorAngleDegrees);
             ApplyShapeColors(shape);
 
             if (_ring != null)
@@ -89,7 +89,13 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
                 {
                     _range.sizeDelta = new Vector2(length, length);
                     _range.pivot = new Vector2(0.5f, 0.5f);
-                    _range.localEulerAngles = new Vector3(0f, 0f, angle - 45f);
+                    _range.localEulerAngles = new Vector3(0f, 0f, angle - config.IndicatorAngleDegrees * 0.5f);
+                }
+                else if (shape == SkillAimIndicatorShape.FanArea)
+                {
+                    _range.sizeDelta = new Vector2(length, length);
+                    _range.pivot = new Vector2(0.5f, 0.5f);
+                    _range.localEulerAngles = new Vector3(0f, 0f, angle - config.IndicatorAngleDegrees * 0.5f);
                 }
                 else if (shape == SkillAimIndicatorShape.DirectionArea)
                 {
@@ -173,7 +179,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
                 : fromAnchored;
         }
 
-        private void ApplySprites(SkillAimIndicatorShape shape)
+        private void ApplySprites(SkillAimIndicatorShape shape, float angleDegrees)
         {
             if (_ringImage != null) _ringImage.sprite = SkillAimIndicatorSprites.Ring;
             if (_dotImage != null)
@@ -187,7 +193,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             {
                 if (shape == SkillAimIndicatorShape.Sector)
                 {
-                    _rangeImage.sprite = SkillAimIndicatorSprites.Sector;
+                    _rangeImage.sprite = SkillAimIndicatorSprites.GetSector(angleDegrees);
                 }
                 else if (shape == SkillAimIndicatorShape.DirectionArea)
                 {
@@ -195,7 +201,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
                 }
                 else if (shape == SkillAimIndicatorShape.FanArea)
                 {
-                    _rangeImage.sprite = SkillAimIndicatorSprites.Sector;
+                    _rangeImage.sprite = SkillAimIndicatorSprites.GetSector(angleDegrees);
                 }
                 else
                 {
@@ -265,7 +271,10 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         public static Sprite Area { get; private set; }
         public static Sprite Direction { get; private set; }
         public static Sprite DirectionArea { get; private set; }
-        public static Sprite Sector { get; private set; }
+        private static readonly System.Collections.Generic.Dictionary<int, Sprite> Sectors =
+            new System.Collections.Generic.Dictionary<int, Sprite>();
+
+        public static Sprite Sector => GetSector(90f);
 
         public static void Ensure()
         {
@@ -276,7 +285,16 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             Area = CreateDiscSprite(192, 0.28f, 0.5f, new Color(1f, 1f, 1f, 0.34f));
             Direction = CreateDirectionSprite(256, 80, new Color(1f, 1f, 1f, 0.78f));
             DirectionArea = CreateDirectionAreaSprite(256, 80, new Color(1f, 1f, 1f, 0.48f));
-            Sector = CreateSectorSprite(256, 92f, new Color(1f, 1f, 1f, 0.38f));
+            GetSector(90f);
+        }
+
+        public static Sprite GetSector(float degrees)
+        {
+            var angle = Mathf.Clamp(Mathf.RoundToInt(degrees), 1, 360);
+            if (Sectors.TryGetValue(angle, out var sprite)) return sprite;
+            sprite = CreateSectorSprite(256, angle, new Color(1f, 1f, 1f, 0.38f));
+            Sectors.Add(angle, sprite);
+            return sprite;
         }
 
         private static Sprite CreateDiscSprite(int size, float innerRadius01, float outerRadius01, Color color)

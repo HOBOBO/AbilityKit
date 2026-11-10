@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Demo.Moba.View.Config;
+using AbilityKit.Game.Battle.Component;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEditor.Animations;
@@ -179,8 +181,6 @@ namespace AbilityKit.Game.Test.UnitTest
             var models = LoadArray<ModelConfigRoot, ModelDTO>(
                 "luban/moba/models",
                 root => root.Items);
-            var requiredStates = new[] { "Idle", "Run", "Attack", "Stun", "Die" };
-
             for (var i = 0; i < models.Length; i++)
             {
                 if (!heroModelIds.Contains(models[i].Id)) continue;
@@ -209,6 +209,7 @@ namespace AbilityKit.Game.Test.UnitTest
                         "Hero model skinned renderer has no root bone: " + models[i].PrefabPath);
                 }
 
+                var requiredStates = RequiredAnimatorStates(models[i].Id);
                 for (var stateIndex = 0; stateIndex < requiredStates.Length; stateIndex++)
                 {
                     var state = requiredStates[stateIndex];
@@ -217,6 +218,34 @@ namespace AbilityKit.Game.Test.UnitTest
                         "Hero model Animator is missing state " + state + ": " + models[i].PrefabPath);
                 }
             }
+        }
+
+        private static string[] RequiredAnimatorStates(int modelId)
+        {
+            // Jhin's linked controller uses the production clip names from game-res;
+            // it deliberately has no placeholder Run/Attack/Stun/Die states.
+            if (modelId == 3001)
+            {
+                return new[]
+                {
+                    "Idle", "AutoAttack_1", "AutoAttack_2", "AutoAttack_3", "AutoAttack_4",
+                    "AutoAttack_Reload", "Spell_Q", "Spell_W", "Spell_E", "Spell_R_Deploy",
+                    "Spell_R_Idle", "Spell_R_Shoot", "Spell_R_ShootLast", "Death"
+                };
+            }
+
+            if (modelId == 3003)
+            {
+                return new[]
+                {
+                    "Void_Annie_Model_Idle", "Void_Annie_Model_AutoAttack",
+                    "Void_Annie_Model_SpellQ", "Void_Annie_Model_SpellW",
+                    "Void_Annie_Model_SpellE", "Void_Annie_Model_SpellR",
+                    "Void_Annie_Model_Death"
+                };
+            }
+
+            return new[] { "Idle", "Run", "Attack", "Stun", "Die" };
         }
 
         [Test]
@@ -241,8 +270,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
             for (var i = 0; i < characters.Length; i++)
             {
-                // The Luban roster also contains minion archetypes; this contract covers the eight hero models.
-                if (characters[i].Id < 1001 || characters[i].Id > 1008) continue;
+                // The Luban roster also contains minion archetypes. Cover the eight
+                // placeholder heroes and the linked Jhin hero while skipping minions.
+                if ((characters[i].Id < 1001 || characters[i].Id > 1008) &&
+                    characters[i].Id != 3001 && characters[i].Id != 3003) continue;
                 var modelId = characters[i].ModelId;
                 Assert.IsTrue(configuredById.TryGetValue(modelId, out var configured),
                     "Character " + characters[i].Id + " references a missing Luban model: " + modelId);
@@ -321,6 +352,85 @@ namespace AbilityKit.Game.Test.UnitTest
                     Resources.Load<GameObject>(entry.Resource),
                     "Missing VFX resource for config " + entry.Id + ": " + entry.Resource);
             }
+        }
+
+        [Test]
+        public void AnnieAndTibbersLinkedResources_ShouldLoadModelsAndLifecycleVfx()
+        {
+            var models = LoadArray<ModelConfigRoot, ModelDTO>("luban/moba/models", root => root.Items);
+            var annieModel = Array.Find(models, item => item != null && item.Id == 3003);
+            var tibbersModel = Array.Find(models, item => item != null && item.Id == 30030502);
+            Assert.IsNotNull(annieModel, "Annie model config is missing.");
+            Assert.IsNotNull(tibbersModel, "Tibbers model config is missing.");
+            Assert.IsNotNull(Resources.Load<GameObject>(annieModel.PrefabPath),
+                "Annie model linked prefab is missing: " + annieModel.PrefabPath);
+            Assert.IsNotNull(Resources.Load<GameObject>(tibbersModel.PrefabPath),
+                "Tibbers model linked prefab is missing: " + tibbersModel.PrefabPath);
+            var tibbersPrefab = Resources.Load<GameObject>(tibbersModel.PrefabPath);
+            var tibbersAnimator = tibbersPrefab.GetComponentInChildren<Animator>(true);
+            Assert.IsNotNull(tibbersAnimator, "Tibbers model has no Animator.");
+            var tibbersController = tibbersAnimator.runtimeAnimatorController as AnimatorController;
+            Assert.IsNotNull(tibbersController, "Tibbers Animator controller is not an AnimatorController asset.");
+            foreach (var state in new[]
+                     { "Void_Annie_Tibbers_Idle", "Void_Annie_Tibbers_Run",
+                       "Void_Annie_Tibbers_Attack1", "Void_Annie_Tibbers_Attack2",
+                       "Void_Annie_Tibbers_Death" })
+                Assert.IsTrue(HasState(tibbersController.layers[0].stateMachine, state),
+                    "Tibbers Animator is missing state " + state);
+
+            var expectedVfx = new Dictionary<int, string>
+            {
+                { 90033001, "ChampionVfx/14.Void_Annie/Void_Annie_Q_Projectile" },
+                { 90033002, "ChampionVfx/14.Void_Annie/Void_Annie_W_Area" },
+                { 90033003, "ChampionVfx/14.Void_Annie/Void_Annie_Q_Hit" },
+                { 90033004, "ChampionVfx/14.Void_Annie/Void_Annie_E" },
+                { 90033005, "ChampionVfx/14.Void_Annie/Void_Annie_R_Summon" },
+                { 90033006, "ChampionVfx/14.Void_Annie/Void_Annie_Tibbers_Spawn" },
+            };
+            var entries = LoadArray<VfxConfigRoot, VfxDTO>("vfx/vfx", root => root.Items);
+            foreach (var pair in expectedVfx)
+            {
+                var entry = Array.Find(entries, item => item != null && item.Id == pair.Key);
+                Assert.IsNotNull(entry, "Missing Annie VFX config: " + pair.Key);
+                Assert.AreEqual(pair.Value, entry.Resource, "Annie VFX path mismatch: " + pair.Key);
+                Assert.IsNotNull(Resources.Load<GameObject>(entry.Resource),
+                    "Missing Annie linked VFX prefab: " + entry.Resource);
+            }
+
+            var summons = LoadArray<SummonConfigRoot, SummonDTO>(
+                "luban/moba/summons", root => root.Items);
+            var tibbers = Array.Find(summons, item => item != null && item.Id == 30030502);
+            Assert.IsNotNull(tibbers, "Tibbers summon config is missing.");
+            Assert.AreEqual(30030502, tibbers.ModelId,
+                "Tibbers must use the linked Tibbers model config.");
+            Assert.AreEqual(90033006, tibbers.SpawnVfxId,
+                "Tibbers spawn must be driven by its authored lifecycle VFX.");
+            Assert.AreEqual(0, tibbers.DeathVfxId,
+                "Tibbers death VFX remains unset until a dedicated linked asset exists.");
+            Assert.AreEqual(0, tibbers.DespawnVfxId,
+                "Tibbers despawn VFX remains unset until a dedicated linked asset exists.");
+        }
+
+        [Test]
+        public void AnnieAndTibbersActionCatalog_ShouldResolveLinkedAnimatorStates()
+        {
+            var catalog = CharacterPresentationActionCatalog.Load(new ResourcesTextAssetLoader());
+            AssertPlayback(catalog, 3003, "life/alive/action/idle", 0, "Void_Annie_Model_Idle");
+            AssertPlayback(catalog, 3003, "life/alive/action/attack.slot.1", 0, "Void_Annie_Model_AutoAttack");
+            AssertPlayback(catalog, 3003, "life/alive/action/casting", 30030201, "Void_Annie_Model_SpellQ");
+            AssertPlayback(catalog, 3003, "life/alive/action/casting", 30030501, "Void_Annie_Model_SpellR");
+            AssertPlayback(catalog, 30030502, "life/alive/action/moving", 0, "Void_Annie_Tibbers_Run");
+            AssertPlayback(catalog, 30030502, "life/alive/action/attack.slot.2", 0, "Void_Annie_Tibbers_Attack2");
+        }
+
+        private static void AssertPlayback(CharacterPresentationActionCatalog catalog, int entityCode,
+            string path, int skillId, string expectedAnimatorState)
+        {
+            var runner = new CharacterPresentationActionRunner(catalog.CreateForEntityCode(entityCode));
+            var playback = runner.Evaluate(path, entityCode, 0, 0, 30, null, skillId);
+            Assert.IsTrue(playback.HasValue, entityCode + " action did not resolve: " + path);
+            Assert.AreEqual(expectedAnimatorState, playback.Value.AnimatorState,
+                entityCode + " action resolved the wrong animator state: " + path);
         }
 
         private static TItem[] LoadArray<TRoot, TItem>(
@@ -486,6 +596,77 @@ namespace AbilityKit.Game.Test.UnitTest
                     Assert.IsNotNull(Resources.Load<GameObject>(vfx.Resource),
                         "Skill " + skillId + " preview prefab is missing: " + vfx.Resource);
                 }
+            }
+        }
+
+        [Test]
+        public void LinkedChampionResources_ShouldLoadModelsAndJhinAbilityPrefabs()
+        {
+            var requiredPrefabs = new[]
+            {
+                "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_Model",
+                "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Model",
+                "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_Model",
+                "ChampionVfx/11.Karthus_Project/Karthus_Project_Model",
+                "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_Model",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Model",
+                "ChampionVfx/14.Void_Annie/Void_Annie_Model",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Cast",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Projectile",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Last_Projectile",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Hit",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_HitLast",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q_Hit_1",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q_Hit_2",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q_Hit_3",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q_Hit_4",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W_Hit",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E_Hit",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_AA_Hit",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_AA_HitLast",
+            };
+
+            for (var i = 0; i < requiredPrefabs.Length; i++)
+            {
+                var prefab = Resources.Load<GameObject>(requiredPrefabs[i]);
+                Assert.IsNotNull(prefab, "Missing linked champion prefab: " + requiredPrefabs[i]);
+
+                var behaviours = prefab.GetComponentsInChildren<MonoBehaviour>(true);
+                for (var behaviourIndex = 0; behaviourIndex < behaviours.Length; behaviourIndex++)
+                {
+                    Assert.IsNotNull(behaviours[behaviourIndex],
+                        "Linked champion prefab contains a Missing Script: " + requiredPrefabs[i]);
+                }
+            }
+        }
+
+        [Test]
+        public void JhinHitVfxPrefabs_ShouldContainParticleSystems()
+        {
+            var requiredHitPrefabs = new[]
+            {
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q_Hit_1",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q_Hit_2",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q_Hit_3",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q_Hit_4",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W_Hit",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E_Hit",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Hit",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_HitLast",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_AA_Hit",
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_AA_HitLast",
+            };
+
+            for (var i = 0; i < requiredHitPrefabs.Length; i++)
+            {
+                var prefab = Resources.Load<GameObject>(requiredHitPrefabs[i]);
+                Assert.IsNotNull(prefab, "Missing Jhin hit VFX prefab: " + requiredHitPrefabs[i]);
+                Assert.IsNotEmpty(prefab.GetComponentsInChildren<ParticleSystem>(true),
+                    "Jhin hit VFX prefab must contain a particle system: " + requiredHitPrefabs[i]);
             }
         }
 

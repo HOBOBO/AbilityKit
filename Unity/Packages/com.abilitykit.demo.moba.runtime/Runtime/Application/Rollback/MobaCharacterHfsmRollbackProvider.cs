@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Text;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
@@ -22,16 +23,40 @@ namespace AbilityKit.Demo.Moba.Rollback
         public const int DefaultKey = 10017;
         private readonly MobaActorRegistry _actors;
         private readonly StateMachineDefinition _definition;
+        private readonly MobaCharacterHfsmProfileCatalog _profiles;
+        private readonly MobaCharacterHfsmParameterService _parameters;
+        private readonly MobaEffectExecutionService _effects;
 
         public MobaCharacterHfsmRollbackProvider(MobaActorRegistry actors,
-            StateMachineDefinition definition = null)
+            StateMachineDefinition definition = null,
+            MobaCharacterHfsmParameterService parameters = null,
+            MobaEffectExecutionService effects = null,
+            MobaCharacterHfsmProfileCatalog profiles = null)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
-            _definition = definition ?? MobaCharacterHfsmProfile.CreateDefinition();
+            _definition = definition ?? MobaCharacterHfsmProfile.CreateGenericDefinition();
+            _parameters = parameters;
+            _effects = effects;
+            _profiles = profiles;
         }
 
         public int Key => DefaultKey;
         public string Name => "CharacterHfsm";
+
+        private void ExecuteHfsmLogicTrigger(int actorId, int triggerId, string stateId, int frame)
+        {
+            // Recovery fixtures can restore the authoritative HFSM without a
+            // gameplay effect service. In that mode lifecycle actions remain
+            // part of the state graph but have no side-effect sink; live
+            // battle runtimes provide the service and execute the trigger.
+            if (_effects == null) return;
+            _effects.ExecuteRulePlan(triggerId, new MobaCharacterHfsmActionPayload
+            {
+                ActorId = actorId,
+                StateId = stateId,
+                Frame = frame
+            });
+        }
         public byte[] Export(FrameIndex frame) => ExportState(frame);
         public void Import(FrameIndex frame, byte[] payload) => ImportState(frame, payload);
 
@@ -46,10 +71,20 @@ namespace AbilityKit.Demo.Moba.Rollback
                 var action = snapshot.Action;
                 entries.Add(new Entry
                 {
-                    ActorId = ids[i], Machine = snapshot.Machine, Path = action.Path,
+                    ActorId = ids[i], Machine = snapshot.Machine, Facts = snapshot.Facts, Path = action.Path,
                     InstanceId = action.InstanceId, StartFrame = action.StartFrame,
                     LocalFrame = action.LocalFrame, CastInstanceId = action.CastInstanceId,
-                    SkillId = action.SkillId
+                    SkillId = action.SkillId, Mode = snapshot.Mode,
+                    BindingsFingerprint = snapshot.BindingsFingerprint,
+                    AimScope = snapshot.AimScope, AimScopeInstanceId = snapshot.AimScopeInstanceId,
+                    NextAimScopeSequence = snapshot.NextAimScopeSequence,
+                    HasFrozenAim = snapshot.HasFrozenAim,
+                    FrozenAimPosX = snapshot.FrozenAimPos.X,
+                    FrozenAimPosY = snapshot.FrozenAimPos.Y,
+                    FrozenAimPosZ = snapshot.FrozenAimPos.Z,
+                    FrozenAimDirX = snapshot.FrozenAimDir.X,
+                    FrozenAimDirY = snapshot.FrozenAimDir.Y,
+                    FrozenAimDirZ = snapshot.FrozenAimDir.Z
                 });
             }
             return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(entries));
@@ -70,11 +105,19 @@ namespace AbilityKit.Demo.Moba.Rollback
                 var snapshot = new MobaCharacterHfsmSnapshot
                 {
                     Machine = entry.Machine,
-                    Action = new MobaCharacterActionState(entry.Path, entry.InstanceId,
-                        entry.StartFrame, entry.LocalFrame, entry.CastInstanceId, entry.SkillId)
+                    Facts = entry.Facts,
+                    Action = CreateAction(entry),
+                    Mode = entry.Mode,
+                    BindingsFingerprint = entry.BindingsFingerprint,
+                    AimScope = entry.AimScope, AimScopeInstanceId = entry.AimScopeInstanceId,
+                    NextAimScopeSequence = entry.NextAimScopeSequence,
+                    HasFrozenAim = entry.HasFrozenAim,
+                    FrozenAimPos = entry.GetFrozenAimPos(),
+                    FrozenAimDir = entry.GetFrozenAimDir()
                 };
                 using (var candidate = new MobaCharacterHfsmRuntime(entry.ActorId,
-                           _definition, 0, Fixed64.Zero, registerForInspection: false))
+                           ResolveDefinition(entry.ActorId), 0, Fixed64.Zero, registerForInspection: false,
+                           parameters: _parameters, executeLogicTrigger: ExecuteHfsmLogicTrigger))
                 {
                     if (_actors.TryGet(entry.ActorId, out var existing) && existing.hasCharacterHfsm &&
                         (existing.characterHfsm.Runtime == null ||
@@ -89,13 +132,21 @@ namespace AbilityKit.Demo.Moba.Rollback
                 var snapshot = new MobaCharacterHfsmSnapshot
                 {
                     Machine = entry.Machine,
-                    Action = new MobaCharacterActionState(entry.Path, entry.InstanceId,
-                        entry.StartFrame, entry.LocalFrame, entry.CastInstanceId, entry.SkillId)
+                    Facts = entry.Facts,
+                    Action = CreateAction(entry),
+                    Mode = entry.Mode,
+                    BindingsFingerprint = entry.BindingsFingerprint,
+                    AimScope = entry.AimScope, AimScopeInstanceId = entry.AimScopeInstanceId,
+                    NextAimScopeSequence = entry.NextAimScopeSequence,
+                    HasFrozenAim = entry.HasFrozenAim,
+                    FrozenAimPos = entry.GetFrozenAimPos(),
+                    FrozenAimDir = entry.GetFrozenAimDir()
                 };
                 if (!actor.hasCharacterHfsm)
                     actor.AddCharacterHfsm(new MobaCharacterHfsmRuntime(entry.ActorId,
-                        _definition, entry.Machine.Frame,
-                        Fixed64.FromRaw(entry.Machine.TimeRaw)));
+                        ResolveDefinition(entry.ActorId), entry.Machine.Frame,
+                        Fixed64.FromRaw(entry.Machine.TimeRaw), parameters: _parameters,
+                        executeLogicTrigger: ExecuteHfsmLogicTrigger));
                 actor.characterHfsm.Runtime.RestoreSnapshot(snapshot);
             }
             // A full baseline may contain an actor with no character machine yet.
@@ -104,7 +155,22 @@ namespace AbilityKit.Demo.Moba.Rollback
                 if (restored.Contains(id)) continue;
                 if (_actors.TryGet(id, out var actor) && actor.hasCharacterHfsm)
                     actor.RemoveAndDisposeCharacterHfsm();
+                _parameters?.ClearActorProfile(id);
             }
+        }
+
+        private StateMachineDefinition ResolveDefinition(int actorId)
+        {
+            if (_actors.TryGet(actorId, out var actor) && actor.hasSkillLoadout)
+            {
+                var heroId = actor.skillLoadout.HeroId;
+                var definition = _profiles?.Resolve(heroId) ??
+                    MobaCharacterHfsmProfile.CreateGenericDefinition();
+                _parameters?.RegisterActorProfile(actorId, definition);
+                return definition;
+            }
+            _parameters?.RegisterActorProfile(actorId, _definition);
+            return _definition;
         }
 
         public void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash)
@@ -119,12 +185,42 @@ namespace AbilityKit.Demo.Moba.Rollback
         {
             public int ActorId;
             public RuntimeSnapshot Machine;
+            public MobaCharacterFactSnapshot Facts;
             public string Path;
             public long InstanceId;
             public int StartFrame;
             public int LocalFrame;
             public long CastInstanceId;
             public int SkillId;
+            public MobaCharacterModeSnapshot Mode;
+            public string BindingsFingerprint;
+            public string AimScope;
+            public long AimScopeInstanceId;
+            public uint NextAimScopeSequence;
+            public bool HasFrozenAim;
+            // Keep rollback wire data as plain values. Vec3 exposes the
+            // computed Normalized property, which makes Json.NET traverse a
+            // self-referencing object graph.
+            public float FrozenAimPosX;
+            public float FrozenAimPosY;
+            public float FrozenAimPosZ;
+            public float FrozenAimDirX;
+            public float FrozenAimDirY;
+            public float FrozenAimDirZ;
+
+            public Vec3 GetFrozenAimPos() => new Vec3(FrozenAimPosX, FrozenAimPosY, FrozenAimPosZ);
+            public Vec3 GetFrozenAimDir() => new Vec3(FrozenAimDirX, FrozenAimDirY, FrozenAimDirZ);
+        }
+
+        private static MobaCharacterActionState CreateAction(Entry entry)
+        {
+            if (entry.Mode == null)
+                return new MobaCharacterActionState(entry.Path, entry.InstanceId,
+                    entry.StartFrame, entry.LocalFrame, entry.CastInstanceId, entry.SkillId);
+            var mode = entry.Mode.Current;
+            return new MobaCharacterActionState(entry.Path, entry.InstanceId,
+                entry.StartFrame, entry.LocalFrame, entry.CastInstanceId, entry.SkillId,
+                mode.ModeId, mode.InstanceId, mode.StartFrame, mode.LocalFrame);
         }
     }
 
@@ -132,7 +228,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     public static class MobaCharacterHfsmWireCodec
     {
         public const int CompressedOpCode = 11017;
-        public const int CompressedSchemaVersion = 3;
+        public const int CompressedSchemaVersion = 4;
         public const int MaxDecodedBytes = 4 * 1024 * 1024;
 
         public static byte[] Encode(byte[] raw, out int opCode)

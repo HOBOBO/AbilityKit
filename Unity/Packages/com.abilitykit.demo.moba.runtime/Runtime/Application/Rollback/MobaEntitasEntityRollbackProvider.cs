@@ -18,17 +18,19 @@ namespace AbilityKit.Demo.Moba.Rollback
         private readonly MobaActorRegistry _actors;
         private readonly MobaEntityManager _entities;
         private readonly MobaSummonService _summons;
+        private readonly MobaBrainService _brains;
         private readonly bool _allowMissingActorsRestoredByCommands;
 
         public MobaEntitasEntityRollbackProvider(global::ActorContext context, ActorIdAllocator ids,
             MobaActorRegistry actors, MobaEntityManager entities, MobaSummonService summons = null,
-            bool allowMissingActorsRestoredByCommands = false)
+            bool allowMissingActorsRestoredByCommands = false, MobaBrainService brains = null)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _ids = ids ?? throw new ArgumentNullException(nameof(ids));
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _entities = entities;
             _summons = summons;
+            _brains = brains;
             _allowMissingActorsRestoredByCommands = allowMissingActorsRestoredByCommands;
         }
 
@@ -84,6 +86,10 @@ namespace AbilityKit.Demo.Moba.Rollback
                 if (entity.hasActorId)
                 {
                     var id = entity.actorId.Value;
+                    // Entity rollback removes predicted actors directly instead of going through
+                    // the normal despawn system. Release Brain first so its BehaviorRuntime and
+                    // decision/blackboard are not left in BehaviorManager after the entity dies.
+                    _brains?.DeactivateBrain(entity);
                     if (_entities != null && _entities.TryGetActorEntity(id, out var indexed) && ReferenceEquals(indexed, entity))
                         _entities.UnregisterSilently(id, out _, publishObjectLifecycle: false);
                     if (_actors.TryGetRegistered(id, out var registered) && ReferenceEquals(registered, entity))

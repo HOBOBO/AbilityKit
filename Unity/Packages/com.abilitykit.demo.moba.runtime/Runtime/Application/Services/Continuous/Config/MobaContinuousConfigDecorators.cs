@@ -14,6 +14,15 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
+    /// Separates owner behavior gates granted by a template from the result mask
+    /// consumed to pause this continuous object's own execution.
+    /// </summary>
+    public interface IMobaContinuousOwnerExecutionGateConfig
+    {
+        ulong OwnerExecutionBlockedResultMask { get; }
+    }
+
+    /// <summary>
     /// 用于投影运行时状态修饰器的 MOBA 持续运行配置装饰接口。
     /// </summary>
     public interface IMobaContinuousModifierConfig
@@ -107,6 +116,18 @@ namespace AbilityKit.Demo.Moba.Services
     public interface IMobaContinuousSkillCandidateSpec
     {
         int CandidateSkillId { get; }
+    }
+
+    /// <summary>
+    /// Optional role/profile condition for a skill-slot candidate. Existing
+    /// candidate definitions remain unconditional when this interface is not
+    /// implemented. Serialization belongs to the role/profile authoring schema.
+    /// </summary>
+    public interface IMobaContinuousHfsmParameterConditionSpec
+    {
+        int HfsmParameterId { get; }
+        int HfsmParameterComparison { get; }
+        float HfsmParameterExpectedValue { get; }
     }
 
     public interface IMobaContinuousReferenceCandidateSpec

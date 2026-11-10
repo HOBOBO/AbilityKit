@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Demo.Moba.Gameplay;
+using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Services.Triggering.PlanActions;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Runtime;
@@ -18,6 +20,10 @@ namespace AbilityKit.Game.UnitTests.Triggering
             Assert.That(ContainsAction(registry, "set_num_var"), Is.True);
             Assert.That(ContainsAction(registry, "add_num_var"), Is.True);
             Assert.That(ContainsAction(registry, "set_var"), Is.True);
+            Assert.That(ContainsAction(registry, "advance_gameplay_counter"), Is.True);
+            Assert.That(
+                (int)TriggeringConstants.AdvanceGameplayCounterId.Value,
+                Is.EqualTo(327267303));
         }
 
         [Test]
@@ -65,6 +71,31 @@ namespace AbilityKit.Game.UnitTests.Triggering
             Assert.That(stringResult.Target, Is.EqualTo(stringTarget));
             Assert.That(stringResult.Value.Kind, Is.EqualTo(ActionArgKind.StringValue));
             Assert.That(stringResult.Value.StringValue, Is.EqualTo("armed"));
+        }
+
+        [Test]
+        public void SetGameplayVarSchema_SupportsActorScopedAndGlobalKeys()
+        {
+            const int baseKey = 73001;
+            const int actorFieldId = 1993035528;
+            var scopedInput = new Dictionary<string, ActionArgValue>
+            {
+                ["key_id"] = ActionArgValue.OfConst(baseKey, "key_id"),
+                ["value"] = ActionArgValue.OfConst(0, "value"),
+                ["scope_payload_field_id"] = ActionArgValue.OfConst(actorFieldId, "scope_payload_field_id")
+            };
+            var scoped = SetGameplayVarSchema.Instance.ParseArgs(scopedInput, default);
+
+            Assert.That(scoped.ScopePayloadFieldId, Is.EqualTo(actorFieldId));
+            Assert.That(scoped.ResolveKey(44), Is.EqualTo(MobaGameplayVariableKeys.ResolveScopedKey(baseKey, 44)));
+
+            var global = SetGameplayVarSchema.Instance.ParseArgs(new Dictionary<string, ActionArgValue>
+            {
+                ["key_id"] = ActionArgValue.OfConst(baseKey, "key_id"),
+                ["value"] = ActionArgValue.OfConst(0, "value")
+            }, default);
+            Assert.That(global.ScopePayloadFieldId, Is.Zero);
+            Assert.That(global.ResolveKey(44), Is.EqualTo(baseKey));
         }
 
         private static bool ContainsAction(PlanActionModuleRegistry registry, string actionName)

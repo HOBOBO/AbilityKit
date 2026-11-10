@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "producerVersion": "battle-scenario-adapter/0.1.0",
+  "runId": "run-2026-11-04-001",
+  "suiteId": "jinx-skill-acceptance",
+  "caseId": "jinx-w-charged-shot-hit",
+  "contentHash": "sha256:2fc2b6a8",
+  "displayName": "Jinx W charged shot hits target",
+  "status": "passed",
+  "failureCode": null,
+  "message": "All required assertions passed.",
+  "startedAt": "2026-11-04T02:30:00Z",
+  "durationMs": 184,
+  "build": {
+    "repository": "AbilityKit",
+    "branch": "feature/jinx-acceptance",
+    "commit": "a1b2c3d4",
+    "buildId": "local-001",
+    "trigger": "editor"
+  },
+  "execution": {
+    "runner": "moba-headless",
+    "backend": "unity-editmode",
+    "seed": 47,
+    "tickRate": 30,
+    "profile": "accelerated-deterministic",
+    "environmentId": "training-yard",
+    "configurationVersion": "moba-config-2026.11.04",
+    "configurationHash": "sha256:7a4f1f"
+  },
+  "tags": ["jinx", "skill:w", "projectile", "acceptance"],
+  "assertions": { "total": 5, "passed": 5, "failed": 0, "skipped": 0 },
+  "determinismFingerprint": "sha256:81e5d0",
+  "artifacts": [
+    { "kind": "trace", "uri": "cases/jinx-w-charged-shot-hit_trace.jsonl", "contentType": "application/x-ndjson", "sizeBytes": 1327, "sha256": "81e5d0c181e5d0c181e5d0c181e5d0c181e5d0c181e5d0c181e5d0c181e5d0c1" }
+  ],
+  "extensions": {
+    "com.abilitykit.moba": {
+      "heroId": 222,
+      "heroKey": "jinx",
+      "skillId": 22002,
+      "scenarioCategory": "projectile-hit",
+      "traceDictionaryVersion": "sha256:123abc"
+    }
+  }
+}

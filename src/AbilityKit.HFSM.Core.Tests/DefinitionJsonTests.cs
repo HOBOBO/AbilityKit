@@ -46,6 +46,26 @@ public sealed class DefinitionJsonTests
         Assert.Equal(first, second);
     }
 
+    [Fact]
+    public void RoundTripPreservesOrderedLogicLifecycleActionBindings()
+    {
+        var definition = Fixtures.Flat(Fixtures.State("a"));
+        var state = definition.Machines[0].States[0];
+        state.LogicEntryActionKeys.Add("trigger.enter.30010490");
+        state.LogicEntryActionKeys.Add("trigger.enter.30010491");
+        state.LogicExitActionKeys.Add("trigger.exit.30010492");
+
+        var json = DefinitionJson.Save(definition);
+        var restored = DefinitionJson.Load(json);
+        var restoredState = restored.Machines[0].States[0];
+
+        Assert.Equal(state.LogicEntryActionKeys, restoredState.LogicEntryActionKeys);
+        Assert.Equal(state.LogicExitActionKeys, restoredState.LogicExitActionKeys);
+        Assert.Equal(definition.ComputeDefinitionHash(), restored.ComputeDefinitionHash());
+        Assert.True(json.IndexOf("trigger.enter.30010490", StringComparison.Ordinal) <
+                    json.IndexOf("trigger.enter.30010491", StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData("{\"formatVersion\":1,\"formatVersion\":1}")]
     [InlineData("{\"formatVersion\":1,\"definitionId\":\"x\",\"rootMachineId\":\"root\",\"machines\":[],\"unknown\":true}")]
@@ -92,6 +112,7 @@ public sealed class DefinitionJsonTests
   "formatVersion": 2,
   "definitionId": "combat",
   "rootMachineId": "root",
+  "parameters": [],
   "machines": [
     {
       "id": "root",
@@ -101,6 +122,8 @@ public sealed class DefinitionJsonTests
         {
           "id": "a",
           "behaviorKey": "behavior",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
           "childMachineId": "",
           "requiresExitApproval": false,
           "isGhostState": false,
@@ -110,6 +133,8 @@ public sealed class DefinitionJsonTests
         {
           "id": "z",
           "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
           "childMachineId": "",
           "requiresExitApproval": false,
           "isGhostState": false,

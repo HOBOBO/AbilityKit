@@ -337,10 +337,10 @@
     "OffsetY": 0,
     "OffsetZ": 0,
     "OnDelayTriggerIds": [
-      10070111
+      10070113
     ],
     "OnIntervalTriggerIds": [
-      10070111
+      10070113
     ],
     "Radius": 4,
     "VfxId": 90006001
@@ -418,7 +418,7 @@
     "OffsetY": 0,
     "OffsetZ": 0,
     "OnDelayTriggerIds": [
-      10080112
+      10080113
     ],
     "Radius": 3.5,
     "VfxId": 90008003
@@ -460,5 +460,58 @@
     ],
     "Radius": 3.5,
     "VfxId": 90008006
+  },
+  {
+    "Id": 42010301,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 500,
+    "DurationMs": 5000,
+    "MaxTargets": 1,
+    "ModelId": 0,
+    "Name": "Jhin - Captive Audience trap",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnEnterTriggerIds": [
+      30010311
+    ],
+    "Radius": 3,
+    "VfxId": 90013003,
+    "ConsumeOnFirstEnter": true
+  },
+  {
+    "Id": 42030301,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 0,
+    "DurationMs": 700,
+    "MaxTargets": 10,
+    "ModelId": 90000102,
+    "Name": "Annie W sector presentation area",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 5.5,
+    "VfxId": 90033002
+  },
+  {
+    "Id": 42020301,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 0,
+    "DurationMs": 5000,
+    "MaxTargets": 1,
+    "ModelId": 0,
+    "Name": "Jinx E trap area (radius placeholder)",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnEnterTriggerIds": [
+      30020313
+    ],
+    "Radius": 1.25,
+    "VfxId": 90032006,
+    "ConsumeOnFirstEnter": false
   }
 ]

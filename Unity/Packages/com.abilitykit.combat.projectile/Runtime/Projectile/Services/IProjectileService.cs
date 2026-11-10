@@ -36,11 +36,21 @@ namespace AbilityKit.Combat.Projectile
 
         AreaId SpawnArea(in AreaSpawnParams p, int frame);
         bool DespawnArea(AreaId id, int frame);
+        bool TryConsumeAreaEnter(AreaId id);
+        bool TryAcceptAreaEnter(AreaId id, int targetActorId);
 
         void DrainAreaSpawnEvents(List<AreaSpawnEvent> results);
         void DrainAreaEnterEvents(List<AreaEnterEvent> results);
         void DrainAreaStayEvents(List<AreaStayEvent> results);
         void DrainAreaExitEvents(List<AreaExitEvent> results);
         void DrainAreaExpireEvents(List<AreaExpireEvent> results);
+    }
+
+    /// <summary>
+    /// Removes an area during failed creation or rollback without emitting a gameplay expire event.
+    /// </summary>
+    public interface IAreaRollbackService : IService
+    {
+        bool CancelArea(AreaId id);
     }
 }

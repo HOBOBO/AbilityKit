@@ -6,6 +6,7 @@ using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Behavior.BTree;
 using AbilityKit.Demo.Moba.Services.Search;
+using AbilityKit.Deterministic;
 
 namespace AbilityKit.Demo.Moba.Services.Behavior
 {
@@ -24,6 +25,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         public readonly SearchTargetService SearchTargets;
         public readonly Func<long> CurrentTimeMsProvider;
         public readonly MobaSkillLoadoutService SkillLoadout;
+        public readonly ulong RandomSeed;
 
         public MobaBrainDecisionCreateContext(
             in MobaActorBrainDefinition definition,
@@ -34,7 +36,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             int sourceId,
             SearchTargetService searchTargets = null,
             Func<long> currentTimeMsProvider = null,
-            MobaSkillLoadoutService skillLoadout = null)
+            MobaSkillLoadoutService skillLoadout = null,
+            ulong randomSeed = 0)
         {
             Definition = definition;
             Registry = registry;
@@ -45,6 +48,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             SearchTargets = searchTargets;
             CurrentTimeMsProvider = currentTimeMsProvider;
             SkillLoadout = skillLoadout;
+            RandomSeed = randomSeed;
         }
     }
 
@@ -182,7 +186,10 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                 context.Definition.SkillSelectionPolicy,
                 debugName: treeName,
                 debugOwnerLabel: "actor:" + context.OwnerActorId,
-                skillLoadout: context.SkillLoadout);
+                skillLoadout: context.SkillLoadout,
+                randomSeed: context.RandomSeed,
+                randomScope: unchecked((ulong)context.OwnerActorId),
+                ownerActorId: context.OwnerActorId);
             if (decision == null)
             {
                 Log.Warning($"[MobaBrain] behavior tree create failed. brainId={context.Definition.BrainId} tree={treeName}");

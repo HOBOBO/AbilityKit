@@ -1,3 +1,4 @@
+using MemoryPack;
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
@@ -9,7 +10,7 @@ using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Combat.Projectile
 {
-    public sealed class ProjectileService : IProjectileService, IWorldInitializable
+    public sealed class ProjectileService : IProjectileService, IAreaRollbackService, IWorldInitializable
     {
         private static readonly ObjectPool<List<ProjectileSpawnParams>> s_spawnListPool = Pools.GetPool(
             key: "ProjectileSpawnParamsList",
@@ -54,6 +55,15 @@ namespace AbilityKit.Combat.Projectile
             if (services.TryResolve<IProjectileTrackingTargetProvider>(out var trackingProvider) && trackingProvider != null)
             {
                 _world.SetTrackingTargetProvider(trackingProvider);
+                _areas.SetTrackingTargetProvider(trackingProvider);
+            }
+
+            if (services.TryResolve<IProjectileBounceTargetProvider>(out var bounceProvider) && bounceProvider != null)
+            {
+                _world.SetBounceTargetProvider(bounceProvider);
+                if (!services.TryResolve<IProjectileTrackingTargetProvider>(out trackingProvider) || trackingProvider == null)
+                    _world.SetTrackingTargetProvider(bounceProvider);
+                if (trackingProvider == null) _areas.SetTrackingTargetProvider(bounceProvider);
             }
         }
 
@@ -105,6 +115,15 @@ namespace AbilityKit.Combat.Projectile
         {
             return _areas.Despawn(id, frame, _areaExpireEvents);
         }
+
+        public bool CancelArea(AreaId id)
+        {
+            return _areas.Cancel(id);
+        }
+
+        public bool TryConsumeAreaEnter(AreaId id) => _areas.TryConsumeEnter(id);
+
+        public bool TryAcceptAreaEnter(AreaId id, int targetActorId) => _areas.TryAcceptEnter(id, targetActorId);
 
         public void DrainSpawnEvents(List<ProjectileSpawnEvent> results)
         {
@@ -355,12 +374,24 @@ namespace AbilityKit.Combat.Projectile
 
         public byte[] ExportRollback(FrameIndex frame)
         {
-            return _world.ExportRollback(frame);
+            return MemoryPackSerializer.Serialize(new ProjectileServiceRollbackPayload(
+                1, _world.ExportRollback(frame), _areas.ExportRollback(frame.Value)));
         }
 
         public void ImportRollback(FrameIndex frame, byte[] payload)
         {
-            _world.ImportRollback(frame, payload);
+            if (payload == null || payload.Length == 0)
+            {
+                _world.ImportRollback(frame, payload);
+                _areas.ImportRollback(payload);
+            }
+            else
+            {
+                var snapshot = MemoryPackSerializer.Deserialize<ProjectileServiceRollbackPayload>(payload);
+                if (snapshot.Version != 1) throw new InvalidOperationException($"Unsupported projectile service snapshot version {snapshot.Version}.");
+                _world.ImportRollback(frame, snapshot.Projectiles);
+                _areas.ImportRollback(snapshot.Areas);
+            }
 
             // 回滚恢复时也应清理待处理的瞬态事件。
             _spawnEvents.Clear();
@@ -393,5 +424,15 @@ namespace AbilityKit.Combat.Projectile
 
             _schedules.Clear();
         }
+    }
+
+    [MemoryPackable]
+    internal readonly partial struct ProjectileServiceRollbackPayload
+    {
+        [MemoryPackOrder(0)] public readonly int Version;
+        [MemoryPackOrder(1)] public readonly byte[] Projectiles;
+        [MemoryPackOrder(2)] public readonly byte[] Areas;
+        public ProjectileServiceRollbackPayload(int version, byte[] projectiles, byte[] areas)
+        { Version = version; Projectiles = projectiles; Areas = areas; }
     }
 }

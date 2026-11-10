@@ -1,11 +1,33 @@
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Share.Config;
+using System;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Triggering;
 
 public sealed class ProjectileAreaTriggerConfigTests
 {
+    [Fact]
+    public void Luban_area_json_preserves_one_shot_flag_and_defaults_legacy_rows_to_false()
+    {
+        var deserializer = LubanConfigGroupDeserializer.Instance;
+        var withFlag = (AoeDTO[])deserializer.DeserializeFromText(
+            "[{\"Id\":9001,\"Name\":\"one_shot\",\"ConsumeOnFirstEnter\":true}]", typeof(AoeDTO));
+        var legacy = (AoeDTO[])deserializer.DeserializeFromText(
+            "[{\"Id\":9002,\"Name\":\"legacy\"}]", typeof(AoeDTO));
+
+        var configs = new MobaConfigDatabase();
+        var result = configs.ReloadFromDtoArrays(new Dictionary<Type, Array>
+        {
+            [typeof(AoeDTO)] = new[] { withFlag[0], legacy[0] },
+        }, strict: false);
+        Assert.True(result.Succeeded, result.Error);
+        Assert.True(configs.TryGetAoe(9001, out var oneShot));
+        Assert.True(oneShot.ConsumeOnFirstEnter);
+        Assert.True(configs.TryGetAoe(9002, out var defaultArea));
+        Assert.False(defaultArea.ConsumeOnFirstEnter);
+    }
+
     [Fact]
     public void Aoe_trigger_fields_are_loaded_into_runtime_model()
     {
@@ -23,6 +45,7 @@ public sealed class ProjectileAreaTriggerConfigTests
                 OnExitTriggerIds = new[] { 301 },
                 OnIntervalTriggerIds = new[] { 401, 402 },
                 IntervalMs = 500,
+                ConsumeOnFirstEnter = true,
             },
             null);
 
@@ -32,6 +55,7 @@ public sealed class ProjectileAreaTriggerConfigTests
         Assert.Equal(new[] { 301 }, area.OnExitTriggerIds);
         Assert.Equal(new[] { 401, 402 }, area.OnIntervalTriggerIds);
         Assert.Equal(500, area.IntervalMs);
+        Assert.True(area.ConsumeOnFirstEnter);
     }
 
     [Fact]

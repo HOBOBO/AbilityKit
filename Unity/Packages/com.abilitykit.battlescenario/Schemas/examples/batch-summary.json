@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "producerVersion": "battle-scenario-adapter/0.1.0",
+  "runId": "run-2026-11-04-001",
+  "suiteId": "jinx-skill-acceptance",
+  "startedAt": "2026-11-04T02:30:00Z",
+  "durationMs": 2860,
+  "status": "failed",
+  "build": { "repository": "AbilityKit", "commit": "a1b2c3d4", "buildId": "local-001" },
+  "filters": { "tags": ["jinx"] },
+  "counts": { "total": 2, "passed": 1, "failed": 1, "errors": 0, "skipped": 0 },
+  "cases": [
+    { "caseId": "jinx-w-charged-shot-hit", "status": "passed", "failureCode": null, "summaryUri": "cases/jinx-w-charged-shot-hit_summary.json" },
+    { "caseId": "jinx-e-trap-trigger", "status": "failed", "failureCode": "ASSERTION.STATE_EXPECTATION", "summaryUri": "cases/jinx-e-trap-trigger_summary.json" }
+  ],
+  "artifacts": [],
+  "extensions": { "com.abilitykit.moba": { "categoryFilter": "skill", "tagFilter": "jinx" } }
+}

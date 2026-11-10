@@ -37,13 +37,25 @@ static AbilityKit.Deterministic.DeterministicMath.TwoPi.get -> AbilityKit.Determ
 AbilityKit.Deterministic.DeterministicRandom
 AbilityKit.Deterministic.DeterministicRandom.CaptureState(out ulong s0, out ulong s1, out ulong sequence) -> void
 AbilityKit.Deterministic.DeterministicRandom.DeterministicRandom(ulong seed = 305419896) -> void
+static AbilityKit.Deterministic.DeterministicRandom.DeriveSeed(ulong rootSeed, ulong scope) -> ulong
 AbilityKit.Deterministic.DeterministicRandom.NextFixed(AbilityKit.Deterministic.Fixed64 minInclusive, AbilityKit.Deterministic.Fixed64 maxExclusive) -> AbilityKit.Deterministic.Fixed64
 AbilityKit.Deterministic.DeterministicRandom.NextFixed01() -> AbilityKit.Deterministic.Fixed64
 AbilityKit.Deterministic.DeterministicRandom.NextInt32(int minInclusive, int maxExclusive) -> int
+AbilityKit.Deterministic.DeterministicRandom.NextFloat01() -> float
 AbilityKit.Deterministic.DeterministicRandom.NextUInt64() -> ulong
 AbilityKit.Deterministic.DeterministicRandom.RestoreState(ulong s0, ulong s1, ulong sequence) -> void
+AbilityKit.Deterministic.DeterministicRandom.Seed.get -> ulong
 AbilityKit.Deterministic.DeterministicRandom.Sequence.get -> ulong
 AbilityKit.Deterministic.DeterministicRandom.SetSeed(ulong seed) -> void
+AbilityKit.Deterministic.IDeterministicRandomStream
+AbilityKit.Deterministic.IDeterministicRandomStream.CaptureState(out ulong state0, out ulong state1, out ulong sequence) -> void
+AbilityKit.Deterministic.IDeterministicRandomStream.NextFloat01() -> float
+AbilityKit.Deterministic.IDeterministicRandomStream.NextInt32(int minInclusive, int maxExclusive) -> int
+AbilityKit.Deterministic.IDeterministicRandomStream.NextUInt64() -> ulong
+AbilityKit.Deterministic.IDeterministicRandomStream.RestoreState(ulong state0, ulong state1, ulong sequence) -> void
+AbilityKit.Deterministic.IDeterministicRandomStream.Seed.get -> ulong
+AbilityKit.Deterministic.IDeterministicRandomStream.Sequence.get -> ulong
+AbilityKit.Deterministic.IDeterministicRandomStream.SetSeed(ulong seed) -> void
 AbilityKit.Deterministic.Fixed64
 AbilityKit.Deterministic.Fixed64.CompareTo(AbilityKit.Deterministic.Fixed64 other) -> int
 AbilityKit.Deterministic.Fixed64.CompareTo(object? obj) -> int

@@ -24,6 +24,12 @@ namespace AbilityKit.Demo.Moba.Services
                 FailRequiredCommit(context);
                 return;
             }
+            if (!context.CanCommitPreparedParameters())
+            {
+                context.FailReason = "Cast parameter snapshot validation failed.";
+                context.IsAborted = true;
+                return;
+            }
             var economyCommitted = false;
             if (context.WorldServices.TryResolve<MobaSkillEconomyService>(out var economy) && economy != null)
             {
@@ -32,6 +38,12 @@ namespace AbilityKit.Demo.Moba.Services
             if (_specification?.RequireEconomyReservation == true && !economyCommitted)
             {
                 FailRequiredCommit(context);
+                return;
+            }
+            if (!context.CommitPreparedParameters())
+            {
+                context.FailReason = "Cast parameter snapshot commit failed.";
+                context.IsAborted = true;
                 return;
             }
             if (context.WorldServices.TryResolve<MobaSkillWindowRuntimeService>(out var windows) && windows != null)

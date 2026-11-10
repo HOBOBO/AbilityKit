@@ -4,11 +4,15 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Ability.Behavior;
+using AbilityKit.Demo.Moba.Events.Summon;
+using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
+using AbilityKit.Game.Battle.View.Lib.Skill;
 using AbilityKit.Demo.Moba.View.Abstractions.Shared.Types;
 using AbilityKit.Demo.Moba.Share;
 using NUnit.Framework;
@@ -24,6 +28,46 @@ namespace AbilityKit.Game.Test.UnitTest
         private static readonly HeroSkillSlotContract Skill2 = new HeroSkillSlotContract(2, 10080201, 10080201, 10080201);
         private static readonly HeroSkillSlotContract Skill3 = new HeroSkillSlotContract(3, 10080301, 10080301, 10080301);
 
+        [TestCase(1f, 0f)]
+        [TestCase(.6f, .8f)]
+        [TestCase(-.8f, .6f)]
+        public void AirshipLaunchHeadingSurvivesTurningAndBrainRecreation(float x, float z)
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(Luban, "airship_heading_restore"))
+            {
+                harness.EnterGameAndWarmup();
+                var rootId = harness.AssertPlayerActorBound();
+                var root = harness.AssertActorEntity(rootId);
+                // Keep every tested heading clear of the map's center blocker and pillar.
+                var start = root.transform.Value.Position + new Vec3(-4, 0, -6);
+                var heading = new Vec3(x, 0, z);
+                var source = default(SummonSourceContext);
+                var summons = harness.World.Services.Resolve<MobaSummonService>();
+                var brains = harness.World.Services.Resolve<MobaBrainService>();
+                Assert.IsTrue(summons.TrySummon(rootId, 1008, in start, in heading, in source, out var id));
+                var actor = harness.AssertActorEntity(id);
+                harness.Tick(3);
+                Assert.IsTrue(brains.TryGetBehavior(actor.actorBrain.BehaviorInstanceId, out var behavior));
+                var snapshot = behavior.Decision as IBehaviorRuntimeSnapshot;
+                Assert.IsNotNull(snapshot);
+                var payload = snapshot.CaptureSnapshot();
+                var before = actor.transform.Value.Position;
+                Assert.Greater(Vec3.Dot(before - start, heading), .05f,
+                    $"Initial movement must follow launch heading. start={start}, before={before}, heading={heading}");
+                var sideways = new Vec3(-z, 0, x);
+                actor.ReplaceTransform(new Transform3(before, Quat.LookRotation(sideways, Vec3.Up), actor.transform.Value.Scale));
+                var brain = actor.actorBrain;
+                Assert.IsTrue(brains.ActivateBrain(actor, brain.BrainId, brain.SourceKind, brain.SourceId));
+                Assert.IsTrue(brains.TryRestoreBehaviorSnapshot(actor, snapshot.SnapshotType, payload));
+                harness.Tick(6);
+                var delta = actor.transform.Value.Position - before;
+                Assert.Greater(Vec3.Dot(delta, heading), .05f,
+                    $"Restored movement must follow launch heading. before={before}, after={actor.transform.Value.Position}, heading={heading}");
+                Assert.Less(System.Math.Abs(Vec3.Dot(delta, sideways)), .03f,
+                    "Restored launch heading must be independent of current facing.");
+            }
+        }
+
         [Test]
         public void LubanSkills_ShouldExposeGrenadeCannonAndAirSupportIndicators()
         {
@@ -32,6 +76,42 @@ namespace AbilityKit.Game.Test.UnitTest
                 AssertIndicator(harness, 10080101, 14, 2, 3.5f, expectPoint: true);
                 AssertIndicator(harness, 10080201, 15, 1, 1.2f, expectPoint: false);
                 AssertIndicator(harness, 10080301, 16, 5, 4.5f, expectPoint: false);
+            }
+        }
+
+        [Test]
+        public void Skill10080101_IndicatorGeometryMatchesReleasedArea()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(
+                Luban, "luban_skill_1_indicator_runtime_closure_world"))
+            {
+                Assert.IsTrue(harness.Config.TryGetSkill(Skill1.SkillId, out var skill));
+                Assert.IsTrue(harness.Config.TryGetSkillButtonTemplate(skill.SkillButtonTemplateId, out var template));
+                Assert.IsTrue(harness.Config.TryGetAoe(40080101, out var area));
+
+                Assert.AreEqual((int)SkillAimIndicatorShape.TargetCircle, template.IndicatorShape,
+                    "The grenade must preview a target circle before release.");
+                Assert.AreEqual((int)SkillUsePointMode.TargetPoint, template.UsePointMode,
+                    "The grenade preview must use the selected target point.");
+                Assert.AreEqual(area.Radius, template.IndicatorWorldWidth, 0.01f,
+                    "The indicator radius must match the released area radius.");
+
+                harness.EnterGameAndWarmup(reason: "luban indicator to area runtime closure");
+                var actorId = harness.AssertPlayerActorBound();
+                var aimPoint = new Vec3(0f, 0f, 8f);
+                var cast = harness.World.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(
+                    actorId, Skill1.Slot, in aimPoint, Vec3.Forward);
+                Assert.IsTrue(cast.Success, "The selected-point release must be accepted: " + cast.FailReason);
+
+                harness.TickUntilTraceNode(MobaExecutionKind.AreaSpawn, 40080101, 80,
+                    "The released grenade must create its configured area.");
+                var areas = harness.World.Services.Resolve<MobaAreaRuntimeService>();
+                var activeAreas = new List<MobaAreaRuntimeInfo>(2);
+                Assert.IsTrue(areas.TryGetAreas(activeAreas, actorId, 40080101));
+                Assert.AreEqual(1, activeAreas.Count);
+                Assert.AreEqual(aimPoint.X, activeAreas[0].Center.X, 0.05f);
+                Assert.AreEqual(aimPoint.Z, activeAreas[0].Center.Z, 0.1f,
+                    "The released area must be centered at the point shown by the indicator.");
             }
         }
 
@@ -466,7 +546,7 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 Assert.IsTrue(harness.Config.TryGetSummon(1008, out var summon));
                 CollectionAssert.Contains(summon.SkillIds, 10080401);
-                Assert.AreEqual(100, summon.BrainId);
+                Assert.AreEqual(101, summon.BrainId);
                 Assert.AreEqual(14000, summon.LifetimeMs,
                     "The airship lifetime must match the official fourteen-second ultimate window.");
                 Assert.IsTrue(harness.Config.TryGetSkillLevelTable(10080301, out var airSupportTable));

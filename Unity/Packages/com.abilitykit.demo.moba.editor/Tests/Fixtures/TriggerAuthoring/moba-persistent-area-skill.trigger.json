@@ -24,7 +24,7 @@
         "phase": "immediate",
         "priority": 50,
         "interruptPriority": 0,
-        "scope": "owner",
+        "scope": "global",
         "allowExternal": false,
         "schedule": {
           "mode": "transient",

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using AbilityKit.ActionSchema;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.ActionTimeline;
 using AbilityKit.Game.Flow.Battle.Presentation.Timeline;
 using Xunit;
@@ -160,8 +161,11 @@ public sealed class MobaActionTimelineCompilerTests
             Path.Combine(root, "skill_flows.json")));
         var aggregateFlow = Assert.Single(aggregate,
             entry => (int?)entry?["Id"] == 10020101);
-        Assert.True(Newtonsoft.Json.Linq.JToken.DeepEquals(timeline,
-            aggregateFlow["Phases"]?[2]?["Timeline"]));
+        // Publishers may omit default fields; compare the complete runtime DTOs.
+        Assert.True(Newtonsoft.Json.Linq.JToken.DeepEquals(
+            Newtonsoft.Json.Linq.JToken.FromObject(timeline.ToObject<SkillTimelinePhaseDTO>()!),
+            Newtonsoft.Json.Linq.JToken.FromObject(
+                aggregateFlow["Phases"]![2]!["Timeline"]!.ToObject<SkillTimelinePhaseDTO>()!)));
 
         Assert.Throws<InvalidDataException>(() => MobaActionTimelineCompiler.CompileLogicPhase(presentationJson));
         var sink = new RecordingPresentationSink();

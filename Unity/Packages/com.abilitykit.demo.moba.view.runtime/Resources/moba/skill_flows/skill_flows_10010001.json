@@ -5,8 +5,6 @@
   "Phases": [
     {
       "Type": 2,
-      "PhaseId": null,
-      "Checks": null,
       "Timeline": {
         "DurationMs": 250,
         "Events": [
@@ -14,16 +12,11 @@
             "AtMs": 0,
             "EffectId": 10010001,
             "ExecuteMode": 0,
+            "AbortOnFailure": false,
             "EventTag": "lp_basic_melee"
           }
         ]
-      },
-      "Handlers": null,
-      "RulePlan": null,
-      "Children": null,
-      "Repeat": null,
-      "Delay": null,
-      "WaitUntil": null
+      }
     }
   ]
 }

@@ -6,7 +6,7 @@ namespace AbilityKit.Deterministic
 /// <summary>
 /// Repeatable xoroshiro128+ random stream for deterministic simulation code.
 /// </summary>
-public sealed class DeterministicRandom
+public sealed class DeterministicRandom : IDeterministicRandomStream
 {
     private ulong _s0;
     private ulong _s1;
@@ -18,8 +18,11 @@ public sealed class DeterministicRandom
 
     public ulong Sequence { get; private set; }
 
+    public ulong Seed { get; private set; }
+
     public void SetSeed(ulong seed)
     {
+        Seed = seed;
         var splitMix = new SplitMix64(seed);
         _s0 = splitMix.Next();
         _s1 = splitMix.Next();
@@ -87,6 +90,26 @@ public sealed class DeterministicRandom
         }
 
         return minInclusive + ((maxExclusive - minInclusive) * NextFixed01());
+    }
+
+    public float NextFloat01()
+    {
+        var value = NextUInt64() >> 40;
+        return value * (1f / 16777216f);
+    }
+
+    /// <summary>Derives an isolated deterministic stream seed from a root seed and stable scope.</summary>
+    public static ulong DeriveSeed(ulong rootSeed, ulong scope)
+    {
+        unchecked
+        {
+            var value = rootSeed ^ (scope + 0x9E3779B97F4A7C15UL + (rootSeed << 6) + (rootSeed >> 2));
+            value ^= value >> 30;
+            value *= 0xBF58476D1CE4E5B9UL;
+            value ^= value >> 27;
+            value *= 0x94D049BB133111EBUL;
+            return value ^ (value >> 31);
+        }
     }
 
     private ulong NextRaw()

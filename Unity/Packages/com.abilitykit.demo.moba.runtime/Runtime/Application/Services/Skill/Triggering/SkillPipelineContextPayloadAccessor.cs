@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.DI;
@@ -407,6 +408,8 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class SkillPipelineContextObjectPayloadAccessor : IPayloadIntAccessor<object>, IPayloadDoubleAccessor<object>
     {
         private readonly SkillPipelineContextPayloadAccessor _inner;
+        private readonly SkillCastContextPayloadAccessor _cast = new SkillCastContextPayloadAccessor();
+        private readonly Gameplay.Triggering.MobaBattlePayloadAccessor _battle = new Gameplay.Triggering.MobaBattlePayloadAccessor();
 
         public SkillPipelineContextObjectPayloadAccessor(SkillPipelineContextPayloadAccessor inner)
         {
@@ -415,12 +418,18 @@ namespace AbilityKit.Demo.Moba.Services
 
         public static bool SupportsField(int fieldId)
         {
-            return SkillPipelineContextPayloadAccessor.SupportsField(fieldId);
+            // The object channel is used by trigger plans whose payload is a
+            // boxed combat event (DamageResult/AttackInfo/AttackCalcInfo).
+            // Keep the registry predicate broad enough for those fields so
+            // dispatch reaches the concrete battle accessor below.
+            return SkillPipelineContextPayloadAccessor.SupportsField(fieldId)
+                || Gameplay.Triggering.MobaBattlePayloadFields.IsKnownFieldId(NormalizeBattleFieldId(fieldId));
         }
 
         public bool SupportsSkillParameterField(int fieldId)
         {
-            return _inner != null && _inner.SupportsSkillParameterField(fieldId);
+            return (_inner != null && _inner.SupportsSkillParameterField(fieldId))
+                || Gameplay.Triggering.MobaBattlePayloadFields.IsKnownFieldId(NormalizeBattleFieldId(fieldId));
         }
 
         public bool TryGet(in object args, int fieldId, out int value)
@@ -429,6 +438,20 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 return _inner.TryGet(in context, fieldId, out value);
             }
+            if (args is SkillCastContext cast)
+                return _cast.TryGet(in cast, fieldId, out value);
+
+            // Trigger execution can receive boxed combat payloads through the
+            // object channel. Preserve the concrete battle payload accessors
+            // instead of treating every object as a skill context.
+            if (args is AbilityKit.Demo.Moba.AttackInfo attack)
+                return _battle.TryGet(in attack, NormalizeBattleFieldId(fieldId), out value);
+            if (args is AbilityKit.Demo.Moba.AttackCalcInfo calc)
+                return _battle.TryGet(in calc, NormalizeBattleFieldId(fieldId), out value);
+            if (args is AbilityKit.Demo.Moba.DamageResult damage)
+                return _battle.TryGet(in damage, NormalizeBattleFieldId(fieldId), out value);
+
+            if (TryGetBattleReflection(args, fieldId, out value)) return true;
 
             value = default;
             return false;
@@ -440,9 +463,71 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 return _inner.TryGet(in context, fieldId, out value);
             }
+            if (args is SkillCastContext cast)
+                return _cast.TryGet(in cast, fieldId, out value);
+
+            if (args is AbilityKit.Demo.Moba.AttackInfo attack)
+                return _battle.TryGet(in attack, NormalizeBattleFieldId(fieldId), out value);
+            if (args is AbilityKit.Demo.Moba.AttackCalcInfo calc)
+                return _battle.TryGet(in calc, NormalizeBattleFieldId(fieldId), out value);
+            if (args is AbilityKit.Demo.Moba.DamageResult damage)
+                return _battle.TryGet(in damage, NormalizeBattleFieldId(fieldId), out value);
+
+            if (TryGetBattleReflection(args, fieldId, out value)) return true;
 
             value = default;
             return false;
+        }
+
+        private static int NormalizeBattleFieldId(int fieldId)
+        {
+            // Older trigger sources used the legacy field:<name> namespace;
+            // the battle accessor is authored in the payload:<name> namespace.
+            // Accept both so migrated plans remain executable on the boxed
+            // object channel.
+            var names = new[] {
+                Gameplay.Triggering.MobaBattlePayloadFields.AttackerActorId,
+                Gameplay.Triggering.MobaBattlePayloadFields.TargetActorId,
+                Gameplay.Triggering.MobaBattlePayloadFields.DamageValue,
+                Gameplay.Triggering.MobaBattlePayloadFields.ReasonKind,
+                Gameplay.Triggering.MobaBattlePayloadFields.ReasonParam,
+                Gameplay.Triggering.MobaBattlePayloadFields.SourceActorId
+            };
+            foreach (var name in names)
+            {
+                if (fieldId == SkillRulePayloadFields.LegacyFieldId(name))
+                    return Gameplay.Triggering.MobaBattlePayloadFields.FieldId(name);
+            }
+            return fieldId;
+        }
+
+        private static bool TryGetBattleReflection(object args, int fieldId, out double value)
+        {
+            value = 0d;
+            if (args == null) return false;
+            var name = fieldId == Gameplay.Triggering.MobaBattlePayloadFields.FieldId("damage_value") ? "Value" :
+                fieldId == Gameplay.Triggering.MobaBattlePayloadFields.FieldId("reason_kind") ? "ReasonKind" :
+                fieldId == Gameplay.Triggering.MobaBattlePayloadFields.FieldId("reason_param") ? "ReasonParam" :
+                fieldId == Gameplay.Triggering.MobaBattlePayloadFields.FieldId("attacker_actor_id") ? "AttackerActorId" :
+                fieldId == Gameplay.Triggering.MobaBattlePayloadFields.FieldId("target_actor_id") ? "TargetActorId" : null;
+            if (name == null) return false;
+            var prop = args.GetType().GetProperty(name, BindingFlags.Instance | BindingFlags.Public);
+            var field = args.GetType().GetField(name, BindingFlags.Instance | BindingFlags.Public);
+            object raw = prop != null ? prop.GetValue(args, null) : field != null ? field.GetValue(args) : null;
+            if (raw == null) return false;
+            try { value = Convert.ToDouble(raw); return true; } catch { return false; }
+        }
+
+        private static bool TryGetBattleReflection(object args, int fieldId, out int value)
+        {
+            value = 0;
+            if (!TryGetBattleReflection(args, fieldId, out double numeric))
+            {
+                return false;
+            }
+
+            value = (int)Math.Round(numeric);
+            return true;
         }
     }
 }

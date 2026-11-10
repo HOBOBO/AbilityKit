@@ -24,7 +24,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -60,7 +63,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -96,7 +102,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -132,7 +141,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -168,7 +180,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -204,7 +219,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -240,7 +258,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -276,7 +297,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -312,7 +336,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -348,7 +375,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -384,7 +414,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -420,7 +453,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -456,7 +492,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -492,7 +531,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -528,7 +570,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -564,7 +609,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -600,7 +648,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -636,7 +687,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -672,7 +726,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -708,7 +765,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -744,7 +804,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -780,7 +843,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -820,7 +886,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -856,7 +925,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 5,
     "FormulaLevelCoefficient": 2,
@@ -892,7 +964,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -928,7 +1003,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 10040112,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -964,7 +1042,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1000,7 +1081,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1036,7 +1120,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1072,7 +1159,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1108,7 +1198,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1144,7 +1237,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1180,7 +1276,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1220,7 +1319,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1256,7 +1358,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 10070112,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1292,7 +1397,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1328,7 +1436,10 @@
     "AttributeSourceRole": 0,
     "Candidate": {
       "SkillId": 0,
-      "ReferenceId": 0
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1336,6 +1447,474 @@
     "StackingPolicy": 0,
     "MaxStacks": 0,
     "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8000002,
+    "Key": "JhinRPhaseAiming",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 11
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8000005,
+    "Key": "JhinRPhaseShooting",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 11
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 2
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8000006,
+    "Key": "JhinRPhaseFinalShot",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 11
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 3
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2000003,
+    "Key": "JhinRRegularShotSlot",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30010501,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2000004,
+    "Key": "JhinRFinalShotSlot",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30010502,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2000005,
+    "Key": "JhinBasicAttack2Slot",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30010602,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2000006,
+    "Key": "JhinBasicAttack3Slot",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30010603,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2000007,
+    "Key": "JhinBasicAttack4Slot",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30010604,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2000008,
+    "Key": "JinxPowPowAttackSlot",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30020002,
+      "ReferenceId": 0,
+      "HfsmParameterId": 4,
+      "HfsmParameterComparison": 1,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2000009,
+    "Key": "JinxFishbonesAttackSlot",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30020003,
+      "ReferenceId": 0,
+      "HfsmParameterId": 4,
+      "HfsmParameterComparison": 1,
+      "HfsmParameterExpectedValue": 1
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8002001,
+    "Key": "JinxPowPowWeaponMode",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 4
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8002002,
+    "Key": "JinxFishbonesWeaponMode",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 4
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
     "ConditionSetId": 0,
     "Deprecated": false
   }

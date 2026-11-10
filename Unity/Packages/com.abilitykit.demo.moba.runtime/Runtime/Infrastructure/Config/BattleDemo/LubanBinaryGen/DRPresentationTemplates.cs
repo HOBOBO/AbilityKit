@@ -35,6 +35,13 @@ public sealed partial class DRPresentationTemplates : Luban.BeanBase
         Socket = _buf.ReadString();
         StackPolicy = _buf.ReadInt();
         StopPolicy = _buf.ReadInt();
+        OffsetSpace = _buf.ReadInt();
+        ParentScaleMode = _buf.ReadInt();
+        OrderingMode = _buf.ReadInt();
+        OrderingPriority = _buf.ReadInt();
+        TargetLossPolicy = _buf.ReadInt();
+        CompletionPolicy = _buf.ReadInt();
+        StopGraceMs = _buf.ReadInt();
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
     }
@@ -113,13 +120,41 @@ public sealed partial class DRPresentationTemplates : Luban.BeanBase
     /// </summary>
     public readonly string Socket;
     /// <summary>
-    /// 叠层策略；用于特效表现模板配置。
+    /// 同 LogicalKey 与来源实体：0=独立，1=替换旧实例，2=拒绝新实例；排空尾部不占用拒绝键。
     /// </summary>
     public readonly int StackPolicy;
     /// <summary>
-    /// 停止策略；用于特效表现模板配置。
+    /// 显式停止：0=立即回收，1=排空尾部；不支持排空时立即回收。强制清理始终立即回收。
     /// </summary>
     public readonly int StopPolicy;
+    /// <summary>
+    /// 偏移坐标空间：0=目标局部，1=世界坐标。
+    /// </summary>
+    public readonly int OffsetSpace;
+    /// <summary>
+    /// 父缩放：0=继承，1=忽略；独立于播放速度。
+    /// </summary>
+    public readonly int ParentScaleMode;
+    /// <summary>
+    /// 抽象排序：0=资源默认，1=相对挂载对象，2=显式优先级；具体映射由后端适配器决定。
+    /// </summary>
+    public readonly int OrderingMode;
+    /// <summary>
+    /// 抽象优先级，仅在排序模式 1 或 2 时生效；不绑定 Layer、Order 或深度实现。
+    /// </summary>
+    public readonly int OrderingPriority;
+    /// <summary>
+    /// 目标丢失：0=后端兼容，1=停止，2=保留最后世界姿态并脱离，3=按实体 ID 等待重绑。
+    /// </summary>
+    public readonly int TargetLossPolicy;
+    /// <summary>
+    /// 完成判定：0=配置时长，1=资源完成或配置时长，2=手动停止；不支持资源检测时回退到时长。
+    /// </summary>
+    public readonly int CompletionPolicy;
+    /// <summary>
+    /// 排空停止上限（毫秒，非缩放时间）；0 使用默认 3000，必须非负。
+    /// </summary>
+    public readonly int StopGraceMs;
     /// <summary>
     /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
     /// </summary>
@@ -158,6 +193,13 @@ public sealed partial class DRPresentationTemplates : Luban.BeanBase
         + "Socket:" + Socket + ","
         + "StackPolicy:" + StackPolicy + ","
         + "StopPolicy:" + StopPolicy + ","
+        + "OffsetSpace:" + OffsetSpace + ","
+        + "ParentScaleMode:" + ParentScaleMode + ","
+        + "OrderingMode:" + OrderingMode + ","
+        + "OrderingPriority:" + OrderingPriority + ","
+        + "TargetLossPolicy:" + TargetLossPolicy + ","
+        + "CompletionPolicy:" + CompletionPolicy + ","
+        + "StopGraceMs:" + StopGraceMs + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
         + "}";

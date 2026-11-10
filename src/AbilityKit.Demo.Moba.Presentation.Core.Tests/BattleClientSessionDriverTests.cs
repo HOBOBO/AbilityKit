@@ -208,6 +208,31 @@ public sealed class BattleClientSessionDriverTests
     }
 
     [Fact]
+    public async Task LateProjectionBaselineDoesNotAliasIngressActorArray()
+    {
+        using var driver = new BattleClientSessionDriver(new TestHost());
+        await driver.StartAsync();
+        var ingressActors = new[] { Actor(101), Actor(202) };
+        var baseline = new GatewayStateSyncSnapshot(42UL, 1, 0d, true, ingressActors);
+        Assert.True(driver.PresentSnapshot(in baseline));
+
+        var probe = new RetainingProjection();
+        driver.AttachProjection("observer", probe);
+        Assert.NotNull(probe.FirstActors);
+        var firstActors = probe.FirstActors!;
+        Assert.Equal(new[] { 101, 202 }, firstActors.Select(actor => actor.ActorId));
+
+        ingressActors[0] = Actor(999);
+        var delta = new GatewayStateSyncSnapshot(
+            42UL, 2, 0d, false, new[] { Actor(101, x: 55f) });
+        Assert.True(driver.PresentSnapshot(in delta));
+
+        Assert.Equal(101, firstActors[0].ActorId);
+        Assert.Equal(0f, firstActors[0].X);
+        await driver.StopAsync();
+    }
+
+    [Fact]
     public async Task ContinuousIngressCannotKeepOneTickInsideSnapshotDrain()
     {
         using var driver = new BattleClientSessionDriver(new TestHost());
@@ -226,8 +251,8 @@ public sealed class BattleClientSessionDriverTests
     private static GatewayStateSyncSnapshot Snapshot(int frame, bool full, int actorId) =>
         new GatewayStateSyncSnapshot(42UL, frame, 0d, full, [Actor(actorId)]);
 
-    private static GatewayStateSyncActorSnapshot Actor(int actorId) =>
-        new GatewayStateSyncActorSnapshot(actorId, 0f, 0f, 0f, 0f, 0f, 0f, 100f, 100f, 1);
+    private static GatewayStateSyncActorSnapshot Actor(int actorId, float x = 0f) =>
+        new GatewayStateSyncActorSnapshot(actorId, x, 0f, 0f, 0f, 0f, 0f, 100f, 100f, 1);
 
     private sealed class TestHost : IBattleClientSessionHost
     {
@@ -282,6 +307,18 @@ public sealed class BattleClientSessionDriverTests
         public void Apply(in GatewayStateSyncSnapshot snapshot) =>
             throw new InvalidOperationException("projection unavailable");
         public void Reset() { }
+    }
+
+    private sealed class RetainingProjection : IBattleClientProjection
+    {
+        public GatewayStateSyncActorSnapshot[]? FirstActors { get; private set; }
+
+        public void Apply(in GatewayStateSyncSnapshot snapshot)
+        {
+            FirstActors ??= snapshot.Actors;
+        }
+
+        public void Reset() => FirstActors = null;
     }
 
     private sealed class EnqueueingProjection : IBattleClientProjection

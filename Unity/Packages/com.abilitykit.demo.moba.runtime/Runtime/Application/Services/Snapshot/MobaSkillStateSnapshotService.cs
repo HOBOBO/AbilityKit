@@ -5,6 +5,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -18,6 +19,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly IFrameTime _time;
         private readonly MobaSkillEconomyService _economy;
         private MobaSkillSlotCandidateService _slotCandidates;
+        private MobaCharacterHfsmParameterService _characterParameters;
         private MobaSkillCastRuntimeService _skillRuntimes;
         private MobaSkillWindowRuntimeService _skillWindows;
         private readonly MobaSnapshotBuffer<MobaSkillStateSnapshotEntry> _entries = new MobaSnapshotBuffer<MobaSkillStateSnapshotEntry>(16, 256);
@@ -40,6 +42,7 @@ namespace AbilityKit.Demo.Moba.Services
         public void OnInit(IWorldResolver services)
         {
             services?.TryResolve(out _slotCandidates);
+            services?.TryResolve(out _characterParameters);
             services?.TryResolve(out _skillRuntimes);
             services?.TryResolve(out _skillWindows);
         }
@@ -95,7 +98,8 @@ namespace AbilityKit.Demo.Moba.Services
                     var runtime = activeSkills[i];
                     if (runtime == null || runtime.SkillId <= 0) continue;
 
-                    var effectiveSkillId = _slotCandidates?.Resolve(actorId, i + 1, runtime.SkillId).EffectiveSkillId
+                    var effectiveSkillId = _slotCandidates?.Resolve(
+                            actorId, i + 1, runtime.SkillId, _characterParameters).EffectiveSkillId
                         ?? runtime.SkillId;
 
                     MobaSkillEconomyService.RefreshCharges(runtime, nowMs);

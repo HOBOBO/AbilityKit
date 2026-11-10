@@ -8,12 +8,29 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Runtime;
+using AbilityKit.Protocol.Moba.StateSync;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
 public sealed class MobaSummonRollbackTests
 {
+    [Fact]
+    public void Rollback_prunes_unpublished_predicted_summon_spawn_snapshot()
+    {
+        var summons = new MobaSummonService();
+        var snapshots = new MobaActorSpawnSnapshotService();
+        SetPrivateField(summons, "_spawnSnapshots", snapshots);
+        var sources = Assert.IsType<System.Collections.Generic.Dictionary<int, SummonSourceContext>>(
+            typeof(MobaSummonService).GetField("_sourceBySummonActorId", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(summons));
+        sources.Add(99, default);
+        snapshots.Enqueue(new MobaActorSpawnSnapshotEntry { NetId = 99, Kind = (int)SpawnEntityKind.Summon, Code = 7 });
+
+        summons.PruneRollbackActors(System.Array.Empty<int>());
+
+        Assert.False(snapshots.TryGetSnapshot(default, out _));
+    }
+
     [Fact]
     public void Summon_post_spawn_event_failure_reclaims_registered_entity()
     {

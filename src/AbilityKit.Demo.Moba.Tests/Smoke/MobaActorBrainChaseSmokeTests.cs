@@ -5,6 +5,7 @@ using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
+using AbilityKit.Demo.Moba.Events.Summon;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
@@ -136,6 +137,27 @@ public sealed class MobaActorBrainChaseSmokeTests
                 $"summon did not move. moved={moved:F3} spawnDist={spawnDistanceToEnemy:F3} finalDist={finalDistanceToEnemy:F3}");
             Assert.True(finalDistanceToEnemy < spawnDistanceToEnemy,
                 $"summon did not approach enemy. spawnDist={spawnDistanceToEnemy:F3} finalDist={finalDistanceToEnemy:F3}");
+
+            Assert.True(services.TryResolve<MobaBrainService>(out var brains) && brains != null,
+                "MobaBrainService not resolved.");
+            Assert.True(services.TryResolve<MobaActorDespawnSnapshotService>(out var despawnSnapshots) && despawnSnapshots != null,
+                "MobaActorDespawnSnapshotService not resolved.");
+            var behaviorInstanceId = summon.actorBrain.BehaviorInstanceId;
+            Assert.True(behaviorInstanceId > 0);
+            Assert.True(summons.ExecuteRequestedDespawn(summonActorId, SummonDespawnReason.ManualRemove),
+                "summon despawn execution failed");
+            Assert.False(brains.TryGetBehavior(behaviorInstanceId, out _),
+                "summon Brain BehaviorRuntime survived entity destruction");
+
+            Assert.True(despawnSnapshots.TryGetSnapshot(
+                    new AbilityKit.Ability.FrameSync.FrameIndex(bootstrapper.Context.LastFrame + 1),
+                    out var despawnSnapshot),
+                "summon despawn did not enqueue an ActorDespawn snapshot");
+            var despawnEntries = AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotCodec
+                .Deserialize(despawnSnapshot.Payload);
+            Assert.Contains(despawnEntries, entry =>
+                entry.ActorId == summonActorId &&
+                entry.Reason == (byte)AbilityKit.Demo.Moba.Components.ActorDespawnReason.SummonManualRemove);
         }
         finally
         {

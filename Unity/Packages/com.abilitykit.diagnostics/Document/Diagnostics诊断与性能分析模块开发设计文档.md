@@ -4,6 +4,8 @@
 >
 > **文档目标**：说明 Diagnostics 包的运行时 profiler 抽象、火焰数据模型、编辑器窗口和导出器边界。
 
+业务性能分析需求、窗口信息层级和 SVG 原型见 [PerformanceAnalysisRequirements.md](PerformanceAnalysisRequirements.md) 与 [PerformanceAnalysisWindowPrototype.svg](PerformanceAnalysisWindowPrototype.svg)。
+
 ---
 
 ## 一、设计理念

@@ -1,3 +1,5 @@
+using AbilityKit.Game.Battle.Component;
+
 namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleViewModelSyncController
@@ -33,8 +35,18 @@ namespace AbilityKit.Game.Flow
 
             var plan = _plans.Resolve(handle, input.Meta);
             _shells.Apply(handle, input.ActorId, in plan);
+            ApplyScale(handle, input.Transform.Scale);
 
             return true;
+        }
+
+        private static void ApplyScale(BattleViewHandle handle, UnityEngine.Vector3 logicalScale)
+        {
+            if (handle?.GameObject == null) return;
+            var scale = handle.GameObject.GetComponent<BattlePresentationScaleState>();
+            if (scale == null) scale = handle.GameObject.AddComponent<BattlePresentationScaleState>();
+            scale.BindSources(handle.ScaleSources);
+            scale.ApplyLogicalScale(handle.GameObject, logicalScale);
         }
     }
 

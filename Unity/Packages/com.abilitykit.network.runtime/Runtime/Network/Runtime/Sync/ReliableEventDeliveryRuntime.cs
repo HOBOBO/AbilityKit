@@ -41,6 +41,8 @@ namespace AbilityKit.Network.Runtime.Sync
     {
         /// <summary>获取或设置等待权威基线期间允许缓存的最大批次数。</summary>
         public int MaxPendingBatches { get; set; } = 32;
+        /// <summary>获取或设置等待权威基线期间允许缓存的最大事件数。</summary>
+        public int MaxPendingEvents { get; set; } = 512;
 
         /// <summary>获取或设置自动 ACK 的最大尝试次数。</summary>
         public int MaxAcknowledgementAttempts { get; set; } = 3;
@@ -76,6 +78,7 @@ namespace AbilityKit.Network.Runtime.Sync
             return new ReliableEventDeliveryOptions
             {
                 MaxPendingBatches = Math.Max(1, MaxPendingBatches),
+                MaxPendingEvents = Math.Max(1, MaxPendingEvents),
                 MaxAcknowledgementAttempts = Math.Max(1, MaxAcknowledgementAttempts),
                 AcknowledgementStrategy = AcknowledgementStrategy,
                 AcknowledgeAuthoritativeBaseline = AcknowledgeAuthoritativeBaseline,
@@ -166,6 +169,7 @@ namespace AbilityKit.Network.Runtime.Sync
         private readonly ReliableEventDeliveryOptions _options;
         private readonly Queue<ReliableEventBatch<TEvent>> _pendingBatches =
             new Queue<ReliableEventBatch<TEvent>>();
+        private long _pendingEventCount;
         private int _generation;
         private IReliableEventDeliveryCursor<TEvent>? _cursor;
         private Func<string, long, Task<long>>? _acknowledge;
@@ -174,6 +178,10 @@ namespace AbilityKit.Network.Runtime.Sync
         private Action<ReliableEventDeliveryFailure>? _failureObserved;
         private Action<ReliableEventDeliveryFailure>? _timelineInvalidated;
         private bool _awaitingBaseline;
+        private bool _pendingOverflowSignaled;
+        private long _recoveryWindowId;
+        private long _pendingOverflowCount;
+        private long _pendingInvalidBatchCount;
 
         /// <summary>使用经过校验的交付配置创建运行时。</summary>
         public ReliableEventDeliveryRuntime(ReliableEventDeliveryOptions? options = null)
@@ -193,6 +201,14 @@ namespace AbilityKit.Network.Runtime.Sync
         public bool AwaitingBaseline => _awaitingBaseline;
         /// <summary>获取权威基线建立前缓存的批次数。</summary>
         public int PendingBatchCount => _pendingBatches.Count;
+        /// <summary>获取权威基线建立前缓存的事件数。</summary>
+        public long PendingEventCount => _pendingEventCount;
+        /// <summary>当前等待权威基线窗口的稳定编号。</summary>
+        public long RecoveryWindowId => _recoveryWindowId;
+        /// <summary>当前 runtime 生命周期内累计发生的 pending 队列溢出次数。</summary>
+        public long PendingOverflowCount => _pendingOverflowCount;
+        /// <summary>恢复等待期间因事件流标识不匹配而提前丢弃的批次数。</summary>
+        public long PendingInvalidBatchCount => _pendingInvalidBatchCount;
 
         /// <summary>开始新的会话世代，并使此前尚未完成的 ACK 自动失效。</summary>
         public void BeginGeneration(
@@ -221,6 +237,10 @@ namespace AbilityKit.Network.Runtime.Sync
             _saveCheckpoint = saveCheckpoint;
             _failureObserved = failureObserved;
             _awaitingBaseline = awaitAuthoritativeBaseline;
+            if (awaitAuthoritativeBaseline)
+            {
+                _recoveryWindowId++;
+            }
         }
 
         /// <summary>阻止后续批次继续投递，直到采用新的权威基线。</summary>
@@ -228,7 +248,13 @@ namespace AbilityKit.Network.Runtime.Sync
         {
             if (_cursor != null)
             {
+                // A new recovery request supersedes every batch buffered for the
+                // previous baseline. Keeping those batches can reintroduce an old
+                // sequence gap after the next baseline is adopted.
+                ClearPendingBatches();
+                _pendingOverflowSignaled = false;
                 _awaitingBaseline = true;
+                _recoveryWindowId++;
             }
         }
 
@@ -238,6 +264,22 @@ namespace AbilityKit.Network.Runtime.Sync
             if (_cursor == null) return;
             if (_awaitingBaseline)
             {
+                if (!string.Equals(batch.StreamId, _cursor.StreamId, StringComparison.Ordinal))
+                {
+                    _pendingInvalidBatchCount++;
+                    var failure = new ReliableEventDeliveryFailure(
+                        ReliableEventDeliveryFailureKind.BatchRejected,
+                        batch.TimelineId,
+                        batch.Watermark,
+                        0,
+                        ReliableEventBatchStatus.InvalidStream);
+                    // A stale batch from another battle cannot help establish the
+                    // active baseline. Observe it for diagnostics, but do not
+                    // invalidate the current recovery window or enqueue it.
+                    ObserveFailure(in failure);
+                    return;
+                }
+
                 Queue(in batch);
                 return;
             }
@@ -251,7 +293,7 @@ namespace AbilityKit.Network.Runtime.Sync
             var cursor = _cursor;
             if (cursor == null || !cursor.AdoptAuthoritativeBaseline(timelineId, eventWatermark))
             {
-                _pendingBatches.Clear();
+                ClearPendingBatches();
                 return false;
             }
 
@@ -262,9 +304,11 @@ namespace AbilityKit.Network.Runtime.Sync
             }
 
             _awaitingBaseline = false;
+            _pendingOverflowSignaled = false;
             while (!_awaitingBaseline && _pendingBatches.Count > 0)
             {
                 var pending = _pendingBatches.Dequeue();
+                _pendingEventCount -= pending.Events.Count;
                 if (_options.ReplayOnlyMatchingTimeline &&
                     !string.Equals(pending.TimelineId, timelineId, StringComparison.Ordinal))
                 {
@@ -361,20 +405,59 @@ namespace AbilityKit.Network.Runtime.Sync
 
         private void Queue(in ReliableEventBatch<TEvent> batch)
         {
-            if (_pendingBatches.Count >= _options.MaxPendingBatches)
+            // Once this recovery window has overflowed, the cursor is already
+            // invalidated. Do not retain later ingress until a fresh baseline
+            // explicitly opens the next replay window.
+            if (_pendingOverflowSignaled)
             {
-                _pendingBatches.Clear();
-                var failure = new ReliableEventDeliveryFailure(
-                    ReliableEventDeliveryFailureKind.PendingQueueOverflow,
-                    batch.TimelineId,
-                    batch.Watermark,
-                    0);
-                ObserveFailure(in failure);
-                Invalidate(in failure);
                 return;
             }
 
-            _pendingBatches.Enqueue(batch);
+            if (_pendingBatches.Count >= _options.MaxPendingBatches ||
+                batch.Events.Count > _options.MaxPendingEvents ||
+                _pendingEventCount > _options.MaxPendingEvents - batch.Events.Count)
+            {
+                ClearPendingBatches();
+                if (!_pendingOverflowSignaled)
+                {
+                    _pendingOverflowSignaled = true;
+                    _pendingOverflowCount++;
+                    var failure = new ReliableEventDeliveryFailure(
+                        ReliableEventDeliveryFailureKind.PendingQueueOverflow,
+                        batch.TimelineId,
+                        batch.Watermark,
+                        0);
+                    ObserveFailure(in failure);
+                    Invalidate(in failure);
+                }
+                return;
+            }
+
+            // The ingress list belongs to the transport callback. Snapshot it
+            // before retaining the batch across the callback boundary so a
+            // reused or mutated decode buffer cannot change replay semantics.
+            var events = batch.Events.Count == 0
+                ? Array.Empty<TEvent>()
+                : new TEvent[batch.Events.Count];
+            for (var i = 0; i < events.Length; i++)
+            {
+                events[i] = batch.Events[i];
+            }
+
+            _pendingBatches.Enqueue(new ReliableEventBatch<TEvent>(
+                batch.StreamId,
+                batch.TimelineId,
+                batch.FirstAvailableSequence,
+                batch.Watermark,
+                batch.RetentionGap,
+                events));
+            _pendingEventCount += events.Length;
+        }
+
+        private void ClearPendingBatches()
+        {
+            _pendingBatches.Clear();
+            _pendingEventCount = 0;
         }
 
         private void ConfirmOrAcknowledge(string timelineId, long sequence)
@@ -494,7 +577,8 @@ namespace AbilityKit.Network.Runtime.Sync
         private void ResetGeneration()
         {
             _generation++;
-            _pendingBatches.Clear();
+            ClearPendingBatches();
+            _pendingOverflowSignaled = false;
             _awaitingBaseline = false;
             _cursor = null;
             _acknowledge = null;

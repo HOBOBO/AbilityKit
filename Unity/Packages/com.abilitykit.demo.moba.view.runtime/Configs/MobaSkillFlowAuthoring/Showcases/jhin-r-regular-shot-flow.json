@@ -1,0 +1,45 @@
+{
+  "Id": 30010501,
+  "Name": "Jhin - Curtain Call Regular Shot",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "skill_30010501_release",
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "skill_30010501_commit",
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      }
+    },
+    {
+      "Type": 2,
+      "PhaseId": "skill_30010501_shot",
+      "Timeline": {
+        "DurationMs": 50,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30010401,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "jhin_r_regular_shot"
+          }
+        ]
+      }
+    }
+  ]
+}

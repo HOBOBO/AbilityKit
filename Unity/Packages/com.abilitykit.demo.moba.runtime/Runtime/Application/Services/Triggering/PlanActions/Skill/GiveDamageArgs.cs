@@ -1,6 +1,7 @@
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
+using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
@@ -49,6 +50,22 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly MobaEffectMagnitudeSpec Magnitude;
         public readonly int MaxTargetHits;
         public readonly int TargetHitCountKeyBase;
+        public readonly NumericValueRef DamageValueRef;
+        public readonly bool HasDamageValueRef;
+        public readonly string DamageValueSkillLevelParameter;
+        public readonly string DamageValueRefSkillLevelParameter;
+        public readonly float TargetMissingHpRatioCoefficient;
+        public readonly string TargetMissingHpRatioSkillLevelParameter;
+        public readonly float TargetMissingHpBonusMin;
+        public readonly float TargetMissingHpBonusMax;
+        public readonly float DamageScale;
+        public readonly string DamageScaleSkillLevelParameter;
+        public readonly float DamageMin;
+        public readonly float DamageMax;
+        public readonly bool HasTargetMissingHpBonusMin;
+        public readonly bool HasTargetMissingHpBonusMax;
+        public readonly bool HasDamageMin;
+        public readonly bool HasDamageMax;
 
         public GiveDamageArgs(
             float damageValue,
@@ -60,7 +77,23 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             DamageAttributeSourceKind attributeSource = DamageAttributeSourceKind.AttributionActor,
             MobaEffectMagnitudeSpec magnitude = default,
             int maxTargetHits = 0,
-            int targetHitCountKeyBase = 1200000)
+            int targetHitCountKeyBase = 1200000,
+            NumericValueRef damageValueRef = default,
+            bool hasDamageValueRef = false,
+            string damageValueSkillLevelParameter = null,
+            string damageValueRefSkillLevelParameter = null,
+            float targetMissingHpRatioCoefficient = 0f,
+            string targetMissingHpRatioSkillLevelParameter = null,
+            float targetMissingHpBonusMin = 0f,
+            float targetMissingHpBonusMax = 0f,
+            float damageScale = 1f,
+            string damageScaleSkillLevelParameter = null,
+            float damageMin = 0f,
+            float damageMax = 0f,
+            bool hasTargetMissingHpBonusMin = false,
+            bool hasTargetMissingHpBonusMax = false,
+            bool hasDamageMin = false,
+            bool hasDamageMax = false)
         {
             DamageValue = damageValue;
             ReasonParam = reasonParam;
@@ -72,6 +105,22 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             Magnitude = magnitude;
             MaxTargetHits = maxTargetHits;
             TargetHitCountKeyBase = targetHitCountKeyBase;
+            DamageValueRef = damageValueRef;
+            HasDamageValueRef = hasDamageValueRef;
+            DamageValueSkillLevelParameter = damageValueSkillLevelParameter;
+            DamageValueRefSkillLevelParameter = damageValueRefSkillLevelParameter;
+            TargetMissingHpRatioCoefficient = targetMissingHpRatioCoefficient;
+            TargetMissingHpRatioSkillLevelParameter = targetMissingHpRatioSkillLevelParameter;
+            TargetMissingHpBonusMin = targetMissingHpBonusMin;
+            TargetMissingHpBonusMax = targetMissingHpBonusMax;
+            DamageScale = damageScale;
+            DamageScaleSkillLevelParameter = damageScaleSkillLevelParameter;
+            DamageMin = damageMin;
+            DamageMax = damageMax;
+            HasTargetMissingHpBonusMin = hasTargetMissingHpBonusMin;
+            HasTargetMissingHpBonusMax = hasTargetMissingHpBonusMax;
+            HasDamageMin = hasDamageMin;
+            HasDamageMax = hasDamageMax;
         }
 
         public static GiveDamageArgs Default => new GiveDamageArgs(0f, 0, DamageType.Physical, MobaActionTargetRequest.ContextTarget());

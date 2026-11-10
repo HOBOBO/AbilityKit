@@ -20,6 +20,7 @@ namespace AbilityKit.Game.Flow
     internal readonly struct BattleHudSkillPresentationSpec
     {
         public readonly int SkillId;
+        public readonly int IconId;
         public readonly int PreviewVfxId;
         public readonly string Name;
         public readonly BattleHudSkillPreviewShape PreviewShape;
@@ -71,9 +72,11 @@ namespace AbilityKit.Game.Flow
             float fanRadius = 0f,
             float selfRadius = 0f,
             float lockProjectileRadius = 0f,
-            int previewVfxId = 0)
+            int previewVfxId = 0,
+            int iconId = 0)
         {
             SkillId = skillId;
+            IconId = Mathf.Max(0, iconId);
             PreviewVfxId = previewVfxId;
             Name = name;
             PreviewShape = previewShape;
@@ -185,7 +188,8 @@ namespace AbilityKit.Game.Flow
                     faceToAim: template.FaceToAim,
                     uiAimRadiusPixels: uiAimRadius,
                     lockProjectileRadius: targetRadius,
-                    previewVfxId: skill.PreviewVfxId);
+                    previewVfxId: skill.PreviewVfxId,
+                    iconId: skill.IconId);
             }
 
             switch (indicatorShape)
@@ -208,7 +212,8 @@ namespace AbilityKit.Game.Flow
                         usePointMode: usePointMode,
                         faceToAim: template.FaceToAim,
                         uiAimRadiusPixels: uiAimRadius,
-                        previewVfxId: skill.PreviewVfxId);
+                        previewVfxId: skill.PreviewVfxId,
+                        iconId: skill.IconId);
 
                 case SkillAimIndicatorShape.TargetCircle:
                     var targetRadius = template.IndicatorWorldWidth > 0f ? template.IndicatorWorldWidth : 2.8f;
@@ -227,7 +232,8 @@ namespace AbilityKit.Game.Flow
                         faceToAim: template.FaceToAim,
                         uiAimRadiusPixels: uiAimRadius,
                         lockProjectileRadius: targetRadius,
-                        previewVfxId: skill.PreviewVfxId);
+                        previewVfxId: skill.PreviewVfxId,
+                        iconId: skill.IconId);
 
                 case SkillAimIndicatorShape.SelfCircle:
                     var selfRadius = template.SelfRadius > 0f ? template.SelfRadius : DefaultSelfRadius;
@@ -246,7 +252,8 @@ namespace AbilityKit.Game.Flow
                         faceToAim: template.FaceToAim,
                         uiAimRadiusPixels: uiAimRadius,
                         selfRadius: selfRadius,
-                        previewVfxId: skill.PreviewVfxId);
+                        previewVfxId: skill.PreviewVfxId,
+                        iconId: skill.IconId);
 
                 case SkillAimIndicatorShape.Sector:
                     var sectorAngle = template.SectorAngleDegrees > 0f ? template.SectorAngleDegrees : DefaultSectorAngleDegrees;
@@ -268,7 +275,8 @@ namespace AbilityKit.Game.Flow
                         angleDegrees: sectorAngle,
                         fanAngleDegrees: sectorAngle,
                         fanRadius: sectorRadius,
-                        previewVfxId: skill.PreviewVfxId);
+                        previewVfxId: skill.PreviewVfxId,
+                        iconId: skill.IconId);
 
                 case SkillAimIndicatorShape.DirectionArea:
                     var areaWidth = template.IndicatorWorldWidth > 0f ? template.IndicatorWorldWidth : 1.5f;
@@ -286,7 +294,8 @@ namespace AbilityKit.Game.Flow
                         usePointMode: usePointMode,
                         faceToAim: template.FaceToAim,
                         uiAimRadiusPixels: uiAimRadius,
-                        previewVfxId: skill.PreviewVfxId);
+                        previewVfxId: skill.PreviewVfxId,
+                        iconId: skill.IconId);
 
                 case SkillAimIndicatorShape.DashLine:
                     var dashDistance = template.DashDistance > 0f ? template.DashDistance : DefaultDashDistance;
@@ -308,7 +317,8 @@ namespace AbilityKit.Game.Flow
                         faceToAim: template.FaceToAim,
                         uiAimRadiusPixels: uiAimRadius,
                         dashDistance: dashDistance,
-                        previewVfxId: skill.PreviewVfxId);
+                        previewVfxId: skill.PreviewVfxId,
+                        iconId: skill.IconId);
 
                 case SkillAimIndicatorShape.LockProjectile:
                     var lockDurationMs = template.LockOnDurationMs > 0 ? template.LockOnDurationMs : (int)(DefaultLockOnDurationSeconds * 1000f);
@@ -330,7 +340,8 @@ namespace AbilityKit.Game.Flow
                         uiAimRadiusPixels: uiAimRadius,
                         lockOnDurationSeconds: lockDurationMs / 1000f,
                         lockProjectileRadius: lockRadius,
-                        previewVfxId: skill.PreviewVfxId);
+                        previewVfxId: skill.PreviewVfxId,
+                        iconId: skill.IconId);
 
                 case SkillAimIndicatorShape.FanArea:
                     var fanAngle = template.FanAngleDegrees > 0f ? template.FanAngleDegrees : DefaultFanAngleDegrees;
@@ -353,7 +364,8 @@ namespace AbilityKit.Game.Flow
                         angleDegrees: fanAngle,
                         fanAngleDegrees: fanAngle,
                         fanRadius: fanRadius,
-                        previewVfxId: skill.PreviewVfxId);
+                        previewVfxId: skill.PreviewVfxId,
+                        iconId: skill.IconId);
 
                 default:
                     return BattleHudSkillPresentationSpec.Hidden(skill.Id, skill.Name);

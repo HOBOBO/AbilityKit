@@ -348,7 +348,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             }
 
             // 沿 to→from 二分（固定 16 步，确定性），找最近出墙点。lo=墙内侧(to)、hi=墙外侧(from)。
-            var direction = to - from;
+            var direction = from - to;
             var planarLength = DeterministicMathBridge.Sqrt(direction.X * direction.X + direction.Z * direction.Z);
             if (planarLength <= 1e-6f)
             {

@@ -8,6 +8,29 @@ namespace AbilityKit.HFSM.Core.Tests;
 public sealed class AdvancedRuntimeExecutionTests
 {
     [Fact]
+    public void StateLifecycleActionsRunOnEntryAndAreNotReplayedBySnapshotRestore()
+    {
+        var owner = new TestOwner { Finish = false };
+        var target = Fixtures.State("target");
+        target.LogicEntryActionKeys.Add("logic.enter");
+        var definition = Fixtures.Flat(Fixtures.State("source"), target);
+        definition.Machines[0].Transitions.Add(
+            Fixtures.Transition("enter-target", "source", "target", condition: "finish"));
+        var runtime = new StateMachineRuntime<TestOwner>(owner, definition,
+            new RuntimeBindings<TestOwner>()
+                .RegisterCondition("finish", () => new OwnerFlagCondition(item => item.Finish))
+                .RegisterStateAction("logic.enter", () => new TraceLifecycleAction()));
+        runtime.Initialize(0, Fixed64.Zero);
+
+        owner.Finish = true;
+        runtime.Tick(1, Fixed64.One);
+        var snapshot = runtime.CaptureSnapshot();
+        runtime.RestoreSnapshot(snapshot);
+
+        Assert.Equal(new[] { "enter:target:1" }, owner.Trace);
+    }
+
+    [Fact]
     public void NestedExitTransitionApprovesPendingParentTransitionOnly()
     {
         var owner = new TestOwner();
@@ -198,5 +221,14 @@ public sealed class AdvancedRuntimeExecutionTests
             owner.Trace.Add("exit-requested:" + _id);
         public override bool CanExit(TestOwner owner, in TickContext context) => _canExit();
         public override void OnExit(TestOwner owner, in TickContext context) => owner.Trace.Add("exit:" + _id);
+    }
+
+    private sealed class TraceLifecycleAction : IStateLifecycleAction<TestOwner>
+    {
+        public void OnEnter(TestOwner owner, string stateId, in TickContext context) =>
+            owner.Trace.Add($"enter:{stateId}:{context.Frame}");
+
+        public void OnExit(TestOwner owner, string stateId, in TickContext context) =>
+            owner.Trace.Add($"exit:{stateId}:{context.Frame}");
     }
 }

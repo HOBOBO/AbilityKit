@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace AbilityKit.Coordinator
 {
     /// <summary>
@@ -44,5 +46,19 @@ namespace AbilityKit.Coordinator
         /// 获取用于渲染或状态同步的全部实体状态。
         /// </summary>
         SnapshotEntityState[] GetAllEntityStates();
+    }
+
+    /// <summary>
+    /// Optional high-frequency state bridge. Hosts that can write into a caller-owned
+    /// buffer should implement this beside <see cref="ILogicWorldDriverBridge"/>.
+    /// The legacy array method remains available for low-frequency compatibility callers.
+    /// </summary>
+    public interface ILogicWorldDriverStateBufferBridge
+    {
+        /// <summary>
+        /// Appends the current entity states to a caller-owned buffer and returns
+        /// the number of states appended.
+        /// </summary>
+        int FillAllEntityStates(IList<SnapshotEntityState> buffer);
     }
 }

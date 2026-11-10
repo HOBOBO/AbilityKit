@@ -90,6 +90,10 @@ namespace AbilityKit.Demo.Moba.Services
         {
             public GameplayTagContainer Tags;
             public bool Dirty = true;
+            public MobaTagResultFlags TagFlags;
+            // Continuous execution masks are also owner-level behavior gates. They are
+            // kept separately so CanExecute can remove the caller's own contribution.
+            public MobaTagResultFlags ExecutionBlockedFlags;
             public MobaTagResultFlags Flags;
         }
 
@@ -192,8 +196,11 @@ namespace AbilityKit.Demo.Moba.Services
             var blockedMask = config.TagRequirements?.ExecutionBlockedResultMask ?? 0UL;
             if (blockedMask == 0UL) return true;
             var ownerId = continuous.Config.OwnerId;
+            // A pipeline/buff must be allowed to advance under the gate it grants to
+            // its owner. Other active continuous objects and gameplay tag mappings
+            // still block it when they contribute the same result flag.
             return ownerId > 0 && ownerId <= int.MaxValue &&
-                ((ulong)GetResultFlags((int)ownerId) & blockedMask) == 0UL;
+                ((ulong)GetResultFlagsExcluding((int)ownerId, continuous) & blockedMask) == 0UL;
         }
 
         public bool CanActivate(int ownerActorId, ContinuousTagRequirements requirements)
@@ -282,6 +289,25 @@ namespace AbilityKit.Demo.Moba.Services
             return result;
         }
 
+        private MobaTagResultFlags GetResultFlagsExcluding(int ownerActorId, IContinuous excluded)
+        {
+            var cache = GetOrRefreshCache(ownerActorId);
+            var executionFlags = MobaTagResultFlags.None;
+            var active = _continuous?.GetOwnerContinuous(ownerActorId);
+            if (active != null)
+            {
+                for (var i = 0; i < active.Count; i++)
+                {
+                    var continuous = active[i];
+                    if (continuous == null || continuous == excluded || !continuous.IsActive || continuous.IsTerminated ||
+                        !(continuous.Config is IMobaContinuousTagConfig tagConfig)) continue;
+                    executionFlags |= GetOwnerExecutionBlockedFlags(continuous, tagConfig);
+                }
+            }
+
+            return cache.TagFlags | executionFlags;
+        }
+
         private OwnerCache GetOrRefreshCache(int ownerActorId)
         {
             if (_tagWorkbook == null)
@@ -291,13 +317,39 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 var started = Stopwatch.GetTimestamp();
                 cache.Tags = BuildEffectiveTags(ownerActorId);
-                cache.Flags = _tagWorkbook.Evaluate(cache.Tags);
+                cache.TagFlags = _tagWorkbook.Evaluate(cache.Tags);
+                cache.ExecutionBlockedFlags = BuildExecutionBlockedFlags(ownerActorId);
+                cache.Flags = cache.TagFlags | cache.ExecutionBlockedFlags;
                 _mappingEvaluations += _tagWorkbook.ResultMappingCount;
                 cache.Dirty = false;
                 _cacheRebuilds++;
                 _rebuildElapsedTicks += Stopwatch.GetTimestamp() - started;
             }
             return cache;
+        }
+
+        private MobaTagResultFlags BuildExecutionBlockedFlags(int ownerActorId)
+        {
+            var result = MobaTagResultFlags.None;
+            if (_continuous == null) return result;
+
+            var active = _continuous.GetOwnerContinuous(ownerActorId);
+            if (active == null) return result;
+            for (var i = 0; i < active.Count; i++)
+            {
+                var continuous = active[i];
+                if (continuous == null || !continuous.IsActive || continuous.IsTerminated ||
+                    !(continuous.Config is IMobaContinuousTagConfig tagConfig)) continue;
+                result |= GetOwnerExecutionBlockedFlags(continuous, tagConfig);
+            }
+            return result;
+        }
+
+        private static MobaTagResultFlags GetOwnerExecutionBlockedFlags(IContinuous continuous, IMobaContinuousTagConfig config)
+        {
+            return (MobaTagResultFlags)(continuous.Config is IMobaContinuousOwnerExecutionGateConfig ownerGate
+                ? ownerGate.OwnerExecutionBlockedResultMask
+                : config.TagRequirements?.ExecutionBlockedResultMask ?? 0UL);
         }
 
         private OwnerCache GetOrCreateCache(int ownerActorId)
@@ -314,8 +366,10 @@ namespace AbilityKit.Demo.Moba.Services
         private void MarkDirty(IContinuous continuous)
         {
             if (!(continuous?.Config is IMobaContinuousTagConfig tagConfig) ||
-                tagConfig.TagRequirements?.ApplicationTags == null ||
-                tagConfig.TagRequirements.ApplicationTags.Count == 0) return;
+                tagConfig.TagRequirements == null ||
+                ((tagConfig.TagRequirements.ApplicationTags == null ||
+                  tagConfig.TagRequirements.ApplicationTags.Count == 0) &&
+                 tagConfig.TagRequirements.ExecutionBlockedResultMask == 0UL)) return;
             var ownerId = continuous?.Config?.OwnerId ?? 0L;
             if (ownerId <= 0 || ownerId > int.MaxValue) return;
 

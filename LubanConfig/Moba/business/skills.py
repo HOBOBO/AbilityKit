@@ -22,6 +22,22 @@ def validate_skill_level_tables(rows):
                                  f"but ParamNames has {len(names)} names")
 
 
+def validate_hero_level_skill_growth_parameters(rows):
+    seen = set()
+    for row in rows:
+        owner = f"hero_level_skill_growth_parameters/{row['Id']}"
+        skill_id = row.get("SkillId")
+        champion_level = row.get("ChampionLevel")
+        if not isinstance(skill_id, int) or isinstance(skill_id, bool) or skill_id <= 0:
+            raise ValueError(f"{owner}: SkillId must be a positive integer")
+        if not isinstance(champion_level, int) or isinstance(champion_level, bool) or champion_level <= 0:
+            raise ValueError(f"{owner}: ChampionLevel must be a positive integer")
+        key = (skill_id, champion_level)
+        if key in seen:
+            raise ValueError(f"{owner}: duplicate SkillId + ChampionLevel {key}")
+        seen.add(key)
+
+
 def validate_character_skill_preview_vfx(characters, skills, vfx_entries):
     skills_by_id = {row["Id"]: row for row in skills}
     vfx_ids = {row["Id"] for row in vfx_entries}
@@ -40,13 +56,18 @@ def validate_character_skill_preview_vfx(characters, skills, vfx_entries):
 class Rule:
     def project(self, context):
         validate_skill_level_tables(context.tables["skill_level_tables"])
+        validate_hero_level_skill_growth_parameters(context.tables["hero_level_skill_growth_parameters"])
         validate_character_skill_preview_vfx(
             context.tables["characters"], context.tables["skills"], context.tables["vfx"])
 
     def validate_graph(self, graph, tables, external):
         def check_phase(phase, owner):
             if phase.get("RulePlan") is not None:
-                graph.check_value(owner + "/RulePlan", phase["RulePlan"], "TriggerIds", "rules")
+                # RulePlan historically referenced the legacy rules namespace.
+                # Trigger Authoring aggregate triggers are now also valid here;
+                # both are resolved through the same runtime trigger database.
+                graph.check_any_value(owner + "/RulePlan", phase["RulePlan"],
+                                      "TriggerIds", ("rules", "triggers"))
             if phase.get("Window") is not None:
                 for field in ("OpenTriggerIds", "TickTriggerIds", "CloseTriggerIds"):
                     graph.check_value(owner + "/Window", phase["Window"], field, "triggers")

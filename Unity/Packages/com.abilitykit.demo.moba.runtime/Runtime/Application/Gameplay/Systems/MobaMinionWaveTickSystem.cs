@@ -37,9 +37,10 @@ namespace AbilityKit.Demo.Moba.Gameplay.Systems
                 return;
             }
 
-            if (_features != null && _features.IsConfigured &&
-                !_features.IsEnabled(MobaGameplayFeatureIds.MinionWaves) &&
-                !_features.IsEnabled(MobaGameplayFeatureIds.Structures))
+            // Optional lane gameplay is opt-in. A world that has not completed
+            // gameplay feature configuration must not start spawning minions or
+            // structures while bootstrap is still settling.
+            if (_features == null || !_features.IsConfigured)
             {
                 _minions?.Reset();
                 _combat?.Reset();
@@ -47,12 +48,12 @@ namespace AbilityKit.Demo.Moba.Gameplay.Systems
                 return;
             }
 
-            if (_features == null || !_features.IsConfigured ||
-                _features.IsEnabled(MobaGameplayFeatureIds.Structures))
+            if (_features.IsEnabled(MobaGameplayFeatureIds.Structures))
                 _structures?.Tick();
+            else
+                _structures?.Reset();
 
-            if (_features == null || !_features.IsConfigured ||
-                _features.IsEnabled(MobaGameplayFeatureIds.MinionWaves))
+            if (_features.IsEnabled(MobaGameplayFeatureIds.MinionWaves))
             {
                 _minions?.Tick();
                 _combat?.Tick();

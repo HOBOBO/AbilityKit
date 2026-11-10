@@ -20,6 +20,9 @@ namespace AbilityKit.HFSM.Runtime
         private readonly Dictionary<string, Func<ITransitionAction<TOwner>>> _actionFactories =
             new Dictionary<string, Func<ITransitionAction<TOwner>>>(StringComparer.Ordinal);
 
+        private readonly Dictionary<string, Func<IStateLifecycleAction<TOwner>>> _stateActionFactories =
+            new Dictionary<string, Func<IStateLifecycleAction<TOwner>>>(StringComparer.Ordinal);
+
         public RuntimeBindings<TOwner> RegisterState(
             string key,
             Func<IRuntimeState<TOwner>> factory)
@@ -44,6 +47,14 @@ namespace AbilityKit.HFSM.Runtime
             return this;
         }
 
+        public RuntimeBindings<TOwner> RegisterStateAction(
+            string key,
+            Func<IStateLifecycleAction<TOwner>> factory)
+        {
+            Register(_stateActionFactories, key, factory, "state action");
+            return this;
+        }
+
         internal IRuntimeState<TOwner> CreateState(string key)
         {
             if (string.IsNullOrEmpty(key)) return new NoOpState();
@@ -58,6 +69,13 @@ namespace AbilityKit.HFSM.Runtime
         internal ITransitionAction<TOwner>? CreateAction(string key)
         {
             return string.IsNullOrEmpty(key) ? null : Create(_actionFactories, key, "action");
+        }
+
+        internal IStateLifecycleAction<TOwner> CreateStateAction(string key)
+        {
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentException("HFSM state action key is required.", nameof(key));
+            return Create(_stateActionFactories, key, "state action");
         }
 
         private static void Register<T>(Dictionary<string, Func<T>> factories, string key, Func<T> factory, string kind)

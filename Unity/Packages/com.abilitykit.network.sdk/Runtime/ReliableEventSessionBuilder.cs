@@ -1999,6 +1999,7 @@ namespace AbilityKit.Network.Sdk
             return new ReliableEventDeliveryOptions
             {
                 MaxPendingBatches = options.MaxPendingBatches,
+                MaxPendingEvents = options.MaxPendingEvents,
                 MaxAcknowledgementAttempts = options.MaxAcknowledgementAttempts,
                 AcknowledgementStrategy = options.AcknowledgementStrategy,
                 AcknowledgeAuthoritativeBaseline = options.AcknowledgeAuthoritativeBaseline,
@@ -2053,6 +2054,14 @@ namespace AbilityKit.Network.Sdk
 
         /// <summary>获取等待权威基线期间缓存的批次数。</summary>
         public int PendingBatchCount => _delivery.PendingBatchCount;
+        /// <summary>获取等待权威基线期间缓存的事件数。</summary>
+        public long PendingEventCount => _delivery.PendingEventCount;
+        /// <summary>获取当前恢复窗口编号。</summary>
+        public long RecoveryWindowId => _delivery.RecoveryWindowId;
+        /// <summary>获取当前会话累计的 pending 队列溢出次数。</summary>
+        public long PendingOverflowCount => _delivery.PendingOverflowCount;
+        /// <summary>获取恢复等待期间提前丢弃的错误事件流批次数。</summary>
+        public long PendingInvalidBatchCount => _delivery.PendingInvalidBatchCount;
 
         /// <summary>处理一个协议无关可靠事件批次。</summary>
         public void Handle(in ReliableEventBatch<TEvent> batch)

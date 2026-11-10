@@ -64,5 +64,17 @@
     "Name": "鲁班七号空中支援飞艇占位模型",
     "PrefabPath": "moba/airship/luban_airship",
     "Scale": 1.0
+  },
+  {
+    "Id": 3001,
+    "Name": "Jhin Battlecast model",
+    "PrefabPath": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Model",
+    "Scale": 1.0
+  },
+  {
+    "Id": 3003,
+    "Name": "Annie Void model",
+    "PrefabPath": "ChampionVfx/14.Void_Annie/Void_Annie_Model",
+    "Scale": 1.0
   }
 ]

@@ -2,6 +2,8 @@ using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Vfx;
+using AbilityKit.Game.Flow;
+using AbilityKit.Game.Platform.Unity.Presentation;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,11 +18,13 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             BattlePresentationCueRequestKey,
             BattlePresentationCueSpawnRequest,
             EC.IEntityId>,
-        IPresentationActorPlacementSource
+        IPresentationActorPlacementSource,
+        IPresentationCueCleanupPort<EC.IEntityId>
     {
         private readonly IBattleEntityQuery _query;
         private readonly BattlePresentationCueVfxSpawner _spawner;
         private readonly BattleVfxPresentationBackend _backend;
+        private readonly MobaPresentationTemplateResolver _templates;
 
         public BattlePresentationCueUnityPort(
             IBattleEntityQuery query,
@@ -28,6 +32,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             _query = query;
             _spawner = spawner;
+            _templates = new MobaPresentationTemplateResolver();
             _backend = new BattleVfxPresentationBackend(spawner, ResolveFollowTarget);
         }
 
@@ -66,6 +71,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _backend.Stop(handle);
         }
 
+        public void DestroyImmediately(EC.IEntityId handle) => _spawner.DestroyImmediately(handle);
+
         private bool TryCreateRequest(
             BattlePresentationCueRequestKey key,
             in BattlePresentationCueSpawnRequest payload,
@@ -81,21 +88,30 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                     followActorId,
                     offset: new PresentationVector3(payload.Offset.X, payload.Offset.Y, payload.Offset.Z))
                 : default;
-            var parameters = new List<PresentationParameter>(4)
+            var parameters = new List<PresentationParameter>(8)
             {
                 new PresentationParameter("stackCount", payload.StackCount),
                 new PresentationParameter("maxStackCount", payload.MaxStackCount),
                 new PresentationParameter("elapsedSeconds", payload.ElapsedSeconds),
                 new PresentationParameter("remainingSeconds", payload.RemainingSeconds),
+                new PresentationParameter("areaShapeKind", payload.ShapeKind),
+                new PresentationParameter("areaHalfAngleDeg", payload.HalfAngleDeg),
+                new PresentationParameter("areaWidth", payload.Width),
+                new PresentationParameter("areaLength", payload.Length),
             };
+            var rotation = ResolveRotation(payload.Forward);
             if (!_spawner.TryCreatePresentationRequest(
                     payload.VfxId,
                     key.IsEmpty ? payload.RequestKey.ToString() : key.ToString(),
                     new PresentationVector3(position.X, position.Y, position.Z),
                     out var configured,
                     attachment,
-                    PresentationRotation.Identity,
+                    rotation,
                     payload.Scale)) return false;
+            _templates.TryResolveTemplate(payload.TemplateId, configured.AssetId, out var template);
+            var ordering = template != null
+                ? new PresentationOrdering((PresentationOrderingMode)template.OrderingMode, template.OrderingPriority)
+                : configured.Ordering;
             request = new PresentationRequest(
                 configured.LogicalKey,
                 configured.AssetId,
@@ -109,8 +125,22 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 configured.ResourceKey,
                 configured.AssetKind,
                 configured.Playback,
-                configured.Policy);
+                configured.Policy,
+                template != null ? template.Follow : configured.FollowAttachment,
+                template != null ? (PresentationParentScaleMode)template.ParentScaleMode : configured.ParentScaleMode,
+                ordering,
+                MobaPresentationTemplateResolver.ResolveLifecycle(template),
+                template != null ? template.Id : 0);
             return request.IsValid;
+        }
+
+        private static PresentationRotation ResolveRotation(SnapshotVec3 forward)
+        {
+            var direction = new Vector3(forward.X, forward.Y, forward.Z);
+            if (direction.sqrMagnitude <= 0.000001f) return PresentationRotation.Identity;
+
+            var rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+            return new PresentationRotation(rotation.x, rotation.y, rotation.z, rotation.w);
         }
 
         public bool TryGetPosition(int actorId, out SnapshotVec3 position)
@@ -147,15 +177,18 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private readonly EC.IECWorld _world;
         private readonly BattleVfxManager _vfx;
         private readonly EC.IEntity _vfxNode;
+        private readonly IPresentationOrderingAdapter<GameObject> _ordering;
 
         public BattlePresentationCueVfxSpawner(
             EC.IECWorld world,
             BattleVfxManager vfx,
-            in EC.IEntity vfxNode)
+            in EC.IEntity vfxNode,
+            IPresentationOrderingAdapter<GameObject> ordering = null)
         {
             _world = world;
             _vfx = vfx;
             _vfxNode = vfxNode;
+            _ordering = ordering ?? new UnityPresentationOrderingAdapter();
         }
 
         public bool CanSpawn
@@ -199,6 +232,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             return id.IsValid && _world != null && _world.IsAlive(id);
         }
+
+        public bool CanUpdate(EC.IEntityId id) => IsAlive(id) &&
+            (!_world.Wrap(id).TryGetRef(out BattlePresentationLifetimeComponent lifetime) ||
+             lifetime == null || !lifetime.State.IsStopping);
 
         public bool TrySpawn(
             int vfxId,
@@ -252,7 +289,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                     followTarget,
                     out entity)) return false;
 
-            ApplyPresentationScale(entity, request.Scale, request.Radius);
+            // A property access is not a variable and cannot be passed by
+            // readonly reference under Unity's C# compiler. Copy the value
+            // before forwarding it to the by-ref helper.
+            var ordering = request.Ordering;
+            ApplyOrdering(entity, followTarget, in ordering);
             ApplyCueState(
                 entity,
                 ReadInt(request.Parameters, "stackCount"),
@@ -260,6 +301,29 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 ReadFloat(request.Parameters, "elapsedSeconds"),
                 ReadFloat(request.Parameters, "remainingSeconds"));
             return true;
+        }
+
+        private void ApplyOrdering(EC.IEntity entity, EC.IEntityId target, in PresentationOrdering ordering)
+        {
+            if (!entity.IsValid || !entity.TryGetRef(out BattleViewGameObjectComponent visual) ||
+                visual == null || visual.GameObject == null) return;
+            GameObject targetObject = null;
+            var state = visual.GameObject.GetComponent<UnityPresentationInstanceState>();
+            if (state != null)
+            {
+                state.OrderingAdapter = _ordering;
+                targetObject = state.AttachmentTarget != null ? state.AttachmentTarget.gameObject : null;
+            }
+            if (state == null && target.IsValid && _world != null && _world.IsAlive(target) &&
+                _world.Wrap(target).TryGetRef(out BattleViewGameObjectComponent targetView) && targetView != null)
+                targetObject = targetView.GameObject;
+            _ordering.Apply(visual.GameObject, targetObject, in ordering);
+        }
+
+        public void ApplyOrdering(EC.IEntityId id, EC.IEntityId target, in PresentationOrdering ordering)
+        {
+            if (!id.IsValid || _world == null || !_world.IsAlive(id)) return;
+            ApplyOrdering(_world.Wrap(id), target, in ordering);
         }
 
         public bool TrySpawn(
@@ -293,8 +357,17 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public void Destroy(EC.IEntityId id)
         {
             if (_world == null || id == default) return;
+            _vfx.StopPresentationVfxEntity(_world, id);
+        }
+
+        public void DestroyImmediately(EC.IEntityId id)
+        {
+            if (_world == null || id == default) return;
             _vfx.DestroyVfxEntity(_world, id);
         }
+
+        public void UpdateLifetime(EC.IEntityId id, in PresentationRequest request) =>
+            _vfx?.UpdatePresentationLifetime(_world, id, in request);
 
         public void Update(
             EC.IEntityId id,
@@ -367,10 +440,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 return;
             }
 
-            var resolvedScale = scale > 0f ? scale : 1f;
-            var radiusScale = radius > 0f ? radius : 1f;
-            goComp.GameObject.transform.localScale =
-                Vector3.one * resolvedScale * radiusScale;
+            BattlePresentationScaleState.ApplyCueScale(goComp.GameObject, scale, radius);
         }
 
         private void RefreshLifetime(EC.IEntityId id, int durationMsOverride)
@@ -462,6 +532,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         public void Update(EC.IEntityId handle, in PresentationRequest request)
         {
+            if (_spawner == null || !_spawner.CanUpdate(handle)) return;
             _spawner?.Update(
                 handle,
                 request.Scale,
@@ -471,6 +542,12 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 ReadInt(request.Parameters, "maxStackCount"),
                 ReadFloat(request.Parameters, "elapsedSeconds"),
                 ReadFloat(request.Parameters, "remainingSeconds"));
+            var target = request.Attachment.ActorId > 0
+                ? _resolveTarget?.Invoke(request.Attachment.ActorId) ?? default
+                : default;
+            var ordering = request.Ordering;
+            _spawner?.ApplyOrdering(handle, target, in ordering);
+            _spawner?.UpdateLifetime(handle, in request);
         }
 
         public void Stop(EC.IEntityId handle) => _spawner?.Destroy(handle);

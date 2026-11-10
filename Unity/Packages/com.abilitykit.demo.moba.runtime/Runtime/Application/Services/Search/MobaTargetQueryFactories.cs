@@ -79,6 +79,9 @@ namespace AbilityKit.Demo.Moba.Services.Search
 
     internal readonly struct MobaTargetQueryBuildContext
     {
+        // Compatibility overload for callers authored before aim direction
+        // became part of the targeting context. A zero direction preserves
+        // the previous point-to-point forward resolution behavior.
         public MobaTargetQueryBuildContext(
             MobaActorRegistry actors,
             ICandidateProvider allActorsProvider,
@@ -89,12 +92,30 @@ namespace AbilityKit.Demo.Moba.Services.Search
             ITargetScorer zeroScorer,
             ITargetSelector topKSelector,
             ITargetSelector streamingTopKSelector)
+            : this(actors, allActorsProvider, searchContext, casterActorId, aimPosition,
+                Vec3.Zero, explicitTargetActorId, zeroScorer, topKSelector,
+                streamingTopKSelector)
+        {
+        }
+
+        public MobaTargetQueryBuildContext(
+            MobaActorRegistry actors,
+            ICandidateProvider allActorsProvider,
+            SearchContext searchContext,
+            int casterActorId,
+            Vec3 aimPosition,
+            Vec3 aimDirection,
+            int explicitTargetActorId,
+            ITargetScorer zeroScorer,
+            ITargetSelector topKSelector,
+            ITargetSelector streamingTopKSelector)
         {
             Actors = actors;
             AllActorsProvider = allActorsProvider;
             SearchContext = searchContext;
             CasterActorId = casterActorId;
             AimPosition = aimPosition;
+            AimDirection = aimDirection;
             ExplicitTargetActorId = explicitTargetActorId;
             ZeroScorer = zeroScorer;
             TopKSelector = topKSelector;
@@ -106,6 +127,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
         public SearchContext SearchContext { get; }
         public int CasterActorId { get; }
         public Vec3 AimPosition { get; }
+        public Vec3 AimDirection { get; }
         public int ExplicitTargetActorId { get; }
         public ITargetScorer ZeroScorer { get; }
         public ITargetSelector TopKSelector { get; }
@@ -118,6 +140,8 @@ namespace AbilityKit.Demo.Moba.Services.Search
             {
                 case SearchTargetPointKind.AimPosition:
                     return new ST.Vec2(AimPosition.X, AimPosition.Z);
+                case SearchTargetPointKind.ProjectileHit:
+                    return new ST.Vec2(AimPosition.X, AimPosition.Z);
                 case SearchTargetPointKind.ExplicitTarget:
                     if (TryGetActorPosition(ExplicitTargetActorId, out var targetPos)) return targetPos;
                     break;
@@ -129,6 +153,15 @@ namespace AbilityKit.Demo.Moba.Services.Search
 
         public ST.Vec2 ResolveForward(int pointKind, ST.Vec2 origin)
         {
+            if ((SearchTargetPointKind)pointKind == SearchTargetPointKind.AimPosition ||
+                (SearchTargetPointKind)pointKind == SearchTargetPointKind.ProjectileHit)
+            {
+                var aimDirection = AimDirection;
+                var aimDirectionSqr = aimDirection.X * aimDirection.X + aimDirection.Z * aimDirection.Z;
+                if (aimDirectionSqr > 0.000001f)
+                    return Normalize(aimDirection.X, aimDirection.Z);
+            }
+
             var toPoint = ResolvePoint(pointKind);
             var fx = toPoint.X - origin.X;
             var fy = toPoint.Y - origin.Y;
@@ -575,6 +608,39 @@ namespace AbilityKit.Demo.Moba.Services.Search
         public ITargetRule Create(in MobaTargetQueryBuildContext context, SearchTargetRuleConfig config)
         {
             return RequireHasPositionRule.Instance;
+        }
+    }
+
+    [MobaTargetFilter((int)SearchTargetRuleKind.RequireUnitSubType)]
+    internal sealed class RequireUnitSubTypeTargetFilterFactory : IMobaTargetFilterFactory
+    {
+        public ITargetRule Create(in MobaTargetQueryBuildContext context, SearchTargetRuleConfig config)
+        {
+            if (config == null) throw new ArgumentNullException(nameof(config));
+            if (config.UnitSubType <= 0)
+            {
+                throw new InvalidOperationException($"RequireUnitSubType requires a positive UnitSubType. ruleId={config.Id}");
+            }
+
+            return new RequireUnitSubTypeTargetRule(context.Actors, config.UnitSubType);
+        }
+    }
+
+    internal sealed class RequireUnitSubTypeTargetRule : ITargetRule
+    {
+        private readonly MobaActorRegistry _actors;
+        private readonly int _unitSubType;
+
+        public RequireUnitSubTypeTargetRule(MobaActorRegistry actors, int unitSubType)
+        {
+            _actors = actors ?? throw new ArgumentNullException(nameof(actors));
+            _unitSubType = unitSubType;
+        }
+
+        public bool IsMatch(in SearchQuery query, SearchContext context, ST.EntityId candidate)
+        {
+            return candidate.Value <= int.MaxValue && _actors.TryGet((int)candidate.Value, out var actor) && actor != null &&
+                   actor.hasUnitSubType && (int)actor.unitSubType.Value == _unitSubType;
         }
     }
 

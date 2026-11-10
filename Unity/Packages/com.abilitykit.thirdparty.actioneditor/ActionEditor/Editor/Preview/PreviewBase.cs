@@ -30,6 +30,11 @@
         {
         }
 
+        /// <summary>Release transient preview resources when the player is reset or closed.</summary>
+        public virtual void Dispose()
+        {
+        }
+
 
         public abstract void Update(float time, float previousTime);
     }

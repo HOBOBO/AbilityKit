@@ -6,12 +6,13 @@ namespace AbilityKit.Game.Flow
     {
         private static readonly Vector2[] SkillButtonPositions =
         {
-            new Vector2(-330f, 150f),
-            new Vector2(-215f, 245f),
-            new Vector2(-95f, 180f),
-            new Vector2(-92f, 62f),
-            new Vector2(-215f, 365f),
-            new Vector2(-340f, 285f),
+            // Q/W above E/R; basic attack sits immediately to the right of the
+            // lower row so all five controls form one compact thumb cluster.
+            new Vector2(-330f, 250f),
+            new Vector2(-200f, 250f),
+            new Vector2(-330f, 120f),
+            new Vector2(-200f, 120f),
+            new Vector2(-70f, 120f),
         };
 
         public static readonly Vector2 InfoButtonPosition = new Vector2(-80f, -80f);

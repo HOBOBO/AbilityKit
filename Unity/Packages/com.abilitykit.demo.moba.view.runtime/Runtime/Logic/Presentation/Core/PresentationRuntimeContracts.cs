@@ -53,7 +53,9 @@ namespace AbilityKit.Game.Flow
         public int IntervalMs { get; }
         public bool PlayOnReady { get; }
 
-        public static PresentationPlaybackSpec Default => new PresentationPlaybackSpec();
+        // Parameterless struct construction zero-initializes optional fields.
+        // Select the constructor explicitly so default playback runs once at 1x.
+        public static PresentationPlaybackSpec Default => new PresentationPlaybackSpec(speed: 1f);
 
         private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     }
@@ -87,6 +89,50 @@ namespace AbilityKit.Game.Flow
         Area = 4,
     }
 
+    /// <summary>Coordinate frame used to interpret an attachment offset.</summary>
+    public enum PresentationOffsetSpace
+    {
+        // Preserve the existing TransformPoint behavior for old requests/templates.
+        TargetLocal = 0,
+        World = 1,
+    }
+
+    /// <summary>Whether an attached visual inherits the attachment hierarchy's scale.</summary>
+    public enum PresentationParentScaleMode
+    {
+        Inherit = 0,
+        Ignore = 1,
+    }
+
+    /// <summary>Semantic ordering intent; rendering engines choose how to realize it.</summary>
+    public enum PresentationOrderingMode
+    {
+        ResourceDefault = 0,
+        RelativeToAttachment = 1,
+        ExplicitPriority = 2,
+    }
+
+    public readonly struct PresentationOrdering
+    {
+        public PresentationOrdering(PresentationOrderingMode mode, int priority = 0)
+        {
+            Mode = Enum.IsDefined(typeof(PresentationOrderingMode), mode)
+                ? mode
+                : PresentationOrderingMode.ResourceDefault;
+            Priority = priority;
+        }
+
+        public PresentationOrderingMode Mode { get; }
+        /// <summary>Abstract ordering priority interpreted by the active presentation backend.</summary>
+        public int Priority { get; }
+        public static PresentationOrdering Default => new PresentationOrdering(PresentationOrderingMode.ResourceDefault);
+    }
+
+    public interface IPresentationOrderingAdapter<TVisual>
+    {
+        void Apply(TVisual visual, TVisual attachmentTarget, in PresentationOrdering ordering);
+    }
+
     public readonly struct PresentationVector3
     {
         public PresentationVector3(float x, float y, float z)
@@ -101,6 +147,7 @@ namespace AbilityKit.Game.Flow
         public float Z { get; }
 
         public static PresentationVector3 Zero => default;
+        public static PresentationVector3 One => new PresentationVector3(1f, 1f, 1f);
     }
 
     public readonly struct PresentationRotation
@@ -126,18 +173,21 @@ namespace AbilityKit.Game.Flow
             PresentationAttachmentKind kind,
             int actorId = 0,
             string socket = null,
-            PresentationVector3 offset = default)
+            PresentationVector3 offset = default,
+            PresentationOffsetSpace offsetSpace = PresentationOffsetSpace.TargetLocal)
         {
             Kind = kind;
             ActorId = actorId;
             Socket = socket ?? string.Empty;
             Offset = offset;
+            OffsetSpace = offsetSpace;
         }
 
         public PresentationAttachmentKind Kind { get; }
         public int ActorId { get; }
         public string Socket { get; }
         public PresentationVector3 Offset { get; }
+        public PresentationOffsetSpace OffsetSpace { get; }
 
         public bool IsAttached => Kind != PresentationAttachmentKind.World && ActorId > 0;
     }
@@ -169,7 +219,12 @@ namespace AbilityKit.Game.Flow
             string resourceKey = null,
             PresentationAssetKind assetKind = PresentationAssetKind.Prefab,
             PresentationPlaybackSpec playback = default,
-            PresentationEffectPolicy policy = default)
+            PresentationEffectPolicy policy = default,
+            bool followAttachment = true,
+            PresentationParentScaleMode parentScaleMode = PresentationParentScaleMode.Inherit,
+            PresentationOrdering ordering = default,
+            PresentationLifecyclePolicy lifecycle = default,
+            int templateId = 0)
         {
             LogicalKey = logicalKey ?? string.Empty;
             AssetId = assetId;
@@ -184,10 +239,17 @@ namespace AbilityKit.Game.Flow
             Parameters = parameters;
             ResourceKey = resourceKey ?? string.Empty;
             AssetKind = assetKind;
-            Playback = playback.Equals(default(PresentationPlaybackSpec))
+            // Only an omitted, zero-initialized spec needs defaults; an explicit
+            // speed of zero is a valid pause and must remain zero.
+            Playback = playback.ClipKey == null
                 ? PresentationPlaybackSpec.Default
                 : playback;
             Policy = policy;
+            FollowAttachment = followAttachment;
+            ParentScaleMode = parentScaleMode;
+            Ordering = ordering;
+            Lifecycle = lifecycle;
+            TemplateId = templateId;
         }
 
         public string LogicalKey { get; }
@@ -203,6 +265,12 @@ namespace AbilityKit.Game.Flow
         public PresentationAssetKind AssetKind { get; }
         public PresentationPlaybackSpec Playback { get; }
         public PresentationEffectPolicy Policy { get; }
+        /// <summary>Whether a resolved attachment remains a live Transform parent after initial placement.</summary>
+        public bool FollowAttachment { get; }
+        public PresentationParentScaleMode ParentScaleMode { get; }
+        public PresentationOrdering Ordering { get; }
+        public PresentationLifecyclePolicy Lifecycle { get; }
+        public int TemplateId { get; }
 
         public bool IsValid => !string.IsNullOrEmpty(LogicalKey) &&
             (AssetId > 0 || !string.IsNullOrEmpty(ResourceKey) ||
@@ -319,14 +387,24 @@ namespace AbilityKit.Game.Flow
 
         public bool Tick(float deltaSeconds)
         {
+            return Tick(deltaSeconds, _spec.Speed);
+        }
+
+        public bool Tick(float deltaSeconds, float playbackRate)
+        {
             if (_phase == PresentationPlaybackPhase.Completed || _phase == PresentationPlaybackPhase.Stopped) return false;
             if (deltaSeconds < 0f || float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds))
                 throw new ArgumentOutOfRangeException(nameof(deltaSeconds));
+            if (playbackRate < 0f || float.IsNaN(playbackRate) || float.IsInfinity(playbackRate))
+                throw new ArgumentOutOfRangeException(nameof(playbackRate));
 
-            _elapsed += deltaSeconds;
+            var effectiveDelta = deltaSeconds * playbackRate;
+            if (float.IsNaN(effectiveDelta) || float.IsInfinity(effectiveDelta))
+                throw new ArgumentOutOfRangeException(nameof(playbackRate));
+            _elapsed += effectiveDelta;
             var delay = _spec.DelayMs / 1000f;
             var interval = _spec.IntervalMs / 1000f;
-            var remaining = deltaSeconds;
+            var remaining = effectiveDelta;
             while (remaining > 0f && _phase != PresentationPlaybackPhase.Completed &&
                    _phase != PresentationPlaybackPhase.Stopped)
             {
@@ -474,6 +552,17 @@ namespace AbilityKit.Game.Flow
 
         public int ActiveCount => _states.Count;
 
+        /// <summary>Checks a replacement before removing its old instances. Does not mutate emission history.</summary>
+        public bool CanAcquire(TKey key, in PresentationEffectPolicy policy, long nowMs, int replacingActive = 0)
+        {
+            if (key is null || !_states.TryGetValue(key, out var state)) return true;
+            var active = Math.Max(0, state.Active - Math.Max(0, replacingActive));
+            return (!policy.Unique || active == 0) &&
+                (policy.MaxActive <= 0 || active < policy.MaxActive) &&
+                (policy.MinIntervalMs <= 0 || state.LastEmissionMs == long.MinValue ||
+                 nowMs - state.LastEmissionMs >= policy.MinIntervalMs);
+        }
+
         public bool TryAcquire(TKey key, in PresentationEffectPolicy policy, long nowMs)
         {
             if (key is null) return true;
@@ -536,6 +625,14 @@ namespace AbilityKit.Game.Flow
         void Stop(TVisual visual);
     }
 
+    /// <summary>
+    /// Optional fast path for changing playback speed without restarting a source.
+    /// </summary>
+    public interface IPresentationRateAwareSourceAdapter<TVisual>
+    {
+        void SetRate(TVisual visual, float rate);
+    }
+
     public sealed class PresentationSourceAdapterRegistry<TVisual>
     {
         private readonly List<IPresentationSourceAdapter<TVisual>> _adapters = new List<IPresentationSourceAdapter<TVisual>>();
@@ -552,6 +649,18 @@ namespace AbilityKit.Game.Flow
             {
                 if (!_adapters[i].CanHandle(request.AssetKind, visual)) continue;
                 _adapters[i].Apply(visual, in request);
+                return true;
+            }
+            return false;
+        }
+
+        public bool TrySetRate(TVisual visual, PresentationAssetKind kind, float rate)
+        {
+            for (var i = 0; i < _adapters.Count; i++)
+            {
+                if (!_adapters[i].CanHandle(kind, visual)) continue;
+                if (_adapters[i] is IPresentationRateAwareSourceAdapter<TVisual> rateAware)
+                    rateAware.SetRate(visual, rate);
                 return true;
             }
             return false;
@@ -668,6 +777,7 @@ namespace AbilityKit.Game.Flow
         private readonly IEqualityComparer<TKey> _comparer;
         private readonly Dictionary<TKey, THandle> _active;
         private readonly List<TKey> _clearBuffer = new List<TKey>();
+        private readonly HashSet<THandle> _stopping = new HashSet<THandle>();
 
         public PresentationInstanceRegistry(
             IPresentationCueViewPort<TKey, TPayload, THandle> port,
@@ -687,6 +797,7 @@ namespace AbilityKit.Game.Flow
 
         public bool EnsureActive(TKey key, in TPayload payload)
         {
+            PruneStopped();
             if (_comparer.Equals(key, default(TKey))) return false;
             if (_active.TryGetValue(key, out var existing))
             {
@@ -714,10 +825,15 @@ namespace AbilityKit.Game.Flow
 
         public bool Stop(TKey key)
         {
+            return Stop(key, force: false);
+        }
+
+        private bool Stop(TKey key, bool force)
+        {
             if (_comparer.Equals(key, default(TKey)) || !_active.TryGetValue(key, out var handle)) return false;
             if (_port.IsAlive(handle))
             {
-                _port.Destroy(handle);
+                Destroy(handle, force);
                 DestroyedCount++;
             }
             else StaleHandleCount++;
@@ -727,6 +843,7 @@ namespace AbilityKit.Game.Flow
 
         public bool EmitTransient(TKey key, in TPayload payload)
         {
+            PruneStopped();
             if (_comparer.Equals(key, default(TKey))) return false;
             if (!_port.TryCreate(key, in payload, out var handle))
             {
@@ -737,7 +854,7 @@ namespace AbilityKit.Game.Flow
             CreatedCount++;
             if (_port.IsAlive(handle))
             {
-                _port.Destroy(handle);
+                Destroy(handle, force: false);
                 DestroyedCount++;
             }
             return true;
@@ -760,7 +877,7 @@ namespace AbilityKit.Game.Flow
             List<Exception> failures = null;
             for (var i = 0; i < _clearBuffer.Count; i++)
             {
-                try { Stop(_clearBuffer[i]); }
+                try { Stop(_clearBuffer[i], force: true); }
                 catch (Exception exception)
                 {
                     failures ??= new List<Exception>();
@@ -768,6 +885,7 @@ namespace AbilityKit.Game.Flow
                 }
             }
             _clearBuffer.Clear();
+            ClearStopped(ref failures);
             if (failures != null)
                 throw new AggregateException("One or more presentation instances failed to stop.", failures);
         }
@@ -784,8 +902,51 @@ namespace AbilityKit.Game.Flow
             _clearBuffer.Clear();
             foreach (var pair in _active)
                 if (!desired.Contains(pair.Key)) _clearBuffer.Add(pair.Key);
-            for (var i = 0; i < _clearBuffer.Count; i++) Stop(_clearBuffer[i]);
+            List<Exception> failures = null;
+            for (var i = 0; i < _clearBuffer.Count; i++)
+            {
+                try { Stop(_clearBuffer[i], force: true); }
+                catch (Exception exception)
+                {
+                    failures ??= new List<Exception>();
+                    failures.Add(exception);
+                }
+            }
             _clearBuffer.Clear();
+            ClearStopped(ref failures);
+            if (failures != null)
+                throw new AggregateException("One or more presentation instances failed to reconcile.", failures);
+        }
+
+        private void Destroy(THandle handle, bool force)
+        {
+            PruneStopped();
+            if (force && _port is IPresentationCueCleanupPort<THandle> cleanup)
+                cleanup.DestroyImmediately(handle);
+            else
+                _port.Destroy(handle);
+            if (_port is IPresentationCueCleanupPort<THandle> && _port.IsAlive(handle))
+                _stopping.Add(handle);
+        }
+
+        private void PruneStopped() => _stopping.RemoveWhere(handle => !_port.IsAlive(handle));
+
+        private void ClearStopped(ref List<Exception> failures)
+        {
+            if (!(_port is IPresentationCueCleanupPort<THandle> cleanup)) return;
+            foreach (var handle in new List<THandle>(_stopping))
+            {
+                try
+                {
+                    if (_port.IsAlive(handle)) cleanup.DestroyImmediately(handle);
+                    _stopping.Remove(handle);
+                }
+                catch (Exception exception)
+                {
+                    failures ??= new List<Exception>();
+                    failures.Add(exception);
+                }
+            }
         }
     }
 

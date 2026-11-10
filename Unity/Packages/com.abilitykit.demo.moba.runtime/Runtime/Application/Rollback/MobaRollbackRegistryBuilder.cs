@@ -82,6 +82,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             {
                 world.Services.TryResolve<MobaEntityManager>(out var entityManager);
                 world.Services.TryResolve<MobaSummonService>(out var summons);
+                world.Services.TryResolve<MobaBrainService>(out var brainsForEntityCleanup);
                 MobaActorRollbackCommandRuntime actorCommands = null;
                 if (entityManager != null &&
                     world.Services.TryResolve<IFrameTime>(out var commandFrameTime) &&
@@ -100,7 +101,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                     actors,
                     entityManager,
                     summons,
-                    restoresMissingActors));
+                    restoresMissingActors,
+                    brainsForEntityCleanup));
                 registry.Register(new MobaEntitasComponentRollbackProvider(
                     contexts.actor,
                     restoresMissingActors));
@@ -162,7 +164,13 @@ namespace AbilityKit.Demo.Moba.Rollback
                 registry.Register(new MobaBuffTimerRollbackProvider(actorRegistry));
                 registry.Register(new MobaSkillCooldownRollbackProvider(actorRegistry));
                 world.Services.TryResolve<StateMachineDefinition>(out var characterDefinition);
-                registry.Register(new MobaCharacterHfsmRollbackProvider(actorRegistry, characterDefinition));
+                world.Services.TryResolve<MobaCharacterHfsmParameterService>(out var characterParameters);
+                world.Services.TryResolve<MobaEffectExecutionService>(out var characterHfsmEffects);
+                world.Services.TryResolve<MobaCharacterHfsmProfileCatalog>(out var characterProfiles);
+                registry.Register(new MobaCharacterHfsmRollbackProvider(actorRegistry,
+                    characterDefinition, characterParameters, characterHfsmEffects, characterProfiles));
+                if (characterParameters != null)
+                    registry.Register(new MobaCharacterHfsmParameterRollbackProvider(characterParameters));
 
                 if (world.Services.TryResolve<MobaBrainService>(out var brainService) && brainService != null)
                 {

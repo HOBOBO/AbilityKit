@@ -1,0 +1,7 @@
+{
+    "schemaVersion": 1,
+    "runtimeType": "logic",
+    "length": 4.166667,
+    "groups": [],
+    "$type": "AbilityKit.ActionSchema.SkillAssetDto"
+}

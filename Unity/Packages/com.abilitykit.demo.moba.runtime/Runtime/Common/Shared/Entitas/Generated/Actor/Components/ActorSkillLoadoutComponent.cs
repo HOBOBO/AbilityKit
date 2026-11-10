@@ -11,17 +11,19 @@ public partial class ActorEntity {
     public AbilityKit.Demo.Moba.Components.SkillLoadoutComponent skillLoadout { get { return (AbilityKit.Demo.Moba.Components.SkillLoadoutComponent)GetComponent(ActorComponentsLookup.SkillLoadout); } }
     public bool hasSkillLoadout { get { return HasComponent(ActorComponentsLookup.SkillLoadout); } }
 
-    public void AddSkillLoadout(AbilityKit.Demo.Moba.Components.ActiveSkillRuntime[] newActiveSkills, AbilityKit.Demo.Moba.Components.PassiveSkillRuntime[] newPassiveSkills) {
+    public void AddSkillLoadout(int newHeroId, AbilityKit.Demo.Moba.Components.ActiveSkillRuntime[] newActiveSkills, AbilityKit.Demo.Moba.Components.PassiveSkillRuntime[] newPassiveSkills) {
         var index = ActorComponentsLookup.SkillLoadout;
         var component = (AbilityKit.Demo.Moba.Components.SkillLoadoutComponent)CreateComponent(index, typeof(AbilityKit.Demo.Moba.Components.SkillLoadoutComponent));
+        component.HeroId = newHeroId;
         component.ActiveSkills = newActiveSkills;
         component.PassiveSkills = newPassiveSkills;
         AddComponent(index, component);
     }
 
-    public void ReplaceSkillLoadout(AbilityKit.Demo.Moba.Components.ActiveSkillRuntime[] newActiveSkills, AbilityKit.Demo.Moba.Components.PassiveSkillRuntime[] newPassiveSkills) {
+    public void ReplaceSkillLoadout(int newHeroId, AbilityKit.Demo.Moba.Components.ActiveSkillRuntime[] newActiveSkills, AbilityKit.Demo.Moba.Components.PassiveSkillRuntime[] newPassiveSkills) {
         var index = ActorComponentsLookup.SkillLoadout;
         var component = (AbilityKit.Demo.Moba.Components.SkillLoadoutComponent)CreateComponent(index, typeof(AbilityKit.Demo.Moba.Components.SkillLoadoutComponent));
+        component.HeroId = newHeroId;
         component.ActiveSkills = newActiveSkills;
         component.PassiveSkills = newPassiveSkills;
         ReplaceComponent(index, component);

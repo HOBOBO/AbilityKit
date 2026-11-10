@@ -1,4 +1,5 @@
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Flow;
 using AbilityKit.World.ECS;
 using UnityEngine;
 
@@ -18,6 +19,11 @@ namespace AbilityKit.Game.Flow
         public MonoViewHandle ViewHandle;
         public int VfxId;
         public IEntityId VfxEntityId;
+        /// <summary>
+        /// Scale contributions belong to the logical view handle, not the replaceable
+        /// model GameObject, so they survive avatar/model shell recreation.
+        /// </summary>
+        public readonly PresentationScaleResolver ScaleSources = new PresentationScaleResolver();
         public Vector3 PendingPos;
         public bool HasPendingPos;
         public Vector3 PendingForward;

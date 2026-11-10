@@ -233,6 +233,77 @@ public sealed class PresentationCueReconciliationControllerTests
         Assert.Equal(1, controller.ConfirmedCount);
     }
 
+    [Fact]
+    public void Capacity_does_not_evict_active_prediction_history()
+    {
+        var controller = new PresentationCueReconciliationController<string, int>(
+            capacity: 1,
+            comparer: StringComparer.Ordinal);
+        controller.Process(Update(
+            "cast-q",
+            PresentationCueSignal.Activate,
+            PresentationCuePredictionOutcome.Predicted,
+            revision: 10));
+        controller.Process(Update(
+            "cast-w",
+            PresentationCueSignal.Activate,
+            PresentationCuePredictionOutcome.Predicted,
+            revision: 11));
+
+        var confirmed = controller.Process(Update(
+            "cast-q",
+            PresentationCueSignal.Refresh,
+            PresentationCuePredictionOutcome.Confirmed,
+            revision: 12));
+
+        Assert.True(confirmed.Accepted);
+        Assert.True(confirmed.IsPromotion);
+        Assert.Equal(1, controller.ConfirmedCount);
+    }
+
+    [Fact]
+    public void Reused_key_cannot_be_evicted_by_a_stale_receipt()
+    {
+        var controller = new PresentationCueReconciliationController<string, int>(
+            capacity: 2,
+            comparer: StringComparer.Ordinal);
+        controller.Process(Update(
+            "cast-q",
+            PresentationCueSignal.Activate,
+            PresentationCuePredictionOutcome.Predicted,
+            revision: 10));
+        controller.Process(Update(
+            "cast-q",
+            PresentationCueSignal.Deactivate,
+            PresentationCuePredictionOutcome.None,
+            revision: 11));
+        controller.ReconcileActiveSet(Array.Empty<string>());
+        controller.Process(Update(
+            "cast-q",
+            PresentationCueSignal.Activate,
+            PresentationCuePredictionOutcome.Predicted,
+            revision: 20));
+        controller.Process(Update(
+            "cast-w",
+            PresentationCueSignal.Activate,
+            PresentationCuePredictionOutcome.Predicted,
+            revision: 21));
+        controller.Process(Update(
+            "cast-e",
+            PresentationCueSignal.Activate,
+            PresentationCuePredictionOutcome.Predicted,
+            revision: 22));
+
+        var confirmed = controller.Process(Update(
+            "cast-q",
+            PresentationCueSignal.Refresh,
+            PresentationCuePredictionOutcome.Confirmed,
+            revision: 23));
+
+        Assert.True(confirmed.Accepted);
+        Assert.True(confirmed.IsPromotion);
+    }
+
     private static PresentationCueReconciliationController<string, int> CreateController()
     {
         return new PresentationCueReconciliationController<string, int>(

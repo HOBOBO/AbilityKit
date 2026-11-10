@@ -38,7 +38,8 @@ namespace AbilityKit.Demo.Moba.Services
                 var action = runtime.Action;
                 current.Add(new CharacterActionData(id, _actors.GetEntityVersion(id), runtime.Frame,
                     action.Path, action.InstanceId, action.StartFrame, action.LocalFrame,
-                    action.CastInstanceId, action.SkillId));
+                    action.CastInstanceId, action.SkillId, action.ModeId, action.ModeInstanceId,
+                    action.ModeStartFrame, action.ModeLocalFrame));
             }
 
             var entries = current.ToArray();
@@ -63,7 +64,10 @@ namespace AbilityKit.Demo.Moba.Services
                 if (a.ActorId != b.ActorId || a.EntityVersion != b.EntityVersion ||
                     a.Path != b.Path || a.InstanceId != b.InstanceId ||
                     a.StartFrame != b.StartFrame || a.CastInstanceId != b.CastInstanceId ||
-                    a.SkillId != b.SkillId) return false;
+                    a.SkillId != b.SkillId || a.ModeId != b.ModeId ||
+                    a.ModeInstanceId != b.ModeInstanceId ||
+                    a.ModeStartFrame != b.ModeStartFrame ||
+                    a.ModeLocalFrame != b.ModeLocalFrame) return false;
             }
             return true;
         }

@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Share
         public float ForwardZ { get; }
         public float RotationY { get; }
         public float Scale { get; }
+        public bool HasScale { get; }
 
         public ActorTransformData(
             int actorId,
@@ -24,7 +25,8 @@ namespace AbilityKit.Demo.Moba.Share
             float forwardY,
             float forwardZ,
             float rotationY,
-            float scale)
+            float scale,
+            bool hasScale = true)
         {
             ActorId = actorId;
             PositionX = x;
@@ -35,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Share
             ForwardZ = forwardZ;
             RotationY = rotationY;
             Scale = scale;
+            HasScale = hasScale;
         }
 
         public ActorTransformData(

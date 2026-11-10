@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Editor;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
@@ -13,6 +14,213 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 {
     public sealed class SkillFlowDefTests
     {
+        private const string SerializationRegressionFolder = "Assets/SkillFlowSerializationRegressionTmp";
+        private const string SerializationRegressionAssetPath = SerializationRegressionFolder + "/SkillFlow.asset";
+
+        [Test]
+        public void SerializeReferencePhases_RemainDistinctAcrossCreateAppendAndReload()
+        {
+            if (!AssetDatabase.IsValidFolder(SerializationRegressionFolder))
+            {
+                AssetDatabase.CreateFolder("Assets", "SkillFlowSerializationRegressionTmp");
+            }
+
+            try
+            {
+                var asset = ScriptableObject.CreateInstance<SkillFlowSO>();
+                AssetDatabase.CreateAsset(asset, SerializationRegressionAssetPath);
+                asset.dataList = new[]
+                {
+                    new SkillFlowDef
+                    {
+                        Id = 990001,
+                        Name = "serialization-regression",
+                        Phases = new List<SkillPhaseDef>
+                        {
+                            new SkillRulePlanPhaseDef { PhaseId = "release", TriggerIds = new[] { 900101011 } },
+                            new SkillTimelinePhaseDef { PhaseId = "cast" },
+                        },
+                    },
+                };
+                EditorUtility.SetDirty(asset);
+                AssetDatabase.SaveAssets();
+
+                AssertReloadedPhaseGraph();
+
+                asset = AssetDatabase.LoadAssetAtPath<SkillFlowSO>(SerializationRegressionAssetPath);
+                var previousFlowDto = asset.dataList[0].ToDto();
+                var appendedFlowDto = new SkillFlowDTO
+                {
+                    Id = 990002,
+                    Name = "serialization-regression-appended",
+                    Phases = new[]
+                    {
+                        new SkillPhaseDTO
+                        {
+                            Type = (int)SkillPhaseType.RulePlan,
+                            PhaseId = "appended-release",
+                            RulePlan = new SkillRulePlanPhaseDTO { TriggerIds = new[] { 900101012 } },
+                        },
+                        new SkillPhaseDTO
+                        {
+                            Type = (int)SkillPhaseType.CommitPoint,
+                            PhaseId = "appended-commit",
+                            CommitPoint = new SkillCommitPointPhaseDTO { CommitId = "shot" },
+                        },
+                    },
+                };
+                asset.dataList = new[]
+                {
+                    SkillFlowDef.FromDto(previousFlowDto),
+                    SkillFlowDef.FromDto(appendedFlowDto),
+                };
+                EditorUtility.SetDirty(asset);
+                AssetDatabase.SaveAssets();
+
+                AssertReloadedPhaseGraph();
+            }
+            finally
+            {
+                AssetDatabase.DeleteAsset(SerializationRegressionFolder);
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+            }
+        }
+
+        [Test]
+        public void ProductionFlowAsset_IncrementalAppendPreservesExistingPhaseGraph()
+        {
+            const string productionAssetPath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/Moba/SkillFlowCO.asset";
+            const string copiedAssetPath = SerializationRegressionFolder + "/SkillFlowProductionCopy.asset";
+            var sourcePath = Path.GetFullPath(Path.Combine(
+                Application.dataPath, "..", "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jinx-q-flow.json"));
+
+            if (!AssetDatabase.IsValidFolder(SerializationRegressionFolder))
+            {
+                AssetDatabase.CreateFolder("Assets", "SkillFlowSerializationRegressionTmp");
+            }
+
+            try
+            {
+                Assert.That(AssetDatabase.CopyAsset(productionAssetPath, copiedAssetPath), Is.True,
+                    "The production SkillFlowCO must be copied before testing the additive write.");
+                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+                var copied = AssetDatabase.LoadAssetAtPath<SkillFlowSO>(copiedAssetPath);
+                Assert.That(copied, Is.Not.Null);
+                var originalFlows = copied.dataList ?? Array.Empty<SkillFlowDef>();
+                Assert.That(originalFlows.Any(flow => flow != null && flow.Id == 30020101), Is.False,
+                    "The fixture should exercise an append, not a replacement.");
+
+                var values = LubanConfigGroupDeserializer.Instance.DeserializeFromText(
+                    File.ReadAllText(sourcePath), typeof(SkillFlowDTO));
+                Assert.That(values, Has.Length.EqualTo(1));
+                var jinxDto = (SkillFlowDTO)values.GetValue(0);
+
+                // Match the production syncer's additive path: retain the loaded objects and append a fresh DTO graph.
+                copied.dataList = originalFlows.Concat(new[] { SkillFlowDef.FromDto(jinxDto) }).ToArray();
+                EditorUtility.SetDirty(copied);
+                AssetDatabase.SaveAssets();
+
+                Resources.UnloadAsset(copied);
+                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+                copied = AssetDatabase.LoadAssetAtPath<SkillFlowSO>(copiedAssetPath);
+                Assert.That(copied, Is.Not.Null);
+                Assert.That(copied.dataList, Has.Length.EqualTo(originalFlows.Length + 1));
+                Assert.That(copied.dataList.Count(flow => flow != null && flow.Id == 30020101), Is.EqualTo(1));
+
+                foreach (var flow in copied.dataList)
+                {
+                    Assert.That(flow, Is.Not.Null);
+                    var visited = new HashSet<SkillPhaseDef>();
+                    var phaseIds = new HashSet<string>(StringComparer.Ordinal);
+                    AssertDistinctPhaseGraph(flow.Id, flow.Phases, visited, phaseIds);
+                }
+            }
+            finally
+            {
+                AssetDatabase.DeleteAsset(SerializationRegressionFolder);
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+            }
+        }
+
+        private static void AssertDistinctPhaseGraph(
+            int flowId,
+            IReadOnlyList<SkillPhaseDef> phases,
+            ISet<SkillPhaseDef> visited,
+            ISet<string> phaseIds)
+        {
+            Assert.That(phases, Is.Not.Null, $"SkillFlow {flowId} has no phases.");
+            foreach (var phase in phases)
+            {
+                Assert.That(phase, Is.Not.Null, $"SkillFlow {flowId} contains a null phase.");
+                Assert.That(visited.Add(phase), Is.True, $"SkillFlow {flowId} reuses phase '{phase.PhaseId}'.");
+                if (!string.IsNullOrWhiteSpace(phase.PhaseId))
+                    Assert.That(phaseIds.Add(phase.PhaseId.Trim()), Is.True,
+                        $"SkillFlow {flowId} repeats phase ID '{phase.PhaseId}'.");
+                if (phase is SkillCompositePhaseDef composite)
+                    AssertDistinctPhaseGraph(flowId, composite.Children, visited, phaseIds);
+                if (phase is SkillRepeatPhaseDef repeat)
+                    AssertDistinctPhaseNode(flowId, repeat.Phase, visited, phaseIds);
+            }
+        }
+
+        private static void AssertDistinctPhaseNode(
+            int flowId,
+            SkillPhaseDef phase,
+            ISet<SkillPhaseDef> visited,
+            ISet<string> phaseIds)
+        {
+            Assert.That(phase, Is.Not.Null, $"SkillFlow {flowId} contains a null repeat phase.");
+            Assert.That(visited.Add(phase), Is.True, $"SkillFlow {flowId} reuses phase '{phase.PhaseId}'.");
+            if (!string.IsNullOrWhiteSpace(phase.PhaseId))
+                Assert.That(phaseIds.Add(phase.PhaseId.Trim()), Is.True,
+                    $"SkillFlow {flowId} repeats phase ID '{phase.PhaseId}'.");
+            if (phase is SkillCompositePhaseDef composite)
+                AssertDistinctPhaseGraph(flowId, composite.Children, visited, phaseIds);
+            if (phase is SkillRepeatPhaseDef repeat)
+                AssertDistinctPhaseNode(flowId, repeat.Phase, visited, phaseIds);
+        }
+
+        private static void AssertReloadedPhaseGraph()
+        {
+            Resources.UnloadAsset(AssetDatabase.LoadAssetAtPath<SkillFlowSO>(SerializationRegressionAssetPath));
+            AssetDatabase.Refresh();
+            var reloaded = AssetDatabase.LoadAssetAtPath<SkillFlowSO>(SerializationRegressionAssetPath);
+            Assert.That(reloaded, Is.Not.Null);
+            Assert.That(reloaded.dataList, Has.Length.GreaterThanOrEqualTo(1));
+            Assert.That(reloaded.dataList[0].Id, Is.EqualTo(990001));
+            var phases = reloaded.dataList[0].Phases;
+            Assert.That(phases, Is.Not.Null);
+            Assert.That(phases, Has.Count.GreaterThanOrEqualTo(2));
+            Assert.That(phases[0], Is.Not.Null);
+            Assert.That(phases[1], Is.Not.Null);
+            Assert.That(ReferenceEquals(phases[0], phases[1]), Is.False,
+                "SerializeReference phase entries must deserialize as independent objects.");
+            Assert.That(phases[0].PhaseId, Is.EqualTo("release"));
+            Assert.That(phases[0], Is.TypeOf<SkillRulePlanPhaseDef>());
+            Assert.That(phases[1].PhaseId, Is.EqualTo("cast"));
+            Assert.That(phases[1], Is.TypeOf<SkillTimelinePhaseDef>());
+            if (reloaded.dataList.Length > 1)
+            {
+                Assert.That(reloaded.dataList, Has.Length.EqualTo(2));
+                Assert.That(reloaded.dataList[1].Id, Is.EqualTo(990002));
+                Assert.That(reloaded.dataList[1].Phases, Has.Count.EqualTo(2));
+                Assert.That(reloaded.dataList[1].Phases[0].PhaseId, Is.EqualTo("appended-release"));
+                Assert.That(reloaded.dataList[1].Phases[0], Is.TypeOf<SkillRulePlanPhaseDef>());
+                Assert.That(reloaded.dataList[1].Phases[1].PhaseId, Is.EqualTo("appended-commit"));
+                Assert.That(reloaded.dataList[1].Phases[1], Is.TypeOf<SkillCommitPointPhaseDef>());
+                foreach (var firstPhase in phases)
+                {
+                    foreach (var appendedPhase in reloaded.dataList[1].Phases)
+                    {
+                        Assert.That(ReferenceEquals(firstPhase, appendedPhase), Is.False,
+                            "Appending a flow must not reuse phase instances from existing flows.");
+                    }
+                }
+            }
+        }
+
         [Test]
         public void LegacyJsonContinuousTagTemplates_MapConfiguredApplicationTags()
         {

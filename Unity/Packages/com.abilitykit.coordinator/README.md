@@ -897,3 +897,14 @@ hooks.OnConnectionChanged += connected =>
 - 简化后的 ETBattleComponent 示例
 - 同步模式切换方法
 - 文件清单和删除建议
+
+### Buffer bridge 使用约定（2026-10-31）
+
+`ILogicWorldDriverBridge.GetAllEntityStates()` 继续作为旧宿主兼容入口。高频状态消费应统一调用 `LogicWorldDriverStateBufferExtensions.FillAllEntityStates(driver, buffer)`：实现 `ILogicWorldDriverStateBufferBridge` 的宿主直接写入调用方缓冲；旧宿主由扩展方法回退到数组接口并复制到缓冲。调用方负责在每轮采样前清理缓冲，宿主不得把内部集合或可复用数组交给调用方持有。
+
+```csharp
+_states.Clear();
+var count = driver.FillAllEntityStates(_states);
+```
+
+该桥只负责状态边界分配治理，不改变快照时序、预测对账或技能 Pipeline/Trigger 语义。

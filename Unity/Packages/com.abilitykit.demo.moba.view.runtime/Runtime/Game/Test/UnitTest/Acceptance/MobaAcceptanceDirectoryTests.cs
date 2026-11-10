@@ -40,13 +40,43 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(string.IsNullOrEmpty(batch.categoryFilter));
             Assert.IsTrue(batch.allPassed, "Acceptance batch has failed cases; inspect " + batch.batchSummaryJsonPath);
             Assert.IsTrue(File.Exists(batch.batchSummaryJsonPath), $"Batch summary artifact missing: {batch.batchSummaryJsonPath}");
+            Assert.IsTrue(File.Exists(Path.Combine(batch.artifactDirectory, "batch_summary_v1.json")), "Generic artifact-v1 batch summary missing.");
+            string sharedRunId = null;
             for (var i = 0; i < batch.results.Length; i++)
             {
                 Assert.IsNotNull(batch.results[i].summary, "Passing batch case must expose its summary: " + batch.results[i].caseId);
                 Assert.IsTrue(
                     File.Exists(batch.results[i].summary.traceTextPath),
                     "Human-readable trace artifact missing: " + batch.results[i].summary.traceTextPath);
+                var v1Path = Path.Combine(batch.artifactDirectory, batch.results[i].caseId + "_artifact-v1.json");
+                Assert.IsTrue(File.Exists(v1Path), "Generic artifact-v1 case summary missing: " + v1Path);
+                var v1Json = File.ReadAllText(v1Path);
+                StringAssert.Contains("\"schemaVersion\": 1", v1Json);
+                StringAssert.Contains("\"com.abilitykit.moba\"", v1Json);
+                var runId = ReadJsonString(v1Json, "runId");
+                Assert.IsFalse(string.IsNullOrEmpty(runId));
+                if (sharedRunId == null) sharedRunId = runId;
+                else Assert.AreEqual(sharedRunId, runId, "Cases in one batch must share a runId.");
+                Assert.IsTrue(File.Exists(Path.Combine(batch.artifactDirectory, batch.results[i].caseId + "_trace-v1.jsonl")));
             }
+        }
+
+        [Test]
+        public void ArtifactV1_RelativeUriRejectsPathsOutsideArtifactRoot()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "artifact-root");
+            var outside = Path.Combine(Path.GetTempPath(), "artifact-escape.json");
+            Assert.Throws<InvalidOperationException>(() => MobaAcceptanceArtifactV1Adapter.RelativeUri(root, outside));
+        }
+
+        private static string ReadJsonString(string json, string property)
+        {
+            var marker = "\"" + property + "\": \"";
+            var start = json.IndexOf(marker, StringComparison.Ordinal);
+            if (start < 0) return null;
+            start += marker.Length;
+            var end = json.IndexOf('"', start);
+            return end < 0 ? null : json.Substring(start, end - start);
         }
 
         [Test]

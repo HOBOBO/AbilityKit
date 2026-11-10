@@ -8,5 +8,45 @@
         "Add": 5.0
       }
     ]
+  },
+  {
+    "Id": 30030502,
+    "Scales": [
+      {
+        "AttrId": 1,
+        "Ratio": 1.0,
+        "Add": 0.0
+      },
+      {
+        "AttrId": 2,
+        "Ratio": 1.0,
+        "Add": 0.0
+      },
+      {
+        "AttrId": 4,
+        "Ratio": 1.0,
+        "Add": 0.0
+      },
+      {
+        "AttrId": 5,
+        "Ratio": 1.0,
+        "Add": 0.0
+      },
+      {
+        "AttrId": 8,
+        "Ratio": 1.0,
+        "Add": 0.0
+      },
+      {
+        "AttrId": 9,
+        "Ratio": 1.0,
+        "Add": 0.0
+      },
+      {
+        "AttrId": 17,
+        "Ratio": 1.0,
+        "Add": 0.0
+      }
+    ]
   }
 ]

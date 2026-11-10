@@ -26,6 +26,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int[] OnExitTriggerIds { get; }
         public int[] OnIntervalTriggerIds { get; }
         public int IntervalMs { get; }
+        public bool ConsumeOnFirstEnter { get; }
 
         public AoeMO(AoeDTO dto)
         {
@@ -51,6 +52,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             OnExitTriggerIds = dto.OnExitTriggerIds ?? Array.Empty<int>();
             OnIntervalTriggerIds = dto.OnIntervalTriggerIds ?? Array.Empty<int>();
             IntervalMs = dto.IntervalMs;
+            ConsumeOnFirstEnter = dto.ConsumeOnFirstEnter;
         }
     }
 }

@@ -60,6 +60,10 @@ PLANNED_TAGS = (
 )
 
 
+# Tags consumed by the shared slow-control contract must remain active when
+# this migration is replayed.
+PROMOTED_TAG_IDS = {1200, 1202}
+
 def replace_rows(sheet, rows):
     styles = [copy(sheet.cell(4, column)._style) for column in range(1, sheet.max_column + 1)]
     sheet.delete_rows(4, sheet.max_row - 3)
@@ -91,10 +95,11 @@ def main():
     for identity, name, display, parent in PLANNED_TAGS:
         if identity not in existing_ids:
             rows.append((None, identity, name, "GameplayState", display, parent, None, None))
-    planned_ids = {entry[0] for entry in PLANNED_TAGS}
+    planned_ids = {entry[0] for entry in PLANNED_TAGS} - PROMOTED_TAG_IDS
     category_ids = {90, 1000, 1040, *(entry[3] for entry in PLANNED_TAGS)}
     rows = [tuple(row[:6]) + (row[6] or ("Category" if row[1] in category_ids else "Fact"),
-                              row[7] or ("Planned" if row[1] in planned_ids else "Active"))
+                              ("Active" if row[1] in PROMOTED_TAG_IDS else
+                               row[7] or ("Planned" if row[1] in planned_ids else "Active")))
             for row in rows]
     replace_rows(definitions, sorted(rows, key=lambda row: row[1]))
     definitions.cell(3, 2, "稳定 ID：90 是可选技能标签根；1000-1099 是现有战斗标签冻结段；1100-1499 为状态，1500-1999 为负面效果；2000-2999 为按需技能标签。")

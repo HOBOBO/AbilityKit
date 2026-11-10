@@ -25,16 +25,23 @@ namespace AbilityKit.Demo.Moba.Systems.Area
     [WorldSystem(order: MobaSystemOrder.ProjectileSync + 1, Phase = WorldSystemPhase.PostExecute)]
     public sealed class MobaAreaSyncSystem : WorldSystemBase
     {
+        private static int CompareAreaEnter(AreaEnterEvent a, AreaEnterEvent b)
+        {
+            var areaOrder = a.Area.Value.CompareTo(b.Area.Value);
+            return areaOrder != 0 ? areaOrder : a.Collider.Value.CompareTo(b.Collider.Value);
+        }
+
         private IProjectileService _projectiles;
         private MobaActorRegistry _registry;
         private IEventBus _eventBus;
         private MobaAreaRuntimeService _areaRuntime;
         private IMobaTemporaryEntityLifecycleService _lifecycle;
         private IMobaStageTriggerService _stageTriggers;
-        private IMobaBattleDiagnosticsService _diagnostics;
         private IMobaBattleDiagnosticEventSink _eventCollector;
         private IFrameTime _frameTime;
         private MobaExecutionContextRegistry _executionContexts;
+        private MobaConfigDatabase _configs;
+        private MobaCombatRulesService _combatRules;
 
         private readonly List<AreaSpawnEvent> _spawns = new List<AreaSpawnEvent>(32);
         private readonly List<AreaEnterEvent> _enters = new List<AreaEnterEvent>(64);
@@ -55,10 +62,11 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             Services.TryResolve(out _areaRuntime);
             Services.TryResolve(out _lifecycle);
             Services.TryResolve(out _stageTriggers);
-            Services.TryResolve(out _diagnostics);
             Services.TryResolve(out _eventCollector);
             Services.TryResolve(out _frameTime);
             Services.TryResolve(out _executionContexts);
+            Services.TryResolve(out _configs);
+            Services.TryResolve(out _combatRules);
         }
 
         protected override void OnExecute()
@@ -67,15 +75,10 @@ namespace AbilityKit.Demo.Moba.Systems.Area
 
             _spawns.Clear();
             _projectiles.DrainAreaSpawnEvents(_spawns);
-            if (_spawns.Count > 0)
-            {
-                WarnAreaSync("drain.spawn", $"count={_spawns.Count}");
-            }
             for (int i = 0; i < _spawns.Count; i++)
             {
                 var evt = _spawns[i];
                 var info = RequireAreaInfo(evt.Area);
-                WarnAreaSync("publish.spawn", $"areaId={evt.Area.Value} templateId={info.TemplateId} owner={evt.OwnerId} frame={evt.Frame} sourceContextId={info.SourceContextId} rootContextId={info.RootContextId}");
                 PublishAreaEvent("area.spawn", evt.Area.Value, info.TemplateId, MobaExecutionKind.AreaSpawn, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: evt.Center, radius: evt.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
                 CollectAreaSpawned(in info);
             }
@@ -86,16 +89,43 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             _projectiles.DrainAreaEnterEvents(_enters);
             if (_enters.Count > 0)
             {
-                WarnAreaSync("drain.enter", $"count={_enters.Count}");
+                _enters.Sort(CompareAreaEnter);
                 _lifecycle?.RecordEnterEvents(MobaTemporaryEntityKind.Area, _enters.Count);
             }
             for (int i = 0; i < _enters.Count; i++)
             {
                 var evt = _enters[i];
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
-                if (hitActorId <= 0 || hitActorId == evt.OwnerId) continue;
+                if (hitActorId <= 0 || hitActorId == evt.OwnerId)
+                {
+                    continue;
+                }
                 var info = RequireAreaInfo(evt.Area);
-                WarnAreaSync("publish.enter", $"areaId={evt.Area.Value} templateId={info.TemplateId} owner={evt.OwnerId} target={hitActorId} frame={evt.Frame} sourceContextId={info.SourceContextId}");
+                if (_configs == null || !_configs.TryGetAoe(info.TemplateId, out var aoe) || aoe == null)
+                {
+                    continue;
+                }
+                // One-shot Areas represent a valid enemy-enter opportunity. Reject
+                // non-enemies before claiming the one-shot slot so an ally cannot
+                // consume the Area before its Trigger predicates run.
+                if (aoe.ConsumeOnFirstEnter || info.ClaimTargetsWithinGroup)
+                {
+                    if (info.ClaimTargetsWithinGroup &&
+                        (!_registry.TryGet(hitActorId, out var targetActor) ||
+                         !targetActor.hasUnitSubType || targetActor.unitSubType.Value != UnitSubType.Hero))
+                    {
+                        continue;
+                    }
+                    var isEnemy = _combatRules != null && _combatRules.AreEnemies(evt.OwnerId, hitActorId);
+                    if (!isEnemy)
+                    {
+                        continue;
+                    }
+                }
+                // The claim is made immediately before dispatch. If the first trigger
+                // removes the Area, later Enter events already drained this frame fail here.
+                var consumed = _projectiles.TryAcceptAreaEnter(evt.Area, hitActorId);
+                if (!consumed) continue;
                 PublishAreaEvent("area.enter", evt.Area.Value, info.TemplateId, MobaExecutionKind.AreaEnter, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
 
@@ -145,13 +175,11 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             _areaRuntime.CollectDueDelayAreas(frame, _dueDelayAreas);
             if (_dueDelayAreas.Count > 0)
             {
-                WarnAreaSync("drain.delay", $"count={_dueDelayAreas.Count} frame={frame}");
             }
 
             for (var i = 0; i < _dueDelayAreas.Count; i++)
             {
                 var info = _dueDelayAreas[i];
-                WarnAreaSync("publish.delay", $"areaId={info.AreaId} templateId={info.TemplateId} owner={info.OwnerActorId} frame={frame} sourceContextId={info.SourceContextId} rootContextId={info.RootContextId}");
                 PublishAreaEvent("area.delay", info.AreaId, info.TemplateId, MobaExecutionKind.AreaSpawn, info, in info, ownerActorId: info.OwnerActorId, targetActorId: 0, frame: frame, center: info.Center, radius: info.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
             }
 
@@ -247,19 +275,16 @@ namespace AbilityKit.Demo.Moba.Systems.Area
         {
             if (_areaRuntime == null)
             {
-                WarnAreaSync("metadata.service_missing", $"areaId={areaId.Value}");
                 throw new InvalidOperationException("MobaAreaSyncSystem requires MobaAreaRuntimeService for area event metadata.");
             }
 
             if (!_areaRuntime.TryGetArea(areaId.Value, out var info))
             {
-                WarnAreaSync("metadata.missing", $"areaId={areaId.Value}");
                 throw new InvalidOperationException($"Area event missing runtime metadata. areaId={areaId.Value}");
             }
 
             if (info.TemplateId <= 0)
             {
-                WarnAreaSync("metadata.template_missing", $"areaId={areaId.Value} sourceContextId={info.SourceContextId}");
                 throw new InvalidOperationException($"Area event missing template id. areaId={areaId.Value}");
             }
 
@@ -269,12 +294,6 @@ namespace AbilityKit.Demo.Moba.Systems.Area
         private int ResolveCurrentFrame()
         {
             return _frameTime != null ? _frameTime.Frame.Value : 0;
-        }
-
-        private void WarnAreaSync(string suffix, string message)
-        {
-            if (_diagnostics == null) return;
-            _diagnostics.Warning("moba.area.sync." + suffix, message);
         }
 
         private int ResolveActorIdByCollider(ColliderId id)
@@ -308,7 +327,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             }
             catch (Exception)
             {
-                // 诊断提交失败不应影响区域生成流程，静默吞掉异常。
+                // 诊断提交失败不应影响区域生成流程，静默吞掉异常�?
             }
         }
 
@@ -323,7 +342,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             }
             catch (Exception)
             {
-                // 诊断提交失败不应影响区域销毁流程，静默吞掉异常。
+                // 诊断提交失败不应影响区域销毁流程，静默吞掉异常�?
             }
         }
     }

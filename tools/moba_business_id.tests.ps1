@@ -96,7 +96,7 @@ try {
         (New-Namespace -Name 'alpha' -Min 100 -Max 199 -Source 'items.json')
     )
     $allocate = Invoke-Tool -RegistryPath $allocateRegistry -Arguments @('-Mode', 'Allocate', '-Namespace', 'alpha', '-Count', '2')
-    Assert-Equal -Expected 0 -Actual $allocate.ExitCode -Message 'Allocator should succeed.'
+    Assert-Equal -Expected 0 -Actual $allocate.ExitCode -Message "Allocator should succeed. Output: $($allocate.Output)"
     Assert-Contains -Value $allocate.Output -Expected "101$([Environment]::NewLine)102" -Message 'Allocator should return the lowest free IDs.'
 
     $duplicateCase = Join-Path $tempRoot 'duplicate'
@@ -131,6 +131,31 @@ try {
     Assert-Equal -Expected 1 -Actual $collision.ExitCode -Message 'Cross-namespace collision validation should fail.'
     Assert-Contains -Value $collision.Output -Expected 'Cross-namespace id collision for id 200' -Message 'Collision validation should report the shared formal ID.'
 
+    $reuseCase = Join-Path $tempRoot 'cross-namespace-reuse'
+    $null = New-Item -ItemType Directory -Force -Path $reuseCase
+    Write-Utf8Json -Path (Join-Path $reuseCase 'skill.json') -Value @([ordered]@{ Id = 30020101 })
+    Write-Utf8Json -Path (Join-Path $reuseCase 'projectile.json') -Value @([ordered]@{ Id = 30020101 })
+    $skillNamespace = New-Namespace -Name 'skill-family' -Min 30020000 -Max 30020999 -Source 'skill.json'
+    $projectileNamespace = New-Namespace -Name 'projectile' -Min 30020000 -Max 30999999 -Source 'projectile.json'
+    $skillNamespace.allowCrossNamespaceIdReuseWith = @('projectile')
+    $projectileNamespace.allowCrossNamespaceIdReuseWith = @('skill-family')
+    $reuseRegistry = New-Registry -CaseDirectory $reuseCase -Namespaces @($skillNamespace, $projectileNamespace)
+    $reuse = Invoke-Tool -RegistryPath $reuseRegistry -Arguments @('-Mode', 'Validate')
+    Assert-Equal -Expected 0 -Actual $reuse.ExitCode -Message 'Explicit symmetric cross-namespace reuse should validate.'
+    Assert-Contains -Value $reuse.Output -Expected 'records=2' -Message 'Both cross-namespace records must remain independently counted.'
+
+    $asymmetricCase = Join-Path $tempRoot 'cross-namespace-reuse-asymmetric'
+    $null = New-Item -ItemType Directory -Force -Path $asymmetricCase
+    Write-Utf8Json -Path (Join-Path $asymmetricCase 'skill.json') -Value @([ordered]@{ Id = 30020101 })
+    Write-Utf8Json -Path (Join-Path $asymmetricCase 'projectile.json') -Value @([ordered]@{ Id = 30020101 })
+    $skillNamespace = New-Namespace -Name 'skill-family' -Min 30020000 -Max 30020999 -Source 'skill.json'
+    $projectileNamespace = New-Namespace -Name 'projectile' -Min 30020000 -Max 30999999 -Source 'projectile.json'
+    $skillNamespace.allowCrossNamespaceIdReuseWith = @('projectile')
+    $asymmetricRegistry = New-Registry -CaseDirectory $asymmetricCase -Namespaces @($skillNamespace, $projectileNamespace)
+    $asymmetric = Invoke-Tool -RegistryPath $asymmetricRegistry -Arguments @('-Mode', 'Validate')
+    Assert-Equal -Expected 1 -Actual $asymmetric.ExitCode -Message 'Cross-namespace reuse must be declared symmetrically.'
+    Assert-Contains -Value $asymmetric.Output -Expected 'Cross-namespace id collision for id 30020101' -Message 'Asymmetric reuse must retain collision protection.'
+
     $aggregateCase = Join-Path $tempRoot 'trigger-aggregate'
     $null = New-Item -ItemType Directory -Force -Path $aggregateCase
     Write-Utf8Json -Path (Join-Path $aggregateCase 'ability_trigger_plans.json') -Value ([ordered]@{
@@ -148,7 +173,33 @@ try {
     Assert-Equal -Expected 0 -Actual $aggregate.ExitCode -Message 'Published trigger aggregate should validate.'
     Assert-Contains -Value $aggregate.Output -Expected 'records=2' -Message 'Both Trigger Authoring records must be counted.'
 
-    Write-Host '[moba-business-id-tests] passed: cases=5'
+    $rangesCase = Join-Path $tempRoot 'ranges'
+    $null = New-Item -ItemType Directory -Force -Path $rangesCase
+    Write-Utf8Json -Path (Join-Path $rangesCase 'items.json') -Value @(
+        [ordered]@{ Id = 100 },
+        [ordered]@{ Id = 200 }
+    )
+    $rangesRegistry = Join-Path $rangesCase 'registry.json'
+    Write-Utf8Json -Path $rangesRegistry -Value ([ordered]@{
+        schemaVersion = 1
+        authorityRoot = $rangesCase
+        legacyIdMax = 99
+        namespaces = @([ordered]@{
+            name = 'alpha'
+            description = 'alpha'
+            ranges = @(
+                [ordered]@{ min = 100; max = 149 },
+                [ordered]@{ min = 200; max = 249 }
+            )
+            allowSameIdAcrossSources = $false
+            sources = @([ordered]@{ path = 'items.json'; shape = 'array'; idProperty = 'Id' })
+        })
+    })
+    $ranges = Invoke-Tool -RegistryPath $rangesRegistry -Arguments @('-Mode', 'Allocate', '-Namespace', 'alpha', '-Count', '2')
+    Assert-Equal -Expected 0 -Actual $ranges.ExitCode -Message 'Multi-range allocation should succeed.'
+    Assert-Contains -Value $ranges.Output -Expected "101$([Environment]::NewLine)102" -Message 'Multi-range allocator should use the first range before the next range.'
+
+    Write-Host '[moba-business-id-tests] passed: cases=8'
     exit 0
 }
 finally {

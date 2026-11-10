@@ -51,7 +51,6 @@ namespace AbilityKit.Demo.Moba.Services
                 reasonParam: result.ReasonParam,
                 damageValue: result.AppliedValue,
                 origin: in origin);
-
             if (_eventBus == null) return;
             var eid = AbilityKit.Demo.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
             _eventBus.Publish(new EventKey<UnitDieEventPayload>(eid), in payload);

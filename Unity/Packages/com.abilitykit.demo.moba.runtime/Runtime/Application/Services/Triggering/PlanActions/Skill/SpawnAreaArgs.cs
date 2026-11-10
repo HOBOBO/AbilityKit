@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly float OffsetX;
         public readonly float OffsetY;
         public readonly float OffsetZ;
+        public readonly float DirectionOffset;
         public readonly int ShapeKind;
         public readonly float HalfAngleDeg;
         public readonly float Width;
@@ -21,6 +22,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly float InitialRadius;
         public readonly float RadiusGrowthPerFrame;
         public readonly bool AnchorAtOrigin;
+        public readonly int GroupKey;
+        public readonly bool ClaimTargetsWithinGroup;
         public readonly bool HasTargetRequest;
         public readonly MobaActionTargetRequest TargetRequest;
         public readonly BlackboardWriteTarget ResultTarget;
@@ -44,10 +47,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             float initialRadius = 0f,
             float radiusGrowthPerFrame = 0f,
             bool anchorAtOrigin = true,
+            int groupKey = 0,
+            bool claimTargetsWithinGroup = false,
             bool hasTargetRequest = false,
             MobaActionTargetRequest targetRequest = default,
             BlackboardWriteTarget resultTarget = default,
-            BlackboardWriteTarget resultCountTarget = default)
+            BlackboardWriteTarget resultCountTarget = default,
+            float directionOffset = 0f)
         {
             AreaId = areaId;
             PositionMode = positionMode;
@@ -59,6 +65,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             OffsetX = offsetX;
             OffsetY = offsetY;
             OffsetZ = offsetZ;
+            DirectionOffset = directionOffset;
             ShapeKind = shapeKind;
             HalfAngleDeg = halfAngleDeg;
             Width = width;
@@ -66,6 +73,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             InitialRadius = initialRadius;
             RadiusGrowthPerFrame = radiusGrowthPerFrame;
             AnchorAtOrigin = anchorAtOrigin;
+            GroupKey = groupKey;
+            ClaimTargetsWithinGroup = claimTargetsWithinGroup;
             HasTargetRequest = hasTargetRequest;
             TargetRequest = targetRequest;
             ResultTarget = resultTarget;

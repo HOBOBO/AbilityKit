@@ -37,7 +37,7 @@ TABLE_KEYS = PRODUCTION / "table_keys.json"
 TABLE_ROOTS = PRODUCTION / "table_roots.json"
 AGGREGATE = "ability/ability_trigger_plans.json"
 STATE_MACHINE_SOURCE = ROOT / "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaStateMachineAuthoring"
-STATE_MACHINE_NAMES = ("character_hfsm", "actor_state_machines")
+STATE_MACHINE_NAMES = ("actor_state_machines", "character_bindings")
 TAG_TEMPLATE_TABLES = ("continuous_tag_templates",)
 REFERENCE_TABLES = {"modifier_templates", "modifier_definitions", "modifier_parameters", "tag_definitions", "attr_types", *TAG_REFERENCE_TABLES,
                     *TAG_TEMPLATE_TABLES}
@@ -278,7 +278,7 @@ def verify_editor_flow_publication():
 
 def verify_state_machine_publication(tables):
     sources = {}
-    for name in STATE_MACHINE_NAMES:
+    for name in (*STATE_MACHINE_NAMES, *(path.stem for path in sorted(STATE_MACHINE_SOURCE.glob("character_hfsm*.json")))):
         source = STATE_MACHINE_SOURCE / f"{name}.json"
         if not source.exists():
             raise ValueError(f"state machine source missing: {source}")
@@ -366,6 +366,8 @@ def build_publication_plan(tables, documents):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--apply-prerequisites", action="store_true",
+                        help="publish generated Luban tables only so editor-authored flows/triggers can resolve current config IDs")
     parser.add_argument("--check-baseline", action="store_true")
     parser.add_argument("--check-published", action="store_true")
     parser.add_argument("--preview-rule", type=int, metavar="GROUP_ID")
@@ -402,7 +404,13 @@ def main():
         (STAGE / "normalized-json" / f"{name}.json").write_text(
             json.dumps(normalized, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     verify_tables(tables, STAGE / "normalized-json", args.check_baseline, roots)
-    validate_references(normalized_tables)
+    # Editor-authored flows and Trigger Authoring sources refer to these
+    # tables, while their runtime outputs are published by Unity afterwards.
+    # This explicit first phase publishes only config prerequisites; the
+    # normal --apply path still performs the complete cross-artifact checks.
+    prerequisites_only = args.apply_prerequisites
+    if not prerequisites_only:
+        validate_references(normalized_tables)
     if args.impact_tag:
         report = json.loads((STAGE / "tag-usage-report.json").read_text(encoding="utf-8"))
         impact = next((row for row in report["tagImpact"] if row["name"] == args.impact_tag), None)
@@ -431,7 +439,15 @@ def main():
         verify_editor_trigger_publication()
         verify_state_machine_publication(normalized_tables)
     plan = build_publication_plan(tables, documents)
-    source_files = [*sorted((PRODUCTION / "Datas").glob("*.xlsx")),
+    if prerequisites_only:
+        prerequisite_owners = {"tag-bundle", "luban-table", "luban-binary", "luban-code", "promoted-table"}
+        plan.artifacts = {key: artifact for key, artifact in plan.artifacts.items()
+                          if artifact.owner in prerequisite_owners}
+    # Excel leaves owner-only `~$*.xlsx` lock files beside open workbooks.
+    # They are not authoring sources and can disappear during export, so do
+    # not include them in publication provenance.
+    source_files = [*sorted(path for path in (PRODUCTION / "Datas").glob("*.xlsx")
+                            if not path.name.startswith("~$")),
                     *sorted((PRODUCTION / "Defines").glob("*.xml")),
                     PRODUCTION / "luban.conf", PRODUCTION / "complex_columns.json",
                     PRODUCTION / "table_keys.json", PRODUCTION / "table_roots.json",
@@ -440,10 +456,11 @@ def main():
         json.dumps(plan.report(ROOT, source_files), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     if args.check_published:
         plan.check()
-    if args.apply:
+    if args.apply or prerequisites_only:
         count = plan.apply()
         plan.check()
-        print(f"published Unity and Console Luban artifacts: {count} changed")
+        phase = "Luban prerequisite tables" if prerequisites_only else "Unity and Console Luban artifacts"
+        print(f"published {phase}: {count} changed")
     else:
         print(f"validated in {STAGE}; pass --apply to publish")
 

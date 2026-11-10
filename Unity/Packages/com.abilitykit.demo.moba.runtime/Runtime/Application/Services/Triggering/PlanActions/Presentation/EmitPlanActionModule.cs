@@ -5,6 +5,7 @@ using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Demo.Moba.Services.Triggering.Cue;
 using AbilityKit.Pipeline;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
@@ -80,6 +81,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 object boxedPayload = payload;
                 bus.Publish(objectKey, in boxedPayload);
+            }
+
+            if (ctx.Context.TryResolve<MobaPresentationCueSnapshotService>(out var snapshots) && snapshots != null)
+            {
+                MobaPresentationRequestReporter.ReportPlay(snapshots, configs, payload);
             }
 
             LogApplied(ctx, $"emitted presentation. emitterId={args.EmitterId} templateId={emitter.TemplateId} casterActorId={casterActorId} targetActorId={targetActorId}");

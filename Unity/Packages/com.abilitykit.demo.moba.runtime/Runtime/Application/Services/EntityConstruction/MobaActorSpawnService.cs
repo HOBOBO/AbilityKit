@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Logging;
@@ -119,6 +120,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         [WorldInject(required: false)] private ActorIdAllocator _actorIds = null;
         [WorldInject(required: false)] private MobaActorRegistry _registry = null;
         [WorldInject(required: false)] private MobaEntityManager _entities = null;
+        [WorldInject(required: false)] private ICollisionService _collision = null;
 
         private MobaActorSpawnRegistrar _registrar;
 
@@ -180,6 +182,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             var registrationCompleted = false;
             var registeredActor = false;
             var registeredEntityManager = false;
+            var collisionRegistered = false;
             try
             {
                 var built = ActorSpawnPipeline.BuildActor(
@@ -216,6 +219,11 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 if (request.RegisterEntityManager && !registeredEntityManager)
                     throw new InvalidOperationException($"Actor {spec.Info.ActorId} was not committed to MobaEntityManager.");
 
+                // Register the collider at spawn commit time so collision queries
+                // in the same frame can observe newly created actors. The regular
+                // sync system still reconciles transforms, layers and removals.
+                collisionRegistered = TryRegisterCollision(entity);
+
                 if (publishSpawn && registeredEntityManager)
                 {
                     _entities.PublishSpawn(entity);
@@ -241,11 +249,40 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                         registeredActor,
                         registeredEntityManager);
                 }
+                if (collisionRegistered && entity != null && entity.hasCollisionId)
+                {
+                    _collision?.World.Remove(entity.collisionId.Value);
+                    entity.RemoveCollisionId();
+                }
                 ActorSpawnPipeline.DestroyBuiltEntity(entity);
                 Log.Exception(ex, $"[MobaActorSpawnService] spawn failed. kind={spec.Info.Kind} actorId={spec.Info.ActorId} sourceKind={spec.SourceKind} sourceId={spec.SourceId}");
                 result = MobaActorSpawnResult.Failed(ex.Message);
                 return false;
             }
+        }
+
+        private bool TryRegisterCollision(global::ActorEntity entity)
+        {
+            if (_collision == null || entity == null || !entity.isEnabled ||
+                !entity.hasTransform || !entity.hasCollider || entity.hasCollisionId)
+                return false;
+
+            var layerMask = entity.hasCollisionLayer ? entity.collisionLayer.Mask : 0;
+            var layerId = ResolveLayerId(layerMask);
+            var id = _collision.World.Add(entity.transform.Value, entity.collider.LocalShape, layerId);
+            entity.AddCollisionId(id);
+            return true;
+        }
+
+        private static int ResolveLayerId(int layerMask)
+        {
+            if (layerMask == 0) return 0;
+            if (layerMask < 0 || (layerMask & (layerMask - 1)) != 0)
+                throw new InvalidOperationException($"Actor collision layer must contain exactly one bit. mask=0x{layerMask:X8}");
+
+            var layerId = 0;
+            while ((layerMask >>= 1) != 0) layerId++;
+            return layerId;
         }
 
         public void Publish(in MobaActorSpawnResult result)

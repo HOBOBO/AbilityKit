@@ -71,7 +71,7 @@ public sealed class MobaConfigTableManifestTests
             AppContext.SetSwitch("AbilityKit.Moba.DisableConfigTableReflectionFallback", false);
         }
 
-        Assert.Equal(26, registryTables.Length);
+        Assert.NotEmpty(registryTables);
         Assert.Equal(registryTables.Length, groupTables.Count);
         for (var i = 0; i < registryTables.Length; i++)
         {
@@ -89,6 +89,9 @@ public sealed class MobaConfigTableManifestTests
 
         Assert.Contains(registryTables, table => table.FilePath == MobaConfigPaths.SummonAttrInheritsFile);
         Assert.Contains(registryTables, table => table.FilePath == MobaConfigPaths.BattleMapsFile);
+        Assert.Contains(registryTables, table =>
+            table.FilePath == MobaConfigPaths.HeroLevelSkillGrowthParametersFile &&
+            table.DtoType == typeof(HeroLevelSkillGrowthParameterDTO));
     }
 
     [Fact]

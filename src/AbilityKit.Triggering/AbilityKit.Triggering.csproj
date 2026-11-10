@@ -22,6 +22,7 @@
     <ProjectReference Include="../../src/AbilityKit.Modifiers/AbilityKit.Modifiers.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.DI/AbilityKit.World.DI.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Triggering.Abstractions/AbilityKit.Triggering.Abstractions.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Deterministic/AbilityKit.Deterministic.csproj" />
   </ItemGroup>
 
   <ItemGroup>

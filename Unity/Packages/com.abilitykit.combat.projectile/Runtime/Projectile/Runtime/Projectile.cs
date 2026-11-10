@@ -1,6 +1,7 @@
 using AbilityKit.Core.Pooling;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Deterministic;
+using System.Collections.Generic;
 
 namespace AbilityKit.Combat.Projectile
 {
@@ -9,6 +10,7 @@ namespace AbilityKit.Combat.Projectile
         internal const int HitColliderBufferCapacity = 9;
 
         public readonly int[] HitColliderIdsThisTick = new int[HitColliderBufferCapacity];
+        public readonly List<int> HitActorIds = new List<int>(8);
 
         public ProjectileId Id;
         public int OwnerId;
@@ -22,10 +24,22 @@ namespace AbilityKit.Combat.Projectile
         public int SpawnFrame;
 
         // 运动学状态全部定点化：逐帧积分路径跨平台位一致。
+        public FixedVec3 SpawnPosition;
         public FixedVec3 Position;
         public FixedVec3 Direction;
         public Fixed64 Speed;
+        public Fixed64 DistanceTravelled;
+        public Fixed64 ElapsedSeconds;
         public int TrackingTargetActorId;
+        public Fixed64 TrackingArcHeight;
+        public Fixed64 TrackingArcBaseHeight;
+        public Fixed64 TrackingArcHeightPerUnit;
+        public Fixed64 TrackingArcDuration;
+        public bool TrackingArcDurationConfigured;
+        public Fixed64 TrackingArcElapsed;
+        public Fixed64 TrackingArcStartY;
+        public Fixed64 TrackingArcEndY;
+        public Fixed64 BounceSearchRadius;
 
         public int ReturnAfterFrames;
         public Fixed64 ReturnSpeed;
@@ -49,6 +63,7 @@ namespace AbilityKit.Combat.Projectile
         public int NextTickFrame;
 
         public IProjectileHitFilter HitFilter;
+        public int HitFilterKey;
         public int HitCooldownFrames;
         public ColliderId LastHitCollider;
         public int LastHitAllowedFrame;
@@ -70,10 +85,22 @@ namespace AbilityKit.Combat.Projectile
             LauncherActorId = 0;
             RootActorId = 0;
             SpawnFrame = 0;
+            SpawnPosition = FixedVec3.Zero;
             Position = FixedVec3.Zero;
             Direction = FixedVec3.Zero;
             Speed = Fixed64.Zero;
+            DistanceTravelled = Fixed64.Zero;
+            ElapsedSeconds = Fixed64.Zero;
             TrackingTargetActorId = 0;
+            TrackingArcHeight = Fixed64.Zero;
+            TrackingArcBaseHeight = Fixed64.Zero;
+            TrackingArcHeightPerUnit = Fixed64.Zero;
+            TrackingArcDuration = Fixed64.Zero;
+            TrackingArcDurationConfigured = false;
+            TrackingArcElapsed = Fixed64.Zero;
+            TrackingArcStartY = Fixed64.Zero;
+            TrackingArcEndY = Fixed64.Zero;
+            BounceSearchRadius = Fixed64.Zero;
             ReturnAfterFrames = 0;
             ReturnSpeed = Fixed64.Zero;
             ReturnStopDistance = Fixed64.Zero;
@@ -90,12 +117,14 @@ namespace AbilityKit.Combat.Projectile
             TickIntervalFrames = 0;
             NextTickFrame = 0;
             HitFilter = null;
+            HitFilterKey = 0;
             HitCooldownFrames = 0;
             LastHitCollider = default;
             LastHitAllowedFrame = 0;
             IsSuspended = false;
             PatternSlotIndex = 0;
             PatternSlotCount = 0;
+            HitActorIds.Clear();
         }
 
         void IPoolable.OnPoolDestroy()

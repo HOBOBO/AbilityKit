@@ -4,6 +4,7 @@ using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Triggering.Runtime.Config.Plans;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
@@ -41,6 +42,7 @@ namespace AbilityKit.Demo.Moba.Services
             ValidateProjectiles(config, triggers, report);
             ValidateProjectileLaunchers(config, report);
             ValidateSummons(config, report);
+            ValidateSummonAttributeInherits(config, report);
             ValidateAreas(config, triggers, report);
             ValidateSpawnAreaEffectiveTimings(
                 triggers,
@@ -227,6 +229,18 @@ namespace AbilityKit.Demo.Moba.Services
                         category: MobaRuntimeValidationCategory.Config,
                         businessNumericId: skill.Id);
                     continue;
+                }
+
+                if (!table.TryCreateParameterSnapshot(i + 1, skill.Id, out _, out var parameterError))
+                {
+                    report.Error(
+                        Source,
+                        levelPath + ".params",
+                        parameterError,
+                        skill.Id.ToString(),
+                        code: "moba.skill.configuration.invalid_level_parameters",
+                        category: MobaRuntimeValidationCategory.Config,
+                        businessNumericId: skill.Id);
                 }
 
                 if (level.Cost < 0)
@@ -533,9 +547,9 @@ namespace AbilityKit.Demo.Moba.Services
                         businessNumericId: buff.Id);
                 }
 
-                ValidateTriggerRefs(triggers, buff.OnAddEffects, report, path + ".onAddEffects", buff.Id);
-                ValidateTriggerRefs(triggers, buff.OnRemoveEffects, report, path + ".onRemoveEffects", buff.Id);
-                ValidateTriggerRefs(triggers, buff.OnIntervalEffects, report, path + ".onIntervalEffects", buff.Id);
+                ValidateTriggerRefs(triggers, buff.OnAddEffects, report, path + ".onAddEffects", buff.Id, TriggerPlanScope.Global);
+                ValidateTriggerRefs(triggers, buff.OnRemoveEffects, report, path + ".onRemoveEffects", buff.Id, TriggerPlanScope.Global);
+                ValidateTriggerRefs(triggers, buff.OnIntervalEffects, report, path + ".onIntervalEffects", buff.Id, TriggerPlanScope.Global);
                 ValidateTriggerRefs(triggers, buff.TriggerIds, report, path + ".triggerIds", buff.Id, TriggerPlanScope.OwnerBound);
                 OptionalRef(Ref<ContinuousTagTemplateMO>(config.TryGetContinuousTagTemplate), buff.ContinuousTagTemplateId, report, path + ".continuousTagTemplateId", "continuous tag template", buff.Id);
                 OptionalRef((int id, out PresentationTemplateMO value) => TryGetTableRef(config, id, out value), buff.PresentationTemplateId, report, path + ".presentationTemplateId", "presentation template", buff.Id);
@@ -576,7 +590,7 @@ namespace AbilityKit.Demo.Moba.Services
                     report.Warning(Source, path + ".outOfCombatSeconds", "continuous process out-of-combat threshold is negative.", process.Id.ToString());
                 }
 
-                ValidateTriggerRefs(triggers, process.IntervalTriggerIds, report, path + ".intervalTriggerIds", process.Id);
+                ValidateTriggerRefs(triggers, process.IntervalTriggerIds, report, path + ".intervalTriggerIds", process.Id, TriggerPlanScope.Global);
                 ValidateTriggerRefs(triggers, process.TriggerIds, report, path + ".triggerIds", process.Id, TriggerPlanScope.OwnerBound);
                 OptionalRef(Ref<ContinuousTagTemplateMO>(config.TryGetContinuousTagTemplate), process.ContinuousTagTemplateId, report, path + ".continuousTagTemplateId", "continuous tag template", process.Id);
                 ValidateContinuousModifiers(config, process.Modifiers, report, path + ".modifiers", process.Id);
@@ -620,6 +634,12 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     ValidateSkillParameterModifierTarget(modifier.TargetId, modifier.Op, report, itemPath + ".targetId", businessId);
                 }
+                else if (modifier.TargetKind == MobaContinuousModifierTargetKind.StateMachineParameter &&
+                         !MobaCharacterHfsmParameterService.IsValidOperation(modifier.TargetId, modifier.Op))
+                {
+                    report.Error(Source, itemPath + ".targetId",
+                        "state machine parameter target id or modifier operation is invalid.", businessId.ToString());
+                }
                 else if (modifier.TargetKind == MobaContinuousModifierTargetKind.SkillSlotCandidate &&
                          (!config.TryGetSkill(modifier.CandidateSkillId, out var candidateSkill) ||
                           candidateSkill == null))
@@ -645,11 +665,11 @@ namespace AbilityKit.Demo.Moba.Services
                 if (projectile == null) continue;
                 var path = $"projectile.{projectile.Id}";
 
-                if (projectile.OnHitEffectId > 0) RequiredTriggerRef(triggers, projectile.OnHitEffectId, report, path + ".onHitEffectId", projectile.Id);
-                ValidateTriggerRefs(triggers, projectile.OnSpawnTriggerIds, report, path + ".onSpawnTriggerIds", projectile.Id);
-                ValidateTriggerRefs(triggers, projectile.OnHitTriggerIds, report, path + ".onHitTriggerIds", projectile.Id);
-                ValidateTriggerRefs(triggers, projectile.OnTickTriggerIds, report, path + ".onTickTriggerIds", projectile.Id);
-                ValidateTriggerRefs(triggers, projectile.OnExitTriggerIds, report, path + ".onExitTriggerIds", projectile.Id);
+                if (projectile.OnHitEffectId > 0) RequiredTriggerRef(triggers, projectile.OnHitEffectId, report, path + ".onHitEffectId", projectile.Id, TriggerPlanScope.Global);
+                ValidateTriggerRefs(triggers, projectile.OnSpawnTriggerIds, report, path + ".onSpawnTriggerIds", projectile.Id, TriggerPlanScope.Global);
+                ValidateTriggerRefs(triggers, projectile.OnHitTriggerIds, report, path + ".onHitTriggerIds", projectile.Id, TriggerPlanScope.Global);
+                ValidateTriggerRefs(triggers, projectile.OnTickTriggerIds, report, path + ".onTickTriggerIds", projectile.Id, TriggerPlanScope.Global);
+                ValidateTriggerRefs(triggers, projectile.OnExitTriggerIds, report, path + ".onExitTriggerIds", projectile.Id, TriggerPlanScope.Global);
 
                 if (projectile.Speed < 0f)
                 {
@@ -664,6 +684,11 @@ namespace AbilityKit.Demo.Moba.Services
                 if (projectile.MaxDistance < 0f)
                 {
                     report.Warning(Source, path + ".maxDistance", "projectile max distance is negative.", projectile.Id.ToString());
+                }
+
+                if (!projectile.TryResolveRuntimeSettings(out _, out _, out _, out var hitPolicyError))
+                {
+                    report.Error(Source, path + ".hitPolicy", hitPolicyError, projectile.Id.ToString());
                 }
             }
         }
@@ -711,6 +736,12 @@ namespace AbilityKit.Demo.Moba.Services
 
                 OptionalRef(Ref<ModelMO>(config.TryGetModel), summon.ModelId, report, path + ".modelId", "model", summon.Id);
                 RequiredRef(Ref<BattleAttributeTemplateMO>(config.TryGetAttributeTemplate), summon.AttributeTemplateId, report, path + ".attributeTemplateId", "attribute template", summon.Id);
+                if (summon.InheritAttributeConfigId > 0)
+                {
+                    RequiredRef(Ref<SummonAttrInheritMO>(config.TryGetSummonAttrInherit),
+                        summon.InheritAttributeConfigId, report, path + ".inheritAttributeConfigId",
+                        "summon attribute inheritance", summon.Id);
+                }
                 ValidateRefs(Ref<SkillMO>(config.TryGetSkill), summon.SkillIds, report, path + ".skillIds", "skill", summon.Id);
                 ValidateRefs(Ref<PassiveSkillMO>(config.TryGetPassiveSkill), summon.PassiveSkillIds, report, path + ".passiveSkillIds", "passive skill", summon.Id);
                 ValidateRefs(Ref<ComponentTemplateMO>(config.TryGetComponentTemplate), summon.DefaultComponentTemplateIds, report, path + ".defaultComponentTemplateIds", "component template", summon.Id);
@@ -754,10 +785,10 @@ namespace AbilityKit.Demo.Moba.Services
                     report.Warning(Source, path + ".attachMode", "area attach mode is negative.", area.Id.ToString());
                 }
 
-                ValidateTriggerRefs(triggers, area.OnDelayTriggerIds, report, path + ".onDelayTriggerIds", area.Id);
-                ValidateTriggerRefs(triggers, area.OnEnterTriggerIds, report, path + ".onEnterTriggerIds", area.Id);
-                ValidateTriggerRefs(triggers, area.OnExitTriggerIds, report, path + ".onExitTriggerIds", area.Id);
-                ValidateTriggerRefs(triggers, area.OnIntervalTriggerIds, report, path + ".onIntervalTriggerIds", area.Id);
+                ValidateTriggerRefs(triggers, area.OnDelayTriggerIds, report, path + ".onDelayTriggerIds", area.Id, TriggerPlanScope.Global);
+                ValidateTriggerRefs(triggers, area.OnEnterTriggerIds, report, path + ".onEnterTriggerIds", area.Id, TriggerPlanScope.Global);
+                ValidateTriggerRefs(triggers, area.OnExitTriggerIds, report, path + ".onExitTriggerIds", area.Id, TriggerPlanScope.Global);
+                ValidateTriggerRefs(triggers, area.OnIntervalTriggerIds, report, path + ".onIntervalTriggerIds", area.Id, TriggerPlanScope.Global);
 
                 if (area.Radius < 0f)
                 {
@@ -965,7 +996,14 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (flow.Phases == null || flow.Phases.Count == 0)
             {
-                report.Warning(Source, path + ".phases", "skill flow has no phases.", businessId.ToString());
+                report.Error(
+                    Source,
+                    path + ".phases",
+                    "skill flow must contain at least one phase; runtime pipeline construction cannot proceed.",
+                    businessId.ToString(),
+                    code: "moba.skill.configuration.empty_flow",
+                    category: MobaRuntimeValidationCategory.Skill,
+                    businessNumericId: businessId);
                 return;
             }
 
@@ -985,11 +1023,49 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        private static void ValidateSummonAttributeInherits(MobaConfigDatabase config, MobaRuntimeValidationReport report)
+        {
+            foreach (var inherit in All<SummonAttrInheritMO>(config))
+            {
+                if (inherit == null) continue;
+                var path = $"summonAttributeInherit.{inherit.Id}";
+                var scales = inherit.Scales;
+                if (scales == null || scales.Count == 0)
+                {
+                    report.Warning(Source, path + ".scales", "summon attribute inheritance profile has no scales.", inherit.Id.ToString());
+                    continue;
+                }
+
+                for (int i = 0; i < scales.Count; i++)
+                {
+                    var scale = scales[i];
+                    if (scale == null) continue;
+                    RequiredRef(Ref<AttrTypeMO>(config.TryGetAttrType), scale.AttrId, report,
+                        $"{path}.scales[{i}].attrId", "attribute type", inherit.Id);
+                    if (float.IsNaN(scale.Ratio) || float.IsInfinity(scale.Ratio))
+                    {
+                        report.Error(Source, $"{path}.scales[{i}].ratio", "summon attribute inheritance ratio must be finite.", inherit.Id.ToString());
+                    }
+                    if (float.IsNaN(scale.Add) || float.IsInfinity(scale.Add))
+                    {
+                        report.Error(Source, $"{path}.scales[{i}].add", "summon attribute inheritance add value must be finite.", inherit.Id.ToString());
+                    }
+                }
+            }
+        }
+
         private static void ValidateSkillPhase(MobaConfigDatabase config, TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report, SkillPhaseDTO phase, string path, int businessId)
         {
             if (phase == null)
             {
-                report.Warning(Source, path, "skill phase is null.", businessId.ToString());
+                report.Error(
+                    Source,
+                    path,
+                    "skill phase is null; runtime pipeline construction cannot proceed.",
+                    businessId.ToString(),
+                    code: "moba.skill.configuration.null_phase",
+                    category: MobaRuntimeValidationCategory.Skill,
+                    businessNumericId: businessId);
                 return;
             }
 
@@ -1005,7 +1081,16 @@ namespace AbilityKit.Demo.Moba.Services
                     report.Error(Source, path + ".type", "handlers skill phase is deprecated; use RulePlan trigger actions instead.", businessId.ToString());
                     break;
                 case SkillPhaseType.RulePlan:
-                    ValidateTriggerRefs(triggers, phase.RulePlan?.TriggerIds, report, path + ".rulePlan.triggerIds", businessId);
+                    // RulePlan is executed immediately inside the skill pipeline with the
+                    // SkillPipelineContext payload. Owner-bound plans are subscriptions
+                    // keyed by an owner and cannot satisfy this execution contract.
+                    ValidateTriggerRefs(
+                        triggers,
+                        phase.RulePlan?.TriggerIds,
+                        report,
+                        path + ".rulePlan.triggerIds",
+                        businessId,
+                        TriggerPlanScope.Global);
                     break;
                 case SkillPhaseType.Sequence:
                 case SkillPhaseType.Parallel:
@@ -1051,7 +1136,14 @@ namespace AbilityKit.Demo.Moba.Services
                     ValidateDerivedSkillPhase(config, report, phase.DerivedSkill, path + ".derivedSkill", businessId);
                     break;
                 default:
-                    report.Warning(Source, path + ".type", "skill phase type is not recognized.", businessId.ToString());
+                    report.Error(
+                        Source,
+                        path + ".type",
+                        $"skill phase type '{phase.Type}' is not supported by the runtime pipeline.",
+                        businessId.ToString(),
+                        code: "moba.skill.configuration.unsupported_phase",
+                        category: MobaRuntimeValidationCategory.Skill,
+                        businessNumericId: businessId);
                     break;
             }
         }
@@ -1060,7 +1152,14 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (phases == null || phases.Count == 0)
             {
-                report.Warning(Source, path, "composite skill phase has no children.", businessId.ToString());
+                report.Error(
+                    Source,
+                    path,
+                    "composite skill phase must contain at least one child; runtime pipeline construction cannot proceed.",
+                    businessId.ToString(),
+                    code: "moba.skill.configuration.empty_composite_phase",
+                    category: MobaRuntimeValidationCategory.Skill,
+                    businessNumericId: businessId);
                 return;
             }
 
@@ -1319,9 +1418,27 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
 
-            ValidateTriggerRefs(triggers, window.OpenTriggerIds, report, path + ".openTriggerIds", businessId);
-            ValidateTriggerRefs(triggers, window.TickTriggerIds, report, path + ".tickTriggerIds", businessId);
-            ValidateTriggerRefs(triggers, window.CloseTriggerIds, report, path + ".closeTriggerIds", businessId);
+            ValidateTriggerRefs(
+                triggers,
+                window.OpenTriggerIds,
+                report,
+                path + ".openTriggerIds",
+                businessId,
+                TriggerPlanScope.Global);
+            ValidateTriggerRefs(
+                triggers,
+                window.TickTriggerIds,
+                report,
+                path + ".tickTriggerIds",
+                businessId,
+                TriggerPlanScope.Global);
+            ValidateTriggerRefs(
+                triggers,
+                window.CloseTriggerIds,
+                report,
+                path + ".closeTriggerIds",
+                businessId,
+                TriggerPlanScope.Global);
         }
 
         private static void ValidateTimelinePhase(TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report, SkillTimelinePhaseDTO timeline, string path, int businessId)
@@ -1346,15 +1463,33 @@ namespace AbilityKit.Demo.Moba.Services
                 if (item == null) continue;
                 var itemPath = $"{path}.events[{i}]";
                 if (item.AtMs < 0) report.Warning(Source, itemPath + ".atMs", "timeline event time is negative.", businessId.ToString());
-                RequiredTriggerRef(triggers, item.EffectId, report, itemPath + ".effectId", businessId);
+                RequiredTriggerRef(
+                    triggers,
+                    item.EffectId,
+                    report,
+                    itemPath + ".effectId",
+                    businessId,
+                    TriggerPlanScope.Global);
             }
         }
 
         private static void ValidateTriggerRefs(TriggerPlanJsonDatabase triggers, IReadOnlyList<int> ids, MobaRuntimeValidationReport report, string path, int businessId, TriggerPlanScope? expectedScope = null)
         {
             if (ids == null || ids.Count == 0) return;
+            var seen = new HashSet<int>();
             for (int i = 0; i < ids.Count; i++)
             {
+                if (ids[i] > 0 && !seen.Add(ids[i]))
+                {
+                    report.Error(
+                        Source,
+                        $"{path}[{i}]",
+                        $"trigger id '{ids[i]}' is duplicated in the same execution list; use one trigger or an explicit repeat phase.",
+                        businessId.ToString(),
+                        code: "moba.skill.contract.duplicate_trigger_reference",
+                        category: MobaRuntimeValidationCategory.Skill,
+                        businessNumericId: businessId);
+                }
                 RequiredTriggerRef(triggers, ids[i], report, $"{path}[{i}]", businessId, expectedScope);
             }
         }
@@ -1381,7 +1516,14 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (expectedScope.HasValue && record.Scope != expectedScope.Value)
             {
-                report.Error(Source, path, $"trigger id '{id}' scope is {record.Scope}; expected {expectedScope.Value}.", businessId.ToString());
+                report.Error(
+                    Source,
+                    path,
+                    $"trigger id '{id}' scope is {record.Scope}; expected {expectedScope.Value}.",
+                    businessId.ToString(),
+                    code: "moba.skill.contract.invalid_trigger_scope",
+                    category: MobaRuntimeValidationCategory.Skill,
+                    businessNumericId: businessId);
             }
         }
 

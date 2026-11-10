@@ -43,6 +43,22 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void Rollback_IsIdempotent_AndLatePrimaryExceptionDoesNotChangeOutcome()
+        {
+            var calls = 0;
+            var transaction = new MobaTemporaryEntitySpawnTransaction();
+            transaction.Enlist("cleanup", () => calls++);
+
+            Assert.That(transaction.Rollback(), Is.Null);
+            var late = new InvalidOperationException("late failure");
+            Assert.That(transaction.Rollback(late), Is.Null);
+            transaction.Dispose();
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(transaction.PrimaryException, Is.Null);
+        }
+
+        [Test]
         public void Rollback_WhenCleanupThrows_ContinuesAndPreservesPrimaryAndFirstCleanupExceptions()
         {
             var calls = new List<string>();
@@ -295,6 +311,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public bool CancelSchedule(ProjectileScheduleId id) => false;
             public AreaId SpawnArea(in AreaSpawnParams p, int frame) => default;
             public bool DespawnArea(AreaId id, int frame) => false;
+            public bool TryConsumeAreaEnter(AreaId id) => false;
+            public bool TryAcceptAreaEnter(AreaId id, int targetActorId) => false;
             public void DrainAreaSpawnEvents(List<AreaSpawnEvent> results) { }
             public void DrainAreaEnterEvents(List<AreaEnterEvent> results) { }
             public void DrainAreaStayEvents(List<AreaStayEvent> results) { }

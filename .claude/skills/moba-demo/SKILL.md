@@ -5,6 +5,8 @@ description: AbilityKit MOBA Demo（com.abilitykit.demo.moba.*）的包结构、
 
 # MOBA 示例指引
 
+涉及英雄/技能行为及其共享 Cast、Counter、HFSM、AI、表现、编辑器或发布链时，先读 [`moba-skill-authoring`](../moba-skill-authoring/SKILL.md) 的机制准入节及 [`Docs/MobaMechanismGovernance.md`](../../../Docs/MobaMechanismGovernance.md)。禁止英雄身份驱动的特殊执行逻辑；规范未覆盖或需新增/改变机制时，先提交具体方案，等待用户明确确认。本文的注册与 CodeGen 操作指南只说明技术步骤，不构成机制扩展授权。
+
 ## 协议变更
 
 修改 MOBA 的 opcode、载荷、MemoryPack 字段、编解码器或生成 DTO 时，遵循 [`protocol-wire`](../protocol-wire/SKILL.md)。协议字段必须来自分组的 Wire Schema v2；手写协议文件只保留行为逻辑。

@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             public const string PreparationFailed = "skill.cast.prepareFailed";
             public const string MissingSkill = "skill.cast.missingSkill";
+            public const string SlotSkillMismatch = "skill.cast.slotSkillMismatch";
             public const string InvalidCaster = "skill.cast.invalidCaster";
             public const string InvalidSkill = "skill.cast.invalidSkill";
             public const string CasterMissing = "skill.cast.casterMissing";

@@ -22,7 +22,6 @@ namespace AbilityKit.Demo.Moba.Services
         protected override void OnInstantExecute(SkillPipelineContext context)
         {
             if (context == null || _def == null || _def.TriggerIds == null || _def.TriggerIds.Length == 0) return;
-
             for (int i = 0; i < _def.TriggerIds.Length; i++)
             {
                 var triggerId = _def.TriggerIds[i];

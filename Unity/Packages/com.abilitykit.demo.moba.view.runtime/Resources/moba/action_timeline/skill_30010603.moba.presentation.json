@@ -1,0 +1,36 @@
+{
+    "schemaVersion": 1,
+    "runtimeType": "presentation",
+    "length": 0.1,
+    "groups": [
+        {
+            "name": "JhinBasicAttack3",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.EffectTrack",
+                    "name": "CastPresentation",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.PlayParticle",
+                            "runtimeType": "presentation",
+                            "start": 0.0,
+                            "length": 0.1,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "presentationTemplateId": "90013009"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "$type": "AbilityKit.ActionSchema.SkillAssetDto"
+}

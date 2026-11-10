@@ -462,5 +462,219 @@
     "Selector": {
       "Kind": 4097
     }
+  },
+  {
+    "Id": 52010101,
+    "ExplicitTargetPolicy": 0,
+    "MaxCount": 1,
+    "Name": "Jhin Q bounce candidates",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 1,
+        "Radius": 6
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 1
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52010401,
+    "ExplicitTargetPolicy": 0,
+    "MaxCount": 1,
+    "Name": "Jhin R curtain call target sector",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 258,
+        "Center": 0,
+        "Forward": 1,
+        "Radius": 30,
+        "HalfAngleDeg": 5
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 0
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52010102,
+    "ExplicitTargetPolicy": 0,
+    "MaxCount": 1,
+    "Name": "Jhin Q initial target in cast range",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 0,
+        "Radius": 12
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 0
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52030101,
+    "ExplicitTargetPolicy": 0,
+    "MaxCount": 1,
+    "Name": "安妮-碎裂之火-单体目标",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 0,
+        "Radius": 6
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 0
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52030201,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 10,
+    "Name": "安妮-焚烧-扇形目标",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 258,
+        "Center": 0,
+        "Forward": 1,
+        "Radius": 5.5,
+        "HalfAngleDeg": 45
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 0
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52030301,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 10,
+    "Name": "??-?????-????",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 1,
+        "Radius": 4.5
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 0
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 50070101,
+    "ExplicitTargetPolicy": 0,
+    "MaxCount": 1,
+    "Name": "孙尚香-翻滚突袭-附近敌方存在查询",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 0,
+        "Forward": 1,
+        "Radius": 4,
+        "HalfAngleDeg": 0
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 0,
+        "RandomSeed": 0
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52020401,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 10,
+    "Name": "Jinx R explosion enemy heroes excluding primary target",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 3,
+        "Radius": 4.5
+      },
+      {
+        "Kind": 518,
+        "UnitSubType": 1
+      },
+      {
+        "Kind": 770
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 0
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
   }
 ]

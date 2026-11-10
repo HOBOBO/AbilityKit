@@ -1,10 +1,14 @@
 using System;
+using AbilityKit.Ability;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Events.Unit;
 using AbilityKit.Demo.Moba.Gameplay;
+using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Demo.Moba.Services.StateMachine;
+using AbilityKit.Modifiers;
 using AbilityKit.Demo.Moba.Triggering;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Triggering.Registry;
@@ -42,17 +46,27 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var scopedKey = args.ResolveScopedKey(scopeValue);
+            var currentValue = variables.Get(scopedKey, 0d);
+            if (args.PreserveThreshold && currentValue >= args.Threshold)
+            {
+                return;
+            }
+
             var nextValue = variables.Add(scopedKey, args.Delta);
             if (nextValue < args.Threshold)
             {
+                UpdateHfsmParameter(ctx, args, scopeValue, nextValue);
                 ReportCounterCue(ctx, args.KeyId, scopeValue, nextValue, args.Threshold);
                 return;
             }
 
-            variables.Set(scopedKey, args.ResetValue);
-            ReportCounterCue(ctx, args.KeyId, scopeValue, args.ResetValue, args.Threshold);
+            var thresholdValue = args.PreserveThreshold ? args.Threshold : args.ResetValue;
+            variables.Set(scopedKey, thresholdValue);
+            UpdateHfsmParameter(ctx, args, scopeValue, args.Threshold);
+            ReportCounterCue(ctx, args.KeyId, scopeValue, thresholdValue, args.Threshold);
             if (args.TriggerId <= 0)
             {
+                ClearHfsmSourceOnThreshold(ctx, args, scopeValue);
                 return;
             }
 
@@ -62,9 +76,64 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             effects.ExecuteRulePlan(args.TriggerId, triggerArgs);
+            ClearHfsmSourceOnThreshold(ctx, args, scopeValue);
         }
 
-        private static void ReportCounterCue(
+        private static void ClearHfsmSourceOnThreshold(
+            ExecCtx<IWorldResolver> ctx,
+            AdvanceGameplayCounterArgs args,
+            int actorId)
+        {
+            if (!args.ClearHfsmSourceOnThreshold || args.HfsmParameterId <= 0 || actorId <= 0 ||
+                !MobaCharacterHfsmParameterService.IsValidParameterId(args.HfsmParameterId) ||
+                !ctx.Context.TryResolve<MobaCharacterHfsmParameterService>(out var parameters) || parameters == null ||
+                !parameters.SupportsOperation(actorId, args.HfsmParameterId, (int)ModifierOp.Override))
+            {
+                return;
+            }
+
+            // A counter source only projects the next phase while the counter is
+            // in progress. Once the threshold trigger has installed the durable
+            // Buff modifier, remove this source so the Buff remains authoritative.
+            parameters.ClearSource(actorId, args.KeyId);
+            MobaCharacterHfsmParameterActionRuntime.Reevaluate(ctx.Context, actorId);
+        }
+
+        private static void UpdateHfsmParameter(
+            ExecCtx<IWorldResolver> ctx,
+            AdvanceGameplayCounterArgs args,
+            int actorId,
+            double value)
+        {
+            if (args.HfsmParameterId <= 0 || actorId <= 0 ||
+                !MobaCharacterHfsmParameterService.IsValidParameterId(args.HfsmParameterId) ||
+                !ctx.Context.TryResolve<MobaCharacterHfsmParameterService>(out var parameters) || parameters == null ||
+                !parameters.SupportsOperation(actorId, args.HfsmParameterId, (int)ModifierOp.Override))
+            {
+                return;
+            }
+
+            var parameterValue = value * args.HfsmValueScale + args.HfsmValueOffset;
+            if (double.IsNaN(parameterValue) || double.IsInfinity(parameterValue) ||
+                parameterValue > float.MaxValue || parameterValue < -float.MaxValue)
+                throw new InvalidOperationException("Counter HFSM projection must be finite.");
+
+            var modifier = ModifierData.Override(
+                ModifierKey.FromPacked((uint)args.HfsmParameterId),
+                (float)parameterValue,
+                sourceId: args.KeyId);
+            parameters.Set(actorId, args.KeyId, args.HfsmParameterId, in modifier);
+
+            // Counter writes are gameplay state changes. If the write happens after
+            // the character HFSM system has already ticked this frame (for example
+            // from a synchronously committed attack effect), immediately re-evaluate
+            // the actor's current hierarchy so parameter-driven state entry actions
+            // can publish their slot candidate in the same frame. The HFSM runtime
+            // keeps frame/time monotonic; this is only a same-frame condition pass.
+            MobaCharacterHfsmParameterActionRuntime.Reevaluate(ctx.Context, actorId);
+        }
+
+        internal static void ReportCounterCue(
             ExecCtx<IWorldResolver> ctx,
             int keyId,
             int actorId,
@@ -113,6 +182,21 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         {
             switch (triggerArgs)
             {
+                case IEffectContext effectContext:
+                    // Skill effects execute with EffectContextWrapper rather than the
+                    // original SkillCastContext. Preserve the authored caster scope
+                    // field across that wrapper so counters work for every shot flow.
+                    if (fieldId == SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterActorId) ||
+                        fieldId == SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterActorId) ||
+                        fieldId == MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.SourceActorId) ||
+                        fieldId == MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.AttackerActorId))
+                    {
+                        value = effectContext.SourceActorId;
+                        return value > 0;
+                    }
+
+                    value = default;
+                    return false;
                 case DamageResult damageResult:
                     return ctx.Payloads.TryGetDouble(in damageResult, fieldId, out value);
                 case AttackInfo attackInfo:

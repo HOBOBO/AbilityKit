@@ -33,6 +33,12 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (_summons == null || _registry == null) return;
             if (!result.BecameDead || result.TargetActorId <= 0) return;
+
+            // Owner-linked summons are keyed by root owner and can outlive the
+            // owner Actor registration during death/respawn. Apply the per-summon
+            // policy directly from the committed death event.
+            _summons.DespawnOnRootOwnerDeath(result.TargetActorId);
+
             if (!_registry.TryGet(result.TargetActorId, out var e) || e == null) return;
             if (!e.hasSummonMeta) return;
 

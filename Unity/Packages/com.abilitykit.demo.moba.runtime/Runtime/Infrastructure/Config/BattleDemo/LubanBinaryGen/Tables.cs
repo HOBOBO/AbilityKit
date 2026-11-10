@@ -63,6 +63,10 @@ public partial class Tables
     /// Gameplay tag status presentation channels.
     /// </summary>
     public TagHudPresentations TagHudPresentations {get; }
+    /// <summary>
+    /// Each row is one skill at one champion level; add one column per new effect parameter.
+    /// </summary>
+    public HeroLevelSkillGrowthParameters HeroLevelSkillGrowthParameters {get; }
 
     public Tables(System.Func<string, ByteBuf> loader)
     {
@@ -107,6 +111,7 @@ public partial class Tables
         ModifierDefinitions = new ModifierDefinitions(loader("modifier_definitions"));
         BuffHudTemplates = new BuffHudTemplates(loader("buff_hud_templates"));
         TagHudPresentations = new TagHudPresentations(loader("tag_hud_presentations"));
+        HeroLevelSkillGrowthParameters = new HeroLevelSkillGrowthParameters(loader("hero_level_skill_growth_parameters"));
         ResolveRef();
     }
     
@@ -153,6 +158,7 @@ public partial class Tables
         ModifierDefinitions.ResolveRef(this);
         BuffHudTemplates.ResolveRef(this);
         TagHudPresentations.ResolveRef(this);
+        HeroLevelSkillGrowthParameters.ResolveRef(this);
     }
 }
 

@@ -14,6 +14,7 @@
         public const string BuffsFile = "buffs";
         public const string ContinuousProcessesFile = "continuous_processes";
         public const string SkillLevelTablesFile = "skill_level_tables";
+        public const string HeroLevelSkillGrowthParametersFile = "hero_level_skill_growth_parameters";
         public const string AttributeTypesFile = "attr_types";
 
         public const string ProjectileLaunchersFile = "projectile_launchers";

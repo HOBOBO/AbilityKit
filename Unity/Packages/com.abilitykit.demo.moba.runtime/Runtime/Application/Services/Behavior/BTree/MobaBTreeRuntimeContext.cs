@@ -63,6 +63,11 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
     internal static class MobaBTreeKeys
     {
+        public const string LaunchHeadingValid = "memory.launchHeading.valid";
+        public const string LaunchHeadingX = "memory.launchHeading.x";
+        public const string LaunchHeadingZ = "memory.launchHeading.z";
+        public const string OwnerForwardX = "self.forwardX";
+        public const string OwnerForwardZ = "self.forwardZ";
         public const string OwnerId = "self.actorId";
         public const string OwnerX = "self.x";
         public const string OwnerY = "self.y";
@@ -111,6 +116,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         public const string CastRequestDirectionZ = "intent.cast.directionZ";
 
         public const string MoveRequestValid = "intent.move.valid";
+        public const string MoveRequestIsDirection = "intent.move.isDirection";
         public const string MoveRequestPriority = "intent.move.priority";
         public const string MoveRequestX = "intent.move.x";
         public const string MoveRequestY = "intent.move.y";
@@ -122,9 +128,11 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
         public const string OutputKind = "out.kind";
         public const string HasMove = "out.hasMove";
+        public const string MoveIsDirection = "out.moveIsDirection";
         public const string MoveX = "out.moveX";
         public const string MoveY = "out.moveY";
         public const string MoveZ = "out.moveZ";
+        public const string MoveStopRange = "out.moveStopRange";
         public const string HasCast = "out.hasCast";
         public const string CastSkillId = "out.skillId";
         public const string CastSkillSlot = "out.skillSlot";
@@ -153,6 +161,11 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         /// <summary>把标准 key 补进树定义（树 JSON 只需声明用到的 key，其余由此注入）。</summary>
         public static void EnsureStandardSchema(TreeDefinition definition)
         {
+            Ensure(definition, MobaBTreeKeys.LaunchHeadingValid, ValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.LaunchHeadingX, ValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.LaunchHeadingZ, ValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.OwnerForwardX, ValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.OwnerForwardZ, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.OwnerId, ValueType.Int64);
             Ensure(definition, MobaBTreeKeys.OwnerX, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.OwnerY, ValueType.Fixed64);
@@ -201,6 +214,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             Ensure(definition, MobaBTreeKeys.CastRequestDirectionZ, ValueType.Fixed64);
 
             Ensure(definition, MobaBTreeKeys.MoveRequestValid, ValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.MoveRequestIsDirection, ValueType.Bool);
             Ensure(definition, MobaBTreeKeys.MoveRequestPriority, ValueType.Int64);
             Ensure(definition, MobaBTreeKeys.MoveRequestX, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.MoveRequestY, ValueType.Fixed64);
@@ -212,9 +226,11 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
             Ensure(definition, MobaBTreeKeys.OutputKind, ValueType.Int64);
             Ensure(definition, MobaBTreeKeys.HasMove, ValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.MoveIsDirection, ValueType.Bool);
             Ensure(definition, MobaBTreeKeys.MoveX, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.MoveY, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.MoveZ, ValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.MoveStopRange, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.HasCast, ValueType.Bool);
             Ensure(definition, MobaBTreeKeys.CastSkillId, ValueType.Int64);
             Ensure(definition, MobaBTreeKeys.CastSkillSlot, ValueType.Int64);
@@ -288,6 +304,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetFixed64(MobaBTreeKeys.CastRequestDirectionY, Fixed64.Zero);
             bb.SetFixed64(MobaBTreeKeys.CastRequestDirectionZ, Fixed64.Zero);
             bb.SetBool(MobaBTreeKeys.MoveRequestValid, false);
+            bb.SetBool(MobaBTreeKeys.MoveRequestIsDirection, false);
             bb.SetInt64(MobaBTreeKeys.MoveRequestPriority, 0);
             bb.SetFixed64(MobaBTreeKeys.MoveRequestX, Fixed64.Zero);
             bb.SetFixed64(MobaBTreeKeys.MoveRequestY, Fixed64.Zero);
@@ -297,9 +314,11 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetInt64(MobaBTreeKeys.HoldRequestPriority, 0);
             bb.SetInt64(MobaBTreeKeys.OutputKind, (long)MobaBTreeIntentKind.Hold);
             bb.SetBool(MobaBTreeKeys.HasMove, false);
+            bb.SetBool(MobaBTreeKeys.MoveIsDirection, false);
             bb.SetFixed64(MobaBTreeKeys.MoveX, Fixed64.Zero);
             bb.SetFixed64(MobaBTreeKeys.MoveY, Fixed64.Zero);
             bb.SetFixed64(MobaBTreeKeys.MoveZ, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.MoveStopRange, Fixed64.Zero);
             bb.SetBool(MobaBTreeKeys.HasCast, false);
             bb.SetInt64(MobaBTreeKeys.CastSkillId, 0);
             bb.SetInt64(MobaBTreeKeys.CastSkillSlot, 0);

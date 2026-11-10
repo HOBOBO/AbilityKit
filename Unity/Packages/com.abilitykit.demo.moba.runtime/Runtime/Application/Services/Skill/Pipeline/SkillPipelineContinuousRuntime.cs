@@ -8,11 +8,12 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly SkillPipelineContinuousConfig _config;
 
-        public SkillPipelineContinuousRuntime(SkillPipelineContext context, MobaSkillPipelineConfig pipelineConfig, ContinuousTagRequirements requirements)
+        public SkillPipelineContinuousRuntime(SkillPipelineContext context, MobaSkillPipelineConfig pipelineConfig, ContinuousTagRequirements requirements,
+            ulong ownerExecutionBlockedResultMask = 0UL)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             PipelineConfig = pipelineConfig ?? throw new ArgumentNullException(nameof(pipelineConfig));
-            _config = new SkillPipelineContinuousConfig(this, requirements ?? new ContinuousTagRequirements());
+            _config = new SkillPipelineContinuousConfig(this, requirements ?? new ContinuousTagRequirements(), ownerExecutionBlockedResultMask);
         }
 
         public SkillPipelineContext Context { get; }
@@ -30,20 +31,23 @@ namespace AbilityKit.Demo.Moba.Services
             return Context.CasterActorId > 0;
         }
 
-        private sealed class SkillPipelineContinuousConfig : MobaContinuousConfigBase
+        private sealed class SkillPipelineContinuousConfig : MobaContinuousConfigBase, IMobaContinuousOwnerExecutionGateConfig
         {
             private readonly SkillPipelineContinuousRuntime _runtime;
 
-            public SkillPipelineContinuousConfig(SkillPipelineContinuousRuntime runtime, ContinuousTagRequirements requirements)
+            public SkillPipelineContinuousConfig(SkillPipelineContinuousRuntime runtime, ContinuousTagRequirements requirements,
+                ulong ownerExecutionBlockedResultMask)
                 : base(0f, requirements, Array.Empty<IMobaContinuousModifierSpec>())
             {
                 _runtime = runtime;
+                OwnerExecutionBlockedResultMask = ownerExecutionBlockedResultMask;
             }
 
             public override string Id => $"skill_pipeline:{_runtime.CasterActorId}:{_runtime.SkillId}:{_runtime.ConfigId}:{_runtime.SourceContextId}";
             public override long OwnerId => _runtime.CasterActorId;
             public override int OwnerActorId => _runtime.CasterActorId;
             public override int ModifierSourceId => _runtime.ModifierSourceId;
+            public ulong OwnerExecutionBlockedResultMask { get; }
             public override GameplayTagSource TagSource => CreateSource(_runtime);
 
             private static GameplayTagSource CreateSource(SkillPipelineContinuousRuntime runtime)

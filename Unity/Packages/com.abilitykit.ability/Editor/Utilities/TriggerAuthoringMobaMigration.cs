@@ -239,6 +239,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 {
                     Types = TriggerTypeDescriptorCatalog.CreateForProject(project),
                     Events = MobaEvents,
+                    ValueSources = TriggerAuthoringValueSourceCatalog.CreateForProject(project),
                     GlobalBlackboard = new TriggerGlobalBlackboardDescriptorCatalog(
                         TriggerAuthoringProjectDefaults.CreateMobaBlackboardKeys())
                 };

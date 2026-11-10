@@ -1,4 +1,5 @@
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Game.Battle.View.Lib.Skill;
 using NUnit.Framework;
 
 namespace AbilityKit.Game.Test.UnitTest
@@ -24,6 +25,24 @@ namespace AbilityKit.Game.Test.UnitTest
                 new[] { 11, 12, 13 });
             AssertHero("Luban", 1008, 10080101, 10080201, 10080301,
                 new[] { 14, 15, 16 });
+        }
+
+        [Test]
+        public void JhinSkills_ShouldUseSkillSpecificAimAndIndicatorContracts()
+        {
+            var contract = new HeroSkillContract("Jhin", 3001, 3001,
+                new[] { 30010101, 30010201, 30010301, 30010401 });
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(contract, "official_indicator_Jhin"))
+            {
+                AssertJhinTemplate(harness, 30010101, 24, SkillAimMode.Direction,
+                    SkillAimIndicatorShape.SelfCircle, SkillUsePointMode.None);
+                AssertJhinTemplate(harness, 30010201, 25, SkillAimMode.Direction,
+                    SkillAimIndicatorShape.DirectionLine, SkillUsePointMode.Aim);
+                AssertJhinTemplate(harness, 30010301, 26, SkillAimMode.Point,
+                    SkillAimIndicatorShape.TargetCircle, SkillUsePointMode.TargetPoint);
+                AssertJhinTemplate(harness, 30010401, 27, SkillAimMode.Direction,
+                    SkillAimIndicatorShape.Sector, SkillUsePointMode.Aim);
+            }
         }
 
         private static void AssertHero(string heroName, int heroId, int skill1, int skill2, int skill3, int[] templates)
@@ -56,6 +75,37 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.Greater(template.LockOnDurationMs, 0, "Lock indicator must carry its configured lock duration: " + skillId);
                 Assert.Greater(template.LockProjectileRadius, 0f, "Lock indicator must carry its configured search radius: " + skillId);
             }
+        }
+
+        private static void AssertJhinTemplate(
+            MobaSkillConfigTestHarness harness,
+            int skillId,
+            int expectedTemplateId,
+            SkillAimMode aimMode,
+            SkillAimIndicatorShape shape,
+            SkillUsePointMode usePointMode)
+        {
+            Assert.IsTrue(harness.Config.TryGetSkill(skillId, out var skill), "Missing Jhin skill " + skillId);
+            Assert.AreEqual(expectedTemplateId, skill.SkillButtonTemplateId,
+                "Jhin skill must use its dedicated aim template: " + skillId);
+            Assert.IsTrue(harness.Config.TryGetSkillButtonTemplate(expectedTemplateId, out var template),
+                "Missing Jhin aim template " + expectedTemplateId);
+            Assert.IsTrue(template.EnableAim, "Jhin skill must support drag aiming: " + skillId);
+            Assert.AreEqual((int)aimMode, template.AimMode, "Wrong aim mode for Jhin skill " + skillId);
+            Assert.AreEqual((int)shape, template.IndicatorShape, "Wrong indicator shape for Jhin skill " + skillId);
+            Assert.AreEqual((int)usePointMode, template.UsePointMode, "Wrong point mode for Jhin skill " + skillId);
+
+            if (skillId == 30010101)
+            {
+                Assert.AreEqual(12f, template.SelfRadius, 0.001f,
+                    "Jhin Q must show the caster-centered target acquisition radius.");
+                Assert.IsFalse(template.EnableAim && template.UsePointMode == (int)SkillUsePointMode.TargetPoint,
+                    "Jhin Q must not use a ground target point as its release semantic.");
+            }
+
+            if (shape == SkillAimIndicatorShape.Sector)
+                Assert.AreEqual(10f, template.SectorAngleDegrees, 0.001f,
+                    "Curtain Call's indicator should match its narrow configured firing sector.");
         }
     }
 }

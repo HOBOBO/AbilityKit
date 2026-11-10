@@ -1,4 +1,7 @@
+using System.IO;
+using System.Text.Json;
 using AbilityKit.Diagnostics.Analysis;
+using AbilityKit.Diagnostics.Exporters;
 using Xunit;
 
 namespace AbilityKit.Diagnostics.Tests;
@@ -8,6 +11,34 @@ namespace AbilityKit.Diagnostics.Tests;
 /// </summary>
 public sealed class AnalysisArtifactTests
 {
+    [Fact]
+    public void Analysis_artifact_file_export_streams_valid_json_without_bom()
+    {
+        var artifact = new AbilityKitAnalysisArtifact
+        {
+            SchemaVersion = string.Empty,
+            Session = new AnalysisSessionInfo { SessionId = "streaming-export" },
+            Metadata = { new AnalysisKeyValue("scenario", "large-project") }
+        };
+        artifact.Profiler.Events.Add(new AnalysisProfilerEvent
+        {
+            Name = "diagnostics.warning",
+            Message = "sample warning"
+        });
+
+        var exporter = new AnalysisArtifactJsonExporter();
+        var expected = exporter.ExportToString(artifact);
+        var path = Path.Combine(Path.GetTempPath(), "abilitykit-analysis-export-tests", Path.GetRandomFileName(), "artifact.json");
+        exporter.Export(artifact, path);
+
+        var bytes = File.ReadAllBytes(path);
+        Assert.True(bytes.Length < 3 || !(bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF));
+        using var expectedJson = JsonDocument.Parse(expected);
+        using var actualJson = JsonDocument.Parse(bytes);
+        Assert.Equal(JsonSerializer.Serialize(expectedJson.RootElement), JsonSerializer.Serialize(actualJson.RootElement));
+        Assert.Equal(AbilityKitAnalysisSchema.Version, actualJson.RootElement.GetProperty("SchemaVersion").GetString());
+    }
+
     [Fact]
     public void Schema_constants_are_stable()
     {

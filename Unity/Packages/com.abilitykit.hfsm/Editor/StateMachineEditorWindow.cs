@@ -11,6 +11,7 @@ using UnityEditor.UIElements;
 using AbilityKit.HFSM.Editor.Export;
 using AbilityKit.HFSM.Editor.Diagnostics;
 using AbilityKit.HFSM.Editor.RuntimeMonitor;
+using AbilityKit.HFSM.Graph;
 using AbilityKit.HFSM.Graph.Descriptor;
 using AbilityKit.HFSM.Visualization;
 
@@ -27,6 +28,7 @@ namespace AbilityKit.HFSM.Editor
         private const string LastPanXStateKey = "last-pan-x";
         private const string LastPanYStateKey = "last-pan-y";
         private const string DiagnosticsVisibleStateKey = "diagnostics-visible";
+        private const string LayoutModeStateKey = "layout-mode";
 
         private readonly IEditorUserStateStore _userState =
             new EditorPrefsUserStateStore("hfsm", "graph-editor");
@@ -55,6 +57,10 @@ namespace AbilityKit.HFSM.Editor
         private Label _breadcrumbLabel;
         private ToolbarButton _diagnosticsButton;
         private VisualElement _diagnosticsPane;
+        private PopupField<string> _layoutDropdown;
+        private ToolbarButton _autoLayoutButton;
+        private GraphLayoutMode _layoutMode = GraphLayoutMode.Hierarchy;
+        private readonly List<string> _layoutLabels = new List<string> { "Hierarchy", "Horizontal", "Vertical", "Grid" };
 
         [MenuItem("Window/AbilityKit/HFSM 状态机编辑器")]
         public static void OpenWindow()
@@ -113,6 +119,10 @@ namespace AbilityKit.HFSM.Editor
 
             // Initialize view state
             bool hasSavedView = _userState.HasKey(LastZoomStateKey);
+            if (_userState.HasKey(LayoutModeStateKey))
+            {
+                _layoutMode = (GraphLayoutMode)Mathf.Clamp(_userState.GetInt(LayoutModeStateKey), 0, 3);
+            }
             if (hasSavedView)
             {
                 float zoom = _userState.GetFloat(LastZoomStateKey);
@@ -167,6 +177,7 @@ namespace AbilityKit.HFSM.Editor
                 _userState.SetFloat(LastZoomStateKey, _context.ZoomFactor);
                 _userState.SetFloat(LastPanXStateKey, _context.PanOffset.x);
                 _userState.SetFloat(LastPanYStateKey, _context.PanOffset.y);
+                _userState.SetInt(LayoutModeStateKey, (int)_layoutMode);
             }
 
             // Save last opened graph
@@ -310,6 +321,8 @@ namespace AbilityKit.HFSM.Editor
             if (frameButton != null)
                 frameButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.frame-all"));
 
+            CreateLayoutControls(breadcrumbArea);
+
             _diagnosticsButton = _root.Q<ToolbarButton>("DiagnosticsButton");
             if (_diagnosticsButton != null)
                 _diagnosticsButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.toggle-diagnostics"));
@@ -326,6 +339,47 @@ namespace AbilityKit.HFSM.Editor
                 exportButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.export-menu"));
 
             CreateObserveDropdown(breadcrumbArea);
+        }
+
+        private void CreateLayoutControls(VisualElement toolbar)
+        {
+            if (toolbar == null) return;
+            _layoutDropdown = new PopupField<string>(_layoutLabels, 0);
+            _layoutDropdown.SetValueWithoutNotify(_layoutLabels[(int)_layoutMode]);
+            _layoutDropdown.tooltip = "Select the default automatic graph layout";
+            _layoutDropdown.style.width = 105f;
+            _layoutDropdown.style.marginLeft = 4f;
+            _layoutDropdown.RegisterValueChangedCallback(evt =>
+            {
+                _layoutMode = ParseLayoutMode(evt.newValue);
+                ApplyLayout(false);
+            });
+            toolbar.Add(_layoutDropdown);
+
+            _autoLayoutButton = new ToolbarButton(() => ApplyLayout(true)) { text = "Auto Layout" };
+            _autoLayoutButton.tooltip = "Arrange nodes in the selected layout";
+            toolbar.Add(_autoLayoutButton);
+        }
+
+        private static GraphLayoutMode ParseLayoutMode(string value)
+        {
+            switch (value)
+            {
+                case "Horizontal": return GraphLayoutMode.Horizontal;
+                case "Vertical": return GraphLayoutMode.Vertical;
+                case "Grid": return GraphLayoutMode.Grid;
+                default: return GraphLayoutMode.Hierarchy;
+            }
+        }
+
+        private void ApplyLayout(bool frameAfter)
+        {
+            if (_context == null || _context.GraphAsset == null || _context.CurrentChildNodes.Count == 0) return;
+            GraphLayoutUtility.Apply(_context.GraphAsset, _context.CurrentChildNodes,
+                _context.CurrentTransitions, _layoutMode);
+            _context.RefreshCurrentView();
+            if (frameAfter) FrameAll();
+            Repaint();
         }
 
         private void ShowExportMenu()
@@ -565,9 +619,11 @@ namespace AbilityKit.HFSM.Editor
 
             _stateLayer.ViewBounds = viewRect;
             _stateLayer.OnGUI(viewRect);
+            DrawMiniMap(viewRect);
 
             // Process events in order: navigation first, then state, then transition
             _navigationLayer.ProcessEvent();
+            HandleMiniMapInput(viewRect);
             _stateLayer.ProcessEvent();
             _transitionLayer.ProcessEvent();
 
@@ -590,6 +646,63 @@ namespace AbilityKit.HFSM.Editor
             {
                 _inspectorPanel.Repaint();
             }
+        }
+
+        private void DrawMiniMap(Rect viewRect)
+        {
+            if (_context == null || _context.CurrentChildNodes.Count == 0) return;
+            const float width = 190f;
+            const float height = 125f;
+            Rect map = new Rect(viewRect.width - width - 12f, viewRect.height - height - 12f, width, height);
+            EditorGUI.DrawRect(map, new Color(0.055f, 0.065f, 0.08f, 0.92f));
+            var bounds = _context.GetNodesBounds();
+            float scale = Mathf.Min((map.width - 12f) / Mathf.Max(1f, bounds.width),
+                (map.height - 12f) / Mathf.Max(1f, bounds.height));
+            Vector2 origin = map.position + new Vector2(6f, 6f) - bounds.position * scale;
+            foreach (var edge in _context.CurrentTransitions)
+            {
+                var source = _context.GraphAsset.GetNodeById(edge.SourceNodeId);
+                var target = _context.GraphAsset.GetNodeById(edge.TargetNodeId);
+                if (source == null || target == null) continue;
+                Handles.color = new Color(0.45f, 0.55f, 0.65f, 0.7f);
+                Handles.DrawLine(origin + (source.Position + source.Size * 0.5f) * scale,
+                    origin + (target.Position + target.Size * 0.5f) * scale);
+            }
+            foreach (var node in _context.CurrentChildNodes)
+            {
+                Rect r = new Rect(origin + node.Position * scale, node.Size * scale);
+                r.width = Mathf.Max(3f, r.width); r.height = Mathf.Max(3f, r.height);
+                EditorGUI.DrawRect(r, node.NodeType == GraphNodeType.StateMachine
+                    ? new Color(0.25f, 0.5f, 0.75f) : new Color(0.55f, 0.6f, 0.68f));
+            }
+            Vector2 topLeft = ContentToMiniMap(origin, scale, (new Vector2(0, 0) - _context.PanOffset) / _context.ZoomFactor);
+            Vector2 bottomRight = ContentToMiniMap(origin, scale, (viewRect.size - _context.PanOffset) / _context.ZoomFactor);
+            Rect viewport = Rect.MinMaxRect(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y);
+            Handles.color = new Color(1f, 0.85f, 0.25f, 0.9f);
+            Handles.DrawAAPolyLine(2f, new[] {
+                new Vector3(viewport.x, viewport.y), new Vector3(viewport.xMax, viewport.y),
+                new Vector3(viewport.xMax, viewport.yMax), new Vector3(viewport.x, viewport.yMax),
+                new Vector3(viewport.x, viewport.y) });
+            GUI.Label(new Rect(map.x + 6f, map.y + 3f, 100f, 16f), "Mini Map", EditorStyles.miniLabel);
+        }
+
+        private static Vector2 ContentToMiniMap(Vector2 origin, float scale, Vector2 content)
+        {
+            return origin + content * scale;
+        }
+
+        private void HandleMiniMapInput(Rect viewRect)
+        {
+            if (_context == null || _context.CurrentChildNodes.Count == 0 || Event.current.type != EventType.MouseDown || Event.current.button != 0) return;
+            const float width = 190f, height = 125f;
+            Rect map = new Rect(viewRect.width - width - 12f, viewRect.height - height - 12f, width, height);
+            if (!map.Contains(Event.current.mousePosition)) return;
+            var bounds = _context.GetNodesBounds();
+            float scale = Mathf.Min((map.width - 12f) / Mathf.Max(1f, bounds.width), (map.height - 12f) / Mathf.Max(1f, bounds.height));
+            Vector2 origin = map.position + new Vector2(6f, 6f) - bounds.position * scale;
+            Vector2 content = (Event.current.mousePosition - origin) / scale;
+            _context.PanOffset = viewRect.center - content * _context.ZoomFactor;
+            Event.current.Use();
         }
 
         private void DrawNoGraphMessage(Rect rect)

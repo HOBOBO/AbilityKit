@@ -50,6 +50,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             });
             builder.TryRegister<StateMachineDefinition>(WorldLifetime.Singleton, _ =>
                 MobaCharacterHfsmProfile.LoadDefinition(_.Resolve<ITextAssetLoader>()));
+            builder.TryRegister<MobaCharacterHfsmProfileCatalog>(WorldLifetime.Singleton, _ =>
+                new MobaCharacterHfsmProfileCatalog(_.Resolve<ITextAssetLoader>()));
             builder.TryRegister<IMobaConfigLoadPipeline>(WorldLifetime.Singleton, _ =>
             {
                 _.TryResolve<IMobaConfigTableRegistry>(out var registry);

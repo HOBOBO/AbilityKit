@@ -37,6 +37,20 @@ namespace AbilityKit.Demo.Moba.Services
             _pending.Add(entry);
         }
 
+        public bool CancelPendingActorSpawn(int actorId)
+        {
+            if (actorId <= 0) return false;
+            var items = _pending.Items;
+            var removed = false;
+            for (var i = items.Count - 1; i >= 0; i--)
+            {
+                if (items[i].NetId != actorId) continue;
+                items.RemoveAt(i);
+                removed = true;
+            }
+            return removed;
+        }
+
         /// <summary>
         /// Builds a dynamic spawn entry from the authoritative registered Actor.
         /// Callers provide only the protocol kind/code and optional owner; position

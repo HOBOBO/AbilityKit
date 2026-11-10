@@ -69,6 +69,40 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void RuntimeMetadata_RetainsAreaGroupClaimConfiguration()
+        {
+            var center = Vec3.Zero;
+            var forward = Vec3.Forward;
+            var runtime = new MobaAreaRuntimeService();
+
+            runtime.RegisterSpawn(
+                new AbilityKit.Combat.Projectile.AreaId(301),
+                templateId: 601,
+                ownerActorId: 7,
+                in center,
+                radius: 3f,
+                collisionLayerMask: 0,
+                maxTargets: 5,
+                frame: 10,
+                delayFrames: 0,
+                sourceContextId: 700L,
+                rootContextId: 500L,
+                ownerContextId: 0L,
+                shapeKind: 0,
+                in forward,
+                halfAngleDeg: 0f,
+                width: 6f,
+                length: 6f,
+                groupKey: 3,
+                claimTargetsWithinGroup: true);
+
+            Assert.That(runtime.TryGetArea(301, out var info), Is.True);
+            Assert.That(info.RootContextId, Is.EqualTo(500L));
+            Assert.That(info.GroupKey, Is.EqualTo(3));
+            Assert.That(info.ClaimTargetsWithinGroup, Is.True);
+        }
+
+        [Test]
         public void CreateAreaSpawnedDraft_WithoutRootContext_FallsBackToSourceContextId()
         {
             var info = CreateAreaInfo(

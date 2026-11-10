@@ -118,6 +118,11 @@ def append_excel_sources():
     copy_row(ws, 10060301, 10070301, {2: 20000, 3: 100, 4: "360,1.0,18,500,3000", 5: "damage,physicalAttackRatio,range,projectileSpeed,damageFalloffPercent"})
     ws = book.worksheets[1]
     copy_row(ws, 10060000, 10070000, {4: "孙尚香-活力迸发", 5: "10070000,10070002,10070003"})
+    copy_row(book["目标查询"], 52010102, 50070101, {
+        2: "PreferExplicitTarget", 3: 1, 4: "孙尚香-翻滚突袭-附近敌方存在查询",
+        5: "EnemyTeam", 6: "CircleShape", 7: "Caster", 8: "AimPosition",
+        9: 4, 10: 0, 11: "DistanceToCaster", 12: "Caster", 13: 0, 14: "TopKByScore",
+    })
     book.save(DATA / "J-技能表.xlsx")
 
     # Buffs: enhanced basic attack, slow/debuff and ultimate marker.
@@ -236,6 +241,20 @@ def clone_triggers():
                         if candidate.get("type") == "dash"), index)]
     if not dash_children:
         children.insert(0, dash)
+
+    # A callable skill effect only needs query existence, not owner-local collection state.
+    query = next((node for node in children if node.get("type") == "query_target_collection"), None)
+    if query is not None:
+        loop = next(node for node in children if node.get("type") == "for_each")
+        condition = json.loads(json.dumps(query))
+        condition.update(kind="Condition", type="has_query_target", arguments=[{
+            "name": "query_template_id", "value": {
+                "source": "Constant", "type": "Integer", "integerValue": 50070101,
+            },
+        }])
+        loop.update(type="conditional", arguments=[], condition=condition)
+        children.remove(query)
+    skill_one.update(scope="global", entryMode="Callable", event="")
 
     skill_two = next(t for t in skills["module"]["triggers"] if t["id"] == 10070211)
     for node in walk(skill_two):

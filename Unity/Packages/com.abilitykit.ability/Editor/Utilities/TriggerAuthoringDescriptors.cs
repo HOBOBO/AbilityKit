@@ -496,6 +496,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             catalog.Register(Action("give_damage", "造成伤害", "Action/Combat", WithTargets(
                 OneOf("damage_amount", "damage_value", TriggerValueType.Number),
                 OneOf("damage_amount", "source_attack_ratio", TriggerValueType.Number),
+                Optional("damage_value_ref", TriggerValueType.Number),
                 DamageType("damage_type"),
                 DamageReason("reason_kind"),
                 Optional("reason_param", TriggerValueType.Integer),
@@ -512,6 +513,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Optional("require_skill_runtime", TriggerValueType.Boolean),
                 Optional("skip_first_hit", TriggerValueType.Boolean),
                 Optional("target_hit_count_key_base", TriggerValueType.Integer)));
+            catalog.Register(Action("set_attack_critical", "Set attack critical", "Action/Combat", Optional("reason_kind", TriggerValueType.Integer), Optional("reason_param", TriggerValueType.Integer)));
             catalog.Register(Action("take_damage", "承受伤害", "Action/Combat",
                 Optional("rate", TriggerValueType.Number),
                 Optional("reason_param", TriggerValueType.Integer)));
@@ -561,6 +563,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                 ResourceType("resource_type"),
                 Optional("min", TriggerValueType.Number),
                 Optional("max", TriggerValueType.Number))));
+            catalog.Register(Action("refund_skill_cost_on_kill", "技能击杀返还实际消耗", "Action/Resource",
+                Required("skill_id", TriggerValueType.Integer)));
             catalog.Register(Action("consume_resource", "消耗资源", "Action/Resource",
                 Optional("amount", TriggerValueType.Number), ResourceType("resource_type")));
             catalog.Register(Action("convert_resource_to_heal", "将资源转为治疗", "Action/Resource", WithTargets(
@@ -608,7 +612,15 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Optional("collision_layer_mask", TriggerValueType.Integer),
                 Optional("offset_x", TriggerValueType.Number),
                 Optional("offset_y", TriggerValueType.Number),
-                Optional("offset_z", TriggerValueType.Number))));
+                Optional("offset_z", TriggerValueType.Number),
+                Optional("direction_offset", TriggerValueType.Number),
+                Optional("shape_kind", TriggerValueType.Integer),
+                Optional("half_angle_deg", TriggerValueType.Number),
+                Optional("width", TriggerValueType.Number),
+                Optional("length", TriggerValueType.Number),
+                Optional("initial_radius", TriggerValueType.Number),
+                Optional("radius_growth_per_frame", TriggerValueType.Number),
+                Optional("anchor_at_origin", TriggerValueType.Boolean))));
             catalog.Register(Action("remove_area", "移除区域", "Action/Area", WithTargets(
                 OneOf("area_identity", "area_id", TriggerValueType.Integer),
                 OneOf("area_identity", "template_id", TriggerValueType.Integer),
@@ -693,7 +705,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Required("threshold", TriggerValueType.Number),
                 Optional("delta", TriggerValueType.Number),
                 Optional("reset_value", TriggerValueType.Number),
-                Required("trigger_id", TriggerValueType.Integer)));
+                Required("trigger_id", TriggerValueType.Integer),
+                Optional("hfsm_parameter_id", TriggerValueType.Integer),
+                Optional("clear_hfsm_source_on_threshold", TriggerValueType.Boolean)));
             catalog.Register(Action("end_game", "结束游戏", "Action/Gameplay",
                 Optional("reason_id", TriggerValueType.Integer),
                 Optional("win_team_id", TriggerValueType.Integer),

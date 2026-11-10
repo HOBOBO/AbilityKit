@@ -86,9 +86,12 @@ namespace AbilityKit.Game.Flow
             var cooldownLayer = CreateCooldownLayer(element.GameObject.transform, name + "CooldownLayer");
             var cooldownOverlay = CreateCooldownOverlay(cooldownLayer, name + "CooldownOverlay");
             var cooldownText = CreateCooldownText(cooldownLayer, name + "CooldownText");
+            var skillNameText = CreateSkillNameText(element.GameObject.transform, name + "Name");
+            var skillIconText = CreateSkillIconText(element.GameObject.transform, name + "Icon");
+            var skillIconImage = CreateSkillIconImage(element.GameObject.transform, name + "IconSprite");
             var indicator = CreateSkillAimIndicator(parent, name + "AimIndicator");
             var view = element.GameObject.AddComponent<SkillButtonView>();
-            view.Initialize(element.Rect, root, canvas, cfg, indicator, cooldownOverlay, cooldownText);
+            view.Initialize(element.Rect, root, canvas, cfg, indicator, cooldownOverlay, cooldownText, skillNameText, skillIconText, skillIconImage);
             return view;
         }
 
@@ -167,6 +170,57 @@ namespace AbilityKit.Game.Flow
             text.fontSize = 30;
             text.fontStyle = FontStyle.Bold;
             text.raycastTarget = false;
+            text.gameObject.SetActive(false);
+            return text;
+        }
+
+        private Text CreateSkillNameText(Transform parent, string name)
+        {
+            var text = CreateOverlayText(parent, name, 16, TextAnchor.LowerCenter);
+            text.color = Color.white;
+            return text;
+        }
+
+        private Text CreateSkillIconText(Transform parent, string name)
+        {
+            var text = CreateOverlayText(parent, name, 12, TextAnchor.UpperRight);
+            text.color = new Color(1f, 0.85f, 0.35f, 0.95f);
+            return text;
+        }
+
+        private static Image CreateSkillIconImage(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            go.transform.SetParent(parent, worldPositionStays: false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = new Vector2(0f, 5f);
+            rt.sizeDelta = new Vector2(78f, 78f);
+            var image = go.GetComponent<Image>();
+            image.raycastTarget = false;
+            image.preserveAspect = true;
+            go.SetActive(false);
+            return image;
+        }
+
+        private static Text CreateOverlayText(Transform parent, string name, int fontSize, TextAnchor alignment)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            go.transform.SetParent(parent, worldPositionStays: false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = new Vector2(4f, 2f);
+            rt.offsetMax = new Vector2(-4f, -2f);
+            var text = go.GetComponent<Text>();
+            text.alignment = alignment;
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = fontSize;
+            text.fontStyle = FontStyle.Bold;
+            text.raycastTarget = false;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
             text.gameObject.SetActive(false);
             return text;
         }

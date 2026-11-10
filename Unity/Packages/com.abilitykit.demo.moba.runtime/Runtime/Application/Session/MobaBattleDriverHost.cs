@@ -22,6 +22,7 @@ namespace AbilityKit.Demo.Moba.Session
         MobaInputSubmitResult SubmitCommands(FrameIndex targetFrame, IReadOnlyList<PlayerInputCommand> commands);
         LogicWorldEntityState[] GetLogicWorldEntityStates();
         int FillLogicWorldEntityStates(IList<LogicWorldEntityState> buffer);
+        int FillCoordinatorEntityStates(IList<SnapshotEntityState> buffer);
         bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot);
         int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32);
     }
@@ -35,7 +36,7 @@ namespace AbilityKit.Demo.Moba.Session
     /// - 输入、快照和状态读取都由统一运行时端口承载
     /// - 禁止直接访问 MobaEntityManager 或实体
     /// </summary>
-    public sealed class MobaBattleDriverHost : ILogicWorldDriverHost, ILogicWorldDriverBridge
+    public sealed class MobaBattleDriverHost : ILogicWorldDriverHost, ILogicWorldDriverBridge, ILogicWorldDriverStateBufferBridge
     {
         private IWorld _world;
         private HostRuntime _hostRuntime;
@@ -44,6 +45,7 @@ namespace AbilityKit.Demo.Moba.Session
         private MobaPlayerInputCommandConverter _inputConverter;
         private MobaTransformSnapshotDispatcher _transformSnapshots;
         private MobaCoordinatorStateAdapter _stateAdapter;
+        private readonly List<LogicWorldEntityState> _logicEntityStateBuffer = new List<LogicWorldEntityState>(32);
         private FrameIndex _currentFrame;
         // 会话/表现域时间（对局时长显示、编辑器面板、测试时间戳），跨包接口 double 消费者众多；
         // double IEEE 累计位一致，不参与逐帧模拟判定，故保留 double 不迁定点。
@@ -231,6 +233,24 @@ namespace AbilityKit.Demo.Moba.Session
             }
 
             return _runtime.FillAllEntityStates(buffer);
+        }
+
+        public int FillCoordinatorEntityStates(IList<SnapshotEntityState> buffer)
+        {
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (_runtime == null || _stateAdapter == null)
+            {
+                throw new InvalidOperationException("MobaBattleDriverHost must be bound before reading entity states.");
+            }
+
+            _logicEntityStateBuffer.Clear();
+            _runtime.FillAllEntityStates(_logicEntityStateBuffer);
+            return _stateAdapter.AppendToCoordinatorStates(_logicEntityStateBuffer, buffer);
+        }
+
+        public int FillAllEntityStates(IList<SnapshotEntityState> buffer)
+        {
+            return FillCoordinatorEntityStates(buffer);
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)

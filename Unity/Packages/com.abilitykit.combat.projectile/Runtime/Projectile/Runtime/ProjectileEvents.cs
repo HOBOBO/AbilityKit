@@ -57,13 +57,18 @@ namespace AbilityKit.Combat.Projectile
         public readonly int RootActorId;
         public readonly ColliderId HitCollider;
         public readonly float Distance;
+        public readonly Vec3 SpawnPosition;
+        public readonly float DistanceTravelled;
+        public readonly int ElapsedFrames;
+        public readonly int SpawnFrame;
+        public readonly float ElapsedSeconds;
         public readonly Vec3 Point;
         public readonly Vec3 Normal;
         public readonly int Frame;
 
         public readonly int HitCount;
 
-        public ProjectileHitEvent(ProjectileId projectile, int ownerId, int templateId, int launcherActorId, int rootActorId, ColliderId hitCollider, float distance, in Vec3 point, in Vec3 normal, int frame, int hitCount)
+        public ProjectileHitEvent(ProjectileId projectile, int ownerId, int templateId, int launcherActorId, int rootActorId, ColliderId hitCollider, float distance, in Vec3 point, in Vec3 normal, int frame, int hitCount, in Vec3 spawnPosition = default, float distanceTravelled = 0f, int elapsedFrames = 0, int spawnFrame = 0, float elapsedSeconds = 0f)
         {
             Projectile = projectile;
             OwnerId = ownerId;
@@ -72,6 +77,11 @@ namespace AbilityKit.Combat.Projectile
             RootActorId = rootActorId;
             HitCollider = hitCollider;
             Distance = distance;
+            SpawnPosition = spawnPosition;
+            DistanceTravelled = distanceTravelled;
+            ElapsedFrames = elapsedFrames;
+            SpawnFrame = spawnFrame;
+            ElapsedSeconds = elapsedSeconds;
             Point = point;
             Normal = normal;
             Frame = frame;

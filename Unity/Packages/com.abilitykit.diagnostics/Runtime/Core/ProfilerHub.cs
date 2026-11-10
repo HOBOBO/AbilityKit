@@ -22,6 +22,12 @@ namespace AbilityKit.Diagnostics
         /// </summary>
         public static bool IsEnabled => Current.IsEnabled;
 
+        /// <summary>
+        /// Gets whether the registered EditorProfiler is actively collecting according to its
+        /// current options. This is separate from IsEnabled, which denotes session lifecycle.
+        /// </summary>
+        public static bool IsCollecting => GetEditorProfiler()?.IsCollecting == true;
+
         static ProfilerHub()
         {
             // 默认使用空探针
@@ -53,6 +59,23 @@ namespace AbilityKit.Diagnostics
         public static void Configure(ProfilerOptions options)
         {
             GetEditorProfiler()?.Configure(options);
+        }
+
+        /// <summary>
+        /// Starts the registered EditorProfiler session when the optional diagnostics package is
+        /// installed. Calling this while another profiler is registered is a no-op.
+        /// </summary>
+        public static void Start()
+        {
+            GetEditorProfiler()?.Start();
+        }
+
+        /// <summary>
+        /// Stops the registered EditorProfiler session.
+        /// </summary>
+        public static void Stop()
+        {
+            GetEditorProfiler()?.Stop();
         }
 
         /// <summary>

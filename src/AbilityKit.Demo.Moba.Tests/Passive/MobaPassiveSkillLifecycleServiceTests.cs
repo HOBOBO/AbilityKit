@@ -139,7 +139,7 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
         var secondOwnerKey = secondEntry.OwnerKey;
         var secondTriggerIds = secondEntry.TriggerIds;
 
-        actor.ReplaceSkillLoadout(Array.Empty<ActiveSkillRuntime>(), new[] { second });
+        actor.ReplaceSkillLoadout(0, Array.Empty<ActiveSkillRuntime>(), new[] { second });
         service.SyncActorPassives(actor, frame: 2);
 
         Assert.False(service.IsPassiveOwnerKey(firstOwnerKey));
@@ -224,7 +224,7 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
         var context = new ActorContext();
         var actor = context.CreateEntity();
         actor.AddActorId(1);
-        actor.AddSkillLoadout(Array.Empty<ActiveSkillRuntime>(), passiveSkills);
+        actor.AddSkillLoadout(0, Array.Empty<ActiveSkillRuntime>(), passiveSkills);
         return actor;
     }
 

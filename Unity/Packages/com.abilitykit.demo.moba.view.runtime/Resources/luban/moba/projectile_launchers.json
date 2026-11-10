@@ -223,5 +223,95 @@
     "FanAngleDeg": 0,
     "IntervalMs": 0,
     "Name": "鲁班七号-召唤物投弹发射器"
+  },
+  {
+    "Id": 33010101,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Jhin Q launcher"
+  },
+  {
+    "Id": 33010201,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Jhin W launcher"
+  },
+  {
+    "Id": 33010401,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Jhin R launcher"
+  },
+  {
+    "Id": 33010601,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Jhin basic attack launcher"
+  },
+  {
+    "Id": 33010301,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Jhin E trap launcher"
+  },
+  {
+    "Id": 33030101,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "安妮-碎裂之火-发射器"
+  },
+  {
+    "Id": 33020202,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Jinx Fishbones basic attack launcher"
+  },
+  {
+    "Id": 33020201,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Jinx Pow-Pow basic attack launcher"
+  },
+  {
+    "Id": 33020203,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Jinx W Zap launcher"
+  },
+  {
+    "Id": 33020403,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Jinx R rocket launcher"
   }
 ]

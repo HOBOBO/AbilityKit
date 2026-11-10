@@ -28,18 +28,31 @@ namespace AbilityKit.Diagnostics.Exporters
 
         public void Export(ProfilerSnapshot snapshot, string filePath)
         {
-            WriteAllText(filePath, ExportToString(snapshot));
+            using (var writer = CreateWriter(filePath))
+            {
+                WriteTo(snapshot, writer);
+            }
         }
 
         public string ExportToString(ProfilerSnapshot snapshot)
         {
             var sb = new StringBuilder(4096);
-            sb.AppendLine("{");
-            AppendJsonProperty(sb, "sessionId", snapshot.SessionId, 1, true);
-            AppendJsonProperty(sb, "timestamp", snapshot.Timestamp.ToString(CultureInfo.InvariantCulture), 1, true, rawValue: true);
-            AppendJsonProperty(sb, "durationMs", GetDurationMilliseconds(snapshot).ToString("F4", CultureInfo.InvariantCulture), 1, true, rawValue: true);
+            using (var writer = new StringWriter(sb, CultureInfo.InvariantCulture))
+            {
+                WriteTo(snapshot, writer);
+            }
 
-            sb.AppendLine("  \"metrics\": {");
+            return sb.ToString();
+        }
+
+        private static void WriteTo(ProfilerSnapshot snapshot, TextWriter writer)
+        {
+            writer.WriteLine("{");
+            AppendJsonProperty(writer, "sessionId", snapshot.SessionId, 1, true);
+            AppendJsonProperty(writer, "timestamp", snapshot.Timestamp.ToString(CultureInfo.InvariantCulture), 1, true, rawValue: true);
+            AppendJsonProperty(writer, "durationMs", GetDurationMilliseconds(snapshot).ToString("F4", CultureInfo.InvariantCulture), 1, true, rawValue: true);
+
+            writer.WriteLine("  \"metrics\": {");
             var metricIndex = 0;
             if (snapshot.Metrics != null)
             {
@@ -47,76 +60,79 @@ namespace AbilityKit.Diagnostics.Exporters
                 {
                     var comma = ++metricIndex < snapshot.Metrics.Count ? "," : string.Empty;
                     var record = kvp.Value;
-                    sb.AppendLine($"    \"{EscapeJson(kvp.Key)}\": {{\"category\": \"{EscapeJson(record.Category)}\", \"kind\": \"{record.Kind}\", \"unit\": \"{EscapeJson(record.Unit)}\", \"description\": \"{EscapeJson(record.Description)}\", \"tags\": \"{EscapeJson(JoinTags(record.Tags))}\"}}{comma}");
+                    writer.WriteLine($"    \"{EscapeJson(kvp.Key)}\": {{\"category\": \"{EscapeJson(record.Category)}\", \"kind\": \"{record.Kind}\", \"unit\": \"{EscapeJson(record.Unit)}\", \"description\": \"{EscapeJson(record.Description)}\", \"tags\": \"{EscapeJson(JoinTags(record.Tags))}\"}}{comma}");
                 }
             }
-            sb.AppendLine("  },");
+            writer.WriteLine("  },");
 
-            sb.AppendLine("  \"options\": {");
+            writer.WriteLine("  \"options\": {");
             if (snapshot.Options != null)
             {
-                AppendJsonProperty(sb, "enabled", snapshot.Options.Enabled ? "true" : "false", 2, true, rawValue: true);
-                AppendJsonProperty(sb, "defaultSampleRate", Format(snapshot.Options.DefaultSampleRate), 2, true, rawValue: true);
-                AppendJsonProperty(sb, "maxSamplesPerMetric", snapshot.Options.MaxSamplesPerMetric.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
-                AppendJsonProperty(sb, "maxDiagnosticEvents", snapshot.Options.MaxDiagnosticEvents.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
-                AppendJsonProperty(sb, "disabledCategories", EscapeJson(JoinSet(snapshot.Options.DisabledCategories)), 2, true);
-                AppendJsonProperty(sb, "categorySampleRates", EscapeJson(JoinRates(snapshot.Options.CategorySampleRates)), 2, true);
-                AppendJsonProperty(sb, "metricSampleRates", EscapeJson(JoinRates(snapshot.Options.MetricSampleRates)), 2, false);
+                AppendJsonProperty(writer, "enabled", snapshot.Options.Enabled ? "true" : "false", 2, true, rawValue: true);
+                AppendJsonProperty(writer, "collectionLevel", snapshot.Options.CollectionLevel.ToString(), 2, true);
+                AppendJsonProperty(writer, "defaultSampleRate", Format(snapshot.Options.DefaultSampleRate), 2, true, rawValue: true);
+                AppendJsonProperty(writer, "maxSamplesPerMetric", snapshot.Options.MaxSamplesPerMetric.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
+                AppendJsonProperty(writer, "maxDiagnosticEvents", snapshot.Options.MaxDiagnosticEvents.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
+                AppendJsonProperty(writer, "disabledCategories", EscapeJson(JoinSet(snapshot.Options.DisabledCategories)), 2, true);
+                AppendJsonProperty(writer, "categorySampleRates", EscapeJson(JoinRates(snapshot.Options.CategorySampleRates)), 2, true);
+                AppendJsonProperty(writer, "metricSampleRates", EscapeJson(JoinRates(snapshot.Options.MetricSampleRates)), 2, false);
             }
-            sb.AppendLine("  },");
+            writer.WriteLine("  },");
 
-            sb.AppendLine("  \"sessions\": [");
+            writer.WriteLine("  \"sessions\": [");
             if (snapshot.Sessions != null)
             {
                 for (var i = 0; i < snapshot.Sessions.Count; i++)
                 {
                     var record = snapshot.Sessions[i];
-                    sb.AppendLine("    {");
-                    AppendJsonProperty(sb, "sessionId", record.SessionId ?? string.Empty, 3, true);
-                    AppendJsonProperty(sb, "label", record.Label ?? string.Empty, 3, true);
-                    AppendJsonProperty(sb, "savedTimestamp", record.SavedTimestamp.ToString(CultureInfo.InvariantCulture), 3, true, rawValue: true);
-                    AppendJsonProperty(sb, "durationMs", Format(record.DurationMilliseconds), 3, true, rawValue: true);
-                    AppendJsonProperty(sb, "metrics", record.MetricCount.ToString(CultureInfo.InvariantCulture), 3, true, rawValue: true);
-                    AppendJsonProperty(sb, "counters", record.CounterCount.ToString(CultureInfo.InvariantCulture), 3, true, rawValue: true);
-                    AppendJsonProperty(sb, "gauges", record.GaugeCount.ToString(CultureInfo.InvariantCulture), 3, true, rawValue: true);
-                    AppendJsonProperty(sb, "samples", record.SampleCount.ToString(CultureInfo.InvariantCulture), 3, true, rawValue: true);
-                    AppendJsonProperty(sb, "events", record.EventCount.ToString(CultureInfo.InvariantCulture), 3, false, rawValue: true);
-                    sb.AppendLine($"    }}{(i < snapshot.Sessions.Count - 1 ? "," : string.Empty)}");
+                    writer.WriteLine("    {");
+                    AppendJsonProperty(writer, "sessionId", record.SessionId ?? string.Empty, 3, true);
+                    AppendJsonProperty(writer, "label", record.Label ?? string.Empty, 3, true);
+                    AppendJsonProperty(writer, "savedTimestamp", record.SavedTimestamp.ToString(CultureInfo.InvariantCulture), 3, true, rawValue: true);
+                    AppendJsonProperty(writer, "durationMs", Format(record.DurationMilliseconds), 3, true, rawValue: true);
+                    AppendJsonProperty(writer, "metrics", record.MetricCount.ToString(CultureInfo.InvariantCulture), 3, true, rawValue: true);
+                    AppendJsonProperty(writer, "counters", record.CounterCount.ToString(CultureInfo.InvariantCulture), 3, true, rawValue: true);
+                    AppendJsonProperty(writer, "gauges", record.GaugeCount.ToString(CultureInfo.InvariantCulture), 3, true, rawValue: true);
+                    AppendJsonProperty(writer, "samples", record.SampleCount.ToString(CultureInfo.InvariantCulture), 3, true, rawValue: true);
+                    AppendJsonProperty(writer, "events", record.EventCount.ToString(CultureInfo.InvariantCulture), 3, false, rawValue: true);
+                    writer.WriteLine($"    }}{(i < snapshot.Sessions.Count - 1 ? "," : string.Empty)}");
                 }
             }
-            sb.AppendLine("  ],");
+            writer.WriteLine("  ],");
 
-            sb.AppendLine("  \"counters\": {");
+            writer.WriteLine($"  \"metricOperationsDropped\": {snapshot.MetricOperationsDropped},");
+
+            writer.WriteLine("  \"counters\": {");
             var counterIndex = 0;
             foreach (var kvp in snapshot.Counters)
             {
                 var comma = ++counterIndex < snapshot.Counters.Count ? "," : string.Empty;
                 var record = kvp.Value;
-                sb.AppendLine($"    \"{EscapeJson(kvp.Key)}\": {{\"value\": {record.Value}, \"delta\": {record.Delta}, \"samples\": {record.SampleCount}}}{comma}");
+                writer.WriteLine($"    \"{EscapeJson(kvp.Key)}\": {{\"value\": {record.Value}, \"delta\": {record.Delta}, \"samples\": {record.SampleCount}}}{comma}");
             }
-            sb.AppendLine("  },");
+            writer.WriteLine("  },");
 
-            sb.AppendLine("  \"gauges\": {");
+            writer.WriteLine("  \"gauges\": {");
             var gaugeIndex = 0;
             foreach (var kvp in snapshot.Gauges)
             {
                 var comma = ++gaugeIndex < snapshot.Gauges.Count ? "," : string.Empty;
                 var record = kvp.Value;
-                sb.AppendLine($"    \"{EscapeJson(kvp.Key)}\": {{\"value\": {record.Value}, \"timestamp\": {record.Timestamp}}}{comma}");
+                writer.WriteLine($"    \"{EscapeJson(kvp.Key)}\": {{\"value\": {record.Value}, \"timestamp\": {record.Timestamp}}}{comma}");
             }
-            sb.AppendLine("  },");
+            writer.WriteLine("  },");
 
-            sb.AppendLine("  \"samples\": {");
+            writer.WriteLine("  \"samples\": {");
             var sampleIndex = 0;
             foreach (var kvp in snapshot.Samples)
             {
                 var summary = SampleSummary.From(kvp.Value);
                 var comma = ++sampleIndex < snapshot.Samples.Count ? "," : string.Empty;
-                sb.AppendLine($"    \"{EscapeJson(kvp.Key)}\": {{\"count\": {summary.Count}, \"sum\": {Format(summary.Sum)}, \"mean\": {Format(summary.Mean)}, \"min\": {Format(summary.Min)}, \"max\": {Format(summary.Max)}}}{comma}");
+                writer.WriteLine($"    \"{EscapeJson(kvp.Key)}\": {{\"count\": {summary.Count}, \"sum\": {Format(summary.Sum)}, \"mean\": {Format(summary.Mean)}, \"min\": {Format(summary.Min)}, \"max\": {Format(summary.Max)}}}{comma}");
             }
-            sb.AppendLine("  },");
+            writer.WriteLine("  },");
 
-            sb.AppendLine("  \"rates\": {");
+            writer.WriteLine("  \"rates\": {");
             var rateIndex = 0;
             if (snapshot.Rates != null)
             {
@@ -124,12 +140,12 @@ namespace AbilityKit.Diagnostics.Exporters
                 {
                     var comma = ++rateIndex < snapshot.Rates.Count ? "," : string.Empty;
                     var record = kvp.Value;
-                    sb.AppendLine($"    \"{EscapeJson(kvp.Key)}\": {{\"total\": {record.TotalCount}, \"count1s\": {record.Count1Second}, \"count5s\": {record.Count5Seconds}, \"count60s\": {record.Count60Seconds}, \"peakPerSecond\": {record.PeakPerSecond}}}{comma}");
+                    writer.WriteLine($"    \"{EscapeJson(kvp.Key)}\": {{\"total\": {record.TotalCount}, \"count1s\": {record.Count1Second}, \"count5s\": {record.Count5Seconds}, \"count60s\": {record.Count60Seconds}, \"peakPerSecond\": {record.PeakPerSecond}}}{comma}");
                 }
             }
-            sb.AppendLine("  },");
+            writer.WriteLine("  },");
 
-            sb.AppendLine("  \"durations\": {");
+            writer.WriteLine("  \"durations\": {");
             var durationIndex = 0;
             if (snapshot.Durations != null)
             {
@@ -137,31 +153,31 @@ namespace AbilityKit.Diagnostics.Exporters
                 {
                     var comma = ++durationIndex < snapshot.Durations.Count ? "," : string.Empty;
                     var record = kvp.Value;
-                    sb.AppendLine($"    \"{EscapeJson(kvp.Key)}\": {{\"count\": {record.Count}, \"sumMs\": {Format(record.SumMilliseconds)}, \"meanMs\": {Format(record.MeanMilliseconds)}, \"minMs\": {Format(record.MinMilliseconds)}, \"maxMs\": {Format(record.MaxMilliseconds)}}}{comma}");
+                    writer.WriteLine($"    \"{EscapeJson(kvp.Key)}\": {{\"count\": {record.Count}, \"sumMs\": {Format(record.SumMilliseconds)}, \"meanMs\": {Format(record.MeanMilliseconds)}, \"minMs\": {Format(record.MinMilliseconds)}, \"maxMs\": {Format(record.MaxMilliseconds)}}}{comma}");
                 }
             }
-            sb.AppendLine("  },");
+            writer.WriteLine("  },");
 
-            sb.AppendLine("  \"events\": [");
+            writer.WriteLine("  \"events\": [");
             if (snapshot.Events != null)
             {
                 for (var i = 0; i < snapshot.Events.Count; i++)
                 {
                     var record = snapshot.Events[i];
-                    sb.AppendLine("    {");
-                    AppendJsonProperty(sb, "timestamp", record.Timestamp.ToString(CultureInfo.InvariantCulture), 3, true, rawValue: true);
-                    AppendJsonProperty(sb, "severity", record.Severity.ToString(), 3, true);
-                    AppendJsonProperty(sb, "category", record.Category ?? string.Empty, 3, true);
-                    AppendJsonProperty(sb, "name", record.Name ?? string.Empty, 3, true);
-                    AppendJsonProperty(sb, "message", record.Message ?? string.Empty, 3, true);
-                    AppendJsonProperty(sb, "value", Format(record.Value), 3, true, rawValue: true);
-                    AppendJsonProperty(sb, "threshold", Format(record.Threshold), 3, false, rawValue: true);
-                    sb.AppendLine($"    }}{(i < snapshot.Events.Count - 1 ? "," : string.Empty)}");
+                    writer.WriteLine("    {");
+                    AppendJsonProperty(writer, "timestamp", record.Timestamp.ToString(CultureInfo.InvariantCulture), 3, true, rawValue: true);
+                    AppendJsonProperty(writer, "severity", record.Severity.ToString(), 3, true);
+                    AppendJsonProperty(writer, "category", record.Category ?? string.Empty, 3, true);
+                    AppendJsonProperty(writer, "name", record.Name ?? string.Empty, 3, true);
+                    AppendJsonProperty(writer, "message", record.Message ?? string.Empty, 3, true);
+                    AppendJsonProperty(writer, "value", Format(record.Value), 3, true, rawValue: true);
+                    AppendJsonProperty(writer, "threshold", Format(record.Threshold), 3, false, rawValue: true);
+                    writer.WriteLine($"    }}{(i < snapshot.Events.Count - 1 ? "," : string.Empty)}");
                 }
             }
-            sb.AppendLine("  ],");
+            writer.WriteLine("  ],");
 
-            sb.AppendLine("  \"spanLog\": {");
+            writer.WriteLine("  \"spanLog\": {");
             if (snapshot.Spans != null && snapshot.Spans.Count > 0)
             {
                 long minFrame = long.MaxValue, maxFrame = 0L, wallNanoseconds = 0L;
@@ -182,20 +198,20 @@ namespace AbilityKit.Diagnostics.Exporters
                 }
 
                 var wallMs = (lastEnd - baseTimestamp) * 1000.0d / Stopwatch.Frequency;
-                AppendJsonProperty(sb, "count", snapshot.Spans.Count.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
-                AppendJsonProperty(sb, "dropped", snapshot.SpansDropped.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
-                AppendJsonProperty(sb, "spanNanoseconds", wallNanoseconds.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
-                AppendJsonProperty(sb, "wallMs", Format(wallMs), 2, true, rawValue: true);
-                AppendJsonProperty(sb, "frameRange", minFrame + ".." + maxFrame, 2, false);
+                AppendJsonProperty(writer, "count", snapshot.Spans.Count.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
+                AppendJsonProperty(writer, "dropped", snapshot.SpansDropped.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
+                AppendJsonProperty(writer, "spanNanoseconds", wallNanoseconds.ToString(CultureInfo.InvariantCulture), 2, true, rawValue: true);
+                AppendJsonProperty(writer, "wallMs", Format(wallMs), 2, true, rawValue: true);
+                AppendJsonProperty(writer, "frameRange", minFrame + ".." + maxFrame, 2, false);
             }
             else
             {
-                AppendJsonProperty(sb, "count", "0", 2, false, rawValue: true);
+                AppendJsonProperty(writer, "count", "0", 2, false, rawValue: true);
             }
 
-            sb.AppendLine("  },");
+            writer.WriteLine("  },");
 
-            sb.AppendLine("  \"flame\": [");
+            writer.WriteLine("  \"flame\": [");
             var flameRoots = new List<FlameNode>();
             if (snapshot.Root != null)
             {
@@ -207,40 +223,39 @@ namespace AbilityKit.Diagnostics.Exporters
 
             for (var i = 0; i < flameRoots.Count; i++)
             {
-                AppendNodeJson(sb, flameRoots[i], 2, i < flameRoots.Count - 1);
+                AppendNodeJson(writer, flameRoots[i], 2, i < flameRoots.Count - 1);
             }
 
-            sb.AppendLine("  ]");
-            sb.AppendLine("}");
-            return sb.ToString();
+            writer.WriteLine("  ]");
+            writer.WriteLine("}");
         }
 
-        private static void AppendNodeJson(StringBuilder sb, FlameNode node, int indentLevel, bool comma)
+        private static void AppendNodeJson(TextWriter writer, FlameNode node, int indentLevel, bool comma)
         {
             var indent = new string(' ', indentLevel * 2);
-            sb.AppendLine($"{indent}{{");
-            AppendJsonProperty(sb, "name", node.Name, indentLevel + 1, true);
-            AppendJsonProperty(sb, "category", node.Category ?? string.Empty, indentLevel + 1, true);
-            AppendJsonProperty(sb, "totalMs", Format(node.TotalNanoseconds / 1000000.0d), indentLevel + 1, true, rawValue: true);
-            AppendJsonProperty(sb, "selfMs", Format(node.SelfNanoseconds / 1000000.0d), indentLevel + 1, true, rawValue: true);
-            AppendJsonProperty(sb, "hits", node.HitCount.ToString(CultureInfo.InvariantCulture), indentLevel + 1, true, rawValue: true);
-            sb.AppendLine($"{indent}  \"children\": [");
+            writer.WriteLine($"{indent}{{");
+            AppendJsonProperty(writer, "name", node.Name, indentLevel + 1, true);
+            AppendJsonProperty(writer, "category", node.Category ?? string.Empty, indentLevel + 1, true);
+            AppendJsonProperty(writer, "totalMs", Format(node.TotalNanoseconds / 1000000.0d), indentLevel + 1, true, rawValue: true);
+            AppendJsonProperty(writer, "selfMs", Format(node.SelfNanoseconds / 1000000.0d), indentLevel + 1, true, rawValue: true);
+            AppendJsonProperty(writer, "hits", node.HitCount.ToString(CultureInfo.InvariantCulture), indentLevel + 1, true, rawValue: true);
+            writer.WriteLine($"{indent}  \"children\": [");
 
             var children = new List<FlameNode>(node.Children.Values);
             for (var i = 0; i < children.Count; i++)
             {
-                AppendNodeJson(sb, children[i], indentLevel + 2, i < children.Count - 1);
+                AppendNodeJson(writer, children[i], indentLevel + 2, i < children.Count - 1);
             }
 
-            sb.AppendLine($"{indent}  ]");
-            sb.AppendLine($"{indent}}}{(comma ? "," : string.Empty)}");
+            writer.WriteLine($"{indent}  ]");
+            writer.WriteLine($"{indent}}}{(comma ? "," : string.Empty)}");
         }
 
-        private static void AppendJsonProperty(StringBuilder sb, string name, string value, int indentLevel, bool comma, bool rawValue = false)
+        private static void AppendJsonProperty(TextWriter writer, string name, string value, int indentLevel, bool comma, bool rawValue = false)
         {
             var indent = new string(' ', indentLevel * 2);
             var serialized = rawValue ? value : $"\"{EscapeJson(value)}\"";
-            sb.AppendLine($"{indent}\"{name}\": {serialized}{(comma ? "," : string.Empty)}");
+            writer.WriteLine($"{indent}\"{name}\": {serialized}{(comma ? "," : string.Empty)}");
         }
 
         internal static string EscapeJson(string value)
@@ -287,6 +302,17 @@ namespace AbilityKit.Diagnostics.Exporters
             return Math.Max(0L, snapshot.Root.EndTimestamp - snapshot.Root.StartTimestamp);
         }
 
+        internal static TextWriter CreateWriter(string filePath)
+        {
+            var directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            return new StreamWriter(filePath, false, Utf8NoBom, 4096);
+        }
+
         internal static void WriteAllText(string filePath, string content)
         {
             var directory = Path.GetDirectoryName(filePath);
@@ -305,105 +331,122 @@ namespace AbilityKit.Diagnostics.Exporters
 
         public void Export(ProfilerSnapshot snapshot, string filePath)
         {
-            JsonExporter.WriteAllText(filePath, ExportToString(snapshot));
+            using (var writer = JsonExporter.CreateWriter(filePath))
+            {
+                WriteTo(snapshot, writer);
+            }
         }
 
         public string ExportToString(ProfilerSnapshot snapshot)
         {
             var sb = new StringBuilder(2048);
-            sb.AppendLine("# Metrics");
-            sb.AppendLine("Name,Category,Kind,Unit,Description,Tags");
+            using (var writer = new StringWriter(sb, CultureInfo.InvariantCulture))
+            {
+                WriteTo(snapshot, writer);
+            }
+
+            return sb.ToString();
+        }
+
+        private static void WriteTo(ProfilerSnapshot snapshot, TextWriter writer)
+        {
+            writer.WriteLine("# Metrics");
+            writer.WriteLine("Name,Category,Kind,Unit,Description,Tags");
             if (snapshot.Metrics != null)
             {
                 foreach (var kvp in snapshot.Metrics)
                 {
                     var record = kvp.Value;
-                    sb.AppendLine($"{EscapeCsv(record.Name)},{EscapeCsv(record.Category)},{record.Kind},{EscapeCsv(record.Unit)},{EscapeCsv(record.Description)},{EscapeCsv(JsonExporter.JoinTags(record.Tags))}");
+                    writer.WriteLine($"{EscapeCsv(record.Name)},{EscapeCsv(record.Category)},{record.Kind},{EscapeCsv(record.Unit)},{EscapeCsv(record.Description)},{EscapeCsv(JsonExporter.JoinTags(record.Tags))}");
                 }
             }
 
-            sb.AppendLine();
-            sb.AppendLine("# Options");
-            sb.AppendLine("Enabled,DefaultSampleRate,MaxSamplesPerMetric,MaxDiagnosticEvents,DisabledCategories,CategorySampleRates,MetricSampleRates");
+            writer.WriteLine();
+            writer.WriteLine("# Options");
+            writer.WriteLine("Enabled,CollectionLevel,DefaultSampleRate,MaxSamplesPerMetric,MaxDiagnosticEvents,DisabledCategories,CategorySampleRates,MetricSampleRates");
             if (snapshot.Options != null)
             {
-                sb.AppendLine($"{snapshot.Options.Enabled},{JsonExporter.Format(snapshot.Options.DefaultSampleRate)},{snapshot.Options.MaxSamplesPerMetric},{snapshot.Options.MaxDiagnosticEvents},{EscapeCsv(JsonExporter.JoinSet(snapshot.Options.DisabledCategories))},{EscapeCsv(JsonExporter.JoinRates(snapshot.Options.CategorySampleRates))},{EscapeCsv(JsonExporter.JoinRates(snapshot.Options.MetricSampleRates))}");
+                writer.WriteLine($"{snapshot.Options.Enabled},{snapshot.Options.CollectionLevel},{JsonExporter.Format(snapshot.Options.DefaultSampleRate)},{snapshot.Options.MaxSamplesPerMetric},{snapshot.Options.MaxDiagnosticEvents},{EscapeCsv(JsonExporter.JoinSet(snapshot.Options.DisabledCategories))},{EscapeCsv(JsonExporter.JoinRates(snapshot.Options.CategorySampleRates))},{EscapeCsv(JsonExporter.JoinRates(snapshot.Options.MetricSampleRates))}");
             }
 
-            sb.AppendLine();
-            sb.AppendLine("# Sessions");
-            sb.AppendLine("SessionId,Label,SavedTimestamp,DurationMs,MetricCount,CounterCount,GaugeCount,SampleCount,EventCount");
+            writer.WriteLine();
+            writer.WriteLine("# BufferDiagnostics");
+            writer.WriteLine("MetricOperationsDropped,SpansDropped");
+            writer.WriteLine($"{snapshot.MetricOperationsDropped},{snapshot.SpansDropped}");
+
+            writer.WriteLine();
+            writer.WriteLine("# Sessions");
+            writer.WriteLine("SessionId,Label,SavedTimestamp,DurationMs,MetricCount,CounterCount,GaugeCount,SampleCount,EventCount");
             if (snapshot.Sessions != null)
             {
                 foreach (var record in snapshot.Sessions)
                 {
-                    sb.AppendLine($"{EscapeCsv(record.SessionId)},{EscapeCsv(record.Label)},{record.SavedTimestamp},{JsonExporter.Format(record.DurationMilliseconds)},{record.MetricCount},{record.CounterCount},{record.GaugeCount},{record.SampleCount},{record.EventCount}");
+                    writer.WriteLine($"{EscapeCsv(record.SessionId)},{EscapeCsv(record.Label)},{record.SavedTimestamp},{JsonExporter.Format(record.DurationMilliseconds)},{record.MetricCount},{record.CounterCount},{record.GaugeCount},{record.SampleCount},{record.EventCount}");
                 }
             }
 
-            sb.AppendLine();
-            sb.AppendLine("# Counters");
-            sb.AppendLine("Name,Value,Delta,SampleCount");
+            writer.WriteLine();
+            writer.WriteLine("# Counters");
+            writer.WriteLine("Name,Value,Delta,SampleCount");
             foreach (var kvp in snapshot.Counters)
             {
                 var record = kvp.Value;
-                sb.AppendLine($"{EscapeCsv(kvp.Key)},{record.Value},{record.Delta},{record.SampleCount}");
+                writer.WriteLine($"{EscapeCsv(kvp.Key)},{record.Value},{record.Delta},{record.SampleCount}");
             }
 
-            sb.AppendLine();
-            sb.AppendLine("# Gauges");
-            sb.AppendLine("Name,Value,Timestamp");
+            writer.WriteLine();
+            writer.WriteLine("# Gauges");
+            writer.WriteLine("Name,Value,Timestamp");
             foreach (var kvp in snapshot.Gauges)
             {
                 var record = kvp.Value;
-                sb.AppendLine($"{EscapeCsv(kvp.Key)},{record.Value},{record.Timestamp}");
+                writer.WriteLine($"{EscapeCsv(kvp.Key)},{record.Value},{record.Timestamp}");
             }
 
-            sb.AppendLine();
-            sb.AppendLine("# Rates");
-            sb.AppendLine("Name,Total,Count1s,Count5s,Count60s,PeakPerSecond");
+            writer.WriteLine();
+            writer.WriteLine("# Rates");
+            writer.WriteLine("Name,Total,Count1s,Count5s,Count60s,PeakPerSecond");
             if (snapshot.Rates != null)
             {
                 foreach (var kvp in snapshot.Rates)
                 {
                     var record = kvp.Value;
-                    sb.AppendLine($"{EscapeCsv(kvp.Key)},{record.TotalCount},{record.Count1Second},{record.Count5Seconds},{record.Count60Seconds},{record.PeakPerSecond}");
+                    writer.WriteLine($"{EscapeCsv(kvp.Key)},{record.TotalCount},{record.Count1Second},{record.Count5Seconds},{record.Count60Seconds},{record.PeakPerSecond}");
                 }
             }
 
-            sb.AppendLine();
-            sb.AppendLine("# Durations");
-            sb.AppendLine("Name,Count,SumMs,MeanMs,MinMs,MaxMs");
+            writer.WriteLine();
+            writer.WriteLine("# Durations");
+            writer.WriteLine("Name,Count,SumMs,MeanMs,MinMs,MaxMs");
             if (snapshot.Durations != null)
             {
                 foreach (var kvp in snapshot.Durations)
                 {
                     var record = kvp.Value;
-                    sb.AppendLine($"{EscapeCsv(kvp.Key)},{record.Count},{JsonExporter.Format(record.SumMilliseconds)},{JsonExporter.Format(record.MeanMilliseconds)},{JsonExporter.Format(record.MinMilliseconds)},{JsonExporter.Format(record.MaxMilliseconds)}");
+                    writer.WriteLine($"{EscapeCsv(kvp.Key)},{record.Count},{JsonExporter.Format(record.SumMilliseconds)},{JsonExporter.Format(record.MeanMilliseconds)},{JsonExporter.Format(record.MinMilliseconds)},{JsonExporter.Format(record.MaxMilliseconds)}");
                 }
             }
 
-            sb.AppendLine();
-            sb.AppendLine("# Events");
-            sb.AppendLine("Timestamp,Severity,Category,Name,Message,Value,Threshold");
+            writer.WriteLine();
+            writer.WriteLine("# Events");
+            writer.WriteLine("Timestamp,Severity,Category,Name,Message,Value,Threshold");
             if (snapshot.Events != null)
             {
                 foreach (var record in snapshot.Events)
                 {
-                    sb.AppendLine($"{record.Timestamp},{record.Severity},{EscapeCsv(record.Category)},{EscapeCsv(record.Name)},{EscapeCsv(record.Message)},{JsonExporter.Format(record.Value)},{JsonExporter.Format(record.Threshold)}");
+                    writer.WriteLine($"{record.Timestamp},{record.Severity},{EscapeCsv(record.Category)},{EscapeCsv(record.Name)},{EscapeCsv(record.Message)},{JsonExporter.Format(record.Value)},{JsonExporter.Format(record.Threshold)}");
                 }
             }
 
-            sb.AppendLine();
-            sb.AppendLine("# Samples");
-            sb.AppendLine("Name,Count,Sum,Mean,Min,Max");
+            writer.WriteLine();
+            writer.WriteLine("# Samples");
+            writer.WriteLine("Name,Count,Sum,Mean,Min,Max");
             foreach (var kvp in snapshot.Samples)
             {
                 var summary = SampleSummary.From(kvp.Value);
-                sb.AppendLine($"{EscapeCsv(kvp.Key)},{summary.Count},{JsonExporter.Format(summary.Sum)},{JsonExporter.Format(summary.Mean)},{JsonExporter.Format(summary.Min)},{JsonExporter.Format(summary.Max)}");
+                writer.WriteLine($"{EscapeCsv(kvp.Key)},{summary.Count},{JsonExporter.Format(summary.Sum)},{JsonExporter.Format(summary.Mean)},{JsonExporter.Format(summary.Min)},{JsonExporter.Format(summary.Max)}");
             }
 
-            return sb.ToString();
         }
 
         private static string EscapeCsv(string value)
@@ -421,35 +464,46 @@ namespace AbilityKit.Diagnostics.Exporters
 
         public void Export(ProfilerSnapshot snapshot, string filePath)
         {
-            JsonExporter.WriteAllText(filePath, ExportToString(snapshot));
+            using (var writer = JsonExporter.CreateWriter(filePath))
+            {
+                WriteTo(snapshot, writer);
+            }
         }
 
         public string ExportToString(ProfilerSnapshot snapshot)
         {
             var sb = new StringBuilder(2048);
-            if (snapshot.Root != null)
+            using (var writer = new StringWriter(sb, CultureInfo.InvariantCulture))
             {
-                foreach (var root in snapshot.Root.Roots.Values)
-                {
-                    AppendFolded(sb, root, string.Empty);
-                }
+                WriteTo(snapshot, writer);
             }
 
             return sb.ToString();
         }
 
-        internal static void AppendFolded(StringBuilder sb, FlameNode node, string path)
+        private static void WriteTo(ProfilerSnapshot snapshot, TextWriter writer)
+        {
+            if (snapshot.Root != null)
+            {
+                foreach (var root in snapshot.Root.Roots.Values)
+                {
+                    AppendFolded(writer, root, string.Empty);
+                }
+            }
+        }
+
+        internal static void AppendFolded(TextWriter writer, FlameNode node, string path)
         {
             var currentPath = string.IsNullOrEmpty(path) ? SanitizeFrame(node.Name) : path + ";" + SanitizeFrame(node.Name);
             var weight = Math.Max(1L, node.SelfNanoseconds > 0 ? node.SelfNanoseconds : node.TotalNanoseconds);
             if (node.HitCount > 0)
             {
-                sb.AppendLine($"{currentPath} {weight}");
+                writer.WriteLine($"{currentPath} {weight}");
             }
 
             foreach (var child in node.Children.Values)
             {
-                AppendFolded(sb, child, currentPath);
+                AppendFolded(writer, child, currentPath);
             }
         }
 

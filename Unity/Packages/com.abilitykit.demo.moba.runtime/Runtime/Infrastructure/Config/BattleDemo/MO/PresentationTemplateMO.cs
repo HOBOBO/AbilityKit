@@ -17,6 +17,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
         public int StackPolicy { get; }
         public int StopPolicy { get; }
+        public int TargetLossPolicy { get; }
+        public int CompletionPolicy { get; }
+        public int StopGraceMs { get; }
 
         public float Scale { get; }
         public float ColorR { get; }
@@ -27,6 +30,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public float OffsetX { get; }
         public float OffsetY { get; }
         public float OffsetZ { get; }
+        public int OffsetSpace { get; }
+        public int ParentScaleMode { get; }
+        public int OrderingMode { get; }
+        public int OrderingPriority { get; }
 
         public PresentationTemplateMO_Standalone(PresentationTemplateDTO dto)
         {
@@ -43,6 +50,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
             StackPolicy = dto != null ? dto.StackPolicy : 0;
             StopPolicy = dto != null ? dto.StopPolicy : 0;
+            TargetLossPolicy = dto != null ? dto.TargetLossPolicy : 0;
+            CompletionPolicy = dto != null ? dto.CompletionPolicy : 0;
+            StopGraceMs = dto != null ? dto.StopGraceMs : 0;
 
             Scale = dto != null ? dto.Scale : 0f;
             ColorR = dto != null ? dto.ColorR : 0f;
@@ -53,6 +63,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             OffsetX = dto != null ? dto.OffsetX : 0f;
             OffsetY = dto != null ? dto.OffsetY : 0f;
             OffsetZ = dto != null ? dto.OffsetZ : 0f;
+            OffsetSpace = dto != null ? dto.OffsetSpace : 0;
+            ParentScaleMode = dto != null ? dto.ParentScaleMode : 0;
+            OrderingMode = dto != null ? dto.OrderingMode : 0;
+            OrderingPriority = dto != null ? dto.OrderingPriority : 0;
         }
     }
 }

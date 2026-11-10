@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Combat.Projectile;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Triggering.Eventing;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Diagnostics;
@@ -330,6 +332,52 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             }
         }
 
+        [Test]
+        public void SummonOwnerDeath_RequestsDespawnForConfiguredSummonsWhileOwnerRemainsRegistered()
+        {
+            using (var scope = new SummonTestScope())
+            {
+                var parent = CreateSkillRuntime(scope.SkillRuntimes, 109, scope.RootContextId);
+                var source = scope.CreateSource(parent.Handle);
+                Assert.That(scope.Service.TrySummon(1, SummonTestScope.SummonId, Vec3.Zero, source), Is.True);
+
+                var summonIds = new List<int>();
+                Assert.That(scope.Service.TryGetSummons(1, summonIds), Is.True);
+                Assert.That(summonIds, Has.Count.EqualTo(1));
+                var summonActorId = summonIds[0];
+
+                var eventBus = new EventBus();
+                var subscriber = new MobaSummonDeathSubscriber(eventBus, scope.Registry, scope.Service);
+                var death = new MobaHealthChangeResult(
+                    MobaHealthChangeKind.Damage,
+                    sourceActorId: 2,
+                    targetActorId: 1,
+                    valueType: 0,
+                    reasonKind: 0,
+                    reasonParam: 0,
+                    requestedValue: 10f,
+                    appliedValue: 10f,
+                    oldHp: 10f,
+                    targetHp: 0f,
+                    targetMaxHp: 10f,
+                    origin: default);
+                var eventKey = new EventKey<MobaHealthChangeResult>(
+                    TriggeringIdUtil.GetEventEid(DamagePipelineEvents.HealthCommitted));
+
+                eventBus.Publish(eventKey, in death);
+
+                Assert.That(scope.Registry.TryGet(1, out _), Is.True,
+                    "Owner death cleanup must not depend on unregistering the dead hero.");
+                Assert.That(scope.Registry.TryGet(summonActorId, out var summon), Is.True);
+                Assert.That(summon.hasActorDespawnRequest, Is.True);
+                Assert.That(summon.actorDespawnRequest.Reason, Is.EqualTo(ActorDespawnReason.SummonOwnerDead));
+                Assert.That(scope.Service.ActiveCount, Is.EqualTo(1),
+                    "The request is consumed later by the lifecycle cleanup system.");
+
+                subscriber.OnDeinit(null);
+            }
+        }
+
         private static MobaSkillCastRuntime CreateSkillRuntime(MobaSkillCastRuntimeService service, int skillId, long rootContextId = 0L)
         {
             var aimPos = Vec3.Zero;
@@ -430,7 +478,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 caster.AddTransform(Transform3.Identity);
                 _registry.Register(CasterId, caster);
                 _entities.Register(CasterId, caster, Team.None, EntityMainType.Unit, UnitSubType.Hero, default);
-                ActorSpawn = new RecordingSummonActorSpawnService(_contexts.actor, _registry);
+                ActorSpawn = new RecordingSummonActorSpawnService(_contexts.actor, _registry, _entities);
                 var actorIds = new ActorIdAllocator();
                 actorIds.Reset(100);
 
@@ -453,6 +501,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public TraceEventRecorder TraceEvents { get; }
             public RecordingSummonActorSpawnService ActorSpawn { get; }
             public long RootContextId { get; }
+            public MobaActorRegistry Registry => _registry;
 
             public SummonSourceContext CreateSource(MobaSkillCastRuntimeHandle handle)
             {
@@ -501,6 +550,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                                 Id = SummonId,
                                 Name = "runtime-ownership-summon",
                                 UnitSubType = (int)UnitSubType.Minion,
+                                DespawnOnOwnerDie = true,
                                 MaxAlivePerOwner = 1,
                                 AttrScales = Array.Empty<SummonAttrScaleDTO>(),
                                 SkillIds = Array.Empty<int>(),
@@ -520,11 +570,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             private readonly ActorContext _actors;
             private readonly MobaActorRegistry _registry;
+            private readonly MobaEntityManager _entities;
 
-            public RecordingSummonActorSpawnService(ActorContext actors, MobaActorRegistry registry)
+            public RecordingSummonActorSpawnService(ActorContext actors, MobaActorRegistry registry, MobaEntityManager entities)
             {
                 _actors = actors;
                 _registry = registry;
+                _entities = entities;
             }
 
             public int RollbackCount { get; private set; }
@@ -536,6 +588,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 entity.AddTransform(Transform3.Identity);
                 entity.AddSummonMeta(request.PostSetup.SummonId, request.PostSetup.DespawnOnOwnerDie);
                 _registry.Register(request.Spec.Info.ActorId, entity);
+                _entities.Register(request.Spec.Info.ActorId, entity, request.Spec.Info.Team,
+                    request.Spec.Info.MainType, request.Spec.Info.UnitSubType, request.Spec.Info.OwnerPlayer);
                 result = new MobaActorSpawnResult(true, request.Spec.Info.ActorId, entity, request.Spec, null);
                 return true;
             }
@@ -546,6 +600,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public void Rollback(in MobaActorSpawnResult result)
             {
                 RollbackCount++;
+                _entities.Unregister(result.ActorId);
                 _registry.Unregister(result.ActorId);
                 if (result.Entity != null && result.Entity.isEnabled) result.Entity.Destroy();
             }

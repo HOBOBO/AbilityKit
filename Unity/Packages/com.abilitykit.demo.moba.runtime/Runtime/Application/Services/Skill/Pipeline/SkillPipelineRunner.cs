@@ -136,6 +136,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly ISkillLogger _logger;
         private readonly PipelineRuntime _pipelineRuntime;
         private readonly List<Entry> _running = new List<Entry>(4);
+        private readonly List<RunningSnapshot> _startingCasts = new List<RunningSnapshot>(2);
         private readonly List<RunningSnapshot> _ended = new List<RunningSnapshot>(2);
 
         public string LastFailReason { get; private set; }
@@ -252,6 +253,57 @@ namespace AbilityKit.Demo.Moba.Services
             return false;
         }
 
+        public bool TryGetLatestRunning(out RunningSnapshot snapshot)
+        {
+            snapshot = default;
+            var found = false;
+            var bestStartFrame = int.MinValue;
+            var bestInstanceId = long.MinValue;
+            for (var i = 0; i < _running.Count; i++)
+            {
+                var entry = _running[i];
+                if (entry.Context == null) continue;
+                var candidate = CreateSnapshot(in entry, ToSkillCastStage(entry.Stage));
+                if (found && (candidate.StartFrame < bestStartFrame ||
+                    (candidate.StartFrame == bestStartFrame && candidate.InstanceId <= bestInstanceId)))
+                    continue;
+                found = true;
+                bestStartFrame = candidate.StartFrame;
+                bestInstanceId = candidate.InstanceId;
+                snapshot = candidate;
+            }
+            for (var i = 0; i < _startingCasts.Count; i++)
+            {
+                var candidate = _startingCasts[i];
+                if (found && (candidate.StartFrame < bestStartFrame ||
+                    (candidate.StartFrame == bestStartFrame && candidate.InstanceId <= bestInstanceId)))
+                    continue;
+                found = true;
+                bestStartFrame = candidate.StartFrame;
+                bestInstanceId = candidate.InstanceId;
+                snapshot = candidate;
+            }
+            return found;
+        }
+
+        private long PushStartingCast(in Entry entry)
+        {
+            if (entry.Context == null) return 0L;
+            var snapshot = CreateSnapshot(in entry, ToSkillCastStage(entry.Stage));
+            _startingCasts.Add(snapshot);
+            return snapshot.InstanceId;
+        }
+
+        private void PopStartingCast(long instanceId)
+        {
+            for (var i = _startingCasts.Count - 1; i >= 0; i--)
+            {
+                if (_startingCasts[i].InstanceId != instanceId) continue;
+                _startingCasts.RemoveAt(i);
+                return;
+            }
+        }
+
         private static void SynchronizeInput(ref Entry entry)
         {
             var context = entry.Context;
@@ -260,7 +312,7 @@ namespace AbilityKit.Demo.Moba.Services
             var aimDir = context.AimDir;
             entry.Request = new SkillCastRequest(context.SkillId, context.SkillSlot, context.CasterActorId,
                 context.TargetActorId, in aimPos, in aimDir, entry.Request.WorldServices,
-                entry.Request.EventBus, context.CasterUnit, context.TargetUnit);
+                entry.Request.EventBus, context.CasterUnit, context.TargetUnit, context.GetPreparedParameterSnapshots());
             if (entry.TriggerContext != null)
             {
                 entry.TriggerContext.AimPos = aimPos;
@@ -537,7 +589,20 @@ namespace AbilityKit.Demo.Moba.Services
 
             MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastStart, entry.TriggerContext);
 
-            entry.Run.Tick(0f);
+            var startingInstanceId = PushStartingCast(in entry);
+            try
+            {
+                // Pipeline runtimes may need one zero-delta pass per authored
+                // phase to enter, execute, and advance instantaneous phases.
+                // Drain those passes at start so a zero-duration flow finishes
+                // before its cast boundary is handed back to the caller.
+                entry.Run.Tick(0f);
+                entry.Context.SynchronizeCharacterHfsm();
+            }
+            finally
+            {
+                PopStartingCast(startingInstanceId);
+            }
             var state = entry.Run.State;
             if (state == EAbilityPipelineState.Executing) return true;
             if (state == EAbilityPipelineState.Completed)
@@ -588,9 +653,21 @@ namespace AbilityKit.Demo.Moba.Services
             var instanceId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
             _logger.LogSkillStage(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, "Cast", "Starting");
 
-            MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastStart, entry.TriggerContext);
-
-            entry.Run.Tick(0f);
+            var startingInstanceId = PushStartingCast(in entry);
+            try
+            {
+                // Publish and execute the first cast tick while the runner exposes
+                // the starting snapshot. Cast-start logic can write HFSM parameters
+                // and immediately re-evaluate the character state; without this
+                // window those writes are evaluated as an unowned/next-slot cast.
+                MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastStart, entry.TriggerContext);
+                entry.Run.Tick(0f);
+                entry.Context.SynchronizeCharacterHfsm();
+            }
+            finally
+            {
+                PopStartingCast(startingInstanceId);
+            }
             var state = entry.Run.State;
             if (state == EAbilityPipelineState.Executing)
             {
@@ -640,6 +717,9 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
 
+            // Template gates may constrain the owner. Skill-table masks only consume
+            // external control results; casting a skill must not grant silence itself.
+            var ownerExecutionBlockedResultMask = requirements.ExecutionBlockedResultMask;
             if (config.ExecutionBlockedResultMask != 0UL)
             {
                 var applicationTags = new GameplayTagContainer();
@@ -668,7 +748,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            var runtime = new SkillPipelineContinuousRuntime(context, config, requirements);
+            var runtime = new SkillPipelineContinuousRuntime(context, config, requirements, ownerExecutionBlockedResultMask);
             if (!continuous.TryActivate(runtime))
             {
                 continuous.Unregister(runtime, ContinuousEndReason.CleanedUp);
@@ -1010,6 +1090,7 @@ namespace AbilityKit.Demo.Moba.Services
                     entry.Context.SetFrame(ResolveCurrentFrame(in entry, entry.StartFrame));
                     entry.Context.AdvanceTime(deltaTime);
                     p.Tick(deltaTime);
+                    entry.Context.SynchronizeCharacterHfsm();
                 }
 
                 if (p.State != EAbilityPipelineState.Executing)
@@ -1131,10 +1212,11 @@ namespace AbilityKit.Demo.Moba.Services
                 actors.TryGetActorEntity(context.CasterActorId, out var caster) && caster != null && caster.hasTransform)
             {
                 var position = caster.transform.Value.Position;
+                var aimDirection = context.AimDir;
                 var candidates = new List<int>(1);
                 if (skill.RequiredTargetQueryId > 0)
                     search.TrySearchActorIds(skill.RequiredTargetQueryId, context.CasterActorId,
-                        in position, 0, candidates, context.DiagnosticCommandId);
+                        in position, in aimDirection, 0, candidates, context.DiagnosticCommandId);
                 else if (skill.Range > 0)
                     search.TrySearchActorIds(NormalAttackTargetQuery.Create(skill.Range), context.CasterActorId,
                         in position, 0, candidates, context.DiagnosticCommandId);

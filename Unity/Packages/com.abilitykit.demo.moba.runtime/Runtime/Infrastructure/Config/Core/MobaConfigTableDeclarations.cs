@@ -9,6 +9,7 @@ using AbilityKit.Demo.Moba.Share.Config;
 [assembly: MobaConfigTable(MobaConfigPaths.PassiveSkillsFile, typeof(PassiveSkillDTO), typeof(PassiveSkillMO), ConfigGroupNames.LegacyJson, 40)]
 [assembly: MobaConfigTable(MobaConfigPaths.SkillFlowsFile, typeof(SkillFlowDTO), typeof(SkillFlowMO), ConfigGroupNames.LegacyJson, 50)]
 [assembly: MobaConfigTable(MobaConfigPaths.SkillLevelTablesFile, typeof(SkillLevelTableDTO), typeof(SkillLevelTableMO), ConfigGroupNames.LegacyJson, 60)]
+[assembly: MobaConfigTable(MobaConfigPaths.HeroLevelSkillGrowthParametersFile, typeof(HeroLevelSkillGrowthParameterDTO), typeof(HeroLevelSkillGrowthParameterMO), ConfigGroupNames.LegacyJson, 65)]
 [assembly: MobaConfigTable(MobaConfigPaths.ModelsFile, typeof(ModelDTO), typeof(ModelMO), ConfigGroupNames.LegacyJson, 70)]
 [assembly: MobaConfigTable(MobaConfigPaths.BuffsFile, typeof(BuffDTO), typeof(BuffMO), ConfigGroupNames.LegacyJson, 80)]
 [assembly: MobaConfigTable(MobaConfigPaths.ContinuousProcessesFile, typeof(ContinuousProcessDTO), typeof(ContinuousProcessMO), ConfigGroupNames.LegacyJson, 90)]

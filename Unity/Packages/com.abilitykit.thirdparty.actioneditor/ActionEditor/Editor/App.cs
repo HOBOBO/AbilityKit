@@ -26,6 +26,7 @@ namespace NBC.ActionEditor
             get => _textAsset;
             set
             {
+                Stop();
                 _textAsset = value;
 
                 if (_textAsset == null)
@@ -261,6 +262,7 @@ namespace NBC.ActionEditor
 
         public static void Stop()
         {
+            _player.ResetPreview();
             if (AssetData != null)
                 _player.CurrentTime = 0;
 

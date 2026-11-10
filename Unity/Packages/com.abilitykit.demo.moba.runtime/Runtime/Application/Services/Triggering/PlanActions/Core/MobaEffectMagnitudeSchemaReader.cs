@@ -6,6 +6,7 @@ using AbilityKit.Modifiers;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Triggering.Variables.Numeric;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -19,10 +20,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         {
             if (!HasMagnitudeArgs(args)) return default;
 
-            var baseSource = ReadSource(args, in ctx, "magnitude", fallbackValue);
+            var baseSource = ReadSource(args, in ctx, "magnitude", fallbackValue, out var baseSkillParameter);
+            string secondarySkillParameter = null;
+            string secondaryCoefficientSkillParameter = null;
             var secondarySource = HasPrefix(args, "magnitude_secondary_")
-                ? ReadSource(args, in ctx, "magnitude_secondary", 0f)
+                ? ReadSource(args, in ctx, "magnitude_secondary", 0f, out secondarySkillParameter)
                 : default;
+            if (HasName(args, "magnitude_secondary_coefficient_parameter"))
+                secondaryCoefficientSkillParameter = ReadString(args, in ctx, "magnitude_secondary_coefficient_parameter");
             var combine = ReadEnum(args, in ctx, MobaEffectMagnitudeCombine.Add,
                 "magnitude_combine");
             var sourceRole = ReadEnum(args, in ctx, MobaEffectSourceRole.AttributionActor,
@@ -38,7 +43,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 sourceRole,
                 policy,
                 captureTarget,
-                enabled: true);
+                enabled: true,
+                baseSkillLevelParameter: baseSkillParameter,
+                secondarySkillLevelParameter: secondarySkillParameter,
+                secondaryCoefficientSkillLevelParameter: secondaryCoefficientSkillParameter);
         }
 
         public static bool HasMagnitudeArgs(Dictionary<string, ActionArgValue> args)
@@ -60,10 +68,23 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             Dictionary<string, ActionArgValue> args,
             in ExecCtx<IWorldResolver> ctx,
             string prefix,
-            float fallbackValue)
+            float fallbackValue,
+            out string skillLevelParameter)
         {
+            skillLevelParameter = null;
             var type = ReadEnum(args, in ctx, MagnitudeSourceType.Fixed,
                 prefix + "_type", prefix + "_source_type");
+            var hasSkillParameter = HasName(args, prefix + "_parameter");
+            if (type == MagnitudeSourceType.SkillLevelParameter || type == MagnitudeSourceType.HeroLevelSkillParameter)
+            {
+                skillLevelParameter = ReadString(args, in ctx, prefix + "_parameter");
+                if (string.IsNullOrWhiteSpace(skillLevelParameter))
+                    throw new InvalidOperationException($"Magnitude source '{prefix}' requires a non-empty skill level parameter name.");
+            }
+            else if (hasSkillParameter)
+            {
+                throw new InvalidOperationException($"Magnitude source '{prefix}' supplies a skill level parameter but selects {type}.");
+            }
             var value = ReadFloat(args, in ctx, fallbackValue,
                 prefix + "_value", prefix + "_base_value");
             var coefficient = ReadFloat(args, in ctx, 1f, prefix + "_coefficient");
@@ -79,8 +100,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     var decay = ReadEnum(args, in ctx, DecayType.Linear, prefix + "_decay", prefix + "_decay_type");
                     return MagnitudeSource.TimeDecay(value, duration, coefficient, decay);
                 case MagnitudeSourceType.ContextFloat:
-                    var key = ReadString(args, prefix + "_context_key");
+                    var key = ReadString(args, in ctx, prefix + "_context_key");
                     return MagnitudeSource.ContextFloat(key, coefficient, value);
+                case MagnitudeSourceType.SkillLevelParameter:
+                    return new MagnitudeSource { Type = MagnitudeSourceType.SkillLevelParameter, Data1 = coefficient };
+                case MagnitudeSourceType.HeroLevelSkillParameter:
+                    return new MagnitudeSource { Type = MagnitudeSourceType.HeroLevelSkillParameter, Data1 = coefficient };
                 case MagnitudeSourceType.Pipeline:
                     throw new InvalidOperationException("Magnitude Pipeline must be supplied by a registered code or config template.");
                 default:
@@ -110,6 +135,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return false;
         }
 
+        private static bool HasName(Dictionary<string, ActionArgValue> args, string name)
+        {
+            if (args == null) return false;
+            foreach (var pair in args)
+            {
+                if (string.Equals(pair.Key, name, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
         private static float ReadFloat(Dictionary<string, ActionArgValue> args, in ExecCtx<IWorldResolver> ctx, float fallback, params string[] names)
             => TryReadNumber(args, in ctx, out var value, names) ? (float)value : fallback;
 
@@ -122,13 +157,25 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 ? (TEnum)Enum.ToObject(typeof(TEnum), (int)Math.Round(value))
                 : fallback;
 
-        private static string ReadString(Dictionary<string, ActionArgValue> args, params string[] names)
+        internal static string ReadString(
+            Dictionary<string, ActionArgValue> args,
+            in ExecCtx<IWorldResolver> ctx,
+            params string[] names)
         {
             if (args == null) return string.Empty;
             foreach (var pair in args)
             {
-                if (Matches(pair.Key, names) && pair.Value.Kind == ActionArgKind.StringValue)
+                if (!Matches(pair.Key, names)) continue;
+                if (pair.Value.Kind == ActionArgKind.StringValue)
                     return pair.Value.StringValue ?? string.Empty;
+
+                if (pair.Value.Kind == ActionArgKind.NumericValue &&
+                    pair.Value.Ref.Kind == ENumericValueRefKind.Const &&
+                    ctx.Context != null &&
+                    ctx.Context.TryResolve<TriggerPlanJsonDatabase>(out var plans) &&
+                    plans != null &&
+                    plans.TryGetString((int)Math.Round(pair.Value.Ref.ConstValue), out var value))
+                    return value ?? string.Empty;
             }
             return string.Empty;
         }

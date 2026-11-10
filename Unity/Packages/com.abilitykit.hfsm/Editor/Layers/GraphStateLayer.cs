@@ -218,6 +218,10 @@ namespace AbilityKit.HFSM.Editor
             {
                 behaviorSummary = GenerateBehaviorSummary(stateNode, Context.GraphAsset);
             }
+            else if (node is StateMachineNode machineNode)
+            {
+                behaviorSummary = $"{machineNode.ChildNodeIds.Count} child states  •  double-click to open";
+            }
 
             float summaryHeight = 0;
             if (!string.IsNullOrEmpty(behaviorSummary))

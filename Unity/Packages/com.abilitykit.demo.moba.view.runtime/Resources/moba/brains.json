@@ -13,5 +13,17 @@
     "BrainId": 100,
     "DecisionName": "generic_hero_combat_bt",
     "DriverKind": "behaviorTree"
+  },
+  {
+    "BrainId": 101,
+    "DecisionName": "launch_heading_combat_bt",
+    "DriverKind": "behaviorTree",
+    "SkillSelectionPolicy": ""
+  },
+  {
+    "BrainId": 30030501,
+    "DecisionName": "summon_warden_bt",
+    "DriverKind": "behaviorTree",
+    "SkillSelectionPolicy": ""
   }
 ]

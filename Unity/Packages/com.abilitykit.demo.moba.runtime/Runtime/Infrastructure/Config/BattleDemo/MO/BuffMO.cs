@@ -11,7 +11,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 {
     public sealed class ContinuousModifierMO : IMobaContinuousModifierSpec,
         IMobaContinuousParameterSelectorSpec, IMobaContinuousSkillCandidateSpec,
-        IMobaContinuousReferenceCandidateSpec, IMobaContinuousFormulaSpec
+        IMobaContinuousReferenceCandidateSpec, IMobaContinuousHfsmParameterConditionSpec,
+        IMobaContinuousFormulaSpec
     {
         public ContinuousModifierMO(ContinuousModifierDTO dto)
         {
@@ -27,6 +28,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             Priority = dto.Priority;
             CandidateSkillId = dto.CandidateSkillId;
             CandidateReferenceId = dto.CandidateReferenceId;
+            HfsmParameterId = dto.CandidateHfsmParameterId;
+            HfsmParameterComparison = dto.CandidateHfsmParameterComparison;
+            HfsmParameterExpectedValue = dto.CandidateHfsmParameterExpectedValue;
             HasFormula = dto.MagnitudeSourceType == 6;
             FormulaConstant = dto.FormulaConstant;
             FormulaLevelCoefficient = dto.FormulaLevelCoefficient;
@@ -48,6 +52,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int Priority { get; }
         public int CandidateSkillId { get; }
         public int CandidateReferenceId { get; }
+        public int HfsmParameterId { get; }
+        public int HfsmParameterComparison { get; }
+        public float HfsmParameterExpectedValue { get; }
         public bool HasFormula { get; }
         public float FormulaConstant { get; }
         public float FormulaLevelCoefficient { get; }

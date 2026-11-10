@@ -17,468 +17,388 @@ MonoBehaviour:
     Name: "\u901A\u7528-\u666E\u901A\u653B\u51FB-\u517C\u5BB9\u56DE\u9000"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825280
+    - rid: 277261807049244672
   - Id: 10010001
     Name: "\u5EC9\u9887-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825281
+    - rid: 277261807049244673
   - Id: 10010101
     Name: "\u5EC9\u9887-\u7206\u88C2\u51B2\u649E"
     PipelineContinuousTagTemplateId: 10010001
     Phases:
-    - rid: 8479231920601825282
-    - rid: 8479231920601825283
-    - rid: 8479231920601825284
+    - rid: 277261807049244674
+    - rid: 277261807049244675
+    - rid: 277261807049244676
   - Id: 10010201
     Name: "\u5EC9\u9887-\u7194\u5CA9\u91CD\u51FB"
     PipelineContinuousTagTemplateId: 10010001
     Phases:
-    - rid: 8479231920601825285
-    - rid: 8479231920601825286
-    - rid: 8479231920601825287
+    - rid: 277261807049244677
+    - rid: 277261807049244678
+    - rid: 277261807049244679
   - Id: 10010301
     Name: "\u5EC9\u9887-\u5929\u5D29\u5730\u88C2"
     PipelineContinuousTagTemplateId: 10010001
     Phases:
-    - rid: 8479231920601825288
-    - rid: 8479231920601825289
-    - rid: 8479231920601825290
+    - rid: 277261807049244680
+    - rid: 277261807049244681
+    - rid: 277261807049244682
   - Id: 10020001
     Name: "\u5C0F\u4E54-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825291
+    - rid: 277261807049244683
   - Id: 10020101
     Name: "\u5C0F\u4E54-\u7EFD\u653E\u4E4B\u821E"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825292
-    - rid: 8479231920601825293
-    - rid: 8479231920601825294
+    - rid: 277261807049244684
+    - rid: 277261807049244685
+    - rid: 277261807049244686
   - Id: 10020201
     Name: "\u5C0F\u4E54-\u751C\u871C\u604B\u98CE"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825295
-    - rid: 8479231920601825296
-    - rid: 8479231920601825297
+    - rid: 277261807049244687
+    - rid: 277261807049244688
+    - rid: 277261807049244689
   - Id: 10020301
     Name: "\u5C0F\u4E54-\u661F\u534E\u7F2D\u4E71"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825298
-    - rid: 8479231920601825299
-    - rid: 8479231920601825300
+    - rid: 277261807049244690
+    - rid: 277261807049244691
+    - rid: 277261807049244692
   - Id: 10030001
     Name: "\u8D75\u4E91-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825301
+    - rid: 277261807049244693
   - Id: 10030101
     Name: "\u8D75\u4E91-\u60CA\u96F7\u4E4B\u9F99"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825302
-    - rid: 8479231920601825303
-    - rid: 8479231920601825304
+    - rid: 277261807049244694
+    - rid: 277261807049244695
+    - rid: 277261807049244696
   - Id: 10030201
     Name: "\u8D75\u4E91-\u7834\u4E91\u4E4B\u9F99"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825305
-    - rid: 8479231920601825306
-    - rid: 8479231920601825307
+    - rid: 277261807049244697
+    - rid: 277261807049244698
+    - rid: 277261807049244699
   - Id: 10030301
     Name: "\u8D75\u4E91-\u5929\u7FD4\u4E4B\u9F99"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825308
-    - rid: 8479231920601825309
-    - rid: 8479231920601825310
+    - rid: 277261807049244700
+    - rid: 277261807049244701
+    - rid: 277261807049244702
   - Id: 10040011
     Name: "\u58A8\u5B50-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825311
+    - rid: 277261807049244703
   - Id: 10040101
     Name: "\u58A8\u5B50-\u548C\u5E73\u6F2B\u6B65"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825312
-    - rid: 8479231920601825313
-    - rid: 8479231920601825314
+    - rid: 277261807049244704
+    - rid: 277261807049244705
+    - rid: 277261807049244706
   - Id: 10040112
     Name: "\u58A8\u5B50-\u548C\u5E73\u6F2B\u6B65-\u5F3A\u5316\u8FD1\u6218\u666E\u653B"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825315
+    - rid: 277261807049244707
   - Id: 10040201
     Name: "\u58A8\u5B50-\u673A\u5173\u91CD\u70AE"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825316
-    - rid: 8479231920601825317
-    - rid: 8479231920601825318
+    - rid: 277261807049244708
+    - rid: 277261807049244709
+    - rid: 277261807049244710
   - Id: 10040301
     Name: "\u58A8\u5B50-\u58A8\u5B88\u6210\u89C4"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825319
-    - rid: 8479231920601825320
-    - rid: 8479231920601825321
+    - rid: 277261807049244711
+    - rid: 277261807049244712
+    - rid: 277261807049244713
   - Id: 10050001
     Name: "\u59B2\u5DF1-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825322
+    - rid: 277261807049244714
   - Id: 10050101
     Name: "\u59B2\u5DF1-\u7075\u9B42\u51B2\u51FB"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825323
-    - rid: 8479231920601825324
-    - rid: 8479231920601825325
+    - rid: 277261807049244715
+    - rid: 277261807049244716
+    - rid: 277261807049244717
   - Id: 10050201
     Name: "\u59B2\u5DF1-\u5076\u50CF\u9B45\u529B"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825326
-    - rid: 8479231920601825327
-    - rid: 8479231920601825328
+    - rid: 277261807049244718
+    - rid: 277261807049244719
+    - rid: 277261807049244720
   - Id: 10050301
     Name: "\u59B2\u5DF1-\u5973\u738B\u5D07\u62DC"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825329
-    - rid: 8479231920601825330
-    - rid: 8479231920601825331
+    - rid: 277261807049244721
+    - rid: 277261807049244722
+    - rid: 277261807049244723
   - Id: 10060001
     Name: "\u5B34\u653F-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825332
+    - rid: 277261807049244724
   - Id: 10060101
     Name: "\u5B34\u653F-\u738B\u8005\u60E9\u6212"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825333
-    - rid: 8479231920601825334
-    - rid: 8479231920601825335
+    - rid: 277261807049244725
+    - rid: 277261807049244726
+    - rid: 277261807049244727
   - Id: 10060201
     Name: "\u5B34\u653F-\u738B\u8005\u5B88\u5FA1"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825336
-    - rid: 8479231920601825337
-    - rid: 8479231920601825338
+    - rid: 277261807049244728
+    - rid: 277261807049244729
+    - rid: 277261807049244730
   - Id: 10060301
     Name: "\u5B34\u653F-\u81F3\u5C0A\u738B\u6743"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825339
-    - rid: 8479231920601825340
-    - rid: 8479231920601825341
+    - rid: 277261807049244731
+    - rid: 277261807049244732
+    - rid: 277261807049244733
   - Id: 10070001
-    Name: "\u5b59\u5c1a\u9999-\u666e\u901a\u653b\u51fb"
+    Name: "\u5B59\u5C1A\u9999-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825350
+    - rid: 277261807049244734
   - Id: 10070101
-    Name: "\u5b59\u5c1a\u9999-\u7ffb\u6eda\u7a81\u88ad"
+    Name: "\u5B59\u5C1A\u9999-\u7FFB\u6EDA\u7A81\u88AD"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825361
-    - rid: 8479231920601825362
-    - rid: 8479231920601825363
+    - rid: 277261807049244735
+    - rid: 277261807049244736
+    - rid: 277261807049244737
   - Id: 10070112
-    Name: "\u5b59\u5c1a\u9999-\u5f3a\u5316\u666e\u901a\u653b\u51fb"
+    Name: "\u5B59\u5C1A\u9999-\u5F3A\u5316\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825386
+    - rid: 277261807049244738
   - Id: 10070201
-    Name: "\u5b59\u5c1a\u9999-\u7ea2\u83b2\u7206\u5f39"
+    Name: "\u5B59\u5C1A\u9999-\u7EA2\u83B2\u7206\u5F39"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825397
-    - rid: 8479231920601825398
-    - rid: 8479231920601825399
+    - rid: 277261807049244739
+    - rid: 277261807049244740
+    - rid: 277261807049244741
   - Id: 10070301
-    Name: "\u5b59\u5c1a\u9999-\u7a76\u6781\u5f29\u70ae"
+    Name: "\u5B59\u5C1A\u9999-\u7A76\u6781\u5F29\u70AE"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825422
-    - rid: 8479231920601825423
-    - rid: 8479231920601825424
+    - rid: 277261807049244742
+    - rid: 277261807049244743
+    - rid: 277261807049244744
   - Id: 10080001
-    Name: "\u9c81\u73ed\u4e03\u53f7-\u666e\u901a\u653b\u51fb"
+    Name: "\u9C81\u73ED\u4E03\u53F7-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825447
+    - rid: 277261807049244745
   - Id: 10080101
-    Name: "\u9c81\u73ed\u4e03\u53f7-\u6cb3\u8c5a\u624b\u96f7"
+    Name: "\u9C81\u73ED\u4E03\u53F7-\u6CB3\u8C5A\u624B\u96F7"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825458
-    - rid: 8479231920601825459
-    - rid: 8479231920601825460
+    - rid: 277261807049244746
+    - rid: 277261807049244747
+    - rid: 277261807049244748
   - Id: 10080112
-    Name: "\u9c81\u73ed\u4e03\u53f7-\u5f3a\u5316\u626b\u5c04"
+    Name: "\u9C81\u73ED\u4E03\u53F7-\u5F3A\u5316\u626B\u5C04"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825483
+    - rid: 277261807049244749
   - Id: 10080201
-    Name: "\u9c81\u73ed\u4e03\u53f7-\u65e0\u654c\u9ca8\u5634\u70ae"
+    Name: "\u9C81\u73ED\u4E03\u53F7-\u65E0\u654C\u9CA8\u5634\u70AE"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825494
-    - rid: 8479231920601825495
-    - rid: 8479231920601825496
+    - rid: 277261807049244750
+    - rid: 277261807049244751
+    - rid: 277261807049244752
   - Id: 10080301
-    Name: "\u9c81\u73ed\u4e03\u53f7-\u7a7a\u4e2d\u652f\u63f4"
+    Name: "\u9C81\u73ED\u4E03\u53F7-\u7A7A\u4E2D\u652F\u63F4"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825519
-    - rid: 8479231920601825520
-    - rid: 8479231920601825521
+    - rid: 277261807049244753
+    - rid: 277261807049244754
+    - rid: 277261807049244755
   - Id: 10080401
-    Name: "\u9c81\u73ed\u4e03\u53f7-\u7a7a\u4e2d\u652f\u63f4-\u53ec\u5524\u7269\u6295\u5f39"
+    Name: "\u9C81\u73ED\u4E03\u53F7-\u7A7A\u4E2D\u652F\u63F4-\u53EC\u5524\u7269\u6295\u5F39"
     PipelineContinuousTagTemplateId: 0
     Phases:
-    - rid: 8479231920601825544
-    - rid: 8479231920601825545
-    - rid: 8479231920601825546
+    - rid: 277261807049244756
+    - rid: 277261807049244757
+    - rid: 277261807049244758
+  - Id: 30010101
+    Name: "\u620F\u547D\u5E08-\u66FC\u821E\u624B\u96F7"
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261807049244766
+    - rid: 277261807049244767
+    - rid: 277261807049244768
+  - Id: 30010201
+    Name: Jhin - Deadly Flourish
+    PipelineContinuousTagTemplateId: 3015
+    Phases:
+    - rid: 277261807049244769
+    - rid: 277261807049244770
+    - rid: 277261807049244771
+  - Id: 30010301
+    Name: Jhin - Captive Audience
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261807049244772
+    - rid: 277261807049244773
+    - rid: 277261807049244774
+  - Id: 30010401
+    Name: Jhin - Curtain Call
+    PipelineContinuousTagTemplateId: 3015
+    Phases:
+    - rid: 277261807049244775
+    - rid: 277261807049244776
+  - Id: 30010501
+    Name: Jhin - Curtain Call Regular Shot
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261807049244777
+    - rid: 277261807049244778
+    - rid: 277261807049244779
+  - Id: 30010502
+    Name: Jhin - Curtain Call Final Shot
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261807049244780
+    - rid: 277261807049244781
+    - rid: 277261807049244782
+  - Id: 30010601
+    Name: Jhin - Basic Attack 1
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261807049244783
+    - rid: 277261807049244784
+  - Id: 30010602
+    Name: Jhin - Basic Attack 2
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261807049244785
+    - rid: 277261807049244786
+  - Id: 30010603
+    Name: Jhin - Basic Attack 3
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261807049244787
+    - rid: 277261807049244788
+  - Id: 30010604
+    Name: Jhin - Basic Attack 4
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261807049244789
+    - rid: 277261807049244790
+  - Id: 30030101
+    Name: Annie - Basic Attack
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261807049244791
+  - Id: 30030201
+    Name: Annie - Disintegrate
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261807169044483
+    - rid: 277261807049244792
+    - rid: 277261807049244793
+    - rid: 277261807049244794
+  - Id: 30030301
+    Name: Annie - Incinerate
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261807169044484
+    - rid: 277261807049244795
+    - rid: 277261807049244796
+    - rid: 277261807049244797
+  - Id: 30030401
+    Name: Annie - Molten Shield
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261807169044485
+    - rid: 277261807049244798
+    - rid: 277261807049244799
+    - rid: 277261807049244800
+  - Id: 30030501
+    Name: Annie - Summon Tibbers
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261821083910144
+    - rid: 277261821083910145
+    - rid: 277261821083910146
+  - Id: 30020101
+    Name: Jinx - Switcheroo!
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261837396869120
+    - rid: 277261837396869121
+  - Id: 30020002
+    Name: Jinx - Pow-Pow Basic Attack
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261837396869122
+  - Id: 30020003
+    Name: Jinx - Fishbones Basic Attack
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261837396869123
+  - Id: 30020201
+    Name: Jinx - Zap!
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261837396869124
+    - rid: 277261837396869125
+    - rid: 277261837396869126
+  - Id: 30020301
+    Name: Jinx - Flame Chompers!
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261854369382400
+    - rid: 277261854369382401
+    - rid: 277261854369382402
+  - Id: 30020401
+    Name: Jinx - Super Mega Death Rocket!
+    PipelineContinuousTagTemplateId: 0
+    Phases:
+    - rid: 277261868385435648
+    - rid: 277261868385435649
+    - rid: 277261868385435650
   legacyDataList: []
   references:
     version: 2
     RefIds:
-    - rid: 8479231920601825350
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: 
-        Timeline:
-          DurationMs: 250
-          Events:
-          - AtMs: 0
-            EffectId: 10070001
-            ExecuteMode: 0
-            EventTag: ssx_basic_projectile
-    - rid: 8479231920601825361
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: ssx_skill_1_release
-        TriggerIds: 9373a635
-        AbortOnFailure: 1
-        FailReason: skill_release_failed
-    - rid: 8479231920601825362
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: ssx_skill_1_commit
-        TriggerIds: 9473a635
-        AbortOnFailure: 1
-        FailReason: skill_commit_failed
-    - rid: 8479231920601825363
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: 
-        Timeline:
-          DurationMs: 800
-          Events:
-          - AtMs: 0
-            EffectId: 10070101
-            ExecuteMode: 0
-            EventTag: ssx_skill_1_cast
-    - rid: 8479231920601825386
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: ssx_skill_1_enhanced_basic
-        Timeline:
-          DurationMs: 250
-          Events:
-          - AtMs: 0
-            EffectId: 10070112
-            ExecuteMode: 0
-            EventTag: ssx_skill_1_enhanced_basic
-    - rid: 8479231920601825397
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: ssx_skill_2_release
-        TriggerIds: 9373a635
-        AbortOnFailure: 1
-        FailReason: skill_release_failed
-    - rid: 8479231920601825398
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: ssx_skill_2_commit
-        TriggerIds: 9473a635
-        AbortOnFailure: 1
-        FailReason: skill_commit_failed
-    - rid: 8479231920601825399
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: 
-        Timeline:
-          DurationMs: 500
-          Events:
-          - AtMs: 0
-            EffectId: 10070201
-            ExecuteMode: 0
-            EventTag: ssx_skill_2_cast
-    - rid: 8479231920601825422
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: ssx_skill_3_release
-        TriggerIds: 9373a635
-        AbortOnFailure: 1
-        FailReason: skill_release_failed
-    - rid: 8479231920601825423
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: ssx_skill_3_commit
-        TriggerIds: 9473a635
-        AbortOnFailure: 1
-        FailReason: skill_commit_failed
-    - rid: 8479231920601825424
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: 
-        Timeline:
-          DurationMs: 2500
-          Events:
-          - AtMs: 0
-            EffectId: 10070301
-            ExecuteMode: 0
-            EventTag: ssx_skill_3_cast
-    - rid: 8479231920601825447
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: 
-        Timeline:
-          DurationMs: 250
-          Events:
-          - AtMs: 0
-            EffectId: 10080001
-            ExecuteMode: 0
-            EventTag: luban_basic_projectile
-    - rid: 8479231920601825458
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: luban_skill_1_release
-        TriggerIds: 9373a635
-        AbortOnFailure: 1
-        FailReason: skill_release_failed
-    - rid: 8479231920601825459
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: luban_skill_1_commit
-        TriggerIds: 9473a635
-        AbortOnFailure: 1
-        FailReason: skill_commit_failed
-    - rid: 8479231920601825460
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: 
-        Timeline:
-          DurationMs: 800
-          Events:
-          - AtMs: 0
-            EffectId: 10080101
-            ExecuteMode: 0
-            EventTag: luban_skill_1_cast
-    - rid: 8479231920601825483
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: luban_skill_1_enhanced_basic
-        Timeline:
-          DurationMs: 250
-          Events:
-          - AtMs: 0
-            EffectId: 10080112
-            ExecuteMode: 0
-            EventTag: luban_skill_1_enhanced_basic
-    - rid: 8479231920601825494
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: luban_skill_2_release
-        TriggerIds: 9373a635
-        AbortOnFailure: 1
-        FailReason: skill_release_failed
-    - rid: 8479231920601825495
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: luban_skill_2_commit
-        TriggerIds: 9473a635
-        AbortOnFailure: 1
-        FailReason: skill_commit_failed
-    - rid: 8479231920601825496
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: 
-        Timeline:
-          DurationMs: 500
-          Events:
-          - AtMs: 0
-            EffectId: 10080201
-            ExecuteMode: 0
-            EventTag: luban_skill_2_cast
-    - rid: 8479231920601825519
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: luban_skill_3_release
-        TriggerIds: 9373a635
-        AbortOnFailure: 1
-        FailReason: skill_release_failed
-    - rid: 8479231920601825520
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: luban_skill_3_commit
-        TriggerIds: 9473a635
-        AbortOnFailure: 1
-        FailReason: skill_commit_failed
-    - rid: 8479231920601825521
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: 
-        Timeline:
-          DurationMs: 2500
-          Events:
-          - AtMs: 0
-            EffectId: 10080301
-            ExecuteMode: 0
-            EventTag: luban_skill_3_cast
-    - rid: 8479231920601825544
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: luban_airship_skill_3_release
-        TriggerIds: 9373a635
-        AbortOnFailure: 1
-        FailReason: skill_release_failed
-    - rid: 8479231920601825545
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: luban_airship_skill_3_commit
-        TriggerIds: 9473a635
-        AbortOnFailure: 1
-        FailReason: skill_commit_failed
-    - rid: 8479231920601825546
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: 
-        Timeline:
-          DurationMs: 2500
-          Events:
-          - AtMs: 0
-            EffectId: 10080401
-            ExecuteMode: 0
-            EventTag: luban_airship_bomb
-    - rid: 8479231920601825280
+    - rid: 277261807049244672
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
         Timeline:
           DurationMs: 250
           Events: []
-    - rid: 8479231920601825281
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244673
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -488,22 +408,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10010001
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: lp_basic_melee
-    - rid: 8479231920601825282
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244674
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10010101_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825283
+    - rid: 277261807049244675
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10010101_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825284
+    - rid: 277261807049244676
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -511,28 +433,31 @@ MonoBehaviour:
           DurationMs: 650
           Events:
           - AtMs: 0
-            EffectId: 10010000
+            EffectId: 10010901
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: lp_passive_armor_start
           - AtMs: 0
             EffectId: 10010101
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: lp_skill_1_cast
-    - rid: 8479231920601825285
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244677
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10010201_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825286
+    - rid: 277261807049244678
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10010201_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825287
+    - rid: 277261807049244679
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -540,38 +465,41 @@ MonoBehaviour:
           DurationMs: 700
           Events:
           - AtMs: 0
-            EffectId: 10010000
+            EffectId: 10010901
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: lp_passive_armor_start
           - AtMs: 0
             EffectId: 10010201
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: lp_skill_2_cast
-    - rid: 8479231920601825288
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244680
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825289
+    - rid: 277261807049244681
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825290
+    - rid: 277261807049244682
       type: {class: SkillSequencePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: lp_skill_3_stages
         Children:
-        - rid: 8479231920601825342
-        - rid: 8479231920601825343
-        - rid: 8479231920601825344
-        - rid: 8479231920601825345
-        - rid: 8479231920601825346
-    - rid: 8479231920601825291
+        - rid: 277261807049244801
+        - rid: 277261807049244802
+        - rid: 277261807049244803
+        - rid: 277261807049244804
+        - rid: 277261807049244805
+    - rid: 277261807049244683
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -581,48 +509,51 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10020001
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: xq_basic_projectile
-    - rid: 8479231920601825292
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244684
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10020101_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825293
+    - rid: 277261807049244685
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10020101_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825294
+    - rid: 277261807049244686
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
-        MobaLogicTimeline: {fileID: 4900000, guid: 4fc1964cb86d4e2c91e70badea48c720, type: 3}
         Timeline:
           DurationMs: 600
           Events:
           - AtMs: 0
             EffectId: 10020101
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: xq_skill_1_cast
-    - rid: 8479231920601825295
+        MobaLogicTimeline: {fileID: 4900000, guid: 4fc1964cb86d4e2c91e70badea48c720, type: 3}
+    - rid: 277261807049244687
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10020201_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825296
+    - rid: 277261807049244688
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10020201_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825297
+    - rid: 277261807049244689
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -632,22 +563,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10020201
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: xq_skill_2_cast
-    - rid: 8479231920601825298
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244690
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10020301_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825299
+    - rid: 277261807049244691
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10020301_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825300
+    - rid: 277261807049244692
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -657,8 +590,10 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10020301
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: xq_skill_3_cast
-    - rid: 8479231920601825301
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244693
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -668,22 +603,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10030001
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: zy_basic_melee
-    - rid: 8479231920601825302
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244694
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10030101_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825303
+    - rid: 277261807049244695
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10030101_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825304
+    - rid: 277261807049244696
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -693,22 +630,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10030101
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: zy_skill_1_cast
-    - rid: 8479231920601825305
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244697
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10030201_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825306
+    - rid: 277261807049244698
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10030201_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825307
+    - rid: 277261807049244699
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -718,22 +657,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10030201
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: zy_skill_2_cast
-    - rid: 8479231920601825308
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244700
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10030301_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825309
+    - rid: 277261807049244701
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10030301_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825310
+    - rid: 277261807049244702
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -743,8 +684,10 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10030301
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: zy_skill_3_cast
-    - rid: 8479231920601825311
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244703
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -754,22 +697,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10040011
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: mz_basic_projectile
-    - rid: 8479231920601825312
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244704
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10040101_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825313
+    - rid: 277261807049244705
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10040101_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825314
+    - rid: 277261807049244706
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -779,8 +724,10 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10040101
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: mz_skill_1_cast
-    - rid: 8479231920601825315
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244707
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -790,22 +737,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10040112
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: mz_skill_1_enhanced_basic
-    - rid: 8479231920601825316
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244708
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10040201_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825317
+    - rid: 277261807049244709
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10040201_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825318
+    - rid: 277261807049244710
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -815,22 +764,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10040201
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: mz_skill_2_cast
-    - rid: 8479231920601825319
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244711
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10040301_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825320
+    - rid: 277261807049244712
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10040301_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825321
+    - rid: 277261807049244713
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -840,8 +791,10 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10040301
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: mz_skill_3_cast
-    - rid: 8479231920601825322
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244714
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -851,22 +804,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10050001
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: dj_basic_projectile
-    - rid: 8479231920601825323
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244715
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10050101_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825324
+    - rid: 277261807049244716
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10050101_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825325
+    - rid: 277261807049244717
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -876,22 +831,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10050101
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: dj_skill_1_cast
-    - rid: 8479231920601825326
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244718
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10050201_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825327
+    - rid: 277261807049244719
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10050201_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825328
+    - rid: 277261807049244720
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -901,22 +858,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10050201
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: dj_skill_2_cast
-    - rid: 8479231920601825329
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244721
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10050301_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825330
+    - rid: 277261807049244722
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_10050301_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825331
+    - rid: 277261807049244723
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -926,8 +885,10 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10050301
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: dj_skill_3_cast
-    - rid: 8479231920601825332
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244724
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -937,22 +898,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10060001
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: yz_basic_projectile
-    - rid: 8479231920601825333
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244725
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: yz_skill_1_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825334
+    - rid: 277261807049244726
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: yz_skill_1_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825335
+    - rid: 277261807049244727
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -962,22 +925,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10060101
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: yz_skill_1_cast
-    - rid: 8479231920601825336
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244728
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: yz_skill_2_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825337
+    - rid: 277261807049244729
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: yz_skill_2_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825338
+    - rid: 277261807049244730
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -987,22 +952,24 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10060201
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: yz_skill_2_cast
-    - rid: 8479231920601825339
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244731
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: yz_skill_3_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 8479231920601825340
+    - rid: 277261807049244732
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: yz_skill_3_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 8479231920601825341
+    - rid: 277261807049244733
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
@@ -1012,8 +979,566 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10060301
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: yz_skill_3_cast
-    - rid: 8479231920601825342
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244734
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 250
+          Events:
+          - AtMs: 0
+            EffectId: 10070001
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: ssx_basic_projectile
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244735
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: ssx_skill_1_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244736
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: ssx_skill_1_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244737
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 800
+          Events:
+          - AtMs: 0
+            EffectId: 10070101
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: ssx_skill_1_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244738
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: ssx_skill_1_enhanced_basic
+        Timeline:
+          DurationMs: 250
+          Events:
+          - AtMs: 0
+            EffectId: 10070112
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: ssx_skill_1_enhanced_basic
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244739
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: ssx_skill_2_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244740
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: ssx_skill_2_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244741
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 500
+          Events:
+          - AtMs: 0
+            EffectId: 10070201
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: ssx_skill_2_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244742
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: ssx_skill_3_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244743
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: ssx_skill_3_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244744
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 2500
+          Events:
+          - AtMs: 0
+            EffectId: 10070301
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: ssx_skill_3_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244745
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 250
+          Events:
+          - AtMs: 0
+            EffectId: 10080001
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: luban_basic_projectile
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244746
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: luban_skill_1_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244747
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: luban_skill_1_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244748
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 800
+          Events:
+          - AtMs: 0
+            EffectId: 10080101
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: luban_skill_1_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244749
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: luban_skill_1_enhanced_basic
+        Timeline:
+          DurationMs: 250
+          Events:
+          - AtMs: 0
+            EffectId: 10080112
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: luban_skill_1_enhanced_basic
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244750
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: luban_skill_2_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244751
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: luban_skill_2_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244752
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 500
+          Events:
+          - AtMs: 0
+            EffectId: 10080201
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: luban_skill_2_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244753
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: luban_skill_3_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244754
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: luban_skill_3_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244755
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 2500
+          Events:
+          - AtMs: 0
+            EffectId: 10080301
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: luban_skill_3_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244756
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: luban_airship_skill_3_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244757
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: luban_airship_skill_3_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244758
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 2500
+          Events:
+          - AtMs: 0
+            EffectId: 10080401
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: luban_airship_bomb
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244766
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010101_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244767
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010101_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244768
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 500
+          Events:
+          - AtMs: 0
+            EffectId: 30010101
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: jhin_q_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244769
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010201_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244770
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010201_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244771
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 500
+          Events:
+          - AtMs: 0
+            EffectId: 30010201
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: jhin_w_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244772
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010301_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244773
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010301_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244774
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 500
+          Events:
+          - AtMs: 0
+            EffectId: 30010301
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: jhin_e_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244775
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010401_release
+        TriggerIds: 20ecc901
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244776
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010401_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244777
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010501_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244778
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010501_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244779
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010501_shot
+        Timeline:
+          DurationMs: 50
+          Events:
+          - AtMs: 0
+            EffectId: 30010401
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: jhin_r_regular_shot
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244780
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010502_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244781
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010502_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244782
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010502_shot
+        Timeline:
+          DurationMs: 50
+          Events:
+          - AtMs: 0
+            EffectId: 30010411
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: jhin_r_final_shot
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244783
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: selected_parameters_commit
+        CommitId: shot
+    - rid: 277261807049244784
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010601_shot
+        Timeline:
+          DurationMs: 100
+          Events:
+          - AtMs: 0
+            EffectId: 30010601
+            ExecuteMode: 0
+            AbortOnFailure: 1
+            EventTag: jhin_basic_attack_1
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244785
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: selected_parameters_commit
+        CommitId: shot
+    - rid: 277261807049244786
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010602_shot
+        Timeline:
+          DurationMs: 100
+          Events:
+          - AtMs: 0
+            EffectId: 30010602
+            ExecuteMode: 0
+            AbortOnFailure: 1
+            EventTag: jhin_basic_attack_2
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244787
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: selected_parameters_commit
+        CommitId: shot
+    - rid: 277261807049244788
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010603_shot
+        Timeline:
+          DurationMs: 100
+          Events:
+          - AtMs: 0
+            EffectId: 30010603
+            ExecuteMode: 0
+            AbortOnFailure: 1
+            EventTag: jhin_basic_attack_3
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244789
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: selected_parameters_commit
+        CommitId: shot
+    - rid: 277261807049244790
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010604_shot
+        Timeline:
+          DurationMs: 100
+          Events:
+          - AtMs: 0
+            EffectId: 30010604
+            ExecuteMode: 0
+            AbortOnFailure: 1
+            EventTag: jhin_basic_attack_4
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244791
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_basic_attack
+        Timeline:
+          DurationMs: 250
+          Events:
+          - AtMs: 0
+            EffectId: 30030101
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: annie_basic_attack
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244792
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_q_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244793
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_q_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244794
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_q_cast
+        Timeline:
+          DurationMs: 800
+          Events:
+          - AtMs: 0
+            EffectId: 30030201
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: annie_q_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244795
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_w_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244796
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_w_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244797
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_w_cast
+        Timeline:
+          DurationMs: 500
+          Events:
+          - AtMs: 0
+            EffectId: 30030301
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: annie_w_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244798
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_e_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261807049244799
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_e_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261807049244800
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_e_cast
+        Timeline:
+          DurationMs: 600
+          Events:
+          - AtMs: 0
+            EffectId: 30030401
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: annie_e_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244801
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: lp_skill_3_stage_1
@@ -1021,14 +1546,17 @@ MonoBehaviour:
           DurationMs: 650
           Events:
           - AtMs: 0
-            EffectId: 10010000
+            EffectId: 10010901
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: lp_passive_armor_start
           - AtMs: 0
             EffectId: 10010301
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: lp_skill_3_start
-    - rid: 8479231920601825343
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244802
       type: {class: SkillWaitUntilPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: lp_skill_3_wait_after_stage_1
@@ -1037,7 +1565,7 @@ MonoBehaviour:
         CompleteOnTimeout: 1
         ObservedSlots: 0100000002000000
         Arguments: []
-    - rid: 8479231920601825344
+    - rid: 277261807049244803
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: lp_skill_3_stage_2
@@ -1047,8 +1575,10 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10010311
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: lp_skill_3_second
-    - rid: 8479231920601825345
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049244804
       type: {class: SkillWaitUntilPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: lp_skill_3_wait_after_stage_2
@@ -1057,7 +1587,7 @@ MonoBehaviour:
         CompleteOnTimeout: 1
         ObservedSlots: 0100000002000000
         Arguments: []
-    - rid: 8479231920601825346
+    - rid: 277261807049244805
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: lp_skill_3_stage_3
@@ -1067,4 +1597,202 @@ MonoBehaviour:
           - AtMs: 0
             EffectId: 10010321
             ExecuteMode: 0
+            AbortOnFailure: 0
             EventTag: lp_skill_3_third
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807169044483
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_q_economy
+        Operation: 0
+        ResourceType: 2
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        RefundBeforeCommit: 1
+        FailReason: skill_economy_reserve_failed
+    - rid: 277261807169044484
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_w_economy
+        Operation: 0
+        ResourceType: 2
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        RefundBeforeCommit: 1
+        FailReason: skill_economy_reserve_failed
+    - rid: 277261807169044485
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_e_economy
+        Operation: 0
+        ResourceType: 2
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        RefundBeforeCommit: 1
+        FailReason: skill_economy_reserve_failed
+    - rid: 277261821083910144
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_r_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261821083910145
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_r_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261821083910146
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_r_cast
+        Timeline:
+          DurationMs: 900
+          Events:
+          - AtMs: 0
+            EffectId: 30030501
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: annie_r_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261837396869120
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020101_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261837396869121
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020101_commit
+        TriggerIds: 9473a6350512ca01
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261837396869122
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020002_commit
+        TriggerIds: 6912ca01
+        AbortOnFailure: 1
+        FailReason: basic_attack_launch_failed
+    - rid: 277261837396869123
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020003_commit
+        TriggerIds: 6a12ca01
+        AbortOnFailure: 1
+        FailReason: basic_attack_launch_failed
+    - rid: 277261837396869124
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020201_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261837396869125
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020201_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261837396869126
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 500
+          Events:
+          - AtMs: 0
+            EffectId: 30020203
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: jinx_w_cast
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261854369382400
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020301_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261854369382401
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020301_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261854369382402
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 500
+          Events:
+          - AtMs: 0
+            EffectId: 30020303
+            ExecuteMode: 0
+            AbortOnFailure: 1
+            EventTag: jinx_e_deploy_three_traps
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261868385435648
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020401_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261868385435649
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020401_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261868385435650
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: 
+        Timeline:
+          DurationMs: 500
+          Events:
+          - AtMs: 0
+            EffectId: 30020403
+            ExecuteMode: 0
+            AbortOnFailure: 1
+            EventTag: jinx_r_launch_rocket
+        MobaLogicTimeline: {fileID: 0}

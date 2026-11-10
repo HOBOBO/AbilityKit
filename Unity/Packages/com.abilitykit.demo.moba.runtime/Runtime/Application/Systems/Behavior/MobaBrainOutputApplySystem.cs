@@ -75,17 +75,7 @@ namespace AbilityKit.Demo.Moba.Systems
                 var wroteMovement = false;
                 var canMove = intent.IsValid()
                     && (_combatRules == null || _combatRules.CanMove(e.actorId.Value));
-                // The Luban airship is a directional skill summon. Its brain still
-                // selects enemies and casts the bomb skill, but must not replace the
-                // launch direction with the generic "approach nearest enemy" intent.
-                // Keep the launch heading fixed. Locomotion input is local-space, so
-                // feeding the world forward vector here rotates it a second time.
-                if (e.hasSummonMeta && e.summonMeta.SummonId == 1008 && canMove)
-                {
-                    WriteMoveInput(e, 0f, 1f);
-                    wroteMovement = true;
-                }
-                else if (canMove && intent.MovementKind == MobaActorMovementIntentKind.Direction)
+                if (canMove && intent.MovementKind == MobaActorMovementIntentKind.Direction)
                 {
                     WriteMoveInput(e, intent.MoveX, intent.MoveZ);
                     wroteMovement = System.Math.Abs(intent.MoveX) > 0.0001f
@@ -104,7 +94,7 @@ namespace AbilityKit.Demo.Moba.Systems
                     var dx = targetPos.X - ownerPos.X;
                     var dz = targetPos.Z - ownerPos.Z;
                     var length = DeterministicMathBridge.Sqrt(dx * dx + dz * dz);
-                    if (length > 0.0001f)
+                    if (length > intent.MoveStopRange + 0.0001f)
                     {
                         WriteMoveInput(e, dx / length, dz / length);
                         wroteMovement = true;
@@ -124,15 +114,6 @@ namespace AbilityKit.Demo.Moba.Systems
 
             var aimPosition = intent.AimPosition;
             var aimDirection = intent.AimDirection;
-            if (actor.hasSummonMeta && actor.summonMeta.SummonId == 1008 && actor.hasTransform)
-            {
-                // The airship's Brain may select an enemy for its bomb query, but
-                // its movement and projectile launch are both constrained to the
-                // direction chosen when the ultimate was released.
-                aimDirection = actor.transform.Value.Forward;
-                var origin = actor.transform.Value.Position;
-                aimPosition = origin + aimDirection * 16f;
-            }
             _skills.TryCastBySlot(
                 actor.actorId.Value,
                 intent.SkillSlot,

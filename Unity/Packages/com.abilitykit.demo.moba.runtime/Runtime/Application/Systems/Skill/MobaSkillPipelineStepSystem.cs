@@ -5,6 +5,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Services.Buffs;
+using AbilityKit.Demo.Moba.Services.Triggering.PlanActions;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
@@ -83,6 +84,13 @@ namespace AbilityKit.Demo.Moba.Systems
                         }
                     }
                     _skills.Step(actorId);
+                    // A short pipeline can complete after its launch trigger has
+                    // advanced an HFSM parameter. Re-evaluate at the cast
+                    // completion boundary so the runner's authoritative cast
+                    // context is cleared before ready-slot conditions are tested.
+                    // The state transition remains parameter-driven; this is
+                    // only the generic cast-to-HFSM synchronization point.
+                    MobaCharacterHfsmParameterActionRuntime.Reevaluate(Services, actorId);
                     stepped++;
                 }
                 catch (Exception ex)

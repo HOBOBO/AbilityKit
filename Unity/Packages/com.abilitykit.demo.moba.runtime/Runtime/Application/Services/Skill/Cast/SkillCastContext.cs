@@ -13,6 +13,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int BaseSkillId;
         public int SkillSlot;
         public int SkillLevel;
+        public int ChampionLevel;
         public int CastFlowId;
         public ResolvedSkillCastConfiguration ResolvedConfiguration;
 

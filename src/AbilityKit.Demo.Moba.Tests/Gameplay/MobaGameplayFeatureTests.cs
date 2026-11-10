@@ -43,7 +43,7 @@ public sealed class MobaGameplayFeatureTests
     }
 
     [Fact]
-    public void Published_gameplay_configuration_declares_optional_modules()
+    public void Published_gameplay_configuration_disables_optional_lane_modules_for_skill_acceptance()
     {
         var root = FindRepositoryRoot();
         var path = Path.Combine(root.FullName, "Unity", "Packages", "com.abilitykit.demo.moba.view.runtime",
@@ -51,10 +51,8 @@ public sealed class MobaGameplayFeatureTests
         var gameplays = JsonConvert.DeserializeObject<GameplayDTO[]>(File.ReadAllText(path));
 
         Assert.NotNull(gameplays);
-        Assert.Equal(new[] { MobaGameplayFeatureIds.MinionWaves, MobaGameplayFeatureIds.Structures },
-            gameplays!.Single(x => x.Id == 1).FeatureIds);
-        Assert.Equal(new[] { MobaGameplayFeatureIds.MinionWaves, MobaGameplayFeatureIds.Structures },
-            gameplays.Single(x => x.Id == 2).FeatureIds);
+        Assert.Empty(gameplays!.Single(x => x.Id == 1).FeatureIds);
+        Assert.Empty(gameplays.Single(x => x.Id == 2).FeatureIds);
     }
 
     [Fact]

@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Predicates
     {
         public static class Type
         {
+            public const string HasQueryTarget = "has_query_target";
             public const string HasBuff = "has_buff";
             public const string HealthPercent = "health_percent";
         }
@@ -46,10 +47,13 @@ namespace AbilityKit.Demo.Moba.Predicates
 
         public static class Function
         {
+            public const string HasQueryTarget = "predicate:has_query_target";
             public const string HasBuff = "predicate:has_buff";
             public const string HasBuffOwner = "predicate:has_buff_owner";
             public const string OwnerMatchesPayloadSource = "predicate:owner_matches_payload_source";
             public const string OwnerMatchesPayloadTarget = "predicate:owner_matches_payload_target";
+            public const string OwnerSameTeamAsPayloadSource = "predicate:owner_same_team_as_payload_source";
+            public const string OwnerEnemyToPayloadTarget = "predicate:owner_enemy_to_payload_target";
             public const string TargetIsFlyingProjectile = "predicate:target_is_flying_projectile";
             public const string SourceTargetTagRules = "predicate:source_target_tag_rules";
         }

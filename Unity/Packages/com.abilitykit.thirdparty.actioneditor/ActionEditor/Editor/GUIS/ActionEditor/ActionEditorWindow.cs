@@ -59,6 +59,7 @@ namespace NBC.ActionEditor
 
         void OnDisable()
         {
+            App.Stop();
             App.Window = null;
             EditorSceneManager.sceneSaving -= OnWillSaveScene;
             EditorApplication.update -= OnEditorUpdate;

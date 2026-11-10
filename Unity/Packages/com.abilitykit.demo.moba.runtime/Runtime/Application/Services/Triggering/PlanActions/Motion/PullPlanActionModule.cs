@@ -101,6 +101,18 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
+            var scale = 1f;
+            if (args.DistanceScaleReference > 0f)
+            {
+                if (input.CasterActorId <= 0 || !registry.TryGet(input.CasterActorId, out var caster) ||
+                    caster == null || !caster.hasTransform || !targetEntity.hasTransform)
+                {
+                    LogRejected(ctx, "distance scaling requires caster and target transforms");
+                    return;
+                }
+                var delta = targetEntity.transform.Value.Position - caster.transform.Value.Position;
+                scale = args.ResolveDistanceScale(DeterministicMathBridge.Sqrt(delta.X * delta.X + delta.Z * delta.Z));
+            }
             var duration = args.DurationMs / 1000f;
             var group = MobaMotionGroupConfigResolver.Resolve(ctx.Context, args.MotionGroupId, MotionGroups.Control, args.Priority, 12);
             var sourceDuration = duration;
@@ -109,7 +121,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             if (args.DirectionMode == 2)
             {
-                var height = args.Speed * duration;
+                var height = args.Speed * scale * duration;
                 var trajectory = new KnockupTrajectory(height, duration);
                 sourceDuration = trajectory.Duration + (1f / 30f);
                 source = new TrajectoryMotionSource(
@@ -123,15 +135,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
             else
             {
-                var speed = args.Speed;
-                if (args.DirectionMode == 3)
-                {
-                    // Luban's cannon applies stronger knockback to nearby targets and
-                    // tapers the impulse for targets already at the edge of the lane.
-                    // Keep the rule deterministic and local to the outward knockback mode.
-                    speed *= ResolveOutwardKnockbackScale(input, registry, targetId);
-                }
-
+                var speed = args.Speed * scale;
                 var velocity = pullDir * speed;
                 source = new FixedDeltaMotionSource(velocity, duration, group.Priority, group.GroupId, group.Stacking);
             }
@@ -151,29 +155,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 LogRejected(ctx, rejectReason);
             }
-        }
-
-        private static float ResolveOutwardKnockbackScale(
-            MobaMovementActionInput input,
-            MobaActorRegistry registry,
-            int targetId)
-        {
-            if (registry == null || input.CasterActorId <= 0 ||
-                !registry.TryGet(input.CasterActorId, out var caster) || caster == null || !caster.hasTransform ||
-                !registry.TryGet(targetId, out var target) || target == null || !target.hasTransform)
-            {
-                return 1f;
-            }
-
-            var casterPos = caster.transform.Value.Position;
-            var targetPos = target.transform.Value.Position;
-            var dx = targetPos.X - casterPos.X;
-            var dz = targetPos.Z - casterPos.Z;
-            var distance = DeterministicMathBridge.Sqrt(dx * dx + dz * dz);
-            var normalized = distance / 12f;
-            if (normalized < 0f) normalized = 0f;
-            if (normalized > 1f) normalized = 1f;
-            return 1.25f - normalized * 0.5f;
         }
 
         private sealed class KnockupTrajectory : ITrajectory3D

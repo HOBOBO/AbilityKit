@@ -7,6 +7,17 @@ using AbilityKit.Ability.World.Services.Attributes;
 
 namespace AbilityKit.Demo.Moba.Gameplay
 {
+    public static class MobaGameplayVariableKeys
+    {
+        public static int ResolveScopedKey(int keyId, int scopeId)
+        {
+            unchecked
+            {
+                return (keyId * 100000) + scopeId;
+            }
+        }
+    }
+
     [WorldService(typeof(MobaGameplayVariableService), WorldLifetime.Scoped)]
     public sealed class MobaGameplayVariableService : IService
     {

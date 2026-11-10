@@ -146,13 +146,27 @@ namespace AbilityKit.Game.Flow
             public bool HasAuthorityOutcome;
             public int LatestAuthorityRevision;
             public PresentationCuePredictionOutcome LatestAuthorityOutcome;
+            public long ReceiptId;
+        }
+
+        private readonly struct Receipt
+        {
+            public Receipt(TKey key, long id)
+            {
+                Key = key;
+                Id = id;
+            }
+
+            public TKey Key { get; }
+            public long Id { get; }
         }
 
         private readonly int _capacity;
         private readonly IEqualityComparer<TKey> _comparer;
         private readonly Dictionary<TKey, Entry> _entries;
-        private readonly Queue<TKey> _receiptOrder;
+        private readonly Queue<Receipt> _receiptOrder;
         private readonly HashSet<TKey> _activeKeys;
+        private long _receiptSequence;
 
         public PresentationCueReconciliationController(
             int capacity = 1024,
@@ -162,7 +176,7 @@ namespace AbilityKit.Game.Flow
             _capacity = capacity > 0 ? capacity : 1024;
             _comparer = comparer ?? EqualityComparer<TKey>.Default;
             _entries = new Dictionary<TKey, Entry>(_comparer);
-            _receiptOrder = new Queue<TKey>(Math.Min(_capacity, 32));
+            _receiptOrder = new Queue<Receipt>(Math.Min(_capacity, 32));
             _activeKeys = new HashSet<TKey>(_comparer);
             CurrentGeneration = initialGeneration > 0 ? initialGeneration : 1;
         }
@@ -350,15 +364,44 @@ namespace AbilityKit.Game.Flow
         {
             if (_entries.TryGetValue(key, out var entry)) return entry;
 
-            while (_entries.Count >= _capacity && _receiptOrder.Count > 0)
-            {
-                _entries.Remove(_receiptOrder.Dequeue());
-            }
+            TryEvictOldestInactiveEntry();
 
             entry = new Entry();
+            entry.ReceiptId = ++_receiptSequence;
             _entries.Add(key, entry);
-            _receiptOrder.Enqueue(key);
+            _receiptOrder.Enqueue(new Receipt(key, entry.ReceiptId));
             return entry;
+        }
+
+        private bool TryEvictOldestInactiveEntry()
+        {
+            if (_entries.Count < _capacity || _receiptOrder.Count == 0) return false;
+
+            var scanCount = _receiptOrder.Count;
+            while (scanCount-- > 0)
+            {
+                var receipt = _receiptOrder.Dequeue();
+                if (!_entries.TryGetValue(receipt.Key, out var entry) ||
+                    entry.ReceiptId != receipt.Id)
+                {
+                    continue;
+                }
+
+                if (_activeKeys.Contains(receipt.Key))
+                {
+                    // Active cues must retain their prediction/authority history.
+                    // Put the receipt back so it can be evicted after deactivation.
+                    _receiptOrder.Enqueue(receipt);
+                    continue;
+                }
+
+                _entries.Remove(receipt.Key);
+                return true;
+            }
+
+            // All retained entries are active. Capacity is a soft history limit;
+            // keep the state rather than silently breaking reconciliation.
+            return false;
         }
 
         private void CountAuthorityOutcome(PresentationCuePredictionOutcome outcome)

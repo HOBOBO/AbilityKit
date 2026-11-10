@@ -43,10 +43,18 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
         /// <summary>
         /// 计算布局
         /// </summary>
-        public void CalculateLayout(FsmSnapshot snapshot, float canvasWidth, float canvasHeight)
+        public void CalculateLayout(FsmSnapshot snapshot, float canvasWidth, float canvasHeight,
+            AbilityKit.HFSM.Editor.GraphLayoutMode mode = AbilityKit.HFSM.Editor.GraphLayoutMode.Hierarchy)
         {
             if (snapshot == null || snapshot.states.Count == 0)
                 return;
+
+            if (mode != AbilityKit.HFSM.Editor.GraphLayoutMode.Hierarchy)
+            {
+                LayoutSimple(snapshot, mode);
+                UpdateTransitionPositions(snapshot);
+                return;
+            }
 
             // 1. 按层级分组
             var levels = GroupByLevel(snapshot);
@@ -111,6 +119,27 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
 
             // 4. 调整连线位置
             UpdateTransitionPositions(snapshot);
+        }
+
+        private void LayoutSimple(FsmSnapshot snapshot, AbilityKit.HFSM.Editor.GraphLayoutMode mode)
+        {
+            const float gap = 50f;
+            const float margin = 50f;
+            int columns = mode == AbilityKit.HFSM.Editor.GraphLayoutMode.Grid
+                ? Mathf.Max(1, Mathf.CeilToInt(Mathf.Sqrt(snapshot.states.Count))) : 1;
+            for (int i = 0; i < snapshot.states.Count; i++)
+            {
+                var state = snapshot.states[i];
+                int row = mode == AbilityKit.HFSM.Editor.GraphLayoutMode.Horizontal ? 0 : i / columns;
+                int column = mode == AbilityKit.HFSM.Editor.GraphLayoutMode.Vertical ? 0 : i % columns;
+                if (mode == AbilityKit.HFSM.Editor.GraphLayoutMode.Vertical) row = i;
+                if (mode == AbilityKit.HFSM.Editor.GraphLayoutMode.Horizontal) column = i;
+                state.x = margin + column * (_nodeWidth + gap);
+                state.y = margin + row * (_nodeHeight + _spacingY);
+                state.width = _nodeWidth;
+                state.height = _nodeHeight;
+                snapshot.states[i] = state;
+            }
         }
 
         /// <summary>

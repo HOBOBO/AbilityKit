@@ -1575,5 +1575,648 @@
       "range",
       "projectileSpeed"
     ]
+  },
+  {
+    "Id": 30010101,
+    "Levels": [
+      {
+        "CooldownMs": 5000,
+        "Cost": 50,
+        "Params": [
+          200,
+          0.5,
+          12,
+          18,
+          4,
+          6,
+          1,
+          0,
+          0.1
+        ]
+      },
+      {
+        "CooldownMs": 5000,
+        "Cost": 50,
+        "Params": [
+          240,
+          0.55,
+          12,
+          19,
+          4,
+          6,
+          1,
+          0,
+          0.1
+        ]
+      },
+      {
+        "CooldownMs": 5000,
+        "Cost": 50,
+        "Params": [
+          280,
+          0.6,
+          12,
+          20,
+          4,
+          6,
+          1,
+          0,
+          0.1
+        ]
+      },
+      {
+        "CooldownMs": 5000,
+        "Cost": 50,
+        "Params": [
+          320,
+          0.65,
+          12,
+          21,
+          4,
+          6,
+          1,
+          0,
+          0.1
+        ]
+      },
+      {
+        "CooldownMs": 5000,
+        "Cost": 50,
+        "Params": [
+          360,
+          0.7,
+          12,
+          22,
+          4,
+          6,
+          1,
+          0,
+          0.1
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "physicalAttackRatio",
+      "range",
+      "speed",
+      "maxHits",
+      "bounceRadius",
+      "arcHeight",
+      "arcDurationSeconds",
+      "arcHeightPerUnit"
+    ]
+  },
+  {
+    "Id": 30010201,
+    "Levels": [
+      {
+        "CooldownMs": 14000,
+        "Cost": 0,
+        "Params": [
+          80,
+          0.5,
+          25,
+          25
+        ]
+      },
+      {
+        "CooldownMs": 14000,
+        "Cost": 0,
+        "Params": [
+          110,
+          0.5,
+          25,
+          25
+        ]
+      },
+      {
+        "CooldownMs": 14000,
+        "Cost": 0,
+        "Params": [
+          140,
+          0.5,
+          25,
+          25
+        ]
+      },
+      {
+        "CooldownMs": 14000,
+        "Cost": 0,
+        "Params": [
+          170,
+          0.5,
+          25,
+          25
+        ]
+      },
+      {
+        "CooldownMs": 14000,
+        "Cost": 0,
+        "Params": [
+          200,
+          0.5,
+          25,
+          25
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "physicalAttackRatio",
+      "range",
+      "speed"
+    ]
+  },
+  {
+    "Id": 30010301,
+    "Levels": [
+      {
+        "CooldownMs": 18000,
+        "Cost": 0,
+        "Params": [
+          180,
+          1500
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "slowDurationMs"
+    ]
+  },
+  {
+    "Id": 30010401,
+    "Levels": [
+      {
+        "CooldownMs": 120000,
+        "Cost": 0,
+        "Params": [
+          250,
+          0.5,
+          30,
+          30,
+          400
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "physicalAttackRatio",
+      "range",
+      "speed",
+      "finalDamage"
+    ]
+  },
+  {
+    "Id": 30010501,
+    "Levels": [
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          250,
+          0.5,
+          30,
+          30,
+          400
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "physicalAttackRatio",
+      "range",
+      "speed",
+      "finalDamage"
+    ]
+  },
+  {
+    "Id": 30010502,
+    "Levels": [
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          250,
+          0.5,
+          30,
+          30,
+          800
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "physicalAttackRatio",
+      "range",
+      "speed",
+      "finalDamage"
+    ]
+  },
+  {
+    "Id": 30020201,
+    "Levels": [
+      {
+        "CooldownMs": 8000,
+        "Cost": 40,
+        "Params": [
+          10,
+          1.4,
+          14.5,
+          33
+        ]
+      },
+      {
+        "CooldownMs": 7000,
+        "Cost": 45,
+        "Params": [
+          60,
+          1.4,
+          14.5,
+          33
+        ]
+      },
+      {
+        "CooldownMs": 6000,
+        "Cost": 50,
+        "Params": [
+          110,
+          1.4,
+          14.5,
+          33
+        ]
+      },
+      {
+        "CooldownMs": 5000,
+        "Cost": 55,
+        "Params": [
+          160,
+          1.4,
+          14.5,
+          33
+        ]
+      },
+      {
+        "CooldownMs": 4000,
+        "Cost": 60,
+        "Params": [
+          210,
+          1.4,
+          14.5,
+          33
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "physicalAttackRatio",
+      "range",
+      "speed"
+    ]
+  },
+  {
+    "Id": 30020301,
+    "Levels": [
+      {
+        "CooldownMs": 24000,
+        "Cost": 90,
+        "Params": [
+          1
+        ]
+      },
+      {
+        "CooldownMs": 20500,
+        "Cost": 90,
+        "Params": [
+          1
+        ]
+      },
+      {
+        "CooldownMs": 17000,
+        "Cost": 90,
+        "Params": [
+          1
+        ]
+      },
+      {
+        "CooldownMs": 13500,
+        "Cost": 90,
+        "Params": [
+          1
+        ]
+      },
+      {
+        "CooldownMs": 10000,
+        "Cost": 90,
+        "Params": [
+          1
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30020401,
+    "Levels": [
+      {
+        "CooldownMs": 80000,
+        "Cost": 250,
+        "Params": [
+          100,
+          10,
+          0.1,
+          0.5
+        ]
+      },
+      {
+        "CooldownMs": 70000,
+        "Cost": 250,
+        "Params": [
+          200,
+          10,
+          0.1,
+          0.5
+        ]
+      },
+      {
+        "CooldownMs": 60000,
+        "Cost": 250,
+        "Params": [
+          300,
+          10,
+          0.1,
+          0.5
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "flightBonusPerSecond",
+      "missingHpRatioCoefficient",
+      "secondaryDamageScale"
+    ]
+  },
+  {
+    "Id": 30030000,
+    "Levels": [
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": []
+      }
+    ],
+    "ParamNames": []
+  },
+  {
+    "Id": 30030101,
+    "Levels": [
+      {
+        "CooldownMs": 800,
+        "Cost": 60,
+        "Params": []
+      }
+    ],
+    "ParamNames": []
+  },
+  {
+    "Id": 30030201,
+    "Levels": [
+      {
+        "CooldownMs": 4000,
+        "Cost": 60,
+        "Params": [
+          85,
+          0.75
+        ]
+      },
+      {
+        "CooldownMs": 4000,
+        "Cost": 65,
+        "Params": [
+          115,
+          0.75
+        ]
+      },
+      {
+        "CooldownMs": 4000,
+        "Cost": 70,
+        "Params": [
+          145,
+          0.75
+        ]
+      },
+      {
+        "CooldownMs": 4000,
+        "Cost": 75,
+        "Params": [
+          175,
+          0.75
+        ]
+      },
+      {
+        "CooldownMs": 4000,
+        "Cost": 80,
+        "Params": [
+          205,
+          0.75
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "magicAttackRatio"
+    ]
+  },
+  {
+    "Id": 30030301,
+    "Levels": [
+      {
+        "CooldownMs": 7000,
+        "Cost": 70,
+        "Params": [
+          70,
+          0.85,
+          5.5,
+          45
+        ]
+      },
+      {
+        "CooldownMs": 7000,
+        "Cost": 70,
+        "Params": [
+          115,
+          0.85,
+          5.5,
+          45
+        ]
+      },
+      {
+        "CooldownMs": 7000,
+        "Cost": 70,
+        "Params": [
+          160,
+          0.85,
+          5.5,
+          45
+        ]
+      },
+      {
+        "CooldownMs": 7000,
+        "Cost": 70,
+        "Params": [
+          205,
+          0.85,
+          5.5,
+          45
+        ]
+      },
+      {
+        "CooldownMs": 7000,
+        "Cost": 70,
+        "Params": [
+          250,
+          0.85,
+          5.5,
+          45
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "magicAttackRatio",
+      "radius",
+      "halfAngleDeg"
+    ]
+  },
+  {
+    "Id": 30030401,
+    "Levels": [
+      {
+        "CooldownMs": 10000,
+        "Cost": 60,
+        "Params": [
+          100,
+          0.4,
+          1.5,
+          2500
+        ]
+      },
+      {
+        "CooldownMs": 10000,
+        "Cost": 60,
+        "Params": [
+          125,
+          0.4,
+          1.5,
+          2500
+        ]
+      },
+      {
+        "CooldownMs": 10000,
+        "Cost": 60,
+        "Params": [
+          150,
+          0.4,
+          1.5,
+          2500
+        ]
+      },
+      {
+        "CooldownMs": 10000,
+        "Cost": 60,
+        "Params": [
+          175,
+          0.4,
+          1.5,
+          2500
+        ]
+      },
+      {
+        "CooldownMs": 10000,
+        "Cost": 60,
+        "Params": [
+          200,
+          0.4,
+          1.5,
+          2500
+        ]
+      }
+    ],
+    "ParamNames": [
+      "shield",
+      "magicAttackRatio",
+      "moveSpeedRatio",
+      "durationMs"
+    ]
+  },
+  {
+    "Id": 30030501,
+    "Levels": [
+      {
+        "CooldownMs": 120000,
+        "Cost": 80,
+        "Params": [
+          150,
+          0.65,
+          1200,
+          50,
+          14000
+        ]
+      },
+      {
+        "CooldownMs": 120000,
+        "Cost": 80,
+        "Params": [
+          200,
+          0.65,
+          1400,
+          60,
+          14000
+        ]
+      },
+      {
+        "CooldownMs": 120000,
+        "Cost": 80,
+        "Params": [
+          250,
+          0.65,
+          1600,
+          70,
+          14000
+        ]
+      },
+      {
+        "CooldownMs": 120000,
+        "Cost": 80,
+        "Params": [
+          300,
+          0.65,
+          1800,
+          80,
+          14000
+        ]
+      },
+      {
+        "CooldownMs": 120000,
+        "Cost": 80,
+        "Params": [
+          350,
+          0.65,
+          2000,
+          90,
+          14000
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "magicAttackRatio",
+      "summonHealth",
+      "summonDamage",
+      "summonDurationMs"
+    ]
   }
 ]

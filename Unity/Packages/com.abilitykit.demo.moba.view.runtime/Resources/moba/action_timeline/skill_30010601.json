@@ -1,0 +1,34 @@
+{
+  "groups": [
+    {
+      "name": "JhinBasicAttack1",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "CastPresentation",
+          "active": true,
+          "actionClips": [
+            {
+              "resourceKey": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_AA_Cast",
+              "resPath": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_AA_Cast.prefab",
+              "startTime": 0.0,
+              "length": 0.1,
+              "name": "PlayParticle",
+              "presentationTemplateId": 90013009,
+              "$type": "AbilityKit.ActionEditorImpl.PlayParticle"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.EffectTrack"
+        }
+      ]
+    }
+  ],
+  "exportMobaRuntime": true,
+  "length": 0.1,
+  "viewTimeMin": 0.0,
+  "viewTimeMax": 0.5,
+  "rangeMin": 0.0,
+  "rangeMax": 0.5,
+  "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
+}

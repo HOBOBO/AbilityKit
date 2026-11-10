@@ -50,14 +50,14 @@ public sealed class MobaCharacterHfsmGatewayPayloadTests
         Assert.Equal(MobaCharacterHfsmWireCodec.CompressedOpCode, opCode);
         var compressedWire = new WireStateSyncSnapshotPush
         {
-            WorldId = 17, Frame = 44, IsFullSnapshot = false, SchemaVersion = 3,
+            WorldId = 17, Frame = 44, IsFullSnapshot = false, SchemaVersion = MobaCharacterHfsmWireCodec.CompressedSchemaVersion,
             PayloadOpCode = opCode, Payload = compressed
         };
         var encoded = WireRoomGatewayBinary.Serialize(in compressedWire);
         var decodedCompressed = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(encoded);
         var compressedGateway = GatewayRoomResponseMapper.ToGatewaySnapshot(in decodedCompressed);
         materialized = state.Apply(in compressedGateway);
-        Assert.Equal(3, materialized.SchemaVersion);
+        Assert.Equal(MobaCharacterHfsmWireCodec.CompressedSchemaVersion, materialized.SchemaVersion);
         Assert.Equal(opCode, materialized.PayloadOpCode);
         Assert.Equal(compressed, materialized.Payload);
         Assert.Equal(44, materialized.Frame);
@@ -69,7 +69,7 @@ public sealed class MobaCharacterHfsmGatewayPayloadTests
         var context = new ActorContext();
         var actor = context.CreateEntity();
         var actors = new MobaActorRegistry();
-        var definition = MobaCharacterHfsmProfile.CreateDefinition();
+        var definition = MobaCharacterHfsmTestFixture.CreateDefinition();
         try
         {
             actors.Register(17, actor);
@@ -92,7 +92,7 @@ public sealed class MobaCharacterHfsmGatewayPayloadTests
             Assert.Equal(MobaCharacterHfsmWireCodec.CompressedOpCode, compressedOpCode);
             actor.characterHfsm.Runtime.Tick(3, Fixed64.FromRaw(3000), true, false, false, 0, 0);
             var encoded = new GatewayStateSyncSnapshot(1, 2, 0, true,
-                Array.Empty<GatewayStateSyncActorSnapshot>(), schemaVersion: 3,
+                Array.Empty<GatewayStateSyncActorSnapshot>(), schemaVersion: MobaCharacterHfsmWireCodec.CompressedSchemaVersion,
                 payloadOpCode: compressedOpCode, payload: compressed);
             Assert.True(CharacterHfsmGatewayStateImporter.TryApply(in encoded, actors, definition));
             Assert.Equal(1, actor.characterHfsm.Runtime.Action.LocalFrame);
@@ -100,14 +100,14 @@ public sealed class MobaCharacterHfsmGatewayPayloadTests
 
             actor.characterHfsm.Runtime.Tick(3, Fixed64.FromRaw(3000), true, false, false, 0, 0);
             var corrupt = new GatewayStateSyncSnapshot(1, 2, 0, true,
-                Array.Empty<GatewayStateSyncActorSnapshot>(), schemaVersion: 3,
+                Array.Empty<GatewayStateSyncActorSnapshot>(), schemaVersion: MobaCharacterHfsmWireCodec.CompressedSchemaVersion,
                 payloadOpCode: compressedOpCode, payload: new byte[] { 1, 2, 3 });
             Assert.Throws<System.IO.InvalidDataException>(() => CharacterHfsmGatewayStateImporter.TryApply(in corrupt,
                 actors, definition));
             Assert.Equal(3, actor.characterHfsm.Runtime.Frame);
 
             var wrongEncoding = new GatewayStateSyncSnapshot(1, 2, 0, true,
-                Array.Empty<GatewayStateSyncActorSnapshot>(), schemaVersion: 3,
+                Array.Empty<GatewayStateSyncActorSnapshot>(), schemaVersion: MobaCharacterHfsmWireCodec.CompressedSchemaVersion,
                 payloadOpCode: MobaCharacterHfsmRollbackProvider.DefaultKey, payload: bytes);
             Assert.False(CharacterHfsmGatewayStateImporter.TryApply(in wrongEncoding, actors, definition));
 

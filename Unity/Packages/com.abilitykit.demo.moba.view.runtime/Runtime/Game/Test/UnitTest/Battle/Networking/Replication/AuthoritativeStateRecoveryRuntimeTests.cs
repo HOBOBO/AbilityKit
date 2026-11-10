@@ -9,6 +9,7 @@ using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Network.Sdk;
+using AbilityKit.Protocol.Room;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 using UnityEngine;
@@ -182,6 +183,51 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void ReliableEventResync_RepeatedInvalidationInSameWindowIsSuppressed()
+        {
+            using var fixture = new Fixture();
+            var pendingRequest = fixture.Transport.EnqueuePendingFullStateRequest();
+            fixture.World.ImportSucceeds = false;
+            fixture.BeginGeneration();
+            fixture.Runtime.HandleSnapshot(FullSnapshot(frame: 24));
+
+            Assert.That(fixture.ReliableEvents.AdoptAuthoritativeBaseline("epoch-1", 0), Is.True);
+            var windowId = fixture.ReliableEvents.RecoveryWindowId;
+            var invalidBatch = Push(Event(2));
+
+            fixture.Runtime.HandleReliableEvents(invalidBatch);
+            fixture.Runtime.HandleReliableEvents(invalidBatch);
+
+            Assert.That(fixture.Transport.FullStateRequests, Has.Count.EqualTo(1));
+            Assert.That(fixture.Runtime.ReliableEventResyncSuppressedCount, Is.EqualTo(1));
+            Assert.That(fixture.ReliableEvents.RecoveryWindowId, Is.EqualTo(windowId));
+
+            pendingRequest.SetResult(false);
+        }
+
+        [Test]
+        public void ReliableEventResync_NewWindowAllowsRetry()
+        {
+            using var fixture = new Fixture();
+            fixture.BeginGeneration();
+            Assert.That(fixture.ReliableEvents.AdoptAuthoritativeBaseline("epoch-1", 0), Is.True);
+
+            var first = Push(Event(2));
+            fixture.Runtime.HandleReliableEvents(first);
+            fixture.Runtime.PendingExecution.GetAwaiter().GetResult();
+            Assert.That(fixture.Transport.FullStateRequests, Has.Count.EqualTo(1));
+
+            fixture.ReliableEvents.RequireAuthoritativeBaseline();
+            Assert.That(fixture.ReliableEvents.AdoptAuthoritativeBaseline("epoch-1", 0), Is.True);
+            var second = Push(Event(2));
+            fixture.Runtime.HandleReliableEvents(second);
+            fixture.Runtime.PendingExecution.GetAwaiter().GetResult();
+
+            Assert.That(fixture.Transport.FullStateRequests, Has.Count.EqualTo(2));
+            Assert.That(fixture.Runtime.ReliableEventResyncSuppressedCount, Is.Zero);
+        }
+
+        [Test]
         public void ReplacedGeneration_StaleFrameworkDecisionCannotMutateActiveGeneration()
         {
             using var fixture = new Fixture();
@@ -339,6 +385,31 @@ namespace AbilityKit.Game.Test.UnitTest
                 ownerNetId: actorId);
         }
 
+        private static WireReliableBattleEventPush Push(params WireReliableBattleEvent[] events)
+        {
+            return new WireReliableBattleEventPush
+            {
+                BattleId = "battle-1",
+                Epoch = "epoch-1",
+                FirstAvailableSequence = events.Length > 0 ? events[0].Sequence : 0,
+                Watermark = events.Length > 0 ? events[events.Length - 1].Sequence : 0,
+                Events = new List<WireReliableBattleEvent>(events)
+            };
+        }
+
+        private static WireReliableBattleEvent Event(long sequence)
+        {
+            return new WireReliableBattleEvent
+            {
+                EventId = $"event-{sequence}",
+                BattleId = "battle-1",
+                Epoch = "epoch-1",
+                Sequence = sequence,
+                SourceFrame = (int)sequence,
+                EventType = 1
+            };
+        }
+
         private sealed class Fixture : IDisposable
         {
             private readonly NetworkTransport _networkTransport;
@@ -373,6 +444,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             internal BattleContext Context { get; }
             internal BattleReplicationRuntime Replication { get; }
+            internal ReliableBattleEventDeliveryRuntime ReliableEvents => _reliableEvents;
             internal TrackingWorldRecoveryPort World { get; }
             internal ControllableTransport Transport { get; }
             internal AuthoritativeStateRecoveryRuntime Runtime { get; }

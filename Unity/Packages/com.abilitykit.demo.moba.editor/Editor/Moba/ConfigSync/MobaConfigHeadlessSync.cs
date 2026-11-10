@@ -40,7 +40,13 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 var table = GetArg(args, "-table");
                 var excelFolder = GetArg(args, "-excelFolder") ?? MobaExcelSync.ExcelFolder;
 
-                if (!string.Equals(mode, "status", StringComparison.OrdinalIgnoreCase))
+                // The legacy JSON/SO sync modes remain retired, but migrate-flows is
+                // deliberately kept as a one-way repair/import utility.  SkillFlowSO
+                // uses SerializeReference authoring data and cannot be reconstructed
+                // through the Excel codec; this mode rebuilds the Def graph from the
+                // published DTO snapshot before the normal Unity pipeline runs.
+                if (!string.Equals(mode, "status", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(mode, "migrate-flows", StringComparison.OrdinalIgnoreCase))
                 {
                     Debug.LogError("[MobaConfigHeadlessSync] Legacy JSON/SO sync is retired. Edit LubanConfig/Moba/Production/Datas and run python LubanConfig/Moba/export_pipeline.py --apply.");
                     if (Application.isBatchMode) EditorApplication.Exit(3);
@@ -364,6 +370,27 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     {
                         failures.Add($"{name}: failed to deserialize {arrayJsonPath}");
                         continue;
+                    }
+
+                    // The aggregate snapshot can lag behind the per-entry files when
+                    // Unity was interrupted during a publish.  Reconcile from the
+                    // entry snapshots here; they are the same DTO shape and retain
+                    // the complete Annie/Jhin additions needed to repair the
+                    // SerializeReference authoring graph.
+                    var entryDirectory = ToAbsolute(Path.Combine(ResourcesMobaFolder, table.FileWithoutExt));
+                    if (Directory.Exists(entryDirectory))
+                    {
+                        var byId = new Dictionary<int, SkillFlowDTO>();
+                        foreach (var dto in dtos ?? Array.Empty<SkillFlowDTO>())
+                        {
+                            if (dto != null && dto.Id > 0) byId[dto.Id] = dto;
+                        }
+                        foreach (var entryPath in Directory.GetFiles(entryDirectory, "*.json", SearchOption.TopDirectoryOnly))
+                        {
+                            var entry = JsonConvert.DeserializeObject<SkillFlowDTO>(File.ReadAllText(entryPath));
+                            if (entry != null && entry.Id > 0) byId[entry.Id] = entry;
+                        }
+                        dtos = new List<SkillFlowDTO>(byId.Values).ToArray();
                     }
 
                     var defs = new List<SkillFlowDef>(dtos.Length);

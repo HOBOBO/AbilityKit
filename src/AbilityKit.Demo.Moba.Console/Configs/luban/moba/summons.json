@@ -16,7 +16,10 @@
     "Tags": [],
     "UnitSubType": 1,
     "BrainId": 1,
-    "InheritAttributeConfigId": 1
+    "InheritAttributeConfigId": 1,
+    "SpawnVfxId": 0,
+    "DeathVfxId": 0,
+    "DespawnVfxId": 0
   },
   {
     "Id": 1008,
@@ -36,7 +39,34 @@
     "StatsMode": 0,
     "Tags": [],
     "UnitSubType": 1008,
-    "BrainId": 100,
-    "InheritAttributeConfigId": 1
+    "BrainId": 101,
+    "InheritAttributeConfigId": 1,
+    "SpawnVfxId": 0,
+    "DeathVfxId": 0,
+    "DespawnVfxId": 0
+  },
+  {
+    "Id": 30030502,
+    "AttrScales": [],
+    "AttributeTemplateId": 30030502,
+    "DefaultComponentTemplateIds": [],
+    "DespawnOnOwnerDie": true,
+    "LifetimeMs": 14000,
+    "MaxAlivePerOwner": 1,
+    "ModelId": 30030502,
+    "Name": "Annie Tibbers",
+    "OverflowPolicy": 0,
+    "PassiveSkillIds": [],
+    "SkillIds": [
+      30030101
+    ],
+    "StatsMode": 0,
+    "Tags": [],
+    "UnitSubType": 1008,
+    "BrainId": 30030501,
+    "InheritAttributeConfigId": 30030502,
+    "SpawnVfxId": 90033006,
+    "DeathVfxId": 0,
+    "DespawnVfxId": 0
   }
 ]

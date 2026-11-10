@@ -13,6 +13,7 @@ using UnityEditor.UIElements;
 using AbilityKit.Editor.Platform.State;
 using AbilityKit.Editor.Platform.UI;
 using AbilityKit.HFSM.Visualization;
+using AbilityKit.HFSM.Editor;
 using LiveRegistry = AbilityKit.HFSM.Visualization.LiveRegistry;
 
 namespace AbilityKit.HFSM.Editor.RuntimeMonitor
@@ -27,6 +28,7 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
         private const string ShowTreeStateKey = "show-tree";
         private const string ShowGraphStateKey = "show-graph";
         private const string SelectedFsmStateKey = "selected-fsm";
+        private const string LayoutModeStateKey = "layout-mode";
 
         [MenuItem("Window/AbilityKit/HFSM 运行时监视器")]
         public static void OpenWindow()
@@ -65,6 +67,11 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
         private bool _showHistory = true;
         private bool _showTreeView = true;
         private bool _showGraphView = true;
+        private GraphLayoutMode _layoutMode = GraphLayoutMode.Hierarchy;
+        private readonly List<string> _layoutLabels = new List<string> { "Hierarchy", "Horizontal", "Vertical", "Grid" };
+        private string _dragPath;
+        private Vector2 _dragOffset;
+        private readonly Dictionary<string, Vector2> _manualPositions = new Dictionary<string, Vector2>();
 
         // 布局引擎
         private AutoLayoutEngine _layoutEngine;
@@ -100,6 +107,7 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             _showTreeView = _userState.GetBool(ShowTreeStateKey, true);
             _showGraphView = _userState.GetBool(ShowGraphStateKey, true);
             _preferredFsmName = _userState.GetString(SelectedFsmStateKey, string.Empty);
+            _layoutMode = (GraphLayoutMode)Mathf.Clamp(_userState.GetInt(LayoutModeStateKey, 0), 0, 3);
 
             // 订阅事件
             LiveRegistry.Changed += OnRegistryChanged;
@@ -209,6 +217,19 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             // 刷新按钮
             var refreshButton = new ToolbarButton(() => RefreshFsmList()) { text = "刷新" };
             toolbar.Add(refreshButton);
+
+            var layout = new PopupField<string>(_layoutLabels, (int)_layoutMode);
+            layout.style.width = 105f;
+            layout.tooltip = "选择运行时图布局";
+            layout.RegisterValueChangedCallback(evt =>
+            {
+                _layoutMode = ParseLayoutMode(evt.newValue);
+                _userState.SetInt(LayoutModeStateKey, (int)_layoutMode);
+                _manualPositions.Clear();
+                UpdateLayout();
+                RepaintViews();
+            });
+            toolbar.Add(layout);
 
             // 视图切换
             var viewToggle = new ToolbarToggle { text = "显示图形" };
@@ -541,7 +562,17 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             if (canvasWidth <= 0) canvasWidth = 600;
             if (canvasHeight <= 0) canvasHeight = 400;
 
-            _layoutEngine.CalculateLayout(_currentSnapshot, canvasWidth, canvasHeight);
+            _layoutEngine.CalculateLayout(_currentSnapshot, canvasWidth, canvasHeight, _layoutMode);
+            for (int i = 0; i < _currentSnapshot.states.Count; i++)
+            {
+                var state = _currentSnapshot.states[i];
+                if (_manualPositions.TryGetValue(state.path, out var position))
+                {
+                    state.x = position.x;
+                    state.y = position.y;
+                    _currentSnapshot.states[i] = state;
+                }
+            }
         }
 
         private void DrawTreeView()
@@ -767,8 +798,79 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
 
             // 绘制节点
             DrawNodes();
+            DrawMiniMap(graphRect);
+            HandleGraphInput(graphRect);
 
             GUI.EndGroup();
+        }
+
+        private static GraphLayoutMode ParseLayoutMode(string value)
+        {
+            switch (value)
+            {
+                case "Horizontal": return GraphLayoutMode.Horizontal;
+                case "Vertical": return GraphLayoutMode.Vertical;
+                case "Grid": return GraphLayoutMode.Grid;
+                default: return GraphLayoutMode.Hierarchy;
+            }
+        }
+
+        private void DrawMiniMap(Rect graphRect)
+        {
+            if (_currentSnapshot == null || _currentSnapshot.states.Count == 0) return;
+            const float width = 180f, height = 115f;
+            var map = new Rect(graphRect.width - width - 10f, graphRect.height - height - 10f, width, height);
+            EditorGUI.DrawRect(map, new Color(0.05f, 0.06f, 0.08f, 0.9f));
+            float maxX = 1f, maxY = 1f;
+            foreach (var state in _currentSnapshot.states) { maxX = Mathf.Max(maxX, state.x + state.width); maxY = Mathf.Max(maxY, state.y + state.height); }
+            float scale = Mathf.Min((width - 10f) / maxX, (height - 10f) / maxY);
+            foreach (var state in _currentSnapshot.states)
+            {
+                var r = new Rect(map.x + state.x * scale, map.y + state.y * scale,
+                    Mathf.Max(3f, state.width * scale), Mathf.Max(3f, state.height * scale));
+                EditorGUI.DrawRect(r, state.isStateMachine ? new Color(0.25f, 0.5f, 0.75f) : new Color(0.55f, 0.6f, 0.68f));
+            }
+            GUI.Label(new Rect(map.x + 5f, map.y + 2f, 100f, 16f), "Mini Map", EditorStyles.miniLabel);
+        }
+
+        private void HandleGraphInput(Rect graphRect)
+        {
+            var e = Event.current;
+            if (_currentSnapshot == null || e.type == EventType.Repaint) return;
+            if (e.type == EventType.MouseDown && e.button == 0)
+            {
+                for (int i = _currentSnapshot.states.Count - 1; i >= 0; i--)
+                {
+                    var state = _currentSnapshot.states[i];
+                    if (new Rect(state.x, state.y, state.width, state.height).Contains(e.mousePosition))
+                    {
+                        _dragPath = state.path;
+                        _dragOffset = e.mousePosition - new Vector2(state.x, state.y);
+                        e.Use();
+                        return;
+                    }
+                }
+            }
+            else if (e.type == EventType.MouseDrag && e.button == 0 && !string.IsNullOrEmpty(_dragPath))
+            {
+                for (int i = 0; i < _currentSnapshot.states.Count; i++)
+                {
+                    var state = _currentSnapshot.states[i];
+                    if (state.path != _dragPath) continue;
+                    state.x = e.mousePosition.x - _dragOffset.x;
+                    state.y = e.mousePosition.y - _dragOffset.y;
+                    _currentSnapshot.states[i] = state;
+                    _manualPositions[state.path] = new Vector2(state.x, state.y);
+                    break;
+                }
+                RepaintViews();
+                e.Use();
+            }
+            else if (e.type == EventType.MouseUp && e.button == 0)
+            {
+                _dragPath = null;
+                e.Use();
+            }
         }
 
         private void DrawGrid(Rect bounds)

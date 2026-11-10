@@ -48,6 +48,14 @@ namespace AbilityKit.Demo.Moba.Services
             return _runners.TryGetValue(actorId, out var runner) && runner != null && runner.TryGetLatestRunningBySlot(slot, out snapshot);
         }
 
+        public bool TryGetLatestRunning(int actorId, out SkillPipelineRunner.RunningSnapshot snapshot)
+        {
+            snapshot = default;
+            if (actorId <= 0) return false;
+            return _runners.TryGetValue(actorId, out var runner) && runner != null &&
+                   runner.TryGetLatestRunning(out snapshot);
+        }
+
         public bool TryGetRunningByInstanceId(int actorId, long instanceId, out SkillPipelineRunner.RunningSnapshot snapshot)
         {
             snapshot = default;

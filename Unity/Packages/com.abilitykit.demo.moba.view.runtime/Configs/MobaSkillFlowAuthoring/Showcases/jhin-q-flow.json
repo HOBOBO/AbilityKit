@@ -1,0 +1,44 @@
+{
+  "Id": 30010101,
+  "Name": "戏命师-曼舞手雷",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "skill_30010101_release",
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "skill_30010101_commit",
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      }
+    },
+    {
+      "Type": 2,
+      "Timeline": {
+        "DurationMs": 500,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30010101,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "jhin_q_cast"
+          }
+        ]
+      }
+    }
+  ]
+}

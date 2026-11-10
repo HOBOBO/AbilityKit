@@ -61,6 +61,7 @@ public sealed class MobaBTreeCombatNodeTests
         Assert.Equal(8f, bb.GetFixed64(MobaBTreeKeys.MoveX).ToSingle());
         Assert.Equal(2f, bb.GetFixed64(MobaBTreeKeys.MoveY).ToSingle());
         Assert.Equal(9f, bb.GetFixed64(MobaBTreeKeys.MoveZ).ToSingle());
+        Assert.Equal(8f, bb.GetFixed64(MobaBTreeKeys.MoveStopRange).ToSingle());
         Assert.False(bb.GetBool(MobaBTreeKeys.HasCast));
     }
 
@@ -154,6 +155,60 @@ public sealed class MobaBTreeCombatNodeTests
         Assert.Equal((long)MobaBTreeIntentKind.Hold, bb.GetInt64(MobaBTreeKeys.OutputKind));
         Assert.False(bb.GetBool(MobaBTreeKeys.HasMove));
         Assert.False(bb.GetBool(MobaBTreeKeys.HasCast));
+    }
+
+    [Fact]
+    public void Launch_heading_ignores_scan_target_and_current_facing_and_obeys_move_gate()
+    {
+        using var runtime = RunSequence(bb =>
+        {
+            bb.SetBool(MobaBTreeKeys.LaunchHeadingValid, true);
+            bb.SetFixed64(MobaBTreeKeys.OwnerX, Fixed64.FromInt32(30));
+            bb.SetFixed64(MobaBTreeKeys.OwnerZ, Fixed64.FromInt32(-20));
+            bb.SetFixed64(MobaBTreeKeys.LaunchHeadingX, Fixed64.One);
+            bb.SetFixed64(MobaBTreeKeys.LaunchHeadingZ, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.OwnerForwardZ, -Fixed64.One);
+            bb.SetBool(MobaBTreeKeys.OwnerCanMove, true);
+            bb.SetBool(MobaBTreeKeys.TargetValid, true);
+            bb.SetInt64(MobaBTreeKeys.TargetId, 77);
+            bb.SetFixed64(MobaBTreeKeys.TargetZ, Fixed64.FromInt32(-8));
+        }, MobaBTreeNodeTypes.MoveAlongLaunchHeading, MobaBTreeNodeTypes.ResolveHeadingAim,
+           MobaBTreeNodeTypes.ArbitrateCombatIntent);
+        var bb = runtime.Blackboard;
+        Assert.True(bb.GetBool(MobaBTreeKeys.HasMove));
+        Assert.True(bb.GetBool(MobaBTreeKeys.MoveIsDirection));
+        Assert.Equal(Fixed64.One, bb.GetFixed64(MobaBTreeKeys.MoveX));
+        Assert.Equal(Fixed64.Zero, bb.GetFixed64(MobaBTreeKeys.MoveZ));
+        Assert.Equal(Fixed64.One, bb.GetFixed64(MobaBTreeKeys.AimDirectionX));
+        Assert.Equal(0, bb.GetInt64(MobaBTreeKeys.AimTargetActorId));
+        runtime.Restart(); // MOBA reactive driver restarts a completed root before taking its checkpoint.
+        var checkpoint = runtime.CaptureState();
+        bb.SetFixed64(MobaBTreeKeys.LaunchHeadingX, -Fixed64.One);
+        runtime.RestoreState(checkpoint);
+        Assert.Equal(Fixed64.One, bb.GetFixed64(MobaBTreeKeys.LaunchHeadingX));
+        MobaBTreeBlackboard.ClearTransientIntents(bb);
+        bb.SetBool(MobaBTreeKeys.OwnerCanMove, false);
+        runtime.Restart(); runtime.Update(2, Fixed64.FromInt32(2));
+        Assert.False(bb.GetBool(MobaBTreeKeys.HasMove));
+        Assert.True(bb.GetBool(MobaBTreeKeys.AimValid));
+    }
+
+    [Fact]
+    public void Explicit_arbiter_policy_combines_cast_and_movement()
+    {
+        var definition = NewDefinition();
+        var arbiter = Leaf("root", MobaBTreeNodeTypes.ArbitrateCombatIntent);
+        arbiter.Properties.Set("allowMoveWithCast", PropertyValue.Of(true));
+        definition.Nodes.Add(arbiter);
+        using var runtime = Run(definition, bb =>
+        {
+            bb.SetBool(MobaBTreeKeys.CastRequestValid, true);
+            bb.SetInt64(MobaBTreeKeys.CastRequestPriority, 100);
+            bb.SetBool(MobaBTreeKeys.MoveRequestValid, true);
+            bb.SetInt64(MobaBTreeKeys.MoveRequestPriority, 50);
+        });
+        Assert.True(runtime.Blackboard.GetBool(MobaBTreeKeys.HasMove));
+        Assert.True(runtime.Blackboard.GetBool(MobaBTreeKeys.HasCast));
     }
 
     private static void SetupApproach(Blackboard bb)

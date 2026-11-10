@@ -55,6 +55,7 @@ namespace AbilityKit.Demo.Moba.Services
             _modifierProjectors = new MobaContinuousModifierProjectorRegistry();
             _modifierProjectors.Register(new MobaAttributeContinuousModifierProjector());
             _modifierProjectors.Register(new MobaSkillParamContinuousModifierProjector());
+            _modifierProjectors.Register(new MobaStateMachineParameterContinuousModifierProjector());
             _modifierProjectors.Register(new MobaSkillSlotCandidateProjector());
             _modifierProjectors.Register(new MobaReferenceCandidateProjector());
             _modifierProjectors.OnInit(services);

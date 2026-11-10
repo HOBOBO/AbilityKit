@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Flow.Battle.View;
@@ -26,13 +27,14 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             IBattleEntityQuery query,
             BattleVfxManager vfx,
             in EC.IEntity vfxNode,
-            BattleSummonVfxResolver vfxs = null)
+            BattleSummonVfxResolver vfxs = null,
+            MobaConfigDatabase configs = null)
         {
             _query = query;
             _vfx = vfx;
             _vfxNode = vfxNode;
             _presentation = new BattleVfxPresentationService(vfxNode.World, vfx, in vfxNode);
-            _vfxs = vfxs ?? new BattleSummonVfxResolver();
+            _vfxs = vfxs ?? new BattleSummonVfxResolver(configs);
         }
 
         public void Handle(string eventId, in DemoMobaSummonEventPayload payload)
@@ -66,7 +68,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var vfxId = _vfxs.ResolveSpawnVfxId(payload.SummonId);
             if (vfxId <= 0) return;
 
-            _presentation.PlayTransient("summon:spawn:" + payload.SummonActorId, vfxId, in position, 2000);
+            _presentation.TryPlayTransient("summon:spawn:" + payload.SummonActorId, vfxId, in position, 2000, out _);
             Log.Info($"[SummonView] Spawn VFX {vfxId} at ({position.x:F1}, {position.z:F1}) for SummonId={payload.SummonId}");
         }
 
@@ -77,7 +79,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var vfxId = _vfxs.ResolveDeathVfxId(payload.SummonId);
             if (vfxId <= 0) return;
 
-            _presentation.PlayTransient("summon:die:" + payload.SummonActorId, vfxId, in position, 1500);
+            _presentation.TryPlayTransient("summon:die:" + payload.SummonActorId, vfxId, in position, 1500, out _);
             Log.Info($"[SummonView] Death VFX {vfxId} at ({position.x:F1}, {position.z:F1}) for SummonId={payload.SummonId}, Reason={payload.Reason}");
         }
 
@@ -88,7 +90,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var vfxId = _vfxs.ResolveDespawnVfxId(payload.SummonId);
             if (vfxId <= 0) return;
 
-            _presentation.PlayTransient("summon:despawn:" + payload.SummonActorId, vfxId, in position, 1000);
+            _presentation.TryPlayTransient("summon:despawn:" + payload.SummonActorId, vfxId, in position, 1000, out _);
             Log.Info($"[SummonView] Despawn VFX {vfxId} at ({position.x:F1}, {position.z:F1}) for SummonId={payload.SummonId}, Reason={payload.Reason}");
         }
 
@@ -108,39 +110,42 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
     }
 
     /// <summary>
-    /// Resolves VFX IDs for summon lifecycle events.
-    /// Currently returns placeholder IDs; wire to a summon-config-driven resolver once
-    /// <c>SummonMO</c> has VFX fields.
+    /// Resolves VFX IDs for summon lifecycle events from the published summon
+    /// configuration. Development placeholders are only allowed when no
+    /// configuration database is supplied; a loaded config with an unset field
+    /// intentionally produces no VFX request.
     /// </summary>
     internal sealed class BattleSummonVfxResolver
     {
-        // Placeholder VFX IDs for summon events. Wire to configs when available.
+        private readonly MobaConfigDatabase _configs;
         private const int DefaultSpawnVfx = BattleViewPlaceholderIds.SummonSpawnVfx;
         private const int DefaultDeathVfx = BattleViewPlaceholderIds.ActorDeathVfx;
         private const int DefaultDespawnVfx = BattleViewPlaceholderIds.SummonDespawnVfx;
 
+        public BattleSummonVfxResolver(MobaConfigDatabase configs = null) => _configs = configs;
+
         public int ResolveSpawnVfxId(int summonId)
         {
-            // TODO: resolve from summon config: configs.TryGetSummon(summonId, out var s) → s.SpawnVfxId
-            return summonId > 0
-                ? BattleViewFallbackPolicy.DevelopmentOnly(DefaultSpawnVfx, "summon.spawn:" + summonId)
-                : 0;
+            if (_configs != null && _configs.TryGetSummon(summonId, out var summon) && summon != null && summon.SpawnVfxId > 0)
+                return summon.SpawnVfxId;
+            return _configs == null && summonId > 0
+                ? BattleViewFallbackPolicy.DevelopmentOnly(DefaultSpawnVfx, "summon.spawn:" + summonId) : 0;
         }
 
         public int ResolveDeathVfxId(int summonId)
         {
-            // TODO: resolve from summon config
-            return summonId > 0
-                ? BattleViewFallbackPolicy.DevelopmentOnly(DefaultDeathVfx, "summon.death:" + summonId)
-                : 0;
+            if (_configs != null && _configs.TryGetSummon(summonId, out var summon) && summon != null && summon.DeathVfxId > 0)
+                return summon.DeathVfxId;
+            return _configs == null && summonId > 0
+                ? BattleViewFallbackPolicy.DevelopmentOnly(DefaultDeathVfx, "summon.death:" + summonId) : 0;
         }
 
         public int ResolveDespawnVfxId(int summonId)
         {
-            // TODO: resolve from summon config
-            return summonId > 0
-                ? BattleViewFallbackPolicy.DevelopmentOnly(DefaultDespawnVfx, "summon.despawn:" + summonId)
-                : 0;
+            if (_configs != null && _configs.TryGetSummon(summonId, out var summon) && summon != null && summon.DespawnVfxId > 0)
+                return summon.DespawnVfxId;
+            return _configs == null && summonId > 0
+                ? BattleViewFallbackPolicy.DevelopmentOnly(DefaultDespawnVfx, "summon.despawn:" + summonId) : 0;
         }
     }
 
@@ -189,7 +194,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                     "actor.death:" + entityCode);
             }
 
-            _presentation.PlayTransient("actor:death:" + actorId, vfxId, in position, 2000);
+            _presentation.TryPlayTransient("actor:death:" + actorId, vfxId, in position, 2000, out _);
             Log.Info($"[DeathView] Death VFX {vfxId} at ({position.x:F1}, {position.y:F1}, {position.z:F1}) for ActorId={actorId}");
         }
 
@@ -262,7 +267,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                     "actor.respawn:" + entityCode);
             }
 
-            _presentation.PlayTransient("actor:respawn:" + actorId, vfxId, in position, 1500);
+            _presentation.TryPlayTransient("actor:respawn:" + actorId, vfxId, in position, 1500, out _);
             Log.Info($"[RespawnView] Respawn VFX {vfxId} at ({position.x:F1}, {position.y:F1}, {position.z:F1}) for ActorId={actorId}");
         }
 

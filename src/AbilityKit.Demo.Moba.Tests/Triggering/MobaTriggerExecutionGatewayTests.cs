@@ -1,6 +1,9 @@
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
+using AbilityKit.Triggering.Runtime.Config.Plans;
+using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Runtime.Plan.Json;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Triggering;
@@ -44,6 +47,35 @@ public sealed class MobaTriggerExecutionGatewayTests
         Assert.Equal(nameof(TestPayload), gateway.Stats.LastPayloadType);
         Assert.Equal(1, diagnostics.CounterValue("moba.trigger.direct.requested"));
         Assert.Equal(1, diagnostics.CounterValue("moba.trigger.direct.missingEffects"));
+    }
+
+    [Fact]
+    public void ExecuteDirectTrigger_does_not_count_owner_bound_plan_as_executed()
+    {
+        const int triggerId = 7002;
+        var plans = new TriggerPlanJsonDatabase();
+        var plan = new TriggerPlan<object>(phase: 0, priority: 0, triggerId: triggerId);
+        plans.AddRecord(new TriggerPlanJsonDatabase.Record(
+            triggerId,
+            eventName: "damage.apply.after",
+            eventId: 1,
+            scope: TriggerPlanScope.OwnerBound,
+            in plan));
+
+        var effects = new MobaEffectExecutionService();
+        typeof(MobaEffectExecutionService)
+            .GetField("_planDb", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .SetValue(effects, plans);
+        var diagnostics = new TestDiagnosticsService();
+        var gateway = new MobaTriggerExecutionGateway(effects, subscriptions: null, diagnostics);
+        var request = MobaTriggerExecutionRequest<string>.Create(triggerId, "payload", "test.owner-direct");
+
+        gateway.ExecuteDirectTrigger(in request);
+
+        Assert.Equal(1, gateway.Stats.DirectRequests);
+        Assert.Equal(0, gateway.Stats.DirectExecuted);
+        Assert.Equal(1, diagnostics.CounterValue("moba.trigger.direct.requested"));
+        Assert.Equal(0, diagnostics.CounterValue("moba.trigger.direct.executed"));
     }
 
     [Fact]

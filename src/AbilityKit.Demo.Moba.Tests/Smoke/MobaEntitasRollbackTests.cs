@@ -56,7 +56,7 @@ public sealed class MobaEntitasRollbackTests
         actor.AddActorId(1);
         actor.AddLifetime(100);
         var original = new ActiveSkillRuntime { SkillId = 7, Level = 2, CurrentCharges = 3 };
-        actor.AddSkillLoadout(new[] { original }, new[] { new PassiveSkillRuntime { PassiveSkillId = 9, Level = 1 } });
+        actor.AddSkillLoadout(0, new[] { original }, new[] { new PassiveSkillRuntime { PassiveSkillId = 9, Level = 1 } });
         var provider = new MobaEntitasComponentRollbackProvider(context);
         var frame = new FrameIndex(4);
         var payload = provider.Export(frame);

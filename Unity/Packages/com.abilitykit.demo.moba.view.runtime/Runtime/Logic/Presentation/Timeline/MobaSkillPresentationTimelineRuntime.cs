@@ -42,6 +42,12 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
             CancellationToken cancellationToken);
     }
 
+    public interface IMobaPresentationTemplateResolver
+    {
+        bool TryCreateRequest(int templateId, string logicalKey, GroupDto group, int durationMs,
+            float offsetSeconds, out PresentationRequest request);
+    }
+
     public sealed class MobaSkillPresentationTimelineRuntime
     {
         private const string AnimationType = "AbilityKit.ActionEditorImpl.PlayAnimation";
@@ -50,17 +56,23 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
         private readonly IMobaSkillPresentationTimelineSink _sink;
         private readonly CancellationTokenSource _dispatchCancellation = new CancellationTokenSource();
         private readonly long _skillInstanceId;
+        private readonly IMobaPresentationTemplateResolver _templateResolver;
+        private readonly PresentationRateResolver _rateResolver;
         private int _next;
         private float _time;
         private bool _started;
         private bool _stopped;
 
-        public MobaSkillPresentationTimelineRuntime(long skillInstanceId, string json, IMobaSkillPresentationTimelineSink sink)
-            : this(skillInstanceId, ActionTimelineJson.LoadForRuntime(json, ActionTimelineRuntimeTypes.Presentation), sink)
+        public MobaSkillPresentationTimelineRuntime(long skillInstanceId, string json, IMobaSkillPresentationTimelineSink sink,
+            IMobaPresentationTemplateResolver templateResolver = null,
+            PresentationRateResolver rateResolver = null)
+            : this(skillInstanceId, ActionTimelineJson.LoadForRuntime(json, ActionTimelineRuntimeTypes.Presentation), sink, templateResolver, rateResolver)
         {
         }
 
-        public MobaSkillPresentationTimelineRuntime(long skillInstanceId, SkillAssetDto asset, IMobaSkillPresentationTimelineSink sink)
+        public MobaSkillPresentationTimelineRuntime(long skillInstanceId, SkillAssetDto asset, IMobaSkillPresentationTimelineSink sink,
+            IMobaPresentationTemplateResolver templateResolver = null,
+            PresentationRateResolver rateResolver = null)
         {
             if (skillInstanceId <= 0) throw new ArgumentOutOfRangeException(nameof(skillInstanceId));
             _sink = sink ?? throw new ArgumentNullException(nameof(sink));
@@ -68,6 +80,8 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
                 throw new InvalidDataException("A versioned MOBA presentation timeline is required.");
             ActionTimelinePartition.Validate(asset, ActionTimelineRuntimeTypes.Presentation);
             _skillInstanceId = skillInstanceId;
+            _templateResolver = templateResolver;
+            _rateResolver = rateResolver;
 
             foreach (var group in asset.groups)
             {
@@ -78,10 +92,12 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
                     foreach (var clip in track.clips)
                     {
                         if (clip == null) continue;
-                        var keyName = clip.type == AnimationType ? "clipKey" :
-                            clip.type == ParticleType ? "resourceKey" : null;
-                        if (keyName == null || clip.args == null ||
-                            !clip.args.TryGetValue(keyName, out var key) || string.IsNullOrWhiteSpace(key))
+                        var valid = clip.args != null && (clip.type == AnimationType
+                            ? clip.args.TryGetValue("clipKey", out var key) && !string.IsNullOrWhiteSpace(key)
+                            : clip.type == ParticleType &&
+                              (clip.args.TryGetValue("presentationTemplateId", out var id) && int.TryParse(id, out var templateId) && templateId > 0 ||
+                               clip.args.TryGetValue("resourceKey", out var legacy) && !string.IsNullOrWhiteSpace(legacy)));
+                        if (!valid)
                             throw new InvalidDataException("Unsupported or invalid MOBA presentation clip: " + clip.type);
                         _clips.Add((group, clip, _clips.Count));
                     }
@@ -113,6 +129,23 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
             if (!_started) throw new InvalidOperationException("Timeline has not started.");
             if (float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds) || deltaSeconds < 0)
                 throw new ArgumentOutOfRangeException(nameof(deltaSeconds));
+            var effectiveDelta = _rateResolver == null
+                ? deltaSeconds
+                : _rateResolver.Resolve(deltaSeconds, PresentationRateChannel.SkillTimeline).DeltaSeconds;
+            Advance(effectiveDelta);
+        }
+
+        public void TickUnscaled(float deltaSeconds)
+        {
+            if (_stopped) return;
+            if (!_started) throw new InvalidOperationException("Timeline has not started.");
+            if (float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds) || deltaSeconds < 0)
+                throw new ArgumentOutOfRangeException(nameof(deltaSeconds));
+            Advance(deltaSeconds);
+        }
+
+        private void Advance(float deltaSeconds)
+        {
             _time += deltaSeconds;
             DispatchDueClips();
         }
@@ -132,6 +165,9 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
             {
                 var entry = _clips[_next++];
                 var offset = Math.Max(0, _time - entry.Clip.start);
+                System.Diagnostics.Trace.WriteLine("[MobaPresentation] Dispatch skill=" + _skillInstanceId +
+                    " clip=" + entry.Clip.type + " start=" + entry.Clip.start +
+                    " time=" + _time + " offset=" + offset);
                 if (entry.Clip.length > 0 && offset >= entry.Clip.length) continue;
                 if (entry.Clip.length == 0 && offset > 0) continue;
                 var request = CreateRequest(entry.Group, entry.Clip, entry.Index, offset);
@@ -199,8 +235,18 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
             int index,
             float offset)
         {
-            var resource = clip.args[clip.type == AnimationType ? "clipKey" : "resourceKey"];
+            var isAnimation = clip.type == AnimationType;
+            var resource = isAnimation ? clip.args["clipKey"] : string.Empty;
             var durationMs = clip.length > 0 ? (int)Math.Max(1, clip.length * 1000f) : 0;
+            if (!isAnimation && _templateResolver != null &&
+                clip.args.TryGetValue("presentationTemplateId", out var templateText) &&
+                int.TryParse(templateText, out var templateId) &&
+                _templateResolver.TryCreateRequest(templateId,
+                    "timeline:" + _skillInstanceId + ":" + index, group, durationMs, offset, out var configured))
+                return configured;
+            if (!isAnimation && clip.args.ContainsKey("presentationTemplateId"))
+                throw new InvalidDataException("Unable to resolve MOBA presentation template for PlayParticle.");
+            if (!isAnimation) resource = clip.args["resourceKey"];
             return new PresentationRequest(
                 "timeline:" + _skillInstanceId + ":" + index,
                 assetId: 0,
@@ -209,9 +255,9 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
                 durationMs: durationMs,
                 scale: 0.55f,
                 parameters: new[] { new PresentationParameter("offsetSeconds", offset) },
-                resourceKey: clip.type == AnimationType ? string.Empty : resource,
-                assetKind: clip.type == AnimationType ? PresentationAssetKind.Animation : PresentationAssetKind.Particle,
-                playback: clip.type == AnimationType
+                resourceKey: isAnimation ? string.Empty : resource,
+                assetKind: isAnimation ? PresentationAssetKind.Animation : PresentationAssetKind.Particle,
+                playback: isAnimation
                     ? new PresentationPlaybackSpec(clipKey: resource, normalizedTime: offset > 0f ? offset / Math.Max(clip.length, 0.0001f) : 0f)
                     : PresentationPlaybackSpec.Default);
         }

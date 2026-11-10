@@ -35,7 +35,8 @@ namespace AbilityKit.Demo.Moba.Share
                 forwardY: entry.ForwardY,
                 forwardZ: entry.ForwardZ,
                 rotationY: 0f,
-                scale: 1f);
+                scale: entry.Scale,
+                hasScale: true);
         }
     }
 }

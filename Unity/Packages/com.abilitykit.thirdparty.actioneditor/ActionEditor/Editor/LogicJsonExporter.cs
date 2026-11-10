@@ -49,7 +49,20 @@ namespace NBC.ActionEditor
             if (!(asset is IActionTimelineRuntimeAsset marked) || !marked.ExportMobaRuntime)
                 throw new InvalidDataException("MOBA timeline must opt in to runtime export: " + assetPath);
             asset.Init();
+            ValidateMobaTimeline(asset, assetPath);
             ExportLogicJson(asset, Path.GetFullPath(Path.Combine(Application.dataPath, "..", assetPath)));
+        }
+
+        private static void ValidateMobaTimeline(Asset asset, string assetPath)
+        {
+            if (!(asset is IActionTimelineRuntimeAsset marked) || !marked.ExportMobaRuntime)
+                throw new InvalidDataException("MOBA timeline must opt in to runtime export: " + assetPath);
+
+            var source = ToDto(asset);
+            var logic = ActionTimelinePartition.Create(source, ActionTimelineRuntimeTypes.Logic);
+            var presentation = ActionTimelinePartition.Create(source, ActionTimelineRuntimeTypes.Presentation);
+            ActionTimelinePartition.Validate(logic, ActionTimelineRuntimeTypes.Logic);
+            ActionTimelinePartition.Validate(presentation, ActionTimelineRuntimeTypes.Presentation);
         }
 
         public static void ExportLogicJson(Asset assetData, string editorJsonPath)

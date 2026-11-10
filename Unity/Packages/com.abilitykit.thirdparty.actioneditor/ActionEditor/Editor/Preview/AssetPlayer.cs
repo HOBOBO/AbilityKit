@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEditor;
 
 namespace NBC.ActionEditor
 {
@@ -12,8 +13,21 @@ namespace NBC.ActionEditor
         PlayingBackwards
     }
     
+    [InitializeOnLoad]
     public class AssetPlayer
     {
+        static AssetPlayer()
+        {
+            AssemblyReloadEvents.beforeAssemblyReload += ResetCurrentPreview;
+            EditorApplication.quitting += ResetCurrentPreview;
+            EditorApplication.playModeStateChanged += _ => ResetCurrentPreview();
+        }
+
+        private static void ResetCurrentPreview()
+        {
+            if (_inst != null) App.Stop();
+        }
+
         private static AssetPlayer _inst;
 
         public static AssetPlayer Inst
@@ -43,6 +57,29 @@ namespace NBC.ActionEditor
         public float previousTime { get; private set; }
 
         private bool preInitialized;
+        private readonly List<PreviewBase> previews = new List<PreviewBase>();
+
+        public void ResetPreview()
+        {
+            // Preserve the existing rewind behavior for movement/animation previews
+            // before disposing their owned resources. Do not enter unvisited clips.
+            if (timePointers != null)
+                for (var i = timePointers.Count - 1; i >= 0; i--)
+                {
+                    try { timePointers[i].TriggerBackward(0, previousTime); }
+                    catch (Exception e) { Debug.LogException(e); }
+                }
+            foreach (var preview in previews)
+            {
+                try { preview.Dispose(); }
+                catch (Exception e) { Debug.LogException(e); }
+            }
+            previews.Clear();
+            timePointers = null;
+            unsortedStartTimePointers = null;
+            preInitialized = false;
+            currentTime = previousTime = 0;
+        }
 
         public Asset Asset => App.AssetData;
 
@@ -149,6 +186,11 @@ namespace NBC.ActionEditor
         /// </summary>
         public void InitializePreviewPointers()
         {
+            // Rebuilding pointers owns the old previews, even when the asset is cleared.
+            var sampleTime = currentTime;
+            ResetPreview();
+            currentTime = sampleTime;
+            if (Asset == null) return;
             timePointers = new List<IDirectableTimePointer>();
             unsortedStartTimePointers = new List<IDirectableTimePointer>();
 
@@ -156,7 +198,9 @@ namespace NBC.ActionEditor
             var childs = EditorTools.GetTypeMetaDerivedFrom(typeof(PreviewBase));
             foreach (var t in childs)
             {
-                var arrs = t.type.GetCustomAttributes(typeof(CustomPreviewAttribute), true);
+                // Only explicit registrations participate; private test/helper subclasses
+                // must not replace an application's registered preview through inheritance.
+                var arrs = t.type.GetCustomAttributes(typeof(CustomPreviewAttribute), false);
                 foreach (var arr in arrs)
                 {
                     if (arr is CustomPreviewAttribute c)
@@ -192,6 +236,7 @@ namespace NBC.ActionEditor
                         if (Activator.CreateInstance(t1) is PreviewBase preview)
                         {
                             preview.SetTarget(track);
+                            previews.Add(preview);
                             var p3 = new StartTimePointer(preview);
                             timePointers.Add(p3);
                 
@@ -208,6 +253,7 @@ namespace NBC.ActionEditor
                             if (Activator.CreateInstance(t) is PreviewBase preview)
                             {
                                 preview.SetTarget(clip);
+                                previews.Add(preview);
                                 var p3 = new StartTimePointer(preview);
                                 timePointers.Add(p3);
                 

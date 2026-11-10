@@ -3,6 +3,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Game.Battle.Diagnostics.Capture;
 using AbilityKit.Protocol.Moba;
 using UnityEngine;
 
@@ -153,7 +154,7 @@ namespace AbilityKit.Game.Flow
             _hudInput.SetSkillAim(slot, dx, dz, aiming);
         internal void CancelSkillAim() => _hudInput.CancelSkillAim();
 
-        internal void SubmitSkillAim(int slot, float aimDx, float aimDz)
+        internal void SubmitSkillAim(int slot, float aimDx, float aimDz, bool includeAimPosition = true)
         {
             var offset = new Vector3(aimDx, 0f, aimDz);
             var projection = _aimProjection != null
@@ -165,9 +166,9 @@ namespace AbilityKit.Game.Flow
                 slot,
                 aimDx,
                 aimDz,
-                projection.Position.x,
-                projection.Position.y,
-                projection.Position.z,
+                includeAimPosition ? projection.Position.x : 0f,
+                includeAimPosition ? projection.Position.y : 0f,
+                includeAimPosition ? projection.Position.z : 0f,
                 projection.Direction.x,
                 projection.Direction.y,
                 projection.Direction.z);
@@ -196,10 +197,12 @@ namespace AbilityKit.Game.Flow
             var context = _context;
             if (context == null || !context.CanSubmitGameplayInput || context.Session == null)
             {
+                context?.BattleCapture?.RecordInputCommand(in command, false);
                 return false;
             }
 
             context.InputRecordWriter?.Append(in command);
+            context.BattleCapture?.RecordInputCommand(in command, true);
             context.Session.SubmitInput(new SubmitInputRequest(worldId, command));
             LocalInputQueue.Enqueue(new LocalPlayerInputEvent(
                 command.Frame,

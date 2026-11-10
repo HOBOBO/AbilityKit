@@ -41,6 +41,21 @@ namespace AbilityKit.Demo.Moba.Services.Search
             int maxCountOverride,
             out SearchQuery query)
         {
+            var aimDir = Vec3.Zero;
+            return TryBuild(template, context, casterActorId, in aimPos, in aimDir,
+                explicitTargetActorId, maxCountOverride, out query);
+        }
+
+        public bool TryBuild(
+            SearchQueryTemplateMO template,
+            SearchContext context,
+            int casterActorId,
+            in Vec3 aimPos,
+            in Vec3 aimDir,
+            int explicitTargetActorId,
+            int maxCountOverride,
+            out SearchQuery query)
+        {
             query = default;
             if (template == null)
             {
@@ -68,6 +83,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
                 context,
                 casterActorId,
                 aimPos,
+                aimDir,
                 explicitTargetActorId,
                 _zeroScorer,
                 _topKSelector,

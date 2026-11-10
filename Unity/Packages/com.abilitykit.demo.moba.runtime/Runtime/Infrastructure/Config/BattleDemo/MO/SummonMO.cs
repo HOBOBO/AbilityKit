@@ -27,6 +27,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public IReadOnlyList<int> PassiveSkillIds { get; }
 
         public int BrainId { get; }
+        public int SpawnVfxId { get; }
+        public int DeathVfxId { get; }
+        public int DespawnVfxId { get; }
 
         /// <summary>继承属性配置 id：指向属性继承表获取继承属性占比。0 = 不继承。</summary>
         public int InheritAttributeConfigId { get; }
@@ -74,6 +77,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             SkillIds = dto.SkillIds ?? Array.Empty<int>();
             PassiveSkillIds = dto.PassiveSkillIds ?? Array.Empty<int>();
             BrainId = dto.BrainId;
+            SpawnVfxId = dto.SpawnVfxId;
+            DeathVfxId = dto.DeathVfxId;
+            DespawnVfxId = dto.DespawnVfxId;
             InheritAttributeConfigId = dto.InheritAttributeConfigId;
             DefaultComponentTemplateIds = dto.DefaultComponentTemplateIds ?? Array.Empty<int>();
             Tags = dto.Tags ?? Array.Empty<int>();

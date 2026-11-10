@@ -30,7 +30,7 @@ ENUMS = {
                              771: "RectangleShape", 772: "CapsuleShape"},
     "SearchTargetScorerKind": {8193: "Zero", 8194: "SeededHashRandom",
                                8196: "DistanceToCaster", 8197: "DistanceToExplicitTarget"},
-    "SearchTargetPointKind": ["Caster", "AimPosition", "ExplicitTarget"],
+    "SearchTargetPointKind": ["Caster", "AimPosition", "ExplicitTarget", "ProjectileHit"],
     "MapCollisionShapeType": ["Box", "Sphere", "Capsule"],
     "MapProjectileResponse": ["Default", "Block", "Ignore", "HitOnly", "Pierce"],
     "BattleRunMode": ["Normal", "Record", "Replay"],

@@ -69,7 +69,7 @@
           "Events": [
             {
               "AtMs": 0,
-              "EffectId": 10010000,
+              "EffectId": 10010901,
               "ExecuteMode": 0,
               "AbortOnFailure": false,
               "EventTag": "lp_passive_armor_start"
@@ -120,7 +120,7 @@
           "Events": [
             {
               "AtMs": 0,
-              "EffectId": 10010000,
+              "EffectId": 10010901,
               "ExecuteMode": 0,
               "AbortOnFailure": false,
               "EventTag": "lp_passive_armor_start"
@@ -174,7 +174,7 @@
               "Events": [
                 {
                   "AtMs": 0,
-                  "EffectId": 10010000,
+                  "EffectId": 10010901,
                   "ExecuteMode": 0,
                   "AbortOnFailure": false,
                   "EventTag": "lp_passive_armor_start"
@@ -1437,6 +1437,851 @@
               "ExecuteMode": 0,
               "AbortOnFailure": false,
               "EventTag": "luban_airship_bomb"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30010101,
+    "Name": "戏命师-曼舞手雷",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010101_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010101_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30010101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "jhin_q_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30010201,
+    "Name": "Jhin - Deadly Flourish",
+    "PipelineContinuousTagTemplateId": 3015,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010201_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010201_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30010201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "jhin_w_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30010301,
+    "Name": "Jhin - Captive Audience",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010301_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010301_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30010301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "jhin_e_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30010401,
+    "Name": "Jhin - Curtain Call",
+    "PipelineContinuousTagTemplateId": 3015,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010401_release",
+        "RulePlan": {
+          "TriggerIds": [
+            30010400
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010401_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30010501,
+    "Name": "Jhin - Curtain Call Regular Shot",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010501_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010501_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "skill_30010501_shot",
+        "Timeline": {
+          "DurationMs": 50,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30010401,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "jhin_r_regular_shot"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30010502,
+    "Name": "Jhin - Curtain Call Final Shot",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010502_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010502_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "skill_30010502_shot",
+        "Timeline": {
+          "DurationMs": 50,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30010411,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "jhin_r_final_shot"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30010601,
+    "Name": "Jhin - Basic Attack 1",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 18,
+        "PhaseId": "selected_parameters_commit",
+        "CommitPoint": {
+          "CommitId": "shot",
+          "RequireEconomyReservation": false
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "skill_30010601_shot",
+        "Timeline": {
+          "DurationMs": 100,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30010601,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "jhin_basic_attack_1"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30010602,
+    "Name": "Jhin - Basic Attack 2",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 18,
+        "PhaseId": "selected_parameters_commit",
+        "CommitPoint": {
+          "CommitId": "shot",
+          "RequireEconomyReservation": false
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "skill_30010602_shot",
+        "Timeline": {
+          "DurationMs": 100,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30010602,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "jhin_basic_attack_2"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30010603,
+    "Name": "Jhin - Basic Attack 3",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 18,
+        "PhaseId": "selected_parameters_commit",
+        "CommitPoint": {
+          "CommitId": "shot",
+          "RequireEconomyReservation": false
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "skill_30010603_shot",
+        "Timeline": {
+          "DurationMs": 100,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30010603,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "jhin_basic_attack_3"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30010604,
+    "Name": "Jhin - Basic Attack 4",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 18,
+        "PhaseId": "selected_parameters_commit",
+        "CommitPoint": {
+          "CommitId": "shot",
+          "RequireEconomyReservation": false
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "skill_30010604_shot",
+        "Timeline": {
+          "DurationMs": 100,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30010604,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "jhin_basic_attack_4"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30020002,
+    "Name": "Jinx - Pow-Pow Basic Attack",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30020002_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            30020201
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "basic_attack_launch_failed"
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30020003,
+    "Name": "Jinx - Fishbones Basic Attack",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30020003_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            30020202
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "basic_attack_launch_failed"
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30020101,
+    "Name": "Jinx - Switcheroo!",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30020101_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "skill_30020101_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012,
+            30020101
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30020201,
+    "Name": "Jinx - Zap!",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30020201_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "skill_30020201_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30020203,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "jinx_w_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30020301,
+    "Name": "Jinx - Flame Chompers!",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30020301_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "skill_30020301_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30020303,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "jinx_e_deploy_three_traps"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30020401,
+    "Name": "Jinx - Super Mega Death Rocket!",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30020401_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "skill_30020401_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30020403,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "jinx_r_launch_rocket"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30030101,
+    "Name": "Annie - Basic Attack",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 2,
+        "PhaseId": "annie_basic_attack",
+        "Timeline": {
+          "DurationMs": 250,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30030101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "annie_basic_attack"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30030201,
+    "Name": "Annie - Disintegrate",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "annie_q_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": false,
+          "FailReason": "skill_economy_reserve_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "annie_q_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "annie_q_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "annie_q_cast",
+        "Timeline": {
+          "DurationMs": 800,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30030201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "annie_q_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30030301,
+    "Name": "Annie - Incinerate",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "annie_w_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": false,
+          "FailReason": "skill_economy_reserve_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "annie_w_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "annie_w_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "annie_w_cast",
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30030301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "annie_w_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30030401,
+    "Name": "Annie - Molten Shield",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "annie_e_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": false,
+          "FailReason": "skill_economy_reserve_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "annie_e_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "annie_e_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "annie_e_cast",
+        "Timeline": {
+          "DurationMs": 600,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30030401,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "annie_e_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30030501,
+    "Name": "Annie - Summon Tibbers",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "annie_r_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "annie_r_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "annie_r_cast",
+        "Timeline": {
+          "DurationMs": 900,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30030501,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "annie_r_cast"
             }
           ]
         }

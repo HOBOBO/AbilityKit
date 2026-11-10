@@ -1,4 +1,6 @@
 using AbilityKit.Game.Battle.Vfx;
+using AbilityKit.Game.Battle.Component;
+using UnityEngine;
 using System.Threading;
 using System.Threading.Tasks;
 using EC = AbilityKit.World.ECS;
@@ -44,7 +46,56 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 spec.FollowTargetActorId > 0
                     ? new PresentationAttachment(PresentationAttachmentKind.Projectile, spec.FollowTargetActorId)
                     : default);
-            return _presentation.TryPlay(in request, spec.FollowTarget, out _);
+            if (!_presentation.TryPlay(in request, spec.FollowTarget, out var handle)) return false;
+            if (spec.PlayProjectileSpawn) PlayProjectileSpawn(spec.VfxId, in handle);
+            return true;
+        }
+
+        private void PlayProjectileSpawn(int vfxId, in EC.IEntityId handle)
+        {
+            if (!_world.IsAlive(handle)) return;
+            var entity = _world.Wrap(handle);
+            if (!entity.TryGetRef(out BattleViewGameObjectComponent view) || view.GameObject == null) return;
+
+            var animators = view.GameObject.GetComponentsInChildren<Animator>(true);
+            for (var animatorIndex = 0; animatorIndex < animators.Length; animatorIndex++)
+            {
+                var animator = animators[animatorIndex];
+                if (animator.runtimeAnimatorController == null) continue;
+                var parameters = animator.parameters;
+                for (var parameterIndex = 0; parameterIndex < parameters.Length; parameterIndex++)
+                {
+                    var parameter = parameters[parameterIndex];
+                    // W's character cast uses Spell_W, while its moving projectile prefab
+                    // owns a separate presentation controller with W_Shot/W_Beam triggers.
+                    // Trigger the projectile controller here so the authored shot particles
+                    // are enabled when the authoritative spawn snapshot is consumed.
+                    if (parameter.type != AnimatorControllerParameterType.Trigger ||
+                        (parameter.name != "ProjectileSpawn" && parameter.name != "Q_Shot" &&
+                         parameter.name != "W_Shot" && parameter.name != "W_Beam" &&
+                         parameter.name != "Spell_E")) continue;
+                    animator.SetTrigger(parameter.nameHash);
+                    break;
+                }
+            }
+
+            if (vfxId == 90013001)
+            {
+                var missile = FindChild(view.GameObject.transform, "Grenade_Missile");
+                if (missile != null) missile.gameObject.SetActive(true);
+            }
+        }
+
+        private static Transform FindChild(Transform root, string name)
+        {
+            if (root == null) return null;
+            if (root.name == name) return root;
+            for (var i = 0; i < root.childCount; i++)
+            {
+                var found = FindChild(root.GetChild(i), name);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         public int StopFollowingActor(int projectileActorId)

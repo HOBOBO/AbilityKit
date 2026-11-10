@@ -20,6 +20,7 @@ namespace moba_luban
         Pipeline = 4,
         ContextFloat = 5,
         LinearFormula = 6,
+        HeroLevelSkillParameter = 7,
     }
 
 } 

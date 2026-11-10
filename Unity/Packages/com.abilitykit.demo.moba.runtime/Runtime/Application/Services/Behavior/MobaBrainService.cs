@@ -36,6 +36,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private IMobaTagBehaviorGateQueryService _tagGates;
         [WorldInject(required: false)] private IMobaEffectiveTagQueryService _effectiveTags;
         [WorldInject(required: false)] private MobaSkillLoadoutService _skillLoadout;
+        [WorldInject(required: false)] private IWorldRandom _worldRandom;
 
         public MobaBrainDecisionDriverRegistry DecisionDrivers => _decisionDrivers;
 
@@ -314,7 +315,8 @@ namespace AbilityKit.Demo.Moba.Services
                 sourceId,
                 _searchTargets,
                 GetCurrentTimeMs,
-                _skillLoadout);
+                _skillLoadout,
+                _worldRandom != null ? _worldRandom.Seed : 0UL);
 
             try
             {

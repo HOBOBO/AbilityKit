@@ -41,8 +41,13 @@ public sealed partial class DRProjectiles : Luban.BeanBase
         StateMachineProfileId = _buf.ReadString();
         TickIntervalMs = _buf.ReadInt();
         VfxId = _buf.ReadInt();
+        BounceSearchRadius = _buf.ReadFloat();
+        TrackingArcHeight = _buf.ReadFloat();
+        TrackingArcDurationSeconds = _buf.ReadFloat();
+        TrackingArcHeightPerUnit = _buf.ReadFloat();
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
+        HitUnitSubType = _buf.ReadInt();
     }
 
     public static DRProjectiles DeserializeDRProjectiles(ByteBuf _buf)
@@ -151,6 +156,22 @@ public sealed partial class DRProjectiles : Luban.BeanBase
     /// </summary>
     public readonly int VfxId;
     /// <summary>
+    /// Bounce search radius, horizontal units; 0 means unlimited.
+    /// </summary>
+    public readonly float BounceSearchRadius;
+    /// <summary>
+    /// Tracking projectile arc height; 0 means straight.
+    /// </summary>
+    public readonly float TrackingArcHeight;
+    /// <summary>
+    /// Tracking arc duration in seconds; 0 derives from horizontal distance and speed.
+    /// </summary>
+    public readonly float TrackingArcDurationSeconds;
+    /// <summary>
+    /// Arc height per horizontal distance unit; multiplied by the segment start distance and frozen for that arc.
+    /// </summary>
+    public readonly float TrackingArcHeightPerUnit;
+    /// <summary>
     /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
     /// </summary>
     public readonly string OmittedFields;
@@ -158,6 +179,10 @@ public sealed partial class DRProjectiles : Luban.BeanBase
     /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
     /// </summary>
     public readonly string NullFields;
+    /// <summary>
+    /// 命中单位子类型过滤；0 表示不限，正数只命中对应 UnitSubType，不匹配的单位会被忽略并继续飞行。
+    /// </summary>
+    public readonly int HitUnitSubType;
    
     public const int __ID__ = -48050628;
     public override int GetTypeId() => __ID__;
@@ -194,8 +219,13 @@ public sealed partial class DRProjectiles : Luban.BeanBase
         + "StateMachineProfileId:" + StateMachineProfileId + ","
         + "TickIntervalMs:" + TickIntervalMs + ","
         + "VfxId:" + VfxId + ","
+        + "BounceSearchRadius:" + BounceSearchRadius + ","
+        + "TrackingArcHeight:" + TrackingArcHeight + ","
+        + "TrackingArcDurationSeconds:" + TrackingArcDurationSeconds + ","
+        + "TrackingArcHeightPerUnit:" + TrackingArcHeightPerUnit + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
+        + "HitUnitSubType:" + HitUnitSubType + ","
         + "}";
     }
 }

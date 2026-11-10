@@ -20,6 +20,11 @@ namespace AbilityKit.HFSM.Definition
         /// <summary>An empty key selects the built-in no-op state behavior.</summary>
         public string BehaviorKey { get; set; } = string.Empty;
 
+        /// <summary>Stable logic action bindings invoked once when this state is entered or exited.</summary>
+        public List<string> LogicEntryActionKeys { get; set; } = new List<string>();
+
+        public List<string> LogicExitActionKeys { get; set; } = new List<string>();
+
         /// <summary>An optional nested machine. A machine may have only one parent state.</summary>
         public string ChildMachineId { get; set; } = string.Empty;
 

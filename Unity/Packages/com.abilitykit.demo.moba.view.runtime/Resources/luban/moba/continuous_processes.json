@@ -17,5 +17,21 @@
     "RequireOutOfCombat": true,
     "TriggerIds": [],
     "Tags": []
+  },
+  {
+    "Id": 30020010,
+    "ContinuousTagTemplateId": 0,
+    "DurationMs": 0,
+    "IntervalMs": 0,
+    "IntervalTriggerIds": [],
+    "ModifierIds": [
+      300009,
+      300010
+    ],
+    "Name": "Jinx - Switcheroo attack slot candidates",
+    "OutOfCombatSeconds": 0,
+    "RequireOutOfCombat": false,
+    "TriggerIds": [],
+    "Tags": []
   }
 ]

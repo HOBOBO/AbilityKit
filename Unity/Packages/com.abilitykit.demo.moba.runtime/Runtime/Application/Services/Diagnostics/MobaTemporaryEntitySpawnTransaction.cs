@@ -58,12 +58,15 @@ namespace AbilityKit.Demo.Moba.Services
 
         public Exception Rollback(Exception primaryException = null)
         {
+            // Once completion starts, the transaction is immutable. In particular,
+            // a late caller must not attach a new primary exception to a transaction
+            // whose compensations have already run.
+            if (_completed) return PrimaryException ?? FirstRollbackException;
+
             if (primaryException != null && PrimaryException == null)
             {
                 PrimaryException = primaryException;
             }
-
-            if (_completed) return PrimaryException ?? FirstRollbackException;
             _completed = true;
 
             for (var i = _count - 1; i >= 0; i--)

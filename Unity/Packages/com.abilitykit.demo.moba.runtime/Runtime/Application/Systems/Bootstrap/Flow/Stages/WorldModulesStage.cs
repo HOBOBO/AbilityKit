@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.DI;
@@ -9,6 +10,7 @@ using AbilityKit.Demo.Moba.Gameplay.Structures;
 using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Demo.Moba.Predicates;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
@@ -32,6 +34,10 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
         protected internal override void Configure(WorldContainerBuilder builder)
         {
+            // Area presentation is consumed by MobaAreaRuntimeService during spawn.
+            // Register it explicitly so generated service manifests cannot leave the
+            // optional runtime hook null when the AOE feature is enabled.
+            builder.TryRegisterType<MobaAreaPresentationCueReporter, MobaAreaPresentationCueReporter>(WorldLifetime.Scoped);
             builder.TryRegisterType<AbilityKit.Triggering.Eventing.IEventBus, AbilityKit.Triggering.Eventing.EventBus>(WorldLifetime.Singleton);
             builder.Register<FunctionRegistry>(WorldLifetime.Singleton, _ =>
             {
@@ -49,6 +55,10 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             builder.Register<IPayloadAccessorRegistry>(WorldLifetime.Singleton, _ =>
             {
                 var payloads = new PayloadAccessorRegistry();
+                if (_.TryResolve<MobaConfigDatabase>(out var mobaConfigs) && mobaConfigs != null)
+                {
+                    MobaBattlePayloadFields.RegisterSkillParameterFields(mobaConfigs);
+                }
                 var gameplayAccessor = new GameplayLifecyclePayloadAccessor();
                 payloads.RegisterIntAccessor(gameplayAccessor, GameplayLifecyclePayloadAccessor.SupportsField);
                 payloads.RegisterDoubleAccessor(gameplayAccessor, GameplayLifecyclePayloadAccessor.SupportsField);
@@ -66,6 +76,13 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 payloads.RegisterDoubleAccessor<Services.MobaHealthChangeResult>(battleAccessor, MobaBattlePayloadAccessor.SupportsHealthChangeResultField);
                 payloads.RegisterIntAccessor<Events.Unit.UnitDieEventPayload>(battleAccessor, MobaBattlePayloadAccessor.SupportsUnitDieField);
                 payloads.RegisterDoubleAccessor<Events.Unit.UnitDieEventPayload>(battleAccessor, MobaBattlePayloadAccessor.SupportsUnitDieField);
+                payloads.RegisterIntAccessor<Events.Unit.UnitEventPayload>(battleAccessor, MobaBattlePayloadAccessor.SupportsUnitEventField);
+                payloads.RegisterDoubleAccessor<Events.Unit.UnitEventPayload>(battleAccessor, MobaBattlePayloadAccessor.SupportsUnitEventField);
+                Func<int, bool> projectileHitFieldPredicate = fieldId =>
+                    MobaBattlePayloadAccessor.SupportsProjectileHitField(fieldId) ||
+                    MobaBattlePayloadFields.IsRegisteredSkillParameterField(fieldId);
+                payloads.RegisterIntAccessor<Services.Projectile.ProjectileHitArgs>(battleAccessor, projectileHitFieldPredicate);
+                payloads.RegisterDoubleAccessor<Services.Projectile.ProjectileHitArgs>(battleAccessor, projectileHitFieldPredicate);
                 var minionBaseDamageAccessor = new MobaMinionBaseDamagePayloadAccessor();
                 payloads.RegisterIntAccessor(minionBaseDamageAccessor, MobaMinionBaseDamagePayloadAccessor.SupportsField);
                 payloads.RegisterDoubleAccessor(minionBaseDamageAccessor, MobaMinionBaseDamagePayloadAccessor.SupportsField);

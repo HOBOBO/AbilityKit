@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Game.Battle.Diagnostics.Capture;
 using AbilityKit.Game.Flow.Battle.Hud;
 using UnityEngine;
 
@@ -20,6 +21,7 @@ namespace AbilityKit.Game.Flow
         private readonly List<PresentationCueData> _pendingBuffCues = new List<PresentationCueData>();
 
         private BattleHudInputUi _inputUi;
+        private BattleCaptureSession _capture;
 
         public BattleHudInputController(
             IBattleHudInputSink hudInput,
@@ -63,6 +65,35 @@ namespace AbilityKit.Game.Flow
             remove => _inputEvents.SkillPreviewReleased -= value;
         }
         internal BattleHudInputUi InputUi => _inputUi;
+        internal bool IsCaptureActive => _capture?.IsEnabled == true;
+
+        /// <summary>
+        /// Starts the opt-in L1 input capture for the currently bound HUD. The
+        /// capture is a diagnostic side channel and never becomes a gameplay
+        /// dependency. A second start replaces the previous session safely.
+        /// </summary>
+        internal bool TryStartCapture(string rootDirectory, string caseId, string runId, out string error)
+        {
+            StopCapture();
+            if (!BattleCaptureSession.TryStart(rootDirectory, caseId, runId, out var session, out error))
+                return false;
+
+            _capture = session;
+            _inputEvents.SetCaptureSink(session);
+            return true;
+        }
+
+        internal void StopCapture()
+        {
+            _inputEvents.SetCaptureSink(null);
+            _capture?.Dispose();
+            _capture = null;
+        }
+
+        internal void MarkCapture(string label, int frame)
+        {
+            _capture?.Mark(label, frame);
+        }
 
         public bool ApplySkillButtonTemplates(BattleEnterGameSnapshot res, string playerId)
         {
@@ -154,6 +185,7 @@ namespace AbilityKit.Game.Flow
 
         public void Dispose()
         {
+            StopCapture();
             _inputEvents.ResetHudAim();
             _pendingBuffCues.Clear();
             DestroyInputUi();

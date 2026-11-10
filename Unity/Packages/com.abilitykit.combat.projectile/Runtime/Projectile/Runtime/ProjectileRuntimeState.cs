@@ -12,7 +12,11 @@ namespace AbilityKit.Combat.Projectile
             int rootActorId,
             int patternSlotIndex,
             int patternSlotCount,
-            bool isSuspended)
+            bool isSuspended,
+            in Vec3 spawnPosition = default,
+            float distanceTravelled = 0f,
+            int spawnFrame = 0,
+            float elapsedSeconds = 0f)
         {
             Id = id;
             Position = position;
@@ -22,6 +26,10 @@ namespace AbilityKit.Combat.Projectile
             PatternSlotIndex = patternSlotIndex;
             PatternSlotCount = patternSlotCount;
             IsSuspended = isSuspended;
+            SpawnPosition = spawnPosition;
+            DistanceTravelled = distanceTravelled;
+            SpawnFrame = spawnFrame;
+            ElapsedSeconds = elapsedSeconds;
         }
 
         public ProjectileId Id { get; }
@@ -32,5 +40,9 @@ namespace AbilityKit.Combat.Projectile
         public int PatternSlotIndex { get; }
         public int PatternSlotCount { get; }
         public bool IsSuspended { get; }
+        public Vec3 SpawnPosition { get; }
+        public float DistanceTravelled { get; }
+        public int SpawnFrame { get; }
+        public float ElapsedSeconds { get; }
     }
 }

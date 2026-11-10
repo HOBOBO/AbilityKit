@@ -126,5 +126,50 @@
     "Name": "Ranged Minion",
     "PassiveSkillIds": [],
     "SkillIds": []
+  },
+  {
+    "Id": 3001,
+    "AttributeTemplateId": 3001,
+    "ModelId": 3001,
+    "Name": "Jhin",
+    "PassiveSkillIds": [
+      30010000
+    ],
+    "SkillIds": [
+      30010101,
+      30010201,
+      30010301,
+      30010401
+    ]
+  },
+  {
+    "Id": 3003,
+    "AttributeTemplateId": 3003,
+    "ModelId": 3003,
+    "Name": "安妮",
+    "PassiveSkillIds": [
+      30030000
+    ],
+    "SkillIds": [
+      30030201,
+      30030301,
+      30030401,
+      30030501
+    ]
+  },
+  {
+    "Id": 3002,
+    "AttributeTemplateId": 3002,
+    "ModelId": 3002,
+    "Name": "Jinx",
+    "PassiveSkillIds": [
+      30020000
+    ],
+    "SkillIds": [
+      30020101,
+      30020201,
+      30020301,
+      30020401
+    ]
   }
 ]

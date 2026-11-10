@@ -20,6 +20,7 @@ namespace AbilityKit.Demo.Moba.Input
             float moveX,
             float moveZ,
             Vec3 moveTarget,
+            float moveStopRange,
             bool hasCast,
             int skillId,
             int skillSlot,
@@ -31,6 +32,7 @@ namespace AbilityKit.Demo.Moba.Input
             MoveX = moveX;
             MoveZ = moveZ;
             MoveTarget = moveTarget;
+            MoveStopRange = moveStopRange;
             HasCast = hasCast;
             SkillId = skillId;
             SkillSlot = skillSlot;
@@ -43,6 +45,8 @@ namespace AbilityKit.Demo.Moba.Input
         public float MoveX { get; }
         public float MoveZ { get; }
         public Vec3 MoveTarget { get; }
+        /// <summary>Planar stopping distance for target-position movement.</summary>
+        public float MoveStopRange { get; }
         public bool HasCast { get; }
         public int SkillId { get; }
         public int SkillSlot { get; }
@@ -51,7 +55,7 @@ namespace AbilityKit.Demo.Moba.Input
         public Vec3 AimDirection { get; }
 
         public static MobaActorIntent Hold => new(
-            MobaActorMovementIntentKind.Hold, 0f, 0f, Vec3.Zero,
+            MobaActorMovementIntentKind.Hold, 0f, 0f, Vec3.Zero, 0f,
             false, 0, 0, 0, Vec3.Zero, Vec3.Forward);
 
         public static MobaActorIntent MoveDirection(float x, float z)
@@ -61,14 +65,16 @@ namespace AbilityKit.Demo.Moba.Input
                 ClampUnit(x),
                 ClampUnit(z),
                 Vec3.Zero,
+                0f,
                 false, 0, 0, 0, Vec3.Zero, Vec3.Forward);
         }
 
-        public static MobaActorIntent MoveTo(in Vec3 target)
+        public static MobaActorIntent MoveTo(in Vec3 target, float stopRange = 0f)
         {
             return new MobaActorIntent(
                 MobaActorMovementIntentKind.TargetPosition,
                 0f, 0f, target,
+                stopRange,
                 false, 0, 0, 0, Vec3.Zero, Vec3.Forward);
         }
 
@@ -91,7 +97,7 @@ namespace AbilityKit.Demo.Moba.Input
         {
             var direction = IsZero(in aimDirection) ? Vec3.Forward : aimDirection;
             return new MobaActorIntent(
-                MovementKind, MoveX, MoveZ, MoveTarget,
+                MovementKind, MoveX, MoveZ, MoveTarget, MoveStopRange,
                 true, skillId, skillSlot, targetActorId, aimPosition, direction);
         }
 
@@ -115,7 +121,7 @@ namespace AbilityKit.Demo.Moba.Input
         {
             if (!HasFiniteMovement()) return false;
             if (!HasFinite(MoveTarget) || !HasFinite(AimPosition) || !HasFinite(AimDirection)) return false;
-            return !HasCast || SkillSlot > 0;
+            return IsFinite(MoveStopRange) && MoveStopRange >= 0f && (!HasCast || SkillSlot > 0);
         }
 
         public bool IsValid() => HasFiniteValues();

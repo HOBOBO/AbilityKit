@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Modifiers;
 using AbilityKit.Triggering.Blackboard;
@@ -44,7 +45,10 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
             MobaEffectSourceRole sourceRole = MobaEffectSourceRole.AttributionActor,
             MobaEffectEvaluationPolicy evaluationPolicy = MobaEffectEvaluationPolicy.Realtime,
             BlackboardWriteTarget captureTarget = default,
-            bool enabled = true)
+            bool enabled = true,
+            string baseSkillLevelParameter = null,
+            string secondarySkillLevelParameter = null,
+            string secondaryCoefficientSkillLevelParameter = null)
         {
             BaseSource = baseSource;
             SecondarySource = secondarySource;
@@ -53,6 +57,9 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
             EvaluationPolicy = evaluationPolicy;
             CaptureTarget = captureTarget;
             Enabled = enabled;
+            BaseSkillLevelParameter = baseSkillLevelParameter;
+            SecondarySkillLevelParameter = secondarySkillLevelParameter;
+            SecondaryCoefficientSkillLevelParameter = secondaryCoefficientSkillLevelParameter;
         }
 
         public MagnitudeSource BaseSource { get; }
@@ -62,6 +69,9 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
         public MobaEffectEvaluationPolicy EvaluationPolicy { get; }
         public BlackboardWriteTarget CaptureTarget { get; }
         public bool Enabled { get; }
+        public string BaseSkillLevelParameter { get; }
+        public string SecondarySkillLevelParameter { get; }
+        public string SecondaryCoefficientSkillLevelParameter { get; }
 
         public static MobaEffectMagnitudeSpec Fixed(float value, MobaEffectEvaluationPolicy policy = MobaEffectEvaluationPolicy.Realtime)
         {
@@ -155,8 +165,20 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
             }
 
             var modifierContext = new MobaMagnitudeModifierContext(sourceActor, in executionContext, in execCtx);
-            var primary = spec.BaseSource.Calculate(modifierContext.Level, modifierContext);
-            var secondary = spec.SecondarySource.Calculate(modifierContext.Level, modifierContext);
+            if (!TryCalculateSource(spec.BaseSource, spec.BaseSkillLevelParameter, in executionContext, in execCtx, modifierContext, out var primary, out failure) ||
+                !TryCalculateSource(spec.SecondarySource, spec.SecondarySkillLevelParameter, in executionContext, in execCtx, modifierContext, out var secondary, out failure))
+                return false;
+            if (!string.IsNullOrWhiteSpace(spec.SecondaryCoefficientSkillLevelParameter))
+            {
+                if (spec.SecondarySource.Type != MagnitudeSourceType.Attribute)
+                {
+                    failure = "skill level coefficient parameter requires an Attribute secondary magnitude source";
+                    return false;
+                }
+                if (!TryReadSkillLevelParameter(spec.SecondaryCoefficientSkillLevelParameter, in executionContext, in execCtx, out var coefficient, out failure))
+                    return false;
+                secondary *= coefficient;
+            }
             value = spec.Combine switch
             {
                 MobaEffectMagnitudeCombine.Multiply => primary * secondary,
@@ -206,6 +228,74 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
         private static bool RequiresAttributeActor(MagnitudeSourceType type)
         {
             return type == MagnitudeSourceType.Attribute || type == MagnitudeSourceType.Pipeline;
+        }
+
+        private static bool TryCalculateSource(
+            in MagnitudeSource source,
+            string skillLevelParameter,
+            in MobaCombatExecutionContext executionContext,
+            in ExecCtx<IWorldResolver> execCtx,
+            IModifierContext modifierContext,
+            out float value,
+            out string failure)
+        {
+            value = 0f;
+            failure = null;
+            if (source.Type == MagnitudeSourceType.HeroLevelSkillParameter)
+            {
+                if (string.IsNullOrWhiteSpace(skillLevelParameter))
+                {
+                    failure = "hero level skill growth column name is empty";
+                    return false;
+                }
+                var growthHandle = executionContext.SkillRuntimeHandle;
+                if (!growthHandle.IsValid || execCtx.Context == null ||
+                    !execCtx.Context.TryResolve<MobaSkillCastRuntimeService>(out var growthRuntimes) || growthRuntimes == null ||
+                    !growthRuntimes.TryGet(in growthHandle, out var growthRuntime) || growthRuntime == null ||
+                    !execCtx.Context.TryResolve<MobaConfigDatabase>(out var configs) || configs == null ||
+                    !configs.TryGetHeroLevelSkillGrowthParameter(growthRuntime.SkillId, growthRuntime.ChampionLevel, skillLevelParameter, out value))
+                {
+                    failure = $"hero level skill growth column '{skillLevelParameter}' is unavailable for the current skill runtime";
+                    return false;
+                }
+                value *= source.Coefficient;
+                return true;
+            }
+            if (source.Type != MagnitudeSourceType.SkillLevelParameter)
+            {
+                value = source.Calculate(modifierContext.Level, modifierContext);
+                return true;
+            }
+
+            if (!TryReadSkillLevelParameter(skillLevelParameter, in executionContext, in execCtx, out value, out failure))
+                return false;
+            value *= source.Coefficient;
+            return true;
+        }
+
+        private static bool TryReadSkillLevelParameter(
+            string parameter,
+            in MobaCombatExecutionContext executionContext,
+            in ExecCtx<IWorldResolver> execCtx,
+            out float value,
+            out string failure)
+        {
+            value = 0f;
+            failure = null;
+            if (string.IsNullOrWhiteSpace(parameter))
+            {
+                failure = "skill level parameter name is empty";
+                return false;
+            }
+            var handle = executionContext.SkillRuntimeHandle;
+            if (!handle.IsValid || execCtx.Context == null ||
+                !execCtx.Context.TryResolve<MobaSkillCastRuntimeService>(out var runtimes) || runtimes == null ||
+                !runtimes.TryGetLevelParameter(in handle, parameter, out value))
+            {
+                failure = $"skill level parameter '{parameter}' is unavailable for the current skill runtime";
+                return false;
+            }
+            return true;
         }
 
         private static bool IsValidCaptureTarget(in BlackboardWriteTarget target)

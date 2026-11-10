@@ -121,7 +121,11 @@ namespace AbilityKit.Game.Flow
             try
             {
                 var steps = pendingSteps ?? _createTeardownSteps(context);
-                await SessionTeardownPolicy.ExecuteUntilFailureAsync(steps);
+                // Teardown is best-effort across all steps. A failure in one
+                // feature must not prevent later features from releasing their
+                // subscriptions, buffers, or world bindings. The policy returns
+                // only failed steps for a subsequent retry.
+                await SessionTeardownPolicy.ExecuteAsync(steps);
                 Complete(generation, completion, null, null);
             }
             catch (SessionTeardownException exception)

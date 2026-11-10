@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Services;
 using Xunit;
 
@@ -7,6 +9,127 @@ namespace AbilityKit.Demo.Moba.Tests.Skill;
 
 public sealed class MobaSkillCastRuntimeServiceTests
 {
+    [Fact]
+    public void Skill_runtime_lifecycle_hooks_dispatch_from_snapshot_when_hooks_mutate_registration()
+    {
+        var hooks = new MobaSkillRuntimeLifecycleHookService();
+        var late = new CountingHook();
+        var mutating = new MutatingHook(hooks, late);
+        var stable = new CountingHook();
+        hooks.Register(mutating);
+        hooks.Register(stable);
+
+        hooks.Notify(default);
+
+        Assert.Equal(1, mutating.Count);
+        Assert.Equal(1, stable.Count);
+        Assert.Equal(0, late.Count);
+
+        hooks.Notify(default);
+
+        Assert.Equal(1, mutating.Count);
+        Assert.Equal(2, stable.Count);
+        Assert.Equal(1, late.Count);
+    }
+
+    [Fact]
+    public void Skill_runtime_lifecycle_hook_failure_does_not_skip_remaining_snapshot()
+    {
+        var hooks = new MobaSkillRuntimeLifecycleHookService();
+        var failing = new ThrowingHook();
+        var stable = new CountingHook();
+        hooks.Register(failing);
+        hooks.Register(stable);
+
+        var exception = Assert.Throws<InvalidOperationException>(() => hooks.Notify(default));
+
+        Assert.Equal("lifecycle hook failed", exception.Message);
+        Assert.Equal(1, failing.Count);
+        Assert.Equal(1, stable.Count);
+    }
+
+    [Fact]
+    public void Skill_runtime_level_parameters_are_frozen_queryable_and_restored_by_both_rollback_paths()
+    {
+        var service = new MobaSkillCastRuntimeService();
+        var snapshot = CreateParameterSnapshot(321f);
+        var runtime = service.Create(new MobaSkillCastRuntimeCreateRequest(
+            skillId: 2001,
+            skillSlot: 1,
+            skillLevel: 2,
+            sequence: 1,
+            casterActorId: 101,
+            targetActorId: 202,
+            aimPos: Vec3.Zero,
+            aimDir: Vec3.Forward,
+            rootContextId: 8001,
+            levelParameters: snapshot));
+        var handle = runtime.Handle;
+        var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Projectile, 7001, 8002, 3001);
+        Assert.True(service.RetainChild(in handle, in child, out var retain));
+        Assert.True(service.TryGetLevelParameter(in handle, "DAMAGE", out var damage));
+        Assert.Equal(321f, damage);
+
+        var state = service.CaptureRollbackSnapshot();
+        var changed = CreateParameterSnapshot(999f);
+        Assert.True(changed.TryGetValue("damage", out var changedDamage));
+        Assert.Equal(999f, changedDamage);
+
+        // The retained child keeps the runtime queryable after its cast pipeline has ended.
+        Assert.True(service.MarkPipelineEnded(in handle, MobaSkillRuntimeEndReason.PipelineCompleted));
+        Assert.True(service.TryGetLevelParameter(in handle, "damage", out damage));
+        Assert.Equal(321f, damage);
+        Assert.True(service.ReleaseChild(in retain));
+        Assert.False(service.TryGetLevelParameter(in handle, "damage", out _));
+
+        service.RestoreRollbackSnapshot(in state); // existing runtime instance path
+        Assert.True(service.TryGetLevelParameter(in handle, "damage", out damage));
+        Assert.Equal(321f, damage);
+
+        Assert.True(service.ForceTerminate(in handle));
+        service.RestoreRollbackSnapshot(in state); // runtime reconstruction path
+        Assert.True(service.TryGetLevelParameter(in handle, "damage", out damage));
+        Assert.Equal(321f, damage);
+        var staleHandle = new MobaSkillCastRuntimeHandle(handle.RuntimeId, handle.Generation + 1, handle.RootContextId);
+        Assert.False(service.TryGetLevelParameter(in staleHandle, "damage", out _));
+        Assert.False(service.TryGetLevelParameter(in handle, "unknown", out _));
+    }
+
+    [Fact]
+    public void Skill_runtime_retention_validation_tracks_legacy_runtime_id_api_and_exactly_once_release()
+    {
+        var service = new MobaSkillCastRuntimeService();
+        var runtime = service.Create(new MobaSkillCastRuntimeCreateRequest(
+            skillId: 2002,
+            skillSlot: 1,
+            skillLevel: 1,
+            sequence: 1,
+            casterActorId: 101,
+            targetActorId: 202,
+            aimPos: Vec3.Zero,
+            aimDir: Vec3.Forward,
+            rootContextId: 8002));
+        var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Area, 7002, 8003, 3002);
+
+        Assert.True(service.RetainChild(runtime.RuntimeId, in child));
+        var retained = service.ValidateRetentionState();
+        Assert.True(retained.IsValid);
+        Assert.Equal(1, retained.ActiveRuntimes);
+        Assert.Equal(1, retained.PendingChildren);
+        Assert.Equal(1, retained.RetainHandles);
+        Assert.Equal(0, retained.OrphanedRetains);
+        Assert.Equal(0, retained.UntrackedChildren);
+
+        Assert.True(service.MarkPipelineEnded(runtime.RuntimeId, MobaSkillRuntimeEndReason.PipelineCompleted));
+        Assert.True(service.ReleaseChild(runtime.RuntimeId, in child));
+        Assert.False(service.ReleaseChild(runtime.RuntimeId, in child));
+        var released = service.ValidateRetentionState();
+        Assert.True(released.IsValid);
+        Assert.Equal(0, released.ActiveRuntimes);
+        Assert.Equal(0, released.PendingChildren);
+        Assert.Equal(0, released.RetainHandles);
+    }
+
     [Fact]
     public void Skill_runtime_waits_for_all_retained_children_after_pipeline_end()
     {
@@ -194,6 +317,60 @@ public sealed class MobaSkillCastRuntimeServiceTests
 
             return false;
         }
+    }
+
+    private sealed class MutatingHook : IMobaSkillRuntimeLifecycleHook
+    {
+        private readonly MobaSkillRuntimeLifecycleHookService _hooks;
+        private readonly IMobaSkillRuntimeLifecycleHook _late;
+
+        public MutatingHook(MobaSkillRuntimeLifecycleHookService hooks, IMobaSkillRuntimeLifecycleHook late)
+        {
+            _hooks = hooks;
+            _late = late;
+        }
+
+        public int Count { get; private set; }
+
+        public void OnSkillRuntimeLifecycle(in MobaSkillRuntimeLifecycleEvent lifecycleEvent)
+        {
+            Count++;
+            _hooks.Unregister(this);
+            _hooks.Register(_late);
+        }
+    }
+
+    private sealed class CountingHook : IMobaSkillRuntimeLifecycleHook
+    {
+        public int Count { get; private set; }
+
+        public void OnSkillRuntimeLifecycle(in MobaSkillRuntimeLifecycleEvent lifecycleEvent)
+        {
+            Count++;
+        }
+    }
+
+    private sealed class ThrowingHook : IMobaSkillRuntimeLifecycleHook
+    {
+        public int Count { get; private set; }
+
+        public void OnSkillRuntimeLifecycle(in MobaSkillRuntimeLifecycleEvent lifecycleEvent)
+        {
+            Count++;
+            throw new InvalidOperationException("lifecycle hook failed");
+        }
+    }
+
+    private static MobaSkillLevelParameterSnapshot CreateParameterSnapshot(float damage)
+    {
+        var table = new SkillLevelTableMO(new SkillLevelTableDTO
+        {
+            Id = 9001,
+            ParamNames = new[] { "damage" },
+            Levels = new[] { new SkillLevelDTO { Params = new[] { damage } } }
+        });
+        Assert.True(table.TryCreateParameterSnapshot(1, 2001, out var snapshot, out var error), error);
+        return snapshot;
     }
 
     private sealed class RecordingRuntimeHook : IMobaRuntimeLifecycleHook

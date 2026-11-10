@@ -171,7 +171,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var passiveSkills = new[] { new PassiveSkillRuntime { PassiveSkillId = 7002, Level = 4 } };
             entity.AddAttributeGroup(attributeGroup, attributeContext);
             entity.AddResourceContainer(resources, true);
-            entity.AddSkillLoadout(activeSkills, passiveSkills);
+            entity.AddSkillLoadout(CompleteHeroId, activeSkills, passiveSkills);
             var config = BuildConfig(includeSecondActiveSkill: false);
             var pipeline = new ActorEntityInitPipeline(new TestWorldResolver(config));
             var loadout = CreateLoadout(new PlayerId("player-1"), CompleteHeroId);

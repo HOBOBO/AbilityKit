@@ -319,6 +319,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                     LocalOffsetRight = obj["LocalOffsetRight"]?.Value<float>() ?? 0,
                     Width = obj["Width"]?.Value<float>() ?? 0,
                     Length = obj["Length"]?.Value<float>() ?? 0,
+                    UnitSubType = obj["UnitSubType"]?.Value<int>() ?? 0,
                     ActorIds = obj["ActorIds"]?.ToObject<int[]>() ?? Array.Empty<int>()
                 });
             }
@@ -461,6 +462,11 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 CollisionLength = obj["CollisionLength"]?.Value<float>() ?? 0,
                 HitPolicyKind = obj["HitPolicyKind"]?.Value<int>() ?? 0,
                 HitsRemaining = obj["HitsRemaining"]?.Value<int>() ?? 0,
+                HitUnitSubType = obj["HitUnitSubType"]?.Value<int>() ?? 0,
+                BounceSearchRadius = obj["BounceSearchRadius"]?.Value<float>() ?? 0,
+                TrackingArcHeight = obj["TrackingArcHeight"]?.Value<float>() ?? 0,
+                TrackingArcHeightPerUnit = obj["TrackingArcHeightPerUnit"]?.Value<float>() ?? 0,
+                TrackingArcDurationSeconds = obj["TrackingArcDurationSeconds"]?.Value<float>() ?? 0,
                 HitCooldownMs = obj["HitCooldownMs"]?.Value<int>() ?? 0,
                 TickIntervalMs = obj["TickIntervalMs"]?.Value<int>() ?? 0,
                 OnHitEffectId = obj["OnHitEffectId"]?.Value<int>() ?? 0,
@@ -484,7 +490,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static AoeDTO DeserializeAoe(JObject obj)
         {
-            // 妗嗘灦 DTO: Id, Name, ModelId, VfxId, AttachMode, OffsetX, OffsetY, OffsetZ, Radius, DelayMs, DurationMs, CollisionLayerMask, MaxTargets, OnDelayTriggerIds, OnEnterTriggerIds, OnExitTriggerIds, OnIntervalTriggerIds, IntervalMs
+            // DTO also accepts ConsumeOnFirstEnter for one-shot Area semantics.
             var dto = new AoeDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -504,7 +510,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 OnEnterTriggerIds = obj["OnEnterTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 OnExitTriggerIds = obj["OnExitTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 OnIntervalTriggerIds = obj["OnIntervalTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-                IntervalMs = obj["IntervalMs"]?.Value<int>() ?? 0
+                IntervalMs = obj["IntervalMs"]?.Value<int>() ?? 0,
+                ConsumeOnFirstEnter = obj["ConsumeOnFirstEnter"]?.Value<bool>() ?? false
             };
             return dto;
         }
@@ -551,6 +558,9 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 SkillIds = obj["SkillIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 PassiveSkillIds = obj["PassiveSkillIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 BrainId = obj["BrainId"]?.Value<int>() ?? 0,
+                SpawnVfxId = obj["SpawnVfxId"]?.Value<int>() ?? 0,
+                DeathVfxId = obj["DeathVfxId"]?.Value<int>() ?? 0,
+                DespawnVfxId = obj["DespawnVfxId"]?.Value<int>() ?? 0,
                 InheritAttributeConfigId = obj["InheritAttributeConfigId"]?.Value<int>() ?? 0,
                 DefaultComponentTemplateIds = obj["DefaultComponentTemplateIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>()
@@ -1131,7 +1141,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static PresentationTemplateDTO DeserializePresentationTemplate(JObject obj)
         {
-            // 妗嗘灦 DTO: Id, Name, Kind, AssetId, DefaultDurationMs, AttachMode, Socket, Follow, StackPolicy, StopPolicy, Scale, ColorR, ColorG, ColorB, ColorA, Radius, OffsetX, OffsetY, OffsetZ
+            // DTO: presentation template fields, including explicit offset and parent-scale policies.
             var dto = new PresentationTemplateDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -1144,6 +1154,9 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Follow = obj["Follow"]?.Value<bool>() ?? false,
                 StackPolicy = obj["StackPolicy"]?.Value<int>() ?? 0,
                 StopPolicy = obj["StopPolicy"]?.Value<int>() ?? 0,
+                TargetLossPolicy = obj["TargetLossPolicy"]?.Value<int>() ?? 0,
+                CompletionPolicy = obj["CompletionPolicy"]?.Value<int>() ?? 0,
+                StopGraceMs = obj["StopGraceMs"]?.Value<int>() ?? 0,
                 Scale = obj["Scale"]?.Value<float>() ?? 1.0f,
                 ColorR = obj["ColorR"]?.Value<float>() ?? 1.0f,
                 ColorG = obj["ColorG"]?.Value<float>() ?? 1.0f,
@@ -1152,7 +1165,11 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Radius = obj["Radius"]?.Value<float>() ?? 0,
                 OffsetX = obj["OffsetX"]?.Value<float>() ?? 0,
                 OffsetY = obj["OffsetY"]?.Value<float>() ?? 0,
-                OffsetZ = obj["OffsetZ"]?.Value<float>() ?? 0
+                OffsetZ = obj["OffsetZ"]?.Value<float>() ?? 0,
+                OffsetSpace = obj["OffsetSpace"]?.Value<int>() ?? 0,
+                ParentScaleMode = obj["ParentScaleMode"]?.Value<int>() ?? 0,
+                OrderingMode = obj["OrderingMode"]?.Value<int>() ?? 0,
+                OrderingPriority = obj["OrderingPriority"]?.Value<int>() ?? 0
             };
             return dto;
         }

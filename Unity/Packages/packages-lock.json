@@ -274,6 +274,7 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
+        "com.abilitykit.base.editor": "0.1.0",
         "com.abilitykit.ability": "0.1.0",
         "com.abilitykit.actionschema": "0.1.0",
         "com.abilitykit.diagnostics": "0.1.0",
@@ -1050,6 +1051,7 @@
         "com.abilitykit.continuous": "0.1.0",
         "com.abilitykit.modifiers": "0.1.0",
         "com.abilitykit.world.di": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0",
         "com.abilitykit.analyzer": "0.1.0"
       }
     },
@@ -1066,7 +1068,8 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.1.0"
+        "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0"
       }
     },
     "com.abilitykit.world.ecs": {

@@ -7,6 +7,7 @@
   ],
   "trees": [
     "generic_hero_combat_bt",
-    "summon_warden_bt"
+    "summon_warden_bt",
+    "launch_heading_combat_bt"
   ]
 }

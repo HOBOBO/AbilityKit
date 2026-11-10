@@ -52,6 +52,7 @@ namespace AbilityKit.Game.Flow
 
             ClearSnapshotRouting();
             ResetInputRuntime();
+            BattleCapture = null;
             ResetPredictionRuntime();
             StateHashSnapshotReceived = null;
 

@@ -6,7 +6,8 @@ namespace AbilityKit.Demo.Moba.Share
     public static class CharacterActionSnapshotCodec
     {
         public const int OpCode = 4017;
-        private const int Version = 1;
+        private const int LegacyVersion = 1;
+        private const int Version = 2;
         private const int MaxEntries = 128;
         private const int MaxPayloadLength = 32768;
 
@@ -35,6 +36,10 @@ namespace AbilityKit.Demo.Moba.Share
                     writer.Write(entry.LocalFrame);
                     writer.Write(entry.CastInstanceId);
                     writer.Write(entry.SkillId);
+                    writer.Write(entry.ModeId ?? string.Empty);
+                    writer.Write(entry.ModeInstanceId);
+                    writer.Write(entry.ModeStartFrame);
+                    writer.Write(entry.ModeLocalFrame);
                 }
                 if (stream.Length > MaxPayloadLength)
                     throw new InvalidOperationException("Character action snapshot is too large.");
@@ -51,16 +56,29 @@ namespace AbilityKit.Demo.Moba.Share
                 using (var stream = new MemoryStream(payload, false))
                 using (var reader = new BinaryReader(stream))
                 {
-                    if (reader.ReadInt32() != Version) return false;
+                    var version = reader.ReadInt32();
+                    if (version != LegacyVersion && version != Version) return false;
                     var count = reader.ReadInt32();
                     if (count < 0 || count > MaxEntries) return false;
                     var decoded = new CharacterActionData[count];
                     var previousActorId = 0;
                     for (var i = 0; i < count; i++)
                     {
-                        var entry = new CharacterActionData(reader.ReadInt32(), reader.ReadInt32(),
-                            reader.ReadInt32(), reader.ReadString(), reader.ReadInt64(),
-                            reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt64(), reader.ReadInt32());
+                        var actorId = reader.ReadInt32();
+                        var entityVersion = reader.ReadInt32();
+                        var snapshotFrame = reader.ReadInt32();
+                        var path = reader.ReadString();
+                        var instanceId = reader.ReadInt64();
+                        var startFrame = reader.ReadInt32();
+                        var localFrame = reader.ReadInt32();
+                        var castInstanceId = reader.ReadInt64();
+                        var skillId = reader.ReadInt32();
+                        var entry = version == LegacyVersion
+                            ? new CharacterActionData(actorId, entityVersion, snapshotFrame, path,
+                                instanceId, startFrame, localFrame, castInstanceId, skillId)
+                            : new CharacterActionData(actorId, entityVersion, snapshotFrame, path,
+                                instanceId, startFrame, localFrame, castInstanceId, skillId,
+                                reader.ReadString(), reader.ReadInt64(), reader.ReadInt32(), reader.ReadInt32());
                         if (!IsValid(in entry) || entry.ActorId <= previousActorId) return false;
                         previousActorId = entry.ActorId;
                         decoded[i] = entry;
@@ -80,6 +98,10 @@ namespace AbilityKit.Demo.Moba.Share
             entry.InstanceId > 0 && entry.StartFrame >= 0 &&
             entry.StartFrame <= entry.SnapshotFrame &&
             entry.LocalFrame == entry.SnapshotFrame - entry.StartFrame &&
-            entry.CastInstanceId >= 0 && entry.SkillId >= 0;
+            entry.CastInstanceId >= 0 && entry.SkillId >= 0 &&
+            !string.IsNullOrEmpty(entry.ModeId) && entry.ModeId.Length <= 64 &&
+            entry.ModeInstanceId >= 0 && entry.ModeStartFrame >= 0 &&
+            entry.ModeStartFrame <= entry.SnapshotFrame &&
+            entry.ModeLocalFrame == entry.SnapshotFrame - entry.ModeStartFrame;
     }
 }

@@ -6,12 +6,23 @@ namespace AbilityKit.Protocol.Moba.StateSync
 {
     public partial struct MobaActorTransformSnapshotEntry
     {
+        [MemoryPackOrder(7)]
+        public float Scale;
+
         public MobaActorTransformSnapshotEntry(int actorId, float x, float y, float z)
-            : this(actorId, x, y, z, 0f, 0f, 1f)
+            : this(actorId, x, y, z, 0f, 0f, 1f, 1f)
         {
         }
 
-        public MobaActorTransformSnapshotEntry(int actorId, float x, float y, float z, float forwardX, float forwardY, float forwardZ)
+        public MobaActorTransformSnapshotEntry(
+            int actorId,
+            float x,
+            float y,
+            float z,
+            float forwardX,
+            float forwardY,
+            float forwardZ,
+            float scale = 1f)
         {
             ActorId = actorId;
             X = x;
@@ -20,6 +31,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
             ForwardX = forwardX;
             ForwardY = forwardY;
             ForwardZ = forwardZ;
+            Scale = scale;
         }
     }
 

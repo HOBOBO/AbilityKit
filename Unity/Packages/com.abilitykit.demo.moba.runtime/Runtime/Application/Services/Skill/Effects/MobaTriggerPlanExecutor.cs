@@ -7,6 +7,7 @@ using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
+using AbilityKit.Triggering.Runtime.Config.Plans;
 using AbilityKit.Triggering.Collections;
 using AbilityKit.Triggering.Variables.Numeric;
 using AbilityKit.Triggering.Variables.Numeric.Expression;
@@ -63,6 +64,32 @@ namespace AbilityKit.Demo.Moba.Services
             return triggerId > 0 && _planDb != null && _planDb.TryGetPlanByTriggerId(triggerId, out plan);
         }
 
+        /// <summary>
+        /// Validates the scope contract for a direct entry point.
+        /// Direct skill-pipeline execution must not consume owner-bound plans;
+        /// those plans are installed through the owner subscription path.
+        /// </summary>
+        internal bool ValidatePlanScope(
+            int triggerId,
+            TriggerPlanScope expectedScope)
+        {
+            if (triggerId <= 0 || _planDb == null ||
+                !_planDb.TryGetRecordByTriggerId(triggerId, out var record))
+            {
+                // Preserve the existing missing-plan behavior of each caller.
+                return true;
+            }
+
+            if (record.Scope != expectedScope)
+            {
+                Log.Warning(
+                    $"[MobaTriggerPlanExecutor] Trigger plan scope is invalid for direct execution. triggerId={triggerId}, actualScope={record.Scope}, expectedScope={expectedScope}");
+                return false;
+            }
+
+            return true;
+        }
+
         public bool Execute(int triggerId, object args)
         {
             return ExecuteInternal(triggerId, args, predicateMissIsSuccess: true);
@@ -70,6 +97,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool ExecuteRulePlan(int triggerId, object args)
         {
+            if (!ValidatePlanScope(triggerId, TriggerPlanScope.Global))
+            {
+                return false;
+            }
+
             var routeThroughFormal = _effects.ShouldRouteRulePlanThroughFormalEffectSession(out var currentEffects);
             if (routeThroughFormal)
             {

@@ -38,8 +38,10 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
         [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn = null;
         [WorldInject(required: false)] private MobaActorSpawnSnapshotService _spawnSnapshots = null;
+        [WorldInject(required: false)] private MobaActorDespawnSnapshotService _despawnSnapshots = null;
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
+        [WorldInject(required: false)] private MobaBrainService _brains = null;
         [WorldInject(required: false)] private MobaSkillParamModifierService _paramModifiers = null;
         [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
         [WorldInject(required: false)] private IMobaRuntimeObjectLifecycleHook _objectLifecycle = null;
@@ -199,6 +201,17 @@ namespace AbilityKit.Demo.Moba.Services
 
                 TryInitSkillLoadout(entity, summon.SkillIds, summon.PassiveSkillIds);
 
+                // Summons are usually created from the skill pipeline, which runs
+                // after BrainTick. Bind the configured behavior runtime now so a
+                // generated summon is fully initialized in its creation frame.
+                // The behavior itself is still ticked by MobaBrainSystem on the
+                // next ordered BrainTick; this avoids executing a decision out of
+                // system order while removing the hidden one-frame activation gap.
+                if (_brains != null && entity.hasActorBrain)
+                {
+                    _brains.EnsureBehavior(entity);
+                }
+
                 TrackSummon(rootOwner, actorId);
                 TrackSourceContext(actorId, in spawnSourceContext);
                 if (spawnSourceContext.SkillRuntimeHandle.IsValid && !RetainSkillRuntime(actorId, summonId, in spawnSourceContext))
@@ -331,6 +344,19 @@ namespace AbilityKit.Demo.Moba.Services
             }
             if (rootOwner <= 0) rootOwner = owner;
             if (e.hasSummonMeta && e.summonMeta != null) summonId = e.summonMeta.SummonId;
+
+            // Brain 行为树拥有独立于 ActorEntity 的 BehaviorRuntime。召唤物实体销毁前必须
+            // 先释放 Brain，否则 BrainSystem 后续 Tick 仍会驱动已失效 Actor 的决策，且
+            // Decision/黑板资源会一直留在 BehaviorManager 中。
+            if (_brains != null && e.hasActorBrain)
+            {
+                _brains.DeactivateBrain(e);
+            }
+
+            // Summon cleanup returns before MobaActorDespawnCleanupSystem reaches
+            // its generic snapshot branch. Emit the actor despawn contract here so
+            // remote/view worlds can release the temporary summon entity as well.
+            _despawnSnapshots?.Enqueue(summonActorId, (byte)ToActorDespawnReason(reason));
 
             StopOwnerBoundTriggers(e);
             new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
@@ -532,6 +558,40 @@ namespace AbilityKit.Demo.Moba.Services
             return removed;
         }
 
+        /// <summary>
+        /// Despawns only summons configured to follow their root owner's death.
+        /// A dead hero remains registered during its death/respawn lifecycle, so
+        /// registry absence alone cannot implement DespawnOnOwnerDie.
+        /// </summary>
+        public int DespawnOnRootOwnerDeath(int rootOwnerActorId)
+        {
+            if (rootOwnerActorId <= 0) return 0;
+            if (!_summonsByRootOwner.TryGetValue(rootOwnerActorId, out var list) || list == null) return 0;
+
+            CompactTrackedSummons(rootOwnerActorId, list);
+            // Despawn requests can publish lifecycle events synchronously. Keep
+            // this snapshot local so a reentrant summon query cannot overwrite it.
+            var summonsToDespawn = new List<int>(list.Count);
+            for (var i = list.Count - 1; i >= 0; i--)
+            {
+                var actorId = list[i];
+                if (!IsTrackedSummon(actorId, 0)) continue;
+                if (!_entities.TryGetActorEntity(actorId, out var entity) || entity == null
+                    || !entity.hasSummonMeta || entity.summonMeta == null
+                    || !entity.summonMeta.DespawnOnOwnerDie)
+                    continue;
+                summonsToDespawn.Add(actorId);
+            }
+
+            var removed = 0;
+            for (var i = 0; i < summonsToDespawn.Count; i++)
+            {
+                if (TryDespawn(summonsToDespawn[i], SummonDespawnReason.OwnerDead)) removed++;
+            }
+
+            return removed;
+        }
+
         private int CountAllTrackedSummons()
         {
             var count = 0;
@@ -612,7 +672,11 @@ namespace AbilityKit.Demo.Moba.Services
 
             var sources = new List<int>(_sourceBySummonActorId.Keys);
             foreach (var id in sources)
-                if (!confirmed.Contains(id)) _sourceBySummonActorId.Remove(id);
+            {
+                if (confirmed.Contains(id)) continue;
+                _spawnSnapshots?.CancelPendingActorSpawn(id);
+                _sourceBySummonActorId.Remove(id);
+            }
 
             // Skill runtime rollback restores its own retain collection after entity cleanup.
             var retains = new List<int>(_skillRuntimeRetainsBySummonActorId.Keys);
@@ -896,8 +960,9 @@ namespace AbilityKit.Demo.Moba.Services
             var active = CreateActiveSkillRuntimes(skillIds);
             var passive = CreatePassiveSkillRuntimes(passiveSkillIds);
 
-            if (entity.hasSkillLoadout) entity.ReplaceSkillLoadout(active, passive);
-            else entity.AddSkillLoadout(active, passive);
+            // Summons do not represent a selectable hero loadout.
+            if (entity.hasSkillLoadout) entity.ReplaceSkillLoadout(0, active, passive);
+            else entity.AddSkillLoadout(0, active, passive);
         }
 
         private static AbilityKit.Demo.Moba.Components.ActiveSkillRuntime[] CreateActiveSkillRuntimes(IReadOnlyList<int> skillIds)

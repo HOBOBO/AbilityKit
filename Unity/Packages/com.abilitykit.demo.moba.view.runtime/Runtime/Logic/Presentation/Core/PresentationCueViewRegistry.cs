@@ -14,6 +14,12 @@ namespace AbilityKit.Game.Flow
         void Destroy(THandle handle);
     }
 
+    /// <summary>Optional immediate teardown for rollback, baseline reset and scene cleanup.</summary>
+    public interface IPresentationCueCleanupPort<THandle>
+    {
+        void DestroyImmediately(THandle handle);
+    }
+
     /// <summary>
     /// Owns presentation handles independently from any rendering platform.
     /// Failed destroys remain registered so teardown can retry them.

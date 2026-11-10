@@ -37,7 +37,13 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 : default;
             var rotation = ResolveRotation(entry.ForwardX, entry.ForwardY, entry.ForwardZ);
 
-            spec = _specs.Create(vfxId, in position, followId, entry.ProjectileActorId, in rotation);
+            spec = new BattleProjectileVfxSpawnSpec(
+                vfxId,
+                in position,
+                followId,
+                entry.ProjectileActorId,
+                in rotation,
+                entry.Kind == ProjectilePresentationEventKind.Spawn);
             return true;
         }
 

@@ -1,5 +1,6 @@
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
+using System.Collections.Generic;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
@@ -17,6 +18,28 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public Vec3 Point;
         public Vec3 Normal;
         public ColliderId HitCollider;
+        public Vec3 SpawnPosition;
+        public float DistanceTravelled;
+        public int ElapsedFrames;
+        public int SpawnFrame;
+        public float ElapsedSeconds;
+        public float TargetHp;
+        public float TargetMaxHp;
+        public float TargetMissingHealthRatio;
+        public int SkillLevel;
+        private Dictionary<int, double> _skillParameters;
+
+        public void SetSkillParameter(int fieldId, double value)
+        {
+            if (_skillParameters == null) _skillParameters = new Dictionary<int, double>();
+            _skillParameters[fieldId] = value;
+        }
+
+        public bool TryGetSkillParameter(int fieldId, out double value)
+        {
+            value = 0d;
+            return _skillParameters != null && _skillParameters.TryGetValue(fieldId, out value);
+        }
 
         public bool TryGetSourceActorId(out int actorId)
         {

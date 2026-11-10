@@ -889,7 +889,11 @@
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "integerListValue": [],
-                    "vector3Value": { "x": 0.0, "y": 0.0, "z": 0.0 },
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
                     "fields": [],
                     "path": "reason_kind"
                   }
@@ -903,7 +907,11 @@
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "integerListValue": [],
-                    "vector3Value": { "x": 0.0, "y": 0.0, "z": 0.0 },
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
                     "fields": []
                   }
                 }
@@ -925,7 +933,12 @@
                     "integerValue": 0,
                     "numberValue": 0.0,
                     "booleanValue": false,
-                    "vector3Value": { "x": 0.0, "y": 0.0, "z": 0.0 },
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
                     "fields": [],
                     "path": "damage_value"
                   }
@@ -938,7 +951,12 @@
                     "integerValue": 0,
                     "numberValue": 0.0,
                     "booleanValue": false,
-                    "vector3Value": { "x": 0.0, "y": 0.0, "z": 0.0 },
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
                     "fields": []
                   }
                 }
@@ -2032,7 +2050,7 @@
         "phase": "immediate",
         "priority": 50,
         "interruptPriority": 0,
-        "scope": "owner",
+        "scope": "global",
         "allowExternal": true,
         "schedule": {
           "mode": "transient",
@@ -2837,7 +2855,7 @@
         "phase": "immediate",
         "priority": 50,
         "interruptPriority": 0,
-        "scope": "owner",
+        "scope": "global",
         "allowExternal": true,
         "schedule": {
           "mode": "transient",
@@ -3255,97 +3273,6 @@
               ],
               "children": [],
               "elseChildren": []
-            },
-            {
-              "nodeId": "node_10080002000000000000000000000003",
-              "enabled": false,
-              "kind": "Condition",
-              "type": "arg_eq",
-              "arguments": [
-                {
-                  "name": "left",
-                  "value": {
-                    "source": "Payload",
-                    "type": "Integer",
-                    "integerValue": 0,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": [],
-                    "path": "reason_kind"
-                  }
-                },
-                {
-                  "name": "right",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Integer",
-                    "integerValue": 2,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                }
-              ],
-              "children": [],
-              "elseChildren": []
-            },
-            {
-              "nodeId": "node_10080002000000000000000000000004",
-              "enabled": false,
-              "kind": "Condition",
-              "type": "arg_neq",
-              "arguments": [
-                {
-                  "name": "left",
-                  "value": {
-                    "source": "Payload",
-                    "type": "Integer",
-                    "integerValue": 0,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": [],
-                    "path": "attacker_actor_id"
-                  }
-                },
-                {
-                  "name": "right",
-                  "value": {
-                    "source": "Payload",
-                    "type": "Integer",
-                    "integerValue": 0,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": [],
-                    "path": "target_actor_id"
-                  }
-                }
-              ],
-              "children": [],
-              "elseChildren": []
             }
           ],
           "elseChildren": []
@@ -3479,7 +3406,7 @@
         "phase": "immediate",
         "priority": 50,
         "interruptPriority": 0,
-        "scope": "owner",
+        "scope": "global",
         "allowExternal": true,
         "schedule": {
           "mode": "transient",
@@ -3694,7 +3621,10 @@
         "id": 10080005,
         "name": "Luban - skill cast primes sweep",
         "groupPath": "trigger_10080005",
-        "tags": ["moba", "passives"],
+        "tags": [
+          "moba",
+          "passives"
+        ],
         "enabled": true,
         "entryMode": "Event",
         "event": "skill.cast.start",
@@ -3703,9 +3633,20 @@
         "interruptPriority": 0,
         "scope": "owner",
         "allowExternal": false,
-        "schedule": {"mode": "transient", "delayMilliseconds": 0, "intervalMilliseconds": 0, "repeatCount": 0},
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
         "cue": {},
-        "executionControl": {"maxExecutions": 0, "cooldownMilliseconds": 0.0, "interruptPolicy": "none", "stopPropagationOnSuccess": false, "stopPropagationOnFailure": false},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
         "condition": {
           "nodeId": "node_10080005000000000000000000000001",
           "enabled": true,
@@ -3713,18 +3654,141 @@
           "type": "any",
           "arguments": [],
           "children": [
-            {"nodeId": "node_10080005000000000000000000000002", "enabled": true, "kind": "Condition", "type": "arg_eq", "arguments": [
-              {"name": "left", "value": {"source": "Payload", "type": "Integer", "integerValue": 0, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": [], "path": "skill.id"}},
-              {"name": "right", "value": {"source": "Constant", "type": "Integer", "integerValue": 10080101, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}}
-            ], "children": [], "elseChildren": []},
-            {"nodeId": "node_10080005000000000000000000000003", "enabled": true, "kind": "Condition", "type": "arg_eq", "arguments": [
-              {"name": "left", "value": {"source": "Payload", "type": "Integer", "integerValue": 0, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": [], "path": "skill.id"}},
-              {"name": "right", "value": {"source": "Constant", "type": "Integer", "integerValue": 10080201, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}}
-            ], "children": [], "elseChildren": []},
-            {"nodeId": "node_10080005000000000000000000000004", "enabled": true, "kind": "Condition", "type": "arg_eq", "arguments": [
-              {"name": "left", "value": {"source": "Payload", "type": "Integer", "integerValue": 0, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": [], "path": "skill.id"}},
-              {"name": "right", "value": {"source": "Constant", "type": "Integer", "integerValue": 10080301, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}}
-            ], "children": [], "elseChildren": []}
+            {
+              "nodeId": "node_10080005000000000000000000000002",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "skill.id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10080101,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_10080005000000000000000000000003",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "skill.id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10080201,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_10080005000000000000000000000004",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "skill.id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10080301,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
           ],
           "elseChildren": []
         },
@@ -3734,18 +3798,3556 @@
           "kind": "Action",
           "type": "advance_gameplay_counter",
           "arguments": [
-            {"name": "key_id", "value": {"source": "Constant", "type": "Integer", "integerValue": 10080001, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}},
-            {"name": "scope_payload_field_id", "value": {"source": "Constant", "type": "Integer", "integerValue": 1939836602, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}},
-            {"name": "threshold", "value": {"source": "Constant", "type": "Number", "integerValue": 0, "numberValue": 5.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}},
-            {"name": "delta", "value": {"source": "Constant", "type": "Number", "integerValue": 0, "numberValue": 5.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}},
-            {"name": "reset_value", "value": {"source": "Constant", "type": "Number", "integerValue": 0, "numberValue": 5.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}},
-            {"name": "trigger_id", "value": {"source": "Constant", "type": "Integer", "integerValue": 0, "numberValue": 0.0, "booleanValue": false, "vector3Value": {"x": 0.0, "y": 0.0, "z": 0.0}, "fields": []}}
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10080001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "scope_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1939836602,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 5.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "delta",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 5.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reset_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 5.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "trigger_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
           ],
           "children": [],
           "elseChildren": []
         },
         "blackboard": [],
         "note": "Luban skill casts prime the next basic attack sweep without firing it immediately."
+      },
+      {
+        "id": 30010001,
+        "name": "Jhin Whisper basic attack counter",
+        "groupPath": "trigger_30010001",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 45,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_l0000000000000001",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l0000000000000002",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l0000000000000003",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_kind"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l0000000000000004",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_neq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "attacker_actor_id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "target_actor_id"
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_l0000000000000005",
+          "enabled": true,
+          "kind": "Action",
+          "type": "advance_gameplay_counter",
+          "arguments": [
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30010001,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "scope_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1993035528,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 4.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "delta",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 1.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reset_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "trigger_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Jhin authoritative trigger 30010001."
+      },
+      {
+        "id": 30010002,
+        "name": "Jhin Whisper fourth shot empowerment",
+        "groupPath": "trigger_30010002",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.attack.before_calc",
+        "phase": "immediate",
+        "priority": 65,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_l0000000000000006",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "owner_matches_payload_source",
+          "arguments": [],
+          "children": [],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_l0000000000000007",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l0000000000000008",
+              "enabled": true,
+              "kind": "Action",
+              "type": "adjust_damage_from_gameplay_counter",
+              "arguments": [
+                {
+                  "name": "key_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30010001,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "scope_payload_field_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1993035528,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "threshold",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 3,
+                    "numberValue": 3.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 2.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "source_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30010002,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_kind",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "number_slot",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "op",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l000000000000003c",
+              "enabled": true,
+              "kind": "Action",
+              "type": "adjust_damage_number",
+              "arguments": [
+                {
+                  "name": "number_slot",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "op",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_missing_hp_ratio_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.15,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "source_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30010002,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_kind",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30010604,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "require_skill_runtime",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "skip_first_hit",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l0000000000000009",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "赵云被动龙鸣：每损失3%最大生命获得1%免伤，最高33%",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Jhin authoritative trigger 30010002."
+      },
+      {
+        "id": 30010003,
+        "name": "Jhin Whisper passive state",
+        "groupPath": "trigger_30010003",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l000000000000000a",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l000000000000000b",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      32010404
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l000000000000000c",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "廉颇被动触发：添加霸体战意与防御韧性状态",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Jhin authoritative trigger 30010003."
+      },
+      {
+        "id": 30010004,
+        "name": "Jhin Whisper empty launch magazine counter",
+        "groupPath": "trigger_30010004",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "skill.basic_attack.launched",
+        "phase": "immediate",
+        "priority": 44,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_l000000000000000d",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "any",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l000000000000000e",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "skill.id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30010601,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l000000000000000f",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "skill.id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30010602,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l0000000000000010",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "skill.id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30010603,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l000000000000b004",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "skill.id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30010604,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_l0000000000000011",
+          "enabled": true,
+          "kind": "Action",
+          "type": "advance_gameplay_counter",
+          "arguments": [
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30010004,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "scope_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1939836602,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 4,
+                "numberValue": 4.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "delta",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 1,
+                "numberValue": 1.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reset_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "trigger_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "hfsm_parameter_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "hfsm_value_offset",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 1,
+                "numberValue": 1.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Jhin authoritative trigger 30010004."
+      },
+      {
+        "id": 30010006,
+        "name": "Jhin reload presentation 30010006",
+        "groupPath": "trigger_30010006",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l0000000001c9ea96",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l0000000001c9ea97",
+              "enabled": true,
+              "kind": "Action",
+              "type": "play_presentation",
+              "arguments": [
+                {
+                  "name": "template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 90013015,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "duration_ms",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2500,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Jhin authoritative trigger 30010006."
+      },
+      {
+        "id": 30010007,
+        "name": "Jhin reload state reset 30010007",
+        "groupPath": "trigger_30010007",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l0000000001c9eaa0",
+          "enabled": true,
+          "kind": "Action",
+          "type": "set_hfsm_parameter",
+          "arguments": [
+            {
+              "name": "parameter_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 10,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "priority",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "source_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30010004,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Jhin authoritative trigger 30010007. Clears the source-owned AttackSlot contribution when reload exits."
+      },
+      {
+        "id": 30010014,
+        "name": "Jhin reload presentation 30010014",
+        "groupPath": "trigger_30010014",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l0000000001c9ea9e",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l0000000001c9ea9f",
+              "enabled": true,
+              "kind": "Action",
+              "type": "play_presentation",
+              "arguments": [
+                {
+                  "name": "template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 90013015,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "duration_ms",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2500,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Jhin authoritative trigger 30010014."
+      },
+      {
+        "id": 30030004,
+        "name": "安妮-嗜火-Q施法锁存",
+        "groupPath": "trigger_30030004",
+        "tags": [
+          "moba",
+          "annie"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "skill.cast.start",
+        "phase": "immediate",
+        "priority": 100,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_4636e70d2f035ff339f6df99d51cb30d",
+          "enabled": true,
+          "kind": "Action",
+          "type": "consume_gameplay_counter",
+          "arguments": [
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030002,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "scope_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1939836602,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 4.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reset_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_kind",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "trigger_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030003,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "per_skill_cast",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": true,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Annie first-slice authored trigger using shared MOBA actions.",
+        "condition": {
+          "nodeId": "node_e0a5f5c500a03fad6758c6eff7181f54",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "arg_eq",
+          "arguments": [
+            {
+              "name": "left",
+              "value": {
+                "source": "Payload",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": [],
+                "path": "skill.id"
+              }
+            },
+            {
+              "name": "right",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030201,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        }
+      },
+      {
+        "id": 30030005,
+        "name": "安妮-嗜火-W施法锁存",
+        "groupPath": "trigger_30030005",
+        "tags": [
+          "moba",
+          "annie"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "skill.cast.start",
+        "phase": "immediate",
+        "priority": 100,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_5d390df2c12f1cccae68f70b07a8ae8c",
+          "enabled": true,
+          "kind": "Action",
+          "type": "consume_gameplay_counter",
+          "arguments": [
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030002,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "scope_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1939836602,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 4.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reset_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_kind",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "trigger_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030003,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "per_skill_cast",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": true,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Annie first-slice authored trigger using shared MOBA actions.",
+        "condition": {
+          "nodeId": "node_b25a338bf286ac1f633ef2a4f40dfd0c",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "arg_eq",
+          "arguments": [
+            {
+              "name": "left",
+              "value": {
+                "source": "Payload",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": [],
+                "path": "skill.id"
+              }
+            },
+            {
+              "name": "right",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030301,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        }
+      },
+      {
+        "id": 30030006,
+        "name": "安妮-嗜火-Q命中消费",
+        "groupPath": "trigger_30030006",
+        "tags": [
+          "moba",
+          "annie"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_8aead37b5095bb16aa891dfcae2b4bdd",
+          "enabled": true,
+          "kind": "Action",
+          "type": "consume_gameplay_counter",
+          "arguments": [
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030002,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "scope_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1993035528,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 4.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reset_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_kind",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "trigger_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030003,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "per_skill_cast",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": true,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Annie first-slice authored trigger using shared MOBA actions.",
+        "condition": {
+          "nodeId": "node_67b4041eecc4a92ac10b36c1f03dc8b9",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_a55a6921043211b0f6ea73128dfefbaf",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_0580dab806a45def0953c840c8576b72",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_param"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30030201,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        }
+      },
+      {
+        "id": 30030007,
+        "name": "安妮-嗜火-W命中消费",
+        "groupPath": "trigger_30030007",
+        "tags": [
+          "moba",
+          "annie"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_16b312e29c88f12d32f5f996aae9f306",
+          "enabled": true,
+          "kind": "Action",
+          "type": "consume_gameplay_counter",
+          "arguments": [
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030002,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "scope_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1993035528,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 4.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reset_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_kind",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "trigger_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030003,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "per_skill_cast",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": true,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Annie first-slice authored trigger using shared MOBA actions.",
+        "condition": {
+          "nodeId": "node_f2a4942273b852f1aad72bd7f08a85ac",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_43123362e5672db8bd50f221083ada15",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_bf503118af37530765ad4ba32f68c14c",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_param"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30030301,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        }
+      },
+      {
+        "id": 30030003,
+        "name": "安妮-嗜火-强化命中眩晕",
+        "groupPath": "trigger_30030003",
+        "tags": [
+          "moba",
+          "annie"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": true,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_1ad31cd63161b2e0a8f391141573dda1",
+          "enabled": true,
+          "kind": "Action",
+          "type": "add_buff",
+          "arguments": [
+            {
+              "name": "buff_ids",
+              "value": {
+                "source": "Constant",
+                "type": "IntegerList",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [
+                  30030211
+                ],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "target_max_count",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Annie first-slice authored trigger using shared MOBA actions."
+      },
+      {
+        "id": 30030002,
+        "name": "Annie passive successful spell cast counter",
+        "groupPath": "trigger_30030002",
+        "tags": [
+          "moba",
+          "annie"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "skill.cast.start",
+        "phase": "immediate",
+        "priority": 110,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_6f490d80be484a869e03ca3699fae355",
+          "enabled": true,
+          "kind": "Action",
+          "type": "advance_gameplay_counter",
+          "arguments": [
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030002,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "scope_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1939836602,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 4.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "delta",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 1.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reset_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "preserve_threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": true,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "trigger_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Annie first-slice authored trigger using shared MOBA actions.",
+        "condition": {
+          "nodeId": "node_1fbb44cc185a1a2906d0b03cabd17937",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "any",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_05fc7926f54ea22d3650befc7d016ef1",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "skill.id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30030201,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_4134e4e94b08f7e015519caaf0e87001",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "skill.id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30030301,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_7e5c6349924c0a92da437655b715cff5",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "skill.id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30030401,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_67f237b9d00ed1083569f3003149f851",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "skill.id"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30030501,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        }
+      },
+      {
+        "id": 10010901,
+        "name": "Jhin passive battle-fury callable",
+        "groupPath": "trigger_10010901",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": true,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l3e39cb265f0d5b29",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l5e40a8452fd0d4fc",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      10010000
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l979ac6f65ed8db8b",
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "廉颇被动触发：添加霸体战意与防御韧性状态",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Callable projection of Jhin passive battle-fury; the owner-bound event trigger 10010000 remains the passive subscription."
+      },
+      {
+        "id": 30030008,
+        "name": "??-??-R????",
+        "groupPath": "trigger_30030008",
+        "tags": [
+          "moba",
+          "annie"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_0b64428868ad62e114f54451257745a2",
+          "enabled": true,
+          "kind": "Action",
+          "type": "consume_gameplay_counter",
+          "arguments": [
+            {
+              "name": "key_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030002,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "scope_payload_field_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1993035528,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "threshold",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 4.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reset_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_kind",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "trigger_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030003,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "per_skill_cast",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": true,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Annie first-slice authored trigger using shared MOBA actions.",
+        "condition": {
+          "nodeId": "node_14a63ebf457b0d98744afc4a1885585a",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_b9c5331b174db79febf9d625ff368c8a",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_0be35b507010dfa592fdc6efa03b73e7",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_param"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30030501,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        }
       }
     ]
   }

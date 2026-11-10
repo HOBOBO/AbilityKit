@@ -19,6 +19,7 @@ namespace moba_luban
         Blacklist = 514,
         RequireValidId = 516,
         RequireHasPosition = 517,
+        RequireUnitSubType = 518,
         ExcludeCaster = 769,
         ExcludeExplicitTarget = 770,
         RectangleShape = 771,

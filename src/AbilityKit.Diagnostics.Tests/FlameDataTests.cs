@@ -174,6 +174,7 @@ public sealed class FlameDataTests
         options.DefaultSampleRate = 0.5d;
         options.MaxSamplesPerMetric = 10;
         options.MaxDiagnosticEvents = 4;
+        options.MaxMetricOperationsPerThread = 8;
         options.DisableCategory("net");
         options.SetCategorySampleRate("sim", 0.25d);
         options.SetMetricSampleRate("sim.step", 0.75d);
@@ -182,6 +183,7 @@ public sealed class FlameDataTests
         clone.DefaultSampleRate = 0.1d;
         clone.MaxSamplesPerMetric = 99;
         clone.MaxDiagnosticEvents = 99;
+        clone.MaxMetricOperationsPerThread = 99;
         clone.DisableCategory("extra");
         clone.SetCategorySampleRate("sim", 1d);
         clone.SetMetricSampleRate("sim.step", 1d);
@@ -192,6 +194,7 @@ public sealed class FlameDataTests
         Assert.Equal(0.5d, options.DefaultSampleRate, 9);
         Assert.Equal(10, options.MaxSamplesPerMetric);
         Assert.Equal(4, options.MaxDiagnosticEvents);
+        Assert.Equal(8, options.MaxMetricOperationsPerThread);
         Assert.Equal(0.25d, options.GetSampleRate("sim", "sim.other"), 9);
         Assert.Equal(0.75d, options.GetSampleRate("sim", "sim.step"), 9);
     }

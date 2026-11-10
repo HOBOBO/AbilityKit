@@ -1,0 +1,18 @@
+{
+  "Id": 30020003,
+  "Name": "Jinx - Fishbones Basic Attack",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "skill_30020003_commit",
+      "RulePlan": {
+        "TriggerIds": [
+          30020202
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "basic_attack_launch_failed"
+      }
+    }
+  ]
+}

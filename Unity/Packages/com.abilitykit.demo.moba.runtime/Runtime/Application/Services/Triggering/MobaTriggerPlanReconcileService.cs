@@ -16,7 +16,9 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
     {
         [WorldInject(required: false)] private MobaTriggerExecutionGateway _triggers = null;
 
-        private readonly Dictionary<long, int> _hashByOwnerKey = new Dictionary<long, int>();
+        // The hash is only a fast rejection check. Keep the exact ids as well so
+        // a 32-bit collision cannot leave an outdated owner subscription active.
+        private readonly Dictionary<long, TriggerPlanBindingSnapshot> _bindingByOwnerKey = new Dictionary<long, TriggerPlanBindingSnapshot>();
         private readonly HashSet<long> _desiredKeys = new HashSet<long>();
         private readonly List<long> _tmpKeys = new List<long>(64);
 
@@ -42,21 +44,23 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                     if (triggerIds == null || triggerIds.Length == 0)
                     {
                         _triggers.StopOwnerBoundTriggers(ownerKey, "ongoing.reconcile.empty");
-                        _hashByOwnerKey.Remove(ownerKey);
+                        _bindingByOwnerKey.Remove(ownerKey);
                         continue;
                     }
 
                     var hash = ComputeHash(triggerIds);
-                    if (!_hashByOwnerKey.TryGetValue(ownerKey, out var oldHash) || oldHash != hash)
+                    if (!_bindingByOwnerKey.TryGetValue(ownerKey, out var previous)
+                        || previous.Hash != hash
+                        || !SequenceEqual(previous.TriggerIds, triggerIds))
                     {
                         _triggers.ApplyOwnerBoundTriggers(triggerIds, ownerKey, "ongoing.reconcile.apply");
-                        _hashByOwnerKey[ownerKey] = hash;
+                        _bindingByOwnerKey[ownerKey] = new TriggerPlanBindingSnapshot(hash, triggerIds);
                     }
                 }
             }
 
             _tmpKeys.Clear();
-            foreach (var ownerKey in _hashByOwnerKey.Keys)
+            foreach (var ownerKey in _bindingByOwnerKey.Keys)
             {
                 if (!_desiredKeys.Contains(ownerKey)) _tmpKeys.Add(ownerKey);
             }
@@ -65,15 +69,39 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
             {
                 var ownerKey = _tmpKeys[i];
                 _triggers.StopOwnerBoundTriggers(ownerKey, "ongoing.reconcile.stale");
-                _hashByOwnerKey.Remove(ownerKey);
+                _bindingByOwnerKey.Remove(ownerKey);
             }
         }
 
         public void Dispose()
         {
-            _hashByOwnerKey.Clear();
+            _bindingByOwnerKey.Clear();
             _desiredKeys.Clear();
             _tmpKeys.Clear();
+        }
+
+        private sealed class TriggerPlanBindingSnapshot
+        {
+            public readonly int Hash;
+            public readonly int[] TriggerIds;
+
+            public TriggerPlanBindingSnapshot(int hash, IReadOnlyList<int> triggerIds)
+            {
+                Hash = hash;
+                TriggerIds = new int[triggerIds.Count];
+                for (var i = 0; i < triggerIds.Count; i++) TriggerIds[i] = triggerIds[i];
+            }
+        }
+
+        private static bool SequenceEqual(int[] left, IReadOnlyList<int> right)
+        {
+            if (left == null || right == null || left.Length != right.Count) return false;
+            for (var i = 0; i < left.Length; i++)
+            {
+                if (left[i] != right[i]) return false;
+            }
+
+            return true;
         }
 
         private static int ComputeHash(int[] ids)

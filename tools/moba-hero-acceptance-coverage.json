@@ -3,6 +3,35 @@
   "manifest": "moba-hero-acceptance-coverage",
   "heroes": [
     {
+      "heroId": 3001,
+      "heroName": "Jhin",
+      "fixture": "AbilityKit.Game.Test.UnitTest.JhinSkillAcceptanceTests",
+      "gate": "moba-jhin-unity",
+      "sceneContract": "headless-and-local-session-hud-input-to-projectile-damage",
+      "coverage": {
+        "hudInput": "covered",
+        "repeatedRelease": "covered",
+        "buff": "covered",
+        "projectile": "covered",
+        "area": "not-covered",
+        "presentation": "not-covered"
+      },
+      "coverageEvidence": {
+        "hudInput": [
+          "W_LocalBattleHudReleaseFlowsThroughInputFeatureAndDamagesEnemy"
+        ],
+        "repeatedRelease": [
+          "BasicAttack_EmptyLaunchesAdvanceMagazineAndEnterReloadSlot"
+        ],
+        "buff": [
+          "QMark_IsGrantedByRealProjectileDamageThenRefreshedByWAndExpires"
+        ],
+        "projectile": [
+          "W_FiresStraightProjectileAppliesLevelDamageOnceAndStopsAtFirstEnemy"
+        ]
+      }
+    },
+    {
       "heroId": 1,
       "heroName": "LianPo",
       "fixture": "AbilityKit.Game.Test.UnitTest.LianPoSkillAcceptanceTests",
@@ -14,6 +43,17 @@
         "projectile": "not-covered",
         "area": "covered",
         "presentation": "not-covered"
+      },
+      "coverageEvidence": {
+        "repeatedRelease": [
+          "Skill10010301_ScenarioExportsTraceAndConfirmsThirdStageKnockup"
+        ],
+        "buff": [
+          "Skill10010201_ScenarioExportsTraceAndConfirmsShieldAreaDamageAndSlow"
+        ],
+        "area": [
+          "Skill10010201_ScenarioExportsTraceAndConfirmsShieldAreaDamageAndSlow"
+        ]
       }
     },
     {
@@ -28,6 +68,23 @@
         "projectile": "covered",
         "area": "covered",
         "presentation": "covered"
+      },
+      "coverageEvidence": {
+        "repeatedRelease": [
+          "Skill10020301_ScenarioExportsTraceAndConfirmsIntervalDamage"
+        ],
+        "buff": [
+          "Skill10020000_PassiveCastBuff_RepeatedCastShouldRefreshDurationFromLatestApply"
+        ],
+        "projectile": [
+          "Skill10020101_ScenarioExportsTraceAndConfirmsProjectileDamage"
+        ],
+        "area": [
+          "Skill10020201_ScenarioExportsTraceAndConfirmsAreaDamage"
+        ],
+        "presentation": [
+          "XiaoQiaoPresentationResources_ShouldLoadAndMatchUltimateRadius"
+        ]
       }
     },
     {
@@ -42,6 +99,17 @@
         "projectile": "not-covered",
         "area": "covered",
         "presentation": "not-covered"
+      },
+      "coverageEvidence": {
+        "repeatedRelease": [
+          "Skill10030201_ShouldCreateFourHitAreaAndHealCaster"
+        ],
+        "buff": [
+          "Skill10030101_ShouldGrantMoveSpeedAndConsumeEnhancedBasicAttack"
+        ],
+        "area": [
+          "Skill10030201_ShouldCreateFourHitAreaAndHealCaster"
+        ]
       }
     },
     {
@@ -56,6 +124,20 @@
         "projectile": "covered",
         "area": "covered",
         "presentation": "covered"
+      },
+      "coverageEvidence": {
+        "repeatedRelease": [
+          "Skill10040201_RepeatedCastShouldHitSameTargetAndSpawnIndependentCraters"
+        ],
+        "buff": [
+          "Skill10040101_ShouldApplyBuffModifierAndReplaceNextBasicAttackSkillId"
+        ],
+        "projectile": [
+          "Skill10040201_ShouldLaunchCannonAndSpawnEndpointCrater"
+        ],
+        "area": [
+          "Skill10040201_ShouldSpawnHitCraterAndDamageEveryHalfSecond"
+        ]
       }
     },
     {
@@ -70,6 +152,17 @@
         "projectile": "covered",
         "area": "not-covered",
         "presentation": "not-covered"
+      },
+      "coverageEvidence": {
+        "repeatedRelease": [
+          "Skill10050301_ShouldLaunchExactlyFiveFoxfiresFromOneCast"
+        ],
+        "buff": [
+          "Passive10050000_ShouldCapAtThreeLayersAndIncreaseFinalMagicDamage"
+        ],
+        "projectile": [
+          "Skill10050101_ShouldLaunchRectangularWaveAndDamageOffsetTarget"
+        ]
       }
     },
     {
@@ -84,6 +177,20 @@
         "projectile": "covered",
         "area": "not-covered",
         "presentation": "covered"
+      },
+      "coverageEvidence": {
+        "repeatedRelease": [
+          "Skill10060301_ShouldSpawnExactlyElevenFiveSwordWavesAlongLockedDirection"
+        ],
+        "buff": [
+          "Passive10060000_FifthBasicAttackShouldDealEnhancedMagicDamage"
+        ],
+        "projectile": [
+          "Skill10060301_ShouldUseFiniteOneTargetPierceAndUnitCollisionBounds"
+        ],
+        "presentation": [
+          "Skill10060301_ShouldExposeMovingProjectileActorAndConfiguredVfx"
+        ]
       }
     },
     {
@@ -98,6 +205,23 @@
         "projectile": "covered",
         "area": "covered",
         "presentation": "covered"
+      },
+      "coverageEvidence": {
+        "repeatedRelease": [
+          "Passive10070000_ShouldReduceCooldownsOfAllThreeActiveSkillsAfterBasicAttackHit"
+        ],
+        "buff": [
+          "Skill10070101_ShouldDashAndArmEnhancedBasicAttack"
+        ],
+        "projectile": [
+          "Skill10070301_ShouldLaunchConfiguredUltimateProjectile"
+        ],
+        "area": [
+          "Skill10070201_ShouldLaunchBombAndSpawnSlowArea"
+        ],
+        "presentation": [
+          "SunShangxiangAndLubanSkills_ShouldExposeOfficialAimIndicators"
+        ]
       }
     },
     {
@@ -112,6 +236,117 @@
         "projectile": "covered",
         "area": "covered",
         "presentation": "covered"
+      },
+      "coverageEvidence": {
+        "repeatedRelease": [
+          "Passive10080000_ShouldCountReleasedBasicAttacksEvenWhenTheyMiss"
+        ],
+        "buff": [
+          "Passive10080000_ShouldPrimeSweepAfterSkillCast"
+        ],
+        "projectile": [
+          "Skill10080201_ShouldHitMultipleTargetsAndScaleKnockbackByDistance"
+        ],
+        "area": [
+          "Skill10080101_ShouldLaunchGrenadeAndSpawnSlowArea",
+          "Skill10080101_IndicatorGeometryMatchesReleasedArea"
+        ],
+        "presentation": [
+          "LubanSkills_ShouldExposeGrenadeCannonAndAirSupportIndicators"
+        ]
+      }
+    },
+    {
+      "heroId": 3002,
+      "heroName": "Jinx",
+      "fixture": "AbilityKit.Game.Test.UnitTest.JinxSkillAcceptanceTests",
+      "gate": "moba-jinx-unity",
+      "sceneContract": "local-jinx-hud-q-w-directionline-to-damage",
+      "coverage": {
+        "weaponModeState": "covered",
+        "qCastCommit": "covered",
+        "basicAttackRouting": "covered",
+        "wDirectionalProjectile": "covered",
+        "hudInput": "covered",
+        "indicatorGeometry": "covered",
+        "rollback": "not-covered",
+        "presentation": "not-covered"
+      },
+      "coverageEvidence": {
+        "weaponModeState": [
+          "WeaponModeProfileIsHeroLocalAndSelectsWeaponActions",
+          "Q_CastAlternatesWeaponModeThroughMutuallyExclusiveBuffModifiers"
+        ],
+        "qCastCommit": [
+          "Q_CastAlternatesWeaponModeThroughMutuallyExclusiveBuffModifiers"
+        ],
+        "basicAttackRouting": [
+          "BasicAttack_ResolvesAndCompletesProjectileDamageLoopForBothWeaponModes"
+        ],
+        "wDirectionalProjectile": [
+          "W_FiresDirectionalProjectileDealsRankDamageOnceAndStopsAtFirstEnemy"
+        ],
+        "hudInput": [
+          "QAndW_LocalHudInputFeatureCommitsQAndDealsWLineDamage"
+        ],
+        "indicatorGeometry": [
+          "QAndW_LocalHudInputFeatureCommitsQAndDealsWLineDamage"
+        ]
+      }
+    },
+    {
+      "heroId": 3003,
+      "heroName": "Annie",
+      "fixture": "AbilityKit.Game.Test.UnitTest.AnnieSkillAcceptanceTests",
+      "gate": "moba-annie-unity",
+      "sceneContract": "local-annie-hud-qwer-to-production-input",
+      "coverage": {
+        "passiveCastCounter": "covered",
+        "passiveFourthCastStun": "covered",
+        "qGameplay": "covered",
+        "wGameplay": "covered",
+        "eGameplay": "covered",
+        "rSummonGameplay": "covered",
+        "tibbersBehavior": "covered",
+        "presentation": "covered",
+        "hudInput": "covered",
+        "indicatorGeometry": "covered"
+      },
+      "coverageEvidence": {
+        "passiveCastCounter": [
+          "Passive_ShouldCountSuccessfulQAndWCastsButNotBasicAttacks",
+          "Passive_ShouldCountECastAndRCastBeforeTheirDamageResolution"
+        ],
+        "passiveFourthCastStun": [
+          "Passive_ShouldApplyStunOnFourthSpellDamageAndConsumeCounter"
+        ],
+        "qGameplay": [
+          "Q_ShouldLaunchConfiguredProjectileAndApplyConfiguredDamageOnHit",
+          "Q_ShouldRefundTheActualCostWhenItsProjectileKillsTheTarget"
+        ],
+        "wGameplay": [
+          "W_ShouldApplyConfiguredSectorDamageOnlyToTargetsInsideTheCastDirection"
+        ],
+        "eGameplay": [
+          "E_ShouldGrantConfiguredShieldAndTimedMoveSpeedBuff"
+        ],
+        "rSummonGameplay": [
+          "R_ShouldApplyConfiguredImpactDamageAndSpawnConfiguredTibbersSummon"
+        ],
+        "tibbersBehavior": [
+          "Tibbers_DeathShouldReleaseSummonAndBehaviorRuntime",
+          "Tibbers_OwnerDeathShouldDespawnWithoutKilledCleanup",
+          "Tibbers_BehaviorTreeShouldChaseWhenTargetLeavesAttackRange"
+        ],
+        "presentation": [
+          "PresentationMappings_ShouldUseAnnieOwnedVfxAndBuffTemplates"
+        ],
+        "hudInput": [
+          "LocalBattleScenario_AllFourHudSlotsSubmitProductionSkillInput"
+        ],
+        "indicatorGeometry": [
+          "LocalBattleScenario_AllFourHudSlotsSubmitProductionSkillInput"
+        ]
       }
     }
   ]

@@ -31,7 +31,12 @@ namespace AbilityKit.Demo.Moba.Services
             if (skill == null) return fallback;
 
             return new SkillCastPolicy(
-                fallback.AllowParallel || skill.SkillType == SkillType.ParallelActive,
+                // Normal attacks are one-shot launch pipelines. Their animation and
+                // magazine progression are owned by the character HFSM, so a completed
+                // launch must be chainable even while the previous presentation cast
+                // instance is being retired by the next sync pass.
+                fallback.AllowParallel || skill.SkillType == SkillType.ParallelActive ||
+                    skill.SkillType == SkillType.NormalAttack,
                 fallback.InterruptRunning || skill.InterruptRunning,
                 skill.CastConflictGroup > 0 ? skill.CastConflictGroup : fallback.ConflictGroup,
                 skill.InterruptPriority > 0 ? skill.InterruptPriority : fallback.InterruptPriority,

@@ -22,6 +22,52 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
         private const string SourcePath =
             "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/Showcases/moba-p0-complex-skill.trigger.json";
 
+        [TestCase("give_damage")]
+        [TestCase("heal")]
+        [TestCase("add_shield")]
+        public void NamedSkillLevelMagnitude_SatisfiesAmountRequirement(string actionType)
+        {
+            var absolutePath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", SourcePath));
+            var module = TriggerAuthoringSourceCodec.ReadFile(absolutePath).Module;
+            var project = AssetDatabase.LoadAssetAtPath<TriggerAuthoringProjectAsset>(ProjectPath);
+            Assert.That(project, Is.Not.Null);
+            var action = new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = actionType };
+            module.Triggers.Single().Actions = action;
+            var context = new TriggerAuthoringValidationContext
+            {
+                Types = TriggerTypeDescriptorCatalog.CreateForProject(project),
+                Events = TriggerEventDescriptorCatalog.FromProject(project)
+            };
+            Assert.That(TriggerAuthoringValidator.Validate(module, context)
+                .Any(item => item.Code == "TRG1213"), Is.True);
+
+            action.Arguments.Add(new TriggerArgumentData
+            {
+                Name = "magnitude_type",
+                Value = new TriggerValueRefData
+                {
+                    Source = TriggerValueSource.Constant,
+                    Type = TriggerValueType.Integer,
+                    IntegerValue = 6
+                }
+            });
+            action.Arguments.Add(new TriggerArgumentData
+            {
+                Name = "magnitude_parameter",
+                Value = new TriggerValueRefData
+                {
+                    Source = TriggerValueSource.Constant,
+                    Type = TriggerValueType.String,
+                    StringValue = "damage"
+                }
+            });
+
+            var diagnostics = TriggerAuthoringValidator.Validate(module, context);
+            Assert.That(TriggerAuthoringValidator.HasErrors(diagnostics), Is.False,
+                string.Join("\n", diagnostics.Select(item => item.Code + " " + item.Path + ": " + item.Message)));
+            Assert.That(TriggerAuthoringRuntimeExporter.Build(module, context).Success, Is.True);
+        }
+
         [Test]
         public void ShowcaseSource_RoundTripsAndExportsAllP0AuthoringCapabilities()
         {

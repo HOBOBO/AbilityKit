@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Moba.Services;
+using SkillAvailabilityState = AbilityKit.Demo.Moba.Share.SkillAvailabilityState;
+using SkillStateData = AbilityKit.Demo.Moba.Share.SkillStateData;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Requests;
@@ -39,14 +41,45 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(-0.5f, sink.MoveDz);
             Assert.AreEqual(2, sink.ClickedSlot);
             Assert.AreEqual(3, sink.ActiveAimSlot);
-            Assert.AreEqual(0.3f, sink.ActiveAimDx);
-            Assert.AreEqual(0.4f, sink.ActiveAimDz);
+            Assert.AreEqual(0.5f, sink.ActiveAimDx);
+            Assert.AreEqual(0.6f, sink.ActiveAimDz);
             Assert.IsTrue(sink.ActiveAimAiming);
             Assert.AreEqual(3, sink.SubmittedAimSlot);
             Assert.AreEqual(0.5f, sink.SubmittedAimDx);
             Assert.AreEqual(0.6f, sink.SubmittedAimDz);
             Assert.AreEqual(0, sink.ResetAimSlot);
             Assert.IsFalse(sink.ResetAimAiming);
+        }
+
+        [Test]
+        public void InputLayout_ProvidesCompactNonOverlappingFiveButtonCombatCluster()
+        {
+            var buttons = new BattleHudSkillButtonLayoutSpec[5];
+            for (var slot = 1; slot <= buttons.Length; slot++)
+                buttons[slot - 1] = BattleHudInputLayout.GetSkill(slot);
+
+            for (var i = 0; i < buttons.Length; i++)
+            {
+                Assert.AreEqual(i + 1, buttons[i].Slot);
+                for (var j = i + 1; j < buttons.Length; j++)
+                {
+                    var delta = buttons[i].AnchoredPos - buttons[j].AnchoredPos;
+                    Assert.IsTrue(Mathf.Abs(delta.x) >= 110f || Mathf.Abs(delta.y) >= 110f,
+                        $"Skill buttons {i + 1} and {j + 1} overlap.");
+                }
+            }
+
+            Assert.Less(buttons[4].AnchoredPos.y, 150f,
+                "The fifth slot is Jhin's basic attack and should stay in the lower thumb-reach row.");
+            Assert.AreEqual(buttons[3].AnchoredPos.y, buttons[4].AnchoredPos.y,
+                "The basic attack should sit beside R for quick access.");
+            Assert.AreEqual(-130f, buttons[3].AnchoredPos.x - buttons[4].AnchoredPos.x,
+                0.001f,
+                "The basic attack should form a single button-width step to the right of R.");
+            Assert.AreEqual(buttons[0].AnchoredPos.y, buttons[1].AnchoredPos.y,
+                "Q and W should share the upper row.");
+            Assert.AreEqual(buttons[2].AnchoredPos.y, buttons[3].AnchoredPos.y,
+                "E and R should share the lower row.");
         }
 
         [Test]
@@ -74,11 +107,44 @@ namespace AbilityKit.Game.Test.UnitTest
             dispatcher.OnSkillAimEnd(3, new Vector2(1f, 0f));
 
             Assert.AreEqual(3, sink.ActiveAimSlot);
-            Assert.AreEqual(5f, sink.ActiveAimDx, 0.0001f);
-            Assert.AreEqual(2.5f, sink.ActiveAimDz, 0.0001f);
+            Assert.AreEqual(10f, sink.ActiveAimDx, 0.0001f);
+            Assert.AreEqual(0f, sink.ActiveAimDz, 0.0001f);
             Assert.AreEqual(3, sink.SubmittedAimSlot);
             Assert.AreEqual(10f, sink.SubmittedAimDx, 0.0001f);
             Assert.AreEqual(0f, sink.SubmittedAimDz, 0.0001f);
+            Assert.IsTrue(sink.SubmittedAimIncludesPosition,
+                "A point-target skill must submit a world aim position.");
+            Assert.AreEqual(sink.SubmittedAimDx, sink.ActiveAimDx, 0.0001f,
+                "The visible point preview must use the exact release snapshot.");
+            Assert.AreEqual(sink.SubmittedAimDz, sink.ActiveAimDz, 0.0001f);
+        }
+
+        [Test]
+        public void Dispatcher_ScalesPointAimEvenWhenUsePointModeIsAim()
+        {
+            var sink = new RecordingHudInputSink();
+            var dispatcher = new BattleHudInputEventDispatcher(sink);
+            dispatcher.SetSkillSpecs(new Dictionary<int, BattleHudSkillPresentationSpec>
+            {
+                [3] = new BattleHudSkillPresentationSpec(
+                    10010301,
+                    "TargetSkill",
+                    BattleHudSkillPreviewShape.TargetCircle,
+                    SkillAimIndicatorShape.TargetCircle,
+                    10f,
+                    6.8f,
+                    3.4f,
+                    Color.white,
+                    aimMode: SkillAimMode.Point,
+                    usePointMode: SkillUsePointMode.Aim,
+                    faceToAim: false)
+            });
+
+            dispatcher.OnSkillAimEnd(3, new Vector2(0f, 0.2f));
+
+            Assert.AreEqual(0f, sink.SubmittedAimDx, 0.0001f);
+            Assert.AreEqual(2f, sink.SubmittedAimDz, 0.0001f);
+            Assert.IsTrue(sink.SubmittedAimIncludesPosition);
         }
 
         [Test]
@@ -104,6 +170,35 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(1, sink.SubmittedAimSlot);
             Assert.AreEqual(1f, sink.SubmittedAimDx, 0.0001f);
             Assert.AreEqual(0f, sink.SubmittedAimDz, 0.0001f);
+            Assert.IsFalse(sink.SubmittedAimIncludesPosition,
+                "A direction skill must submit its ray without a one-unit world point.");
+        }
+
+        [Test]
+        public void Dispatcher_RefreshesDirectionPreviewFromReleaseSnapshotBeforeSubmission()
+        {
+            var sink = new RecordingHudInputSink();
+            var dispatcher = new BattleHudInputEventDispatcher(sink);
+            dispatcher.SetSkillSpecs(new Dictionary<int, BattleHudSkillPresentationSpec>
+            {
+                [2] = new BattleHudSkillPresentationSpec(
+                    10010201,
+                    "DirectionSkill",
+                    BattleHudSkillPreviewShape.DirectionLine,
+                    SkillAimIndicatorShape.DirectionLine,
+                    12f,
+                    1.8f,
+                    0f,
+                    Color.white)
+            });
+
+            dispatcher.OnSkillAimStart(2, new Vector2(1f, 0f));
+            dispatcher.OnSkillAimEnd(2, new Vector2(0f, 1f));
+
+            Assert.AreEqual(0f, sink.ActiveAimDx, 0.0001f);
+            Assert.AreEqual(1f, sink.ActiveAimDz, 0.0001f);
+            Assert.AreEqual(sink.ActiveAimDx, sink.SubmittedAimDx, 0.0001f);
+            Assert.AreEqual(sink.ActiveAimDz, sink.SubmittedAimDz, 0.0001f);
         }
 
         [Test]
@@ -123,6 +218,30 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.AreEqual(2, fixture.Sink.SubmittedAimSlot);
                 Assert.AreEqual(-1, fixture.Sink.ResetAimSlot);
                 Assert.IsTrue(fixture.Sink.ResetAimAiming);
+            }
+        }
+
+        [Test]
+        public void Bridge_DisablingSkillDuringAimCancelsHudAimOnPointerUp()
+        {
+            using (var fixture = BattleHudInputEventBridgeFixture.Create())
+            {
+                fixture.Bridge.Bind(fixture.InputUi);
+
+                fixture.PointerDown(fixture.Skill2, new Vector2(10f, 10f));
+                Assert.AreEqual(2, fixture.Sink.ActiveAimSlot);
+                Assert.IsTrue(fixture.Sink.ActiveAimAiming);
+
+                fixture.Skill2.ApplySkillState(new SkillStateData(
+                    actorId: 1,
+                    slot: 2,
+                    skillId: 10010201,
+                    availability: SkillAvailabilityState.Disabled));
+                fixture.PointerUp(fixture.Skill2, new Vector2(40f, 10f));
+
+                Assert.AreEqual(0, fixture.Sink.ResetAimSlot);
+                Assert.IsFalse(fixture.Sink.ResetAimAiming);
+                Assert.AreEqual(0, fixture.Sink.SubmittedAimSlot);
             }
         }
 
@@ -730,6 +849,7 @@ namespace AbilityKit.Game.Test.UnitTest
             public int SubmittedAimSlot { get; private set; }
             public float SubmittedAimDx { get; private set; }
             public float SubmittedAimDz { get; private set; }
+            public bool SubmittedAimIncludesPosition { get; private set; } = true;
             public int ResetAimSlot { get; private set; } = -1;
             public bool ResetAimAiming { get; private set; } = true;
 
@@ -776,11 +896,12 @@ namespace AbilityKit.Game.Test.UnitTest
                 ResetAimAiming = false;
             }
 
-            public void SubmitHudSkillAim(int slot, float aimDx, float aimDz)
+            public void SubmitHudSkillAim(int slot, float aimDx, float aimDz, bool includeAimPosition = true)
             {
                 SubmittedAimSlot = slot;
                 SubmittedAimDx = aimDx;
                 SubmittedAimDz = aimDz;
+                SubmittedAimIncludesPosition = includeAimPosition;
             }
         }
     }

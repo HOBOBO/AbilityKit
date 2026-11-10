@@ -2,6 +2,12 @@
   "name": "AbilityKit.Demo.Moba.Diagnostics.Core.Tests",
   "rootNamespace": "AbilityKit.Demo.Moba.Diagnostics.Tests",
   "references": [
+    "AbilityKit.ActionSchema",
+    "AbilityKit.Base.Editor",
+    "AbilityKit.Demo.Moba.Presentation.Core",
+    "ActionEditorImpl",
+    "NBC.ActionEditor",
+    "NBC.ActionEditor.Editor",
     "AbilityKit.Demo.Moba.Diagnostics.Core",
     "AbilityKit.Modifiers",
     "AbilityKit.Demo.Moba.Runtime",
@@ -31,7 +37,8 @@
     "AbilityKit.Deterministic",
     "AbilityKit.Combat.Projectile",
     "AbilityKit.Combat.Collision.Abstractions",
-    "AbilityKit.Combat.EntityManager"
+    "AbilityKit.Combat.EntityManager",
+    "AbilityKit.HFSM.Core"
   ],
   "includePlatforms": [
     "Editor"

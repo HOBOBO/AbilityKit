@@ -33,6 +33,7 @@ public sealed partial class DRAoes : Luban.BeanBase
         {int n0 = _buf.ReadSize(); OnIntervalTriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnIntervalTriggerIds.Add(_e0);}}
         Radius = _buf.ReadFloat();
         VfxId = _buf.ReadInt();
+        ConsumeOnFirstEnter = _buf.ReadBool();
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
     }
@@ -111,6 +112,10 @@ public sealed partial class DRAoes : Luban.BeanBase
     /// </summary>
     public readonly int VfxId;
     /// <summary>
+    /// Consume the first valid enemy enter after arming; false keeps normal enter behavior.
+    /// </summary>
+    public readonly bool ConsumeOnFirstEnter;
+    /// <summary>
     /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
     /// </summary>
     public readonly string OmittedFields;
@@ -146,6 +151,7 @@ public sealed partial class DRAoes : Luban.BeanBase
         + "OnIntervalTriggerIds:" + Luban.StringUtil.CollectionToString(OnIntervalTriggerIds) + ","
         + "Radius:" + Radius + ","
         + "VfxId:" + VfxId + ","
+        + "ConsumeOnFirstEnter:" + ConsumeOnFirstEnter + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
         + "}";

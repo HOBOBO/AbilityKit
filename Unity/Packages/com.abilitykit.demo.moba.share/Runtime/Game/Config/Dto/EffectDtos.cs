@@ -46,6 +46,9 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int SelectorBuffTemplateId;
         public int CandidateSkillId;
         public int CandidateReferenceId;
+        public int CandidateHfsmParameterId;
+        public int CandidateHfsmParameterComparison;
+        public float CandidateHfsmParameterExpectedValue;
         public float FormulaConstant;
         public float FormulaLevelCoefficient;
         public ModifierFormulaTermDTO[] FormulaTerms;

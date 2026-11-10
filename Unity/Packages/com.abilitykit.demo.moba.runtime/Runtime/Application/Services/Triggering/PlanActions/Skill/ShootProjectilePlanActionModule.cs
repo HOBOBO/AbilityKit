@@ -69,6 +69,19 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var skillRuntimes);
             var skillHandle = coreInput.ExecutionContext.SkillRuntimeHandle;
 
+            // The cast preparation/runtime owns the locked target for the whole cast.
+            // Some pipeline adapters wrap the trigger payload without copying the
+            // target onto the transient execution context; recover it from the live
+            // skill runtime before falling back to a directional shot.  This keeps
+            // targeted projectiles deterministic in the local composition as well as
+            // in the normal authored pipeline.
+            var lockedTargetActorId = input.TargetActorId;
+            if (lockedTargetActorId <= 0 && skillRuntimes != null && skillHandle.IsValid &&
+                skillRuntimes.TryGet(in skillHandle, out var skillRuntime) && skillRuntime != null)
+            {
+                lockedTargetActorId = skillRuntime.TargetActorId;
+            }
+
             if (ctx.Context.TryResolve<MobaReferenceCandidateService>(out var references) && references != null)
             {
                 var launcherRecord = MobaParameterRecord.FromSkillRuntime(
@@ -140,28 +153,51 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 || args.TargetRequest.TargetActorId > 0
                 || args.TargetRequest.TargetPayloadActorId > 0
                 || args.TargetRequest.SourceCode != MobaActionTargetSourceCode.ContextTarget;
-            var requiresTargetResolution = hasTargetRequest || (args.TrackTarget && input.HasTargetActor);
+            // A skill cast may already carry the authoritative target selected during
+            // cast preparation.  That target must be used even for a non-homing
+            // projectile: `track_target` controls whether the projectile follows the
+            // target after launch, while target resolution controls its initial aim
+            // and source context.  Previously the context target was only resolved
+            // when tracking was enabled, so targeted projectiles such as Jhin Q were
+            // launched with targetActorId=0 and could not hit the locked target.
+            var requiresTargetResolution = hasTargetRequest || lockedTargetActorId > 0;
             if (requiresTargetResolution)
             {
                 var effectInput = new MobaEffectActionInput(in coreInput);
                 var targets = PooledMobaPlanActionLists.GetIntList();
                 try
                 {
-                    // Tracking is opportunistic for attacks: a target selected by the cast
-                    // is authoritative, while a configured nearby-target query may acquire
-                    // one. If the query finds nothing, retain the submitted aim direction
-                    // so targetless attacks remain valid directional releases.
-                    var optionalTrackingQuery = args.TrackTarget
-                        && !input.HasTargetActor
-                        && args.TargetRequest.TargetActorId <= 0
-                        && args.TargetRequest.TargetPayloadActorId <= 0;
-                    var resolved = optionalTrackingQuery
-                        ? MobaActionTargetResolver.TryResolveTargetCollection(in args.TargetRequest, in coreInput, in effectInput, ctx, ActionName, targets)
-                        : MobaActionTargetResolver.TryResolveTargets(in args.TargetRequest, in coreInput, in effectInput, ctx, ActionName, targets);
-                    if ((!resolved || targets.Count == 0) && !optionalTrackingQuery)
+                    // A plain ContextTarget is already authoritative when the skill cast
+                    // preparation selected a target.  Do not send this path through the
+                    // generic SearchTargetService: local/demo compositions may execute a
+                    // projectile after the search feature has been torn down, and the
+                    // selected actor must still be a valid initial aim and hit target.
+                    // Template-backed requests deliberately keep using the query because
+                    // their filters/order/max-count rules are part of the skill contract.
+                    if (!args.TargetRequest.UsesTemplate
+                        && args.TargetRequest.SourceCode == MobaActionTargetSourceCode.ContextTarget
+                        && lockedTargetActorId > 0)
                     {
-                        LogRejected(ctx, "target query found no target");
-                        return;
+                        targets.Add(lockedTargetActorId);
+                    }
+                    else
+                    {
+                        // Tracking is opportunistic for attacks: a target selected by the cast
+                        // is authoritative, while a configured nearby-target query may acquire
+                        // one. If the query finds nothing, retain the submitted aim direction
+                        // so targetless attacks remain valid directional releases.
+                        var optionalTrackingQuery = args.TrackTarget
+                            && lockedTargetActorId <= 0
+                            && args.TargetRequest.TargetActorId <= 0
+                            && args.TargetRequest.TargetPayloadActorId <= 0;
+                        var resolved = optionalTrackingQuery
+                            ? MobaActionTargetResolver.TryResolveTargetCollection(in args.TargetRequest, in coreInput, in effectInput, ctx, ActionName, targets)
+                            : MobaActionTargetResolver.TryResolveTargets(in args.TargetRequest, in coreInput, in effectInput, ctx, ActionName, targets);
+                        if ((!resolved || targets.Count == 0) && !optionalTrackingQuery)
+                        {
+                            LogRejected(ctx, "target query found no target");
+                            return;
+                        }
                     }
 
                     if (targets.Count > 0) targetActorId = targets[0];
@@ -169,6 +205,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 finally
                 {
                     PooledMobaPlanActionLists.Release(targets);
+                }
+
+                if (targetActorId <= 0 && lockedTargetActorId > 0)
+                {
+                    targetActorId = lockedTargetActorId;
                 }
 
                 if (targetActorId > 0)
@@ -197,7 +238,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 if (!delta.Equals(Vec3.Zero)) aimDir = DeterministicMathBridge.Normalize(in delta);
             }
 
-            if (input.HasAimPosition)
+            // A tracked projectile follows a 3D path, so the planar cast distance is
+            // not a valid travel-distance budget for it. The projectile template's
+            // MaxDistance remains the authoritative safety limit in TryLaunch.
+            if (input.HasAimPosition && !args.TrackTarget)
             {
                 var aimDelta = new Vec3(aimPos.X - casterPos.X, 0f, aimPos.Z - casterPos.Z);
                 maxDistance = DeterministicMathBridge.Magnitude(in aimDelta);
@@ -208,9 +252,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var sourceContext = input.CreateSourceContext(casterActorId, targetActorId, projectile.Id);
             if (!projectileSvc.TryLaunch(casterActorId, launcher, projectile, launchParams.CountPerShot, launchParams.FanAngleDeg, launchParams.DurationMs, args.ContinuousProcessId, args.TrackTarget, in aimPos, in aimDir, in sourceContext, out var launchResult, maxDistance))
             {
-                LogRejected(ctx, $"launch failed. launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId}");
+                LogRejected(ctx, $"launch failed. launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId} targetActorId={targetActorId} lockedTargetActorId={lockedTargetActorId} error={launchResult.Error ?? "<none>"}");
                 return;
             }
+            var executionContext = coreInput.ExecutionContext;
+            PublishBasicAttackLaunched(triggerArgs, in executionContext, skillRuntimes, configs, ctx.Context);
             if (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, launchResult.LauncherActorId, out var outputError) ||
                 !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, launchResult.TotalCount, out outputError))
             {
@@ -219,6 +265,46 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             LogApplied(ctx, $"launch requested. casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId} launcherActorId={launchResult.LauncherActorId} targetActorId={targetActorId} trackTarget={args.TrackTarget} countPerShot={launchParams.CountPerShot} fanAngleDeg={launchParams.FanAngleDeg:0.###} durationMs={launchParams.DurationMs} continuousProcessId={args.ContinuousProcessId} hasAimPos={input.HasAimPosition} hasAimDir={input.HasAimDirection}");
+        }
+
+        private static void PublishBasicAttackLaunched(
+            object triggerArgs,
+            in MobaCombatExecutionContext executionContext,
+            MobaSkillCastRuntimeService skillRuntimes,
+            MobaConfigDatabase configs,
+            IWorldResolver services)
+        {
+            var skillCast = triggerArgs as SkillCastContext;
+            var runtimeHandle = executionContext.SkillRuntimeHandle;
+            if (skillCast == null && skillRuntimes != null && runtimeHandle.IsValid &&
+                skillRuntimes.TryGet(in runtimeHandle, out var runtime))
+            {
+                skillCast = new SkillCastContext
+                {
+                    SkillId = runtime.SkillId,
+                    BaseSkillId = runtime.BaseSkillId,
+                    SkillSlot = runtime.SkillSlot,
+                    SkillLevel = runtime.SkillLevel,
+                    Sequence = runtime.Sequence,
+                    RuntimeHandle = runtime.Handle,
+                    RuntimeId = runtime.RuntimeId,
+                    SourceContextId = runtime.RootContextId,
+                    CasterActorId = runtime.CasterActorId,
+                    TargetActorId = runtime.TargetActorId,
+                    AimPos = runtime.AimPos,
+                    AimDir = runtime.AimDir,
+                    WorldServices = services,
+                };
+            }
+
+            if (skillCast == null || configs == null ||
+                !configs.TryGetSkill(skillCast.SkillId, out var launchedSkill) ||
+                launchedSkill == null || launchedSkill.SkillType != SkillType.NormalAttack)
+            {
+                return;
+            }
+
+            MobaSkillTriggering.Publish(MobaSkillTriggering.Events.BasicAttackLaunched, skillCast);
         }
     }
 }

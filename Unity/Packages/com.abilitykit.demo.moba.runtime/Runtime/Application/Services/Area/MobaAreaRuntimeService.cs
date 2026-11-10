@@ -55,7 +55,54 @@ namespace AbilityKit.Demo.Moba.Services.Area
             long sourceContextId,
             long rootContextId,
             long ownerContextId,
-            MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
+            MobaSkillCastRuntimeHandle skillRuntimeHandle = default,
+            int groupKey = 0,
+            bool claimTargetsWithinGroup = false)
+        {
+            RegisterSpawn(
+                areaId,
+                templateId,
+                ownerActorId,
+                in center,
+                radius,
+                collisionLayerMask,
+                maxTargets,
+                frame,
+                delayFrames,
+                sourceContextId,
+                rootContextId,
+                ownerContextId,
+                MobaAreaShapeDefaults.Circle,
+                Vec3.Forward,
+                0f,
+                radius * 2f,
+                radius * 2f,
+                skillRuntimeHandle,
+                groupKey,
+                claimTargetsWithinGroup);
+        }
+
+        public void RegisterSpawn(
+            AreaId areaId,
+            int templateId,
+            int ownerActorId,
+            in Vec3 center,
+            float radius,
+            int collisionLayerMask,
+            int maxTargets,
+            int frame,
+            int delayFrames,
+            long sourceContextId,
+            long rootContextId,
+            long ownerContextId,
+            int shapeKind,
+            in Vec3 forward,
+            float halfAngleDeg,
+            float width,
+            float length,
+            MobaSkillCastRuntimeHandle skillRuntimeHandle = default,
+            int groupKey = 0,
+            bool claimTargetsWithinGroup = false)
         {
             if (areaId.Value <= 0) return;
             EnsureObjectBootstrapRegistered();
@@ -78,7 +125,14 @@ namespace AbilityKit.Demo.Moba.Services.Area
                 sourceContextId,
                 rootContextId != 0L ? rootContextId : sourceContextId,
                 ownerContextId != 0L ? ownerContextId : sourceContextId,
-                skillRuntimeHandle);
+                shapeKind,
+                in forward,
+                halfAngleDeg,
+                width,
+                length,
+                skillRuntimeHandle,
+                groupKey,
+                claimTargetsWithinGroup);
 
             if (_areas.TryGetValue(areaId.Value, out var oldInfo))
             {
@@ -495,8 +549,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
         private AoeMO _aoe;
 
         public MobaAreaPresentationCueReporter(
-            MobaConfigDatabase configs = null,
-            MobaPresentationCueSnapshotService snapshots = null)
+            MobaConfigDatabase configs,
+            MobaPresentationCueSnapshotService snapshots)
             : base(snapshots)
         {
             _configs = configs;
@@ -537,6 +591,18 @@ namespace AbilityKit.Demo.Moba.Services.Area
             draft.Positions = new[] { _info.Center.X, _info.Center.Y, _info.Center.Z };
             draft.DurationMsOverride = _aoe.DurationMs;
             CueNumericParams.SetRadius(ref draft, _info.Radius > 0f ? _info.Radius : _aoe.Radius);
+            draft.Parameters = new[]
+            {
+                CueParameterBag.Vector3(
+                    PresentationCueParameterKeys.AreaForward,
+                    _info.Forward.X,
+                    _info.Forward.Y,
+                    _info.Forward.Z),
+                CueParameterBag.Integer(PresentationCueParameterKeys.AreaShapeKind, _info.ShapeKind),
+                CueParameterBag.Float(PresentationCueParameterKeys.AreaHalfAngleDeg, _info.HalfAngleDeg),
+                CueParameterBag.Float(PresentationCueParameterKeys.AreaWidth, _info.Width),
+                CueParameterBag.Float(PresentationCueParameterKeys.AreaLength, _info.Length),
+            };
             draft.InstanceId = _info.AreaId;
             draft.ContextKind = (int)EffectContextKind.Area;
             draft.OriginKind = (int)MobaExecutionKind.AreaSpawn;
@@ -558,6 +624,11 @@ namespace AbilityKit.Demo.Moba.Services.Area
         public readonly int OwnerActorId;
         public readonly Vec3 Center;
         public readonly float Radius;
+        public readonly int ShapeKind;
+        public readonly Vec3 Forward;
+        public readonly float HalfAngleDeg;
+        public readonly float Width;
+        public readonly float Length;
         public readonly int CollisionLayerMask;
         public readonly int MaxTargets;
         public readonly int SpawnFrame;
@@ -566,6 +637,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
         public readonly long RootContextId;
         public readonly long OwnerContextId;
         public readonly MobaSkillCastRuntimeHandle SkillRuntimeHandle;
+        public readonly int GroupKey;
+        public readonly bool ClaimTargetsWithinGroup;
 
         public MobaAreaRuntimeInfo(
             int areaId,
@@ -581,12 +654,60 @@ namespace AbilityKit.Demo.Moba.Services.Area
             long rootContextId,
             long ownerContextId,
             MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
+            : this(
+                areaId,
+                templateId,
+                ownerActorId,
+                in center,
+                radius,
+                collisionLayerMask,
+                maxTargets,
+                spawnFrame,
+                delayTriggerFrame,
+                sourceContextId,
+                rootContextId,
+                ownerContextId,
+                MobaAreaShapeDefaults.Circle,
+                Vec3.Forward,
+                0f,
+                radius * 2f,
+                radius * 2f,
+                skillRuntimeHandle)
+        {
+        }
+
+        public MobaAreaRuntimeInfo(
+            int areaId,
+            int templateId,
+            int ownerActorId,
+            in Vec3 center,
+            float radius,
+            int collisionLayerMask,
+            int maxTargets,
+            int spawnFrame,
+            int delayTriggerFrame,
+            long sourceContextId,
+            long rootContextId,
+            long ownerContextId,
+            int shapeKind,
+            in Vec3 forward,
+            float halfAngleDeg,
+            float width,
+            float length,
+            MobaSkillCastRuntimeHandle skillRuntimeHandle = default,
+            int groupKey = 0,
+            bool claimTargetsWithinGroup = false)
         {
             AreaId = areaId;
             TemplateId = templateId;
             OwnerActorId = ownerActorId;
             Center = center;
             Radius = radius;
+            ShapeKind = MobaAreaShapeDefaults.Normalize(shapeKind);
+            Forward = MobaAreaShapeDefaults.NormalizeForward(in forward);
+            HalfAngleDeg = halfAngleDeg > 0f ? halfAngleDeg : 0f;
+            Width = width > 0f ? width : radius * 2f;
+            Length = length > 0f ? length : radius * 2f;
             CollisionLayerMask = collisionLayerMask;
             MaxTargets = maxTargets;
             SpawnFrame = spawnFrame;
@@ -595,6 +716,24 @@ namespace AbilityKit.Demo.Moba.Services.Area
             RootContextId = rootContextId;
             OwnerContextId = ownerContextId;
             SkillRuntimeHandle = skillRuntimeHandle;
+            GroupKey = groupKey;
+            ClaimTargetsWithinGroup = claimTargetsWithinGroup;
+        }
+    }
+
+    internal static class MobaAreaShapeDefaults
+    {
+        public const int Circle = 0;
+
+        public static int Normalize(int shapeKind)
+        {
+            return shapeKind >= 0 && shapeKind <= 2 ? shapeKind : Circle;
+        }
+
+        public static Vec3 NormalizeForward(in Vec3 forward)
+        {
+            if (forward.SqrMagnitude <= 0.000001f) return Vec3.Forward;
+            return forward.Normalized;
         }
     }
 }

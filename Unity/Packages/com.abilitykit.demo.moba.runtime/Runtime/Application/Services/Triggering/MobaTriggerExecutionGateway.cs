@@ -208,9 +208,11 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                     $"triggerId={request.TriggerId} source={request.Source} payloadType={request.PayloadTypeName}");
             }
 
-            _effects.ExecuteTrigger(in request);
-            Stats = Stats.WithDirectExecuted();
-            _diagnostics?.Counter("moba.trigger.direct.executed");
+            if (_effects.ExecuteTrigger(in request))
+            {
+                Stats = Stats.WithDirectExecuted();
+                _diagnostics?.Counter("moba.trigger.direct.executed");
+            }
         }
 
         public void ApplyOwnerBoundTriggers(IReadOnlyList<int> triggerIds, long ownerKey, string source = null)

@@ -11,6 +11,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Projectile;
@@ -46,6 +47,8 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
         [WorldInject(required: false)] private MobaProjectileLinkService _projectileLinks = null;
         [WorldInject(required: false)] private MobaPresentationCueSnapshotService _presentationCues = null;
         [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
+        [WorldInject(required: false)] private MobaActorLookupService _actorLookup = null;
+        [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
 
         public void ExecuteAreaStage(AreaEventArgs payload)
         {
@@ -167,7 +170,40 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                     Point = evt.Point,
                     Normal = evt.Normal,
                     HitCollider = evt.HitCollider,
+                    SpawnPosition = evt.SpawnPosition,
+                    DistanceTravelled = evt.DistanceTravelled,
+                    ElapsedFrames = evt.ElapsedFrames,
+                    SpawnFrame = evt.SpawnFrame,
+                    ElapsedSeconds = evt.ElapsedSeconds,
                 };
+
+                if (_actorLookup != null && _actorLookup.TryGetActorEntity(hitActorId, out var hitEntity) &&
+                    hitEntity != null && hitEntity.hasAttributeGroup)
+                {
+                    var attrs = hitEntity.GetMobaAttrs();
+                    payload.TargetHp = attrs.Hp;
+                    payload.TargetMaxHp = attrs.MaxHp;
+                    payload.TargetMissingHealthRatio = attrs.MaxHp > 0f
+                        ? Math.Clamp(1f - attrs.Hp / attrs.MaxHp, 0f, 1f)
+                        : 0f;
+                }
+                if (_skillRuntimes != null && sourceContext.SkillRuntimeHandle.IsValid &&
+                    _skillRuntimes.TryGet(in sourceContext.SkillRuntimeHandle, out var skillRuntime) && skillRuntime != null)
+                {
+                    payload.SkillLevel = skillRuntime.SkillLevel;
+                    var parameters = skillRuntime.LevelParameters?.ToArray();
+                    if (parameters != null)
+                    {
+                        for (var i = 0; i < parameters.Length; i++)
+                        {
+                            var parameter = parameters[i];
+                            if (string.IsNullOrWhiteSpace(parameter.Name)) continue;
+                            payload.SetSkillParameter(
+                                MobaBattlePayloadFields.FieldId("skill_level_" + parameter.Name),
+                                parameter.Value);
+                        }
+                    }
+                }
 
                 if (projectile.OnHitEffectId > 0)
                 {

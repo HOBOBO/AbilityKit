@@ -15,6 +15,7 @@ using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Context;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
+using AbilityKit.Triggering.Runtime.Config.Plans;
 using AbilityKit.Pipeline;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Services.Observability;
@@ -824,6 +825,11 @@ namespace AbilityKit.Demo.Moba.Services
             return PlanExecutor.TryGetPlan(triggerId, out plan);
         }
 
+        private bool ValidateGlobalPlanScope(int triggerId)
+        {
+            return PlanExecutor.ValidatePlanScope(triggerId, TriggerPlanScope.Global);
+        }
+
         private bool TryExecutePlanByTriggerId(int triggerId, object args)
         {
             return PlanExecutor.Execute(triggerId, args);
@@ -860,10 +866,18 @@ namespace AbilityKit.Demo.Moba.Services
             var executionContext = CreateCombatExecutionContext(wrappedContext, effectId, effectId);
             var lineageInput = executionContext.LineageInput;
 
-            if (!TryGetPlanByTriggerId(effectId, out var plan))
+            if (_planDb == null || !_planDb.TryGetRecordByTriggerId(effectId, out var record))
             {
                 throw new InvalidOperationException($"Missing trigger plan for effect execution. effectId={effectId}, source={lineageInput.SourceActorId}, target={lineageInput.TargetActorId}, kind={lineageInput.ContextKind}");
             }
+
+            if (record.Scope != TriggerPlanScope.Global)
+            {
+                throw new InvalidOperationException(
+                    $"Invalid trigger plan scope for direct effect execution. effectId={effectId}, actualScope={record.Scope}, expectedScope={TriggerPlanScope.Global}, source={lineageInput.SourceActorId}, target={lineageInput.TargetActorId}, kind={lineageInput.ContextKind}");
+            }
+
+            var plan = record.Plan;
 
             if (!TryEnterExecutionBudget(effectId, in executionContext, out var budgetToken, out var conditionContext))
                 return MobaEffectExecutionOutcome.Failed;
@@ -888,17 +902,26 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// 通过强类型触发请求直接执行触发计划。
+        /// 通过强类型触发请求直接执行 Global 触发计划。
         /// 用于投射物命中、区域进入/离开、Buff 间隔触发等场景。
+        /// 返回值表示计划是否实际执行；OwnerBound 计划必须走订阅入口。
         /// </summary>
-        public void ExecuteTrigger<TPayload>(in MobaTriggerExecutionRequest<TPayload> request)
+        public bool ExecuteTrigger<TPayload>(in MobaTriggerExecutionRequest<TPayload> request)
         {
             if (request.TriggerId <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(request.TriggerId), request.TriggerId, "Trigger id must be positive.");
             }
 
-            ExecuteTriggerPlan(request.TriggerId, request.Payload, predicateMissIsSuccess: true);
+            // Direct event dispatch is the Global route. Owner-bound plans are
+            // installed and executed through MobaTriggerPlanSubscriptionService,
+            // where the owner gate and execution source are available.
+            if (!ValidateGlobalPlanScope(request.TriggerId))
+            {
+                return false;
+            }
+
+            return ExecuteTriggerPlan(request.TriggerId, request.Payload, predicateMissIsSuccess: true);
         }
 
         public bool ExecuteRulePlan(int triggerId, object payload)
@@ -906,6 +929,11 @@ namespace AbilityKit.Demo.Moba.Services
             if (triggerId <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(triggerId), triggerId, "Trigger id must be positive.");
+            }
+
+            if (!ValidateGlobalPlanScope(triggerId))
+            {
+                return false;
             }
 
             return ExecuteTriggerPlan(triggerId, payload, predicateMissIsSuccess: false);
@@ -927,6 +955,10 @@ namespace AbilityKit.Demo.Moba.Services
             if (args == null) throw new ArgumentNullException(nameof(args));
             if (trigger == null) throw new ArgumentNullException(nameof(trigger));
             if (!source.HasExecutionSource) return false;
+            if (!PlanExecutor.ValidatePlanScope(triggerId, TriggerPlanScope.OwnerBound))
+            {
+                return false;
+            }
 
             var lineageInput = source.ToLineageInput();
             // The event payload belongs to the triggering cast; this effect belongs to the

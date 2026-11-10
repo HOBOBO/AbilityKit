@@ -1,0 +1,144 @@
+{
+  "treeId": "launch_heading_combat_bt",
+  "formatVersion": 1,
+  "rootNodeId": "1e59fb7d-0360-4391-9804-a7f2f70de21d",
+  "nodes": [
+    {
+      "id": "b6bd1144-3f79-4d5f-b3b3-6e9509200e8e",
+      "type": "moba.moveAlongLaunchHeading",
+      "properties": {},
+      "childIds": []
+    },
+    {
+      "id": "d968b2c2-ce2f-4152-aaa0-d2912230e25c",
+      "type": "moba.selectNearestEnemy",
+      "properties": {
+        "searchRadius": {
+          "type": "Fixed64",
+          "value": 68719476736
+        }
+      },
+      "childIds": []
+    },
+    {
+      "id": "3f02dc11-6768-44da-981e-643e287e3843",
+      "type": "moba.selectReadySkill",
+      "properties": {},
+      "childIds": []
+    },
+    {
+      "id": "0c0b0b75-e669-4f3e-aca6-063c08258081",
+      "type": "moba.hasEnemy",
+      "properties": {},
+      "childIds": []
+    },
+    {
+      "id": "4b21e7cd-1456-4989-9890-de654383acbc",
+      "type": "moba.hasSelectedSkill",
+      "properties": {},
+      "childIds": []
+    },
+    {
+      "id": "bf205522-b582-47c0-b970-c284ce086cc6",
+      "type": "moba.canCast",
+      "properties": {},
+      "childIds": []
+    },
+    {
+      "id": "13d7ec64-a164-40c1-86e7-39beca395628",
+      "type": "moba.selectedSkillInRange",
+      "properties": {},
+      "childIds": []
+    },
+    {
+      "id": "66dc826f-f93d-4d99-94bd-07b81e4e36c8",
+      "type": "moba.resolveHeadingAim",
+      "properties": {
+        "directionSource": {
+          "type": "String",
+          "value": "LaunchHeading"
+        },
+        "distance": {
+          "type": "Fixed64",
+          "value": 68719476736
+        }
+      },
+      "childIds": []
+    },
+    {
+      "id": "67dcde97-b161-4751-bae6-2df49e43a5c8",
+      "type": "moba.castSelectedSkill",
+      "properties": {},
+      "childIds": []
+    },
+    {
+      "id": "257f6c73-2205-44b9-bd02-4878ef5ab17f",
+      "type": "builtin.sequence",
+      "properties": {
+        "abortType": {
+          "type": "Int64",
+          "value": 0
+        }
+      },
+      "childIds": [
+        "0c0b0b75-e669-4f3e-aca6-063c08258081",
+        "4b21e7cd-1456-4989-9890-de654383acbc",
+        "bf205522-b582-47c0-b970-c284ce086cc6",
+        "13d7ec64-a164-40c1-86e7-39beca395628",
+        "66dc826f-f93d-4d99-94bd-07b81e4e36c8",
+        "67dcde97-b161-4751-bae6-2df49e43a5c8"
+      ]
+    },
+    {
+      "id": "8a887baf-a1af-4008-9ebd-0aa7ade12f0a",
+      "type": "moba.holdPosition",
+      "properties": {},
+      "childIds": []
+    },
+    {
+      "id": "59633be4-743a-4d6b-affe-554b350cd4db",
+      "type": "builtin.selector",
+      "properties": {
+        "abortType": {
+          "type": "Int64",
+          "value": 0
+        }
+      },
+      "childIds": [
+        "257f6c73-2205-44b9-bd02-4878ef5ab17f",
+        "8a887baf-a1af-4008-9ebd-0aa7ade12f0a"
+      ]
+    },
+    {
+      "id": "0d098653-adf1-4924-8f25-e57aa362a8a7",
+      "type": "moba.arbitrateCombatIntent",
+      "properties": {
+        "allowMoveWithCast": {
+          "type": "Bool",
+          "value": true
+        }
+      },
+      "childIds": []
+    },
+    {
+      "id": "1e59fb7d-0360-4391-9804-a7f2f70de21d",
+      "type": "builtin.sequence",
+      "properties": {
+        "abortType": {
+          "type": "Int64",
+          "value": 0
+        }
+      },
+      "childIds": [
+        "b6bd1144-3f79-4d5f-b3b3-6e9509200e8e",
+        "d968b2c2-ce2f-4152-aaa0-d2912230e25c",
+        "3f02dc11-6768-44da-981e-643e287e3843",
+        "59633be4-743a-4d6b-affe-554b350cd4db",
+        "0d098653-adf1-4924-8f25-e57aa362a8a7"
+      ]
+    }
+  ],
+  "blackboard": {
+    "keys": []
+  }
+}

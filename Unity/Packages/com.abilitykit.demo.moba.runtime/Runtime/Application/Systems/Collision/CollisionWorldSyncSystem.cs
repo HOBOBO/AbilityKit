@@ -13,7 +13,7 @@ namespace AbilityKit.Demo.Moba.Systems.Collision
     /// 在每帧执行时同步 Entitas 实体与碰撞世界
     /// </summary>
     [WorldSystem(MobaSystemOrder.Base + WorldSystemOrder.Early, Phase = WorldSystemPhase.PreExecute)]
-    public sealed class CollisionWorldSyncSystem : WorldSystemBase
+    public class CollisionWorldSyncSystem : WorldSystemBase
     {
         private readonly ICollisionWorld _world;
         private readonly IGroup<global::ActorEntity> _withShape;
@@ -125,4 +125,5 @@ namespace AbilityKit.Demo.Moba.Systems.Collision
             return layerId;
         }
     }
+
 }

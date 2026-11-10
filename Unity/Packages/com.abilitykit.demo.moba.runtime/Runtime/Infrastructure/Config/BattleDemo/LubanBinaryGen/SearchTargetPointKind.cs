@@ -16,6 +16,7 @@ namespace moba_luban
         Caster = 0,
         AimPosition = 1,
         ExplicitTarget = 2,
+        ProjectileHit = 3,
     }
 
 } 

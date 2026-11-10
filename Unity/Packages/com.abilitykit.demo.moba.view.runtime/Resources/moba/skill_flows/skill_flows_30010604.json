@@ -1,0 +1,31 @@
+{
+  "Id": 30010604,
+  "Name": "Jhin - Basic Attack 4",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 18,
+      "PhaseId": "selected_parameters_commit",
+      "CommitPoint": {
+        "CommitId": "shot",
+        "RequireEconomyReservation": false
+      }
+    },
+    {
+      "Type": 2,
+      "PhaseId": "skill_30010604_shot",
+      "Timeline": {
+        "DurationMs": 100,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30010604,
+            "ExecuteMode": 0,
+            "AbortOnFailure": true,
+            "EventTag": "jhin_basic_attack_4"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -81,10 +81,15 @@ namespace AbilityKit.Demo.Moba.Rollback
             ValidateEntries(entries);
             ValidateActorSet(entries);
 
+            var previousValues = new Dictionary<int, Fixed64>();
+            foreach (var actor in _actors.Entries)
+                previousValues[actor.Key] = _shields.GetPresentationSnapshot(actor.Key).TotalVisibleValue;
+
             var restored = BuildContainers(entries);
             _shields.RestoreContainers(restored);
             var pools = BuildPools(snapshot.Pools ?? Array.Empty<MobaSharedShieldPoolRollbackEntry>(), out var nextPoolId);
             _shields.RestoreSharedPools(pools, nextPoolId);
+            _shields.PublishRollbackCorrections(previousValues, frame.Value);
         }
 
         private static Fixed64 FromRaw(long raw)

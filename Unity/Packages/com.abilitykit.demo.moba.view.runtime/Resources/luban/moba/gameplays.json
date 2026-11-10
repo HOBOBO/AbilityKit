@@ -10,12 +10,10 @@
       900003,
       900004,
       900005,
-      900006
+      900006,
+      30030212
     ],
-    "FeatureIds": [
-      "minion_waves",
-      "structures"
-    ]
+    "FeatureIds": []
   },
   {
     "Id": 2,
@@ -29,11 +27,9 @@
       900003,
       900004,
       900005,
-      900006
+      900006,
+      30030212
     ],
-    "FeatureIds": [
-      "minion_waves",
-      "structures"
-    ]
+    "FeatureIds": []
   }
 ]

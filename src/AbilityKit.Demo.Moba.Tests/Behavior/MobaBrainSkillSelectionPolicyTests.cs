@@ -59,8 +59,7 @@ public sealed class MobaBrainSkillSelectionPolicyTests
         var actorContext = new ActorContext();
         var actor = actorContext.CreateEntity();
         actor.AddActorId(1);
-        actor.AddSkillLoadout(
-            new[]
+        actor.AddSkillLoadout(0, new[]
             {
                 new ActiveSkillRuntime { SkillId = 1001 },
                 new ActiveSkillRuntime { SkillId = 1002 },
@@ -94,13 +93,88 @@ public sealed class MobaBrainSkillSelectionPolicyTests
     }
 
     [Fact]
+    public void Btree_can_filter_to_normal_attack_for_pet_combat()
+    {
+        var actorContext = new ActorContext();
+        var actor = actorContext.CreateEntity();
+        actor.AddActorId(1);
+        actor.AddSkillLoadout(0, new[]
+            {
+                new ActiveSkillRuntime { SkillId = 1001 },
+                new ActiveSkillRuntime { SkillId = 1002 },
+            },
+            Array.Empty<PassiveSkillRuntime>());
+
+        var registry = new MobaActorRegistry();
+        registry.Register(1, actor);
+        var decision = MobaBTreeDecision.Create(
+            CreateSelectBasicAttackTreeJson(),
+            registry,
+            CreateConfigDatabaseWithAttackAndActiveSkills());
+        Assert.NotNull(decision);
+
+        var manager = new BehaviorManager();
+        manager.CreateBehavior(new BehaviorCreateConfig
+        {
+            BehaviorKind = "test",
+            OwnerId = new BehaviorEntityId(1),
+            Decision = decision,
+            World = new DefaultWorldQuery(),
+        });
+
+        manager.Tick(0.016f, frame: 1);
+
+        Assert.True(decision.Blackboard.GetBool(MobaBTreeKeys.SkillValid));
+        Assert.Equal(1002, decision.Blackboard.GetInt64(MobaBTreeKeys.SkillId));
+        Assert.Equal(2, decision.Blackboard.GetInt64(MobaBTreeKeys.SkillSlot));
+        Assert.Equal((long)moba_luban.SkillType.NormalAttack,
+            decision.Blackboard.GetInt64(MobaBTreeKeys.SkillType));
+    }
+
+    [Fact]
+    public void Normal_attack_filter_does_not_use_other_skill_range_for_approach_fallback()
+    {
+        var actorContext = new ActorContext();
+        var actor = actorContext.CreateEntity();
+        actor.AddActorId(1);
+        actor.AddSkillLoadout(0, new[]
+            {
+                new ActiveSkillRuntime { SkillId = 1001 },
+                new ActiveSkillRuntime { SkillId = 1002, CooldownEndTimeMs = 100000 },
+            },
+            Array.Empty<PassiveSkillRuntime>());
+
+        var registry = new MobaActorRegistry();
+        registry.Register(1, actor);
+        var decision = MobaBTreeDecision.Create(
+            CreateSelectBasicAttackTreeJson(),
+            registry,
+            CreateConfigDatabaseWithAttackAndActiveSkills());
+        Assert.NotNull(decision);
+
+        var manager = new BehaviorManager();
+        manager.CreateBehavior(new BehaviorCreateConfig
+        {
+            BehaviorKind = "test",
+            OwnerId = new BehaviorEntityId(1),
+            Decision = decision,
+            World = new DefaultWorldQuery(),
+        });
+
+        manager.Tick(0.016f, frame: 1);
+
+        Assert.False(decision.Blackboard.GetBool(MobaBTreeKeys.SkillValid));
+        Assert.Equal(3f, decision.Blackboard.GetFixed64(MobaBTreeKeys.SkillApproachRange).ToSingle());
+    }
+
+    [Fact]
     public void Btree_uses_effective_slot_skill_and_reverts_after_candidate_removal()
     {
         var actorContext = new ActorContext();
         var actor = actorContext.CreateEntity();
         actor.AddActorId(1);
         var slotRuntime = new ActiveSkillRuntime { SkillId = 1001 };
-        actor.AddSkillLoadout(new[] { slotRuntime }, Array.Empty<PassiveSkillRuntime>());
+        actor.AddSkillLoadout(0, new[] { slotRuntime }, Array.Empty<PassiveSkillRuntime>());
         var registry = new MobaActorRegistry();
         registry.Register(1, actor);
         using var candidates = new MobaSkillSlotCandidateService();
@@ -166,6 +240,38 @@ public sealed class MobaBrainSkillSelectionPolicyTests
         return configs;
     }
 
+    private static MobaConfigDatabase CreateConfigDatabaseWithAttackAndActiveSkills()
+    {
+        var configs = new MobaConfigDatabase();
+        var result = configs.ReloadFromDtoArrays(
+            new Dictionary<Type, Array>
+            {
+                [typeof(SkillDTO)] = new[]
+                {
+                    new SkillDTO
+                    {
+                        Id = 1001,
+                        Name = "active",
+                        Range = 8,
+                        SkillType = (int)moba_luban.SkillType.Active,
+                        Tags = Array.Empty<int>(),
+                    },
+                    new SkillDTO
+                    {
+                        Id = 1002,
+                        Name = "normal_attack",
+                        Range = 3,
+                        SkillType = (int)moba_luban.SkillType.NormalAttack,
+                        Tags = Array.Empty<int>(),
+                    },
+                },
+            },
+            strict: false);
+
+        Assert.True(result.Succeeded, result.Error);
+        return configs;
+    }
+
     private static string CreateSelectReadySkillTreeJson()
     {
         return """
@@ -180,6 +286,30 @@ public sealed class MobaBrainSkillSelectionPolicyTests
                   "name": "Select",
                   "comment": "",
                   "properties": {},
+                  "childIds": []
+                }
+              ],
+              "blackboard": { "keys": [] }
+            }
+        """;
+    }
+
+    private static string CreateSelectBasicAttackTreeJson()
+    {
+        return """
+            {
+              "formatVersion": 1,
+              "treeId": "test_select_basic_attack",
+              "rootNodeId": "node",
+              "nodes": [
+                {
+                  "id": "node",
+                  "type": "moba.selectReadySkill",
+                  "name": "Select basic attack",
+                  "comment": "",
+                  "properties": {
+                    "requiredSkillType": { "type": "Int64", "value": 1 }
+                  },
                   "childIds": []
                 }
               ],

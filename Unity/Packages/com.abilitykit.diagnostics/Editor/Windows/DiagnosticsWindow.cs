@@ -20,6 +20,10 @@ namespace AbilityKit.Diagnostics.Editor.Windows
         private bool _isRecording;
         private double _lastUpdateTime;
         private string _exportPath;
+        private ProfilerSnapshot? _cachedSnapshot;
+        private double _cachedSnapshotTime;
+        private bool _snapshotDirty = true;
+        private const double SnapshotRefreshIntervalSeconds = 0.5d;
 
         [MenuItem("Window/AbilityKit/Diagnostics")]
         public static void ShowWindow()
@@ -34,6 +38,7 @@ namespace AbilityKit.Diagnostics.Editor.Windows
             ProfilerHub.SetProfiler(_profiler);
             _isRecording = _profiler.IsEnabled;
             _exportPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "AbilityKit.Diagnostics");
+            InvalidateSnapshot();
         }
 
         private void OnDisable()
@@ -48,7 +53,7 @@ namespace AbilityKit.Diagnostics.Editor.Windows
         {
             DrawToolbar();
 
-            var snapshot = _profiler?.GetSnapshot();
+            var snapshot = GetDisplaySnapshot();
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
 
             switch (_selectedTab)
@@ -131,11 +136,13 @@ namespace AbilityKit.Diagnostics.Editor.Windows
             {
                 _profiler?.Clear();
                 _isRecording = false;
+                InvalidateSnapshot();
             }
 
             if (GUILayout.Button("Save", EditorStyles.toolbarButton, GUILayout.Width(58)))
             {
                 _profiler?.SaveSession("manual");
+                InvalidateSnapshot();
             }
 
             if (GUILayout.Button("Export...", EditorStyles.toolbarButton, GUILayout.Width(80)))
@@ -524,6 +531,7 @@ namespace AbilityKit.Diagnostics.Editor.Windows
         {
             _isRecording = true;
             _profiler?.Start();
+            InvalidateSnapshot();
             _lastUpdateTime = EditorApplication.timeSinceStartup;
             Debug.Log("[Diagnostics] Recording started");
         }
@@ -532,6 +540,7 @@ namespace AbilityKit.Diagnostics.Editor.Windows
         {
             _isRecording = false;
             _profiler?.Stop();
+            InvalidateSnapshot();
             Debug.Log("[Diagnostics] Recording stopped");
         }
 
@@ -555,6 +564,9 @@ namespace AbilityKit.Diagnostics.Editor.Windows
 
             Directory.CreateDirectory(_exportPath);
             var snapshot = _profiler.GetSnapshot();
+            _cachedSnapshot = snapshot;
+            _cachedSnapshotTime = EditorApplication.timeSinceStartup;
+            _snapshotDirty = false;
             var exporter = ExporterFactory.Get(format);
             var fileName = $"abilitykit_{SanitizeFileName(snapshot.SessionId)}{exporter.Extension}";
             var filePath = Path.Combine(_exportPath, fileName);
@@ -568,6 +580,24 @@ namespace AbilityKit.Diagnostics.Editor.Windows
         {
             Directory.CreateDirectory(_exportPath);
             EditorUtility.RevealInFinder(_exportPath);
+        }
+
+        private ProfilerSnapshot? GetDisplaySnapshot()
+        {
+            var now = EditorApplication.timeSinceStartup;
+            if (_snapshotDirty || !_cachedSnapshot.HasValue || now - _cachedSnapshotTime >= SnapshotRefreshIntervalSeconds)
+            {
+                _cachedSnapshot = _profiler?.GetSnapshot();
+                _cachedSnapshotTime = now;
+                _snapshotDirty = false;
+            }
+
+            return _cachedSnapshot;
+        }
+
+        private void InvalidateSnapshot()
+        {
+            _snapshotDirty = true;
         }
 
         private static bool TryGetSnapshot(ProfilerSnapshot? snapshot, out ProfilerSnapshot value)

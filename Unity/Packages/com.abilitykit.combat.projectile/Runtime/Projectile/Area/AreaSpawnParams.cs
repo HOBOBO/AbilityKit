@@ -21,6 +21,15 @@ namespace AbilityKit.Combat.Projectile
         public readonly bool AnchorAtOrigin;
         public readonly float RadiusGrowthPerFrame;
         public readonly float InitialRadius;
+        // Area collision becomes active after this many frames. Zero arms on spawn.
+        public readonly int ArmDelayFrames;
+        // When enabled, the first accepted Enter event consumes the Area's Enter gate.
+        public readonly bool ConsumeOnFirstEnter;
+        public readonly bool FollowOwner;
+        public readonly int FollowActorId;
+        public readonly long RootContextId;
+        public readonly int GroupKey;
+        public readonly bool ClaimTargetsWithinGroup;
 
         public AreaSpawnParams(
             int ownerId,
@@ -36,7 +45,14 @@ namespace AbilityKit.Combat.Projectile
             float length = 0f,
             bool anchorAtOrigin = true,
             float radiusGrowthPerFrame = 0f,
-            float initialRadius = 0f)
+            float initialRadius = 0f,
+            int armDelayFrames = 0,
+            bool consumeOnFirstEnter = false,
+            bool followOwner = false,
+            int followActorId = 0,
+            long rootContextId = 0,
+            int groupKey = 0,
+            bool claimTargetsWithinGroup = false)
         {
             OwnerId = ownerId;
             Center = center;
@@ -52,12 +68,20 @@ namespace AbilityKit.Combat.Projectile
             AnchorAtOrigin = anchorAtOrigin;
             RadiusGrowthPerFrame = radiusGrowthPerFrame;
             InitialRadius = initialRadius;
+            ArmDelayFrames = armDelayFrames > 0 ? armDelayFrames : 0;
+            ConsumeOnFirstEnter = consumeOnFirstEnter;
+            FollowOwner = followOwner;
+            FollowActorId = followActorId > 0 ? followActorId : ownerId;
+            RootContextId = rootContextId;
+            GroupKey = groupKey;
+            ClaimTargetsWithinGroup = claimTargetsWithinGroup;
         }
 
         public AreaSpawnParams WithCenter(in Vec3 center)
         {
             return new AreaSpawnParams(OwnerId, center, Radius, LifetimeFrames, CollisionLayerMask, StayIntervalFrames,
-                ShapeKind, Forward, HalfAngleDeg, Width, Length, AnchorAtOrigin, RadiusGrowthPerFrame, InitialRadius);
+                ShapeKind, Forward, HalfAngleDeg, Width, Length, AnchorAtOrigin, RadiusGrowthPerFrame, InitialRadius, ArmDelayFrames, ConsumeOnFirstEnter, FollowOwner, FollowActorId,
+                RootContextId, GroupKey, ClaimTargetsWithinGroup);
         }
     }
 }

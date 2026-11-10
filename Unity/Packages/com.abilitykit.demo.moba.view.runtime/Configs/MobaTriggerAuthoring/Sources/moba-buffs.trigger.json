@@ -823,6 +823,142 @@
         },
         "blackboard": [],
         "note": "Migrated from Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/buffs/trigger_20005.json"
+      },
+      {
+        "id": 30020102,
+        "name": "Jinx Pow-Pow mode removes Fishbones mode",
+        "groupPath": "trigger_30020102",
+        "tags": [
+          "moba",
+          "jinx",
+          "buffs"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_df6c2a86a3ff4ff98ee623d8ea0a44e5",
+          "enabled": true,
+          "kind": "Action",
+          "type": "remove_buff",
+          "arguments": [
+            {
+              "name": "buff_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30020012
+              }
+            },
+            {
+              "name": "target_self",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "booleanValue": true
+              }
+            },
+            {
+              "name": "remove_all",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "booleanValue": true
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "On adding Buff 30020011, remove opposite mode Buff 30020012; this leaves one WeaponMode Modifier source."
+      },
+      {
+        "id": 30020103,
+        "name": "Jinx Fishbones mode removes Pow-Pow mode",
+        "groupPath": "trigger_30020103",
+        "tags": [
+          "moba",
+          "jinx",
+          "buffs"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_5a921d48ac03467d9f52a7b953e1a908",
+          "enabled": true,
+          "kind": "Action",
+          "type": "remove_buff",
+          "arguments": [
+            {
+              "name": "buff_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30020011
+              }
+            },
+            {
+              "name": "target_self",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "booleanValue": true
+              }
+            },
+            {
+              "name": "remove_all",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "booleanValue": true
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "On adding Buff 30020012, remove opposite mode Buff 30020011; this leaves one WeaponMode Modifier source."
       }
     ]
   }

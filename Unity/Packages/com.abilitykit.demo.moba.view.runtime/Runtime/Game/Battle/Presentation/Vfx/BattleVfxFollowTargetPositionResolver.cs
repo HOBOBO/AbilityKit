@@ -73,7 +73,7 @@ namespace AbilityKit.Game.Battle.Vfx
             return false;
         }
 
-        private static bool TryResolveTarget(EC.IECWorld world, BattleViewFollowComponent follow, IBattleEntityQuery query, out EC.IEntityId targetId)
+        internal static bool TryResolveTarget(EC.IECWorld world, BattleViewFollowComponent follow, IBattleEntityQuery query, out EC.IEntityId targetId)
         {
             targetId = follow.Target;
             if (targetId.Index != 0 && world.IsAlive(targetId)) return true;

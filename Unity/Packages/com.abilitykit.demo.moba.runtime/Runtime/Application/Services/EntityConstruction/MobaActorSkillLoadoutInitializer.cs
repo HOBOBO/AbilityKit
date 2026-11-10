@@ -10,6 +10,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 {
     public readonly struct MobaResolvedHeroLoadout
     {
+        public readonly int HeroId;
         public readonly CharacterMO Character;
         public readonly BattleAttributeTemplateMO AttributeTemplate;
         public readonly int BasicAttackSkillId;
@@ -17,12 +18,14 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         public readonly int[] PassiveSkillIds;
 
         public MobaResolvedHeroLoadout(
+            int heroId,
             CharacterMO character,
             BattleAttributeTemplateMO attributeTemplate,
             int basicAttackSkillId,
             int[] activeSkillIds,
             int[] passiveSkillIds)
         {
+            HeroId = heroId;
             Character = character;
             AttributeTemplate = attributeTemplate;
             BasicAttackSkillId = basicAttackSkillId;
@@ -84,6 +87,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             }
 
             resolved = new MobaResolvedHeroLoadout(
+                heroId,
                 character,
                 template,
                 basicAttackSkillId,
@@ -160,13 +164,16 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 
     public readonly struct MobaPreparedActorSkillLoadout
     {
+        public readonly int HeroId;
         public readonly ActiveSkillRuntime[] ActiveSkills;
         public readonly PassiveSkillRuntime[] PassiveSkills;
 
         public MobaPreparedActorSkillLoadout(
+            int heroId,
             ActiveSkillRuntime[] activeSkills,
             PassiveSkillRuntime[] passiveSkills)
         {
+            HeroId = heroId;
             ActiveSkills = activeSkills;
             PassiveSkills = passiveSkills;
         }
@@ -220,7 +227,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 var activeSkills = CreateActiveSkillRuntimes(
                     CombineBasicAttackAndActiveSkills(resolved.BasicAttackSkillId, resolved.ActiveSkillIds));
                 var passiveSkills = CreatePassiveSkillRuntimes(resolved.PassiveSkillIds);
-                prepared = new MobaPreparedActorSkillLoadout(activeSkills, passiveSkills);
+                prepared = new MobaPreparedActorSkillLoadout(resolved.HeroId, activeSkills, passiveSkills);
                 return true;
             }
             catch (Exception ex)
@@ -239,11 +246,11 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 
             if (entity.hasSkillLoadout)
             {
-                entity.ReplaceSkillLoadout(prepared.ActiveSkills, prepared.PassiveSkills);
+                entity.ReplaceSkillLoadout(prepared.HeroId, prepared.ActiveSkills, prepared.PassiveSkills);
             }
             else
             {
-                entity.AddSkillLoadout(prepared.ActiveSkills, prepared.PassiveSkills);
+                entity.AddSkillLoadout(prepared.HeroId, prepared.ActiveSkills, prepared.PassiveSkills);
             }
         }
 

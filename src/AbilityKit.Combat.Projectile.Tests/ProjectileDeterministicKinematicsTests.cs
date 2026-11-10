@@ -22,7 +22,8 @@ namespace AbilityKit.Combat.Projectile.Tests
             float speed,
             float maxDistance = 1000f,
             int lifetimeFrames = 600,
-            int trackingTargetActorId = 0)
+            int trackingTargetActorId = 0,
+            IProjectileHitFilter hitFilter = null)
         {
             return new ProjectileSpawnParams(
                 ownerId: 1,
@@ -40,7 +41,8 @@ namespace AbilityKit.Combat.Projectile.Tests
                 maxDistance: maxDistance,
                 collisionLayerMask: 1 << TestLayer,
                 ignoreCollider: ColliderId.Invalid,
-                trackingTargetActorId: trackingTargetActorId);
+                trackingTargetActorId: trackingTargetActorId,
+                hitFilter: hitFilter);
         }
 
         private static void Tick(ProjectileWorld world, int frame, Fixed64 dt, int frames)
@@ -98,6 +100,122 @@ namespace AbilityKit.Combat.Projectile.Tests
         }
 
         [Fact]
+        public void TrackingArc_KeepsPlanarSpeedAndAddsDistanceDrivenHeight()
+        {
+            var world = CreateWorld();
+            world.SetTrackingTargetProvider(new StubTrackingProvider(new Vec3(10f, 0f, 0f)));
+            var parameters = StraightFlightParams(Vec3.Zero, new Vec3(1f, 0f, 0f), 10f, trackingTargetActorId: 7)
+                .WithTrackingArc(1f, 1f);
+            var id = world.Spawn(parameters);
+
+            Tick(world, 1, Fixed64.FromRatio(1, 4), 1);
+
+            Assert.True(world.TryGetFixedKinematics(id, out var position, out _));
+            Assert.InRange(position.X.RawValue, Fixed64.FromRatio(5, 2).RawValue - 2, Fixed64.FromRatio(5, 2).RawValue);
+            Assert.InRange(position.Y.RawValue, Fixed64.FromRatio(3, 4).RawValue - 2, Fixed64.FromRatio(3, 4).RawValue);
+        }
+
+        [Fact]
+        public void TrackingArcHeightPerUnit_ScalesHeightFromInitialPlanarTargetDistance()
+        {
+            var world = CreateWorld();
+            world.SetTrackingTargetProvider(new StubTrackingProvider(new Vec3(5f, 0f, 0f)));
+            var parameters = StraightFlightParams(Vec3.Zero, new Vec3(1f, 0f, 0f), 10f, trackingTargetActorId: 7)
+                .WithTrackingArcHeightPerUnit(0.1f);
+            var id = world.Spawn(parameters);
+
+            Tick(world, 1, Fixed64.FromRatio(1, 8), 1);
+
+            Assert.True(world.TryGetFixedKinematics(id, out var position, out _));
+            // Distance 5 * 0.1 gives 0.5 arc height; at t=1/4, 4h*t*(1-t)=0.375.
+            Assert.InRange(position.Y.RawValue, Fixed64.FromRatio(3, 8).RawValue - 64, Fixed64.FromRatio(3, 8).RawValue + 64);
+        }
+
+        [Fact]
+        public void TrackingArc_RollbackRestoresCurveProgressAndReplaysExactly()
+        {
+            var world = CreateWorld();
+            world.SetTrackingTargetProvider(new StubTrackingProvider(new Vec3(10f, 2f, 0f)));
+            var parameters = StraightFlightParams(Vec3.Zero, new Vec3(1f, 0f, 0f), 10f, trackingTargetActorId: 7)
+                .WithTrackingArc(1.5f, 1f);
+            var id = world.Spawn(parameters);
+            var dt = Fixed64.FromRatio(1, 8);
+
+            Tick(world, 1, dt, 3);
+            var payload = world.ExportRollback(default);
+            Tick(world, 4, dt, 4);
+            Assert.True(world.TryGetFixedKinematics(id, out var expected, out _));
+
+            world.ImportRollback(default, payload);
+            Tick(world, 4, dt, 4);
+
+            Assert.True(world.TryGetFixedKinematics(id, out var restored, out _));
+            Assert.Equal(expected.X.RawValue, restored.X.RawValue);
+            Assert.Equal(expected.Y.RawValue, restored.Y.RawValue);
+            Assert.Equal(expected.Z.RawValue, restored.Z.RawValue);
+        }
+
+        [Fact]
+        public void TrackingArc_DerivesDurationWhenTargetProviderIsAttachedAfterSpawn()
+        {
+            var world = CreateWorld();
+            var parameters = StraightFlightParams(Vec3.Zero, new Vec3(1f, 0f, 0f), 10f, trackingTargetActorId: 7)
+                .WithTrackingArc(1f);
+            var id = world.Spawn(parameters);
+            world.SetTrackingTargetProvider(new StubTrackingProvider(new Vec3(10f, 0f, 0f)));
+
+            Tick(world, 1, Fixed64.FromRatio(1, 4), 1);
+
+            Assert.True(world.TryGetFixedKinematics(id, out var position, out _));
+            Assert.InRange(position.X.RawValue, Fixed64.FromRatio(5, 2).RawValue - 2, Fixed64.FromRatio(5, 2).RawValue);
+            Assert.InRange(position.Y.RawValue, Fixed64.FromRatio(3, 4).RawValue - 2, Fixed64.FromRatio(3, 4).RawValue);
+        }
+
+        [Fact]
+        public void TrackingArc_SweepsAlongCurveInsteadOfEndpointChord()
+        {
+            var collision = new NaiveCollisionWorld();
+            collision.Add(
+                new Transform3(new Vec3(2.5f, 3f, 0f), Quat.Identity, new Vec3(1f, 1f, 1f)),
+                ColliderShape.CreateSphere(Vec3.Zero, 0.2f),
+                TestLayer);
+
+            var world = new ProjectileWorld(collision);
+            var hits = new List<ProjectileHitEvent>();
+            var exits = new List<ProjectileExitEvent>();
+            world.SetTrackingTargetProvider(new StubTrackingProvider(new Vec3(10f, 0f, 0f)));
+            var parameters = StraightFlightParams(Vec3.Zero, new Vec3(1f, 0f, 0f), 10f, trackingTargetActorId: 7)
+                .WithTrackingArc(4f, 1f);
+            world.Spawn(parameters);
+
+            // The endpoint chord from (0,0,0) to (5,4,0) passes below this collider,
+            // while the actual quadratic path reaches its centre at x=2.5, y=3.
+            world.Tick(1, Fixed64.FromRatio(1, 2), hits, exits, null);
+
+            Assert.Single(hits);
+            Assert.Single(exits);
+            Assert.Equal(ProjectileExitReason.Hit, exits[0].Reason);
+        }
+
+        [Fact]
+        public void TrackingArc_MaxDistanceCapsThreeDimensionalTravel()
+        {
+            var world = CreateWorld();
+            var exits = new List<ProjectileExitEvent>();
+            world.SetTrackingTargetProvider(new StubTrackingProvider(new Vec3(10f, 0f, 0f)));
+            var parameters = StraightFlightParams(Vec3.Zero, new Vec3(1f, 0f, 0f), 10f, maxDistance: 4f, trackingTargetActorId: 7)
+                .WithTrackingArc(4f, 1f);
+            var id = world.Spawn(parameters);
+
+            world.Tick(1, Fixed64.FromRatio(1, 2), null, exits, null);
+
+            Assert.Single(exits);
+            Assert.Equal(ProjectileExitReason.MaxDistance, exits[0].Reason);
+            Assert.Equal(id, exits[0].Projectile);
+            Assert.InRange(exits[0].Position.Magnitude, 3.99f, 4f);
+        }
+
+        [Fact]
         public void MaxDistance_ExitFiresAtExactFixedBudget()
         {
             var world = CreateWorld();
@@ -142,6 +260,32 @@ namespace AbilityKit.Combat.Projectile.Tests
         }
 
         [Fact]
+        public void HitSnapshot_IncludesDistanceSkippedBeforeFirstAcceptedHitInSameFrame()
+        {
+            var collision = new NaiveCollisionWorld();
+            var ignored = collision.Add(
+                new Transform3(new Vec3(2f, 0f, 0f), Quat.Identity, new Vec3(1f, 1f, 1f)),
+                ColliderShape.CreateSphere(Vec3.Zero, 0.5f), TestLayer);
+            collision.Add(
+                new Transform3(new Vec3(5f, 0f, 0f), Quat.Identity, new Vec3(1f, 1f, 1f)),
+                ColliderShape.CreateSphere(Vec3.Zero, 0.5f), TestLayer);
+
+            var world = new ProjectileWorld(collision);
+            var hits = new List<ProjectileHitEvent>();
+            var spawn = StraightFlightParams(Vec3.Zero, new Vec3(1f, 0f, 0f), 16f,
+                hitFilter: new SelectiveCollisionFilter(ignored));
+            world.Spawn(spawn);
+            world.Tick(1, Fixed64.FromRatio(1, 2), hits, null, null);
+
+            var hit = Assert.Single(hits);
+            Assert.Equal(2, hit.HitCollider.Value);
+            Assert.Equal(Vec3.Zero, hit.SpawnPosition);
+            Assert.InRange(hit.DistanceTravelled, 4.49f, 4.51f);
+            Assert.Equal(0, hit.SpawnFrame);
+            Assert.Equal(1, hit.ElapsedFrames);
+        }
+
+        [Fact]
         public void RollbackSnapshot_RoundTripsExactRawBits()
         {
             var world = CreateWorld();
@@ -170,6 +314,38 @@ namespace AbilityKit.Combat.Projectile.Tests
             Assert.Equal(expected.Z.RawValue, restored.Z.RawValue);
         }
 
+        [Fact]
+        public void RollbackSnapshot_PreservesSpawnOriginAndCumulativeTravelDistance()
+        {
+            var world = CreateWorld();
+            var spawn = new Vec3(2f, 0f, 3f);
+            var id = world.Spawn(StraightFlightParams(spawn, new Vec3(1f, 0f, 0f), 8f));
+            var dt = Fixed64.FromRatio(1, 16);
+
+            Tick(world, 1, dt, 4);
+            var snapshot = world.ExportRollback(default);
+            Assert.True(world.TryGetRuntimeState(id, out var beforeRollback));
+            Assert.Equal(spawn.X, beforeRollback.SpawnPosition.X);
+            Assert.Equal(spawn.Z, beforeRollback.SpawnPosition.Z);
+            Assert.Equal(2f, beforeRollback.DistanceTravelled);
+            Assert.Equal(0, beforeRollback.SpawnFrame);
+
+            Tick(world, 5, dt, 2);
+            Assert.True(world.TryGetRuntimeState(id, out var expected));
+
+            world.ImportRollback(default, snapshot);
+            Assert.True(world.TryGetRuntimeState(id, out var restoredSnapshot));
+            Assert.Equal(beforeRollback.DistanceTravelled, restoredSnapshot.DistanceTravelled);
+            Assert.Equal(beforeRollback.SpawnPosition.X, restoredSnapshot.SpawnPosition.X);
+
+            Tick(world, 5, dt, 2);
+            Assert.True(world.TryGetRuntimeState(id, out var replay));
+
+            Assert.Equal(expected.Position.X, replay.Position.X);
+            Assert.Equal(expected.DistanceTravelled, replay.DistanceTravelled);
+            Assert.Equal(3f, replay.DistanceTravelled);
+        }
+
         private sealed class StubTrackingProvider : IProjectileTrackingTargetProvider
         {
             private readonly Vec3 _position;
@@ -188,6 +364,19 @@ namespace AbilityKit.Combat.Projectile.Tests
             public void Dispose()
             {
             }
+        }
+
+        private sealed class SelectiveCollisionFilter : IProjectileHitFilter, IProjectileCollisionResponseResolver
+        {
+            private readonly ColliderId _ignored;
+
+            public SelectiveCollisionFilter(ColliderId ignored) => _ignored = ignored;
+
+            public bool ShouldHit(int ownerId, ColliderId collider, int frame) =>
+                ResolveCollision(ownerId, collider, frame) == ProjectileCollisionResponse.Hit;
+
+            public ProjectileCollisionResponse ResolveCollision(int ownerId, ColliderId collider, int frame) =>
+                collider.Equals(_ignored) ? ProjectileCollisionResponse.Ignore : ProjectileCollisionResponse.Hit;
         }
     }
 }

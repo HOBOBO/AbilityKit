@@ -719,7 +719,12 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
             MobaBattleScenarioConfigKind kind,
             string group)
         {
-            return LoadJsonArray<NamedConfigRecord>(projectRelativePath)
+            var published = LoadJsonArray<NamedConfigRecord>(projectRelativePath);
+            var fileName = Path.GetFileName(projectRelativePath);
+            // The exporter stage is a repository sibling of Unity/, unlike published package assets.
+            var stagedPath = Path.Combine("..", "local", "luban-export", "normalized-json", fileName);
+            var staged = LoadJsonArray<NamedConfigRecord>(stagedPath);
+            return MergeById(staged, published, entry => entry.Id)
                 .Where(entry => entry != null && entry.Id > 0)
                 .OrderBy(entry => entry.Id)
                 .Select(entry => new MobaBattleScenarioConfigEntry(

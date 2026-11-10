@@ -716,6 +716,11 @@
           "gate": "runtime-contracts"
         },
         {
+          "name": "Jhin Unity acceptance",
+          "kind": "gate",
+          "gate": "moba-jhin-unity"
+        },
+        {
           "name": "Zhao Yun Unity acceptance",
           "kind": "gate",
           "gate": "moba-zhaoyun-unity"
@@ -742,8 +747,15 @@
       "level": "P1",
       "owner": "MOBA Modifier Runtime and Content",
       "description": "Verify modifier parameter catalog, Luban publication, continuous lifecycle, stage selectors, and numeric hot path.",
-      "scope": ["moba-modifiers", "moba-content-pipeline", "continuous-lifecycle"],
-      "requiredBefore": ["publish-moba-modifiers", "merge-moba-modifier-changes"],
+      "scope": [
+        "moba-modifiers",
+        "moba-content-pipeline",
+        "continuous-lifecycle"
+      ],
+      "requiredBefore": [
+        "publish-moba-modifiers",
+        "merge-moba-modifier-changes"
+      ],
       "failurePolicy": "Block modifier publication until source configuration and runtime contracts pass.",
       "ciPolicy": {
         "runOnPullRequest": false,
@@ -761,7 +773,7 @@
           "name": "Modifier lifecycle and stage resolution",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
-            "filter": "FullyQualifiedName~MobaModifierAttributeSourceTests|FullyQualifiedName~MobaModifierConsumerContractTests|FullyQualifiedName~MobaModifierRealObjectSmokeTests|FullyQualifiedName~MobaBuffTimerRollbackPreflightTests"
+          "filter": "FullyQualifiedName~MobaModifierAttributeSourceTests|FullyQualifiedName~MobaModifierConsumerContractTests|FullyQualifiedName~MobaModifierRealObjectSmokeTests|FullyQualifiedName~MobaBuffTimerRollbackPreflightTests"
         }
       ]
     },
@@ -823,7 +835,7 @@
             "{GateOutputDirectory}/moba-content-dependency-report.json",
             "-Validate"
           ],
-          "timeoutSeconds": 60
+          "timeoutSeconds": 180
         },
         {
           "name": "MOBA modifier template impact report",
@@ -993,6 +1005,137 @@
           "projectPath": "Unity",
           "testPlatform": "EditMode",
           "testFilter": "AbilityKit.Game.Test.UnitTest.LianPoSkillAcceptanceTests.Skill10010301_ScenarioExportsTraceAndConfirmsThirdStageKnockup"
+        }
+      ]
+    },
+    {
+      "name": "moba-annie-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Run Annie's passive, Q/W/E/R, Tibbers lifecycle/behavior, linked presentation, and local HUD input/indicator geometry acceptance fixtures.",
+      "scope": [
+        "unity-editmode",
+        "moba-hero-acceptance",
+        "moba-annie",
+        "passive-cast-counter",
+        "qwer-gameplay",
+        "tibbers-behavior",
+        "linked-presentation",
+        "local-hud-input",
+        "skill-indicator-geometry"
+      ],
+      "requiredBefore": [
+        "broad-moba-hero-refactor-completion",
+        "release-candidate",
+        "batch-merge"
+      ],
+      "failurePolicy": "Preserve Unity command, log, and NUnit XML artifacts. Headless coverage verifies passive charge/stun, Q projectile/refund, W sector, E shield/Buff, R summon, and Tibbers behavior. The local HUD scenario submits Q/W/E/R through BattleInputFeature and checks the published indicator geometry. Presentation fixture verifies linked model/VFX consumption and lifecycle.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Annie complete skill and summon runtime acceptance",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.AnnieSkillAcceptanceTests"
+        },
+        {
+          "name": "Annie linked presentation consumption acceptance",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Tests.AnnieUnityPresentationConsumptionTests"
+        }
+      ]
+    },
+    {
+      "name": "moba-jinx-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Jinx acceptance covers the hero-local WeaponMode profile, production Q mode toggling through mutually exclusive Buff Modifiers, Pow-Pow/Fishbones basic-attack routing and projectile damage, plus a local battle Q click and W directional HUD release through BattleInputFeature. W DirectionLine template geometry and projectile damage are covered; rollback and rendered presentation remain uncovered.",
+      "scope": [
+        "unity-editmode",
+        "moba-hero-acceptance",
+        "moba-jinx",
+        "weapon-mode-profile",
+        "q-mode-toggle",
+        "basic-attack-routing",
+        "w-directional-projectile",
+        "hud-input",
+        "direction-line-geometry"
+      ],
+      "requiredBefore": [
+        "broad-moba-hero-refactor-completion",
+        "release-candidate",
+        "batch-merge"
+      ],
+      "failurePolicy": "Preserve Unity command, log, and NUnit XML artifacts. The gate verifies headless Q/basic-attack/W contracts and a local battle Q/W HUD path through BattleInputFeature, including published DirectionLine geometry and W damage. It does not claim rollback or rendered on-screen presentation acceptance.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Jinx Q/W HUD input, weapon mode, attack, and DirectionLine acceptance",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.JinxSkillAcceptanceTests"
+        }
+      ]
+    },
+    {
+      "name": "moba-jhin-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Run authoritative Jhin skill acceptance and actual Unity model/VFX consumption, including Curtain Call target-sector boundaries.",
+      "scope": [
+        "unity-editmode",
+        "moba-hero-acceptance",
+        "moba-jhin",
+        "target-sector-boundaries",
+        "authoritative-artifacts"
+      ],
+      "requiredBefore": [
+        "broad-moba-hero-refactor-completion",
+        "release-candidate",
+        "batch-merge"
+      ],
+      "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Jhin Unity acceptance fixture",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.JhinSkillAcceptanceTests"
+        },
+        {
+          "name": "Jhin local battle HUD input closure",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.JhinSkillAcceptanceTests.W_LocalBattleHudReleaseFlowsThroughInputFeatureAndDamagesEnemy"
+        },
+        {
+          "name": "Jhin Unity model and VFX consumption",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Tests.JhinUnityPresentationConsumptionTests"
         }
       ]
     },

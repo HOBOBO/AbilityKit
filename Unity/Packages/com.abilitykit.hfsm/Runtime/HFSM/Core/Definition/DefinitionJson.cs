@@ -34,6 +34,7 @@ namespace AbilityKit.HFSM.Definition
                 WriteValue(writer, "formatVersion", definition.FormatVersion);
                 WriteValue(writer, "definitionId", definition.DefinitionId);
                 WriteValue(writer, "rootMachineId", definition.RootMachineId);
+                WriteParameters(writer, definition.Parameters);
                 writer.WritePropertyName("machines");
                 writer.WriteStartArray();
                 foreach (var machine in definition.Machines.OrderBy(item => item.Id, StringComparer.Ordinal))
@@ -70,7 +71,9 @@ namespace AbilityKit.HFSM.Definition
             }
 
             var root = RequireObject(token, "$", "HFSM definition must be an object.");
-            EnsureProperties(root, "$", "formatVersion", "definitionId", "rootMachineId", "machines");
+            EnsureProperties(root, "$",
+                new[] { "formatVersion", "definitionId", "rootMachineId", "machines" },
+                new[] { "parameters" });
 
             var definition = new StateMachineDefinition
             {
@@ -78,6 +81,7 @@ namespace AbilityKit.HFSM.Definition
                 DefinitionId = ReadString(root, "definitionId", "$"),
                 RootMachineId = ReadString(root, "rootMachineId", "$"),
                 Machines = new List<MachineDefinition>(),
+                Parameters = ReadParameters(root),
             };
 
             var machines = ReadArray(root, "machines", "$");
@@ -96,6 +100,55 @@ namespace AbilityKit.HFSM.Definition
             return definition;
         }
 
+        private static List<StateMachineParameterDefinition> ReadParameters(JObject root)
+        {
+            var parameters = new List<StateMachineParameterDefinition>();
+            if (root.Property("parameters", StringComparison.Ordinal) == null) return parameters;
+            var array = ReadArray(root, "parameters", "$");
+            for (var index = 0; index < array.Count; index++)
+            {
+                var path = $"$.parameters[{index}]";
+                var item = RequireObject(array[index], path, "Parameter must be an object.");
+                EnsureProperties(item, path, "id", "name", "defaultValue", "supportedOperations");
+                var parameter = new StateMachineParameterDefinition
+                {
+                    Id = ReadInt32(item, "id", path),
+                    Name = ReadString(item, "name", path),
+                    DefaultValue = ReadSingle(item, "defaultValue", path),
+                };
+                var operations = ReadArray(item, "supportedOperations", path);
+                for (var operationIndex = 0; operationIndex < operations.Count; operationIndex++)
+                {
+                    if (operations[operationIndex].Type != JTokenType.Integer)
+                        throw new DefinitionJsonException($"{path}.supportedOperations[{operationIndex}]", "Expected an integer.");
+                    parameter.SupportedOperations.Add(operations[operationIndex].Value<int>());
+                }
+                parameters.Add(parameter);
+            }
+            return parameters;
+        }
+
+        private static void WriteParameters(JsonWriter writer, List<StateMachineParameterDefinition> parameters)
+        {
+            writer.WritePropertyName("parameters");
+            writer.WriteStartArray();
+            foreach (var parameter in (parameters ?? new List<StateMachineParameterDefinition>()).OrderBy(item => item.Id))
+            {
+                writer.WriteStartObject();
+                WriteValue(writer, "id", parameter.Id);
+                WriteValue(writer, "name", parameter.Name);
+                writer.WritePropertyName("defaultValue");
+                writer.WriteValue(parameter.DefaultValue);
+                writer.WritePropertyName("supportedOperations");
+                writer.WriteStartArray();
+                foreach (var operation in (parameter.SupportedOperations ?? new List<int>()).OrderBy(value => value))
+                    writer.WriteValue(operation);
+                writer.WriteEndArray();
+                writer.WriteEndObject();
+            }
+            writer.WriteEndArray();
+        }
+
         private static void WriteMachine(JsonWriter writer, MachineDefinition machine)
         {
             writer.WriteStartObject();
@@ -109,6 +162,8 @@ namespace AbilityKit.HFSM.Definition
                 writer.WriteStartObject();
                 WriteValue(writer, "id", state.Id);
                 WriteValue(writer, "behaviorKey", state.BehaviorKey);
+                WriteStringArray(writer, "logicEntryActionKeys", state.LogicEntryActionKeys);
+                WriteStringArray(writer, "logicExitActionKeys", state.LogicExitActionKeys);
                 WriteValue(writer, "childMachineId", state.ChildMachineId);
                 WriteValue(writer, "requiresExitApproval", state.RequiresExitApproval);
                 WriteValue(writer, "isGhostState", state.IsGhostState);
@@ -181,19 +236,25 @@ namespace AbilityKit.HFSM.Definition
             var item = RequireObject(token, path, "State must be an object.");
             if (formatVersion == 1)
             {
-                EnsureProperties(item, path, "id", "behaviorKey", "childMachineId", "requiresExitApproval");
-                return new StateDefinition
+                EnsureProperties(item, path,
+                    new[] { "id", "behaviorKey", "childMachineId", "requiresExitApproval" },
+                    new[] { "logicEntryActionKeys", "logicExitActionKeys" });
+                var legacyState = new StateDefinition
                 {
                     Id = ReadString(item, "id", path),
                     BehaviorKey = ReadString(item, "behaviorKey", path),
                     ChildMachineId = ReadString(item, "childMachineId", path),
                     RequiresExitApproval = ReadBoolean(item, "requiresExitApproval", path),
                 };
+                ReadOptionalStringArray(item, "logicEntryActionKeys", path, legacyState.LogicEntryActionKeys);
+                ReadOptionalStringArray(item, "logicExitActionKeys", path, legacyState.LogicExitActionKeys);
+                return legacyState;
             }
 
             EnsureProperties(item, path,
-                "id", "behaviorKey", "childMachineId", "requiresExitApproval",
-                "isGhostState", "parallelBehaviorKeys", "parallelExitPolicy");
+                new[] { "id", "behaviorKey", "childMachineId", "requiresExitApproval",
+                    "isGhostState", "parallelBehaviorKeys", "parallelExitPolicy" },
+                new[] { "logicEntryActionKeys", "logicExitActionKeys" });
             var state = new StateDefinition
             {
                 Id = ReadString(item, "id", path),
@@ -210,6 +271,8 @@ namespace AbilityKit.HFSM.Definition
                     throw new DefinitionJsonException($"{path}.parallelBehaviorKeys[{index}]", "Expected a string.");
                 state.ParallelBehaviorKeys.Add(keys[index].Value<string>() ?? string.Empty);
             }
+            ReadOptionalStringArray(item, "logicEntryActionKeys", path, state.LogicEntryActionKeys);
+            ReadOptionalStringArray(item, "logicExitActionKeys", path, state.LogicExitActionKeys);
             return state;
         }
 
@@ -280,6 +343,40 @@ namespace AbilityKit.HFSM.Definition
             throw new DefinitionJsonException($"{path}.{name}", "Expected an array.");
         }
 
+        private static void ReadOptionalStringArray(JObject item, string name, string path, List<string> values)
+        {
+            if (item.Property(name, StringComparison.Ordinal) == null) return;
+            var array = ReadArray(item, name, path);
+            for (var index = 0; index < array.Count; index++)
+            {
+                if (array[index].Type != JTokenType.String)
+                    throw new DefinitionJsonException($"{path}.{name}[{index}]", "Expected a string.");
+                values.Add(array[index].Value<string>() ?? string.Empty);
+            }
+        }
+
+        private static void EnsureProperties(
+            JObject item, string path, IReadOnlyCollection<string> requiredNames, IReadOnlyCollection<string> optionalNames)
+        {
+            var allowed = new HashSet<string>(requiredNames, StringComparer.Ordinal);
+            allowed.UnionWith(optionalNames);
+            foreach (var property in item.Properties())
+                if (!allowed.Contains(property.Name))
+                    throw new DefinitionJsonException($"{path}.{property.Name}", "Unknown property.");
+
+            foreach (var name in requiredNames)
+                if (item.Property(name, StringComparison.Ordinal) == null)
+                    throw new DefinitionJsonException($"{path}.{name}", "Required property is missing.");
+        }
+
+        private static void WriteStringArray(JsonWriter writer, string name, List<string> values)
+        {
+            writer.WritePropertyName(name);
+            writer.WriteStartArray();
+            foreach (var value in values ?? new List<string>()) writer.WriteValue(value ?? string.Empty);
+            writer.WriteEndArray();
+        }
+
         private static string ReadString(JObject item, string name, string path)
         {
             var token = item[name];
@@ -318,6 +415,17 @@ namespace AbilityKit.HFSM.Definition
             }
 
             throw new DefinitionJsonException($"{path}.{name}", "Expected an integer.");
+        }
+
+        private static float ReadSingle(JObject item, string name, string path)
+        {
+            var token = item[name];
+            if (token != null && (token.Type == JTokenType.Integer || token.Type == JTokenType.Float))
+            {
+                var value = token.Value<float>();
+                if (!float.IsNaN(value) && !float.IsInfinity(value)) return value;
+            }
+            throw new DefinitionJsonException($"{path}.{name}", "Expected a finite number.");
         }
 
         private static void WriteValue(JsonWriter writer, string name, string value)

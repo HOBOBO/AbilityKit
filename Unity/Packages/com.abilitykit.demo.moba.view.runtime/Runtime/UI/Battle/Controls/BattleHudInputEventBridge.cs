@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Game.Battle.Diagnostics.Capture;
 
 namespace AbilityKit.Game.Flow
 {
@@ -32,6 +33,11 @@ namespace AbilityKit.Game.Flow
             _events.SetSkillSpecs(skillSpecs);
         }
 
+        public void SetCaptureSink(IBattleCaptureSink capture)
+        {
+            _events.SetCaptureSink(capture);
+        }
+
         public event System.Action<int> SkillPreviewPressed
         {
             add => _events.SkillPreviewPressed += value;
@@ -51,6 +57,7 @@ namespace AbilityKit.Game.Flow
         public void Dispose()
         {
             ResetHudAim();
+            SetCaptureSink(null);
             Unbind();
         }
     }

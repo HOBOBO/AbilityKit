@@ -1,0 +1,323 @@
+[
+  {
+    "DefinitionId": "moba.character.3001",
+    "Conditions": [
+      {
+        "Key": "attack.cast.slot.1",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "casting"
+            },
+            {
+              "ParameterId": 12,
+              "Value": 1
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.slot.1.ready",
+        "Expression": {
+          "All": [
+            {
+              "ParameterId": 10,
+              "Value": 1
+            },
+            {
+              "Not": {
+                "Fact": "casting"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.cast.slot.2",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "casting"
+            },
+            {
+              "ParameterId": 12,
+              "Value": 2
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.slot.2.ready",
+        "Expression": {
+          "All": [
+            {
+              "ParameterId": 10,
+              "Value": 2
+            },
+            {
+              "Not": {
+                "Fact": "casting"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.cast.slot.3",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "casting"
+            },
+            {
+              "ParameterId": 12,
+              "Value": 3
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.slot.3.ready",
+        "Expression": {
+          "All": [
+            {
+              "ParameterId": 10,
+              "Value": 3
+            },
+            {
+              "Not": {
+                "Fact": "casting"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.cast.slot.4",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "casting"
+            },
+            {
+              "ParameterId": 12,
+              "Value": 4
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.slot.4.ready",
+        "Expression": {
+          "All": [
+            {
+              "ParameterId": 10,
+              "Value": 4
+            },
+            {
+              "Not": {
+                "Fact": "casting"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.cast.slot.5",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "casting"
+            },
+            {
+              "ParameterId": 12,
+              "Value": 5
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.slot.5.ready",
+        "Expression": {
+          "All": [
+            {
+              "ParameterId": 10,
+              "Value": 5
+            },
+            {
+              "Any": [
+                {
+                  "Not": {
+                    "Fact": "casting"
+                  }
+                },
+                {
+                  "All": [
+                    {
+                      "ParameterId": 11,
+                      "Value": 0
+                    },
+                    {
+                      "Fact": "basic.attack.cast"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.slot.5.reload.ready",
+        "Expression": {
+          "All": [
+            {
+              "ParameterId": 10,
+              "Value": 5
+            },
+            {
+              "Not": {
+                "Fact": "casting"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.slot.5.reload.complete",
+        "Expression": {
+          "All": [
+            {
+              "ParameterId": 10,
+              "Value": 5
+            },
+            {
+              "Not": {
+                "Fact": "casting"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "States": [
+      {
+        "Path": "life/alive/action/casting",
+        "CastContext": "Current"
+      },
+      {
+        "Path": "life/alive/action/attack.slot.1",
+        "CastContext": "RetainCommitted",
+        "CastKind": "BasicAttack"
+      },
+      {
+        "Path": "life/alive/action/attack.slot.2",
+        "CastContext": "RetainCommitted",
+        "CastKind": "BasicAttack"
+      },
+      {
+        "Path": "life/alive/action/attack.slot.3",
+        "CastContext": "RetainCommitted",
+        "CastKind": "BasicAttack"
+      },
+      {
+        "Path": "life/alive/action/attack.slot.4",
+        "CastContext": "RetainCommitted",
+        "CastKind": "BasicAttack"
+      },
+      {
+        "Path": "life/alive/action/r.aiming",
+        "CastContext": "None",
+        "CastKind": "Active",
+        "AimScope": "curtain_call",
+        "CaptureAim": true
+      },
+      {
+        "Path": "life/alive/action/r.shooting",
+        "CastContext": "RetainCommitted",
+        "CastKind": "Active",
+        "AimScope": "curtain_call",
+        "CaptureAim": false
+      },
+      {
+        "Path": "life/alive/action/r.final_shot",
+        "CastContext": "RetainCommitted",
+        "CastKind": "Active",
+        "AimScope": "curtain_call",
+        "CaptureAim": false
+      }
+    ],
+    "Casts": [
+      {
+        "SkillId": 30010601,
+        "ParameterSnapshots": [
+          {
+            "TargetParameterId": 12,
+            "Value": 1
+          }
+        ],
+        "CastKind": "BasicAttack"
+      },
+      {
+        "SkillId": 30010602,
+        "ParameterSnapshots": [
+          {
+            "TargetParameterId": 12,
+            "Value": 2
+          }
+        ],
+        "CastKind": "BasicAttack"
+      },
+      {
+        "SkillId": 30010603,
+        "ParameterSnapshots": [
+          {
+            "TargetParameterId": 12,
+            "Value": 3
+          }
+        ],
+        "CastKind": "BasicAttack"
+      },
+      {
+        "SkillId": 30010604,
+        "ParameterSnapshots": [
+          {
+            "TargetParameterId": 12,
+            "Value": 4
+          }
+        ],
+        "CastKind": "BasicAttack"
+      },
+      {
+        "SkillId": 30010501,
+        "AimSource": "StateAimSnapshot",
+        "AimScope": "curtain_call",
+        "CastKind": "Active"
+      },
+      {
+        "SkillId": 30010502,
+        "AimSource": "StateAimSnapshot",
+        "AimScope": "curtain_call",
+        "CastKind": "Active"
+      }
+    ]
+  },
+  {
+    "DefinitionId": "moba.character.3002",
+    "States": [
+      {
+        "Path": "life/alive/action/casting",
+        "CastContext": "Current"
+      }
+    ]
+  },
+  {
+    "DefinitionId": "moba.character.default",
+    "States": [
+      {
+        "Path": "life/alive/action/casting",
+        "CastContext": "Current"
+      }
+    ]
+  }
+]

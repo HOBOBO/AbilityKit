@@ -58,13 +58,28 @@ namespace AbilityKit.Demo.Moba.Services
             var existing = FindStackTarget(container, layer);
             if (existing != null)
             {
+                var oldValue = existing.CurrentValue;
                 ApplyStacking(existing, layer);
                 Recalculate(container);
+                PublishLifecycleChange(ShieldChangeKind.Refreshed, targetActorId, existing.InstanceId,
+                    oldValue, existing.CurrentValue);
                 return existing.InstanceId;
             }
 
+            List<Fixed64> replacedValues = null;
+            List<int> replacedInstances = null;
             if (layer.StackingPolicy == ShieldStackingPolicy.ReplaceLowerPriority)
             {
+                for (var i = 0; i < container.Layers.Count; i++)
+                {
+                    var replaced = container.Layers[i];
+                    if (replaced == null || replaced.ShieldId != layer.ShieldId ||
+                        replaced.SourceActorId != layer.SourceActorId || replaced.Priority > layer.Priority) continue;
+                    replacedValues ??= new List<Fixed64>();
+                    replacedInstances ??= new List<int>();
+                    replacedValues.Add(GetEffectiveCurrentValue(replaced));
+                    replacedInstances.Add(replaced.InstanceId);
+                }
                 container.Layers.RemoveAll(x => x != null && x.ShieldId == layer.ShieldId && x.SourceActorId == layer.SourceActorId && x.Priority <= layer.Priority);
             }
 
@@ -72,7 +87,34 @@ namespace AbilityKit.Demo.Moba.Services
             layer.InstanceId = instanceId;
             container.Layers.Add(layer);
             Recalculate(container);
+            for (var i = 0; replacedInstances != null && i < replacedInstances.Count; i++)
+                PublishLifecycleChange(ShieldChangeKind.Removed, targetActorId, replacedInstances[i],
+                    replacedValues[i], Fixed64.Zero);
+            PublishLifecycleChange(ShieldChangeKind.Added, targetActorId, instanceId,
+                Fixed64.Zero, layer.CurrentValue);
             return instanceId;
+        }
+
+        private void PublishLifecycleChange(ShieldChangeKind kind, int actorId, int instanceId,
+            Fixed64 oldValue, Fixed64 newValue)
+        {
+            var changed = Changed;
+            if (changed == null) return;
+            var revision = ++_changeRevision;
+            var change = new ShieldChangeEvent(revision, kind, actorId, instanceId, 0, 0,
+                oldValue, newValue, CurrentFrame());
+            PublishChange(changed, in change);
+        }
+
+        private void PublishPoolLifecycleChange(ShieldChangeKind kind, int actorId, int instanceId,
+            SharedShieldPool pool, Fixed64 oldValue, Fixed64 newValue)
+        {
+            var changed = Changed;
+            if (changed == null) return;
+            var change = new ShieldChangeEvent(++_changeRevision, kind, actorId, instanceId,
+                pool != null ? pool.PoolId : 0, pool != null ? pool.Version : 0,
+                oldValue, newValue, CurrentFrame());
+            PublishChange(changed, in change);
         }
 
         /// <summary>
@@ -307,7 +349,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             PublishAbsorbChanges(plan);
             RemoveDepleted(container);
-            RemoveDepletedSharedPools();
+            RemoveDepletedSharedPools(plan: plan);
             Recalculate(container);
         }
 
@@ -341,6 +383,8 @@ namespace AbilityKit.Demo.Moba.Services
                         if (TryGetSharedPoolState(entry.PoolId, out var pool))
                         {
                             var oldValue = entry.OldPoolValue;
+                            if (pool.RemoveWhenDepleted && pool.CurrentValue <= Fixed64.Zero)
+                                continue;
                             for (var m = 0; pool.Members != null && m < pool.Members.Count; m++)
                             {
                                 var member = pool.Members[m];
@@ -528,6 +572,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (!TryGetSharedPoolState(poolId, out var pool) || pool.Members == null) return false;
             var changed = false;
+            var oldValue = pool.CurrentValue;
             for (var i = 0; i < pool.Members.Count; i++)
             {
                 var member = pool.Members[i];
@@ -539,6 +584,8 @@ namespace AbilityKit.Demo.Moba.Services
             if (!changed) return false;
             RemovePoolBindings(actorId, poolId);
             pool.Version++;
+            PublishPoolLifecycleChange(ShieldChangeKind.MemberLeft, actorId, 0, pool,
+                oldValue, pool.CurrentValue);
             return true;
         }
 
@@ -613,16 +660,36 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool RemoveSharedPool(int poolId)
         {
+            return RemoveSharedPool(poolId, ShieldChangeKind.Removed);
+        }
+
+        private bool RemoveSharedPool(int poolId, ShieldChangeKind terminalKind)
+        {
+            return RemoveSharedPool(poolId, terminalKind, null);
+        }
+
+        private bool RemoveSharedPool(int poolId, ShieldChangeKind terminalKind, Fixed64? previousValue)
+        {
             if (!TryGetSharedPoolState(poolId, out var pool)) return false;
+            var oldValue = previousValue ?? pool.CurrentValue;
+            var activeMembers = new List<int>();
             if (pool.Members != null)
             {
                 for (var i = 0; i < pool.Members.Count; i++)
                 {
                     var member = pool.Members[i];
-                    if (member != null) RemovePoolBindings(member.ActorId, poolId);
+                    if (member == null) continue;
+                    if (member.Active) activeMembers.Add(member.ActorId);
+                    RemovePoolBindings(member.ActorId, poolId);
+                    member.Active = false;
+                    member.LeftFrame = CurrentFrame();
                 }
             }
             _sharedPools.Remove(poolId);
+            pool.CurrentValue = Fixed64.Zero;
+            pool.Version++;
+            for (var i = 0; i < activeMembers.Count; i++)
+                PublishPoolLifecycleChange(terminalKind, activeMembers[i], 0, pool, oldValue, Fixed64.Zero);
             return true;
         }
 
@@ -692,12 +759,20 @@ namespace AbilityKit.Demo.Moba.Services
             if (container.Layers == null) return false;
 
             var layer = FindLayer(container, instanceId);
+            var oldValue = layer != null ? GetEffectiveCurrentValue(layer) : Fixed64.Zero;
+            var shared = layer != null && layer.UsesSharedPoolValue &&
+                TryGetSharedPoolState(layer.SharedPoolId, out var sharedPool) ? sharedPool : null;
             var detached = false;
             if (layer != null && layer.UsesSharedPoolValue && layer.SharedPoolId > 0)
                 detached = LeaveSharedPool(layer.SharedPoolId, targetActorId, CurrentFrame());
             var removed = container.Layers.RemoveAll(x => x != null && x.InstanceId == instanceId) > 0;
             removed |= detached;
-            if (removed) Recalculate(container);
+            if (removed)
+            {
+                Recalculate(container);
+                if (shared == null)
+                    PublishLifecycleChange(ShieldChangeKind.Removed, targetActorId, instanceId, oldValue, Fixed64.Zero);
+            }
             return removed;
         }
 
@@ -729,8 +804,13 @@ namespace AbilityKit.Demo.Moba.Services
                 }
                 if (i < container.Layers.Count)
                 {
+                    var oldValue = GetEffectiveCurrentValue(layer);
+                    var isShared = layer.UsesSharedPoolValue;
+                    var instanceId = layer.InstanceId;
                     container.Layers.RemoveAt(i);
                     removed++;
+                    if (!isShared)
+                        PublishLifecycleChange(ShieldChangeKind.Removed, targetActorId, instanceId, oldValue, Fixed64.Zero);
                 }
                 if (!removeAll) break;
             }
@@ -744,6 +824,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (currentFrame <= 0) return 0;
 
             var removed = 0;
+            List<ShieldChangeEvent> terminalChanges = null;
             foreach (var pair in _containers)
             {
                 var container = pair.Value;
@@ -751,6 +832,22 @@ namespace AbilityKit.Demo.Moba.Services
                 if (container.Layers == null || container.Layers.Count == 0) continue;
 
                 var before = container.Layers.Count;
+                for (var i = container.Layers.Count - 1; i >= 0; i--)
+                {
+                    var layer = container.Layers[i];
+                    if (layer == null) continue;
+                    var expired = IsExpired(layer, currentFrame);
+                    var depleted = layer.RemoveWhenDepleted && GetEffectiveCurrentValue(layer) <= Fixed64.Zero;
+                    if (!expired && !depleted) continue;
+                    if (!layer.UsesSharedPoolValue)
+                    {
+                        terminalChanges ??= new List<ShieldChangeEvent>();
+                        terminalChanges.Add(new ShieldChangeEvent(0,
+                            expired ? ShieldChangeKind.Expired : ShieldChangeKind.Depleted,
+                            pair.Key, layer.InstanceId, 0, 0, GetEffectiveCurrentValue(layer),
+                            Fixed64.Zero, currentFrame));
+                    }
+                }
                 container.Layers.RemoveAll(x => x == null || IsExpired(x, currentFrame) ||
                     (x.RemoveWhenDepleted && GetEffectiveCurrentValue(x) <= Fixed64.Zero));
                 var delta = before - container.Layers.Count;
@@ -760,6 +857,21 @@ namespace AbilityKit.Demo.Moba.Services
                 Recalculate(container);
             }
 
+            if (terminalChanges != null)
+            {
+                var changed = Changed;
+                if (changed != null)
+                {
+                    for (var i = 0; i < terminalChanges.Count; i++)
+                    {
+                        var item = terminalChanges[i];
+                        var change = new ShieldChangeEvent(++_changeRevision, item.Kind, item.ActorId,
+                            item.InstanceId, item.PoolId, item.PoolVersion, item.OldValue, item.NewValue, item.Frame);
+                        PublishChange(changed, in change);
+                    }
+                }
+            }
+
             RemoveExpiredPoolBindings(currentFrame);
             RemoveDepletedSharedPools(currentFrame);
             return removed;
@@ -767,24 +879,17 @@ namespace AbilityKit.Demo.Moba.Services
 
         private void RemoveExpiredPoolBindings(int currentFrame)
         {
-            if (_sharedPools != null)
+            if (_sharedPools == null || _sharedPools.Count == 0) return;
+            if (_poolCleanupIds == null) _poolCleanupIds = new List<int>(4);
+            _poolCleanupIds.Clear();
+            foreach (var pair in _sharedPools)
             {
-                foreach (var pair in _sharedPools)
-                {
-                    var pool = pair.Value;
-                    if (pool == null || pool.Members == null) continue;
-                    if (pool.ExpireFrame <= 0 || currentFrame < pool.ExpireFrame) continue;
-                    for (var i = 0; i < pool.Members.Count; i++)
-                    {
-                        var member = pool.Members[i];
-                        if (member == null || !member.Active) continue;
-                        member.Active = false;
-                        member.LeftFrame = currentFrame;
-                        RemovePoolBindings(member.ActorId, pool.PoolId);
-                    }
-                    pool.Version++;
-                }
+                var pool = pair.Value;
+                if (pool != null && pool.ExpireFrame > 0 && currentFrame >= pool.ExpireFrame)
+                    _poolCleanupIds.Add(pair.Key);
             }
+            for (var i = 0; i < _poolCleanupIds.Count; i++)
+                RemoveSharedPool(_poolCleanupIds[i], ShieldChangeKind.Expired);
         }
 
         private ShieldContainer GetOrCreateContainer(int targetActorId)
@@ -918,6 +1023,8 @@ namespace AbilityKit.Demo.Moba.Services
             TrackPoolActor(actorId, pool.PoolId);
             Recalculate(container);
             pool.Version++;
+            PublishPoolLifecycleChange(ShieldChangeKind.MemberJoined, actorId, layer.InstanceId,
+                pool, Fixed64.Zero, pool.CurrentValue);
             return member.MemberId;
         }
 
@@ -977,7 +1084,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private void RemoveDepletedSharedPools(int currentFrame = int.MinValue)
+        private void RemoveDepletedSharedPools(int currentFrame = int.MinValue, ShieldAbsorbPlan plan = null)
         {
             if (_sharedPools == null || _sharedPools.Count == 0) return;
             if (_poolCleanupIds == null) _poolCleanupIds = new List<int>(4);
@@ -990,7 +1097,54 @@ namespace AbilityKit.Demo.Moba.Services
                 var expired = pool.ExpireFrame > 0 && effectiveFrame != int.MinValue && effectiveFrame >= pool.ExpireFrame;
                 if (pool.RemoveWhenDepleted && pool.CurrentValue <= Fixed64.Zero || expired) _poolCleanupIds.Add(pair.Key);
             }
-            for (var i = 0; i < _poolCleanupIds.Count; i++) RemoveSharedPool(_poolCleanupIds[i]);
+            for (var i = 0; i < _poolCleanupIds.Count; i++)
+            {
+                var poolId = _poolCleanupIds[i];
+                var effectiveFrame = currentFrame != int.MinValue ? currentFrame : CurrentFrame();
+                var kind = TryGetSharedPoolState(poolId, out var pool) && pool.ExpireFrame > 0 &&
+                    effectiveFrame != int.MinValue && effectiveFrame >= pool.ExpireFrame
+                    ? ShieldChangeKind.Expired
+                    : ShieldChangeKind.Depleted;
+                Fixed64? previousValue = null;
+                if (kind == ShieldChangeKind.Depleted && plan?.Entries != null)
+                {
+                    for (var e = 0; e < plan.Entries.Count; e++)
+                    {
+                        var entry = plan.Entries[e];
+                        if (entry.PoolId != poolId) continue;
+                        previousValue = entry.OldPoolValue;
+                        break;
+                    }
+                }
+                RemoveSharedPool(poolId, kind, previousValue);
+            }
+        }
+
+        internal void PublishRollbackCorrections(IReadOnlyDictionary<int, Fixed64> previousValues, int frame)
+        {
+            if (previousValues == null) return;
+            foreach (var pair in _containers)
+            {
+                var current = GetPresentationSnapshot(pair.Key).TotalVisibleValue;
+                var previous = previousValues.TryGetValue(pair.Key, out var value) ? value : Fixed64.Zero;
+                PublishRollbackCorrection(pair.Key, previous, current, frame);
+            }
+
+            foreach (var pair in previousValues)
+            {
+                if (_containers.ContainsKey(pair.Key)) continue;
+                PublishRollbackCorrection(pair.Key, pair.Value, Fixed64.Zero, frame);
+            }
+        }
+
+        private void PublishRollbackCorrection(int actorId, Fixed64 oldValue, Fixed64 newValue, int frame)
+        {
+            if (oldValue == newValue) return;
+            var changed = Changed;
+            if (changed == null) return;
+            var change = new ShieldChangeEvent(++_changeRevision, ShieldChangeKind.RollbackCorrection,
+                actorId, 0, 0, 0, oldValue, newValue, frame);
+            PublishChange(changed, in change);
         }
 
         private static ShieldLayer CloneLayer(ShieldLayer source, int targetActorId, Fixed64 value,

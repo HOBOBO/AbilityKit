@@ -11,6 +11,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
         public const int TargetingStart = 99_110_000;
         public const int TargetingEnd = 99_119_999;
         public const int TargetCollectionDamage = 99_110_001;
+        public const int HealthPercentDamage = 99_110_002;
 
         public const int BuffStart = 99_120_000;
         public const int BuffEnd = 99_129_999;
@@ -30,6 +31,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
         public const int BoundedGroupPull = 99_190_002;
         public const int PersistentArea = 99_190_003;
         public const int OverhealToShield = 99_190_004;
+        public const int GroupedPersistentArea = 99_190_005;
+        public const int JinxEThreeAreaAcceptance = 99_190_006;
         public const int P0ComplexShowcase = 99_190_010;
         public const int P2ApplySkillParameters = 99_190_020;
         public const int P2ClearSkillParameters = 99_190_021;

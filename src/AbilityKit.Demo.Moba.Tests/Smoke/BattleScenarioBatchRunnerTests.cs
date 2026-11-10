@@ -217,7 +217,8 @@ public sealed class BattleScenarioBatchRunnerTests
             var result = BattleScenarioBatchRunner.RunDirectory(dir);
 
             Assert.Equal(2, result.Total);
-            Assert.Equal(2, result.Passed);
+            Assert.True(result.Passed == 2, string.Join(Environment.NewLine,
+                result.Cases.Select(item => item.CaseId + ": " + item.Summary)));
             Assert.Equal(0, result.Failed);
             Assert.Equal(new[] { "earlier-case", "later-case" }, result.Cases.Select(item => item.CaseId));
             Assert.NotEmpty(result.Cases[0].DeterminismFingerprint);

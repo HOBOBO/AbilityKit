@@ -193,6 +193,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.DashId.Value, TriggeringConstants.Actions.Dash);
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.AddBuffId.Value, TriggeringConstants.Actions.AddBuff);
                 HeroSkillHeadlessContract.AssertFreshBuff(harness, actorId, 10070103, 2.0f, "Sun Shangxiang roll should apply the movement-speed Buff.");
+                Assert.IsFalse(harness.HasActorBuff(targetActorId, 10070103),
+                    "The nearby enemy enables the caster's speed bonus and must not receive that bonus.");
                 AssertBuffPresentationCue(harness, actorId, 10070103,
                     "Sun Shangxiang's roll speed buff should publish an active HUD cue.");
                 HeroSkillHeadlessContract.AssertFreshBuff(harness, actorId, 10070101, 2.0f, "Sun Shangxiang roll should arm the enhanced basic attack Buff.");

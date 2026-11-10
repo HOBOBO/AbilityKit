@@ -907,6 +907,8 @@ public sealed class MobaTagResultTests
         Assert.True(cast.Success, cast.FailReason);
         Assert.True(skills.TryGetRunningBySlot(actorId, 1, out var before));
 
+        Assert.Equal(MobaTagResultFlags.None,
+            services.Resolve<IMobaTagResultQueryService>().GetResultFlags(actorId) & MobaTagResultFlags.CannotCast);
         var probe = new TaggedContinuous(actorId, "Debuff.Slow", (ulong)MobaTagResultFlags.CannotCast);
         Assert.True(continuous.TryActivate(probe));
         var manager = services.Resolve<MobaContinuousManager>();
@@ -928,6 +930,12 @@ public sealed class MobaTagResultTests
         Assert.True(continuous.TryEnd(silence));
         manager.Tick(0.01f);
         Assert.Equal(2, probe.TickCount);
+        // The probe grants an owner gate as well as consuming it. Removing silence
+        // lets the probe tick, but the pipeline remains blocked until that gate ends.
+        skills.Step(actorId);
+        Assert.True(skills.TryGetRunningBySlot(actorId, 1, out var probeBlocked));
+        Assert.Equal(blocked.ElapsedMs, probeBlocked.ElapsedMs);
+        Assert.True(continuous.TryEnd(probe));
         skills.Step(actorId);
         Assert.True(skills.TryGetRunningBySlot(actorId, 1, out var resumed));
         Assert.True(resumed.ElapsedMs > blocked.ElapsedMs);

@@ -55,6 +55,33 @@ namespace AbilityKit.Game.UnitTests
         }
 
         [Test]
+        public void PresentationOrdering_StoresSemanticPolicyWithoutEngineSpecificFields()
+        {
+            var ordering = new PresentationOrdering(PresentationOrderingMode.RelativeToAttachment, 7);
+            var request = new PresentationRequest("ordered", 1, PresentationVector3.Zero, ordering: ordering);
+
+            Assert.AreEqual(PresentationOrderingMode.RelativeToAttachment, request.Ordering.Mode);
+            Assert.AreEqual(7, request.Ordering.Priority);
+            Assert.AreEqual(PresentationOrderingMode.ResourceDefault, default(PresentationOrdering).Mode);
+            Assert.AreEqual(PresentationOrderingMode.ResourceDefault,
+                new PresentationOrdering((PresentationOrderingMode)99, 100).Mode);
+        }
+
+        [Test]
+        public void ScaleResolver_ExplainsOverrideAndMultiplierSources()
+        {
+            var resolver = new PresentationScaleResolver();
+            resolver.Set(new PresentationScaleSource("model", PresentationScaleChannel.Vfx, 2f));
+            resolver.Set(new PresentationScaleSource("skill", PresentationScaleChannel.Vfx, 3f,
+                PresentationScaleMode.Override, 4));
+            var explanation = resolver.Explain(PresentationScaleChannel.Vfx, PresentationVector3.One);
+            Assert.AreEqual(6f, explanation.Effective.X);
+            Assert.AreEqual(2f, explanation.Multiplier.X);
+            Assert.AreEqual("skill", explanation.ControlSourceId);
+            Assert.AreEqual(2, explanation.SourceCount);
+        }
+
+        [Test]
         public void EffectPolicyLedger_EnforcesUniqueIntervalAndReleases()
         {
             var ledger = new PresentationEffectPolicyLedger<string>();

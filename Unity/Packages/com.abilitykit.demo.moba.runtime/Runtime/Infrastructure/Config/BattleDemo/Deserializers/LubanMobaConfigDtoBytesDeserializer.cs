@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             typeof(PassiveSkillDTO),
             typeof(SkillFlowDTO),
             typeof(SkillLevelTableDTO),
+            typeof(HeroLevelSkillGrowthParameterDTO),
             typeof(BattleAttributeTemplateDTO),
             typeof(AttrTypeDTO),
             typeof(ModelDTO),

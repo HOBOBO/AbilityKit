@@ -19,7 +19,21 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         private const string UnityFolder =
             "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba";
         private const string ConsoleFolder = "../src/AbilityKit.Demo.Moba.Console/Configs/moba";
-        private static readonly string[] Names = { "character_hfsm", "actor_state_machines" };
+        private const string ConsoleLubanFolder = "../src/AbilityKit.Demo.Moba.Console/Configs/luban/moba";
+        private const string ActorStateMachinesName = "actor_state_machines";
+
+        public static string[] CharacterProfileNames()
+        {
+            var sourceFolder = ProjectPath(SourceFolder);
+            return Directory.GetFiles(sourceFolder, "character_hfsm*.json")
+                .Select(path => Path.GetFileNameWithoutExtension(path))
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        private static string[] SourceNames() => CharacterProfileNames()
+            .Concat(new[] { ActorStateMachinesName, "character_bindings" })
+            .ToArray();
 
         public static string SourcePath(string name) => ProjectPath(SourceFolder + "/" + name + ".json");
 
@@ -29,14 +43,21 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         [MenuItem("Tools/AbilityKit/MOBA/Publish State Machines")]
         public static void Publish()
         {
-            var documents = Names.Select(name => File.ReadAllText(SourcePath(name))).ToArray();
-            for (var i = 0; i < Names.Length; i++)
-                Validate(Names[i], documents[i]);
-            for (var i = 0; i < Names.Length; i++)
+            var names = SourceNames();
+            var documents = names.Select(name => File.ReadAllText(SourcePath(name))).ToArray();
+            for (var i = 0; i < names.Length; i++)
+                Validate(names[i], documents[i]);
+            for (var i = 0; i < names.Length; i++)
             {
-                var name = Names[i];
-                WriteIfChanged(ProjectPath(UnityFolder + "/" + name + ".json"), documents[i]);
-                WriteIfChanged(ProjectPath(ConsoleFolder + "/" + name + ".json"), documents[i]);
+                var name = names[i];
+                foreach (var folder in new[] { UnityFolder, ConsoleFolder, ConsoleLubanFolder })
+                    WriteIfChanged(ProjectPath(folder + "/" + name + ".json"), documents[i]);
+            }
+            foreach (var folder in new[] { UnityFolder, ConsoleFolder, ConsoleLubanFolder })
+            {
+                var retired = ProjectPath(folder + "/character_hfsm.json");
+                if (File.Exists(retired)) File.Delete(retired);
+                if (File.Exists(retired + ".meta")) File.Delete(retired + ".meta");
             }
             AssetDatabase.Refresh();
             Debug.Log("MOBA 状态机已发布到 Unity 和 Console。");
@@ -45,12 +66,12 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         [MenuItem("Tools/AbilityKit/MOBA/Check State Machines")]
         public static void Check()
         {
-            foreach (var name in Names)
+            foreach (var name in SourceNames())
             {
                 var json = File.ReadAllText(SourcePath(name));
                 Validate(name, json);
                 var expected = JToken.Parse(json);
-                foreach (var path in new[] { UnityFolder, ConsoleFolder })
+                foreach (var path in new[] { UnityFolder, ConsoleFolder, ConsoleLubanFolder })
                 {
                     var target = ProjectPath(path + "/" + name + ".json");
                     if (!File.Exists(target) || !JToken.DeepEquals(expected, JToken.Parse(File.ReadAllText(target))))
@@ -60,17 +81,38 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Debug.Log("MOBA 状态机源文件与两端发布产物一致。");
         }
 
-        public static void Validate(string name, string json)
+        public static void Validate(string name, string json, string bindingsJson = null)
         {
-            if (name == "character_hfsm")
+            if (name == "character_bindings")
             {
-                var definition = DefinitionJson.Load(json);
-                if (definition.DefinitionId != MobaCharacterHfsmProfile.Id)
+                var declarations = JsonConvert.DeserializeObject<MobaCharacterBindings[]>(json) ?? Array.Empty<MobaCharacterBindings>();
+                var profiles = CharacterProfileNames();
+                var ids = new HashSet<string>(profiles.Select(profile => DefinitionJson.Load(File.ReadAllText(SourcePath(profile))).DefinitionId), StringComparer.Ordinal);
+                if (declarations.Any(item => item == null || !ids.Contains(item.DefinitionId)) ||
+                    declarations.Length != ids.Count ||
+                    declarations.Select(item => item.DefinitionId).Distinct(StringComparer.Ordinal).Count() != ids.Count)
+                    throw new InvalidOperationException("Every character definition must have exactly one binding declaration.");
+                foreach (var profile in profiles) Validate(profile, File.ReadAllText(SourcePath(profile)), json);
+                return;
+            }
+            if (name.StartsWith("character_hfsm", StringComparison.Ordinal))
+            {
+                var definition = MobaCharacterBindings.Load(DefinitionJson.Load(json), new AuthoringTextLoader(bindingsJson));
+                var expectedId = ExpectedDefinitionId(name);
+                if (!string.Equals(definition.DefinitionId, expectedId, StringComparison.Ordinal))
+                    throw new InvalidOperationException($"Character HFSM '{name}' must use definitionId '{expectedId}'.");
+                if (name == "character_hfsm_default" && definition.DefinitionId != MobaCharacterHfsmProfile.Id)
                     throw new InvalidOperationException("角色 HFSM definitionId 与运行时不一致。");
+                foreach (var machine in definition.Machines)
+                    foreach (var state in machine.States)
+                    {
+                        ValidateStateActions(state.Id, state.LogicEntryActionKeys);
+                        ValidateStateActions(state.Id, state.LogicExitActionKeys);
+                    }
                 foreach (var machine in definition.Machines)
                     foreach (var transition in machine.Transitions)
                         if (!string.IsNullOrEmpty(transition.ConditionKey) &&
-                            !KnownCharacterConditions.Contains(transition.ConditionKey))
+                            !MobaCharacterHfsmProfile.IsSupportedConditionKey(definition, transition.ConditionKey))
                             throw new InvalidOperationException($"角色 HFSM 未注册条件：{transition.ConditionKey}");
             }
             else if (name == "actor_state_machines")
@@ -86,11 +128,42 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             else throw new ArgumentException("Unknown state machine source", nameof(name));
         }
 
-        private static readonly string[] KnownCharacterConditions =
+        private sealed class AuthoringTextLoader : AbilityKit.Ability.Config.ITextAssetLoader
         {
-            "dead", "alive", "controlled", "casting", "moving", "idle",
-            "free.cast", "free.move", "free.idle"
-        };
+            private readonly string _bindingsJson;
+            public AuthoringTextLoader(string bindingsJson = null) => _bindingsJson = bindingsJson;
+            public bool TryLoadBytes(string path, out byte[] bytes) { bytes = null; return false; }
+            public bool TryLoadText(string path, out string text)
+            {
+                if (path == MobaCharacterBindings.ResourcePath && _bindingsJson != null)
+                { text = _bindingsJson; return true; }
+                var file = SourcePath(Path.GetFileName(path));
+                text = File.Exists(file) ? File.ReadAllText(file) : null;
+                return text != null;
+            }
+        }
+
+        private static string ExpectedDefinitionId(string name)
+        {
+            if (name == "character_hfsm_default") return MobaCharacterHfsmProfile.Id;
+            const string prefix = "character_hfsm_";
+            if (name.StartsWith(prefix, StringComparison.Ordinal) &&
+                int.TryParse(name.Substring(prefix.Length), out var heroId) && heroId > 0)
+                return MobaCharacterHfsmProfile.HeroDefinitionId(heroId);
+            throw new InvalidOperationException($"Unsupported character HFSM source name '{name}'.");
+        }
+
+        private static void ValidateStateActions(string stateId, List<string> keys)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var key in keys ?? new List<string>())
+            {
+                if (!MobaCharacterHfsmProfile.IsSupportedStateActionKey(key))
+                    throw new InvalidOperationException($"HFSM state '{stateId}' has unsupported logic action '{key}'.");
+                if (!seen.Add(key))
+                    throw new InvalidOperationException($"HFSM state '{stateId}' repeats logic action '{key}'.");
+            }
+        }
 
         private static void WriteIfChanged(string path, string text)
         {
@@ -102,14 +175,19 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 
     public sealed class MobaStateMachineAuthoringWindow : EditorWindow
     {
-        private readonly string[] _names = { "character_hfsm", "actor_state_machines" };
+        private string[] _characterNames = Array.Empty<string>();
+        private string _activeCharacterName = "character_hfsm_default";
         private int _kind;
         private int _profile;
+        private int _newHeroId;
         private int _selectedState = -1;
         private int _selectedTransition = -1;
         private readonly List<JObject> _nested = new List<JObject>();
         private JObject _character;
         private JArray _actors;
+        private JArray _characterBindings;
+        private string _bindingJson;
+        private bool _showBindings;
         private Vector2 _scroll;
         private bool _dirty;
 
@@ -126,8 +204,13 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 
         private void Reload()
         {
-            _character = JObject.Parse(File.ReadAllText(MobaStateMachinePublisher.SourcePath(_names[0])));
-            _actors = JArray.Parse(File.ReadAllText(MobaStateMachinePublisher.SourcePath(_names[1])));
+            _characterNames = MobaStateMachinePublisher.CharacterProfileNames();
+            if (!_characterNames.Contains(_activeCharacterName, StringComparer.Ordinal))
+                _activeCharacterName = _characterNames.FirstOrDefault() ?? "character_hfsm_default";
+            _character = JObject.Parse(File.ReadAllText(MobaStateMachinePublisher.SourcePath(_activeCharacterName)));
+            _actors = JArray.Parse(File.ReadAllText(MobaStateMachinePublisher.SourcePath("actor_state_machines")));
+            _characterBindings = JArray.Parse(File.ReadAllText(MobaStateMachinePublisher.SourcePath("character_bindings")));
+            LoadSelectedBinding();
             _dirty = false;
             _selectedState = -1;
             _selectedTransition = -1;
@@ -147,6 +230,23 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     _selectedState = _selectedTransition = -1;
                     _nested.Clear();
                 }
+                if (_kind == 0 && _characterNames.Length > 0)
+                {
+                    var activeIndex = Array.IndexOf(_characterNames, _activeCharacterName);
+                    var selectedCharacter = EditorGUILayout.Popup(activeIndex,
+                        _characterNames, EditorStyles.toolbarPopup, GUILayout.Width(210));
+                    if (selectedCharacter != activeIndex)
+                    {
+                        Save();
+                        _activeCharacterName = _characterNames[selectedCharacter];
+                        _character = JObject.Parse(File.ReadAllText(
+                            MobaStateMachinePublisher.SourcePath(_activeCharacterName)));
+                        LoadSelectedBinding();
+                        _profile = 0;
+                        _selectedState = _selectedTransition = -1;
+                        _nested.Clear();
+                    }
+                }
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("重新加载", EditorStyles.toolbarButton)) Reload();
                 if (GUILayout.Button("保存源文件", EditorStyles.toolbarButton)) Save();
@@ -164,6 +264,24 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 
             if (_character == null || _actors == null) return;
             EditorGUILayout.Space(6);
+            if (_kind == 0)
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    _newHeroId = EditorGUILayout.IntField("新英雄 ID", _newHeroId, GUILayout.Width(260));
+                    if (GUILayout.Button("创建角色 HFSM", GUILayout.Width(130))) CreateCharacterProfile();
+                }
+                StringField(_character, "definitionId", "Definition ID");
+                DrawParameters();
+                _showBindings = EditorGUILayout.Foldout(_showBindings, "条件、Cast 与瞄准作用域声明", true);
+                if (_showBindings)
+                {
+                    EditorGUILayout.HelpBox("声明条件组合、完整状态路径及 Cast 快照。保存与发布会同时校验状态图和声明。", MessageType.Info);
+                    EditorGUI.BeginChangeCheck();
+                    _bindingJson = EditorGUILayout.TextArea(_bindingJson, GUILayout.Height(190));
+                    if (EditorGUI.EndChangeCheck()) _dirty = true;
+                }
+            }
             var containers = _kind == 0 ? (JArray)_character["machines"] : _actors;
             if (GUILayout.Button(_kind == 0 ? "新增角色状态机" : "新增投射物配置"))
             {
@@ -212,6 +330,106 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             }
             EditorGUILayout.EndScrollView();
             if (_dirty) EditorGUILayout.HelpBox("源文件有未保存的修改。", MessageType.Info);
+        }
+
+        private void CreateCharacterProfile()
+        {
+            if (_newHeroId <= 0)
+            {
+                EditorUtility.DisplayDialog("角色 HFSM", "请输入有效的英雄 ID。", "确定");
+                return;
+            }
+
+            var name = "character_hfsm_" + _newHeroId;
+            var path = MobaStateMachinePublisher.SourcePath(name);
+            if (!File.Exists(path))
+            {
+                var definition = MobaCharacterHfsmProfile.CreateGenericDefinition();
+                definition.DefinitionId = MobaCharacterHfsmProfile.HeroDefinitionId(_newHeroId);
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(path, DefinitionJson.Save(definition));
+                var binding = MobaCharacterBindings.For(definition);
+                binding.DefinitionId = definition.DefinitionId;
+                _characterBindings.Add(JObject.FromObject(binding));
+                File.WriteAllText(MobaStateMachinePublisher.SourcePath("character_bindings"), _characterBindings.ToString(Formatting.Indented) + "\n");
+            }
+
+            AssetDatabase.Refresh();
+            _activeCharacterName = name;
+            Reload();
+        }
+
+        private void DrawParameters()
+        {
+            var parameters = _character["parameters"] as JArray;
+            if (parameters == null)
+            {
+                parameters = new JArray();
+                _character["parameters"] = parameters;
+                _dirty = true;
+            }
+
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.LabelField("HFSM Parameters", EditorStyles.boldLabel);
+                    if (GUILayout.Button("+", GUILayout.Width(28)))
+                    {
+                        var nextId = parameters.OfType<JObject>()
+                            .Select(parameter => (int?)parameter["id"] ?? 0)
+                            .DefaultIfEmpty(0).Max() + 1;
+                        parameters.Add(new JObject
+                        {
+                            ["id"] = nextId,
+                            ["name"] = "Parameter" + nextId,
+                            ["defaultValue"] = 0f,
+                            ["supportedOperations"] = new JArray()
+                        });
+                        _dirty = true;
+                    }
+                }
+
+                for (var i = 0; i < parameters.Count; i++)
+                {
+                    var parameter = parameters[i] as JObject;
+                    if (parameter == null) continue;
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        IntField(parameter, "id", "ID");
+                        StringField(parameter, "name", "Name");
+                        FloatField(parameter, "defaultValue", "Default");
+                        IntegerListField(parameter, "supportedOperations", "Operations");
+                        if (GUILayout.Button("-", GUILayout.Width(24)))
+                        {
+                            parameters.RemoveAt(i--);
+                            _dirty = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void IntegerListField(JObject obj, string key, string label)
+        {
+            var values = obj[key] as JArray ?? new JArray();
+            var before = string.Join(",", values.Select(value => (int)value));
+            var after = EditorGUILayout.TextField(label, before);
+            if (after == before) return;
+            var parsed = new List<int>();
+            foreach (var part in after.Split(','))
+            {
+                var value = part.Trim();
+                if (value.Length == 0) continue;
+                if (!int.TryParse(value, out var operation))
+                {
+                    ShowNotification(new GUIContent("Operations must be integer ModifierOp values."));
+                    return;
+                }
+                parsed.Add(operation);
+            }
+            obj[key] = new JArray(parsed);
+            _dirty = true;
         }
 
         private void DrawGraph(JArray states, JArray transitions)
@@ -266,7 +484,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     {
                         var id = "new_state_" + states.Count;
                         states.Add(_kind == 0
-                            ? JObject.Parse("{\"id\":\"" + id + "\",\"behaviorKey\":\"\",\"childMachineId\":\"\",\"requiresExitApproval\":false}")
+                            ? JObject.Parse("{\"id\":\"" + id + "\",\"behaviorKey\":\"\",\"childMachineId\":\"\",\"requiresExitApproval\":false,\"logicEntryActionKeys\":[],\"logicExitActionKeys\":[]}")
                             : JObject.Parse("{\"id\":\"" + id + "\",\"kind\":\"actionState\",\"completionPolicy\":\"hold\",\"behaviorRoot\":{\"kind\":\"action\",\"type\":\"projectile.resume\"}}"));
                         _selectedState = states.Count - 1;
                         _dirty = true;
@@ -285,6 +503,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     StringField(state, "behaviorKey", "行为绑定");
                     StringField(state, "childMachineId", "子状态机");
                     BoolField(state, "requiresExitApproval", "需要退出批准");
+                    StringListField(state, "logicEntryActionKeys", "逻辑进入动作", "trigger.enter.<id>");
+                    StringListField(state, "logicExitActionKeys", "逻辑退出动作", "trigger.exit.<id>");
                 }
                 else
                 {
@@ -488,6 +708,17 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             _dirty = true;
         }
 
+        private void StringListField(JObject obj, string key, string label, string placeholder)
+        {
+            var values = obj[key] as JArray ?? new JArray();
+            var before = string.Join(",", values.Select(value => (string)value ?? string.Empty));
+            var after = EditorGUILayout.TextField(new GUIContent(label, placeholder), before);
+            if (after == before) return;
+            obj[key] = new JArray(after.Split(',').Select(value => value.Trim())
+                .Where(value => value.Length > 0));
+            _dirty = true;
+        }
+
         private void BoolField(JObject obj, string key, string label)
         {
             var before = (bool?)obj[key] ?? false;
@@ -515,15 +746,32 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             _dirty = true;
         }
 
+        private void LoadSelectedBinding()
+        {
+            var id = (string)_character["definitionId"];
+            var binding = _characterBindings.OfType<JObject>().SingleOrDefault(item => (string)item["DefinitionId"] == id);
+            _bindingJson = (binding ?? JObject.FromObject(new MobaCharacterBindings { DefinitionId = id })).ToString(Formatting.Indented);
+        }
+
         private void Save()
         {
             if (_character == null || _actors == null) return;
             var characterJson = _character.ToString(Formatting.Indented) + "\n";
             var actorJson = _actors.ToString(Formatting.Indented) + "\n";
-            MobaStateMachinePublisher.Validate(_names[0], characterJson);
-            MobaStateMachinePublisher.Validate(_names[1], actorJson);
-            File.WriteAllText(MobaStateMachinePublisher.SourcePath(_names[0]), characterJson);
-            File.WriteAllText(MobaStateMachinePublisher.SourcePath(_names[1]), actorJson);
+            var binding = JObject.Parse(_bindingJson);
+            var definition = DefinitionJson.Load(characterJson);
+            binding.ToObject<MobaCharacterBindings>().Validate(definition);
+            var pendingBindings = (JArray)_characterBindings.DeepClone();
+            var old = pendingBindings.OfType<JObject>().SingleOrDefault(item =>
+                (string)item["DefinitionId"] == definition.DefinitionId);
+            if (old != null) old.Replace(binding); else pendingBindings.Add(binding);
+            var bindingsJson = pendingBindings.ToString(Formatting.Indented) + "\n";
+            MobaStateMachinePublisher.Validate(_activeCharacterName, characterJson, bindingsJson);
+            MobaStateMachinePublisher.Validate("actor_state_machines", actorJson);
+            File.WriteAllText(MobaStateMachinePublisher.SourcePath(_activeCharacterName), characterJson);
+            File.WriteAllText(MobaStateMachinePublisher.SourcePath("actor_state_machines"), actorJson);
+            File.WriteAllText(MobaStateMachinePublisher.SourcePath("character_bindings"), bindingsJson);
+            _characterBindings = pendingBindings;
             _dirty = false;
             AssetDatabase.Refresh();
         }

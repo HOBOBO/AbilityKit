@@ -1,0 +1,68 @@
+{
+  "Id": 30030201,
+  "Name": "Annie - Disintegrate",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 19,
+      "PhaseId": "annie_q_economy",
+      "Economy": {
+        "Operation": 0,
+        "ResourceType": 2,
+        "ResourceAmount": 0.0,
+        "UseResolvedResourceCost": true,
+        "ChargeCost": 1,
+        "MaxCharges": 1,
+        "ChargeRecoveryMs": 0,
+        "StartSkillCooldown": true,
+        "SkillCooldownMs": 0,
+        "UseResolvedSkillCooldown": true,
+        "CooldownGroup": "",
+        "SharedCooldownMs": 0,
+        "GlobalCooldownMs": 0,
+        "IgnoreGlobalCooldown": false,
+        "RefundBeforeCommit": true,
+        "RequireExplicitCommit": false,
+        "FailReason": "skill_economy_reserve_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "annie_q_release",
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "annie_q_commit",
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      }
+    },
+    {
+      "Type": 2,
+      "PhaseId": "annie_q_cast",
+      "Timeline": {
+        "DurationMs": 800,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30030201,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "annie_q_cast"
+          }
+        ]
+      }
+    }
+  ]
+}

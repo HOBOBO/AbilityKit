@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Gameplay.Structures;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
@@ -21,6 +22,10 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
 
             context.TryResolve<TriggerPlanJsonDatabase>(out var db);
             context.TryResolve<MobaEventSubscriptionRegistry>(out var eventRegistry);
+            if (context.TryResolve<MobaConfigDatabase>(out var configs) && configs != null)
+            {
+                MobaBattlePayloadFields.RegisterSkillParameterFields(configs);
+            }
             MobaGameplayTriggerValidator.ValidateDatabase(db, eventRegistry, report);
         }
     }
@@ -326,7 +331,9 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
                 return;
             }
 
-            if (valueRef.FieldId == 0 || !KnownPayloadFieldIds.Contains(valueRef.FieldId))
+            if (valueRef.FieldId == 0 ||
+                (!KnownPayloadFieldIds.Contains(valueRef.FieldId) &&
+                 !MobaBattlePayloadFields.IsKnownFieldId(valueRef.FieldId)))
             {
                 AddError(report, path, $"unknown gameplay/battle payload field id={valueRef.FieldId}", businessId);
             }

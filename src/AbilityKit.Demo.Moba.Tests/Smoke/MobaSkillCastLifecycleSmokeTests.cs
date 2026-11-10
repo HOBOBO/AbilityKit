@@ -15,6 +15,29 @@ public sealed class MobaSkillCastLifecycleSmokeTests
 {
     private const int TestSkillId = 10010301;
     private const int TestSkillSlot = 3;
+    private const int DifferentLoadedSkillId = 10010201;
+
+    [Fact]
+    public void Explicit_skill_id_must_match_resolved_slot_before_runtime_allocation()
+    {
+        using var battle = StartBattle();
+        var services = battle.RuntimeServices!;
+        var registry = services.Resolve<MobaActorRegistry>();
+        var casts = services.Resolve<SkillCastCoordinator>();
+        var runtimes = services.Resolve<MobaSkillCastRuntimeService>();
+        var trace = services.Resolve<MobaTraceRegistry>();
+        var (casterId, _) = FindTestCasterAndEnemy(registry);
+
+        var runtimeCountBefore = runtimes.Count;
+        var traceCountBefore = CountSkillCastRoots(trace, casterId);
+        var result = casts.TryCastSkill(casterId, DifferentLoadedSkillId, TestSkillSlot);
+
+        Assert.False(result.Success);
+        Assert.Equal("skill.cast.slotSkillMismatch", result.Failure.Code);
+        Assert.False(result.RuntimeHandle.IsValid);
+        Assert.Equal(runtimeCountBefore, runtimes.Count);
+        Assert.Equal(traceCountBefore, CountSkillCastRoots(trace, casterId));
+    }
 
     [Fact]
     public void Dead_actor_cast_rejection_does_not_allocate_runtime_or_root_trace()

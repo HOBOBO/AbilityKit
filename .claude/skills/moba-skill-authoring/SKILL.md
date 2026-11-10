@@ -1,14 +1,26 @@
 ---
 name: moba-skill-authoring
-description: 开发或修改 AbilityKit MOBA 英雄技能时使用。约束 Luban Excel、Pipeline + ActionEditor、Trigger Authoring 的配置归属、发布顺序、标签与控制效果契约，以及技能验收；也指导何时扩展 PlanAction、组件或领域服务。
+description: 开发、修改或审查 AbilityKit MOBA 英雄技能及相关共享机制时使用。约束 HFSM、Flow、Trigger、Luban 和验收，禁止英雄专属执行特例；规范未覆盖或需新增、改变机制时，先提方案等用户确认。
 ---
 
 # MOBA 技能开发规范
 
 技能机制按下文判断落点；生产配置和发布以本节为准。详细命令与运行时路径见 `Docs/MobaSkillPipeline.md`、`Docs/MobaTriggerAuthoring.md` 和 `LubanConfig/Moba/README.md`。不要把下文的历史计数或旧案例当作当前配置来源。
 
-覆盖：**技能扩展的落点判定、交付清单、门禁与反模式**。
+覆盖：**HFSM 优先的技能规划、技能扩展的落点判定、交付清单、门禁与反模式**。
 不覆盖：调用链细节 → [ability-kit](../ability-kit/SKILL.md)（`skill_buff/`、`triggering/`、`combat_*`）；包装配/配置加载链 → [moba-demo](../moba-demo/SKILL.md)。
+
+## 机制准入：实现前必读
+
+先读 [`Docs/MobaMechanismGovernance.md`](../../../Docs/MobaMechanismGovernance.md)。本节约束下文所有“新增组件/动词/服务”“开放扩展点”和历史案例；技术落点判定不等于扩展授权。
+
+- **禁止英雄专属执行特例。** 共享 Cast、Counter、HFSM、AI、投射物、表现和编辑器/发布链，不得按英雄身份、具体技能/资源 ID 或英雄专属 profile 追加玩法算法。改名、换类、搬到生成器或用配置开关包装同一特例均不合规。
+- **规范内组合可继续；新机制须确认。** 复用已定义能力编辑配置、恢复明确契约的修复可按任务推进。新增或改变动词、参数/计数投影、槽位/瞄准策略、状态维度、组件、服务、协议、所有权或恢复语义，即使已有开放注册点，也必须先提出具体方案，由用户明确确认。
+- **不确定就先查证并提案。** 规范未覆盖、相互冲突或只有英雄特例可参考时，完成只读调查和可审阅设计，列出事实、缺口、通用方案、影响、验收和待确认决策。等待时不实施依赖该决策的代码、配置或发布物；可继续独立的规范内工作。
+- **确认必须有依据。** 用户沉默、测试通过、“继续做英雄”或 Agent 默认建议都不代表确认。既有会话中对相同方案/范围的明确确认继续有效；只对新增决策提问，记录在对应设计中。
+- **已有特例不是先例。** 烬等现存专属分支是待治理事项，不代表合规。不得复制或扩大；先提通用迁移方案，确认后保持行为回归再迁移。本次规范收紧不自动授权重构。
+
+英雄技能 ID 可以出现在内容绑定、查询条件、资源映射、验收和样例装配中；区别在于由通用消费者执行已有语义，而非按身份添加算法。具体边界、机制映射及提案模板统一见上述规范。
 
 ## 生产配置归属与发布
 
@@ -19,14 +31,79 @@ description: 开发或修改 AbilityKit MOBA 英雄技能时使用。约束 Luba
 | Timeline Phase 的逻辑动作和表现轨道 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_*.json`，用 ActionEditor 编辑 | 同目录的 `*.moba.logic.json` 和 `*.moba.presentation.json` |
 | 技能、被动、Buff 和玩法事件的条件、伤害数值与效果动作 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/Packages/*.Module.asset`，与 `Sources/*.trigger.json` 保持同步 | Unity/Console 的 `ability_trigger_plans.json` |
 | 标签、规则组、模板与结果映射 | `LubanConfig/Moba/Production/Datas/J-标签表.xlsx`；业务门禁枚举在 `Production/Defines/strong_types.xml`，门禁子表的 `Id` 使用该 Luban enum；规则逐行配置，模板引用规则组 ID | Luban JSON、二进制、生成的 `MobaTagBehaviorGate` 与 `MobaTagResultFlags`；规则说明见 `Docs/MobaTagAuthoring.md` |
-| 角色 HFSM 与投射物状态机 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaStateMachineAuthoring/*.json`，通过 MOBA 状态机编辑器维护 | Unity/Console 的 `moba/character_hfsm.json`、`moba/actor_state_machines.json` |
+| 角色 HFSM 与投射物状态机 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaStateMachineAuthoring/*.json`，通过 MOBA 状态机编辑器维护 | Unity/Console 的 `moba/character_hfsm_<HeroId>.json`、`moba/character_hfsm_default.json`、`moba/character_bindings.json`、`moba/actor_state_machines.json` |
 
 `Production/Archive/skill_flows.xlsx`、`Production/Datas/J-资源节点表.xlsx` 的 `Ability节点` 子 sheet 中旧触发器节点、`Resources/ability/triggers/` 分文件和 `MiniTemplate` 均不是这些生产内容的编辑入口。状态机与旧 `effect_plans` 也不再从 Excel 发布；`J-效果表.xlsx` 中未被战斗使用的 `效果`、`旧Buff`、`持续效果` 子 sheet 已删除。不要直接改发布后的 `Resources/moba/*.json`、`Resources/luban/`、`Resources/ability/ability_trigger_plans.json` 或 Console 副本来修技能。
 
-1. 先列清 Skill ID、Flow ID、Effect/Trigger ID、Buff/Area/Query ID 及标签契约；确认每个引用的生产来源和运行时消费者。
-2. 按依赖编辑 ActionEditor、Pipeline、Trigger Authoring 和 Excel。先导出 ActionEditor 逻辑/表现 JSON，再发布 Pipeline 和 Trigger Authoring，最后执行 `python LubanConfig/Moba/export_pipeline.py --apply`；新技能的 Flow ID 需先由 Pipeline 发布，Luban 才能校验 Excel 中的 Flow 引用。
-3. 修改角色或投射物状态机时，先在 MOBA 状态机编辑器保存并运行 `MobaStateMachinePublisher.Publish`。用 `MobaSkillPipelineExporter.Check`、`TriggerAuthoringMobaMigration.CheckRuntimeBatch`、`MobaStateMachinePublisher.Check` 和 `python LubanConfig/Moba/export_pipeline.py --check-published` 检查发布一致性。Trigger Authoring 的 `GenerateBatch` 会从迁移旧文件覆盖生产模块，日常开发不可运行。
-4. 先跑受影响技能的 Unity EditMode 验收，再跑六英雄 .NET 冒烟和 `MobaLubanConfigPipelineTests`。复杂技能至少断言真实状态或运动结果，以及关键 trace；只看到 Action trace 不代表位移、击飞或 Buff 生效。
+角色条件组合、状态 Cast 职责、瞄准作用域和 Cast 参数快照必须在 `character_bindings.json` 中显式声明，按 `DefinitionId` 关联；完整字段、恢复和发布契约见 [`Docs/MobaStateMachineAuthoring.md`](../../../Docs/MobaStateMachineAuthoring.md)。Counter 的线性投影、Cast 的提交快照、Brain 的方向意图和 Pull 的距离缩放各自使用独立配置，不得在通用逻辑中通过英雄身份、固定参数编号或路径后缀推断这些职责。这些已批准能力的配置组合可以继续推进；本段不授权新增规范外机制。
+
+### Trigger Scope 契约
+
+Trigger 的 `scope` 必须与配置引用场景匹配；仅 ID 存在、计划可加载并不代表引用有效。修改 Trigger 或技能引用时按下表核对，并运行运行时配置校验及 Trigger 发布一致性检查：
+
+| 引用位置 | 要求的 Scope |
+|---|---|
+| 主动技能 Flow RulePlan、Timeline 效果、HFSM 逻辑进入/退出动作、Counter 显式回调、投射物和区域事件、玩法事件、Buff 的添加/移除/间隔效果、Continuous 间隔事件 | `Global` |
+| PassiveSkill.TriggerIds、Buff.TriggerIds、Continuous.TriggerIds | `OwnerBound` |
+
+不要因 Trigger 位于技能/被动模块，就推断其 Scope；以引用合同为准。`Packages/*.Module.asset` 是发布输入，若编辑了 `Sources/*.trigger.json`，发布前必须先运行 `TriggerAuthoringMobaMigration.ImportProductionSourcesBatch` 导入模块；若直接编辑了模块，则用 Authoring workspace 导出 Source 保持同步。然后严格依次运行 `PublishRuntimeBatch`、`CheckRuntimeBatch`；上一步失败时停止，不得继续发布或把已有产物当成成功结果。每个 Unity 批处理都要确认对应日志实际执行了目标方法并以 `Exiting batchmode successfully` / `return code 0` 结束；项目被其他 Unity 实例占用、Source 校验失败或方法异常都算失败，即使命令启动或产物时间戳更新也不例外。必须确认 Unity `Resources/ability/ability_trigger_plans.json` 与 Console `Configs/luban/ability/ability_trigger_plans.json` 均与 Authoring 模块一致，并在单机 Battle Session 启动校验中没有 `invalid_trigger_scope` 阻断错误。
+
+Global Trigger 若由 Flow、Buff、投射物等位置显式引用，应配置为 Callable；不要同时把它订阅到宽泛的全局事件（例如所有角色的 `skill.cast.complete`），除非动作确实应对该事件的每个发布者执行。发布后检查订阅清单和运行日志，确认没有无关事件进入需要正式 Effect Execution Scope 的效果动作。
+
+## HFSM 优先：先定义状态，再编排技能
+
+新增英雄、重做技能机制或扩展跨多次输入的动作循环时，**先完整规划角色 HFSM，再接 SkillPipeline、Trigger 和表现资源**。HFSM 是角色长期玩法模式与阶段的权威；Pipeline 是一次技能施放的短期流程。不要让一个长 Flow 代替角色状态机。
+
+| 需求的生命周期/职责 | 首选机制 | 规则 |
+|---|---|---|
+| 持续模式、可被打断/恢复的角色阶段、跨多次输入的动作循环 | 角色 HFSM | 先建状态层级、转换优先级和状态动作组。死亡、控制、施法、移动等通用状态的优先级要明确。 |
+| Buff/持续能力开启或结束时改变状态选择、阶段或技能槽位 | Modifier → HFSM 参数 | Modifier 按来源贡献参数值，移除时撤销该来源贡献；HFSM 条件读取合成后的有效值并自行转移。不得由 Trigger、Pipeline 回调或表现回调直接切 HFSM 状态。 |
+| 一次有明确开始/结束的技能施放 | SkillPipeline | 只编排这次施放内的校验、短暂等待/蓄力、提交点、取消和有界时序。流程结束后由 HFSM 与持续 Modifier 管理仍然存在的模式。 |
+| 命中、计数、加 Buff、伤害、召唤等事件效果 | Trigger Authoring | 事件触发器执行效果或更新可配置数据；若结果要改变角色阶段/槽位，写入对应 Modifier/参数，让 HFSM 完成状态转移。 |
+| 当前 HFSM 状态中的动画、特效、音效动作组 | 表现层 HFSM / 状态动作组 | 状态决定播放哪些动作及其循环、次数、串并行组合。表现完成事件不能作为玩法阶段转换或伤害提交的权威条件。 |
+
+### 规划与实现顺序
+
+1. 画出完整角色状态层级，包含通用状态和英雄专属模式/阶段；为每条转换写清来源、条件、优先级、进入/退出清理行为。
+2. 列出 HFSM 参数契约：稳定 ID、类型、有效值含义、默认/清理值、多个 Modifier 同时存在时的合成规则，以及每个参数值对应的状态转换。Buff 或持续能力只负责贡献、撤销参数，不直接指定状态名。
+3. 将每个机制按生命周期归类：持续模式/跨输入循环归 HFSM；单次施放内有界的连续效果归 Pipeline；事件响应归 Trigger；动作、特效和音效归状态动作组/表现层 HFSM。
+4. 为状态动作组定义逻辑与表现职责。逻辑动作在权威阶段提交效果或参数；表现动作播放动画/特效。需要多次攻击时，每次已提交的攻击是独立的技能/事件；由 HFSM 状态和参数决定下一发类别及是否继续。
+5. 按本 Skill 的生产源顺序接线和发布，验收状态进入/退出、参数贡献和撤销、打断/恢复、每次提交次数及表现恢复。
+
+### 必须遵守的边界
+
+- **SkillPipeline 不持有长期模式。** 架枪、变身、蓄势姿态等会跨多个输入存续的状态，由 Buff/Continuous 的 Modifier 维持参数贡献，HFSM 管理其阶段和退出。
+- **一次 Pipeline 对应一次技能流程。** 不用长时间 `Repeat` 把若干次独立普攻/射击伪装成一次施放。每次输入/射击按当前参数选择对应槽位技能与独立 Flow；HFSM 管理瞄准、射击、终结、收势等跨次阶段。
+- **Modifier 改参数，HFSM 做转移。** 参数写入必须有来源和清理路径；禁止用硬编码状态切换绕过参数合成、状态转换条件或优先级。
+- 若单次施放确实有界且不可拆的多段时序（例如一次蓄力后在提交点发射），可以用多个 Pipeline phase；这不授权 Pipeline 接管施放完成后仍持续的模式。
+- 状态动作可配置单次、多次、循环及串行/并行动作组合。动作播放结束只更新表现播放位置；玩法转移由 HFSM 参数/条件或权威逻辑事件触发。
+
+### HFSM 逻辑动作与表现动作双通道
+
+HFSM 的状态拓扑、状态 ID 和转换条件/优先级是玩法与表现共同遵循的状态契约；执行动作按权威性分为逻辑通道和表现通道。两者可以引用相同状态/转换，也可以按通道分别配置动作组，不能因为状态图相同就让表现层拥有玩法决策权。
+
+| 通道 | 执行者与用途 | 允许的动作 | 禁止事项 |
+|---|---|---|---|
+| 逻辑动作 | 确定性模拟，在权威 HFSM 的状态进入/退出或转换边界执行 | 引用 Trigger ID 执行已发布的战斗效果；提交/清理由配置定义的 HFSM 参数或其他可回滚领域状态 | 播动画/本地特效；直接依赖客户端对象；由表现完成回调决定伤害或状态转移 |
+| 表现动作 | 客户端表现 HFSM，消费权威状态快照与动作游标 | 播放模型 Action/动画、粒子/音效及串并行动作组，可配置次数与循环 | 评估玩法条件、写战斗参数、触发伤害/Buff、决定权威状态转移 |
+
+- 逻辑动作触发的战斗效果必须引用 Trigger Authoring 的稳定 Trigger ID；伤害、Buff、投射物等效果定义仍以 Trigger Authoring 为唯一权威来源，不在 HFSM 动作上复制效果参数。
+- 逻辑动作只在权威状态边界执行一次，并纳入确定性、快照/回滚/重演语义。不可逆副作用不得直接放在可能重演的回调中；需走可回滚的模拟命令/事件路径，或以稳定事件键去重。
+- 表现 HFSM 由权威状态快照驱动。快照恢复时应能重建当前状态动作组及其游标；表现动作被打断/状态退出时要清理其持有的动画、特效和音效句柄。
+- 状态进入动作与转换动作要区分：前者描述进入某个状态后执行的逻辑/表现动作组；后者仅描述特定边界的一次性动作。禁止为了复用动作而在每帧 Tick 中重复触发逻辑效果。
+- 角色 HFSM 的 `StateDefinition` 支持 `logicEntryActionKeys` 和 `logicExitActionKeys`，角色状态机 Authoring 会编辑并校验这些字段，`MobaStateMachinePublisher` 将同一状态图发布到 Unity 与 Console。当前逻辑动作键采用 `trigger.enter.<id>` / `trigger.exit.<id>`，运行时在状态边界调用 Trigger Authoring 已发布的 RulePlan；需要改变状态时，Trigger 通过 Modifier 写入 HFSM 参数，再由状态机条件完成转移。Trigger 执行不直接指定目标状态。
+- 表现通道由 `moba/character_view_actions` 独立导出，按 HFSM 状态路径和实体变体绑定 Action 组合；表现运行时消费状态快照与动作游标。它可与逻辑通道使用相同状态 ID/转换图，但不执行玩法条件或效果。ActionEditor 技能时间轴仍是另一组按 `*.moba.logic.json` / `*.moba.presentation.json` 分流的施法片段，不能用时间轴动作替代 HFSM 的长期状态动作。
+- 状态进入/退出逻辑动作只在权威状态边界执行一次；快照恢复重建状态时不重播动作。可重演的 Trigger 效果必须使用现有确定性模拟/回滚路径；不可逆表现或外部副作用不能从逻辑通道直接发出。新增动作类型或字段时，必须同时维护 Authoring 校验、运行时绑定、两端发布一致性、回滚行为和验收，不能只给 JSON 增加未消费字段。
+
+换弹等“状态进入即发生一次逻辑结算，并伴随一段表现”的机制应拆成同一 HFSM 状态的双通道动作：逻辑动作在进入边界通过 Trigger ID 执行换弹结算/参数更新，表现动作播放 `AA_Reload`；状态离开由权威参数条件驱动，动画播完只影响表现游标，不得让客户端动画回调完成换弹。
+
+烬 R 是这套边界的参考案例：架枪入口 Flow 结束后，R 模式 Modifier 持续贡献 HFSM 阶段和攻击槽参数；每次 R 射击使用独立技能流程，射击计数/类别通过参数贡献影响 HFSM 后续状态。完整状态与参数规划见 `Docs/design/09-ImplementationExamples/MOBA/23-CharacterHfsmPlanningAndJhinMapping.md`。该案例描述目标架构时，以本节规则为准，不要把文档里的阶段性接入状态当成新英雄模板。
+
+1. 先完成 HFSM 状态层级图与参数契约，确认持续模式、单次技能流程和每次输入的技能槽位如何衔接；需要新增/修改角色状态机时，先在 Authoring 定义并验证它们。
+2. 再列清 Skill ID、Flow ID、Effect/Trigger ID、Buff/Area/Query ID 及标签契约；确认每个引用的生产来源和运行时消费者。
+3. 再按依赖编辑 ActionEditor、Pipeline、Trigger Authoring 和 Excel。先导出 ActionEditor 逻辑/表现 JSON，再发布 Pipeline 和 Trigger Authoring，最后执行 `python LubanConfig/Moba/export_pipeline.py --apply`；新技能的 Flow ID 需先由 Pipeline 发布，Luban 才能校验 Excel 中的 Flow 引用。
+4. 修改角色或投射物状态机时，先在 MOBA 状态机编辑器保存并运行 `MobaStateMachinePublisher.Publish`。用 `MobaSkillPipelineExporter.Check`、`TriggerAuthoringMobaMigration.CheckRuntimeBatch`、`MobaStateMachinePublisher.Check` 和 `python LubanConfig/Moba/export_pipeline.py --check-published` 检查发布一致性。Trigger Authoring 的 `GenerateBatch` 会从迁移旧文件覆盖生产模块，日常开发不可运行。
+5. 先跑受影响技能的 Unity EditMode 验收，再跑六英雄 .NET 冒烟和 `MobaLubanConfigPipelineTests`。Unity 测试必须等待 Test Runner 完成，并检查 NUnit XML 中匹配用例数及 `total/passed/failed/skipped`；仅有进程退出码、日志文件或 XML 文件存在不构成通过证据。复杂技能至少断言 HFSM 状态与参数变化、真实战斗结果及关键 trace；只看到 Action trace 不代表状态转移、位移、击飞或 Buff 生效。
 
 标签模板要区分施法者自身运动与对敌控制。施法期霸体可以保护自身，但不能让自身 `jump` 套用“目标霸体免疫击飞”的阻断模板；对敌 `pull`/击飞仍应按目标有效标签检查免疫。涉及位移时分别验证墙体穿越、起跳/落地、目标击飞高度和霸体免疫，不用一条效果触发断言代替这些行为。
 
@@ -36,7 +113,7 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 
 ## 0. 一句话规范
 
-> **能力看生命周期，参数留配置，逻辑进触发器，关系交服务。**
+> **长期状态归 HFSM，Modifier 改参数驱动转移；Pipeline 只管单次短流程，事件效果归触发器。**
 
 配套的设计理由（Why）不在这里复述，见 `Docs/design/09-ImplementationExamples/MOBA/`：
 `13-ContinuousCapabilityCompositionDesign.md`（持续能力组合）、`14-HeroSkillFormalDesign.md`（六英雄落点与扩展规则）、`18-SkillFlowPipelineConfigDesign.md`（Flow 编排与应用层边界）。
@@ -45,7 +122,7 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 
 ## 1. 落点判定树（核心）
 
-拿到一个技能需求，**不要先想"要不要加个组件"**，先问"这个状态挂在哪一维、生命周期归谁"。
+拿到一个技能需求，**先问它是跨输入存在的角色状态，还是一次施放内的短期流程**，再判断生命周期和落点；不要先想"要不要加个组件"。
 
 | 要落的东西 | 落在哪 | 判据 | 现有实例 |
 |---|---|---|---|
@@ -58,7 +135,7 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 | **跨实体关系** | **世界级关系服务** | 状态维度是 (A, B) 而非单实体 | 只有 `MobaPlayerActorMapService` 一个先例 |
 | **世界级仲裁** | **领域服务 / 系统** | 多来源叠加后的最终结果 | `MobaEffectiveTagQueryService`、`MobaContinuousTagRuleService` |
 | 内容参数 | **配置**（Excel/MO 表 → JSON） | 每个技能/等级不同、策划要改 | `DashArgs` 的 speed/duration/priority |
-| 逻辑编排 | **Pipeline + Trigger Authoring** | 施法阶段和事件效果各有权威编辑源 | 见本节生产配置归属 |
+| 逻辑编排 | **HFSM + Pipeline + Trigger Authoring** | 长期角色模式/阶段归 HFSM；单次施放内时序归 Pipeline；事件响应归 Trigger | 见本节 HFSM 优先规则 |
 | 表现 | presentation cue / 客户端本地 | 只有本人可见、不影响模拟 | `MobaPresentationCueSnapshotService` |
 
 ### 逻辑（行为）放哪：从内容到机制
@@ -83,7 +160,9 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 
 **⚠ 扩展点开放性不一致**（2026-09-15 查证）：targeting（`[MobaTargetFilter]` / `[MobaTargetOrder]`）和 PlanAction（`[PlanActionModule]`）都是**特性 + codegen 清单**的开放扩展点，项目侧加一个类即可；但投射物命中策略 `ProjectileHitPolicyFactory` 是 **`internal` 硬编码 switch**，要加命中策略/反射**必须改框架包**。判断"这个需求是便宜还是贵"时，先看它落在哪一类扩展点上。
 
-### 什么时候**不该**用触发器（该写代码）
+### 什么时候**不该**用触发器（可能需要提出代码扩展方案）
+
+下表只判定技术落点；新增或改变机制先按“机制准入”提交方案并获得用户确认。
 
 | 情况 | 该去哪 |
 |---|---|
@@ -137,6 +216,8 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 
 ### 2.1 内容（零代码，能覆盖大多数技能）
 
+新增英雄或包含持续模式/跨输入阶段的技能，先完成上述 HFSM 状态图和参数契约，再开始填写下表。
+
 | 步骤 | 位置 |
 |---|---|
 | 数值表与技能 Flow 绑定 | `LubanConfig/Moba/Production/Datas/*.xlsx`；Flow ID 由 Pipeline 发布并供导表校验 |
@@ -159,8 +240,12 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 
 ### 2.3 自检
 
+- [ ] 机制映射有规范和消费者证据；新增/改变机制已获用户明确确认并记录范围
+- [ ] 受影响共享链没有英雄身份驱动的特殊算法；现存特例未被复制或扩大
 - [ ] Excel 的角色、技能、等级与技能 Flow 引用能通过 Luban 校验
 - [ ] `SkillMO` / `PassiveSkillMO` 能找到 trigger ids
+- [ ] HFSM 状态层级、转换条件/优先级和参数契约已定义；持续 Modifier 有来源、合成与撤销路径
+- [ ] Pipeline 只描述单次有界施放；跨多次输入的模式/循环由 HFSM 管理，每次输入使用对应技能流程
 - [ ] Trigger Authoring 产物能被 `TriggerPlanJsonDatabase` 加载
 - [ ] 每个 action 的动词都在 §3 的注册表里
 - [ ] 自身运动、对敌控制和施法期间标签的组合有行为验收
@@ -169,6 +254,8 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 ---
 
 ## 3. 新增一种 PlanAction 动词：6 处同步点
+
+**前置条件：动词的通用语义、职责、生命周期和验收方案已由用户明确确认，并写入对应机制契约。** 本节只说明获准方案的接线步骤，不能因注册点开放就自行新增动词。
 
 按当前注册与生成链检查以下接点；模块数量以源码为准：
 
@@ -191,13 +278,15 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 
 | 反模式 | 为什么错 | 实证 |
 |---|---|---|
-| 给一个技能开一个组件 | 组件类型数跟着技能数膨胀；内容与代码耦合；策划改不动 | 22 个组件全是通用/类别级，runtime 里六个英雄 id 零命中——**这条底线目前守住了** |
+| 用长 SkillPipeline/Repeat 托管持续模式或多次独立输入 | Pipeline 生命周期被错误拉长，状态优先级、打断恢复、槽位切换和表现状态失去 HFSM 的统一管理 | 烬 R 目标架构：架枪入口 Flow 结束，Modifier 驱动 R 阶段参数；每次射击是独立技能流程 |
+| Trigger/表现回调直接切 HFSM 状态 | 绕过参数合成、来源清理、转换条件和优先级，状态结果无法由配置契约解释 | HFSM 参数由持续 Modifier 投影；状态机条件按有效参数转换 |
+| 给一个技能开一个组件 | 组件类型数跟着技能数膨胀；内容与代码耦合；策划改不动 | 按通用能力与生命周期建模；不能用历史组件数量或英雄 ID 搜索宣称当前已合规 |
 | 给特殊数值开新属性 | 属性表/快照/回滚对账面线性膨胀 | `MobaAttributeIds` 23 个全是通用战斗属性，无一个 per-skill |
 | 把通用抽象做成万能容器 | 抽象最终退化成几个 setter | `component_templates` 只有 2 个 op（`SetModelId`/`SetLifetimeMs`）、2 条内容、唯一召唤物的引用是空数组 |
 | 参数解析了不用 | 能力落差伪装成"已实现" | `SpawnSummonPlanActionModule` 读了 `interval_ms/duration_ms/total_count/query_template_id`，一个都没用 |
 | 两套引擎混用 | 事件收不到、行为不一致 | 两套触发器（旧 `MobaTriggerIndexService` 仍挂在 bootstrap 里但**零消费者**）、两套树引擎、两个 HFSM 内核、两套 Effect |
 | 只跑过滤后的门禁 | 其他技能或跨模块回归可能未执行 | 按改动范围补充六英雄冒烟、相关验收和发布一致性检查 |
-| 英雄 id 进 runtime 代码 | 示例退化成英雄脚本集合 | 目前零命中，必须保持 |
+| 按英雄/技能身份在共享执行链添加算法 | 示例退化成英雄脚本集合；枚举、profile 或配置开关包装同样有问题 | 既有 Cast/Counter/HFSM/AI 专属分支须审计迁移，不能作为模板；数据绑定与验收 ID 不在此禁令范围 |
 | **以为"不支持"就自己新造** | 能力可能已在更下一层（键控/注册表）实现了 | "多来源独立标记"我判过 C，实际 `BuffRuntimeKey.MatchApplyRequest` 用的是 `MatchBuffAndSource(buffId, **sourceActorId**)`，还有更细的 `MatchInstance(..., sourceContextId)`——**一直是支持的** |
 | **给模拟创建/销毁的实体写 state provider 管增删** | 结构性做不到，provider 不能增删实体 | 见 §5.1 裁定的分档 |
 | **信注释不信调用方** | 注释会过期、会描述另一条数据流 | importer 写"小兵/召唤物同样按 Unit 处理（P1 简化）"，实际那份注释描述的是**开局 roster**（`PublishSpawnPayload` 下发），战斗中召唤物根本不进快照 |
@@ -215,7 +304,7 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 | 跨端一致 | 协议 DTO + 状态哈希 | 状态哈希目前只覆盖 transform + HP（`MobaStateHashBuilder.cs`） |
 | 确定性模拟 | `Fixed64`、遍历序稳定、禁止 `new Random()` | — |
 
-**判定**：只影响表现、每帧重算的状态 → 四条都不用管，随便加。影响模拟结果的累积量（如"暴露度决定何时显形"）→ 回滚 + 重连两条**必须**配，否则预测/重连会不一致，而且重连归零等于送一次免费重置。
+**判定**：只影响表现、可由权威快照每帧重建的派生状态，通常不需新增模拟回滚字段，但仍须定义表现清理和恢复。新增/改变表现机制也受机制准入约束，不能自行扩展。影响模拟结果的累积量（如“暴露度决定何时显形”）必须明确回滚与重连契约，否则预测/重连会不一致，重连归零还可能造成玩法重置。
 
 ### 5.1 实体生命周期与回滚分档（做召唤/陷阱/分身类技能前必读）
 
@@ -248,6 +337,31 @@ dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj --f
 
 测试失败应核对当前工作树、发布产物和测试报告；不要沿用历史失败计数或旧基线推断结果。
 
+### 快速迭代验收（小步开发默认）
+
+不要每改一个技能细节就重复启动完整英雄门禁。Unity 冷启动和全英雄夹具通常比单个断言耗时更多；开发迭代按“改动边界 → 最小有行为意义的测试 → 本批完整门禁”分层，快速结果不替代合并/交付门禁。
+
+1. **先判断改动落点并选测试边界。** 纯配置引用/发布漂移先跑对应 Authoring `Check`、`--check-published` 或内容契约；单个技能逻辑选该技能的 acceptance 方法；HFSM 参数、状态进入/退出、打断恢复选覆盖完整状态转换的测试；模型动作/时间轴特效选真实 Unity 消费测试；运行时共享机制则选受影响模块测试，不能用一个英雄用例代表跨英雄回归。
+2. **用程序集和完整测试名过滤，只启动一次 Unity。** 仓库已有 `tools/run-unity-editmode-tests.ps1`，例如：
+
+   ```powershell
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/run-unity-editmode-tests.ps1 `
+     -TestAssembly AbilityKit.Game.UnitTests `
+     -TestFilter AbilityKit.Game.Tests.JhinUnityPresentationConsumptionTests.WAndEFromAttackSlotRestoreTheSelectedNormalAttackAction `
+     -ResultsPath local/Logs/jhin-focused.xml
+   ```
+
+   将程序集、测试 fixture/method 和结果路径替换为当前改动对应项。也可在完整 gate 中用 `-StepName` 只执行一个已登记步骤；需要仅跑一个 NUnit 方法时优先用上面的 `-TestFilter`。同一 Unity 项目已被编辑器锁定时，不要并发启动 batchmode；等待/关闭 AbilityKit 项目对应的实例后再运行，不要影响其他 Unity 项目。
+3. **每次快测都核对测试确实执行。** 必须检查 NUnit XML 的 `total > 0`、`failed = 0`、`result = Passed`，并确认测试方法名匹配；编译失败、零匹配、缺失 XML 或仅有进程退出码都不算通过。将 XML 与 Unity log 留在 `local/Logs/` 便于失败定位。
+4. **按本批改动升级验收。** 连续修改同一技能时，可重复运行该技能的聚焦测试；当同批配置/逻辑/表现接线完成后，运行一次对应 `moba-<hero>-unity` 完整门禁。改了跨英雄共享运行时、发布器、Authoring schema 或参数合成规则时，再加对应内容契约、模块/.NET 冒烟和相关英雄覆盖。发生失败先读本次 XML/log 与当前源/发布产物，不要直接重跑完整门禁来替代定位。
+5. **把行为链断言写在同一个高价值场景里。** 涉及技能接入时，优先让一次场景覆盖输入/施法成功、权威状态/参数、效果提交或命中结果、状态/槽位恢复、实际模型动作/特效创建与清理。状态参数驱动切换时，断言状态路径和参数值；被短 Pipeline 打断后恢复时，断言模式/槽位贡献仍在且动作对应；表现播放完成不得代替逻辑状态或伤害断言。不要为每个中间 helper 另起一个完整 Unity gate。
+
+6. **区分快速验收与最终目视。** `-nographics`/EditMode 能证明资源被加载、Animator 状态被选择、时间轴或投射物 VFX 被消费及清理；不能证明最终画面观感、指示器形状、朝向、挂点/缩放和特效时序。上述视觉属性仍需在有画面的本地模式验收，除非已有可重复的图像/空间断言覆盖。
+
+7. **投射物特效按完整消费链验收。** 对“从角色发射、飞行后落地/命中”的技能，单测不能止于配置里有 VFX ID 或 prefab 可加载。至少追踪并断言：逻辑生成的 projectile snapshot → 表现 handler 解析模板并实例化 → 跟随对象/位置绑定正确 → prefab 所需 Animator trigger 实际触发（trigger 名必须与 prefab Animator 参数一致）→ Projectile Exit、取消或打断时释放句柄。若通用 spawn handler 没有消费某个已配置的 trigger，应修正通用消费契约并加消费测试；不要只在英雄层制造一个绕过通用链路的补丁。
+8. **区分部署结果和部署过程。** 陷阱/召唤物最终出现在地面，不代表“从角色飞出并抵达落点”的表现链已实现。逻辑测试要验证实体只在权威到达/部署点创建；表现测试要验证飞行 VFX 从施法者产生、随投射物移动，并在退出时清理；部署动作 trigger 也要单独验证。只有结果、过程和清理都覆盖，才能称为投射物部署链自动化通过。
+9. **测试过滤器必须落到真实用例。** 初次运行若 NUnit XML 的 `total/testcasecount` 为 0，或测试方法名与预期不符，应视为过滤器/程序集选择错误，修正后重跑；退出码为 0、Unity 成功启动或生成了 XML 都不能替代用例确实执行。最终记录测试全名、`total/passed/failed` 和报告路径，避免把零用例误记为通过。
+
 ---
 
 ## 6. 配置漂移排查
@@ -260,17 +374,19 @@ dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj --f
 
 ### 7.1 查证阶梯
 
-1. **查矩阵**：`Docs/design/09-ImplementationExamples/MOBA/21-SkillCapabilityGapMatrix.md`——六条机制轴 × 61 条形态。落在"✓ 能表达"→ 直接配；"A 差动词/规则"→ 按 §3 或开放扩展点；"C"→ 才需要设计。
+1. **查矩阵**：`Docs/design/09-ImplementationExamples/MOBA/21-SkillCapabilityGapMatrix.md`——能力行仅作检索入口。标为“能表达”仍需核对当前规范、消费者与证据；“差动词/规则”及机制缺口都须先提通用方案，用户确认后再按 §3 或开放扩展点实现。
 2. **查有没有现成同类**：位移看 `MobaMotionContinuousRuntime`；周期/持续看 `BuffContinuousRuntime` 和对应 Luban 表；投射物发射看 `MobaProjectileLauncherContinuous`；目标选择看 `Production/Datas/J-技能表.xlsx` 的 `目标查询` 子 sheet——先查正式来源及现有消费形态。
-3. **查开放扩展点**（下一节表）——很多需求是"加一个类"，不是"缺机制"。
+3. **查开放扩展点**（下一节表）——判断技术代价；“加一个类”也可能改变机制，不能绕过用户确认。
 4. **确认参与哪些契约**：照 §5，特别是有没有创建实体（→ §5.1）。
-5. 以上都走不通，才按 §1 判定树设计新机制。
+5. 规范没有明确覆盖或需改变机制时，按 §1 形成设计方案并等待用户确认；不能先接入再补规范。
 
 ### 7.2 开放扩展点速查
 
+“开放”仅描述技术注册能力；下表任何新语义均须先经用户确认。
+
 | 要加什么 | 入口 | 开放度 |
 |---|---|---|
-| 新 PlanAction 动词 | `[PlanActionModule]` + 生成清单 | **开放**（项目侧，6 处同步，见 §3） |
+| 新 PlanAction 动词 | `[PlanActionModule]` + 生成清单 | **技术开放，机制方案先确认**（项目侧，6 处同步，见 §3） |
 | 新目标过滤规则 | `[MobaTargetFilter((int)SearchTargetRuleKind.X)]` | **开放**（`MobaTargetQueryFactories.cs`，走 `MobaGeneratedTargetQueryFactoryManifest`） |
 | 新目标打分器 | `[MobaTargetOrder((int)SearchTargetScorerKind.X)]` | **开放**（同上）。仇恨/威胁打分就落在这里 |
 | 新**按 tag 过滤**的目标规则 | 同上——现有 `Whitelist/Blacklist` 只按 ID，不按 tag；"排除隐身单位"需要新规则 | 开放 |
@@ -301,3 +417,19 @@ dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj --f
 ---
 
 *本 skill 与 `Docs/design/09-ImplementationExamples/MOBA/{13,14,18}` 互为镜像：本文是执行手册，文档是设计理由。改动规范时两边都要动。*
+## 8. 通用英雄接入基线（必须先完成）
+
+新英雄或重做英雄技能前，先填写并评审 [`27-MobaHeroSkillIntegrationBaseline.md`](../../../Docs/design/09-ImplementationExamples/MOBA/27-MobaHeroSkillIntegrationBaseline.md) 的英雄登记表。该基线是跨英雄复用的职责和验收契约，英雄文档只记录差异，不复制发布流程。
+
+登记每个机制的“规范内复用 / 待确认 / 已确认 / 既有违规待治理”状态与依据；待确认项不得进入后续实现批次，记录用户决定后才更新契约并推进。
+
+必须先完成以下四项再改 Trigger、Flow 或运行时代码：
+
+1. 画出角色 HFSM，标明长期模式、阶段状态、优先级、打断和恢复。
+2. 建立参数契约，记录参数 ID、类型、默认值、Modifier 来源、合成和撤销规则。
+3. 将每个机制归类为 HFSM、短期 SkillPipeline 或 Trigger，并写出唯一提交点。
+4. 列出逻辑/表现双通道 Action、模型动作、特效模板、Payload 字段和 P0-P5 验收证据。
+
+执行顺序固定为“契约 → HFSM/参数 → 单链路逻辑 → 状态转移 → 双通道表现 → 英雄完整门禁”。R 等跨多次输入的模式必须由 HFSM 和 Modifier 持有；每次射击或输入使用独立短 Pipeline。Trigger 只能更新效果、计数或 Modifier，不能直接指定 HFSM 目标状态；表现回调不能决定伤害、计数或状态退出。
+
+排查失败时按“权威源 → 发布产物 → 运行时消费者 → 验收证据”逐层回溯，禁止直接修改生成 JSON 作为修复方案。

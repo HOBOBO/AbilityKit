@@ -52,6 +52,42 @@ class RelationGraph:
                 raise ValueError(f"{owner}: {field} references missing {target} ID {value}")
             self.edges.append({"source": owner, "field": field, "target": target, "targetId": value})
 
+    def check_any_value(self, owner, row, field, targets, required=False, zero_is_empty=True):
+        """Validate a reference that may resolve to one of several namespaces.
+
+        The resolved namespace is recorded on the edge so relation reports keep
+        the concrete owner of the referenced ID.  Ambiguous IDs are rejected
+        rather than silently preferring one namespace.
+        """
+        targets = tuple(targets)
+        if not targets:
+            raise ValueError(f"{owner}: {field} requires at least one target table")
+        values = row.get(field)
+        if values is None:
+            values = []
+        if not isinstance(values, list):
+            values = [values]
+        target_label = " or ".join(targets)
+        if required and not any(type(value) is int and value != 0 for value in values):
+            raise ValueError(f"{owner}: {field} requires a {target_label} ID")
+        for value in values:
+            if value is None and not required:
+                continue
+            if type(value) is not int or value < 0:
+                raise ValueError(f"{owner}: {field} requires an integer {target_label} ID")
+            if value == 0 and zero_is_empty:
+                continue
+            unknown = [target for target in targets if target not in self.index]
+            if unknown:
+                raise ValueError(f"{owner}: {field} references unknown target table {unknown[0]}")
+            matches = [target for target in targets if value in self.index[target]]
+            if not matches:
+                raise ValueError(f"{owner}: {field} references missing one of {target_label} IDs {value}")
+            if len(matches) > 1:
+                raise ValueError(f"{owner}: {field} references ambiguous {target_label} ID {value}")
+            self.edges.append({"source": owner, "field": field,
+                               "target": matches[0], "targetId": value})
+
     def validate(self, specs):
         owners = set()
         for spec in specs:

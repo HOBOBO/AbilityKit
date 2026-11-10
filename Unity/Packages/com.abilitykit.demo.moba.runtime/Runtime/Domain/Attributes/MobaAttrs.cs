@@ -134,6 +134,11 @@ namespace AbilityKit.Demo.Moba.Attributes
 
         public float Get(BattleAttributeType type)
         {
+            // Current resources are authoritative in ResourceContainer. Exposing the
+            // current value here keeps the public attribute accessor consistent with
+            // Mana/HP properties and prevents stale base-stat reads after mutations.
+            if (type == BattleAttributeType.HP) return Hp;
+            if (type == BattleAttributeType.MANA) return Mana;
             return RequireGroup().GetValue(MobaAttributeIds.Get(type));
         }
 

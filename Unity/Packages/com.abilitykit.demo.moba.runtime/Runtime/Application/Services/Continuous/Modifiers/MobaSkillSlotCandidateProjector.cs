@@ -34,8 +34,16 @@ namespace AbilityKit.Demo.Moba.Services
                     throw new System.InvalidOperationException("Invalid skill slot candidate.");
                 if (_configs != null && !_configs.TryGetSkill(candidate.CandidateSkillId, out _))
                     throw new System.InvalidOperationException($"Unknown candidate skill {candidate.CandidateSkillId}.");
+                var condition = default(MobaSkillSlotCandidateCondition);
+                if (spec is IMobaContinuousHfsmParameterConditionSpec conditional)
+                {
+                    condition = new MobaSkillSlotCandidateCondition(
+                        conditional.HfsmParameterId,
+                        conditional.HfsmParameterComparison,
+                        conditional.HfsmParameterExpectedValue);
+                }
                 _candidates.Add(projection.OwnerActorId, projection.ModifierSourceId,
-                    spec.TargetId, candidate.CandidateSkillId, spec.Priority, i);
+                    spec.TargetId, candidate.CandidateSkillId, spec.Priority, i, in condition);
             }
         }
 

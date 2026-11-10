@@ -123,6 +123,78 @@ public sealed class NormalAttackTargetQueryTests
         Assert.Empty(results);
     }
 
+    [Fact]
+    public void SearchQuery_ComposesEnemyCircleHeroFilterAndExplicitTargetExclusion()
+    {
+        var context = new ActorContext();
+        var actors = new MobaActorRegistry();
+        AddActor(context, actors, 1, Team.Team1, UnitSubType.Hero, 0f);
+        AddActor(context, actors, 2, Team.Team2, UnitSubType.Hero, 2f);
+        AddActor(context, actors, 3, Team.Team2, UnitSubType.Minion, 1f);
+        AddActor(context, actors, 4, Team.Team2, UnitSubType.Hero, 3f);
+        AddActor(context, actors, 5, Team.Team1, UnitSubType.Hero, 2.5f);
+
+        var service = new SearchTargetService(actors);
+        var template = new SearchQueryTemplateMO(
+            77,
+            "Enemy hero explosion candidates",
+            10,
+            (int)SearchQueryExplicitTargetPolicy.IgnoreExplicitTarget,
+            new SearchTargetProviderConfig(0, (int)SearchTargetProviderKind.EnemyTeam),
+            new[]
+            {
+                new SearchTargetRuleConfig(1, (int)SearchTargetRuleKind.CircleShape,
+                    center: (int)SearchTargetPointKind.AimPosition, radius: 4f),
+                new SearchTargetRuleConfig(2, (int)SearchTargetRuleKind.RequireUnitSubType,
+                    unitSubType: (int)UnitSubType.Hero),
+                new SearchTargetRuleConfig(3, (int)SearchTargetRuleKind.ExcludeExplicitTarget)
+            },
+            new[] { new SearchTargetScorerConfig(0, (int)SearchTargetScorerKind.DistanceToExplicitTarget) },
+            new SearchTargetSelectorConfig(0, (int)SearchTargetSelectorKind.TopKByScore));
+        var results = new List<int>();
+
+        service.TrySearchActorIds(template, 1, new Vec3(0f, 0f, 0f), explicitTargetActorId: 2, results: results);
+
+        Assert.Equal(new[] { 4 }, results);
+    }
+
+    [Fact]
+    public void ProjectileHitCircle_UsesImpactPointAndKeepsOnlyOtherEnemyHeroes()
+    {
+        var context = new ActorContext();
+        var actors = new MobaActorRegistry();
+        AddActor(context, actors, 1, Team.Team1, UnitSubType.Hero, 0f);
+        AddActor(context, actors, 2, Team.Team2, UnitSubType.Hero, 10f);
+        AddActor(context, actors, 3, Team.Team2, UnitSubType.Minion, 10.5f);
+        AddActor(context, actors, 4, Team.Team2, UnitSubType.Hero, 11.5f);
+        AddActor(context, actors, 5, Team.Team2, UnitSubType.Hero, 13f);
+        AddActor(context, actors, 6, Team.Team1, UnitSubType.Hero, 11f);
+
+        var service = new SearchTargetService(actors);
+        var template = new SearchQueryTemplateMO(
+            78,
+            "Projectile hit enemy hero explosion candidates",
+            10,
+            (int)SearchQueryExplicitTargetPolicy.IgnoreExplicitTarget,
+            new SearchTargetProviderConfig(0, (int)SearchTargetProviderKind.EnemyTeam),
+            new[]
+            {
+                new SearchTargetRuleConfig(1, (int)SearchTargetRuleKind.CircleShape,
+                    center: (int)SearchTargetPointKind.ProjectileHit, radius: 2f),
+                new SearchTargetRuleConfig(2, (int)SearchTargetRuleKind.RequireUnitSubType,
+                    unitSubType: (int)UnitSubType.Hero),
+                new SearchTargetRuleConfig(3, (int)SearchTargetRuleKind.ExcludeExplicitTarget)
+            },
+            new[] { new SearchTargetScorerConfig(0, (int)SearchTargetScorerKind.DistanceToExplicitTarget) },
+            new SearchTargetSelectorConfig(0, (int)SearchTargetSelectorKind.TopKByScore));
+        var hitPoint = new Vec3(10f, 0f, 0f);
+        var results = new List<int>();
+
+        service.TrySearchActorIds(template, 1, in hitPoint, explicitTargetActorId: 2, results: results);
+
+        Assert.Equal(new[] { 4 }, results);
+    }
+
     [Theory]
     [InlineData(0f)]
     [InlineData(-1f)]
@@ -165,5 +237,20 @@ public sealed class NormalAttackTargetQueryTests
                 results);
             return results;
         }
+    }
+
+    private static void AddActor(
+        ActorContext context,
+        MobaActorRegistry actors,
+        int actorId,
+        Team team,
+        UnitSubType unitSubType,
+        float x)
+    {
+        var actor = context.CreateEntity();
+        actor.AddTeam(team);
+        actor.AddUnitSubType(unitSubType);
+        actor.AddTransform(new Transform3(new Vec3(x, 0f, 0f), Quat.Identity, Vec3.One));
+        actors.Register(actorId, actor);
     }
 }

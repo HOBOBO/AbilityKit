@@ -39,7 +39,8 @@ namespace AbilityKit.Demo.Moba.Rollback
             }
             var cooldowns = ToEntries(snapshot.Cooldowns);
             var globalCooldowns = ToEntries(snapshot.GlobalCooldowns);
-            return MemoryPackSerializer.Serialize(new MobaSkillEconomyRollbackPayload(2, transactions, cooldowns, globalCooldowns));
+            var killRefunds = ToRefundEntries(snapshot.KillRefunds);
+            return MemoryPackSerializer.Serialize(new MobaSkillEconomyRollbackPayload(3, transactions, cooldowns, globalCooldowns, killRefunds));
         }
 
         public void ImportState(FrameIndex frame, byte[] payload)
@@ -50,7 +51,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 return;
             }
             var state = MemoryPackSerializer.Deserialize<MobaSkillEconomyRollbackPayload>(payload);
-            if (state.Version != 2) throw new InvalidOperationException($"Unsupported skill economy rollback payload version '{state.Version}'.");
+            if (state.Version != 3) throw new InvalidOperationException($"Unsupported skill economy rollback payload version '{state.Version}'.");
             var source = state.Transactions ?? Array.Empty<MobaSkillEconomyTransactionRollbackEntry>();
             var transactions = new MobaSkillEconomyTransactionSnapshot[source.Length];
             for (var i = 0; i < source.Length; i++)
@@ -64,7 +65,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     value.GlobalCooldownMs, (MobaSkillEconomyTransactionState)value.State, value.RequireExplicitCommit);
             }
             _economy.RestoreRollbackSnapshot(new MobaSkillEconomyServiceSnapshot(
-                transactions, FromEntries(state.Cooldowns), FromEntries(state.GlobalCooldowns)));
+                transactions, FromEntries(state.Cooldowns), FromEntries(state.GlobalCooldowns), FromRefundEntries(state.KillRefunds)));
         }
 
         public void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash)
@@ -92,6 +93,24 @@ namespace AbilityKit.Demo.Moba.Rollback
                 result[i] = new MobaSkillEconomyCooldownSnapshot(source[i].ActorId, source[i].GroupId, source[i].EndTimeMs);
             return result;
         }
+
+        private static MobaSkillEconomyKillRefundRollbackEntry[] ToRefundEntries(MobaSkillEconomyKillRefundSnapshot[] source)
+        {
+            source ??= Array.Empty<MobaSkillEconomyKillRefundSnapshot>();
+            var result = new MobaSkillEconomyKillRefundRollbackEntry[source.Length];
+            for (var i = 0; i < source.Length; i++)
+            { var value = source[i]; result[i] = new MobaSkillEconomyKillRefundRollbackEntry(value.Handle.RuntimeId, value.Handle.Generation, value.Handle.RootContextId, value.ActorId, value.SkillId, value.ResourceType, value.AmountRaw); }
+            return result;
+        }
+
+        private static MobaSkillEconomyKillRefundSnapshot[] FromRefundEntries(MobaSkillEconomyKillRefundRollbackEntry[] source)
+        {
+            source ??= Array.Empty<MobaSkillEconomyKillRefundRollbackEntry>();
+            var result = new MobaSkillEconomyKillRefundSnapshot[source.Length];
+            for (var i = 0; i < source.Length; i++)
+            { var value = source[i]; var handle = new MobaSkillCastRuntimeHandle(value.RuntimeId, value.Generation, value.RootContextId); result[i] = new MobaSkillEconomyKillRefundSnapshot(in handle, value.ActorId, value.SkillId, value.ResourceType, value.AmountRaw); }
+            return result;
+        }
     }
 
     [MemoryPackable]
@@ -101,9 +120,21 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(1)] public readonly MobaSkillEconomyTransactionRollbackEntry[] Transactions;
         [MemoryPackOrder(2)] public readonly MobaSkillEconomyCooldownRollbackEntry[] Cooldowns;
         [MemoryPackOrder(3)] public readonly MobaSkillEconomyCooldownRollbackEntry[] GlobalCooldowns;
+        [MemoryPackOrder(4)] public readonly MobaSkillEconomyKillRefundRollbackEntry[] KillRefunds;
         [MemoryPackConstructor]
-        public MobaSkillEconomyRollbackPayload(int version, MobaSkillEconomyTransactionRollbackEntry[] transactions, MobaSkillEconomyCooldownRollbackEntry[] cooldowns, MobaSkillEconomyCooldownRollbackEntry[] globalCooldowns)
-        { Version=version;Transactions=transactions;Cooldowns=cooldowns;GlobalCooldowns=globalCooldowns; }
+        public MobaSkillEconomyRollbackPayload(int version, MobaSkillEconomyTransactionRollbackEntry[] transactions, MobaSkillEconomyCooldownRollbackEntry[] cooldowns, MobaSkillEconomyCooldownRollbackEntry[] globalCooldowns, MobaSkillEconomyKillRefundRollbackEntry[] killRefunds)
+        { Version=version;Transactions=transactions;Cooldowns=cooldowns;GlobalCooldowns=globalCooldowns;KillRefunds=killRefunds; }
+    }
+
+    [MemoryPackable]
+    public readonly partial struct MobaSkillEconomyKillRefundRollbackEntry
+    {
+        [MemoryPackOrder(0)] public readonly long RuntimeId; [MemoryPackOrder(1)] public readonly int Generation;
+        [MemoryPackOrder(2)] public readonly long RootContextId; [MemoryPackOrder(3)] public readonly int ActorId;
+        [MemoryPackOrder(4)] public readonly int SkillId; [MemoryPackOrder(5)] public readonly int ResourceType;
+        [MemoryPackOrder(6)] public readonly long AmountRaw;
+        public MobaSkillEconomyKillRefundRollbackEntry(long runtimeId,int generation,long rootContextId,int actorId,int skillId,int resourceType,long amountRaw)
+        { RuntimeId=runtimeId;Generation=generation;RootContextId=rootContextId;ActorId=actorId;SkillId=skillId;ResourceType=resourceType;AmountRaw=amountRaw; }
     }
 
     [MemoryPackable]

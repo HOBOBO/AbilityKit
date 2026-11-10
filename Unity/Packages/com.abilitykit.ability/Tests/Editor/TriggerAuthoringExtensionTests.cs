@@ -156,6 +156,18 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(healResult.PayloadType, Is.EqualTo("MobaHealthChangeResult"));
             Assert.That(HasPayloadField(healResult, "applied_value"), Is.True);
             Assert.That(HasPayloadField(healResult, "overheal_value"), Is.True);
+
+            Assert.That(events.TryResolve("projectile.hit", out var projectileHit), Is.True);
+            Assert.That(projectileHit.PayloadType, Is.EqualTo("ProjectileHitArgs"));
+            Assert.That(HasPayloadField(projectileHit, "projectile_distance_travelled"), Is.True);
+            Assert.That(HasPayloadField(projectileHit, "projectile_elapsed_seconds"), Is.True);
+            Assert.That(HasPayloadField(projectileHit, "projectile_elapsed_frames"), Is.True);
+            Assert.That(HasPayloadField(projectileHit, "projectile_spawn_frame"), Is.True);
+            Assert.That(HasPayloadField(projectileHit, "projectile_spawn_position_x"), Is.True);
+
+            Assert.That(events.TryResolve("projectile.tick", out var projectileTick), Is.True);
+            Assert.That(projectileTick.PayloadType, Is.EqualTo("ProjectileEventArgs"));
+            Assert.That(HasPayloadField(projectileTick, "projectile_distance_travelled"), Is.False);
         }
 
         [Test]

@@ -4,6 +4,7 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Demo.Moba.Services.StateMachine;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -13,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaActorLookupService _actors;
         private readonly Dictionary<int, int[]> _skillIdsByActorId = new Dictionary<int, int[]>();
         private MobaSkillSlotCandidateService _candidates;
+        private MobaCharacterHfsmParameterService _parameters;
 
         public MobaSkillLoadoutService(MobaActorLookupService actors)
         {
@@ -22,6 +24,7 @@ namespace AbilityKit.Demo.Moba.Services
         public void OnInit(IWorldResolver services)
         {
             services?.TryResolve(out _candidates);
+            services?.TryResolve(out _parameters);
         }
 
         public void SetLoadout(int actorId, int[] skillIds)
@@ -50,7 +53,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             resolved = default;
             if (!TryGetBaseSkillId(actorId, slot, out var baseSkillId)) return false;
-            resolved = _candidates?.Resolve(actorId, slot, baseSkillId) ??
+            resolved = _candidates?.Resolve(actorId, slot, baseSkillId, _parameters) ??
                 new MobaResolvedSlotSkill(slot, baseSkillId, baseSkillId, 0, 0);
             return true;
         }

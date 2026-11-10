@@ -176,6 +176,52 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void CommittedSkillCost_CanBeRefundedOnceAndRestoredForRollbackReplay()
+        {
+            using var scope = new EconomyTestScope();
+            var context = scope.CreateCast(slot: 1, skillId: EconomyTestScope.SkillOneId);
+            Assert.That(scope.Economy.TryReserve(context, scope.Reservation(), out var failure), Is.True, failure);
+            Assert.That(scope.Economy.Commit(context.RuntimeHandle), Is.True);
+            Assert.That(scope.Mana.Current, Is.EqualTo(Fixed64.FromInt32(90)));
+            Assert.That(context.TryGetSkillRuntimeHandle(out var handle), Is.True);
+
+            var beforeKill = scope.Economy.CaptureRollbackSnapshot();
+            Assert.That(scope.Economy.TryRefundKillCost(in handle, EconomyTestScope.ActorId,
+                EconomyTestScope.SkillOneId, out var refunded), Is.True);
+            Assert.That(refunded, Is.EqualTo(Fixed64.FromInt32(10)));
+            Assert.That(scope.Mana.Current, Is.EqualTo(Fixed64.FromInt32(100)));
+            Assert.That(scope.Economy.TryRefundKillCost(in handle, EconomyTestScope.ActorId,
+                EconomyTestScope.SkillOneId, out _), Is.False, "A repeated death notification must not refund twice.");
+
+            // Rollback restores actor resources and the economy's unconsumed cast-cost receipt together.
+            scope.Mana.Current = Fixed64.FromInt32(90);
+            scope.Economy.RestoreRollbackSnapshot(in beforeKill);
+            Assert.That(scope.Economy.TryRefundKillCost(in handle, EconomyTestScope.ActorId,
+                EconomyTestScope.SkillOneId, out refunded), Is.True);
+            Assert.That(refunded, Is.EqualTo(Fixed64.FromInt32(10)));
+            Assert.That(scope.Mana.Current, Is.EqualTo(Fixed64.FromInt32(100)));
+        }
+
+        [Test]
+        public void KillRefund_UsesActualCommittedCostAndClampsAtResourceMaximum()
+        {
+            using var scope = new EconomyTestScope();
+            var context = scope.CreateCast(slot: 1, skillId: EconomyTestScope.SkillOneId);
+            Assert.That(scope.Economy.TryReserve(context, scope.Reservation(), out var failure), Is.True, failure);
+            Assert.That(scope.Economy.Commit(context.RuntimeHandle), Is.True);
+            Assert.That(scope.Mana.Current, Is.EqualTo(Fixed64.FromInt32(90)));
+
+            // Simulate regeneration after the cast. The receipt remains the real 10-point
+            // cost, while the resource mutation is capped by LastMax.
+            scope.Mana.Current = Fixed64.FromInt32(95);
+            Assert.That(context.TryGetSkillRuntimeHandle(out var handle), Is.True);
+            Assert.That(scope.Economy.TryRefundKillCost(in handle, EconomyTestScope.ActorId,
+                EconomyTestScope.SkillOneId, out var refunded), Is.True);
+            Assert.That(refunded, Is.EqualTo(Fixed64.FromInt32(10)));
+            Assert.That(scope.Mana.Current, Is.EqualTo(Fixed64.FromInt32(100)));
+        }
+
+        [Test]
         public void PipelineCompletion_ImplicitlyCommitsUncommittedReservation()
         {
             using var scope = new EconomyTestScope();
@@ -340,7 +386,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 actor.AddActorId(ActorId);
                 SkillOne = NewSkill(SkillOneId);
                 SkillTwo = NewSkill(SkillTwoId);
-                actor.AddSkillLoadout(new[] { SkillOne, SkillTwo }, Array.Empty<PassiveSkillRuntime>());
+                actor.AddSkillLoadout(0, new[] { SkillOne, SkillTwo }, Array.Empty<PassiveSkillRuntime>());
                 Mana = new ResourceState { Current = Fixed64.FromInt32(100), LastMax = Fixed64.FromInt32(100) };
                 actor.AddResourceContainer(new ResourceContainer
                 {

@@ -14,6 +14,10 @@ namespace AbilityKit.Game.Flow
             new Dictionary<string, IBattleClientProjection>(StringComparer.Ordinal);
         private readonly Dictionary<int, GatewayStateSyncActorSnapshot> _actors =
             new Dictionary<int, GatewayStateSyncActorSnapshot>();
+        // Rebuild ordering only when actor topology changes. Attach/recovery still
+        // receives a fresh array, so projections never observe internal storage.
+        private readonly List<int> _orderedActorIds = new List<int>();
+        private bool _actorOrderDirty = true;
         private GatewayStateSyncSnapshot _lastSnapshot;
         private bool _hasSnapshot;
         private bool _requiresFullSnapshot = true;
@@ -130,12 +134,21 @@ namespace AbilityKit.Game.Flow
                         StringComparison.Ordinal)) return false;
             }
 
-            if (snapshot.IsFullSnapshot) _actors.Clear();
+            if (snapshot.IsFullSnapshot)
+            {
+                if (_actors.Count != 0) _actorOrderDirty = true;
+                _actors.Clear();
+            }
             var actors = snapshot.Actors ?? Array.Empty<GatewayStateSyncActorSnapshot>();
             foreach (var actor in actors)
-                if (actor.ActorId > 0) _actors[actor.ActorId] = actor;
+            {
+                if (actor.ActorId <= 0) continue;
+                if (!_actors.ContainsKey(actor.ActorId)) _actorOrderDirty = true;
+                _actors[actor.ActorId] = actor;
+            }
             if (!snapshot.IsFullSnapshot && snapshot.RemovedActorIds != null)
-                foreach (var actorId in snapshot.RemovedActorIds) _actors.Remove(actorId);
+                foreach (var actorId in snapshot.RemovedActorIds)
+                    if (_actors.Remove(actorId)) _actorOrderDirty = true;
 
             WorldId = snapshot.WorldId;
             _lastSnapshot = snapshot;
@@ -174,6 +187,8 @@ namespace AbilityKit.Game.Flow
                 _recoveryPending = false;
             }
             _actors.Clear();
+            _orderedActorIds.Clear();
+            _actorOrderDirty = true;
             _lastSnapshot = default;
             _hasSnapshot = false;
             _requiresFullSnapshot = true;
@@ -187,14 +202,23 @@ namespace AbilityKit.Game.Flow
 
         private GatewayStateSyncSnapshot CreateCurrentSnapshot()
         {
-            var ids = new List<int>(_actors.Keys);
-            ids.Sort();
-            var actors = new GatewayStateSyncActorSnapshot[ids.Count];
-            for (var i = 0; i < ids.Count; i++) actors[i] = _actors[ids[i]];
+            RebuildActorOrderIfNeeded();
+            var actors = new GatewayStateSyncActorSnapshot[_orderedActorIds.Count];
+            for (var i = 0; i < _orderedActorIds.Count; i++)
+                actors[i] = _actors[_orderedActorIds[i]];
             return new GatewayStateSyncSnapshot(
                 WorldId, _lastSnapshot.Frame, _lastSnapshot.Timestamp, true, actors,
                 _lastSnapshot.SchemaVersion, eventWatermark: _lastSnapshot.EventWatermark,
                 eventEpoch: _lastSnapshot.EventEpoch, serverTicks: _lastSnapshot.ServerTicks);
+        }
+
+        private void RebuildActorOrderIfNeeded()
+        {
+            if (!_actorOrderDirty) return;
+            _orderedActorIds.Clear();
+            _orderedActorIds.AddRange(_actors.Keys);
+            _orderedActorIds.Sort();
+            _actorOrderDirty = false;
         }
     }
 }

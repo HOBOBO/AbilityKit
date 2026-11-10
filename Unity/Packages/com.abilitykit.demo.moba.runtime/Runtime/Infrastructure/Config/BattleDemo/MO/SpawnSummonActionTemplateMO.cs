@@ -114,6 +114,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
         public int StackPolicy { get; }
         public int StopPolicy { get; }
+        public int TargetLossPolicy { get; }
+        public int CompletionPolicy { get; }
+        public int StopGraceMs { get; }
 
         public float Scale { get; }
         public float ColorR { get; }
@@ -124,6 +127,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public float OffsetX { get; }
         public float OffsetY { get; }
         public float OffsetZ { get; }
+        public int OffsetSpace { get; }
+        public int ParentScaleMode { get; }
+        public int OrderingMode { get; }
+        public int OrderingPriority { get; }
 
         public PresentationTemplateMO(PresentationTemplateDTO dto)
         {
@@ -142,6 +149,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
             StackPolicy = dto.StackPolicy;
             StopPolicy = dto.StopPolicy;
+            TargetLossPolicy = dto.TargetLossPolicy;
+            CompletionPolicy = dto.CompletionPolicy;
+            StopGraceMs = dto.StopGraceMs;
 
             Scale = dto.Scale;
             ColorR = dto.ColorR;
@@ -152,6 +162,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             OffsetX = dto.OffsetX;
             OffsetY = dto.OffsetY;
             OffsetZ = dto.OffsetZ;
+            OffsetSpace = dto.OffsetSpace;
+            ParentScaleMode = dto.ParentScaleMode;
+            OrderingMode = dto.OrderingMode;
+            OrderingPriority = dto.OrderingPriority;
         }
     }
 }

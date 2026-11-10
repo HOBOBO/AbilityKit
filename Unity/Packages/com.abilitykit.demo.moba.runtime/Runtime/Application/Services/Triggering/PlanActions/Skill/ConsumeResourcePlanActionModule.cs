@@ -38,6 +38,19 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
+            // A table-driven Economy phase has already consumed the resolved
+            // resource before the generic commit trigger runs. Keep the generic
+            // commit plan compatible with older skills that do not use Economy,
+            // while preventing a second deduction for the same cast.
+            var skillRuntimeHandle = input.ExecutionContext.SkillRuntimeHandle;
+            if (skillRuntimeHandle.IsValid
+                && ctx.Context.TryResolve<MobaSkillEconomyService>(out var economy)
+                && economy != null
+                && economy.HasActiveTransaction(in skillRuntimeHandle))
+            {
+                return;
+            }
+
             if (!input.HasCasterActor)
             {
                 LogRejected(ctx, "caster actor not found");

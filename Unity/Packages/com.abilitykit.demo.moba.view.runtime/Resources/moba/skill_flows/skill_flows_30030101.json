@@ -1,0 +1,23 @@
+{
+  "Id": 30030101,
+  "Name": "Annie - Basic Attack",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 2,
+      "PhaseId": "annie_basic_attack",
+      "Timeline": {
+        "DurationMs": 250,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30030101,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "annie_basic_attack"
+          }
+        ]
+      }
+    }
+  ]
+}

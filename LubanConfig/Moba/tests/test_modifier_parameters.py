@@ -176,6 +176,42 @@ class ModifierParameterCatalogTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "ID must be in"):
             validate_modifier_template_ids(wrong, self.rows)
 
+    def test_hfsm_parameter_modifier_uses_buff_lifecycle_domain(self):
+        # HFSM parameter contributions have Buff/continuous lifetime, while their
+        # target IDs are defined by the character HFSM runtime rather than the
+        # skill modifier parameter catalog.
+        template = {"Id": 200100, "Kind": 0, "Target": {"Kind": 2, "Id": 10}}
+        validate_modifier_template_ids([template], self.rows)
+        # Character profiles may declare IDs outside the historical built-in
+        # set (Jinx's WeaponMode is profile-local ID 4).
+        jinx_template = {"Id": 200101, "Kind": 0, "Target": {"Kind": 2, "Id": 4}}
+        validate_modifier_template_ids([jinx_template], self.rows)
+        definition = {
+            "Id": 8000100, "Key": "JhinAttackSlot", "Deprecated": False,
+            "Target": {"Kind": 2, "Id": 10}, "MountPoint": 7,
+            "Value": {"Op": 2, "Value": 2}, "Magnitude": {"SourceType": 0},
+            "ConditionSetId": 0, "StackingPolicy": 0, "MaxStacks": 0,
+            "ConflictGroup": 0,
+        }
+        domains = {row["Id"]: domain_name_for_parameter_id(row["Id"]) for row in self.rows}
+        validate_modifier_definitions([definition], domains)
+        jinx_definition = copy.deepcopy(definition)
+        jinx_definition["Key"] = "JinxWeaponMode"
+        jinx_definition["Target"]["Id"] = 4
+        validate_modifier_definitions([jinx_definition], domains)
+        invalid_parameter = copy.deepcopy(template)
+        invalid_parameter["Target"]["Id"] = 0
+        with self.assertRaisesRegex(ValueError, "unsupported state-machine parameter ID"):
+            validate_modifier_template_ids([invalid_parameter], self.rows)
+        invalid_definition = copy.deepcopy(definition)
+        invalid_definition["Target"]["Id"] = 0
+        with self.assertRaisesRegex(ValueError, "unsupported state-machine parameter ID"):
+            validate_modifier_definitions([invalid_definition], domains)
+        invalid_definition = copy.deepcopy(definition)
+        invalid_definition["Value"]["Op"] = 99
+        with self.assertRaisesRegex(ValueError, "invalid operation"):
+            validate_modifier_definitions([invalid_definition], domains)
+
     def test_definition_catalog_is_validated(self):
         domains = {row["Id"]: domain_name_for_parameter_id(row["Id"]) for row in self.rows}
         validate_modifier_definitions(self.definitions, domains)

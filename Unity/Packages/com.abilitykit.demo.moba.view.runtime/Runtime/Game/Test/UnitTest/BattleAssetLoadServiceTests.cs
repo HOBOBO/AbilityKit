@@ -128,9 +128,9 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var dependencies = ResourcesBattleAssetDependencyProvider.Default.ResolveDependencies(NewSnapshot());
 
-            Assert.AreEqual(10, dependencies.Count(entry =>
+            Assert.AreEqual(17, dependencies.Count(entry =>
                 entry.AssetKey.StartsWith("presentation:model-prefab:", StringComparison.Ordinal)));
-            Assert.AreEqual(23, dependencies.Count(entry =>
+            Assert.AreEqual(67, dependencies.Count(entry =>
                 entry.AssetKey.StartsWith("presentation:vfx-prefab:", StringComparison.Ordinal)));
             Assert.IsTrue(dependencies.Any(entry => entry.AssetPath == "character/character1"));
             Assert.IsTrue(dependencies.Any(entry => entry.AssetPath == "character/character8"));

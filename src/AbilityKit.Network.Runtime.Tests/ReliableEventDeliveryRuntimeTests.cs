@@ -136,6 +136,213 @@ public sealed class ReliableEventDeliveryRuntimeTests
     }
 
     [Fact]
+    public void WrongStreamBatchIsDroppedWhileWaitingForBaseline()
+    {
+        var cursor = CreateCursor();
+        var delivered = new List<long>();
+        var failures = new List<ReliableEventDeliveryFailure>();
+        using var runtime = CreateExternalRuntime();
+        runtime.BeginGeneration(
+            cursor,
+            item => delivered.Add(item.Sequence),
+            _ => { },
+            failureObserved: failures.Add);
+
+        var stale = new ReliableEventBatch<TestEvent>(
+            "another-battle",
+            TimelineId,
+            1L,
+            1L,
+            retentionGap: false,
+            new[] { new TestEvent("another-battle", TimelineId, 1L) });
+        runtime.Handle(in stale);
+
+        Assert.Equal(0, runtime.PendingBatchCount);
+        Assert.Equal(0L, runtime.PendingEventCount);
+        Assert.Equal(1L, runtime.PendingInvalidBatchCount);
+        Assert.Empty(delivered);
+        Assert.Contains(failures, failure =>
+            failure.Kind == ReliableEventDeliveryFailureKind.BatchRejected &&
+            failure.BatchStatus == ReliableEventBatchStatus.InvalidStream);
+
+        Assert.True(runtime.AdoptAuthoritativeBaseline(TimelineId, 0L));
+        Assert.Empty(delivered);
+    }
+
+    [Fact]
+    public void RequiringAnotherBaselineDropsBatchesFromThePreviousRecovery()
+    {
+        var cursor = CreateCursor();
+        var delivered = new List<long>();
+        using var runtime = CreateExternalRuntime();
+        runtime.BeginGeneration(cursor, item => delivered.Add(item.Sequence), _ => { });
+        Assert.True(runtime.AdoptAuthoritativeBaseline(TimelineId, 0L));
+
+        runtime.RequireAuthoritativeBaseline();
+        var stale = Batch(Event(4));
+        runtime.Handle(in stale);
+
+        runtime.RequireAuthoritativeBaseline();
+        var current = Batch(Event(3));
+        runtime.Handle(in current);
+
+        Assert.True(runtime.AdoptAuthoritativeBaseline(TimelineId, 2L));
+
+        Assert.Equal(new[] { 3L }, delivered);
+        Assert.Equal(3L, cursor.LastDeliveredSequence);
+        Assert.Equal(0, runtime.PendingBatchCount);
+    }
+
+    [Fact]
+    public void PendingBatchSnapshotsIngressEventList()
+    {
+        var cursor = CreateCursor();
+        var delivered = new List<long>();
+        using var runtime = CreateExternalRuntime();
+        runtime.BeginGeneration(cursor, item => delivered.Add(item.Sequence), _ => { });
+
+        var events = new List<TestEvent> { Event(6) };
+        var batch = new ReliableEventBatch<TestEvent>(
+            StreamId,
+            TimelineId,
+            6L,
+            6L,
+            retentionGap: false,
+            events);
+        runtime.Handle(in batch);
+        events[0] = Event(9);
+
+        Assert.True(runtime.AdoptAuthoritativeBaseline(TimelineId, 5L));
+
+        Assert.Equal(new[] { 6L }, delivered);
+        Assert.Equal(6L, cursor.LastDeliveredSequence);
+    }
+
+    [Fact]
+    public void PendingEventCapacityRejectsOversizedBatch()
+    {
+        var cursor = CreateCursor();
+        var failures = new List<ReliableEventDeliveryFailure>();
+        using var runtime = new ReliableEventDeliveryRuntime<TestEvent>(
+            new ReliableEventDeliveryOptions
+            {
+                AcknowledgementStrategy = ReliableEventAcknowledgementStrategy.External,
+                MaxPendingBatches = 8,
+                MaxPendingEvents = 2
+            });
+        runtime.BeginGeneration(cursor, _ => { }, failures.Add);
+
+        var oversized = Batch(Event(1), Event(2), Event(3));
+        runtime.Handle(in oversized);
+
+        Assert.Equal(0, runtime.PendingBatchCount);
+        Assert.Equal(0L, runtime.PendingEventCount);
+        Assert.Single(failures, item =>
+            item.Kind == ReliableEventDeliveryFailureKind.PendingQueueOverflow);
+        Assert.True(runtime.AwaitingBaseline);
+    }
+
+    [Fact]
+    public void PendingOverflowInvalidatesOncePerRecoveryWindow()
+    {
+        var cursor = CreateCursor();
+        var failures = new List<ReliableEventDeliveryFailure>();
+        using var runtime = new ReliableEventDeliveryRuntime<TestEvent>(
+            new ReliableEventDeliveryOptions
+            {
+                AcknowledgementStrategy = ReliableEventAcknowledgementStrategy.External,
+                MaxPendingBatches = 1,
+                MaxPendingEvents = 1
+            });
+        runtime.BeginGeneration(cursor, _ => { }, failures.Add);
+
+        var first = Batch(Event(1));
+        var second = Batch(Event(2));
+        var third = Batch(Event(3));
+        runtime.Handle(in first);
+        runtime.Handle(in second);
+        runtime.Handle(in third);
+
+        Assert.Single(failures, item =>
+            item.Kind == ReliableEventDeliveryFailureKind.PendingQueueOverflow);
+
+        Assert.True(runtime.AdoptAuthoritativeBaseline(TimelineId, 0L));
+        runtime.RequireAuthoritativeBaseline();
+        runtime.Handle(in first);
+        runtime.Handle(in second);
+
+        Assert.Equal(2, failures.Count(item =>
+            item.Kind == ReliableEventDeliveryFailureKind.PendingQueueOverflow));
+    }
+
+    [Fact]
+    public void BatchesAfterPendingOverflowAreDiscardedUntilBaseline()
+    {
+        var cursor = CreateCursor();
+        var delivered = new List<long>();
+        using var runtime = new ReliableEventDeliveryRuntime<TestEvent>(
+            new ReliableEventDeliveryOptions
+            {
+                AcknowledgementStrategy = ReliableEventAcknowledgementStrategy.External,
+                MaxPendingBatches = 1,
+                MaxPendingEvents = 1
+            });
+        runtime.BeginGeneration(cursor, item => delivered.Add(item.Sequence), _ => { });
+
+        var first = Batch(Event(1));
+        var overflow = Batch(Event(2));
+        var afterOverflow = Batch(Event(3));
+        runtime.Handle(in first);
+        runtime.Handle(in overflow);
+        runtime.Handle(in afterOverflow);
+
+        Assert.Equal(0, runtime.PendingBatchCount);
+        Assert.Equal(0L, runtime.PendingEventCount);
+
+        Assert.True(runtime.AdoptAuthoritativeBaseline(TimelineId, 2L));
+
+        Assert.Empty(delivered);
+        Assert.Equal(2L, cursor.LastDeliveredSequence);
+    }
+
+    [Fact]
+    public void RecoveryWindowAndOverflowCountersExposeRecoveryPressure()
+    {
+        var cursor = CreateCursor();
+        var failures = new List<ReliableEventDeliveryFailure>();
+        using var runtime = new ReliableEventDeliveryRuntime<TestEvent>(
+            new ReliableEventDeliveryOptions
+            {
+                AcknowledgementStrategy = ReliableEventAcknowledgementStrategy.External,
+                MaxPendingBatches = 1,
+                MaxPendingEvents = 1
+            });
+
+        runtime.BeginGeneration(
+            cursor,
+            _ => { },
+            _ => { },
+            failureObserved: failures.Add);
+        var initialWindow = runtime.RecoveryWindowId;
+
+        var first = Batch(Event(1));
+        var overflow = Batch(Event(2));
+        runtime.Handle(in first);
+        runtime.Handle(in overflow);
+
+        Assert.True(initialWindow > 0);
+        Assert.Equal(initialWindow, runtime.RecoveryWindowId);
+        Assert.Equal(1L, runtime.PendingOverflowCount);
+        Assert.Contains(failures, failure =>
+            failure.Kind == ReliableEventDeliveryFailureKind.PendingQueueOverflow);
+
+        runtime.RequireAuthoritativeBaseline();
+
+        Assert.Equal(initialWindow + 1, runtime.RecoveryWindowId);
+        Assert.Equal(1L, runtime.PendingOverflowCount);
+    }
+
+    [Fact]
     public void ExternalAcknowledgementAdvancesOnlyAfterSinkSucceeds()
     {
         var cursor = CreateCursor();

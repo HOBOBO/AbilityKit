@@ -12,6 +12,12 @@ namespace AbilityKit.Demo.Moba.Components
     }
 
     [Actor]
+    public sealed class ChampionLevelComponent : IComponent
+    {
+        public int Value;
+    }
+
+    [Actor]
     public sealed class TransformComponent : IComponent
     {
         public Transform3 Value;

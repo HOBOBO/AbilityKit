@@ -6,9 +6,16 @@
     {
       "name": "skill-family",
       "description": "Skills and their intentionally aligned flow, effect, buff, parameter, passive, continuous-tag, and skill-trigger IDs.",
-      "min": 10000000,
-      "max": 19999999,
+      "ranges": [
+        { "min": 10000000, "max": 19999999 },
+        { "min": 30010000, "max": 30019999 },
+        { "min": 30020000, "max": 30020999 },
+        { "min": 32010300, "max": 32010399 },
+        { "min": 32010403, "max": 32010499 },
+        { "min": 32010610, "max": 32010699 }
+      ],
       "allowSameIdAcrossSources": true,
+      "allowCrossNamespaceIdReuseWith": ["projectile"],
       "sources": [
         { "path": "luban/moba/skills.json", "shape": "array", "idProperty": "Id" },
         { "path": "moba/skill_flows.json", "shape": "array", "idProperty": "Id" },
@@ -23,9 +30,15 @@
     {
       "name": "projectile",
       "description": "Projectile definitions.",
-      "min": 30000000,
-      "max": 30999999,
+      "ranges": [
+        { "min": 30000000, "max": 30009999 },
+        { "min": 30020000, "max": 30999999 },
+        { "min": 32010000, "max": 32010299 },
+        { "min": 32010400, "max": 32010402 },
+        { "min": 32010600, "max": 32010609 }
+      ],
       "allowSameIdAcrossSources": false,
+      "allowCrossNamespaceIdReuseWith": ["skill-family"],
       "sources": [
         { "path": "luban/moba/projectiles.json", "shape": "array", "idProperty": "Id" }
       ]
@@ -33,8 +46,10 @@
     {
       "name": "projectile-launcher",
       "description": "Projectile launcher definitions.",
-      "min": 31000000,
-      "max": 31999999,
+      "ranges": [
+        { "min": 31000000, "max": 31999999 },
+        { "min": 33000000, "max": 33999999 }
+      ],
       "allowSameIdAcrossSources": false,
       "sources": [
         { "path": "luban/moba/projectile_launchers.json", "shape": "array", "idProperty": "Id" }
@@ -53,8 +68,10 @@
     {
       "name": "search-query",
       "description": "Target search query templates.",
-      "min": 50000000,
-      "max": 59999999,
+      "ranges": [
+        { "min": 50000000, "max": 50999999 },
+        { "min": 52000000, "max": 52999999 }
+      ],
       "allowSameIdAcrossSources": false,
       "sources": [
         { "path": "luban/moba/search_query_templates.json", "shape": "array", "idProperty": "Id" }
@@ -63,8 +80,10 @@
     {
       "name": "presentation",
       "description": "Presentation and VFX-facing templates, excluding reserved preview models.",
-      "min": 90001000,
-      "max": 90009999,
+      "ranges": [
+        { "min": 90001000, "max": 90009999 },
+        { "min": 90013000, "max": 90013999 }
+      ],
       "allowSameIdAcrossSources": false,
       "sources": [
         { "path": "luban/moba/presentation_templates.json", "shape": "array", "idProperty": "Id" }

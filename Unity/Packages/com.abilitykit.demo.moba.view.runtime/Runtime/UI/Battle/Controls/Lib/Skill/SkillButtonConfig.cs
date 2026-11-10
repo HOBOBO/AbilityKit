@@ -45,6 +45,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         public SkillAimIndicatorShape IndicatorShape;
         public float IndicatorLengthPixels;
         public float IndicatorWidthPixels;
+        public float IndicatorAngleDegrees;
         public int PreviewVfxId;
 
         public static SkillButtonConfig Default => new SkillButtonConfig
@@ -63,6 +64,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             IndicatorShape = SkillAimIndicatorShape.Hidden,
             IndicatorLengthPixels = 180f,
             IndicatorWidthPixels = 52f,
+            IndicatorAngleDegrees = 90f,
         };
     }
 }

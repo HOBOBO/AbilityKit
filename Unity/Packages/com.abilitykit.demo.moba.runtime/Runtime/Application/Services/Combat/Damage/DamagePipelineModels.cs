@@ -32,6 +32,10 @@ namespace AbilityKit.Demo.Moba
         public string FormulaId;
         public Services.MobaCombatExecutionFlags CombatFlags;
 
+        /// <summary>Target health sampled immediately before AttackCreated/BeforeCalc trigger dispatch.</summary>
+        public float TargetHp;
+        public float TargetMaxHp;
+
         public readonly CombatNumberValue BaseDamage;
         public readonly CombatNumberValue DamageRate;
         public readonly CombatNumberValue FlatBonus;
@@ -317,6 +321,12 @@ namespace AbilityKit.Demo.Moba
         public Services.MobaCombatExecutionFlags CombatFlags;
 
         public float Value;
+        /// <summary>
+        /// Amount consumed from the target's shield during this committed damage
+        /// operation. This is kept on the final event so AfterApply consumers do not
+        /// need to retain the earlier AttackCalcInfo instance.
+        /// </summary>
+        public float ShieldAbsorb;
         public float TargetHp;
         public float TargetMaxHp;
 

@@ -285,6 +285,7 @@ namespace AbilityKit.Game.Test.UnitTest
         public bool Recursive { get; set; } = true;
         public string CategoryFilter { get; set; }
         public string TagFilter { get; set; }
+        public string RunId { get; set; }
 
         public bool ShouldExportTraceText => TraceExport != null && TraceExport.DetailedText;
     }

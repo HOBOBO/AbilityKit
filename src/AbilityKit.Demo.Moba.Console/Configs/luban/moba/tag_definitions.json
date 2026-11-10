@@ -312,7 +312,7 @@
     "DisplayName": "免疫状态",
     "ParentId": 1000,
     "Kind": 0,
-    "Status": 1
+    "Status": 0
   },
   {
     "Id": 1201,
@@ -330,7 +330,7 @@
     "DisplayName": "减速免疫",
     "ParentId": 1200,
     "Kind": 1,
-    "Status": 1
+    "Status": 0
   },
   {
     "Id": 1203,

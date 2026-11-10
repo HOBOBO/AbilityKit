@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Attributes/AbilityKit.Attributes.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Deterministic/AbilityKit.Deterministic.csproj" />
   </ItemGroup>
 
   <!-- NuGet 依赖 -->

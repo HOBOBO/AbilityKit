@@ -22,6 +22,10 @@ namespace AbilityKit.Demo.Moba.Services
             var attack = calc.Attack;
             var baseValue = attack.BaseDamage.FixedValue;
             var scaled = baseValue * attack.DamageRate.FixedValue + attack.FlatBonus.FixedValue;
+            // Critical is a generic combat semantic. Skills and passives only mark
+            // the attack; the standard damage pipeline applies the shared multiplier.
+            if (attack.CritType == CritType.Critical)
+                scaled *= Fixed64.FromRatio(175, 100);
             calc.RawDamage.FixedBaseValue = DeterministicMath.Max(Fixed64.Zero, scaled);
         }
     }

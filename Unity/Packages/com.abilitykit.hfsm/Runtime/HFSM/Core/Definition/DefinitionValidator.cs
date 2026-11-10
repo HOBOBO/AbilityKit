@@ -59,6 +59,33 @@ namespace AbilityKit.HFSM.Definition
                     $"Root machine '{definition.RootMachineId}' does not exist.");
             }
 
+            var parameterIds = new HashSet<int>();
+            var parameters = definition.Parameters ?? new List<StateMachineParameterDefinition>();
+            for (var parameterIndex = 0; parameterIndex < parameters.Count; parameterIndex++)
+            {
+                var path = $"$.parameters[{parameterIndex}]";
+                var parameter = parameters[parameterIndex];
+                if (parameter == null)
+                {
+                    Add(issues, "HFSM080", path, "Parameter is null.");
+                    continue;
+                }
+                if (parameter.Id <= 0)
+                    Add(issues, "HFSM081", path + ".id", "Parameter id must be positive.");
+                else if (!parameterIds.Add(parameter.Id))
+                    Add(issues, "HFSM082", path + ".id", $"Duplicate parameter id '{parameter.Id}'.");
+                if (string.IsNullOrWhiteSpace(parameter.Name))
+                    Add(issues, "HFSM083", path + ".name", "Parameter name is required.");
+                if (float.IsNaN(parameter.DefaultValue) || float.IsInfinity(parameter.DefaultValue))
+                    Add(issues, "HFSM084", path + ".defaultValue", "Parameter default value must be finite.");
+                var operations = parameter.SupportedOperations ?? new List<int>();
+                var seenOperations = new HashSet<int>();
+                for (var operationIndex = 0; operationIndex < operations.Count; operationIndex++)
+                    if (operations[operationIndex] < 0 || !seenOperations.Add(operations[operationIndex]))
+                        Add(issues, "HFSM085", $"{path}.supportedOperations[{operationIndex}]",
+                            "Supported operation must be non-negative and unique.");
+            }
+
             ValidateHierarchy(definition, machinesById, issues);
             return new ValidationResult(issues);
         }

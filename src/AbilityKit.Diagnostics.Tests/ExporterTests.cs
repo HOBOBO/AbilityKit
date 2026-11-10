@@ -85,6 +85,69 @@ public sealed class ExporterTests
     }
 
     [Fact]
+    public void Streaming_exporters_match_string_exports()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "abilitykit-exporter-tests", Path.GetRandomFileName());
+        var snapshot = CreateSnapshot();
+        var cases = new (IExporter Exporter, string Name)[]
+        {
+            (new JsonExporter(), "profile.json"),
+            (new CsvExporter(), "profile.csv"),
+            (new FoldedExporter(), "profile.folded")
+        };
+
+        foreach (var item in cases)
+        {
+            var path = Path.Combine(directory, item.Name);
+            item.Exporter.Export(snapshot, path);
+            Assert.Equal(item.Exporter.ExportToString(snapshot), File.ReadAllText(path));
+        }
+    }
+
+    [Fact]
+    public void Advanced_streaming_exporters_write_valid_files()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "abilitykit-exporter-tests", Path.GetRandomFileName());
+        var snapshot = CreateSnapshot();
+
+        var speedscopePath = Path.Combine(directory, "profile.speedscope.json");
+        new SpeedScopeExporter().Export(snapshot, speedscopePath);
+        Assert.Equal(new SpeedScopeExporter().ExportToString(snapshot), File.ReadAllText(speedscopePath));
+        using (var parsed = JsonDocument.Parse(File.ReadAllText(speedscopePath)))
+        {
+            Assert.True(parsed.RootElement.GetProperty("profiles")[0].GetProperty("events").GetArrayLength() > 0);
+        }
+
+        var chromePath = Path.Combine(directory, "profile.chrome-perf.json");
+        new ChromePerfExporter().Export(snapshot, chromePath);
+        using (var parsed = JsonDocument.Parse(File.ReadAllText(chromePath)))
+        {
+            Assert.Equal("spans", parsed.RootElement.GetProperty("metadata").GetProperty("timeline").GetString());
+            Assert.True(parsed.RootElement.GetProperty("traceEvents").GetArrayLength() > 0);
+        }
+
+        var flamePath = Path.Combine(directory, "profile.flame.svg");
+        new FlameGraphExporter().Export(snapshot, flamePath);
+        Assert.Equal(new FlameGraphExporter().ExportToString(snapshot), File.ReadAllText(flamePath));
+        Assert.StartsWith("<svg", File.ReadAllText(flamePath));
+
+        var zeroxPath = Path.Combine(directory, "profile.0x.json");
+        new ZeroxExporter().Export(snapshot, zeroxPath);
+        Assert.Equal(new ZeroxExporter().ExportToString(snapshot), File.ReadAllText(zeroxPath));
+        using (var parsed = JsonDocument.Parse(File.ReadAllText(zeroxPath)))
+        {
+            Assert.True(parsed.RootElement.GetProperty("children").GetArrayLength() > 0);
+        }
+
+        foreach (var path in new[] { flamePath, zeroxPath })
+        {
+            var bytes = File.ReadAllBytes(path);
+            Assert.True(bytes.Length < 3 || !(bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF),
+                path + " must not start with a UTF-8 BOM");
+        }
+    }
+
+    [Fact]
     public void FoldedExporter_keeps_brendan_gregg_format()
     {
         var folded = new FoldedExporter().ExportToString(CreateSnapshot());
@@ -123,6 +186,20 @@ public sealed class ExporterTests
 
         var chrome = new ChromePerfExporter().ExportToString(snapshot);
         Assert.Contains("\"timeline\": \"aggregated\"", chrome);
+        using var parsed = JsonDocument.Parse(chrome);
+        Assert.NotEmpty(parsed.RootElement.GetProperty("traceEvents").EnumerateArray());
+    }
+
+    [Fact]
+    public void Speedscope_export_falls_back_to_aggregated_without_spans()
+    {
+        var snapshot = CreateSnapshot();
+        snapshot.Spans = null;
+
+        var speedscope = new SpeedScopeExporter().ExportToString(snapshot);
+        using var parsed = JsonDocument.Parse(speedscope);
+        Assert.False(parsed.RootElement.GetProperty("profiles")[0].GetProperty("name").GetString().Contains("(timeline)", StringComparison.Ordinal));
+        Assert.NotEmpty(parsed.RootElement.GetProperty("profiles")[0].GetProperty("events").EnumerateArray());
     }
 
     [Fact]

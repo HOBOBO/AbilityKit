@@ -13,7 +13,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleViewEntitySyncInputFactory _inputs;
         private readonly BattleViewModelSyncController _models;
         private readonly BattleViewAttachedVfxController _attachedVfx;
-        private StateMachineDefinition _definition;
+        private MobaCharacterHfsmProfileCatalog _profiles;
         private CharacterPresentationActionCatalog _catalog;
 
         public BattleViewEntitySyncController(
@@ -51,20 +51,33 @@ namespace AbilityKit.Game.Flow
             BattleViewHandle handle, IBattleRuntimeContext context)
         {
             if (handle.GameObject == null || input.Meta == null ||
-                input.Meta.Kind != BattleEntityKind.Character ||
+                !SupportsActionPresentation(input.Meta.Kind) ||
                 !(context is IBattleCharacterActionReadPort actions) ||
                 !actions.TryGetCharacterAction(input.ActorId, out var action)) return;
 
             if (!input.Entity.TryGetRef(out BattleCharacterHfsmComponent state) || state == null ||
                 state.EntityCode != input.Meta.EntityCode)
             {
-                if (_definition == null)
+                if (_profiles == null)
                 {
                     var loader = new ResourcesTextAssetLoader();
-                    _definition = MobaCharacterHfsmProfile.LoadDefinition(loader);
+                    _profiles = new MobaCharacterHfsmProfileCatalog(loader);
                     _catalog = CharacterPresentationActionCatalog.Load(loader);
                 }
-                state = new BattleCharacterHfsmComponent(_definition, _catalog, input.Meta.EntityCode);
+                // Summons and other non-hero actors use the shared summon HFSM
+                // definition so their generic attack slots are available to the
+                // presentation bridge. Hero profile lookup remains data-driven.
+                var definition = input.Meta.Kind == BattleEntityKind.Summon ||
+                                 input.Meta.Kind == BattleEntityKind.Clone ||
+                                 input.Meta.Kind == BattleEntityKind.Minion ||
+                                 input.Meta.Kind == BattleEntityKind.Monster
+                    ? MobaCharacterHfsmProfile.CreateSummonDefinition()
+                    : _profiles.Resolve(input.Meta.EntityCode);
+                var presentationCatalog = _catalog
+                    .CreateForEntityCode(input.Meta.EntityCode)
+                    .CreateForDefinition(definition);
+                state = new BattleCharacterHfsmComponent(
+                    definition, presentationCatalog, input.Meta.EntityCode);
                 input.Entity.WithRef(state);
             }
             state.ApplyPresentation(in action);
@@ -72,6 +85,19 @@ namespace AbilityKit.Game.Flow
             var mono = handle.GameObject.GetComponent<MonoCharacterHfsmView>();
             if (mono == null) mono = handle.GameObject.AddComponent<MonoCharacterHfsmView>();
             mono.Bind(state, context.Plan.World.TickRate);
+        }
+
+        private static bool SupportsActionPresentation(BattleEntityKind kind)
+        {
+            // CharacterAction snapshots are emitted for every actor with an
+            // HFSM runtime, including summons and minions. Keep the view-side
+            // binding generic so a summon can reuse the same action catalog and
+            // animator bridge without introducing summon-specific branches.
+            return kind == BattleEntityKind.Character ||
+                   kind == BattleEntityKind.Summon ||
+                   kind == BattleEntityKind.Clone ||
+                   kind == BattleEntityKind.Minion ||
+                   kind == BattleEntityKind.Monster;
         }
     }
 

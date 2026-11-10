@@ -222,6 +222,31 @@ namespace AbilityKit.Game.Flow
             RequestPresentationBaseline();
         }
 
+        /// <summary>Enables the opt-in L1 HUD/input capture for local diagnosis.</summary>
+        public bool TryStartInputCapture(string rootDirectory, string caseId, string runId, out string error)
+        {
+            if (_inputController == null)
+            {
+                error = "Battle HUD input controller is not attached.";
+                return false;
+            }
+            return _inputController.TryStartCapture(rootDirectory, caseId, runId, out error);
+        }
+
+        /// <summary>Stops the current diagnostic capture and closes its manifest.</summary>
+        public void StopInputCapture()
+        {
+            _inputController?.StopCapture();
+        }
+
+        /// <summary>Adds a human-readable marker to the active diagnostic capture.</summary>
+        public void MarkInputCapture(string label, int frame)
+        {
+            _inputController?.MarkCapture(label, frame);
+        }
+
+        public bool IsInputCaptureActive => _inputController?.IsCaptureActive == true;
+
         /// <summary>
         /// Replays the latest persistent presentation state after the HUD is shown
         /// again or its view bindings have been rebuilt. The snapshot arrives on the

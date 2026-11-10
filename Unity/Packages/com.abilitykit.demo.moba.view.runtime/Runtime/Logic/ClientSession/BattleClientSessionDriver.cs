@@ -14,7 +14,14 @@ namespace AbilityKit.Game.Flow
 
     public interface IBattleClientProjection
     {
+        /// <summary>
+        /// Consumes one accepted snapshot synchronously on the presentation thread.
+        /// The projection must not retain the supplied array for cross-thread use;
+        /// interpolation or long-lived state must be copied into projection-owned storage.
+        /// </summary>
         void Apply(in GatewayStateSyncSnapshot snapshot);
+
+        /// <summary>Clears projection-owned state after detach, stop, or reset.</summary>
         void Reset();
     }
 

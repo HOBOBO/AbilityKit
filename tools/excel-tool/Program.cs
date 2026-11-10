@@ -64,7 +64,7 @@ namespace AbilityKit.Tools.ExcelTool
                 if (name.StartsWith("__", StringComparison.Ordinal)) continue;   // schema 表不是数据表
 
                 using var pkg = Open(file);
-                var ws = FirstSheet(pkg);
+                var ws = SelectSheet(pkg, options);
                 var layout = ReadLayout(ws);
                 tables.Add(new
                 {
@@ -373,15 +373,23 @@ namespace AbilityKit.Tools.ExcelTool
             if (!File.Exists(path)) throw new FileNotFoundException($"table file not found: {path}");
 
             var pkg = Open(path);
-            var ws = FirstSheet(pkg);
+            var ws = SelectSheet(pkg, options);
             return (path, pkg, ws, ReadLayout(ws));
         }
 
         private static ExcelPackage Open(string path)
             => new ExcelPackage(new FileInfo(path));
 
-        private static ExcelWorksheet FirstSheet(ExcelPackage pkg)
+        private static ExcelWorksheet SelectSheet(ExcelPackage pkg, Dictionary<string, string> options)
         {
+            if (options.TryGetValue("sheet", out var sheetName) && !string.IsNullOrWhiteSpace(sheetName))
+            {
+                var selected = pkg.Workbook.Worksheets.FirstOrDefault(ws =>
+                    string.Equals(ws.Name, sheetName, StringComparison.OrdinalIgnoreCase));
+                if (selected != null) return selected;
+                throw new InvalidOperationException($"worksheet not found: {sheetName}");
+            }
+
             // EPPlus 4.x 的 Worksheets 索引是 1-based；Worksheets[0] 会抛 "Worksheet position out of range"
             foreach (var ws in pkg.Workbook.Worksheets) return ws;
             throw new InvalidOperationException("workbook has no worksheet");
@@ -444,22 +452,22 @@ namespace AbilityKit.Tools.ExcelTool
   excel-tool list    [--dir <Datas目录>]
       列出所有配置表（行数/字段数/主键）。
 
-  excel-tool show <table> [--id <Id>] [--limit N] [--dir <目录>]
+  excel-tool show <table> [--id <Id>] [--limit N] [--sheet <sheet>] [--dir <目录>]
       查看表布局（字段/类型/注释）与数据行。
 
-  excel-tool get <table> <Id> <field>
+  excel-tool get <table> <Id> <field> [--sheet <sheet>]
       读取单个值。
 
-  excel-tool set <table> <Id> <field>=<value> [<field>=<value> ...]
+  excel-tool set <table> <Id> <field>=<value> [<field>=<value> ...] [--sheet <sheet>]
       按 Id 定位数据行并改写字段；空值/"" 表示清除单元格（Luban 语义）。
 
-  excel-tool add <table> <Id=N> <field>=<value> [...]
+  excel-tool add <table> <Id=N> <field>=<value> [...] [--sheet <sheet>]
       追加一行（必须给出主键字段）。
 
-  excel-tool del <table> <Id>
+  excel-tool del <table> <Id> [--sheet <sheet>]
       删除该 Id 所在的数据行。
 
-  excel-tool lint <table>
+  excel-tool lint <table> [--sheet <sheet>]
       按 Luban 规则体检：首列非空、无空字符串单元格、无重复主键。
 
 默认目录：" + DefaultDir + @"

@@ -22,6 +22,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         public const string SelectReadySkill = "moba.selectReadySkill";
         public const string ResolveTargetAim = "moba.resolveTargetAim";
         public const string CastSelectedSkill = "moba.castSelectedSkill";
+        public const string MoveAlongLaunchHeading = "moba.moveAlongLaunchHeading";
+        public const string ResolveHeadingAim = "moba.resolveHeadingAim";
         public const string MoveToEnemy = "moba.moveToEnemy";
         public const string HoldPosition = "moba.holdPosition";
         public const string ArbitrateCombatIntent = "moba.arbitrateCombatIntent";
@@ -64,7 +66,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
         public override void OnInit(in NodeInitContext context)
         {
-            _runtime = context.Context.Services.Resolve<MobaBTreeRuntimeContext>();
+            // Authoring validates node construction without a live world. Resolve the host dependency at execution.
+            context.Context.Services.TryResolve(out _runtime);
             _queryTemplateId = context.Properties.GetInt64(QueryTemplateIdProperty, 0);
             _searchRadius = context.Properties.GetFixed64(SearchRadiusProperty, Fixed64.FromInt32(1000));
         }
@@ -74,6 +77,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             var bb = context.Blackboard;
             MobaBTreeBlackboard.ClearTarget(bb);
 
+            _runtime ??= context.Services.Resolve<MobaBTreeRuntimeContext>();
             var behavior = _runtime.Behavior;
             var world = _runtime.World;
             var registry = _runtime.Registry;
@@ -149,10 +153,12 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         internal const float DefaultApproachRange = 0.5f;
         public const string SkillIdProperty = "skillId";
         public const string RequiredTagProperty = "requiredTag";
+        public const string RequiredSkillTypeProperty = "requiredSkillType";
 
         private MobaBTreeRuntimeContext _runtime = null!;
         private long _requiredSkillId;
         private long _requiredTag;
+        private long _requiredSkillType;
 
         public NodeDescriptor BuildDescriptor(NodeTypeAttribute attribute) => new(
             attribute.NodeTypeId, attribute.DisplayName, attribute.Category, NodeKind.Action, 0, 0,
@@ -163,13 +169,17 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                     PropertyValue.Of(0L), "限定技能 id；0 = 任意"),
                 new PropertyField(RequiredTagProperty, ValueType.Int64,
                     PropertyValue.Of(0L), "限定技能标签；0 = 任意"),
+                new PropertyField(RequiredSkillTypeProperty, ValueType.Int64,
+                    PropertyValue.Of(0L), "限定技能类型；0 = 任意，其他值对应 SkillType"),
             });
 
         public override void OnInit(in NodeInitContext context)
         {
-            _runtime = context.Context.Services.Resolve<MobaBTreeRuntimeContext>();
+            // Authoring validates node construction without a live world. Resolve the host dependency at execution.
+            context.Context.Services.TryResolve(out _runtime);
             _requiredSkillId = context.Properties.GetInt64(SkillIdProperty, 0);
             _requiredTag = context.Properties.GetInt64(RequiredTagProperty, 0);
+            _requiredSkillType = context.Properties.GetInt64(RequiredSkillTypeProperty, 0);
         }
 
         public override NodeState OnTick(ExecutionContext context)
@@ -177,6 +187,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             var bb = context.Blackboard;
             MobaBTreeBlackboard.ClearSkill(bb, Fixed64.FromSingle(DefaultApproachRange));
 
+            _runtime ??= context.Services.Resolve<MobaBTreeRuntimeContext>();
             var behavior = _runtime.Behavior;
             var registry = _runtime.Registry;
             var config = _runtime.Config;
@@ -204,10 +215,11 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                     effectiveSkillId = slotSkill.EffectiveSkillId;
                 if (!config.TryGetSkill(effectiveSkillId, out var skill) || skill == null) continue;
 
-                var range = Math.Max(0f, skill.Range);
-                maxConfiguredRange = Math.Max(maxConfiguredRange, range);
                 if (_requiredSkillId > 0 && skill.Id != _requiredSkillId) continue;
                 if (_requiredTag > 0 && !HasTag(skill, _requiredTag)) continue;
+                if (_requiredSkillType > 0 && (long)skill.SkillType != _requiredSkillType) continue;
+                var range = Math.Max(0f, skill.Range);
+                maxConfiguredRange = Math.Max(maxConfiguredRange, range);
                 if (runtime.CooldownEndTimeMs > nowMs) continue;
 
                 candidates.Add(new MobaSkillSelectionCandidate(skill.Id, i + 1, range));
@@ -347,6 +359,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
             bb.SetInt64(MobaBTreeKeys.MoveRequestPriority, _priority);
             bb.SetFixed64(MobaBTreeKeys.MoveRequestX, bb.GetFixed64(MobaBTreeKeys.TargetX));
+            bb.SetBool(MobaBTreeKeys.MoveRequestIsDirection, false);
             bb.SetFixed64(MobaBTreeKeys.MoveRequestY, bb.GetFixed64(MobaBTreeKeys.TargetY));
             bb.SetFixed64(MobaBTreeKeys.MoveRequestZ, bb.GetFixed64(MobaBTreeKeys.TargetZ));
             bb.SetFixed64(MobaBTreeKeys.MoveRequestStopRange, bb.GetFixed64(MobaBTreeKeys.SkillApproachRange));
@@ -389,8 +402,16 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     /// parallel without relying on their execution order to resolve conflicts.
     /// </summary>
     [NodeType(MobaBTreeNodeTypes.ArbitrateCombatIntent, "仲裁战斗意图", "MOBA", NodeKind.Action)]
-    public sealed class MobaArbitrateCombatIntentNode : ActionNodeBase
+    public sealed class MobaArbitrateCombatIntentNode : ActionNodeBase, NodeDescriptorProvider
     {
+        private bool _allowMoveWithCast;
+        public NodeDescriptor BuildDescriptor(NodeTypeAttribute attribute) => new(
+            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, NodeKind.Action, 0, 0,
+            () => new MobaArbitrateCombatIntentNode(),
+            new[] { new PropertyField("allowMoveWithCast", ValueType.Bool, PropertyValue.Of(false), "允许同时发布移动与施法") });
+        public override void OnInit(in NodeInitContext context) =>
+            _allowMoveWithCast = context.Properties.GetBool("allowMoveWithCast", false);
+
         public override NodeState OnTick(ExecutionContext context)
         {
             var bb = context.Blackboard;
@@ -407,6 +428,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
             if (hasCast && castPriority >= movePriority && castPriority >= holdPriority)
             {
+                if (_allowMoveWithCast && hasMove && movePriority >= holdPriority) PublishMove(bb);
                 PublishCast(bb);
             }
             else if (hasMove && movePriority >= holdPriority)
@@ -436,9 +458,11 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         {
             bb.SetInt64(MobaBTreeKeys.OutputKind, (long)MobaBTreeIntentKind.Move);
             bb.SetBool(MobaBTreeKeys.HasMove, true);
+            bb.SetBool(MobaBTreeKeys.MoveIsDirection, bb.GetBool(MobaBTreeKeys.MoveRequestIsDirection));
             bb.SetFixed64(MobaBTreeKeys.MoveX, bb.GetFixed64(MobaBTreeKeys.MoveRequestX));
             bb.SetFixed64(MobaBTreeKeys.MoveY, bb.GetFixed64(MobaBTreeKeys.MoveRequestY));
             bb.SetFixed64(MobaBTreeKeys.MoveZ, bb.GetFixed64(MobaBTreeKeys.MoveRequestZ));
+            bb.SetFixed64(MobaBTreeKeys.MoveStopRange, bb.GetFixed64(MobaBTreeKeys.MoveRequestStopRange));
         }
     }
 

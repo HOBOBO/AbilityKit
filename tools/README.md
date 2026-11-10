@@ -17,7 +17,8 @@
 | `validate_abilitykit_package_json.ps1` | 包 package.json 格式校验 |
 | `validate_moba_codegen_ownership.ps1` | MOBA 代码生成归属校验 |
 | `validate_moba_hero_manifest.ps1` | MOBA 英雄清单校验 |
-| `validate_moba_hero_acceptance_coverage.ps1` | MOBA 英雄验收覆盖校验 |
+| `validate_moba_hero_acceptance_coverage.ps1` | MOBA 英雄验收覆盖与测试证据引用校验；可用 `-ReportPath` 输出证据报告 |
+| `validate_battlescenario_artifacts.ps1` | BattleScenario artifact v1 Schema 样例与兼容性测试；依赖通过 `npm ci --prefix tools/battlescenario-artifact-schema` 安装 |
 | `build_moba_content_report.ps1` | 生成并校验 MOBA 跨表依赖、英雄可达性和资源完整度 JSON 报告（含 `.tests.ps1`） |
 | `export_moba_content_ir.ps1` | 从离线报告导出可供 Unity、Web、DOT 和 CI 共同消费的稳定 graph/diagnostics JSON |
 | `build_moba_content_graph.ps1` | 从通用 graph/diagnostics JSON 生成可筛选的自包含 HTML 依赖图与 Graphviz DOT |
@@ -66,6 +67,7 @@
 |------|------|
 | `AbilityKitPptAssetGenerator/` | PPT 素材生成器（C# 项目） |
 | `ai_training/` | AI 训练（Python） |
+| `battlescenario-artifact-schema/` | BattleScenario artifact Schema 的锁定 Node.js 校验依赖和兼容性测试 |
 
 ## 命名规范
 

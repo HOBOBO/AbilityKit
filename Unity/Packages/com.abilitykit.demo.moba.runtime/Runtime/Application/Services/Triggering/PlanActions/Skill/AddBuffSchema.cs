@@ -18,8 +18,20 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public override AddBuffArgs ParseArgs(Dictionary<string, ActionArgValue> namedArgs, ExecCtx<IWorldResolver> ctx)
         {
+            return ParseArgs(namedArgs, ctx, default);
+        }
+
+        public override AddBuffArgs ParseArgs(
+            Dictionary<string, ActionArgValue> namedArgs,
+            ExecCtx<IWorldResolver> ctx,
+            in TriggerActionParseContext parseContext)
+        {
             var buffIds = ReadPositiveInts(namedArgs, ctx, "buffids", "buff_ids", "buffid", "buff_id", "id", "ids");
-            var targetRequest = MobaActionTargetSchemaReader.Read(namedArgs, ctx);
+            // Preserve the triggering payload while resolving target_payload_field_id.
+            // This is required for generic reactions such as DamageResult -> add_buff;
+            // the action must derive its target from the event payload rather than from
+            // an Annie-specific runtime path.
+            var targetRequest = MobaActionTargetSchemaReader.Read(namedArgs, ctx, in parseContext);
             return new AddBuffArgs(buffIds, in targetRequest);
         }
 

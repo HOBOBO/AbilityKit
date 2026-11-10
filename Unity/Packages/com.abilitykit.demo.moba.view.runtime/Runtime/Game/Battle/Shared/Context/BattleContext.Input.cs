@@ -4,6 +4,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Battle.Diagnostics.Capture;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -13,6 +14,7 @@ namespace AbilityKit.Game.Flow
         IBattleHudInputReadPort,
         IBattleInputSubmissionPort,
         IBattleHudAimPreviewReadPort
+        , IBattleCaptureBindingHost
     {
         private readonly ReferenceBindingOwner<BattleInputRuntime> _inputRuntimeBinding =
             new ReferenceBindingOwner<BattleInputRuntime>();
@@ -23,6 +25,20 @@ namespace AbilityKit.Game.Flow
         public BattleLocalInputQueue LocalInputQueue => EnsureInputRuntime().LocalInputQueue;
 
         internal BattleInputRuntime InputRuntime => EnsureInputRuntime();
+
+        internal IBattleCaptureSink BattleCapture { get; private set; }
+
+        int IBattleCaptureBindingHost.BattleCaptureFrame => LastFrame;
+
+        void IBattleCaptureBindingHost.BindBattleCapture(IBattleCaptureSink sink)
+        {
+            BattleCapture = sink;
+        }
+
+        void IBattleCaptureBindingHost.ClearBattleCapture(IBattleCaptureSink sink)
+        {
+            if (ReferenceEquals(BattleCapture, sink)) BattleCapture = null;
+        }
 
         internal void BindInputRuntime(BattleInputRuntime runtime)
         {
@@ -109,8 +125,8 @@ namespace AbilityKit.Game.Flow
         public void SetHudSkillAim(int slot, float dx, float dz, bool aiming) =>
             EnsureInputRuntime().SetSkillAim(slot, dx, dz, aiming);
         public void CancelHudSkillAim() => EnsureInputRuntime().CancelSkillAim();
-        public void SubmitHudSkillAim(int slot, float aimDx, float aimDz) =>
-            EnsureInputRuntime().SubmitSkillAim(slot, aimDx, aimDz);
+        public void SubmitHudSkillAim(int slot, float aimDx, float aimDz, bool includeAimPosition = true) =>
+            EnsureInputRuntime().SubmitSkillAim(slot, aimDx, aimDz, includeAimPosition);
 
         internal bool TryReadHudSkillAimPreview(
             out int slot,

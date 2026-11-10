@@ -35,6 +35,9 @@ public sealed partial class DRSummons : Luban.BeanBase
         NullFields = _buf.ReadString();
         BrainId = _buf.ReadInt();
         InheritAttributeConfigId = _buf.ReadInt();
+        SpawnVfxId = _buf.ReadInt();
+        DeathVfxId = _buf.ReadInt();
+        DespawnVfxId = _buf.ReadInt();
     }
 
     public static DRSummons DeserializeDRSummons(ByteBuf _buf)
@@ -118,6 +121,18 @@ public sealed partial class DRSummons : Luban.BeanBase
     /// Modifier authoring reference
     /// </summary>
     public readonly int InheritAttributeConfigId;
+    /// <summary>
+    /// 召唤物出生表现特效 ID；0 表示不播放。
+    /// </summary>
+    public readonly int SpawnVfxId;
+    /// <summary>
+    /// 召唤物死亡表现特效 ID；0 表示不播放。
+    /// </summary>
+    public readonly int DeathVfxId;
+    /// <summary>
+    /// 召唤物主动销毁表现特效 ID；0 表示不播放。
+    /// </summary>
+    public readonly int DespawnVfxId;
    
     public const int __ID__ = -1664266428;
     public override int GetTypeId() => __ID__;
@@ -148,6 +163,9 @@ public sealed partial class DRSummons : Luban.BeanBase
         + "NullFields:" + NullFields + ","
         + "BrainId:" + BrainId + ","
         + "InheritAttributeConfigId:" + InheritAttributeConfigId + ","
+        + "SpawnVfxId:" + SpawnVfxId + ","
+        + "DeathVfxId:" + DeathVfxId + ","
+        + "DespawnVfxId:" + DespawnVfxId + ","
         + "}";
     }
 }

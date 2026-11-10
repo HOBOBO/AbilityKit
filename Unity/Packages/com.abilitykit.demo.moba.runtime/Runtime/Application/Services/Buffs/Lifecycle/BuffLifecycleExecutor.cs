@@ -127,6 +127,108 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             return true;
         }
 
+        /// <summary>
+        /// 先激活新 Buff，再提交旧 Buff 的结束。新 Buff 激活失败时不会改变旧 Buff。
+        /// </summary>
+        public bool Replace(in BuffReplaceRequest request)
+        {
+            LastReject = BuffLifecycleRejectResult.None;
+            if (!request.IsValid)
+            {
+                return Reject(BuffLifecycleRejectCode.ReplaceInvalidRequest,
+                    $"replace request is invalid. target={request.TargetActorId} previous={request.PreviousBuffId} next={request.NextBuffId} source={request.SourceActorId}.");
+            }
+            if (!TryGetTarget(request.TargetActorId, out var target))
+            {
+                return Reject(BuffLifecycleRejectCode.ReplaceTargetNotFound,
+                    $"target actor not found. target={request.TargetActorId} previous={request.PreviousBuffId} next={request.NextBuffId}.");
+            }
+            if (!target.hasBuffs || target.buffs.Active == null)
+            {
+                return Reject(BuffLifecycleRejectCode.ReplaceBuffsComponentMissing,
+                    $"target has no active buff list. target={request.TargetActorId}.");
+            }
+
+            var list = target.buffs.Active;
+            var previousKey = request.PreviousSourceContextId != 0L
+                ? BuffRuntimeKey.MatchInstance(request.PreviousBuffId, request.SourceActorId, request.PreviousSourceContextId)
+                : BuffRuntimeKey.MatchBuffAndSource(request.PreviousBuffId, request.SourceActorId);
+            if (!BuffRepository.TryGetRuntime(list, in previousKey, out var previousRuntime, out var previousIndex))
+            {
+                return Reject(BuffLifecycleRejectCode.ReplacePreviousRuntimeNotFound,
+                    $"previous buff runtime not found. target={request.TargetActorId} buffId={request.PreviousBuffId} source={request.SourceActorId}.");
+            }
+
+            var nextKey = request.NextSourceContextId != 0L
+                ? BuffRuntimeKey.MatchInstance(request.NextBuffId, request.SourceActorId, request.NextSourceContextId)
+                : BuffRuntimeKey.MatchBuffAndSource(request.NextBuffId, request.SourceActorId);
+            // 重复切换是幂等的：目标模式已存在时只提交旧模式结束，不刷新新模式的持续时间。
+            if (BuffRepository.TryGetRuntime(list, in nextKey, out var existingNextRuntime, out _))
+            {
+                if (previousRuntime == null || ReferenceEquals(previousRuntime, existingNextRuntime))
+                {
+                    return true;
+                }
+                return EndRuntime(target, list, previousIndex, previousRuntime, request.SourceActorId,
+                    request.Reason == MobaExecutionEndReason.None ? MobaExecutionEndReason.Replaced : request.Reason);
+            }
+
+            var apply = new BuffApplyRequest
+            {
+                TargetActorId = request.TargetActorId,
+                BuffId = request.NextBuffId,
+                SourceActorId = request.SourceActorId,
+                DurationOverrideMs = request.DurationOverrideMs,
+                SourceContextId = request.NextSourceContextId,
+                ForceNewInstance = false,
+                Origin = request.Origin,
+            };
+            if (!_applyFlow.Apply(in apply))
+            {
+                LastReject = _applyFlow.LastReject;
+                return false;
+            }
+
+            if (!BuffRepository.TryGetRuntime(list, in nextKey, out var nextRuntime, out var nextIndex) || nextRuntime == null)
+            {
+                return Reject(BuffLifecycleRejectCode.ReplaceNextRuntimeMissingAfterApply,
+                    $"next buff runtime missing after successful apply. target={request.TargetActorId} buffId={request.NextBuffId} source={request.SourceActorId}.");
+            }
+
+            try
+            {
+                var reason = request.Reason == MobaExecutionEndReason.None ? MobaExecutionEndReason.Replaced : request.Reason;
+                if (EndRuntime(target, list, previousIndex, previousRuntime, request.SourceActorId, reason))
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                TryRollbackCandidate(target, list, nextRuntime, nextIndex, request.SourceActorId);
+                throw;
+            }
+
+            TryRollbackCandidate(target, list, nextRuntime, nextIndex, request.SourceActorId);
+            return Reject(BuffLifecycleRejectCode.ReplaceCommitFailed,
+                $"previous buff could not be ended after next buff activation. target={request.TargetActorId} previous={request.PreviousBuffId} next={request.NextBuffId}.");
+        }
+
+        private void TryRollbackCandidate(global::ActorEntity target, List<BuffRuntime> list, BuffRuntime runtime, int index, int sourceActorId)
+        {
+            try
+            {
+                if (runtime != null && index >= 0 && index < list.Count && ReferenceEquals(list[index], runtime))
+                {
+                    _endFlow.EndRuntime(target, list, index, runtime, sourceActorId, MobaExecutionEndReason.Interrupted);
+                }
+            }
+            catch
+            {
+                // 保留原始替换失败；清理异常由上层诊断系统记录。
+            }
+        }
+
         private bool Reject(BuffLifecycleRejectCode code, string message)
         {
             LastReject = new BuffLifecycleRejectResult(code, message);

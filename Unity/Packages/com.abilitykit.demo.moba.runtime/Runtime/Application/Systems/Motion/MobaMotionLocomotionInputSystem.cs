@@ -76,7 +76,12 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
 
                 if (!_locomotionByActorId.TryGetValue(actorId, out var loco) || loco == null)
                 {
-                    loco = new LocomotionMotionSource(speed: speed, space: MotionInputSpace.Local, priority: 0);
+                    // MoveInput is expressed in world X/Z space: the HUD joystick
+                    // projects through the camera, while AI target movement writes
+                    // a normalized world-space delta. Treating it as Local rotates
+                    // the input again whenever an actor turns (for example after
+                    // aiming or casting a directional skill).
+                    loco = new LocomotionMotionSource(speed: speed, space: MotionInputSpace.World, priority: 0);
                     _locomotionByActorId[actorId] = loco;
                     m.Pipeline.AddSource(loco);
                 }

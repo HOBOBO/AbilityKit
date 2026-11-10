@@ -130,6 +130,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public float LocalOffsetRight { get; }
         public float Width { get; }
         public float Length { get; }
+        public int UnitSubType { get; }
         public int[] ActorIds { get; }
 
         public SearchTargetRuleConfig(SearchTargetRuleDTO dto)
@@ -144,7 +145,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
                 dto != null ? dto.LocalOffsetForward : 0f,
                 dto != null ? dto.LocalOffsetRight : 0f,
                 dto != null ? dto.Width : 0f,
-                dto != null ? dto.Length : 0f)
+                dto != null ? dto.Length : 0f,
+                dto != null ? dto.UnitSubType : 0)
         {
         }
 
@@ -159,7 +161,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             float localOffsetForward = 0f,
             float localOffsetRight = 0f,
             float width = 0f,
-            float length = 0f)
+            float length = 0f,
+            int unitSubType = 0)
             : base(id, kind)
         {
             Center = center;
@@ -170,6 +173,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             LocalOffsetRight = localOffsetRight;
             Width = width;
             Length = length;
+            UnitSubType = unitSubType;
             ActorIds = actorIds ?? Array.Empty<int>();
         }
     }

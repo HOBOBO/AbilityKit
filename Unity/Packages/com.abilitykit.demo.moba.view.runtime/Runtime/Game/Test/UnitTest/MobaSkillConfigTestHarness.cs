@@ -22,6 +22,7 @@ using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Demo.Moba.Services.LogicWorld;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Game.Battle.Moba.Config;
@@ -676,7 +677,36 @@ namespace AbilityKit.Game.Test.UnitTest
             var actorId = AssertPlayerActorBound();
             var loadout = World.Services.Resolve<MobaSkillLoadoutService>();
             Assert.IsTrue(loadout.TryGetSkillId(actorId, slot, out var slotSkillId), $"Slot {slot} skill missing for actor {actorId}.");
-            Assert.AreEqual(expectedSkillId, slotSkillId);
+            if (expectedSkillId != slotSkillId)
+            {
+                var resolved = World.Services.Resolve<MobaSkillSlotCandidateService>()?.Resolve(actorId, slot,
+                    loadout.TryGetBaseSkillId(actorId, slot, out var baseSkillId) ? baseSkillId : 0);
+                var parameterText = "n/a";
+                if (World.Services.TryResolve<MobaCharacterHfsmParameterService>(out var parameters) && parameters != null)
+                {
+                    parameterText = $"attackSlot={parameters.Resolve(actorId, MobaCharacterHfsmTestFixture.AttackSlot)}, " +
+                        $"committed={parameters.Resolve(actorId, MobaCharacterHfsmTestFixture.CommittedAttackSlot)}";
+                }
+                var path = "n/a";
+                var buffText = "n/a";
+                if (World.Services.TryResolve<MobaActorLookupService>(out var actors) && actors != null &&
+                    actors.TryGetActorEntity(actorId, out var actor) && actor != null)
+                {
+                    path = actor.hasCharacterHfsm && actor.characterHfsm.Runtime != null
+                        ? actor.characterHfsm.Runtime.Action.Path : "no-hfsm";
+                    if (actor.hasCharacterHfsm && actor.characterHfsm.Runtime != null)
+                        path += $", factsCast={actor.characterHfsm.Runtime.FactCastInstanceId}, factsSkill={actor.characterHfsm.Runtime.FactSkillId}, factsCasting={actor.characterHfsm.Runtime.FactIsCasting}";
+                    if (actor.hasBuffs && actor.buffs.Active != null)
+                    {
+                        var parts = new List<string>();
+                        foreach (var buff in actor.buffs.Active)
+                            if (buff != null) parts.Add($"{buff.BuffId}(continuous={buff.Continuous != null && !buff.Continuous.IsTerminated})");
+                        buffText = string.Join(",", parts);
+                    }
+                }
+                Assert.Fail($"Slot {slot} expected skill {expectedSkillId} but was {slotSkillId}. " +
+                    $"resolved={resolved?.EffectiveSkillId.ToString() ?? "null"}, {parameterText}, path={path}, buffs=[{buffText}]");
+            }
         }
 
         public void AssertSkillUsesCastFlow(int skillId, int expectedCastFlowId)
@@ -1545,6 +1575,12 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             if (node is ActionCallTriggerPlanExecutable action && (int)action.Action.Id.Value == actionId)
                 return true;
+
+            if (node is IfTriggerPlanExecutable conditional)
+            {
+                return ContainsAction(conditional.ThenBranch, actionId)
+                    || ContainsAction(conditional.ElseBranch, actionId);
+            }
 
             if (!(node is CompositeTriggerPlanExecutableBase composite))
                 return false;

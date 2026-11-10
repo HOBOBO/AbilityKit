@@ -1,0 +1,29 @@
+{
+  "Id": 30010401,
+  "Name": "Jhin - Curtain Call",
+  "PipelineContinuousTagTemplateId": 3015,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "skill_30010401_release",
+      "RulePlan": {
+        "TriggerIds": [
+          30010400
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "skill_30010401_commit",
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      }
+    }
+  ]
+}

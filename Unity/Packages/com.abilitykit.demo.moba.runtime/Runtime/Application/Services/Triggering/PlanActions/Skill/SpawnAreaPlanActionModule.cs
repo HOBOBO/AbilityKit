@@ -95,12 +95,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var stayIntervalFrames = ResolveStayIntervalFrames(args, intervalMs, ctx.Context);
             var delayFrames = ResolveDelayFrames(aoe.DelayMs, ctx.Context);
             var frame = ResolveFrame(ctx.Context);
-            var offset = new Vec3(aoe.OffsetX + args.OffsetX, aoe.OffsetY + args.OffsetY, aoe.OffsetZ + args.OffsetZ);
             var aimDirection = input.AimDirection;
             var areaForward = input.HasAimDirection
                 ? DeterministicMathBridge.Normalize(in aimDirection)
                 : Vec3.Forward;
             if (areaForward.SqrMagnitude <= 0.000001f) areaForward = Vec3.Forward;
+            var offset = new Vec3(aoe.OffsetX + args.OffsetX, aoe.OffsetY + args.OffsetY, aoe.OffsetZ + args.OffsetZ)
+                         + areaForward * args.DirectionOffset;
 
             if (!args.HasTargetRequest)
             {
@@ -254,7 +255,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 length,
                 args.AnchorAtOrigin,
                 args.RadiusGrowthPerFrame,
-                initialRadius);
+                initialRadius,
+                armDelayFrames: delayFrames,
+                consumeOnFirstEnter: aoe.ConsumeOnFirstEnter,
+                followOwner: aoe.AttachMode == 1,
+                followActorId: input.CasterActorId,
+                rootContextId: rootContextId,
+                groupKey: args.GroupKey,
+                claimTargetsWithinGroup: args.ClaimTargetsWithinGroup);
             var areaId = projectiles.SpawnArea(in spawnParams, frame);
             if (areaId.Value <= 0)
             {
@@ -283,12 +291,30 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     sourceContextId,
                     rootContextId,
                     ownerContextId,
-                    skillRuntimeHandle);
+                    (int)shapeKind,
+                    in forward,
+                    args.HalfAngleDeg,
+                    width,
+                    length,
+                    skillRuntimeHandle,
+                    args.GroupKey,
+                    args.ClaimTargetsWithinGroup);
             }
             catch (Exception ex)
             {
+                // Failed registration must not enqueue AreaExpireEvent: the runtime
+                // metadata is removed as part of rollback, so the sync system would
+                // otherwise receive an event it can no longer resolve.
+                if (projectiles is IAreaRollbackService rollbackAreas)
+                {
+                    rollbackAreas.CancelArea(areaId);
+                }
+                else
+                {
+                    // Compatibility fallback for custom projectile services.
+                    projectiles.DespawnArea(areaId, frame);
+                }
                 areaRuntime.RollbackSpawn(areaId, sourceContextId);
-                projectiles.DespawnArea(areaId, frame);
                 try
                 {
                     executionContexts.End(sourceContextId, (int)MobaExecutionEndReason.Failed, frame);

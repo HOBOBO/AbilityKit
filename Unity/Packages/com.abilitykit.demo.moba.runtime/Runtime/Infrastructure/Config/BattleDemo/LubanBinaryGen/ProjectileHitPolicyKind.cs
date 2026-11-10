@@ -15,6 +15,7 @@ namespace moba_luban
     {
         ExitOnHit = 0,
         Pierce = 1,
+        Bounce = 2,
     }
 
 } 

@@ -58,6 +58,13 @@ namespace AbilityKit.Demo.Moba.Services
             { 1000027, new ModifierDefinitionEntry(1000027, "SunShangxiangSkill2ArmorBreak", 1, 0, 0, 1, 1) },
             { 2000001, new ModifierDefinitionEntry(2000001, "SlotSkillOverride", 2, 0, 0, 2, 1) },
             { 2000002, new ModifierDefinitionEntry(2000002, "SunShangxiangEnhancedBasicAttackSlot", 2, 0, 0, 2, 1) },
+            { 2000003, new ModifierDefinitionEntry(2000003, "JhinRRegularShotSlot", 2, 0, 0, 2, 1) },
+            { 2000004, new ModifierDefinitionEntry(2000004, "JhinRFinalShotSlot", 2, 0, 0, 2, 1) },
+            { 2000005, new ModifierDefinitionEntry(2000005, "JhinBasicAttack2Slot", 2, 0, 0, 2, 1) },
+            { 2000006, new ModifierDefinitionEntry(2000006, "JhinBasicAttack3Slot", 2, 0, 0, 2, 1) },
+            { 2000007, new ModifierDefinitionEntry(2000007, "JhinBasicAttack4Slot", 2, 0, 0, 2, 1) },
+            { 2000008, new ModifierDefinitionEntry(2000008, "JinxPowPowAttackSlot", 2, 0, 0, 2, 1) },
+            { 2000009, new ModifierDefinitionEntry(2000009, "JinxFishbonesAttackSlot", 2, 0, 0, 2, 1) },
             { 3000001, new ModifierDefinitionEntry(3000001, "ProjectileCountBonus", 4, 0, 0, 3, 1) },
             { 3000002, new ModifierDefinitionEntry(3000002, "LauncherDurationBonus", 4, 0, 0, 3, 1) },
             { 4000001, new ModifierDefinitionEntry(4000001, "ProjectileSpeedScale", 5, 0, 0, 3, 1) },
@@ -66,6 +73,11 @@ namespace AbilityKit.Demo.Moba.Services
             { 6000001, new ModifierDefinitionEntry(6000001, "SummonSizeScale", 3, 0, 0, 3, 1) },
             { 7000001, new ModifierDefinitionEntry(7000001, "DamageBaseBonus", 8, 0, 0, 3, 1) },
             { 8000001, new ModifierDefinitionEntry(8000001, "BuffDurationBonus", 7, 0, 0, 1, 1) },
+            { 8000002, new ModifierDefinitionEntry(8000002, "JhinRPhaseAiming", 7, 0, 0, 1, 1) },
+            { 8000005, new ModifierDefinitionEntry(8000005, "JhinRPhaseShooting", 7, 0, 0, 1, 1) },
+            { 8000006, new ModifierDefinitionEntry(8000006, "JhinRPhaseFinalShot", 7, 0, 0, 1, 1) },
+            { 8002001, new ModifierDefinitionEntry(8002001, "JinxPowPowWeaponMode", 7, 0, 0, 0, 1) },
+            { 8002002, new ModifierDefinitionEntry(8002002, "JinxFishbonesWeaponMode", 7, 0, 0, 0, 1) },
         };
     }
 }

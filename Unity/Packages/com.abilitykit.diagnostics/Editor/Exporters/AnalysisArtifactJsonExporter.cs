@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using AbilityKit.Diagnostics.Analysis;
@@ -29,10 +30,31 @@ namespace AbilityKit.Diagnostics.Exporters
 
         public void Export(AbilityKitAnalysisArtifact artifact, string filePath)
         {
-            WriteAllText(filePath, ExportToString(artifact));
+            var value = PrepareArtifact(artifact);
+            var directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            using (var textWriter = new StreamWriter(filePath, false, new UTF8Encoding(false), 4096))
+            using (var jsonWriter = new JsonTextWriter(textWriter)
+            {
+                Formatting = Formatting.Indented,
+                Culture = CultureInfo.InvariantCulture,
+                CloseOutput = false
+            })
+            {
+                JsonSerializer.Create(Settings).Serialize(jsonWriter, value);
+            }
         }
 
         public string ExportToString(AbilityKitAnalysisArtifact artifact)
+        {
+            return JsonConvert.SerializeObject(PrepareArtifact(artifact), Settings);
+        }
+
+        private static AbilityKitAnalysisArtifact PrepareArtifact(AbilityKitAnalysisArtifact artifact)
         {
             if (artifact == null) throw new ArgumentNullException(nameof(artifact));
             if (string.IsNullOrEmpty(artifact.SchemaVersion))
@@ -40,18 +62,7 @@ namespace AbilityKit.Diagnostics.Exporters
                 artifact.SchemaVersion = AbilityKitAnalysisSchema.Version;
             }
 
-            return JsonConvert.SerializeObject(artifact, Settings);
-        }
-
-        private static void WriteAllText(string filePath, string content)
-        {
-            var directory = Path.GetDirectoryName(filePath);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            File.WriteAllText(filePath, content, Encoding.UTF8);
+            return artifact;
         }
     }
 }

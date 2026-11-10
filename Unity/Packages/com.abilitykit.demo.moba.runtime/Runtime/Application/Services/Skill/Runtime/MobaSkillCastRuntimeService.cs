@@ -228,6 +228,52 @@ namespace AbilityKit.Demo.Moba.Services
             return TryGet(in handle, out var runtime) ? runtime.CountChildren(kind) : 0;
         }
 
+        /// <summary>
+        /// Validates that every active child capability has one retain identity and
+        /// every retain identity still points at its active runtime child.
+        /// </summary>
+        public MobaSkillRuntimeRetentionValidation ValidateRetentionState()
+        {
+            var activeRuntimes = 0;
+            var pendingChildren = 0;
+            var untrackedChildren = 0;
+
+            foreach (var pair in _runtimes)
+            {
+                var runtime = pair.Value;
+                if (runtime == null || runtime.IsEnded) continue;
+
+                activeRuntimes++;
+                pendingChildren += runtime.PendingChildren;
+                for (var i = 0; i < runtime.Children.Count; i++)
+                {
+                    if (!HasRetain(runtime.Handle, runtime.Children[i])) untrackedChildren++;
+                }
+            }
+
+            var orphanedRetains = 0;
+            foreach (var pair in _retains)
+            {
+                var retain = pair.Value;
+                var retainedChild = retain.Child;
+                if (!retain.IsValid ||
+                    !_runtimes.TryGetValue(retain.Runtime.RuntimeId, out var runtime) ||
+                    runtime == null || runtime.IsEnded ||
+                    runtime.Generation != retain.Runtime.Generation ||
+                    !HasChild(runtime, in retainedChild))
+                {
+                    orphanedRetains++;
+                }
+            }
+
+            return new MobaSkillRuntimeRetentionValidation(
+                activeRuntimes,
+                pendingChildren,
+                _retains.Count,
+                orphanedRetains,
+                untrackedChildren);
+        }
+
         public MobaSkillRuntimeScanResult ScanDiagnostics(IMobaBattleDiagnosticsService diagnostics = null, int maxWarningCount = 8)
         {
             var active = 0;
@@ -267,8 +313,8 @@ namespace AbilityKit.Demo.Moba.Services
         public bool RetainChild(long runtimeId, in MobaSkillRuntimeChildRef child)
         {
             if (!TryGet(runtimeId, out var runtime)) return false;
-            if (!runtime.RetainChild(in child)) return false;
-            NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.ChildRetained, runtime, in child, default, MobaSkillRuntimeEndReason.None, forced: false);
+            if (!TryRetainChild(runtime, in child, out var retainHandle)) return false;
+            NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.ChildRetained, runtime, in child, in retainHandle, MobaSkillRuntimeEndReason.None, forced: false);
             return true;
         }
 
@@ -276,12 +322,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             retainHandle = default;
             if (!TryGet(in runtimeHandle, out var runtime)) return false;
-            if (!runtime.RetainChild(in child)) return false;
-
-            var retainId = _nextRetainId++;
-            if (_nextRetainId == 0L) _nextRetainId = 1L;
-            retainHandle = new MobaSkillRuntimeRetainHandle(retainId, runtime.Handle, in child);
-            _retains.Add(retainId, retainHandle);
+            if (!TryRetainChild(runtime, in child, out retainHandle)) return false;
             NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.ChildRetained, runtime, in child, in retainHandle, MobaSkillRuntimeEndReason.None, forced: false);
             return true;
         }
@@ -289,6 +330,12 @@ namespace AbilityKit.Demo.Moba.Services
         public bool ReleaseChild(long runtimeId, in MobaSkillRuntimeChildRef child)
         {
             if (!TryGet(runtimeId, out var runtime)) return false;
+
+            if (TryFindRetain(runtime.Handle, in child, out var retainHandle))
+            {
+                return ReleaseChild(in retainHandle);
+            }
+
             var released = runtime.ReleaseChild(in child);
             if (released)
             {
@@ -325,6 +372,20 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (!TryGet(runtimeId, out var runtime)) return false;
             return EndPipeline(runtime, reason, ToStage(reason));
+        }
+
+        public bool TryGetLevelParameter(in MobaSkillCastRuntimeHandle handle, string name, out float value)
+        {
+            value = 0f;
+            return TryGet(in handle, out var runtime) && runtime.LevelParameters.TryGetValue(name, out value);
+        }
+
+        public bool TryGetChampionLevel(in MobaSkillCastRuntimeHandle handle, out int level)
+        {
+            level = 0;
+            if (!TryGet(in handle, out var runtime) || runtime.ChampionLevel <= 0) return false;
+            level = runtime.ChampionLevel;
+            return true;
         }
 
         public bool MarkPipelineEnded(in MobaSkillCastRuntimeHandle handle, MobaSkillRuntimeEndReason reason)
@@ -432,7 +493,9 @@ namespace AbilityKit.Demo.Moba.Services
                     var request = new MobaSkillCastRuntimeCreateRequest(
                         state.SkillId, state.SkillSlot, state.SkillLevel, state.Sequence, state.CasterActorId,
                         state.TargetActorId, in aimPos, in aimDir, state.RootContextId,
-                        baseSkillId: state.BaseSkillId);
+                        baseSkillId: state.BaseSkillId,
+                        levelParameters: state.LevelParameters,
+                        championLevel: state.ChampionLevel);
                     runtime = new MobaSkillCastRuntime(state.RuntimeId, state.Generation, in request);
                 }
                 runtime.RestoreRollbackSnapshot(in state);
@@ -523,6 +586,54 @@ namespace AbilityKit.Demo.Moba.Services
 
             RemoveRetains(runtime.Handle);
             if (firstFailure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstFailure).Throw();
+        }
+
+        private bool TryRetainChild(
+            MobaSkillCastRuntime runtime,
+            in MobaSkillRuntimeChildRef child,
+            out MobaSkillRuntimeRetainHandle retainHandle)
+        {
+            retainHandle = default;
+            if (runtime == null || !runtime.RetainChild(in child)) return false;
+
+            var retainId = _nextRetainId++;
+            if (_nextRetainId == 0L) _nextRetainId = 1L;
+            retainHandle = new MobaSkillRuntimeRetainHandle(retainId, runtime.Handle, in child);
+            _retains.Add(retainId, retainHandle);
+            return true;
+        }
+
+        private bool HasRetain(in MobaSkillCastRuntimeHandle runtimeHandle, in MobaSkillRuntimeChildRef child)
+        {
+            return TryFindRetain(runtimeHandle, in child, out _);
+        }
+
+        private static bool HasChild(MobaSkillCastRuntime runtime, in MobaSkillRuntimeChildRef child)
+        {
+            if (runtime == null) return false;
+            var children = runtime.Children;
+            for (var i = 0; i < children.Count; i++)
+            {
+                if (children[i].Equals(child)) return true;
+            }
+
+            return false;
+        }
+
+        private bool TryFindRetain(
+            in MobaSkillCastRuntimeHandle runtimeHandle,
+            in MobaSkillRuntimeChildRef child,
+            out MobaSkillRuntimeRetainHandle retainHandle)
+        {
+            foreach (var pair in _retains)
+            {
+                if (!pair.Value.Runtime.Equals(runtimeHandle) || !pair.Value.Child.Equals(child)) continue;
+                retainHandle = pair.Value;
+                return true;
+            }
+
+            retainHandle = default;
+            return false;
         }
 
         private MobaSkillRuntimeRetainHandle TakeRetain(in MobaSkillCastRuntimeHandle runtimeHandle, in MobaSkillRuntimeChildRef child)

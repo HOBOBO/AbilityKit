@@ -11,7 +11,7 @@ namespace AbilityKit.Combat.Projectile
     /// <see cref="ProjectileHitPolicyAttribute"/> 或 <see cref="RegisterFactory"/> 注册，
     /// 不需要修改框架包。
     ///
-    /// 未注册的 kind 一律回退到 <see cref="ExitOnHitPolicy"/>（fail-closed，不放行未知命中行为链）。
+    /// 未注册的 kind 会显式失败，避免错误配置静默变成退出命中行为。
     /// </summary>
     public static class ProjectileHitPolicyFactory
     {
@@ -21,6 +21,7 @@ namespace AbilityKit.Combat.Projectile
         private static readonly Dictionary<int, Type> MarkedTypes = new Dictionary<int, Type>();
 
         private static readonly Dictionary<int, PierceHitPolicy> PierceCache = new Dictionary<int, PierceHitPolicy>(16);
+        private static readonly Dictionary<int, PierceHitPolicy> BounceCache = new Dictionary<int, PierceHitPolicy>(16);
         private static readonly IProjectileHitPolicy InfinitePierce = new InfinitePierceHitPolicy();
 
         /// <summary>已注册的命中策略种类数量。</summary>
@@ -49,7 +50,8 @@ namespace AbilityKit.Combat.Projectile
         public static bool UnregisterFactory(int kind)
         {
             if (kind == (int)ProjectileHitPolicyKind.ExitOnHit ||
-                kind == (int)ProjectileHitPolicyKind.Pierce)
+                kind == (int)ProjectileHitPolicyKind.Pierce ||
+                kind == (int)ProjectileHitPolicyKind.Bounce)
                 return false;
             lock (SyncRoot)
             {
@@ -102,7 +104,7 @@ namespace AbilityKit.Combat.Projectile
 
         /// <summary>
         /// 按 kind 创建命中策略。param 为配置里的 hit policy 参数（如穿透次数）。
-        /// 未注册的 kind 回退到 <see cref="ExitOnHitPolicy"/>。
+        /// 未注册的 kind 或返回空策略的工厂会显式失败，避免配置错误静默改变玩法。
         /// </summary>
         public static IProjectileHitPolicy Create(ProjectileHitPolicyKind kind, int param)
         {
@@ -117,6 +119,8 @@ namespace AbilityKit.Combat.Projectile
                 return CreatePierce(param);
             if (kind == (int)ProjectileHitPolicyKind.ExitOnHit)
                 return ExitOnHitPolicy.Instance;
+            if (kind == (int)ProjectileHitPolicyKind.Bounce)
+                return CreateBounce(param);
 
             Func<int, IProjectileHitPolicy> factory = null;
             Type markedType = null;
@@ -126,13 +130,19 @@ namespace AbilityKit.Combat.Projectile
                     MarkedTypes.TryGetValue(kind, out markedType);
             }
 
-            if (factory != null) return factory(param) ?? ExitOnHitPolicy.Instance;
+            if (factory != null)
+            {
+                var policy = factory(param);
+                if (policy == null)
+                    throw new InvalidOperationException($"Projectile hit policy factory for kind {kind} returned null.");
+                return policy;
+            }
 
             if (markedType != null && markedType.GetConstructor(Type.EmptyTypes) != null &&
                 Activator.CreateInstance(markedType) is IProjectileHitPolicy created && created != null)
                 return created;
 
-            return ExitOnHitPolicy.Instance;
+            throw new InvalidOperationException($"Projectile hit policy kind {kind} is not registered.");
         }
 
         private static void RegisterMarkedType(int kind, Type policyType)
@@ -153,7 +163,8 @@ namespace AbilityKit.Combat.Projectile
         private static bool IsBuiltInKind(int kind)
         {
             return kind == (int)ProjectileHitPolicyKind.ExitOnHit ||
-                   kind == (int)ProjectileHitPolicyKind.Pierce;
+                   kind == (int)ProjectileHitPolicyKind.Pierce ||
+                   kind == (int)ProjectileHitPolicyKind.Bounce;
         }
 
         private static IProjectileHitPolicy CreatePierce(int param)
@@ -165,6 +176,18 @@ namespace AbilityKit.Combat.Projectile
                 if (PierceCache.TryGetValue(n, out var cached) && cached != null) return cached;
                 var created = new PierceHitPolicy(n);
                 PierceCache[n] = created;
+                return created;
+            }
+        }
+
+        private static IProjectileHitPolicy CreateBounce(int param)
+        {
+            var n = Math.Max(1, param);
+            lock (SyncRoot)
+            {
+                if (BounceCache.TryGetValue(n, out var cached) && cached != null) return cached;
+                var created = new PierceHitPolicy(n);
+                BounceCache[n] = created;
                 return created;
             }
         }

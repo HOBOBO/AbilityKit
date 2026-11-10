@@ -54,6 +54,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         ExcludeExplicitTarget = 0x0302,
         Whitelist = 0x0201,
         Blacklist = 0x0202,
+        RequireUnitSubType = 0x0206,
     }
 
     public enum SearchTargetScorerKind
@@ -75,6 +76,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         Caster = 0,
         AimPosition = 1,
         ExplicitTarget = 2,
+        ProjectileHit = 3,
     }
 
     public enum SearchQueryExplicitTargetPolicy
@@ -108,6 +110,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public float LocalOffsetRight;
         public float Width;
         public float Length;
+        public int UnitSubType;
         public int[] ActorIds;
     }
 

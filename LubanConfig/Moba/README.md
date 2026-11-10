@@ -59,6 +59,10 @@ bean 的 `*字段名` 是列表：第一、二行的字段名与类型横跨成�
 
 ## 日常流程
 
+### Projectile hit subtype filter
+
+`J-投射物表.xlsx` 的「投射物」子表可选字段 `HitUnitSubType` 控制投射物对单位子类型的命中筛选。缺省值 `0` 表示不限制，正数按 `UnitSubType` 精确匹配；未匹配单位由既有碰撞响应返回 `Ignore` 并继续飞行，未注册为单位的静态世界碰撞仍然 `Block`。该字段属于投射物配置与其运行时快照，不在英雄代码或 Trigger 中做身份判断。新增列的结构迁移记录在 `migrations/add_projectile_hit_unit_subtype.py`；Riot 未给出配置数值时，可先用可编辑占位值，后续只改生产表。
+
 1. 编辑 `Production/Datas/` 中对应的 `J-`、`M-` 或 `T-` 工作簿及其中文子 sheet。前两行是 Luban 字段名和类型，数据从第四行开始；不要改动字段名、类型和 `__tables__.xlsx` 中的英文输出名。
 2. 先发布 ActionEditor、Pipeline、Trigger Authoring；状态机有改动时先发布状态机。运行各编辑器的 `Check`，其中触发器使用 `TriggerAuthoringMobaMigration.CheckRuntimeBatch`。
 3. 运行 `python LubanConfig/Moba/export_pipeline.py` 验证表、ID、跨表引用和 Ability JSON 节点，并审阅 `local/luban-export/` 下的引用与发布报告。

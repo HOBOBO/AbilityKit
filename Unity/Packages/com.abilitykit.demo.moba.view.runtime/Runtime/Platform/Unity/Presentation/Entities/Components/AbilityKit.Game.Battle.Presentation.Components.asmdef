@@ -4,6 +4,7 @@
   "references": [
     "AbilityKit.Ability",
     "AbilityKit.Demo.Moba.Presentation.Contracts",
+    "AbilityKit.Demo.Moba.Presentation.Core",
     "AbilityKit.Demo.Moba.Runtime",
     "AbilityKit.HFSM.Core",
     "AbilityKit.Host.Extensions.Moba",

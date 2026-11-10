@@ -1,10 +1,12 @@
+using AbilityKit.Deterministic;
+
 namespace AbilityKit.Triggering.Runtime.Random
 {
     /// <summary>
     /// 随机数提供者接口
     /// 用于确定性随机数生成和帧同步
     /// </summary>
-    public interface IRandomProvider
+    public interface IRandomProvider : IDeterministicRandomStream
     {
         /// <summary>
         /// 获取指定范围的随机整数 [min, max)

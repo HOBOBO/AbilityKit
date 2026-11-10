@@ -23,7 +23,9 @@
   "aoes": {},
   "emitters": {},
   "summons": {},
-  "summon_attr_inherits": {"Scales": "array"},
+  "summon_attr_inherits": {
+    "Scales": "array"
+  },
   "component_templates": {},
   "skill_button_templates": {},
   "buff_hud_templates": {},
@@ -42,5 +44,6 @@
     "states": "array",
     "variants": "array"
   },
-  "ability_nodes": {}
+  "ability_nodes": {},
+  "hero_level_skill_growth_parameters": {}
 }

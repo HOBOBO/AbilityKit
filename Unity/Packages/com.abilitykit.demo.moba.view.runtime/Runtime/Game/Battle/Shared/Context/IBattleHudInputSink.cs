@@ -14,6 +14,6 @@ namespace AbilityKit.Game.Flow
 
         void CancelHudSkillAim();
 
-        void SubmitHudSkillAim(int slot, float dx, float dz);
+        void SubmitHudSkillAim(int slot, float dx, float dz, bool includeAimPosition = true);
     }
 }

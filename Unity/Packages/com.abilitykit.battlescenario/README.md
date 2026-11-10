@@ -224,6 +224,19 @@ BattleScenario 核心包仍保持纯 C# 和玩法中立，不依赖数据库、�
 
 ### 推荐产物契约
 
+首版机器契约已落在 [`Schemas/artifact-v1.schema.json`](Schemas/artifact-v1.schema.json)，并附带 [run manifest](Schemas/examples/run-manifest.json)、[case summary](Schemas/examples/case-summary.json)、[batch summary](Schemas/examples/batch-summary.json) 和 [JSONL trace 行](Schemas/examples/trace-record.jsonl) 样例。Schema 由 BattleScenario 包维护，涵盖通用运行身份、构建/执行上下文、状态、断言计数和附件引用；`extensions` 下由项目使用稳定命名空间承载玩法字段。
+
+安装锁定的校验器依赖并运行契约测试：
+
+```powershell
+npm ci --prefix tools/battlescenario-artifact-schema
+tools/validate_battlescenario_artifacts.ps1
+```
+
+测试验证所有 JSON 样例、JSONL 每行、必需身份字段、稳定状态枚举、主版本拒绝，以及消费者对未知追加字段的兼容行为。
+
+这是交换契约，不代表当前 MOBA Acceptance exporter 已经输出该格式。当前 exporter 的 `MobaAcceptanceSummary` / `MobaAcceptanceTraceRecord` / `MobaAcceptanceBatchSummary` 仍是源数据；适配器需要将它们映射到上述契约，尤其要把本地绝对路径变成相对 URI，并补齐 `runId`、构建来源和附件哈希。`MobaBattleDiagnosticArtifactCodec` 属于实时诊断/快照模型，不能当成验收产物直接映射。
+
 每次批量执行至少产生以下三类产物：
 
 | 产物 | 粒度 | 必要内容 |
@@ -260,7 +273,7 @@ BattleScenario 核心包仍保持纯 C# 和玩法中立，不依赖数据库、�
 
 ### 分阶段落地
 
-1. 定义玩法中立的 case/suite artifact Schema 和 JSON 示例，并为 Schema 增加兼容性测试。
+1. [Schema、样例和自动兼容性测试已定义](Schemas/artifact-v1.schema.json)；接下来冻结字段演进规则并把校验接入持续集成。
 2. 让 MOBA Runner 在保留现有文本接口的同时，适配已有 Acceptance summary/trace/batch 产物。
 3. 建立 artifact manifest 与相对 URI，接入 CI 上传和只读后台索引。
 4. 上线批次列表、筛选、趋势、失败详情和 Trace 按需下钻。
@@ -332,3 +345,18 @@ CLI 可用 `--determinism <scenario.json|flow.battlescenario> [result.txt]` 连�
 - 纯 C#（`noEngineReferences`）、C# 9 兼容、无 Unity / 无实体系统依赖，可在 .NET 直接测试。
 - 依赖 `com.abilitykit.scenario`（中性 IR）；`EnvironmentProfileId` 是**不透明字符串 id**，由项目侧的 environment catalog 解析。
 - 本包只给**作者层机制**和中性命令积木，不解释网络或玩法语义；MOBA/shooter 各自提供自己的复合积木、载荷解析与积木库。
+# MOBA acceptance adapter
+
+MOBA acceptance runs keep their existing `<caseId>_summary.json`, `<caseId>_trace.jsonl`, and `batch_summary.json` outputs unchanged. When artifact export is enabled, the runner also writes neutral artifact-v1 sidecars: `<caseId>_artifact-v1.json`, `<caseId>_trace-v1.jsonl`, and `batch_summary_v1.json`. Cases produced by one directory run share a `runId`; a standalone case receives its own ID. MOBA-specific coverage and execution details live under `extensions["com.abilitykit.moba"]`.
+
+The adapter does not invent repository/build identifiers, content hashes, or checksums. Artifact references are relative to the artifact directory, and paths that escape that directory are rejected. The legacy MOBA files remain the source for consumers that depend on their current format.
+
+## 录制战斗导入与候选 Scenario
+
+真实战斗可以作为 Scenario 的来源，但必须经过录制包、片段选择、输入规范化、候选审查和确定性重跑，不能把 FrameRecord 或视频直接当作正式用例。完整设计见 [`plans/BattleScenarioRecordedBattleImportDesign.md`](../../../plans/BattleScenarioRecordedBattleImportDesign.md)，配套界面和数据流图见：
+
+- [`battle-scenario-recording-import-overview.svg`](../../../Docs/design/09-ImplementationExamples/MOBA/assets/battle-scenario-recording-import-overview.svg)
+- [`battle-scenario-recording-import-editor.svg`](../../../Docs/design/09-ImplementationExamples/MOBA/assets/battle-scenario-recording-import-editor.svg)
+- [`battle-scenario-recording-import-contracts.svg`](../../../Docs/design/09-ImplementationExamples/MOBA/assets/battle-scenario-recording-import-contracts.svg)
+
+这条链路新增的是录制上下文和候选转换层，不改变既有 FrameRecord 回放格式，也不把 MOBA 输入解码和配置语义上移到通用 Scenario 包。

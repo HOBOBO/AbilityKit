@@ -18,6 +18,9 @@ public partial struct ModifierCandidateSpec
     {
         SkillId = _buf.ReadInt();
         ReferenceId = _buf.ReadInt();
+        HfsmParameterId = _buf.ReadInt();
+        HfsmParameterComparison = (HfsmParameterComparison)_buf.ReadInt();
+        HfsmParameterExpectedValue = _buf.ReadFloat();
     }
 
     public static ModifierCandidateSpec DeserializeModifierCandidateSpec(ByteBuf _buf)
@@ -27,6 +30,9 @@ public partial struct ModifierCandidateSpec
 
     public readonly int SkillId;
     public readonly int ReferenceId;
+    public readonly int HfsmParameterId;
+    public readonly HfsmParameterComparison HfsmParameterComparison;
+    public readonly float HfsmParameterExpectedValue;
    
 
     public  void ResolveRef(Tables tables)
@@ -38,6 +44,9 @@ public partial struct ModifierCandidateSpec
         return "{ "
         + "SkillId:" + SkillId + ","
         + "ReferenceId:" + ReferenceId + ","
+        + "HfsmParameterId:" + HfsmParameterId + ","
+        + "HfsmParameterComparison:" + HfsmParameterComparison + ","
+        + "HfsmParameterExpectedValue:" + HfsmParameterExpectedValue + ","
         + "}";
     }
 }

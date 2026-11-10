@@ -11,7 +11,7 @@ namespace AbilityKit.Combat.Collision
     /// - 层过滤（LayerFilter）
     /// - 层关系矩阵（CollisionLayerMatrix）
     /// </summary>
-    public sealed class GridCollisionWorld : ICollisionWorld, ICollisionLayerRelation, IOrientedBoxSweepCollisionWorld, ISphereSweepCollisionWorld, IShapeOverlapCollisionWorld
+    public sealed class GridCollisionWorld : ICollisionWorld, ICollisionLayerRelation, ICollisionWorldDebugView, IOrientedBoxSweepCollisionWorld, ISphereSweepCollisionWorld, IShapeOverlapCollisionWorld
     {
         private readonly GridBroadphase _broadphase;
         private readonly int _initialCapacity;
@@ -52,6 +52,23 @@ namespace AbilityKit.Combat.Collision
         public bool ShouldDetect(int layerA, int layerB)
         {
             return _layerMatrix.ShouldDetect(layerA, layerB);
+        }
+
+        public int CopyWorldShapes(List<CollisionWorldDebugShape> results)
+        {
+            if (results == null) throw new ArgumentNullException(nameof(results));
+            var count = 0;
+            for (var i = 0; i < _entries.Length; i++)
+            {
+                var entry = _entries[i];
+                if (!entry.Alive) continue;
+                var id = new ColliderId(i + 1);
+                var worldShape = ToWorldShape(in entry.Transform, in entry.LocalShape);
+                results.Add(new CollisionWorldDebugShape(id, in worldShape, entry.LayerId));
+                count++;
+            }
+
+            return count;
         }
 
         // ============ ICollisionWorld 实现 ============

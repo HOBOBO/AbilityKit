@@ -3,6 +3,7 @@ using System.Linq;
 using System.IO;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
@@ -21,6 +22,74 @@ namespace AbilityKit.Demo.Moba.Tests.Skill;
 public sealed class MobaLubanConfigPipelineTests
 {
     private static readonly int[] HeroIds = { 1001, 1002, 1003, 1004, 1005, 1006, 1007 };
+
+    [Fact]
+    public void Published_counter_callbacks_reference_global_callable_triggers()
+    {
+        var assets = new ConsoleTextAssetLoader();
+        Assert.True(assets.TryLoadText("luban/ability/ability_trigger_plans.json", out var json));
+        var triggers = (JArray)JObject.Parse(json)["Triggers"]!;
+        var byId = triggers.ToDictionary(row => row.Value<int>("TriggerId"));
+        var callbackCount = 0;
+        foreach (var trigger in triggers.Cast<JObject>())
+        {
+            // Search both legacy action arrays and nested ExecutionRoot branches.
+            foreach (var action in trigger.Descendants().OfType<JObject>())
+            {
+                if (action.Value<int?>("ActionId") is not (327267303 or 903018631)) continue;
+                var callback = action["Args"]?["trigger_id"];
+                if (callback == null || callback.Value<string>("Kind") != "Const") continue;
+                var id = callback.Value<int>("ConstValue");
+                if (id <= 0) continue;
+                callbackCount++;
+                var reference = $"Counter in trigger {trigger.Value<int>("TriggerId")} calls {id}";
+                Assert.True(byId.TryGetValue(id, out var target), reference + ": target is missing.");
+                Assert.True((target!.Value<int?>("Scope") ?? 0) == 0,
+                    reference + ": callback must use Global scope.");
+                Assert.True((target.Value<int?>("EventId") ?? 0) == 0 &&
+                    string.IsNullOrEmpty(target.Value<string>("EventName")),
+                    reference + ": callback must be Callable, not an event subscription.");
+            }
+        }
+        Assert.True(callbackCount > 0, "Published production counters must be covered by this contract.");
+    }
+
+    [Fact]
+    public void Presentation_lifecycle_fields_survive_parser_and_model_projection()
+    {
+        var row = new JObject
+        {
+            ["Id"] = 91, ["AssetId"] = 90013001, ["StackPolicy"] = 2, ["StopPolicy"] = 1,
+            ["TargetLossPolicy"] = 3, ["CompletionPolicy"] = 2, ["StopGraceMs"] = 1500,
+        };
+        var parsed = (PresentationTemplateDTO[])JsonNetMobaConfigDtoDeserializer.Instance.DeserializeDtoArray(
+            new JArray(row).ToString(), typeof(PresentationTemplateDTO));
+        var model = new PresentationTemplateMO(parsed[0]);
+        Assert.Equal(2, model.StackPolicy);
+        Assert.Equal(1, model.StopPolicy);
+        Assert.Equal(3, model.TargetLossPolicy);
+        Assert.Equal(2, model.CompletionPolicy);
+        Assert.Equal(1500, model.StopGraceMs);
+        var legacy = new PresentationTemplateMO(new PresentationTemplateDTO());
+        Assert.Equal(0, legacy.TargetLossPolicy);
+        Assert.Equal(0, legacy.CompletionPolicy);
+        Assert.Equal(0, legacy.StopGraceMs);
+    }
+
+    [Fact]
+    public void Published_template_binary_contains_lifecycle_defaults()
+    {
+        var assets = new ConsoleTextAssetLoader();
+        Assert.True(assets.TryLoadBytes("luban/moba_bytes/presentation_templates.bytes", out var bytes));
+        var rows = new moba_luban.PresentationTemplates(Luban.ByteBuf.Wrap(bytes)).DataList;
+        Assert.NotEmpty(rows);
+        Assert.All(rows, row =>
+        {
+            Assert.InRange(row.TargetLossPolicy, 0, 3);
+            Assert.InRange(row.CompletionPolicy, 0, 2);
+            Assert.True(row.StopGraceMs >= 0);
+        });
+    }
 
     [Fact]
     public void Published_catalog_has_no_numeric_or_per_skill_tags()
@@ -93,12 +162,20 @@ public sealed class MobaLubanConfigPipelineTests
     {
         var assets = new BinaryOnlyPromotedTableLoader();
         Assert.True(assets.TryLoadBytes("luban/moba_bytes/brains.bytes", out var bytes));
-        Assert.Equal(3, new moba_luban.Brains(Luban.ByteBuf.Wrap(bytes)).DataList.Count);
+        var definitions = new moba_luban.Brains(Luban.ByteBuf.Wrap(bytes)).DataList;
+        Assert.NotEmpty(definitions);
 
         using var catalog = new MobaActorBrainCatalog();
-        Assert.Equal(3, MobaActorBrainCatalogJsonLoader.Load(assets, catalog));
+        Assert.Equal(definitions.Count, MobaActorBrainCatalogJsonLoader.Load(assets, catalog));
+        foreach (var definition in definitions)
+        {
+            Assert.True(catalog.TryGet(definition.BrainId, out var loaded));
+            Assert.Equal(definition.DecisionName, loaded.DecisionName);
+        }
         Assert.True(catalog.TryGet(100, out var brain));
         Assert.Equal("generic_hero_combat_bt", brain.DecisionName);
+        Assert.True(catalog.TryGet(101, out var heading));
+        Assert.Equal("launch_heading_combat_bt", heading.DecisionName);
     }
 
     [Fact]
@@ -169,8 +246,16 @@ public sealed class MobaLubanConfigPipelineTests
             database.GetDto<ContinuousTagTemplateDTO>(10010001).ApplicationTagNames);
         var slowTemplate = database.GetDto<ContinuousTagTemplateDTO>(3013);
         Assert.Contains("Debuff.Slow", slowTemplate.ApplicationTagNames);
+        Assert.Contains("State.Immunity.Slow", slowTemplate.ActivationBlockedTagNames);
+        Assert.Empty(slowTemplate.OngoingBlockedTagNames);
         Assert.Equal(3013, database.GetDto<BuffDTO>(10060101).ContinuousTagTemplateId);
         Assert.Equal(3013, database.GetDto<BuffDTO>(10060211).ContinuousTagTemplateId);
+        // XiaoQiao's self movement bonus is not a slow debuff.
+        var movementBonus = database.GetDto<BuffDTO>(10020001);
+        Assert.Equal(0, movementBonus.ContinuousTagTemplateId);
+        Assert.True(Assert.Single(movementBonus.Modifiers).Value > 0);
+        Assert.Equal(3013, database.GetDto<BuffDTO>(32010301).ContinuousTagTemplateId);
+        Assert.Equal(3013, database.GetDto<BuffDTO>(32010403).ContinuousTagTemplateId);
         Assert.Empty(database.GetDto<BuffDTO>(10060101).TagNames);
         Assert.Empty(database.GetDto<BuffDTO>(10060211).TagNames);
     }
@@ -309,9 +394,23 @@ public sealed class MobaLubanConfigPipelineTests
         var services = builder.Build();
         using var scope = services.CreateScope();
         var triggers = scope.Resolve<TriggerPlanJsonDatabase>();
-        // The editor aggregate includes the authored hero trigger plans in
-        // addition to the two published rule plans.
-        Assert.Equal(135, triggers.Records.Count);
+        // Compare stable identities with published content, so adding authored
+        // hero plans does not invalidate an unrelated loading contract.
+        var assets = scope.Resolve<ITextAssetLoader>();
+        Assert.True(assets.TryLoadText("luban/ability/ability_trigger_plans.json", out var aggregateJson));
+        var expectedIds = JObject.Parse(aggregateJson)["Triggers"]!
+            .Select(row => row.Value<int>("TriggerId")).ToList();
+        foreach (var rulePath in new[]
+        {
+            "luban/ability/rules/commit/skill_commit_default.json",
+            "luban/ability/rules/release/skill_release_default.json"
+        })
+        {
+            Assert.True(assets.TryLoadText(rulePath, out var ruleJson));
+            expectedIds.Add(JObject.Parse(ruleJson).Value<int>("id"));
+        }
+        Assert.Equal(expectedIds.Distinct().OrderBy(id => id),
+            triggers.Records.Select(record => record.TriggerId).OrderBy(id => id));
         Assert.True(triggers.TryGetRecordByTriggerId(10070011, out _));
         Assert.True(triggers.TryGetRecordByTriggerId(10010301, out _));
     }
@@ -333,7 +432,9 @@ public sealed class MobaLubanConfigPipelineTests
         Assert.True(JToken.DeepEquals(unity, console));
 
         var triggers = (JArray)unity["Triggers"]!;
-        Assert.Equal(133, triggers.Count);
+        Assert.NotEmpty(triggers);
+        var publishedIds = triggers.Select(row => row.Value<int>("TriggerId")).ToArray();
+        Assert.Equal(publishedIds.Length, publishedIds.Distinct().Count());
         Assert.Contains(triggers, row => row.Value<int>("TriggerId") == 10070011);
         foreach (var id in new[] { 10010301, 10010311, 10010321 })
         {
@@ -344,8 +445,266 @@ public sealed class MobaLubanConfigPipelineTests
 
         var database = new TriggerPlanJsonDatabase();
         database.LoadFromJson(unity.ToString(), "moba-editor-trigger-aggregate");
-        Assert.Equal(133, database.Records.Count);
+        Assert.Equal(publishedIds.OrderBy(id => id),
+            database.Records.Select(record => record.TriggerId).OrderBy(id => id));
         Assert.True(database.TryGetRecordByTriggerId(10010301, out _));
+    }
+
+    [Fact]
+    public void Jhin_q_published_configuration_chain_is_resolvable_for_runtime_and_console()
+    {
+        var assets = new ConsoleTextAssetLoader();
+        var database = new MobaConfigDatabase(textAssetLoader: assets);
+        database.LoadFromGroups(MobaLubanConfigGroups.Create(assets,
+            MobaRuntimeConfigTableRegistry.Tables.Select(table => table.FilePath).ToArray()));
+
+        Assert.True(database.TryGetCharacter(3001, out var hero));
+        Assert.Equal(3001, hero.Id);
+        Assert.Contains(30010101, hero.SkillIds);
+
+        Assert.True(database.TryGetSkill(30010101, out var skill));
+        Assert.Equal(30010101, skill.CastFlowId);
+        Assert.Equal(30010101, skill.LevelTableId);
+        Assert.Equal(52010102, skill.RequiredTargetQueryId);
+
+        Assert.True(database.TryGetSkillLevelTable(30010101, out var levelTable));
+        Assert.Equal(
+            new[] { "damage", "physicalAttackRatio", "range", "speed", "maxHits", "bounceRadius", "arcHeight", "arcDurationSeconds", "arcHeightPerUnit" },
+            levelTable.ParamNames);
+        Assert.True(levelTable.TryGetParameter(1, "damage", out var damage));
+        Assert.Equal(200f, damage);
+        Assert.True(levelTable.TryGetParameter(1, "maxHits", out var maxHits));
+        Assert.Equal(4f, maxHits);
+
+        Assert.True(database.TryGetProjectile(32010101, out var projectile));
+        Assert.Equal(ProjectileHitPolicyKind.Bounce, projectile.HitPolicyKind);
+        Assert.Equal(4, projectile.HitsRemaining);
+        Assert.Equal(6f, projectile.BounceSearchRadius);
+        Assert.Equal(1f, projectile.TrackingArcHeight);
+        Assert.Equal(0.1f, projectile.TrackingArcHeightPerUnit);
+        Assert.Equal(0f, projectile.TrackingArcDurationSeconds);
+        Assert.Equal(30010111, projectile.OnHitEffectId);
+        Assert.True(projectile.TryResolveRuntimeSettings(out var policyKind, out var policyParam,
+            out var hitsRemaining, out var policyError), policyError);
+        Assert.Equal(ProjectileHitPolicyKind.Bounce, policyKind);
+        Assert.Equal(4, policyParam);
+        Assert.Equal(4, hitsRemaining);
+
+        Assert.True(database.TryGetProjectileLauncher(33010101, out var launcher));
+        Assert.Equal(1, launcher.CountPerShot);
+        Assert.Equal(0, launcher.DurationMs);
+        Assert.Equal(0, launcher.IntervalMs);
+
+        Assert.True(database.TryGetSearchQueryTemplate(52010101, out var query));
+        Assert.Equal(1, query.MaxCount);
+        Assert.Contains(query.Rules, rule => rule.Center == 1 && rule.Radius == 6f);
+        Assert.Contains(query.Scorers, scorer => scorer.Source == 1);
+
+        Assert.True(database.TryGetSearchQueryTemplate(52010102, out var initialTargetQuery));
+        Assert.Equal(1, initialTargetQuery.MaxCount);
+        Assert.Contains(initialTargetQuery.Rules, rule => rule.Center == 0 && rule.Radius == 12f);
+        Assert.Contains(initialTargetQuery.Scorers, scorer => scorer.Source == 0);
+
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !Directory.Exists(Path.Combine(root.FullName, "Unity", "Packages")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var triggerPath = Path.Combine(root!.FullName, "Unity", "Packages",
+            "com.abilitykit.demo.moba.view.runtime", "Resources", "ability", "ability_trigger_plans.json");
+        var triggerJson = JObject.Parse(File.ReadAllText(triggerPath));
+        var triggers = (JArray)triggerJson["Triggers"]!;
+        var launchTrigger = triggers.Single(row => row.Value<int>("TriggerId") == 30010101);
+        var launchAction = launchTrigger["Actions"]!.Children()
+            .Single(action => action.Value<int>("ActionId") == 508656420);
+        Assert.Equal(33010101, launchAction["Args"]!["launcher_id"]!.Value<int>("ConstValue"));
+        Assert.Equal(32010101, launchAction["Args"]!["projectile_id"]!.Value<int>("ConstValue"));
+        var trackTarget = launchAction["Args"]!["track_target"];
+        Assert.True(trackTarget == null || trackTarget["ConstValue"] == null ||
+                    trackTarget["ConstValue"]!.Value<int>() == 0);
+
+        var hitTrigger = triggers.Single(row => row.Value<int>("TriggerId") == 30010111);
+        var damageAction = hitTrigger["Actions"]!.Children()
+            .Single(action => action.Value<int>("ActionId") == 176148626);
+        Assert.Equal(30010101, damageAction["Args"]!["reason_param"]!["ConstValue"]!.Value<int>());
+        Assert.Equal(500f, damageAction["Args"]!["damage_value"]!["ConstValue"]!.Value<float>());
+        Assert.Equal(0.8f, damageAction["Args"]!["source_attack_ratio"]!["ConstValue"]!.Value<float>());
+    }
+
+    [Fact]
+    public void Jhin_w_published_configuration_chain_is_resolvable_for_runtime_and_console()
+    {
+        var assets = new ConsoleTextAssetLoader();
+        var database = new MobaConfigDatabase(textAssetLoader: assets);
+        database.LoadFromGroups(MobaLubanConfigGroups.Create(assets,
+            MobaRuntimeConfigTableRegistry.Tables.Select(table => table.FilePath).ToArray()));
+
+        Assert.True(database.TryGetCharacter(3001, out var hero));
+        Assert.Contains(30010201, hero.SkillIds);
+        Assert.True(database.TryGetSkill(30010201, out var skill));
+        Assert.Equal(30010201, skill.CastFlowId);
+        Assert.Equal(30010201, skill.LevelTableId);
+        Assert.Equal(0, skill.RequiredTargetQueryId);
+
+        Assert.True(database.TryGetSkillLevelTable(30010201, out var levelTable));
+        Assert.Equal(new[] { "damage", "physicalAttackRatio", "range", "speed" }, levelTable.ParamNames);
+        Assert.True(levelTable.TryGetParameter(1, "damage", out var damage));
+        Assert.Equal(80f, damage);
+        Assert.True(database.TryGetProjectile(32010201, out var projectile));
+        Assert.Equal(ProjectileHitPolicyKind.ExitOnHit, projectile.HitPolicyKind);
+        Assert.Equal(1, projectile.HitsRemaining);
+        Assert.Equal(30010212, projectile.OnHitEffectId);
+        Assert.True(database.TryGetProjectileLauncher(33010201, out var launcher));
+        Assert.Equal(1, launcher.CountPerShot);
+        Assert.Equal(0, launcher.DurationMs);
+
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !Directory.Exists(Path.Combine(root.FullName, "Unity", "Packages")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var triggerPath = Path.Combine(root!.FullName, "Unity", "Packages",
+            "com.abilitykit.demo.moba.view.runtime", "Resources", "ability", "ability_trigger_plans.json");
+        var triggerJson = JObject.Parse(File.ReadAllText(triggerPath));
+        var triggers = (JArray)triggerJson["Triggers"]!;
+        var launchTrigger = triggers.Single(row => row.Value<int>("TriggerId") == 30010201);
+        var launchAction = launchTrigger["Actions"]!.Children()
+            .Single(action => action.Value<int>("ActionId") == 508656420);
+        Assert.Equal(33010201, launchAction["Args"]!["launcher_id"]!["ConstValue"]!.Value<int>());
+        Assert.Equal(32010201, launchAction["Args"]!["projectile_id"]!["ConstValue"]!.Value<int>());
+        // The Trigger Authoring compiler omits false boolean constants; absence is the false default.
+        var trackTarget = launchAction["Args"]!["track_target"];
+        Assert.True(trackTarget == null || trackTarget["ConstValue"] == null ||
+                    trackTarget["ConstValue"]!.Value<int>() == 0);
+
+        var hitTrigger = triggers.Single(row => row.Value<int>("TriggerId") == 30010212);
+        var damageAction = hitTrigger["Actions"]!.Children()
+            .Single(action => action.Value<int>("ActionId") == 176148626);
+        Assert.Equal(30010201, damageAction["Args"]!["reason_param"]!["ConstValue"]!.Value<int>());
+        Assert.Equal(80f, damageAction["Args"]!["damage_value"]!["ConstValue"]!.Value<float>());
+        Assert.Equal(0.5f, damageAction["Args"]!["source_attack_ratio"]!["ConstValue"]!.Value<float>());
+    }
+
+    [Fact]
+    public void Jhin_e_published_configuration_chain_uses_dedicated_area_and_slow_buff()
+    {
+        const int heroId = 3001;
+        const int skillId = 30010301;
+        const int areaId = 42010301;
+        const int slowBuffId = 32010301;
+        const int launchTriggerId = 30010301;
+        const int projectileId = 32010301;
+        const int launcherId = 33010301;
+        const int landingTriggerId = 30010312;
+        const int enterTriggerId = 30010311;
+
+        var assets = new ConsoleTextAssetLoader();
+        var database = new MobaConfigDatabase(textAssetLoader: assets);
+        database.LoadFromGroups(MobaLubanConfigGroups.Create(assets,
+            MobaRuntimeConfigTableRegistry.Tables.Select(table => table.FilePath).ToArray()));
+
+        Assert.True(database.TryGetCharacter(heroId, out var hero));
+        Assert.Contains(skillId, hero.SkillIds);
+        Assert.True(database.TryGetSkill(skillId, out var skill));
+        Assert.Equal(skillId, skill.CastFlowId);
+        Assert.Equal(skillId, skill.LevelTableId);
+        Assert.True(database.TryGetSkillLevelTable(skillId, out var levelTable));
+        Assert.Contains("damage", levelTable.ParamNames);
+
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !Directory.Exists(Path.Combine(root.FullName, "Unity", "Packages")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var repoRoot = root!.FullName;
+        var unityResources = Path.Combine(repoRoot, "Unity", "Packages",
+            "com.abilitykit.demo.moba.view.runtime", "Resources");
+        var consoleResources = Path.Combine(repoRoot, "src", "AbilityKit.Demo.Moba.Console", "Configs", "luban");
+
+        var aoes = JArray.Parse(File.ReadAllText(Path.Combine(unityResources, "luban", "moba", "aoes.json")));
+        var area = aoes.Single(row => row!.Value<int>("Id") == areaId);
+        Assert.Equal(500, area!["DelayMs"]!.Value<int>());
+        Assert.Equal(5000, area["DurationMs"]!.Value<int>());
+        Assert.True(area["ConsumeOnFirstEnter"]!.Value<bool>());
+        Assert.Contains(enterTriggerId, area["OnEnterTriggerIds"]!.Values<int>());
+
+        var buffs = JArray.Parse(File.ReadAllText(Path.Combine(unityResources, "luban", "moba", "buffs.json")));
+        var slowBuff = buffs.Single(row => row!.Value<int>("Id") == slowBuffId);
+        Assert.Equal(1500, slowBuff!["DurationMs"]!.Value<int>());
+        Assert.Contains(100003, slowBuff["ModifierIds"]!.Values<int>());
+
+        var unityTriggers = JObject.Parse(File.ReadAllText(Path.Combine(unityResources, "ability", "ability_trigger_plans.json")));
+        var consoleTriggers = JObject.Parse(File.ReadAllText(Path.Combine(consoleResources, "ability", "ability_trigger_plans.json")));
+        Assert.True(JToken.DeepEquals(unityTriggers, consoleTriggers));
+        var triggers = (JArray)unityTriggers["Triggers"]!;
+        var launch = triggers.Single(row => row!.Value<int>("TriggerId") == launchTriggerId);
+        var projectileLaunch = Assert.Single(launch["Actions"]!.Children(), action =>
+            action["ActionId"]?.Value<int>() == 508656420);
+        Assert.Equal(projectileId, projectileLaunch["Args"]!["projectile_id"]!["ConstValue"]!.Value<int>());
+        Assert.Equal(launcherId, projectileLaunch["Args"]!["launcher_id"]!["ConstValue"]!.Value<int>());
+        var launchers = JArray.Parse(File.ReadAllText(Path.Combine(unityResources, "luban", "moba", "projectile_launchers.json")));
+        Assert.Single(launchers, row => row!.Value<int>("Id") == launcherId);
+        var projectiles = JArray.Parse(File.ReadAllText(Path.Combine(unityResources, "luban", "moba", "projectiles.json")));
+        var projectile = Assert.Single(projectiles, row => row!.Value<int>("Id") == projectileId);
+        Assert.Equal(new[] { landingTriggerId }, projectile["OnExitTriggerIds"]!.Values<int>());
+        var landing = triggers.Single(row => row!.Value<int>("TriggerId") == landingTriggerId);
+        Assert.Contains(landing["Actions"]!.Children(), action =>
+            action["Args"]?["area_id"]?["ConstValue"]?.Value<int>() == areaId);
+
+        var enter = triggers.Single(row => row!.Value<int>("TriggerId") == enterTriggerId);
+        var actions = enter["Actions"]!.Children().ToArray();
+        Assert.Contains(actions, action =>
+            action["ActionId"]?.Value<int>() == 176148626 &&
+            action["Args"]?["reason_param"]?["ConstValue"]?.Value<int>() == skillId);
+        Assert.Contains(actions, action =>
+            action["Args"]?["buff_ids"]?["ConstValue"]?.Value<int>() == slowBuffId);
+        Assert.Contains(actions, action =>
+            action["ActionId"]?.Value<int>() == 613578853 &&
+            action["Args"]?["template_id"]?["ConstValue"]?.Value<int>() == areaId);
+    }
+
+    [Fact]
+    public void Jhin_r_published_configuration_chain_applies_refreshing_slow_after_damage()
+    {
+        const int slowBuffId = 32010403;
+        const int regularHitTriggerId = 30010402;
+        const int finalHitTriggerId = 30010412;
+        const int damageActionId = 176148626;
+
+        var assets = new ConsoleTextAssetLoader();
+        var database = new MobaConfigDatabase(textAssetLoader: assets);
+        database.LoadFromGroups(MobaLubanConfigGroups.Create(assets,
+            MobaRuntimeConfigTableRegistry.Tables.Select(table => table.FilePath).ToArray()));
+
+        var slowBuff = database.GetDto<BuffDTO>(slowBuffId);
+        Assert.Equal(500, slowBuff.DurationMs);
+        Assert.Equal(1, slowBuff.MaxStacks);
+        Assert.Equal(4, slowBuff.StackingPolicy); // RefreshDuration
+        Assert.Equal(2, slowBuff.RefreshPolicy); // ResetRemaining
+        Assert.NotNull(slowBuff.Modifiers);
+        Assert.NotEmpty(slowBuff.Modifiers);
+        Assert.All(slowBuff.Modifiers, Assert.NotNull);
+        Assert.Contains(slowBuff.Modifiers, modifier => modifier.TargetId == 17 && modifier.DefinitionId == 1000003);
+
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !Directory.Exists(Path.Combine(root.FullName, "Unity", "Packages")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var repoRoot = root!.FullName;
+        var unityResources = Path.Combine(repoRoot, "Unity", "Packages",
+            "com.abilitykit.demo.moba.view.runtime", "Resources");
+        var consoleResources = Path.Combine(repoRoot, "src", "AbilityKit.Demo.Moba.Console", "Configs", "luban");
+        var unityTriggers = JObject.Parse(File.ReadAllText(Path.Combine(unityResources, "ability", "ability_trigger_plans.json")));
+        var consoleTriggers = JObject.Parse(File.ReadAllText(Path.Combine(consoleResources, "ability", "ability_trigger_plans.json")));
+        Assert.True(JToken.DeepEquals(unityTriggers, consoleTriggers));
+
+        var triggers = (JArray)unityTriggers["Triggers"]!;
+        foreach (var triggerId in new[] { regularHitTriggerId, finalHitTriggerId })
+        {
+            var trigger = triggers.Single(row => row!.Value<int>("TriggerId") == triggerId);
+            var actions = trigger["Actions"]!.Children().ToArray();
+            Assert.True(actions.Length >= 2, $"R hit trigger {triggerId} should damage before adding its slow.");
+            Assert.Equal(damageActionId, actions[0]["ActionId"]!.Value<int>());
+            Assert.Equal(30010401, actions[0]["Args"]!["reason_param"]!["ConstValue"]!.Value<int>());
+            Assert.Equal(slowBuffId, actions[1]["Args"]!["buff_ids"]!["ConstValue"]!.Value<int>());
+        }
     }
 
     [Fact]

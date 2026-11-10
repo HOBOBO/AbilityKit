@@ -1,0 +1,41 @@
+{
+  "Id": 30030501,
+  "Name": "Annie - Summon Tibbers",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "annie_r_release",
+      "RulePlan": {
+        "TriggerIds": [900101011],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "annie_r_commit",
+      "RulePlan": {
+        "TriggerIds": [900101012],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      }
+    },
+    {
+      "Type": 2,
+      "PhaseId": "annie_r_cast",
+      "Timeline": {
+        "DurationMs": 900,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30030501,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "annie_r_cast"
+          }
+        ]
+      }
+    }
+  ]
+}

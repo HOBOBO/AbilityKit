@@ -183,5 +183,155 @@
     "Id": 90001003,
     "Resource": "effect/lianpo_skill3_impact",
     "DurationMs": 650
+  },
+  {
+    "Id": 90013001,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90013002,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90013003,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E",
+    "DurationMs": 1600
+  },
+  {
+    "Id": 90013004,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Cast",
+    "DurationMs": 1800
+  },
+  {
+    "Id": 90013005,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Projectile",
+    "DurationMs": 2500
+  },
+  {
+    "Id": 90013006,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Last_Projectile",
+    "DurationMs": 2500
+  },
+  {
+    "Id": 90013007,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Hit",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90013008,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_HitLast",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90013009,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_AA_Cast",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90013010,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_AA_Projectile",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90013011,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_AA_Last_Cast",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90013012,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_AA_Last_Projectile",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90013013,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_AA_Hit",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90013014,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_AA_HitLast",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90013015,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Passive_Reload",
+    "DurationMs": 2500
+  },
+  {
+    "Id": 90013016,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q_Hit_1",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90013017,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W_Hit",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90013018,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E_Hit",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90033001,
+    "Resource": "ChampionVfx/14.Void_Annie/Void_Annie_Q_Projectile",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90033002,
+    "Resource": "ChampionVfx/14.Void_Annie/Void_Annie_W_Area",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90033003,
+    "Resource": "ChampionVfx/14.Void_Annie/Void_Annie_Q_Hit",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90033004,
+    "Resource": "ChampionVfx/14.Void_Annie/Void_Annie_E",
+    "DurationMs": 2500
+  },
+  {
+    "Id": 90023001,
+    "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_Q",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90033005,
+    "Resource": "ChampionVfx/14.Void_Annie/Void_Annie_R_Summon",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90033006,
+    "Resource": "ChampionVfx/14.Void_Annie/Void_Annie_Tibbers_Spawn",
+    "DurationMs": 833
+  },
+  {
+    "Id": 90032023,
+    "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_W",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90032024,
+    "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_W_Hit",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90032006,
+    "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_E",
+    "DurationMs": 5000
+  },
+  {
+    "Id": 90032025,
+    "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_R_Projectile",
+    "DurationMs": 2500
+  },
+  {
+    "Id": 90032026,
+    "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_R_Hit",
+    "DurationMs": 1200
   }
 ]

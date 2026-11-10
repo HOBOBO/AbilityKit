@@ -28,10 +28,17 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             int stackCount = 0,
             int maxStackCount = 0,
             float elapsedSeconds = 0f,
-            float remainingSeconds = 0f)
+            float remainingSeconds = 0f,
+            int templateId = 0,
+            SnapshotVec3 forward = default,
+            int shapeKind = 0,
+            float halfAngleDeg = 0f,
+            float width = 0f,
+            float length = 0f)
         {
             RequestKey = requestKey;
             VfxId = vfxId;
+            TemplateId = templateId;
             SourceActorId = sourceActorId;
             TargetActorId = targetActorId;
             FirstTargetActorId = firstTargetActorId;
@@ -45,10 +52,16 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             MaxStackCount = maxStackCount;
             ElapsedSeconds = elapsedSeconds;
             RemainingSeconds = remainingSeconds > 0f ? remainingSeconds : 0f;
+            Forward = forward;
+            ShapeKind = shapeKind;
+            HalfAngleDeg = halfAngleDeg;
+            Width = width;
+            Length = length;
         }
 
         public BattlePresentationCueRequestKey RequestKey { get; }
         public int VfxId { get; }
+        public int TemplateId { get; }
         public int SourceActorId { get; }
         public int TargetActorId { get; }
         public int FirstTargetActorId { get; }
@@ -62,6 +75,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public int MaxStackCount { get; }
         public float ElapsedSeconds { get; }
         public float RemainingSeconds { get; }
+        public SnapshotVec3 Forward { get; }
+        public int ShapeKind { get; }
+        public float HalfAngleDeg { get; }
+        public float Width { get; }
+        public float Length { get; }
  
         public bool IsEmpty => RequestKey.IsEmpty || VfxId <= 0;
     }
@@ -179,7 +197,13 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 data.StackCount,
                 data.MaxStackCount,
                 data.ElapsedSeconds,
-                data.RemainingSeconds);
+                data.RemainingSeconds,
+                data.TemplateId,
+                ResolveVector3Parameter(in data, PresentationCueParameterKeys.AreaForward),
+                ResolveIntParameter(in data, PresentationCueParameterKeys.AreaShapeKind),
+                ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaHalfAngleDeg),
+                ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaWidth),
+                ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaLength));
         }
 
         public static BattlePresentationCueSpawnRequest CreateSpawnRequest(
@@ -204,7 +228,13 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 data.StackCount,
                 data.MaxStackCount,
                 data.ElapsedSeconds,
-                data.RemainingSeconds);
+                data.RemainingSeconds,
+                data.TemplateId,
+                ResolveVector3Parameter(in data, PresentationCueParameterKeys.AreaForward),
+                ResolveIntParameter(in data, PresentationCueParameterKeys.AreaShapeKind),
+                ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaHalfAngleDeg),
+                ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaWidth),
+                ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaLength));
         }
 
         public static int ResolveFirstTargetActorId(in PresentationCueData data)
@@ -223,6 +253,42 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             }
 
             return 0f;
+        }
+
+        public static SnapshotVec3 ResolveVector3Parameter(
+            in PresentationCueData data,
+            int key)
+        {
+            var parameters = data.Parameters;
+            if (parameters == null) return default;
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                var parameter = parameters[i];
+                if (parameter.Key == key && parameter.Kind == PresentationCueParameterKind.Vector3)
+                    return parameter.VectorValue;
+            }
+
+            return default;
+        }
+
+        public static float ResolveFloatParameter(in PresentationCueData data, int key)
+        {
+            var parameters = data.Parameters;
+            if (parameters == null) return 0f;
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                var parameter = parameters[i];
+                if (parameter.Key != key) continue;
+                if (parameter.Kind == PresentationCueParameterKind.Float) return parameter.FloatValue;
+                if (parameter.Kind == PresentationCueParameterKind.Integer) return parameter.IntegerValue;
+            }
+
+            return 0f;
+        }
+
+        public static int ResolveIntParameter(in PresentationCueData data, int key)
+        {
+            return (int)ResolveFloatParameter(in data, key);
         }
     }
 

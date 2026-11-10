@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
         {
             Apply = 0,
             Remove = 1,
+            Replace = 2,
         }
 
         private struct BuffCommand
@@ -37,9 +38,10 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             public BuffCommandKind Kind;
             public BuffApplyRequest ApplyRequest;
             public BuffRemoveRequest RemoveRequest;
+            public BuffReplaceRequest ReplaceRequest;
 
-            public int BuffId => Kind == BuffCommandKind.Apply ? ApplyRequest.BuffId : RemoveRequest.BuffId;
-            public int TargetActorId => Kind == BuffCommandKind.Apply ? ApplyRequest.TargetActorId : RemoveRequest.TargetActorId;
+            public int BuffId => Kind == BuffCommandKind.Apply ? ApplyRequest.BuffId : Kind == BuffCommandKind.Remove ? RemoveRequest.BuffId : ReplaceRequest.NextBuffId;
+            public int TargetActorId => Kind == BuffCommandKind.Apply ? ApplyRequest.TargetActorId : Kind == BuffCommandKind.Remove ? RemoveRequest.TargetActorId : ReplaceRequest.TargetActorId;
         }
 
         [WorldInject] private MobaActorLookupService _actors = null;
@@ -113,19 +115,36 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
 
         public bool RemoveBuffImmediate(int targetActorId, int buffId, int sourceActorId, MobaExecutionEndReason reason)
         {
-            if (_draining > 0) return false;
             if (!EnqueueRemove(targetActorId, buffId, sourceActorId, sourceContextId: 0L, reason: reason))
             {
                 return false;
             }
 
+            if (_draining > 0) return true;
             return DrainImmediateCommand(_nextCommandSeq, maxCommands: 256);
         }
 
         public bool RemoveBuffInstanceImmediate(int targetActorId, int buffId, int sourceActorId, long sourceContextId, MobaExecutionEndReason reason)
         {
-            if (sourceContextId == 0L || _draining > 0) return false;
+            if (sourceContextId == 0L) return false;
             if (!EnqueueRemove(targetActorId, buffId, sourceActorId, sourceContextId, reason))
+            {
+                return false;
+            }
+
+            if (_draining > 0) return true;
+            return DrainImmediateCommand(_nextCommandSeq, maxCommands: 256);
+        }
+
+        /// <summary>
+        /// 原子替换模式 Buff：新 Buff 激活成功后才结束旧 Buff。适用于跨输入持续的武器/形态模式。
+        /// </summary>
+        public bool ReplaceBuffImmediate(int targetActorId, int previousBuffId, int nextBuffId, int sourceActorId,
+            int durationOverrideMs, in BuffOriginContext origin, MobaExecutionEndReason reason = MobaExecutionEndReason.Replaced)
+        {
+            if (_draining > 0) return false;
+            if (!EnqueueReplace(targetActorId, previousBuffId, nextBuffId, sourceActorId, durationOverrideMs,
+                    previousSourceContextId: 0L, nextSourceContextId: 0L, origin: origin, reason: reason))
             {
                 return false;
             }
@@ -135,7 +154,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
 
         public int RemoveBuffsImmediate(int targetActorId, int buffId, int sourceActorId, bool removeAll, MobaExecutionEndReason reason)
         {
-            if (targetActorId <= 0 || _draining > 0) return 0;
+            if (targetActorId <= 0) return 0;
 
             var target = TryGetActorEntity(targetActorId);
             if (target == null || !target.hasBuffs || target.buffs.Active == null || target.buffs.Active.Count == 0)
@@ -159,6 +178,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 if (!removeAll) break;
             }
 
+            if (_draining > 0) return commandSeqs.Count;
             return DrainImmediateCommands(commandSeqs, Math.Max(256, commandSeqs.Count + 32));
         }
 
@@ -245,7 +265,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
 
         public int RemoveBuffsWithTagImmediate(int targetActorId, string tagName, int dispelCategory, int sourceActorId, bool removeAll, MobaExecutionEndReason reason)
         {
-            if (targetActorId <= 0 || dispelCategory < 0 || _draining > 0 || !MobaGameplayTagCatalog.TryResolve(tagName, out var tag)) return 0;
+            if (targetActorId <= 0 || dispelCategory < 0 || !MobaGameplayTagCatalog.TryResolve(tagName, out var tag)) return 0;
 
             var target = TryGetActorEntity(targetActorId);
             if (target == null || !target.hasBuffs || target.buffs.Active == null || target.buffs.Active.Count == 0 || _configs == null)
@@ -271,6 +291,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 if (!removeAll) break;
             }
 
+            if (_draining > 0) return commandSeqs.Count;
             return DrainImmediateCommands(commandSeqs, Math.Max(256, commandSeqs.Count + 32));
         }
 
@@ -430,6 +451,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                             case BuffCommandKind.Remove:
                                 succeeded = ExecuteRemove(cmd.RemoveRequest);
                                 break;
+                            case BuffCommandKind.Replace:
+                                succeeded = ExecuteReplace(cmd.ReplaceRequest);
+                                break;
                         }
                     }
                     catch (Exception ex)
@@ -584,6 +608,32 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             return true;
         }
 
+        private bool EnqueueReplace(int targetActorId, int previousBuffId, int nextBuffId, int sourceActorId,
+            int durationOverrideMs, long previousSourceContextId, long nextSourceContextId,
+            in BuffOriginContext origin, MobaExecutionEndReason reason)
+        {
+            if (targetActorId <= 0 || previousBuffId <= 0 || nextBuffId <= 0) return false;
+
+            _pending.Add(new BuffCommand
+            {
+                Seq = ++_nextCommandSeq,
+                Kind = BuffCommandKind.Replace,
+                ReplaceRequest = new BuffReplaceRequest
+                {
+                    TargetActorId = targetActorId,
+                    PreviousBuffId = previousBuffId,
+                    NextBuffId = nextBuffId,
+                    SourceActorId = sourceActorId,
+                    DurationOverrideMs = durationOverrideMs,
+                    PreviousSourceContextId = previousSourceContextId,
+                    NextSourceContextId = nextSourceContextId,
+                    Reason = reason,
+                    Origin = origin,
+                },
+            });
+            return true;
+        }
+
         private bool ExecuteApply(in BuffApplyRequest request)
         {
             if (!request.IsValid)
@@ -621,6 +671,30 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 var hasLifecycle = _lifecycle != null;
                 var requestSnapshot = request;
                 ReportRejected(rejectCode, () => FormatRemoveRejectedMessage(requestSnapshot, hasLifecycle, rejectCode, reject.Message), request.TargetActorId, request.BuffId, request.SourceActorId);
+            }
+
+            return ok;
+        }
+
+        private bool ExecuteReplace(in BuffReplaceRequest request)
+        {
+            if (!request.IsValid)
+            {
+                ReportRejected("buff.replace.invalidRequest", () => "Replace buff request rejected: request is invalid.",
+                    request.TargetActorId, request.NextBuffId, request.SourceActorId);
+                return false;
+            }
+
+            var ok = _lifecycle != null && _lifecycle.Replace(in request);
+            if (!ok)
+            {
+                var reject = _lifecycle != null ? _lifecycle.LastReject : BuffLifecycleRejectResult.None;
+                var rejectCode = FormatRejectCode(reject.Code);
+                var hasLifecycle = _lifecycle != null;
+                var requestSnapshot = request;
+                ReportRejected(rejectCode,
+                    () => $"Replace buff rejected by lifecycle. target={requestSnapshot.TargetActorId} previous={requestSnapshot.PreviousBuffId} next={requestSnapshot.NextBuffId} source={requestSnapshot.SourceActorId} hasLifecycle={hasLifecycle} rejectCode={rejectCode} reason={FormatRejectReason(reject.Message)}",
+                    request.TargetActorId, request.NextBuffId, request.SourceActorId);
             }
 
             return ok;

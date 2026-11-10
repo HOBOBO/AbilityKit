@@ -45,6 +45,12 @@ namespace AbilityKit.Game.Battle.Vfx
             }
 
             if (go == null) return null;
+            var scaleState = go.GetComponent<AbilityKit.Game.Battle.Component.BattlePresentationScaleState>();
+            if (scaleState == null)
+            {
+                scaleState = go.AddComponent<AbilityKit.Game.Battle.Component.BattlePresentationScaleState>();
+                scaleState.CaptureBaseModelScale(go.transform.localScale);
+            }
             BattleVfxPoolableTag.Attach(go).VfxId = vfxId;
             go.name = $"Vfx_{vfxId}";
             return go;

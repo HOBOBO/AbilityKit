@@ -399,10 +399,25 @@ namespace AbilityKit.Demo.Moba.Services
             SkillCastPolicy? policyOverride = null,
             long diagnosticCommandId = 0L)
         {
+            var resolvedAimPos = aimPos;
+            var resolvedAimDir = aimDir;
             MobaResolvedSlotSkill selected = default;
-            var selectedByContinuous = slot > 0 &&
-                _loadout.TryResolveSlot(actorId, slot, out selected) &&
-                (selected.BaseSkillId == skillId || selected.EffectiveSkillId == skillId);
+            var hasResolvedSlot = slot > 0 && _loadout.TryResolveSlot(actorId, slot, out selected);
+            if (hasResolvedSlot && selected.BaseSkillId != skillId && selected.EffectiveSkillId != skillId)
+            {
+                var mismatch = new MobaSkillCastFailure(
+                    "Preparation",
+                    "ResolveSlot",
+                    SkillFailureCodes.Cast.SlotSkillMismatch,
+                    $"Skill {skillId} does not match the resolved skill for slot {slot}. " +
+                    $"base={selected.BaseSkillId}, effective={selected.EffectiveSkillId}.");
+                var rejected = MobaSkillCastResult.Failed(mismatch.Message, in mismatch);
+                CollectSkillFailure(actorId, skillId, slot, targetActorId, in rejected,
+                    diagnosticCommandId);
+                return rejected;
+            }
+
+            var selectedByContinuous = hasResolvedSlot;
             var resolvedSkillId = selectedByContinuous ? selected.EffectiveSkillId : skillId;
             if (!TryValidateCombatRules(actorId, resolvedSkillId, out var combatFailure, out var combatMessage))
             {
@@ -412,8 +427,8 @@ namespace AbilityKit.Demo.Moba.Services
                 return rejected;
             }
 
-            var input = new SkillCastPreparationInput(actorId, resolvedSkillId, slot, in aimPos,
-                in aimDir, hasAim, targetActorId, diagnosticCommandId);
+            var input = new SkillCastPreparationInput(actorId, resolvedSkillId, slot, in resolvedAimPos,
+                in resolvedAimDir, hasAim, targetActorId, diagnosticCommandId);
             var prepared = _preparation.Prepare(in input);
             MobaSkillCastResult result;
             if (!prepared.Success)
@@ -424,11 +439,60 @@ namespace AbilityKit.Demo.Moba.Services
             else
             {
                 result = StartPreparedCast(actorId, resolvedSkillId, in prepared, policyOverride);
+                if (result.Success)
+                {
+                    var castRequest = prepared.Request;
+                    ApplyCastFacing(actorId, resolvedSkillId, in castRequest);
+                }
             }
 
             CollectSkillFailure(actorId, resolvedSkillId, slot, targetActorId, in result,
                 diagnosticCommandId);
             return result;
+        }
+
+        private void ApplyCastFacing(int actorId, int skillId, in SkillCastRequest request)
+        {
+            if (_services == null || _actors == null ||
+                !_services.TryResolve<MobaConfigDatabase>(out var configs) || configs == null ||
+                !configs.TryGetSkill(skillId, out var skill) || skill == null ||
+                !_actors.TryGetActorEntity(actorId, out var actor) || actor == null || !actor.hasTransform)
+                return;
+
+            var direction = Vec3.Zero;
+            if (request.TargetActorId > 0)
+            {
+                // Locked-target skills opt in through their authored button template.
+                // This reuses the existing FaceToAim field so moving casts can leave it off.
+                if (skill.SkillButtonTemplateId <= 0 ||
+                    !configs.TryGetSkillButtonTemplate(skill.SkillButtonTemplateId, out var button) ||
+                    button == null || !button.FaceToAim)
+                    return;
+
+                if (!_actors.TryGetActorEntity(request.TargetActorId, out var target) ||
+                    target == null || !target.hasTransform)
+                    return;
+                var from = actor.transform.Value.Position;
+                var to = target.transform.Value.Position;
+                direction = new Vec3(to.X - from.X, 0f, to.Z - from.Z);
+            }
+            else
+            {
+                // Directional casts face the submitted aim ray by default.
+                direction = new Vec3(request.AimDir.X, 0f, request.AimDir.Z);
+                if (direction.SqrMagnitude <= 0.000001f &&
+                    !request.AimPos.Equals(Vec3.Zero))
+                {
+                    var from = actor.transform.Value.Position;
+                    direction = new Vec3(request.AimPos.X - from.X, 0f, request.AimPos.Z - from.Z);
+                }
+            }
+
+            if (direction.SqrMagnitude <= 0.000001f) return;
+            var position = actor.transform.Value.Position;
+            var scale = actor.transform.Value.Scale;
+            var rotation = Quat.LookRotation(DeterministicMathBridge.Normalize(in direction), Vec3.Up);
+            actor.ReplaceTransform(new Transform3(in position, in rotation, in scale));
         }
 
         private int ResolveSkillId(int actorId, int slot)
@@ -588,6 +652,11 @@ namespace AbilityKit.Demo.Moba.Services
         public bool TryGetRunningByInstanceId(int actorId, long instanceId, out SkillPipelineRunner.RunningSnapshot snapshot)
         {
             return _runnerRegistry.TryGetRunningByInstanceId(actorId, instanceId, out snapshot);
+        }
+
+        public bool TryGetLatestRunning(int actorId, out SkillPipelineRunner.RunningSnapshot snapshot)
+        {
+            return _runnerRegistry.TryGetLatestRunning(actorId, out snapshot);
         }
 
         public void CancelAll(int actorId)

@@ -328,7 +328,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         }
     }
 
-    [Serializable]
     public abstract class SkillCompositePhaseDef : SkillPhaseDef
     {
         [SerializeReference]

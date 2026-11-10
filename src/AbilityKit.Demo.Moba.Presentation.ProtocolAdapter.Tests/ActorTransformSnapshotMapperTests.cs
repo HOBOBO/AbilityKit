@@ -27,7 +27,8 @@ public sealed class ActorTransformSnapshotMapperTests
                 z: 3.75f,
                 forwardX: 0.1f,
                 forwardY: 0.2f,
-                forwardZ: 0.3f),
+                forwardZ: 0.3f,
+                scale: 1.75f),
         });
 
         var actual = Assert.Single(ActorTransformSnapshotDecoder.Decode(payload));
@@ -40,7 +41,8 @@ public sealed class ActorTransformSnapshotMapperTests
         Assert.Equal(0.2f, actual.ForwardY);
         Assert.Equal(0.3f, actual.ForwardZ);
         Assert.Equal(0f, actual.RotationY);
-        Assert.Equal(1f, actual.Scale);
+        Assert.Equal(1.75f, actual.Scale);
+        Assert.True(actual.HasScale);
     }
 
     [Fact]

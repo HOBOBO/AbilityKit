@@ -5,6 +5,7 @@ using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Events.Unit;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;
@@ -47,6 +48,59 @@ namespace AbilityKit.Game.Test.UnitTest
 
             AssertReportDoesNotContainCode(report, "moba.trigger.plan.payload_field_incompatible");
             Assert.AreEqual(0, report.ErrorCount, report.FormatAllEntries());
+        }
+
+        [Test]
+        public void UnitEventPayloadAccessor_ExposesActorIdForScopedGameplayState()
+        {
+            var actorFieldId = MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.UnitActorId);
+            var payload = new UnitEventPayload(1234, Team.Team1, EntityMainType.Unit, UnitSubType.Hero, default, 3003);
+            var accessor = new MobaBattlePayloadAccessor();
+
+            Assert.IsTrue(MobaBattlePayloadAccessor.SupportsUnitEventField(actorFieldId));
+            Assert.IsTrue(accessor.TryGet(in payload, actorFieldId, out int actorId));
+            Assert.AreEqual(1234, actorId);
+            Assert.IsTrue(accessor.TryGet(in payload, actorFieldId, out double actorIdAsNumber));
+            Assert.AreEqual(1234d, actorIdAsNumber);
+            Assert.IsFalse(accessor.TryGet(in payload, MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.KillerActorId), out int _));
+        }
+
+        [Test]
+        public void ProjectileHitPayloadAccessor_ExposesRollbackFlightSnapshotFields()
+        {
+            var registry = new PayloadAccessorRegistry();
+            var accessor = new MobaBattlePayloadAccessor();
+            registry.RegisterIntAccessor<ProjectileHitArgs>(accessor, MobaBattlePayloadAccessor.SupportsProjectileHitField);
+            registry.RegisterDoubleAccessor<ProjectileHitArgs>(accessor, MobaBattlePayloadAccessor.SupportsProjectileHitField);
+
+            var payload = new ProjectileHitArgs
+            {
+                DistanceTravelled = 42.5f,
+                ElapsedFrames = 30,
+                SpawnFrame = 120,
+                SpawnPosition = new AbilityKit.Core.Mathematics.Vec3(1f, 2f, 3f),
+            };
+            object boxed = payload;
+
+            Assert.IsTrue(registry.TryGetDouble(in boxed,
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.ProjectileDistanceTravelled), out var distance));
+            Assert.AreEqual(42.5d, distance, 0.0001d);
+            Assert.IsTrue(registry.TryGetInt(in boxed,
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.ProjectileElapsedFrames), out var elapsedFrames));
+            Assert.AreEqual(30, elapsedFrames);
+            Assert.IsTrue(registry.TryGetDouble(in boxed,
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.ProjectileElapsedFrames), out var elapsedFramesAsNumber));
+            Assert.AreEqual(30d, elapsedFramesAsNumber);
+            Assert.IsTrue(registry.TryGetInt(in boxed,
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.ProjectileSpawnFrame), out var spawnFrame));
+            Assert.AreEqual(120, spawnFrame);
+            Assert.IsTrue(registry.TryGetDouble(in boxed,
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.ProjectileSpawnPositionZ), out var spawnZ));
+            Assert.AreEqual(3d, spawnZ);
+            Assert.IsTrue(MobaBattlePayloadAccessor.SupportsProjectileHitField(
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.ProjectileDistanceTravelled)));
+            Assert.IsFalse(MobaBattlePayloadAccessor.SupportsProjectileHitField(
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.TargetHp)));
         }
 
         [Test]

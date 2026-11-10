@@ -42,7 +42,7 @@ namespace AbilityKit.Demo.Moba.Services
 
     internal static class SkillRunnerRollbackCodec
     {
-        private const int Version = 1;
+        private const int Version = 3;
         private const int MaxEntries = 1024;
         private const int MaxBytes = 8 * 1024 * 1024;
 
@@ -70,7 +70,8 @@ namespace AbilityKit.Demo.Moba.Services
                 throw new InvalidDataException("Invalid skill runner rollback payload length.");
             using var stream = new MemoryStream(payload, writable: false);
             using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
-            if (reader.ReadInt32() != Version)
+            var version = reader.ReadInt32();
+            if (version < 1 || version > Version)
                 throw new InvalidDataException("Unsupported skill runner rollback version.");
             var snapshot = new SkillRunnerRollbackSnapshot();
             var sequenceCount = ReadCount(reader);
@@ -90,7 +91,7 @@ namespace AbilityKit.Demo.Moba.Services
             var identities = new HashSet<long>();
             for (var i = 0; i < entryCount; i++)
             {
-                var entry = ReadEntry(reader);
+                var entry = ReadEntry(reader, version);
                 if (entry.ActorId <= 0 || entry.SkillId <= 0 || entry.SkillLevel <= 0 ||
                     entry.SkillSlot < 0 || entry.Sequence <= 0 || entry.RuntimeId <= 0 ||
                     entry.RuntimeGeneration <= 0 || entry.RootContextId <= 0 ||
@@ -135,7 +136,7 @@ namespace AbilityKit.Demo.Moba.Services
             writer.Write(entry.Run);
         }
 
-        private static SkillRunnerRollbackEntry ReadEntry(BinaryReader reader)
+        private static SkillRunnerRollbackEntry ReadEntry(BinaryReader reader, int version)
         {
             var entry = new SkillRunnerRollbackEntry
             {
@@ -158,7 +159,7 @@ namespace AbilityKit.Demo.Moba.Services
                 throw new InvalidDataException("Invalid skill target-loss policy.");
             entry.Policy = new SkillCastPolicy(parallel, interrupt, conflict, priority,
                 uninterruptible, (SkillTargetLostPolicy)targetLost);
-            entry.Context = ReadContext(reader);
+            entry.Context = ReadContext(reader, version);
             var length = reader.ReadInt32();
             if (length <= 0 || length > 4 * 1024 * 1024 || length > reader.BaseStream.Length - reader.BaseStream.Position)
                 throw new InvalidDataException("Invalid skill pipeline run length.");
@@ -191,6 +192,11 @@ namespace AbilityKit.Demo.Moba.Services
             writer.Write(config.HasLevelConfiguration);
             writer.Write(state.IsAborted);
             writer.Write(state.StartTime);
+            writer.Write(state.CharacterModeId ?? string.Empty);
+            writer.Write(state.CharacterModePriority);
+            writer.Write(state.CharacterModeOwnerId);
+            writer.Write(state.CharacterModeInstanceId);
+            writer.Write(state.HfsmParameterOwnerId);
             if (state.SharedData.Length > 256)
                 throw new InvalidDataException("Too many skill shared-data entries.");
             writer.Write(state.SharedData.Length);
@@ -218,7 +224,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private static SkillPipelineContextRollbackState ReadContext(BinaryReader reader)
+        private static SkillPipelineContextRollbackState ReadContext(BinaryReader reader, int version)
         {
             var elapsed = reader.ReadInt64();
             var frame = reader.ReadInt32();
@@ -241,6 +247,11 @@ namespace AbilityKit.Demo.Moba.Services
             var hasLevel = reader.ReadBoolean();
             var aborted = reader.ReadBoolean();
             var startTime = reader.ReadSingle();
+            var characterModeId = version >= 2 ? reader.ReadString() : string.Empty;
+            var characterModePriority = version >= 2 ? reader.ReadInt32() : 0;
+            var characterModeOwnerId = version >= 2 ? reader.ReadInt64() : 0L;
+            var characterModeInstanceId = version >= 2 ? reader.ReadInt64() : 0L;
+            var hfsmParameterOwnerId = version >= 3 ? reader.ReadInt64() : 0L;
             var sharedCount = reader.ReadInt32();
             if (sharedCount < 0 || sharedCount > 256)
                 throw new InvalidDataException("Invalid skill shared-data count.");
@@ -286,11 +297,16 @@ namespace AbilityKit.Demo.Moba.Services
                 cooldown < 0 || flowId < 0 || skillId < 0 || skillLevel < 0 || cost < 0 ||
                 configCooldown < 0 || float.IsNaN(startTime) || float.IsInfinity(startTime))
                 throw new InvalidDataException("Invalid skill pipeline context state.");
+            if (characterModeId.Length > 64 || characterModePriority < 0 ||
+                characterModeOwnerId < 0 || characterModeInstanceId < 0 ||
+                (string.IsNullOrEmpty(characterModeId) != (characterModeOwnerId == 0)))
+                throw new InvalidDataException("Invalid skill character-mode binding.");
             var config = new ResolvedSkillCastConfiguration(skillId, skillLevel,
                 (ResourceType)resourceType, cost, configCooldown, hasLevel);
             return new SkillPipelineContextRollbackState(elapsed, frame, target, aimPos, aimDir,
                 sequence, nextEvent, released, cooldown, failReason, sourceId, diagnosticId,
-                flowId, config, aborted, startTime, shared);
+                flowId, config, aborted, startTime, characterModeId, characterModePriority,
+                characterModeOwnerId, characterModeInstanceId, hfsmParameterOwnerId, shared);
         }
 
         private static void WriteVec(BinaryWriter writer, in Vec3 value)

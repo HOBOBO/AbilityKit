@@ -46,6 +46,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 {
                     ownerActorIds.Add(args.OwnerActorId);
                 }
+                else if (IsDefaultTargetRequest(in args.TargetRequest) && coreInput.HasCasterActor)
+                {
+                    // Removing an area without an explicit owner targets the
+                    // caster. Area-enter contexts carry the entering enemy as
+                    // ContextTarget, which must not become the owner lookup key.
+                    ownerActorIds.Add(coreInput.CasterActorId);
+                }
                 else if (!MobaActionTargetResolver.TryResolveTargets(in args.TargetRequest, in coreInput, in effectInput, ctx, TriggeringConstants.Actions.RemoveArea, ownerActorIds) || ownerActorIds.Count == 0)
                 {
                     if (coreInput.HasCasterActor)
@@ -74,6 +81,23 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 PooledMobaPlanActionLists.Release(ownerActorIds);
             }
+        }
+
+        private static bool IsDefaultTargetRequest(in MobaActionTargetRequest request)
+        {
+            return request.SourceCode == MobaActionTargetSourceCode.ContextTarget
+                && request.SourceParam == 0
+                && request.FilterCode == MobaActionTargetFilterCode.None
+                && request.FilterParam == 0
+                && request.Radius <= 0f
+                && request.HalfAngleDeg <= 0f
+                && request.OrderCode == MobaActionTargetOrderCode.DistanceToCaster
+                && request.OrderParam == 0
+                && request.SelectCode == MobaActionTargetSelectCode.TopK
+                && request.MaxCount == 1
+                && request.QueryTemplateId == 0
+                && request.TargetActorId == 0
+                && request.TargetPayloadActorId == 0;
         }
     }
 }

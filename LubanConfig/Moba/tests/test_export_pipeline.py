@@ -12,7 +12,9 @@ import export_pipeline
 from export_pipeline import (ATTRIBUTE_KEYS, expand_references, validate_attribute_types,
                              validate_reference_graph, validate_skill_level_tables,
                              validate_table_inventory)
-from business.skills import validate_character_skill_preview_vfx
+from business.skills import (validate_character_skill_preview_vfx,
+                             validate_hero_level_skill_growth_parameters)
+from business.presentation import validate_presentation_templates
 
 
 class ReferenceValidationTests(unittest.TestCase):
@@ -43,12 +45,27 @@ class ReferenceValidationTests(unittest.TestCase):
                           "SelectorLauncherTemplateId", "SelectorProjectileTemplateId",
                           "SelectorAreaTemplateId", "SelectorSummonTemplateId",
                           "SelectorBuffTemplateId",
-                          "CandidateSkillId", "CandidateReferenceId"):
+                          "CandidateSkillId", "CandidateReferenceId",
+                          "CandidateHfsmParameterId", "CandidateHfsmParameterComparison",
+                          "CandidateHfsmParameterExpectedValue"):
                 modifier.setdefault(field, 0)
         validate_reference_graph(self.tables, self.flows, self.triggers, self.rules)
 
     def test_valid_graph(self):
         self.validate()
+
+    def test_presentation_template_spatial_policies_are_closed_enums(self):
+        validate_presentation_templates([{"Id": 10}])  # Missing fields keep legacy defaults.
+        validate_presentation_templates([{"Id": 10, "OffsetSpace": 1, "ParentScaleMode": 1}])
+        with self.assertRaisesRegex(ValueError, "presentation_templates/10: OffsetSpace"):
+            validate_presentation_templates([{"Id": 10, "OffsetSpace": 2}])
+        with self.assertRaisesRegex(ValueError, "presentation_templates/10: ParentScaleMode"):
+            validate_presentation_templates([{"Id": 10, "ParentScaleMode": -1}])
+
+    def test_presentation_ordering_policy_is_abstract_and_closed(self):
+        validate_presentation_templates([{"Id": 10, "OrderingMode": 2, "OrderingPriority": 120}])
+        with self.assertRaisesRegex(ValueError, "presentation_templates/10: OrderingMode"):
+            validate_presentation_templates([{"Id": 10, "OrderingMode": 3}])
 
     def test_character_active_skills_require_valid_press_preview_vfx(self):
         characters = [{"Id": 1, "SkillIds": [10]}]
@@ -59,6 +76,25 @@ class ReferenceValidationTests(unittest.TestCase):
             validate_character_skill_preview_vfx(characters, [{"Id": 10}], vfx)
         with self.assertRaisesRegex(ValueError, "missing vfx 9002"):
             validate_character_skill_preview_vfx(characters, [{"Id": 10, "PreviewVfxId": 9002}], vfx)
+
+    def test_hero_level_skill_growth_parameters_validate_keys(self):
+        validate_hero_level_skill_growth_parameters([
+            {"Id": 1, "SkillId": 30010301, "ChampionLevel": 1, "Damage": 10},
+            {"Id": 2, "SkillId": 30010301, "ChampionLevel": 2, "Damage": 15},
+        ])
+        with self.assertRaisesRegex(ValueError, r"duplicate SkillId \+ ChampionLevel"):
+            validate_hero_level_skill_growth_parameters([
+                {"Id": 1, "SkillId": 30010301, "ChampionLevel": 1},
+                {"Id": 2, "SkillId": 30010301, "ChampionLevel": 1},
+            ])
+        with self.assertRaisesRegex(ValueError, "SkillId must be a positive integer"):
+            validate_hero_level_skill_growth_parameters([
+                {"Id": 1, "SkillId": 0, "ChampionLevel": 1},
+            ])
+        with self.assertRaisesRegex(ValueError, "ChampionLevel must be a positive integer"):
+            validate_hero_level_skill_growth_parameters([
+                {"Id": 1, "SkillId": 30010301, "ChampionLevel": True},
+            ])
 
     def test_missing_skill_level_is_rejected(self):
         self.tables["skills"][0]["LevelTableId"] = 999
@@ -111,14 +147,16 @@ class ReferenceValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Repeat/Phase/Timeline/Events/0: EffectId"):
             self.validate()
 
-    def test_rule_and_timeline_use_distinct_namespaces(self):
+    def test_rule_plan_accepts_legacy_rules_and_trigger_authoring(self):
         self.flows[0]["Phases"] = [
             {"RulePlan": {"TriggerIds": [30]}},
             {"Timeline": {"Events": [{"EffectId": 20}]}},
         ]
         self.validate()
         self.flows[0]["Phases"][0]["RulePlan"]["TriggerIds"] = [20]
-        with self.assertRaisesRegex(ValueError, "RulePlan: TriggerIds references missing rules"):
+        self.validate()
+        self.flows[0]["Phases"][0]["RulePlan"]["TriggerIds"] = [999]
+        with self.assertRaisesRegex(ValueError, "RulePlan: TriggerIds references missing one of rules or triggers"):
             self.validate()
 
     def test_window_trigger_reference_is_checked(self):
@@ -137,6 +175,41 @@ class ReferenceValidationTests(unittest.TestCase):
                                                "Magnitude": {"AttributeTypeId": 0}}]
         with self.assertRaisesRegex(ValueError, "attribute target requires"):
             self.validate()
+
+    def test_skill_slot_candidate_accepts_valid_hfsm_condition(self):
+        self.tables["modifier_templates"] = [{
+            "Id": 1, "Target": {"Kind": 5, "Id": 1},
+            "Candidate": {"SkillId": 10, "HfsmParameterId": 101,
+                          "HfsmParameterComparison": 1, "HfsmParameterExpectedValue": 1},
+            "Magnitude": {"AttributeTypeId": 0},
+        }]
+        self.validate()
+
+    def test_skill_slot_candidate_condition_requires_comparison_and_finite_value(self):
+        modifier = {
+            "Id": 1, "Target": {"Kind": 5, "Id": 1},
+            "Candidate": {"SkillId": 10, "HfsmParameterId": 101,
+                          "HfsmParameterComparison": 0},
+            "Magnitude": {"AttributeTypeId": 0},
+        }
+        self.tables["modifier_templates"] = [modifier]
+        with self.assertRaisesRegex(ValueError, "conditional candidate requires a comparison"):
+            self.validate()
+        modifier["Candidate"]["HfsmParameterComparison"] = 1
+        modifier["Candidate"]["HfsmParameterExpectedValue"] = float("nan")
+        with self.assertRaisesRegex(ValueError, "must be finite"):
+            self.validate()
+
+    def test_flatten_modifier_projects_hfsm_candidate_condition(self):
+        from business.modifiers import flatten_modifier
+        projected = flatten_modifier({
+            "Target": {"Kind": 5, "Id": 1},
+            "Candidate": {"SkillId": 10, "HfsmParameterId": 501,
+                          "HfsmParameterComparison": 4, "HfsmParameterExpectedValue": 2.5},
+        })
+        self.assertEqual(projected["CandidateHfsmParameterId"], 501)
+        self.assertEqual(projected["CandidateHfsmParameterComparison"], 4)
+        self.assertEqual(projected["CandidateHfsmParameterExpectedValue"], 2.5)
 
     def test_attribute_source_requires_valid_role(self):
         self.tables["attr_types"] = [{"Id": 1}]

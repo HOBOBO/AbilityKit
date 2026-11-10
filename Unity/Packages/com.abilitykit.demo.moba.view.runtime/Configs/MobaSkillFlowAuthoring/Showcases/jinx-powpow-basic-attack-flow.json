@@ -1,0 +1,18 @@
+[
+  {
+    "Id": 30020002,
+    "Name": "Jinx - Pow-Pow Basic Attack",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "skill_30020002_commit",
+        "RulePlan": {
+          "TriggerIds": [30020201],
+          "AbortOnFailure": true,
+          "FailReason": "basic_attack_launch_failed"
+        }
+      }
+    ]
+  }
+]

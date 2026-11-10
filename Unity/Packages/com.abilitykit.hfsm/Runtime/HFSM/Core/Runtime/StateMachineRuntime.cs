@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using AbilityKit.Deterministic;
 
@@ -131,6 +132,28 @@ namespace AbilityKit.HFSM.Runtime
         {
             EnsureOperational();
             ValidateClock(frame, time.RawValue, allowSameFrame: false);
+
+            TickCore(frame, time, allowSameFrame: false);
+        }
+
+        /// <summary>
+        /// Re-evaluates the active hierarchy without advancing simulation time.
+        /// This is used when a gameplay action changes a condition parameter after
+        /// the regular frame tick has already run. It preserves deterministic frame
+        /// ownership while allowing state-owned entry/exit actions to become
+        /// observable in the same frame.
+        /// </summary>
+        public void ReevaluateCurrentFrame()
+        {
+            EnsureOperational();
+            var frame = _currentFrame;
+            var time = Fixed64.FromRaw(_currentTimeRaw);
+            TickCore(frame, time, allowSameFrame: true);
+        }
+
+        private void TickCore(int frame, Fixed64 time, bool allowSameFrame)
+        {
+            ValidateClock(frame, time.RawValue, allowSameFrame);
 
             var delta = Fixed64.FromRaw(checked(time.RawValue - _currentTimeRaw));
             _currentFrame = frame;
@@ -479,6 +502,7 @@ namespace AbilityKit.HFSM.Runtime
             transition.Action?.BeforeTransition(_owner, in transitionContext);
             if (source.ChildMachine != null) ExitMachine(source.ChildMachine, in context);
             source.Behavior.OnExit(_owner, in context);
+            ExecuteStateActions(source.ExitActions, source.Id, in context, entering: false);
             Notify(RuntimeEventType.StateExited, in context, machine.Id, source.Id,
                 transition.Definition.Id, triggerId);
 
@@ -490,6 +514,7 @@ namespace AbilityKit.HFSM.Runtime
 
             var target = machine.StatesById[machine.ActiveStateId];
             target.Behavior.OnEnter(_owner, in context);
+            ExecuteStateActions(target.EntryActions, target.Id, in context, entering: true);
             Notify(RuntimeEventType.StateEntered, in context, machine.Id, target.Id,
                 transition.Definition.Id, triggerId);
             if (target.ChildMachine != null) EnterMachine(target.ChildMachine, in context);
@@ -582,6 +607,7 @@ namespace AbilityKit.HFSM.Runtime
             machine.ActiveSinceRaw = context.TimeRaw;
             var state = machine.StatesById[stateId];
             state.Behavior.OnEnter(_owner, in context);
+            ExecuteStateActions(state.EntryActions, state.Id, in context, entering: true);
             Notify(RuntimeEventType.StateEntered, in context, machine.Id, state.Id, string.Empty);
             if (state.ChildMachine != null) EnterMachine(state.ChildMachine, in context);
             ResolveGhostTransitions(machine, in context);
@@ -593,6 +619,7 @@ namespace AbilityKit.HFSM.Runtime
             var state = machine.StatesById[machine.ActiveStateId];
             if (state.ChildMachine != null) ExitMachine(state.ChildMachine, in context);
             state.Behavior.OnExit(_owner, in context);
+            ExecuteStateActions(state.ExitActions, state.Id, in context, entering: false);
             Notify(RuntimeEventType.StateExited, in context, machine.Id, state.Id, string.Empty);
             machine.RememberedStateId = state.Id;
             machine.ActiveStateId = string.Empty;
@@ -787,7 +814,9 @@ namespace AbilityKit.HFSM.Runtime
                     var stateDefinition = machineDefinition.States[stateIndex];
                     machine.StatesById.Add(
                         stateDefinition.Id,
-                        new CompiledState(stateDefinition, CreateStateBehavior(stateDefinition, bindings)));
+                        new CompiledState(stateDefinition, CreateStateBehavior(stateDefinition, bindings),
+                            CreateStateActions(stateDefinition.LogicEntryActionKeys, bindings),
+                            CreateStateActions(stateDefinition.LogicExitActionKeys, bindings)));
                 }
             }
 
@@ -841,6 +870,30 @@ namespace AbilityKit.HFSM.Runtime
             return new ParallelRuntimeState(states, definition.ParallelExitPolicy);
         }
 
+        private static List<IStateLifecycleAction<TOwner>> CreateStateActions(
+            List<string> keys,
+            RuntimeBindings<TOwner> bindings)
+        {
+            var actions = new List<IStateLifecycleAction<TOwner>>(keys?.Count ?? 0);
+            if (keys == null) return actions;
+            for (var index = 0; index < keys.Count; index++)
+                actions.Add(bindings.CreateStateAction(keys[index]));
+            return actions;
+        }
+
+        private void ExecuteStateActions(
+            List<IStateLifecycleAction<TOwner>> actions,
+            string stateId,
+            in TickContext context,
+            bool entering)
+        {
+            for (var index = 0; index < actions.Count; index++)
+            {
+                if (entering) actions[index].OnEnter(_owner, stateId, in context);
+                else actions[index].OnExit(_owner, stateId, in context);
+            }
+        }
+
         private static void AddTransition(CompiledMachine machine, CompiledTransition transition)
         {
             var definition = transition.Definition;
@@ -879,6 +932,14 @@ namespace AbilityKit.HFSM.Runtime
                 DefinitionId = source.DefinitionId ?? string.Empty,
                 FormatVersion = source.FormatVersion,
                 RootMachineId = source.RootMachineId ?? string.Empty,
+                Parameters = (source.Parameters ?? new List<StateMachineParameterDefinition>())
+                    .Select(parameter => new StateMachineParameterDefinition
+                    {
+                        Id = parameter.Id,
+                        Name = parameter.Name ?? string.Empty,
+                        DefaultValue = parameter.DefaultValue,
+                        SupportedOperations = new List<int>(parameter.SupportedOperations ?? new List<int>()),
+                    }).ToList(),
             };
 
             for (var machineIndex = 0; machineIndex < source.Machines.Count; machineIndex++)
@@ -898,6 +959,10 @@ namespace AbilityKit.HFSM.Runtime
                     {
                         Id = state.Id ?? string.Empty,
                         BehaviorKey = state.BehaviorKey ?? string.Empty,
+                        LogicEntryActionKeys = state.LogicEntryActionKeys == null
+                            ? new List<string>() : new List<string>(state.LogicEntryActionKeys),
+                        LogicExitActionKeys = state.LogicExitActionKeys == null
+                            ? new List<string>() : new List<string>(state.LogicExitActionKeys),
                         ChildMachineId = state.ChildMachineId ?? string.Empty,
                         RequiresExitApproval = state.RequiresExitApproval,
                         IsGhostState = state.IsGhostState,
@@ -961,15 +1026,21 @@ namespace AbilityKit.HFSM.Runtime
 
         private sealed class CompiledState
         {
-            public CompiledState(StateDefinition definition, IRuntimeState<TOwner> behavior)
+            public CompiledState(StateDefinition definition, IRuntimeState<TOwner> behavior,
+                List<IStateLifecycleAction<TOwner>> entryActions,
+                List<IStateLifecycleAction<TOwner>> exitActions)
             {
                 Definition = definition;
                 Behavior = behavior;
+                EntryActions = entryActions;
+                ExitActions = exitActions;
             }
 
             public string Id => Definition.Id;
             public StateDefinition Definition { get; }
             public IRuntimeState<TOwner> Behavior { get; }
+            public List<IStateLifecycleAction<TOwner>> EntryActions { get; }
+            public List<IStateLifecycleAction<TOwner>> ExitActions { get; }
             public CompiledMachine? ChildMachine { get; set; }
             public List<CompiledTransition> TickTransitions { get; } = new List<CompiledTransition>();
             public Dictionary<string, List<CompiledTransition>> TriggerTransitions { get; } =

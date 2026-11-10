@@ -10,6 +10,7 @@ using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
+using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Ability.FrameSync;
@@ -906,6 +907,23 @@ public sealed class MobaModifierAttributeSourceTests
     }
 
     [Fact]
+    public void Slot_candidates_are_cleared_when_actor_is_removed_before_id_reuse()
+    {
+        using var candidates = new MobaSkillSlotCandidateService();
+        candidates.Add(10, 701, 4, 32010401, priority: 20, order: 0);
+
+        Assert.Equal(32010401, candidates.Resolve(10, 4, 30010601).EffectiveSkillId);
+        Assert.True(candidates.RemoveActor(10));
+        Assert.Equal(30010601, candidates.Resolve(10, 4, 30010601).EffectiveSkillId);
+        Assert.False(candidates.RemoveActor(10));
+
+        // A recycled actor id starts with the base loadout and cannot inherit
+        // the previous owner's Fishbones/enhanced-attack candidate.
+        candidates.Add(10, 702, 4, 32010402, priority: 10, order: 0);
+        Assert.Equal(32010402, candidates.Resolve(10, 4, 30010601).EffectiveSkillId);
+    }
+
+    [Fact]
     public void Hit_damage_modifier_matches_skill_record_and_rejects_invalid_result()
     {
         using var service = new MobaSkillParamModifierService();
@@ -1587,6 +1605,50 @@ public sealed class MobaModifierAttributeSourceTests
         Assert.Equal(13f, modifiers.Projectile.ResolveSpeed(10, 10f, in record));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Late_continuous_cleanup_preserves_a_replacement_with_the_same_source(bool unregisterFirst)
+    {
+        using var modifiers = new MobaSkillParamModifierService();
+        var projectors = new MobaContinuousModifierProjectorRegistry();
+        projectors.Register(new MobaSkillParamContinuousModifierProjector());
+        projectors.OnInit(new Resolver(null, modifiers));
+        var binder = new MobaContinuousLifecycleBinder(projectors);
+        var record = new MobaParameterRecord(MobaParameterStage.ProjectileSpawn);
+        var first = new SnapshotContinuous(new SnapshotConfig(
+            new IMobaContinuousModifierSpec[] { SpeedModifier(3f) }));
+        binder.OnRegistered(first, null);
+        first.Activate();
+        binder.OnActivated(first, null);
+        Assert.Equal(13f, modifiers.Projectile.ResolveSpeed(10, 10f, in record));
+
+        if (unregisterFirst)
+        {
+            binder.OnUnregistered(first, ContinuousEndReason.CleanedUp, null);
+            binder.OnEnded(first, ContinuousEndReason.CleanedUp, null);
+        }
+        else
+        {
+            binder.OnEnded(first, ContinuousEndReason.CleanedUp, null);
+            binder.OnUnregistered(first, ContinuousEndReason.CleanedUp, null);
+        }
+        Assert.Equal(10f, modifiers.Projectile.ResolveSpeed(10, 10f, in record));
+
+        var replacement = new SnapshotContinuous(new SnapshotConfig(
+            new IMobaContinuousModifierSpec[] { SpeedModifier(2f) }));
+        binder.OnRegistered(replacement, null);
+        replacement.Activate();
+        binder.OnActivated(replacement, null);
+        binder.OnEnded(first, ContinuousEndReason.CleanedUp, null);
+        binder.OnUnregistered(first, ContinuousEndReason.CleanedUp, null);
+        Assert.Equal(12f, modifiers.Projectile.ResolveSpeed(10, 10f, in record));
+
+        binder.OnEnded(replacement, ContinuousEndReason.CleanedUp, null);
+        binder.OnUnregistered(replacement, ContinuousEndReason.CleanedUp, null);
+        Assert.Equal(10f, modifiers.Projectile.ResolveSpeed(10, 10f, in record));
+    }
+
     [Fact]
     public void Trigger_modifier_bridge_tracks_lifecycle_and_restores_from_rollback()
     {
@@ -1835,6 +1897,95 @@ public sealed class MobaModifierAttributeSourceTests
     }
 
     [Fact]
+    public void Jinx_weapon_mode_selects_the_matching_basic_attack_candidate_at_cast_prepare()
+    {
+        const int actorId = 3002;
+        const int weaponMode = 4;
+        const int baseAttack = 30020901;
+        const int minigunAttack = 30020902;
+        const int rocketAttack = 30020903;
+        const int otherActorId = 3001;
+        var profile = new AbilityKit.HFSM.Definition.StateMachineDefinition
+        {
+            DefinitionId = "moba.character.3002",
+            Parameters = new List<AbilityKit.HFSM.Definition.StateMachineParameterDefinition>
+            {
+                new()
+                {
+                    Id = weaponMode,
+                    Name = "WeaponMode",
+                    DefaultValue = 0f,
+                    SupportedOperations = new List<int> { (int)ModifierOp.Override },
+                },
+            },
+        };
+
+        using var parameters = new MobaCharacterHfsmParameterService();
+        parameters.RegisterActorProfile(actorId, profile);
+        parameters.RegisterActorProfile(otherActorId, profile);
+        using var candidates = new MobaSkillSlotCandidateService();
+        using var manager = new MobaContinuousManager();
+        var resolver = new Resolver(null, candidates: candidates, hfsmParameters: parameters);
+        manager.OnInit(resolver);
+        using var loadout = new MobaSkillLoadoutService(null);
+        loadout.OnInit(resolver);
+        loadout.SetLoadout(actorId, new[] { baseAttack });
+        loadout.SetLoadout(otherActorId, new[] { baseAttack });
+
+        var minigun = new SnapshotContinuous(new SnapshotConfig(new IMobaContinuousModifierSpec[]
+        {
+            new ContinuousModifierMO(new ContinuousModifierDTO
+            {
+                TargetKind = MobaContinuousModifierTargetKind.SkillSlotCandidate,
+                TargetId = 1,
+                CandidateSkillId = minigunAttack,
+                CandidateHfsmParameterId = weaponMode,
+                CandidateHfsmParameterComparison = MobaSkillSlotCandidateCondition.Equal,
+                CandidateHfsmParameterExpectedValue = 0f,
+            }),
+        }, sourceId: 501, ownerActorId: actorId));
+        var rocket = new SnapshotContinuous(new SnapshotConfig(new IMobaContinuousModifierSpec[]
+        {
+            new ContinuousModifierMO(new ContinuousModifierDTO
+            {
+                TargetKind = MobaContinuousModifierTargetKind.SkillSlotCandidate,
+                TargetId = 1,
+                CandidateSkillId = rocketAttack,
+                CandidateHfsmParameterId = weaponMode,
+                CandidateHfsmParameterComparison = MobaSkillSlotCandidateCondition.Equal,
+                CandidateHfsmParameterExpectedValue = 1f,
+            }),
+        }, sourceId: 502, ownerActorId: actorId));
+
+        Assert.True(manager.TryActivate(minigun));
+        Assert.True(manager.TryActivate(rocket));
+        Assert.True(loadout.TryResolveSlot(actorId, 1, out var resolved));
+        Assert.Equal(minigunAttack, resolved.EffectiveSkillId);
+        Assert.Equal(baseAttack, resolved.BaseSkillId);
+        Assert.True(loadout.TryResolveSlot(otherActorId, 1, out resolved));
+        Assert.Equal(baseAttack, resolved.EffectiveSkillId);
+
+        var committedRocketMode = ModifierData.Override(
+            ModifierKey.FromPacked(weaponMode), 1f, sourceId: 30020101);
+        parameters.Set(actorId, 30020101, weaponMode, in committedRocketMode);
+        Assert.True(loadout.TryResolveSlot(actorId, 1, out resolved));
+        Assert.Equal(rocketAttack, resolved.EffectiveSkillId);
+        Assert.Equal(1f, parameters.Resolve(actorId, weaponMode));
+        Assert.Equal(0f, parameters.Resolve(otherActorId, weaponMode));
+
+        var snapshot = parameters.CaptureSnapshot();
+        var committedMinigunMode = ModifierData.Override(
+            ModifierKey.FromPacked(weaponMode), 0f, sourceId: 30020101);
+        parameters.Set(actorId, 30020101, weaponMode, in committedMinigunMode);
+        Assert.True(loadout.TryResolveSlot(actorId, 1, out resolved));
+        Assert.Equal(minigunAttack, resolved.EffectiveSkillId);
+        parameters.RestoreSnapshot(snapshot);
+        Assert.True(loadout.TryResolveSlot(actorId, 1, out resolved));
+        Assert.Equal(rocketAttack, resolved.EffectiveSkillId);
+        Assert.Equal(1f, parameters.Resolve(actorId, weaponMode));
+    }
+
+    [Fact]
     public void Recorded_override_uses_priority_independent_of_activation_order()
     {
         using var modifiers = new MobaSkillParamModifierService();
@@ -1989,6 +2140,25 @@ public sealed class MobaModifierAttributeSourceTests
         });
         Assert.Throws<InvalidOperationException>(() => manager.TryActivate(
             new SnapshotContinuous(new SnapshotConfig(new IMobaContinuousModifierSpec[] { unknownSpec }))));
+    }
+
+    [Fact]
+    public void Continuous_modifier_mo_preserves_hfsm_candidate_condition()
+    {
+        var spec = new ContinuousModifierMO(new ContinuousModifierDTO
+        {
+            TargetKind = MobaContinuousModifierTargetKind.SkillSlotCandidate,
+            TargetId = 1,
+            CandidateSkillId = 101,
+            CandidateHfsmParameterId = 2201,
+            CandidateHfsmParameterComparison = 1,
+            CandidateHfsmParameterExpectedValue = 2f,
+        });
+
+        var condition = Assert.IsAssignableFrom<IMobaContinuousHfsmParameterConditionSpec>(spec);
+        Assert.Equal(2201, condition.HfsmParameterId);
+        Assert.Equal(1, condition.HfsmParameterComparison);
+        Assert.Equal(2f, condition.HfsmParameterExpectedValue);
     }
 
     [Fact]
@@ -2381,6 +2551,36 @@ public sealed class MobaModifierAttributeSourceTests
         Assert.Equal(10f, modifiers.Projectile.ResolveSpeed(10, 10f, in record));
     }
 
+    [Fact]
+    public void Production_rollback_reprojects_hfsm_parameter_contributions()
+    {
+        var parameters = new MobaCharacterHfsmParameterService();
+        parameters.RegisterActorProfile(10, MobaCharacterHfsmTestFixture.CreateDefinition());
+        using var manager = new MobaContinuousManager();
+        manager.OnInit(new Resolver(null, hfsmParameters: parameters));
+        var spec = new ContinuousModifierMO(new ContinuousModifierDTO
+        {
+            TargetKind = MobaContinuousModifierTargetKind.StateMachineParameter,
+            TargetId = MobaCharacterHfsmTestFixture.AttackSlot,
+            Op = (int)ModifierOp.Override,
+            Value = 2f,
+        });
+        var continuous = new SnapshotContinuous(new SnapshotConfig(
+            new IMobaContinuousModifierSpec[] { spec }));
+        Assert.True(manager.TryActivate(continuous));
+        var provider = new MobaContinuousModifierCaptureRollbackProvider(manager);
+        var frame = new FrameIndex(1);
+        var snapshot = provider.ExportState(frame);
+
+        Assert.Equal(2f, parameters.Resolve(10, MobaCharacterHfsmTestFixture.AttackSlot));
+        parameters.ClearSource(10, 40);
+        Assert.Equal(0f, parameters.Resolve(10, MobaCharacterHfsmTestFixture.AttackSlot));
+
+        provider.ImportState(frame, snapshot);
+
+        Assert.Equal(2f, parameters.Resolve(10, MobaCharacterHfsmTestFixture.AttackSlot));
+    }
+
     private static AttributeContext CreateActor(Contexts contexts, int actorId, float attack)
     {
         var actor = contexts.actor.CreateEntity();
@@ -2396,6 +2596,7 @@ public sealed class MobaModifierAttributeSourceTests
     {
         private readonly MobaActorLookupService _lookup;
         private readonly MobaSkillParamModifierService _skillParams;
+        private readonly MobaCharacterHfsmParameterService _hfsmParameters;
         private readonly MobaContinuousManager _manager;
         private readonly MobaSkillSlotCandidateService _candidates;
         private readonly MobaReferenceCandidateService _references;
@@ -2407,10 +2608,12 @@ public sealed class MobaModifierAttributeSourceTests
         public Resolver(MobaActorLookupService lookup, MobaSkillParamModifierService skillParams = null,
             MobaContinuousManager manager = null, MobaSkillSlotCandidateService candidates = null,
             MobaReferenceCandidateService references = null, IMobaEffectiveTagQueryService tags = null,
-            IFrameTime frameTime = null, MobaConfigDatabase configs = null)
+            IFrameTime frameTime = null, MobaConfigDatabase configs = null,
+            MobaCharacterHfsmParameterService hfsmParameters = null)
         {
             _lookup = lookup;
             _skillParams = skillParams;
+            _hfsmParameters = hfsmParameters;
             _manager = manager;
             _candidates = candidates;
             _references = references;
@@ -2426,6 +2629,7 @@ public sealed class MobaModifierAttributeSourceTests
                 type == typeof(MobaSkillParamModifierService) ? _skillParams :
                 type == typeof(MobaContinuousManager) || type == typeof(IContinuousManager) ? _manager : null;
             if (type == typeof(MobaSkillSlotCandidateService)) instance = _candidates;
+            if (type == typeof(MobaCharacterHfsmParameterService)) instance = _hfsmParameters;
             if (type == typeof(MobaReferenceCandidateService)) instance = _references;
             if (type == typeof(IMobaEffectiveTagQueryService)) instance = _tags;
             if (type == typeof(IFrameTime)) instance = _frameTime;

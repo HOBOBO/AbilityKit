@@ -21,6 +21,7 @@ public partial struct SearchTargetRule
         if(_buf.ReadBool()){ Forward = (SearchTargetPointKind)_buf.ReadInt(); } else { Forward = null; }
         if(_buf.ReadBool()){ Radius = _buf.ReadFloat(); } else { Radius = null; }
         if(_buf.ReadBool()){ HalfAngleDeg = _buf.ReadFloat(); } else { HalfAngleDeg = null; }
+        if(_buf.ReadBool()){ UnitSubType = _buf.ReadInt(); } else { UnitSubType = null; }
     }
 
     public static SearchTargetRule DeserializeSearchTargetRule(ByteBuf _buf)
@@ -33,6 +34,7 @@ public partial struct SearchTargetRule
     public readonly SearchTargetPointKind? Forward;
     public readonly float? Radius;
     public readonly float? HalfAngleDeg;
+    public readonly int? UnitSubType;
    
 
     public  void ResolveRef(Tables tables)
@@ -47,6 +49,7 @@ public partial struct SearchTargetRule
         + "Forward:" + Forward + ","
         + "Radius:" + Radius + ","
         + "HalfAngleDeg:" + HalfAngleDeg + ","
+        + "UnitSubType:" + UnitSubType + ","
         + "}";
     }
 }

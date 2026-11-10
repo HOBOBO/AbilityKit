@@ -229,6 +229,8 @@ namespace AbilityKit.Game.Flow
         private BattleContext _context;
         private long _remoteInterpolationGeneration;
         private Action _firstFrameReceived;
+        private long _lastReliableEventResyncWindowId = -1L;
+        private long _reliableEventResyncSuppressedCount;
 
         internal AuthoritativeStateRecoveryRuntime(
             BattleReplicationRuntime replication,
@@ -268,6 +270,8 @@ namespace AbilityKit.Game.Flow
             _sessionRecovery.CurrentDecision;
         internal NetworkSessionRecoveryDiagnostics RecoveryDiagnostics =>
             _sessionRecovery.GetDiagnostics();
+        internal long ReliableEventResyncSuppressedCount =>
+            _reliableEventResyncSuppressedCount;
 
         public bool TryReport(
             in NetworkSessionRecoverySignal signal,
@@ -299,6 +303,8 @@ namespace AbilityKit.Game.Flow
                 throw new InvalidOperationException("Replication runtime must be built before recovery.");
 
             EndGeneration();
+            _lastReliableEventResyncWindowId = -1L;
+            _reliableEventResyncSuppressedCount = 0L;
             _operation.Begin();
 
             try
@@ -499,13 +505,27 @@ namespace AbilityKit.Game.Flow
             return EndGenerationAsync();
         }
 
-        private void HandleReliableTimelineInvalidated(string reason)
+        internal void HandleReliableTimelineInvalidated(string reason)
         {
-            ReportAndExecute(
+            var recoveryWindowId = _reliableEvents.RecoveryWindowId;
+            if (recoveryWindowId > 0L &&
+                recoveryWindowId == _lastReliableEventResyncWindowId)
+            {
+                _reliableEventResyncSuppressedCount++;
+                return;
+            }
+
+            if (!ReportAndExecute(
                 NetworkSessionRecoverySignalKind.ReliableEventResyncRequired,
                 SyncHealthSeverity.Error,
                 reason,
-                _replication.SnapshotAdmission?.LastAcceptedFrame ?? 0);
+                _replication.SnapshotAdmission?.LastAcceptedFrame ?? 0))
+            {
+                return;
+            }
+
+            if (recoveryWindowId > 0L)
+                _lastReliableEventResyncWindowId = recoveryWindowId;
         }
 
         private async Task<bool> ExecuteFullStateRecoveryAsync(
@@ -572,12 +592,12 @@ namespace AbilityKit.Game.Flow
             return accepted;
         }
 
-        private void ReportAndExecute(
+        private bool ReportAndExecute(
             NetworkSessionRecoverySignalKind kind,
             SyncHealthSeverity severity,
             string detail,
             int frame,
-            Exception exception = null)
+                Exception exception = null)
         {
             var signal = new NetworkSessionRecoverySignal(
                 kind,
@@ -586,11 +606,12 @@ namespace AbilityKit.Game.Flow
                 exception,
                 CreateRecoveryCorrelationContext(_operation.Generation),
                 detail: detail);
-            if (!_sessionRecovery.TryReport(in signal, out var decision)) return;
+            if (!_sessionRecovery.TryReport(in signal, out var decision)) return false;
 
-            if (!_operation.TryReserve(out var token, out var reservation)) return;
+            if (!_operation.TryReserve(out var token, out var reservation)) return true;
 
             _ = ExecuteAndCompleteReservationAsync(decision, token, reservation);
+            return true;
         }
 
         private static string CreateRecoveryCorrelationContext(int generation)

@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         private MobaBrainService _brains;
         private SkillCastCoordinator _skills;
         private MobaSkillLoadoutService _skillLoadouts;
+        private MobaSkillSlotCandidateService _slotCandidates;
         private MobaSkillParamModifierService _skillModifiers;
         private MobaEffectiveTagQueryService _effectiveTags;
         private MobaCombatActivityService _combatActivity;
@@ -60,6 +61,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             Services.TryResolve(out _brains);
             Services.TryResolve(out _skills);
             Services.TryResolve(out _skillLoadouts);
+            Services.TryResolve(out _slotCandidates);
             Services.TryResolve(out _skillModifiers);
             Services.TryResolve(out _effectiveTags);
             Services.TryResolve(out _combatActivity);
@@ -186,6 +188,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             _buffs?.EndAllForActor(actorId, reason);
             _skills?.RemoveActor(actorId);
             _skillLoadouts?.RemoveActor(actorId);
+            _slotCandidates?.RemoveActor(actorId);
             _skillModifiers?.ClearActor(actorId);
             _effectiveTags?.RemoveActor(actorId);
             _combatActivity?.RemoveActor(actorId);

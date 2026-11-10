@@ -11,6 +11,7 @@ using AbilityKit.Triggering.Eventing;
 using AbilityKit.Pipeline;
 using PresentationEventArgs = AbilityKit.Demo.Moba.Triggering.PresentationEventArgs;
 using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Demo.Moba.Services.Triggering.Cue;
 
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -95,6 +96,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 object boxedPayload = payload;
                 bus.Publish(objectKey, in boxedPayload);
+            }
+
+            if (ctx.Context.TryResolve<MobaPresentationCueSnapshotService>(out var snapshots) && snapshots != null)
+            {
+                ctx.Context.TryResolve<MobaConfigDatabase>(out var configs);
+                if (args.Stop)
+                    MobaPresentationRequestReporter.ReportStop(snapshots, configs, payload);
+                else
+                    MobaPresentationRequestReporter.ReportPlay(snapshots, configs, payload);
             }
         }
     }

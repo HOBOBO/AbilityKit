@@ -42,6 +42,12 @@
     "Scale": 1
   },
   {
+    "Id": 3002,
+    "Name": "Jinx Arcanist model",
+    "PrefabPath": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_Model",
+    "Scale": 1
+  },
+  {
     "Id": 90000101,
     "Name": "技能预览-圆形范围占位模型",
     "PrefabPath": "moba/placeholders/aoe_circle_preview",
@@ -76,5 +82,23 @@
     "Name": "????-??????????",
     "PrefabPath": "moba/airship/luban_airship",
     "Scale": 3
+  },
+  {
+    "Id": 3001,
+    "Name": "Jhin Battlecast model",
+    "PrefabPath": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Model",
+    "Scale": 1
+  },
+  {
+    "Id": 3003,
+    "Name": "Annie-Void-Model",
+    "PrefabPath": "ChampionVfx/14.Void_Annie/Void_Annie_Model",
+    "Scale": 1
+  },
+  {
+    "Id": 30030502,
+    "Name": "Annie Tibbers model",
+    "PrefabPath": "ChampionVfx/14.Void_Annie/Void_Annie_Tibbers_Model",
+    "Scale": 1
   }
 ]

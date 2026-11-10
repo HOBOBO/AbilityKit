@@ -106,6 +106,73 @@ public sealed class PresentationCueViewRegistryTests
         Assert.Equal(2, registry.DestroyedCount);
     }
 
+    [Fact]
+    public void Clear_forces_active_instances_and_already_unregistered_drain_tails()
+    {
+        var port = new DrainingPort();
+        var registry = new PresentationCueViewRegistry<string, int, int>(port);
+        registry.EnsureActive("tail", 1);
+        registry.Stop("tail");
+        registry.EmitTransient("transient", 2);
+        registry.EnsureActive("active", 3);
+        Assert.Equal(3, port.Alive.Count);
+        registry.Clear();
+        Assert.Empty(port.Alive);
+        Assert.Equal(0, registry.ActiveCount);
+    }
+
+    [Fact]
+    public void Reconcile_forces_removed_instances_and_tails_but_preserves_desired_instance()
+    {
+        var port = new DrainingPort();
+        var registry = new PresentationCueViewRegistry<string, int, int>(port);
+        registry.EnsureActive("tail", 1);
+        registry.Stop("tail");
+        registry.EnsureActive("removed", 2);
+        registry.EnsureActive("desired", 3);
+        registry.TryGetHandle("desired", out var desired);
+        registry.ReconcileActiveSet(new[] { "desired" });
+        Assert.Equal(new[] { desired }, port.Alive);
+        Assert.Equal(1, registry.ActiveCount);
+    }
+
+    [Fact]
+    public void Failed_tail_cleanup_can_be_retried_after_registry_is_empty()
+    {
+        var port = new DrainingPort();
+        var registry = new PresentationCueViewRegistry<string, int, int>(port);
+        registry.EnsureActive("tail", 1);
+        registry.TryGetHandle("tail", out var tail);
+        registry.Stop("tail");
+        port.FailForce = true;
+        Assert.Throws<AggregateException>(() => registry.Clear());
+        Assert.Equal(0, registry.ActiveCount);
+        Assert.Contains(tail, port.Alive);
+        port.FailForce = false;
+        registry.Clear();
+        Assert.Empty(port.Alive);
+    }
+
+    private sealed class DrainingPort : IPresentationCueViewPort<string, int, int>, IPresentationCueCleanupPort<int>
+    {
+        private int _next;
+        public HashSet<int> Alive { get; } = new();
+        public bool FailForce;
+        public bool IsAlive(int handle) => Alive.Contains(handle);
+        public bool TryCreate(string key, in int payload, out int handle)
+        {
+            handle = ++_next;
+            return Alive.Add(handle);
+        }
+        public void Update(int handle, in int payload) { }
+        public void Destroy(int handle) { }
+        public void DestroyImmediately(int handle)
+        {
+            if (FailForce) throw new InvalidOperationException("force failed");
+            Alive.Remove(handle);
+        }
+    }
+
     private static PresentationCueReconciliationDecision<string, int> Decision(
         bool accepted,
         PresentationCueCommandKind command,

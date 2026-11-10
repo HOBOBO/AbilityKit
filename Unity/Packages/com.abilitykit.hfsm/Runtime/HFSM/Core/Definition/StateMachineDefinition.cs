@@ -22,6 +22,9 @@ namespace AbilityKit.HFSM.Definition
 
         public List<MachineDefinition> Machines { get; set; } = new List<MachineDefinition>();
 
+        public List<StateMachineParameterDefinition> Parameters { get; set; } =
+            new List<StateMachineParameterDefinition>();
+
         /// <summary>
         /// Computes a stable semantic hash. Display names, comments and source list ordering are
         /// intentionally excluded; transition ordering is defined by priority and transition id.
@@ -29,7 +32,31 @@ namespace AbilityKit.HFSM.Definition
         public long ComputeDefinitionHash()
         {
             var hash = DeterministicHash.Combine(DeterministicHash.OffsetBasis, (long)FormatVersion);
+            hash = DeterministicHash.Combine(hash, HashString(DefinitionId));
             hash = DeterministicHash.Combine(hash, HashString(RootMachineId));
+
+            var parameters = new List<StateMachineParameterDefinition>(
+                Parameters ?? new List<StateMachineParameterDefinition>());
+            parameters.Sort((left, right) => left.Id.CompareTo(right.Id));
+            hash = DeterministicHash.Combine(hash, (long)parameters.Count);
+            for (var parameterIndex = 0; parameterIndex < parameters.Count; parameterIndex++)
+            {
+                var parameter = parameters[parameterIndex];
+                if (parameter == null)
+                {
+                    hash = DeterministicHash.Combine(hash, -1L);
+                    continue;
+                }
+
+                hash = DeterministicHash.Combine(hash, (long)parameter.Id);
+                hash = DeterministicHash.Combine(hash, HashString(parameter.Name));
+                hash = DeterministicHash.Combine(hash, (long)BitConverter.SingleToInt32Bits(parameter.DefaultValue));
+                var operations = new List<int>(parameter.SupportedOperations ?? new List<int>());
+                operations.Sort();
+                hash = DeterministicHash.Combine(hash, (long)operations.Count);
+                for (var operationIndex = 0; operationIndex < operations.Count; operationIndex++)
+                    hash = DeterministicHash.Combine(hash, (long)operations[operationIndex]);
+            }
 
             var machines = new List<MachineDefinition>(Machines ?? new List<MachineDefinition>());
             machines.Sort((left, right) => string.CompareOrdinal(left?.Id, right?.Id));
@@ -60,6 +87,14 @@ namespace AbilityKit.HFSM.Definition
 
                     hash = DeterministicHash.Combine(hash, HashString(state.Id));
                     hash = DeterministicHash.Combine(hash, HashString(state.BehaviorKey));
+                    var entryActions = state.LogicEntryActionKeys ?? new List<string>();
+                    hash = DeterministicHash.Combine(hash, (long)entryActions.Count);
+                    for (var actionIndex = 0; actionIndex < entryActions.Count; actionIndex++)
+                        hash = DeterministicHash.Combine(hash, HashString(entryActions[actionIndex]));
+                    var exitActions = state.LogicExitActionKeys ?? new List<string>();
+                    hash = DeterministicHash.Combine(hash, (long)exitActions.Count);
+                    for (var actionIndex = 0; actionIndex < exitActions.Count; actionIndex++)
+                        hash = DeterministicHash.Combine(hash, HashString(exitActions[actionIndex]));
                     hash = DeterministicHash.Combine(hash, HashString(state.ChildMachineId));
                     hash = DeterministicHash.Combine(hash, state.RequiresExitApproval ? 1L : 0L);
                     hash = DeterministicHash.Combine(hash, state.IsGhostState ? 1L : 0L);
@@ -121,5 +156,13 @@ namespace AbilityKit.HFSM.Definition
 
             return hash;
         }
+    }
+
+    public sealed class StateMachineParameterDefinition
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public float DefaultValue { get; set; }
+        public List<int> SupportedOperations { get; set; } = new List<int>();
     }
 }

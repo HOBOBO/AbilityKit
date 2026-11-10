@@ -343,6 +343,8 @@ namespace ET.Logic
                 return;
             }
 
+            var listDispatcher = dispatcher as IFrameSnapshotListDispatcher;
+
             if (snapshot.EnterGame.HasValue)
             {
                 dispatcher.DispatchEnterGame(snapshot.FrameIndex, snapshot.EnterGame);
@@ -350,24 +352,53 @@ namespace ET.Logic
 
             if (snapshot.ActorTransforms != null && snapshot.ActorTransforms.Count > 0)
             {
-                var actorTransforms = ToArray(snapshot.ActorTransforms);
-                LastActorTransformSnapshot = actorTransforms;
-                dispatcher.DispatchActorTransform(snapshot.FrameIndex, actorTransforms);
+                // Keep the diagnostic cache compatible with existing ET consumers;
+                // the event path itself can consume the source list directly.
+                LastActorTransformSnapshot = ToArray(snapshot.ActorTransforms);
+                if (listDispatcher != null)
+                {
+                    listDispatcher.DispatchActorTransform(snapshot.FrameIndex, snapshot.ActorTransforms);
+                }
+                else
+                {
+                    dispatcher.DispatchActorTransform(snapshot.FrameIndex, LastActorTransformSnapshot);
+                }
             }
 
             if (snapshot.ProjectileEvents != null && snapshot.ProjectileEvents.Count > 0)
             {
-                dispatcher.DispatchProjectileEvent(snapshot.FrameIndex, ToArray(snapshot.ProjectileEvents));
+                if (listDispatcher != null)
+                {
+                    listDispatcher.DispatchProjectileEvent(snapshot.FrameIndex, snapshot.ProjectileEvents);
+                }
+                else
+                {
+                    dispatcher.DispatchProjectileEvent(snapshot.FrameIndex, ToArray(snapshot.ProjectileEvents));
+                }
             }
 
             if (snapshot.AreaEvents != null && snapshot.AreaEvents.Count > 0)
             {
-                dispatcher.DispatchAreaEvent(snapshot.FrameIndex, ToArray(snapshot.AreaEvents));
+                if (listDispatcher != null)
+                {
+                    listDispatcher.DispatchAreaEvent(snapshot.FrameIndex, snapshot.AreaEvents);
+                }
+                else
+                {
+                    dispatcher.DispatchAreaEvent(snapshot.FrameIndex, ToArray(snapshot.AreaEvents));
+                }
             }
 
             if (snapshot.DamageEvents != null && snapshot.DamageEvents.Count > 0)
             {
-                dispatcher.DispatchDamageEvent(snapshot.FrameIndex, ToArray(snapshot.DamageEvents));
+                if (listDispatcher != null)
+                {
+                    listDispatcher.DispatchDamageEvent(snapshot.FrameIndex, snapshot.DamageEvents);
+                }
+                else
+                {
+                    dispatcher.DispatchDamageEvent(snapshot.FrameIndex, ToArray(snapshot.DamageEvents));
+                }
             }
 
             if (snapshot.StateHash.HasValue)
@@ -378,23 +409,43 @@ namespace ET.Logic
 
             if (snapshot.ActorSpawns != null && snapshot.ActorSpawns.Count > 0)
             {
-                var actorSpawns = ToArray(snapshot.ActorSpawns);
-                LastActorSpawnSnapshot = actorSpawns;
-                dispatcher.DispatchActorSpawn(snapshot.FrameIndex, actorSpawns);
+                LastActorSpawnSnapshot = ToArray(snapshot.ActorSpawns);
+                if (listDispatcher != null)
+                {
+                    listDispatcher.DispatchActorSpawn(snapshot.FrameIndex, snapshot.ActorSpawns);
+                }
+                else
+                {
+                    dispatcher.DispatchActorSpawn(snapshot.FrameIndex, LastActorSpawnSnapshot);
+                }
             }
 
             if (snapshot.ActorDespawns != null && snapshot.ActorDespawns.Count > 0)
             {
-                dispatcher.DispatchActorDespawn(
-                    snapshot.FrameIndex,
-                    ToArray(snapshot.ActorDespawns));
+                if (listDispatcher != null)
+                {
+                    listDispatcher.DispatchActorDespawn(snapshot.FrameIndex, snapshot.ActorDespawns);
+                }
+                else
+                {
+                    dispatcher.DispatchActorDespawn(
+                        snapshot.FrameIndex,
+                        ToArray(snapshot.ActorDespawns));
+                }
             }
 
             if (snapshot.SkillStates != null && snapshot.SkillStates.Count > 0)
             {
-                dispatcher.DispatchSkillState(
-                    snapshot.FrameIndex,
-                    ToArray(snapshot.SkillStates));
+                if (listDispatcher != null)
+                {
+                    listDispatcher.DispatchSkillState(snapshot.FrameIndex, snapshot.SkillStates);
+                }
+                else
+                {
+                    dispatcher.DispatchSkillState(
+                        snapshot.FrameIndex,
+                        ToArray(snapshot.SkillStates));
+                }
             }
 
             if (snapshot.GameplayClock.HasValue)

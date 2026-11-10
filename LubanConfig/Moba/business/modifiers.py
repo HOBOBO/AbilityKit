@@ -6,7 +6,8 @@ import re
 
 from modifier_parameters import (derive_operation_mask, domain_name_for_parameter_id,
                                  generate_parameter_keys, validate_consumer_contracts,
-                                 validate_modifier_parameters, validate_modifier_template_ids)
+                                 validate_modifier_parameters, validate_modifier_template_ids,
+                                 is_valid_state_machine_parameter_id)
 
 
 # modifier_definitions owns the semantic half of a modifier; modifier_templates only records
@@ -18,14 +19,16 @@ DEFINITION_ID_RANGES = {
     "Aoe": (5000001, 5999999), "Summon": (6000001, 6999999),
     "Damage": (7000001, 7999999), "Buff": (8000001, 8999999),
 }
-MOUNT_BY_TARGET_KIND = {1: "Actor", 5: "Skill"}
+MOUNT_BY_TARGET_KIND = {1: "Actor", 2: "Buff", 5: "Skill"}
 MOUNT_BY_DOMAIN = {"Skill": "Skill", "Buff": "Buff", "Emitter": "Emitter",
                    "Projectile": "Projectile", "Aoe": "Aoe", "Summon": "Summon",
                    "Damage": "Damage"}
 STACKING_POLICIES = {0, 1, 2}
 MAGNITUDE_SOURCE_TYPES = {0, 1, 2, 3, 4, 5, 6}
 ATTRIBUTE_SOURCE_ROLES = {0, 1, 2}
-TARGET_KINDS = {1, 4, 5, 6}
+TARGET_KINDS = {1, 2, 4, 5, 6}
+# HFSM parameters currently accept the built-in numeric modifier operations.
+STATE_MACHINE_PARAMETER_OPS = {0, 1, 2, 3}  # Add, Mul, Override, PercentAdd.
 CONFLICT_GROUPS = {0, 1, 2, 3}
 MOUNT_POINTS = {0: None, 1: "Actor", 2: "Skill", 3: "Summon", 4: "Emitter",
                 5: "Projectile", 6: "Aoe", 7: "Buff", 8: "Damage"}
@@ -73,7 +76,8 @@ MODIFIER_FIELDS = (
     "SelectorSlot", "SelectorBaseSkillId", "SelectorEffectiveSkillId",
     "SelectorLauncherTemplateId", "SelectorProjectileTemplateId", "SelectorAreaTemplateId",
     "SelectorSummonTemplateId", "SelectorBuffTemplateId", "CandidateSkillId",
-    "CandidateReferenceId", "FormulaConstant", "FormulaLevelCoefficient", "FormulaTerms",
+    "CandidateReferenceId", "CandidateHfsmParameterId", "CandidateHfsmParameterComparison",
+    "CandidateHfsmParameterExpectedValue", "FormulaConstant", "FormulaLevelCoefficient", "FormulaTerms",
 )
 PROCESS_MODIFIER_FIELDS = MODIFIER_FIELDS
 
@@ -96,6 +100,14 @@ def definition_domain(row, parameter_domains):
     kind, identity = target.get("Kind", 0), target.get("Id", 0)
     if kind == 1:
         return "Attribute"
+    if kind == 2:
+        # State-machine parameters are contributed for the lifetime of a Buff or
+        # continuous process. Keep their mount in the Buff modifier domain; the
+        # target ID itself belongs to the HFSM parameter contract, not the skill
+        # modifier parameter catalog.
+        if not is_valid_state_machine_parameter_id(identity):
+            raise ValueError(f"unsupported state-machine parameter ID {identity}")
+        return "Buff"
     if kind == 5:
         return "Skill"
     return parameter_domains.get(identity)
@@ -331,6 +343,9 @@ def flatten_modifier(modifier):
         "AttributeSourceRole": modifier.get("AttributeSourceRole", 0),
         "CandidateSkillId": candidate.get("SkillId", 0),
         "CandidateReferenceId": candidate.get("ReferenceId", 0),
+        "CandidateHfsmParameterId": candidate.get("HfsmParameterId", 0),
+        "CandidateHfsmParameterComparison": candidate.get("HfsmParameterComparison", 0),
+        "CandidateHfsmParameterExpectedValue": candidate.get("HfsmParameterExpectedValue", 0),
         "FormulaConstant": modifier.get("FormulaConstant", 0),
         "FormulaLevelCoefficient": modifier.get("FormulaLevelCoefficient", 0),
         "FormulaTerms": modifier.get("FormulaTerms") or [],
@@ -412,16 +427,39 @@ class Rule:
                 graph.check_value(owner, modifier, field, table)
             selected = {field for field in ("SelectorSlot", *selector_references) if modifier[field]}
             kind = modifier["TargetKind"]
-            if kind not in (1, 4, 5, 6):
+            if kind not in (1, 2, 4, 5, 6):
                 raise ValueError(f"{owner}: unsupported TargetKind {kind}")
+            if kind == 2 and modifier["TargetId"] <= 0:
+                raise ValueError(f"{owner}: state-machine parameter target requires a positive ID")
+            if kind == 2 and not is_valid_state_machine_parameter_id(modifier["TargetId"]):
+                raise ValueError(f"{owner}: unsupported state-machine parameter ID {modifier['TargetId']}")
+            if kind == 2 and modifier["Op"] not in STATE_MACHINE_PARAMETER_OPS:
+                raise ValueError(f"{owner}: unsupported operation for state-machine parameter")
             if kind == 5:
                 if selected:
                     raise ValueError(f"{owner}: slot candidate cannot use parameter selectors")
                 if modifier["TargetId"] <= 0 or modifier["TargetId"] > 16:
                     raise ValueError(f"{owner}: slot candidate requires a slot in 1..16")
                 graph.check_value(owner, modifier, "CandidateSkillId", "skills", True)
+                parameter_id = modifier.get("CandidateHfsmParameterId", 0)
+                comparison = modifier.get("CandidateHfsmParameterComparison", 0)
+                expected = modifier.get("CandidateHfsmParameterExpectedValue", 0)
+                if type(parameter_id) is not int or parameter_id < 0:
+                    raise ValueError(f"{owner}: CandidateHfsmParameterId must be nonnegative")
+                if type(comparison) is not int or comparison not in range(0, 7):
+                    raise ValueError(f"{owner}: invalid CandidateHfsmParameterComparison")
+                if parameter_id == 0 and comparison != 0:
+                    raise ValueError(f"{owner}: unconditional candidate requires comparison None")
+                if parameter_id > 0 and comparison == 0:
+                    raise ValueError(f"{owner}: conditional candidate requires a comparison")
+                if not math.isfinite(expected):
+                    raise ValueError(f"{owner}: CandidateHfsmParameterExpectedValue must be finite")
             elif modifier["CandidateSkillId"]:
                 raise ValueError(f"{owner}: CandidateSkillId requires SkillSlotCandidate target")
+            elif any(modifier.get(field, 0) for field in (
+                    "CandidateHfsmParameterId", "CandidateHfsmParameterComparison",
+                    "CandidateHfsmParameterExpectedValue")):
+                raise ValueError(f"{owner}: HFSM candidate condition requires SkillSlotCandidate target")
             if kind == 6:
                 parameter = graph.index["modifier_parameters"].get(modifier["TargetId"])
                 reference_tables = {(7, "LauncherId"): "projectile_launchers",

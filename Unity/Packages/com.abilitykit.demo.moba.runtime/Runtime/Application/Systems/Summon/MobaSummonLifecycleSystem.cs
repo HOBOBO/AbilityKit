@@ -9,6 +9,7 @@ namespace AbilityKit.Demo.Moba.Systems.Summon
     public sealed class MobaSummonLifecycleSystem : WorldSystemBase
     {
         private MobaSummonService _summons;
+        private MobaSummonDeathSubscriber _deathSubscriber;
         private MobaActorRegistry _registry;
         private AbilityKit.Ability.FrameSync.IFrameTime _frameTime;
         private AbilityKit.Ability.World.Services.IWorldClock _clock;
@@ -22,6 +23,7 @@ namespace AbilityKit.Demo.Moba.Systems.Summon
         protected override void OnInit()
         {
             Services.TryResolve(out _summons);
+            Services.TryResolve(out _deathSubscriber);
             Services.TryResolve(out _registry);
             Services.TryResolve(out _frameTime);
             Services.TryResolve(out _clock);

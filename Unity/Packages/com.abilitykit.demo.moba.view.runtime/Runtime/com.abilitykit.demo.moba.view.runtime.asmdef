@@ -8,6 +8,7 @@
         "AbilityKit.ActionSchema",
         "AbilityKit.Attributes",
         "AbilityKit.Core",
+        "AbilityKit.Deterministic",
         "AbilityKit.Flow",
         "AbilityKit.Game.Flow.Core",
         "AbilityKit.Game.Battle.Presentation.Components",

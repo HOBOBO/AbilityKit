@@ -113,6 +113,19 @@ namespace AbilityKit.Triggering.Payload
                 return accessor.TryGet(args, fieldId, out value);
             }
 
+            // Trigger plans commonly receive payloads through an object-typed
+            // boundary. Keep the strongly typed registrations authoritative,
+            // but allow boxed dispatch to discover the runtime payload type
+            // without requiring every producer to register an object alias.
+            if (args != null)
+            {
+                foreach (var candidate in _boxedIntAccessorsByArgsType.Values)
+                {
+                    if (candidate.TryGet(args, fieldId, out value))
+                        return true;
+                }
+            }
+
             value = default;
             return false;
         }
@@ -124,6 +137,15 @@ namespace AbilityKit.Triggering.Payload
                 && accessor.TryGet(args, fieldId, out value))
             {
                 return true;
+            }
+
+            if (args != null)
+            {
+                foreach (var candidate in _boxedDoubleAccessorsByArgsType.Values)
+                {
+                    if (candidate.TryGet(args, fieldId, out value))
+                        return true;
+                }
             }
 
             value = default;

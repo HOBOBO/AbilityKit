@@ -18,7 +18,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         {
             var keyId = ReadInt(namedArgs, ctx, 0, "key_id", "keyid", "id");
             var value = ReadFloat(namedArgs, ctx, 0f, "value", "amount");
-            return new SetGameplayVarArgs(keyId, value);
+            var scopePayloadFieldId = ReadInt(namedArgs, ctx, 0,
+                "scope_payload_field_id", "scopePayloadFieldId", "scope_field_id", "field_id");
+            return new SetGameplayVarArgs(keyId, value, scopePayloadFieldId);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

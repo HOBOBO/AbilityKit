@@ -151,6 +151,31 @@ function Get-SourceRecords {
     return $records.ToArray()
 }
 
+function Get-NamespaceRanges {
+    param(
+        [object]$Namespace,
+        [string]$Name
+    )
+
+    if ($Namespace.PSObject.Properties.Name -contains 'ranges') {
+        $configured = @($Namespace.ranges)
+        if ($configured.Count -eq 0) {
+            throw "Namespace '$Name' must define at least one range."
+        }
+
+        return @($configured | ForEach-Object {
+            [pscustomobject]@{ min = [long]$_.min; max = [long]$_.max }
+        })
+    }
+
+    if ($Namespace.PSObject.Properties.Name -notcontains 'min' -or
+        $Namespace.PSObject.Properties.Name -notcontains 'max') {
+        throw "Namespace '$Name' must define either ranges or min/max."
+    }
+
+    return @([pscustomobject]@{ min = [long]$Namespace.min; max = [long]$Namespace.max })
+}
+
 $resolvedRegistryPath = Resolve-RepoPath $RegistryPath
 $registry = Read-Json $resolvedRegistryPath
 if ([int]$registry.schemaVersion -ne 1) {
@@ -171,19 +196,52 @@ if ($namespaces.Count -eq 0) {
 $errors = New-Object System.Collections.Generic.List[string]
 $allRecords = New-Object System.Collections.Generic.List[object]
 $nameSet = @{}
+$namespaceByName = @{}
+foreach ($registeredNamespace in $namespaces) {
+    $namespaceByName[[string]$registeredNamespace.name] = $registeredNamespace
+}
+
+function Test-CrossNamespaceReuseAllowed {
+    param([string]$LeftName, [string]$RightName)
+
+    if (!$namespaceByName.ContainsKey($LeftName) -or !$namespaceByName.ContainsKey($RightName)) {
+        return $false
+    }
+
+    $left = $namespaceByName[$LeftName]
+    $right = $namespaceByName[$RightName]
+    $leftAllows = @($left.allowCrossNamespaceIdReuseWith | ForEach-Object { [string]$_ }) -contains $RightName
+    $rightAllows = @($right.allowCrossNamespaceIdReuseWith | ForEach-Object { [string]$_ }) -contains $LeftName
+    return $leftAllows -and $rightAllows
+}
+
 for ($i = 0; $i -lt $namespaces.Count; $i++) {
     $current = $namespaces[$i]
     $name = [string]$current.name
-    $min = [long]$current.min
-    $max = [long]$current.max
+    try {
+        $ranges = @(Get-NamespaceRanges -Namespace $current -Name $name)
+    }
+    catch {
+        [void]$errors.Add($_.Exception.Message)
+        $ranges = @()
+    }
     if ([string]::IsNullOrWhiteSpace($name)) { [void]$errors.Add("Namespace at index $i has an empty name."); continue }
     if ($nameSet.ContainsKey($name)) { [void]$errors.Add("Duplicate namespace name '$name'.") } else { $nameSet[$name] = $true }
-    if ($min -le $legacyIdMax -or $max -lt $min) { [void]$errors.Add("Namespace '$name' has invalid range [$min, $max].") }
-
-    for ($j = 0; $j -lt $i; $j++) {
-        $other = $namespaces[$j]
-        if ($min -le [long]$other.max -and $max -ge [long]$other.min) {
-            [void]$errors.Add("Namespace ranges overlap: '$name' [$min, $max] and '$($other.name)' [$($other.min), $($other.max)].")
+    for ($rangeIndex = 0; $rangeIndex -lt $ranges.Count; $rangeIndex++) {
+        $range = $ranges[$rangeIndex]
+        if ($range.min -le $legacyIdMax -or $range.max -lt $range.min) {
+            [void]$errors.Add("Namespace '$name' has invalid range [$($range.min), $($range.max)].")
+        }
+        for ($j = 0; $j -lt $i; $j++) {
+            $other = $namespaces[$j]
+            try { $otherRanges = @(Get-NamespaceRanges -Namespace $other -Name ([string]$other.name)) }
+            catch { continue }
+            foreach ($otherRange in $otherRanges) {
+                if ($range.min -le $otherRange.max -and $range.max -ge $otherRange.min -and
+                    !(Test-CrossNamespaceReuseAllowed -LeftName $name -RightName ([string]$other.name))) {
+                    [void]$errors.Add("Namespace ranges overlap: '$name' [$($range.min), $($range.max)] and '$($other.name)' [$($otherRange.min), $($otherRange.max)].")
+                }
+            }
         }
     }
 
@@ -219,17 +277,31 @@ for ($i = 0; $i -lt $namespaces.Count; $i++) {
     }
 
     foreach ($record in $namespaceRecords) {
-        if ($record.id -gt $legacyIdMax -and ($record.id -lt $min -or $record.id -gt $max)) {
-            [void]$errors.Add("Id $($record.id) at $($record.location) is outside namespace '$name' range [$min, $max].")
+        $inRange = $false
+        foreach ($range in $ranges) {
+            if ($record.id -ge $range.min -and $record.id -le $range.max) {
+                $inRange = $true
+                break
+            }
+        }
+        if ($record.id -gt $legacyIdMax -and !$inRange) {
+            $rangeText = (@($ranges | ForEach-Object { "[$($_.min), $($_.max)]" }) -join ', ')
+            [void]$errors.Add("Id $($record.id) at $($record.location) is outside namespace '$name' ranges $rangeText.")
         }
     }
 }
 
 foreach ($group in @($allRecords | Where-Object { $_.id -gt $legacyIdMax } | Group-Object id)) {
     $namespaceNames = @($group.Group | Select-Object -ExpandProperty namespace -Unique)
-    if ($namespaceNames.Count -gt 1) {
-        $locations = @($group.Group | ForEach-Object { "$($_.namespace):$($_.location)" }) -join ", "
-        [void]$errors.Add("Cross-namespace id collision for id $($group.Name): $locations.")
+    for ($i = 0; $i -lt $namespaceNames.Count; $i++) {
+        for ($j = $i + 1; $j -lt $namespaceNames.Count; $j++) {
+            if (!(Test-CrossNamespaceReuseAllowed -LeftName ([string]$namespaceNames[$i]) -RightName ([string]$namespaceNames[$j]))) {
+                $locations = @($group.Group | ForEach-Object { "$($_.namespace):$($_.location)" }) -join ", "
+                [void]$errors.Add("Cross-namespace id collision for id $($group.Name): $locations.")
+                break
+            }
+        }
+        if ($errors.Count -gt 0 -and $errors[$errors.Count - 1] -like "Cross-namespace id collision for id $($group.Name):*") { break }
     }
 }
 
@@ -263,8 +335,12 @@ foreach ($record in @($allRecords | Where-Object { $_.namespace -eq $Namespace }
 }
 
 $allocated = New-Object System.Collections.Generic.List[long]
-for ($candidate = [long]$definition.min; $candidate -le [long]$definition.max -and $allocated.Count -lt $Count; $candidate++) {
-    if (!$occupied.ContainsKey($candidate)) { [void]$allocated.Add($candidate) }
+$allocationRanges = @(Get-NamespaceRanges -Namespace $definition -Name $Namespace)
+foreach ($range in $allocationRanges) {
+    for ($candidate = [long]$range.min; $candidate -le [long]$range.max -and $allocated.Count -lt $Count; $candidate++) {
+        if (!$occupied.ContainsKey($candidate)) { [void]$allocated.Add($candidate) }
+    }
+    if ($allocated.Count -ge $Count) { break }
 }
 
 if ($allocated.Count -ne $Count) {

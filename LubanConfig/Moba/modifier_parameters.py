@@ -37,6 +37,23 @@ PARAMETER_ID_MIGRATION = {
 EMITTER_LEGACY_IDS = {1, 3, 4, 5}
 
 DOMAIN_NAMES = {1: "Skill", 2: "Projectile", 3: "Summon", 4: "Buff", 5: "Aoe", 6: "Damage", 7: "Emitter"}
+# HFSM parameter IDs are profile-local, rather than a global MOBA enum.  The
+# character HFSM definition is the authority for the IDs an actor may consume
+# (for example Jinx's WeaponMode=4).  Keep the historical built-in IDs for
+# diagnostics/backward compatibility, but do not use this set to reject a
+# custom character profile parameter during export.
+STATE_MACHINE_PARAMETER_IDS = frozenset({1, 2, 3, 10, 11})
+
+
+def is_valid_state_machine_parameter_id(parameter_id):
+    """Return whether an authored HFSM target has a valid ABI shape.
+
+    Ownership and supported operations are checked when the modifier is
+    projected onto an actor's registered HFSM profile.  The Excel exporter
+    cannot infer that actor/profile from a shared modifier definition, so it
+    must only enforce the common positive-ID contract here.
+    """
+    return type(parameter_id) is int and parameter_id > 0
 # The original 1-16 IDs are retired by the audited domain migration below.
 PARAMETER_ID_RANGES = {
     1: (10000, 19999),  # Skill
@@ -274,8 +291,12 @@ def validate_modifier_template_ids(rows, parameters):
         target = row.get("Target") or {}
         target_kind = row.get("TargetKind", target.get("Kind", 0))
         target_id = row.get("TargetId", target.get("Id", 0))
+        if target_kind == 2 and not is_valid_state_machine_parameter_id(target_id):
+            raise ValueError(f"modifier_templates/{identity}: unsupported state-machine parameter ID {target_id}")
         if target_kind == 1:
             domain = "Attribute"
+        elif target_kind == 2:
+            domain = "Buff"
         elif target_kind == 5:
             domain = "Skill"
         elif target_kind in (4, 6):

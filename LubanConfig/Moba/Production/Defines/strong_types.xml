@@ -90,6 +90,7 @@
         <var name="Pipeline" value="4"/>
         <var name="ContextFloat" value="5"/>
         <var name="LinearFormula" value="6"/>
+        <var name="HeroLevelSkillParameter" value="7"/>
     </enum>
     <!-- EvaluationPolicy is no longer authored. The exporter derives it from the referenced
          modifier parameter's CapturePolicy so a field's timing semantics live in exactly one
@@ -97,6 +98,15 @@
     <enum name="ModifierEvaluationPolicy">
         <var name="Realtime" value="0"/>
         <var name="OnApplySnapshot" value="1"/>
+    </enum>
+    <enum name="HfsmParameterComparison">
+        <var name="None" value="0"/>
+        <var name="Equal" value="1"/>
+        <var name="NotEqual" value="2"/>
+        <var name="Greater" value="3"/>
+        <var name="GreaterOrEqual" value="4"/>
+        <var name="Less" value="5"/>
+        <var name="LessOrEqual" value="6"/>
     </enum>
     <enum name="ModifierAttributeSourceRole">
         <var name="Owner" value="0"/>
@@ -198,6 +208,7 @@
         <var name="Blacklist" value="514"/>
         <var name="RequireValidId" value="516"/>
         <var name="RequireHasPosition" value="517"/>
+        <var name="RequireUnitSubType" value="518"/>
         <var name="ExcludeCaster" value="769"/>
         <var name="ExcludeExplicitTarget" value="770"/>
         <var name="RectangleShape" value="771"/>
@@ -213,6 +224,7 @@
         <var name="Caster" value="0"/>
         <var name="AimPosition" value="1"/>
         <var name="ExplicitTarget" value="2"/>
+        <var name="ProjectileHit" value="3"/>
     </enum>
     <enum name="MapCollisionShapeType">
         <var name="Box" value="0"/>
@@ -272,6 +284,7 @@
     <enum name="ProjectileHitPolicyKind">
         <var name="ExitOnHit" value="0"/>
         <var name="Pierce" value="1"/>
+        <var name="Bounce" value="2"/>
     </enum>
     <enum name="SearchQueryCenterMode">
         <var name="Caster" value="0"/>
@@ -308,6 +321,9 @@
     <bean name="ModifierCandidateSpec" valueType="1" sep="|">
         <var name="SkillId" type="int"/>
         <var name="ReferenceId" type="int"/>
+        <var name="HfsmParameterId" type="int"/>
+        <var name="HfsmParameterComparison" type="HfsmParameterComparison"/>
+        <var name="HfsmParameterExpectedValue" type="float"/>
     </bean>
     <bean name="ModifierFormulaTerm" valueType="1" sep="|">
         <var name="ActorRole" type="ModifierAttributeSourceRole"/>
@@ -351,6 +367,7 @@
         <var name="Forward" type="SearchTargetPointKind?"/>
         <var name="Radius" type="float?"/>
         <var name="HalfAngleDeg" type="float?"/>
+        <var name="UnitSubType" type="int?"/>
     </bean>
     <bean name="SearchTargetScorer" valueType="1" sep="|">
         <var name="Kind" type="SearchTargetScorerKind"/>

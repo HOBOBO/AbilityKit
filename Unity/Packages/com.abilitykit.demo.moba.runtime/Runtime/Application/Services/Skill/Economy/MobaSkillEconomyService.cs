@@ -8,6 +8,7 @@ using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Deterministic;
 using AbilityKit.Triggering.Eventing;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -92,16 +93,30 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillEconomyServiceSnapshot(
             MobaSkillEconomyTransactionSnapshot[] transactions,
             MobaSkillEconomyCooldownSnapshot[] cooldowns,
-            MobaSkillEconomyCooldownSnapshot[] globalCooldowns)
+            MobaSkillEconomyCooldownSnapshot[] globalCooldowns,
+            MobaSkillEconomyKillRefundSnapshot[] killRefunds = null)
         {
             Transactions = transactions ?? Array.Empty<MobaSkillEconomyTransactionSnapshot>();
             Cooldowns = cooldowns ?? Array.Empty<MobaSkillEconomyCooldownSnapshot>();
             GlobalCooldowns = globalCooldowns ?? Array.Empty<MobaSkillEconomyCooldownSnapshot>();
+            KillRefunds = killRefunds ?? Array.Empty<MobaSkillEconomyKillRefundSnapshot>();
         }
 
         public MobaSkillEconomyTransactionSnapshot[] Transactions { get; }
         public MobaSkillEconomyCooldownSnapshot[] Cooldowns { get; }
         public MobaSkillEconomyCooldownSnapshot[] GlobalCooldowns { get; }
+        public MobaSkillEconomyKillRefundSnapshot[] KillRefunds { get; }
+    }
+
+    internal readonly struct MobaSkillEconomyKillRefundSnapshot
+    {
+        public MobaSkillEconomyKillRefundSnapshot(in MobaSkillCastRuntimeHandle handle, int actorId, int skillId, int resourceType, long amountRaw)
+        { Handle = handle; ActorId = actorId; SkillId = skillId; ResourceType = resourceType; AmountRaw = amountRaw; }
+        public MobaSkillCastRuntimeHandle Handle { get; }
+        public int ActorId { get; }
+        public int SkillId { get; }
+        public int ResourceType { get; }
+        public long AmountRaw { get; }
     }
 
     [WorldService(typeof(MobaSkillEconomyService))]
@@ -145,11 +160,21 @@ namespace AbilityKit.Demo.Moba.Services
             public MobaSkillEconomyTransactionState State;
         }
 
+        private sealed class KillRefund
+        {
+            public MobaSkillCastRuntimeHandle Handle;
+            public int ActorId;
+            public int SkillId;
+            public ResourceType ResourceType;
+            public Fixed64 Amount;
+        }
+
         private readonly MobaSkillCastRuntimeService _runtimes;
         private readonly MobaActorLookupService _actors;
         private readonly IFrameTime _time;
         private readonly IMobaBattleDiagnosticEventSink _diagnosticEvents;
         private readonly Dictionary<long, Transaction> _transactions = new Dictionary<long, Transaction>();
+        private readonly Dictionary<long, KillRefund> _killRefunds = new Dictionary<long, KillRefund>();
         private readonly Dictionary<ActorGroupKey, long> _cooldownGroups = new Dictionary<ActorGroupKey, long>();
         private readonly Dictionary<int, long> _globalCooldowns = new Dictionary<int, long>();
 
@@ -175,6 +200,62 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public int PendingTransactionCount => _transactions.Count;
+
+        /// <summary>
+        /// Returns true when the cast already has an economy transaction. Generic
+        /// commit plans use this to avoid consuming a resource a second time after
+        /// the table-driven Economy phase has reserved it.
+        /// </summary>
+        public bool HasActiveTransaction(in MobaSkillCastRuntimeHandle handle)
+        {
+            return TryGetTransaction(in handle, out _);
+        }
+
+        public bool TryRefundKillCost(in MobaSkillCastRuntimeHandle handle, int killerActorId, int skillId, out Fixed64 amount)
+        {
+            amount = Fixed64.Zero;
+            if (killerActorId <= 0) return false;
+
+            KillRefund refund = null;
+            long refundKey = 0L;
+            if (handle.IsValid && _killRefunds.TryGetValue(handle.RuntimeId, out var direct)
+                && direct != null && direct.Handle.Equals(handle))
+            {
+                refund = direct;
+                refundKey = handle.RuntimeId;
+            }
+            else
+            {
+                // Derived projectile and death events can carry a retained lineage
+                // handle whose runtime id differs from the cast receipt. Resolve
+                // the one-shot receipt by the authoritative killer/skill pair so
+                // generic unit.die refund handling remains lineage tolerant.
+                foreach (var pair in _killRefunds)
+                {
+                    var candidate = pair.Value;
+                    if (candidate != null && candidate.ActorId == killerActorId
+                        && (skillId == 0 || candidate.SkillId == skillId))
+                    {
+                        refundKey = pair.Key;
+                        refund = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (refund == null || refund.ActorId != killerActorId ||
+                (skillId != 0 && refund.SkillId != skillId)) return false;
+
+            // Validate the destination before consuming the one-shot receipt. If an actor
+            // resource is temporarily unavailable, the kill event may be replayed safely.
+            if (refund.Amount <= Fixed64.Zero || !_actors.TryGetActorEntity(killerActorId, out var actor) || actor == null ||
+                !MobaResourceMutation.TryGetState(actor, refund.ResourceType, out var state)) return false;
+
+            _killRefunds.Remove(refundKey);
+            amount = refund.Amount;
+            MobaResourceMutation.Refund(actor, refund.ResourceType, state, amount);
+            return true;
+        }
 
         public bool TryReserve(
             SkillPipelineContext context,
@@ -267,6 +348,21 @@ namespace AbilityKit.Demo.Moba.Services
                 GlobalCooldownMs = Math.Max(0, specification.GlobalCooldownMs),
                 State = MobaSkillEconomyTransactionState.Reserved,
             });
+            // A projectile or delayed effect may kill its target before the cast
+            // runtime reaches the normal Commit callback.  Retain the one-shot
+            // kill refund receipt when the resource is reserved so unit.die can
+            // consume it at any point during the cast lifetime.
+            if (resourceAmount > Fixed64.Zero && resourceType != ResourceType.Hp)
+            {
+                _killRefunds[handle.RuntimeId] = new KillRefund
+                {
+                    Handle = handle,
+                    ActorId = context.CasterActorId,
+                    SkillId = context.SkillId,
+                    ResourceType = resourceType,
+                    Amount = resourceAmount,
+                };
+            }
             TryCollectEconomy(context, specification,
                 BattleDiagnosticSkillExecutionStage.EconomyReserved,
                 resourceType, resourceAmount.RawValue, resourceBeforeRaw, resourceAfterRaw,
@@ -331,6 +427,18 @@ namespace AbilityKit.Demo.Moba.Services
                 _globalCooldowns[transaction.ActorId] = nowMs + transaction.GlobalCooldownMs;
 
             transaction.State = MobaSkillEconomyTransactionState.Committed;
+            if (transaction.ResourceAmount > Fixed64.Zero && transaction.ResourceType != ResourceType.Hp &&
+                !_killRefunds.ContainsKey(handle.RuntimeId))
+            {
+                _killRefunds[handle.RuntimeId] = new KillRefund
+                {
+                    Handle = transaction.Handle,
+                    ActorId = transaction.ActorId,
+                    SkillId = transaction.SkillId,
+                    ResourceType = transaction.ResourceType,
+                    Amount = transaction.ResourceAmount,
+                };
+            }
             TryCollectEconomy(transaction,
                 BattleDiagnosticSkillExecutionStage.EconomyCommitted,
                 BattleDiagnosticEventOutcome.Succeeded,
@@ -384,6 +492,10 @@ namespace AbilityKit.Demo.Moba.Services
                 if (pair.Value.ActorId == actorId) runtimeIds.Add(pair.Key);
             }
             for (var i = 0; i < runtimeIds.Count; i++) _transactions.Remove(runtimeIds[i]);
+            runtimeIds.Clear();
+            foreach (var pair in _killRefunds)
+                if (pair.Value.ActorId == actorId) runtimeIds.Add(pair.Key);
+            for (var i = 0; i < runtimeIds.Count; i++) _killRefunds.Remove(runtimeIds[i]);
         }
 
         public void OnSkillRuntimeLifecycle(in MobaSkillRuntimeLifecycleEvent lifecycleEvent)
@@ -408,6 +520,9 @@ namespace AbilityKit.Demo.Moba.Services
                     lifecycleEvent.Reason.ToString());
             }
 
+            if (transaction.State == MobaSkillEconomyTransactionState.Reserved)
+                _killRefunds.Remove(handle.RuntimeId);
+
             _transactions.Remove(handle.RuntimeId);
         }
 
@@ -415,6 +530,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _runtimes.LifecycleHooks.Unregister(this);
             _transactions.Clear();
+            _killRefunds.Clear();
             _cooldownGroups.Clear();
             _globalCooldowns.Clear();
         }
@@ -442,17 +558,27 @@ namespace AbilityKit.Demo.Moba.Services
             foreach (var pair in _globalCooldowns)
                 globals.Add(new MobaSkillEconomyCooldownSnapshot(pair.Key, 0, pair.Value));
             globals.Sort(CompareCooldowns);
-            return new MobaSkillEconomyServiceSnapshot(transactions.ToArray(), cooldowns.ToArray(), globals.ToArray());
+            var killRefunds = new List<MobaSkillEconomyKillRefundSnapshot>(_killRefunds.Count);
+            foreach (var pair in _killRefunds)
+            {
+                var value = pair.Value;
+                killRefunds.Add(new MobaSkillEconomyKillRefundSnapshot(in value.Handle, value.ActorId,
+                    value.SkillId, (int)value.ResourceType, value.Amount.RawValue));
+            }
+            killRefunds.Sort((left, right) => left.Handle.RuntimeId.CompareTo(right.Handle.RuntimeId));
+            return new MobaSkillEconomyServiceSnapshot(transactions.ToArray(), cooldowns.ToArray(), globals.ToArray(), killRefunds.ToArray());
         }
 
         internal void RestoreRollbackSnapshot(in MobaSkillEconomyServiceSnapshot snapshot)
         {
             _transactions.Clear();
+            _killRefunds.Clear();
             _cooldownGroups.Clear();
             _globalCooldowns.Clear();
             var transactions = snapshot.Transactions ?? Array.Empty<MobaSkillEconomyTransactionSnapshot>();
             var cooldowns = snapshot.Cooldowns ?? Array.Empty<MobaSkillEconomyCooldownSnapshot>();
             var globalCooldowns = snapshot.GlobalCooldowns ?? Array.Empty<MobaSkillEconomyCooldownSnapshot>();
+            var killRefunds = snapshot.KillRefunds ?? Array.Empty<MobaSkillEconomyKillRefundSnapshot>();
             for (var i = 0; i < transactions.Length; i++)
             {
                 var value = transactions[i];
@@ -482,6 +608,16 @@ namespace AbilityKit.Demo.Moba.Services
             }
             for (var i = 0; i < globalCooldowns.Length; i++)
                 _globalCooldowns[globalCooldowns[i].ActorId] = globalCooldowns[i].EndTimeMs;
+            for (var i = 0; i < killRefunds.Length; i++)
+            {
+                var value = killRefunds[i];
+                if (!value.Handle.IsValid || value.ActorId <= 0 || value.AmountRaw <= 0) continue;
+                _killRefunds[value.Handle.RuntimeId] = new KillRefund
+                {
+                    Handle = value.Handle, ActorId = value.ActorId, SkillId = value.SkillId,
+                    ResourceType = (ResourceType)value.ResourceType, Amount = Fixed64.FromRaw(value.AmountRaw),
+                };
+            }
         }
 
         private long NowMs => MobaSkillRuntimeAccess.GetCurrentTimeMs(_time);

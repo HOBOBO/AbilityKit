@@ -419,6 +419,30 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void ImmediateRemove_FromLifecycleCallback_IsQueuedAndCompletedInSameDrain()
+        {
+            var previousBuffId = BuffId + 1;
+            var configs = CreateDispelConfigs(
+                CreateBuffDto(BuffId, "new-mode"),
+                CreateBuffDto(previousBuffId, "previous-mode"));
+            var previous = CreateRuntime(GetBuff(configs, previousBuffId));
+            _target.AddBuffs(new List<BuffRuntime> { previous });
+            var service = new MobaBuffService();
+            var hooks = new MobaRuntimeLifecycleHookService();
+            var removeHook = new RemovePreviousBuffOnActivationHook(service, previousBuffId);
+            hooks.Register(removeHook);
+            ConfigureBuffService(service, configs, hooks, null);
+
+            var applied = service.ApplyBuffImmediate(ActorId, BuffId, SourceActorId, 0);
+
+            Assert.That(applied, Is.True);
+            Assert.That(removeHook.QueuedCount, Is.EqualTo(1));
+            Assert.That(_target.buffs.Active, Has.Count.EqualTo(1));
+            Assert.That(_target.buffs.Active[0].BuffId, Is.EqualTo(BuffId));
+            Assert.That(GetCollectionCount(service, "_pending"), Is.Zero);
+        }
+
+        [Test]
         public void ImmediateApply_ReturnsExecutionResultAndClearsAwaitedState()
         {
             var service = CreateBuffService(CreateConfigs());
@@ -510,6 +534,61 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(existing.BuffId, Is.EqualTo(BuffId));
             Assert.That(existing.SourceContextId, Is.EqualTo(SourceContextId));
             Assert.That(existing.Continuous, Is.Not.Null);
+        }
+
+        [Test]
+        public void Replace_WhenNextBuffActivates_CommitsNextAndEndsPrevious()
+        {
+            const int nextBuffId = BuffId + 10;
+            var configs = CreateReplaceConfigs(nextBuffId);
+            var previous = CreateRuntime(GetBuff(configs, BuffId));
+            var list = new List<BuffRuntime> { previous };
+            _target.AddBuffs(list);
+            var lifecycle = CreateLifecycle(
+                configs,
+                new MobaRuntimeLifecycleHookService(),
+                new BuffContinuousBindingService(null, null));
+            var request = new BuffReplaceRequest
+            {
+                TargetActorId = ActorId,
+                PreviousBuffId = BuffId,
+                NextBuffId = nextBuffId,
+                SourceActorId = SourceActorId,
+                Reason = MobaExecutionEndReason.Replaced,
+            };
+
+            Assert.That(lifecycle.Replace(in request), Is.True);
+            Assert.That(list, Has.Count.EqualTo(1));
+            Assert.That(list[0].BuffId, Is.EqualTo(nextBuffId));
+            Assert.That(previous.BuffId, Is.Zero);
+        }
+
+        [Test]
+        public void Replace_WhenNextBuffActivationFails_PreservesPreviousRuntime()
+        {
+            const int nextBuffId = BuffId + 11;
+            var configs = CreateReplaceConfigs(nextBuffId);
+            var previous = CreateRuntime(GetBuff(configs, BuffId));
+            var list = new List<BuffRuntime> { previous };
+            _target.AddBuffs(list);
+            var lifecycle = CreateLifecycle(
+                configs,
+                new MobaRuntimeLifecycleHookService(),
+                new BuffContinuousBindingService(new RejectingContinuousManager(), null));
+            var request = new BuffReplaceRequest
+            {
+                TargetActorId = ActorId,
+                PreviousBuffId = BuffId,
+                NextBuffId = nextBuffId,
+                SourceActorId = SourceActorId,
+                Reason = MobaExecutionEndReason.Replaced,
+            };
+
+            Assert.That(lifecycle.Replace(in request), Is.False);
+            Assert.That(lifecycle.LastReject.Kind, Is.EqualTo(BuffLifecycleRejectCode.ApplyContinuousActivationFailed));
+            Assert.That(list, Has.Count.EqualTo(1));
+            Assert.That(list[0], Is.SameAs(previous));
+            Assert.That(previous.BuffId, Is.EqualTo(BuffId));
         }
 
         [Test]
@@ -834,6 +913,42 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             return configs;
         }
 
+        private static MobaConfigDatabase CreateReplaceConfigs(int nextBuffId)
+        {
+            var configs = new MobaConfigDatabase();
+            var result = configs.ReloadFromDtoArrays(
+                new Dictionary<Type, Array>
+                {
+                    [typeof(BuffDTO)] = new[]
+                    {
+                        CreateBuffDto(BuffId, "replace-previous"),
+                        CreateBuffDto(nextBuffId, "replace-next"),
+                    },
+                },
+                strict: false);
+            Assert.That(result.Succeeded, Is.True, result.Error);
+            return configs;
+        }
+
+        private static BuffDTO CreateBuffDto(int id, string name)
+        {
+            return new BuffDTO
+            {
+                Id = id,
+                Name = name,
+                DurationMs = 10000,
+                IntervalMs = 1000,
+                StackingPolicy = (int)BuffStackingPolicy.Replace,
+                MaxStacks = 1,
+                OnAddEffects = Array.Empty<int>(),
+                OnRemoveEffects = Array.Empty<int>(),
+                OnIntervalEffects = Array.Empty<int>(),
+                TriggerIds = Array.Empty<int>(),
+                TagNames = Array.Empty<string>(),
+                Modifiers = Array.Empty<ContinuousModifierDTO>(),
+            };
+        }
+
         private static MobaConfigDatabase CreateDispelConfigs(params BuffDTO[] buffs)
         {
             var configs = new MobaConfigDatabase();
@@ -1043,6 +1158,31 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 if (_appended) return;
                 _appended = true;
                 EnqueueApply(_service, SourceActorId + 1);
+            }
+        }
+
+        private sealed class RemovePreviousBuffOnActivationHook : IMobaRuntimeLifecycleHook
+        {
+            private readonly MobaBuffService _service;
+            private readonly int _previousBuffId;
+
+            public RemovePreviousBuffOnActivationHook(MobaBuffService service, int previousBuffId)
+            {
+                _service = service;
+                _previousBuffId = previousBuffId;
+            }
+
+            public int QueuedCount { get; private set; }
+
+            public void OnRuntimeLifecycle(in MobaRuntimeLifecycleEvent lifecycleEvent)
+            {
+                if (lifecycleEvent.Kind != MobaRuntimeLifecycleEventKind.Activated || QueuedCount > 0) return;
+                QueuedCount = _service.RemoveBuffsImmediate(
+                    ActorId,
+                    _previousBuffId,
+                    SourceActorId,
+                    true,
+                    MobaExecutionEndReason.Replaced);
             }
         }
 

@@ -20,6 +20,11 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
         public ProjectileHitPolicyKind HitPolicyKind { get; }
         public int HitsRemaining { get; }
+        public int HitUnitSubType { get; }
+        public float BounceSearchRadius { get; }
+        public float TrackingArcHeight { get; }
+        public float TrackingArcHeightPerUnit { get; }
+        public float TrackingArcDurationSeconds { get; }
         public int HitCooldownMs { get; }
         public int TickIntervalMs { get; }
 
@@ -41,6 +46,82 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public float SpawnRandomOffsetY { get; }
         public float SpawnRandomOffsetZ { get; }
 
+        /// <summary>
+        /// Resolves the authored hit settings into runtime state. HitsRemaining is a legacy
+        /// table field: for Pierce it means the maximum hit count (-1 is unlimited); for
+        /// Bounce it means the maximum distinct target hits including the first target.
+        /// </summary>
+        public bool TryResolveRuntimeSettings(out ProjectileHitPolicyKind kind, out int hitPolicyParam,
+            out int hitsRemaining, out string error)
+        {
+            kind = HitPolicyKind;
+            hitPolicyParam = 0;
+            hitsRemaining = 1;
+            error = null;
+
+            if (!IsFiniteNonNegative(BounceSearchRadius))
+            {
+                error = $"BounceSearchRadius must be finite and non-negative; actual={BounceSearchRadius}.";
+                return false;
+            }
+            if (!IsFiniteNonNegative(TrackingArcHeight))
+            {
+                error = $"TrackingArcHeight must be finite and non-negative; actual={TrackingArcHeight}.";
+                return false;
+            }
+            if (!IsFiniteNonNegative(TrackingArcHeightPerUnit))
+            {
+                error = $"TrackingArcHeightPerUnit must be finite and non-negative; actual={TrackingArcHeightPerUnit}.";
+                return false;
+            }
+            if (!IsFiniteNonNegative(TrackingArcDurationSeconds))
+            {
+                error = $"TrackingArcDurationSeconds must be finite and non-negative; actual={TrackingArcDurationSeconds}.";
+                return false;
+            }
+            if (HitUnitSubType < 0)
+            {
+                error = $"HitUnitSubType must be zero (any subtype) or a positive UnitSubType value; actual={HitUnitSubType}.";
+                return false;
+            }
+
+            switch (HitPolicyKind)
+            {
+                case ProjectileHitPolicyKind.ExitOnHit:
+                    return true;
+                case ProjectileHitPolicyKind.Pierce:
+                    if (HitsRemaining == -1)
+                    {
+                        hitPolicyParam = -1;
+                        hitsRemaining = 0;
+                        return true;
+                    }
+                    if (HitsRemaining <= 0)
+                    {
+                        error = $"Pierce HitsRemaining must be positive or -1 for unlimited hits; actual={HitsRemaining}.";
+                        return false;
+                    }
+                    hitPolicyParam = HitsRemaining;
+                    hitsRemaining = 0;
+                    return true;
+                case ProjectileHitPolicyKind.Bounce:
+                    if (HitsRemaining <= 0)
+                    {
+                        error = $"Bounce HitsRemaining must be positive and counts distinct target hits including the initial target; actual={HitsRemaining}.";
+                        return false;
+                    }
+                    hitPolicyParam = HitsRemaining;
+                    hitsRemaining = HitsRemaining;
+                    return true;
+                default:
+                    error = $"Unknown projectile hit policy kind {(int)HitPolicyKind}.";
+                    return false;
+            }
+        }
+
+        private static bool IsFiniteNonNegative(float value) =>
+            !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f;
+
         public ProjectileMO(ProjectileDTO dto)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
@@ -58,6 +139,11 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
             HitPolicyKind = (ProjectileHitPolicyKind)dto.HitPolicyKind;
             HitsRemaining = dto.HitsRemaining;
+            HitUnitSubType = dto.HitUnitSubType;
+            BounceSearchRadius = dto.BounceSearchRadius;
+            TrackingArcHeight = dto.TrackingArcHeight;
+            TrackingArcHeightPerUnit = dto.TrackingArcHeightPerUnit;
+            TrackingArcDurationSeconds = dto.TrackingArcDurationSeconds;
             HitCooldownMs = dto.HitCooldownMs;
             TickIntervalMs = dto.TickIntervalMs;
 

@@ -495,6 +495,56 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void BattlePresentationCueResolver_PreservesAreaGeometryForPresentation()
+        {
+            var resolver = new BattlePresentationCueResolver();
+            var cue = CreatePresentationCue(
+                PresentationCueStage.Started,
+                requestKey: "annie-w-area",
+                vfxId: 90033002,
+                templateId: 42030301,
+                numericParamKeys: new[] { 2 },
+                numericParamValues: new[] { 5.5f },
+                parameters: new[]
+                {
+                    new PresentationCueParameter(
+                        PresentationCueParameterKeys.AreaForward,
+                        PresentationCueParameterKind.Vector3,
+                        vectorValue: new SnapshotVec3(1f, 0f, 0f)),
+                    new PresentationCueParameter(
+                        PresentationCueParameterKeys.AreaShapeKind,
+                        PresentationCueParameterKind.Integer,
+                        integerValue: 1),
+                    new PresentationCueParameter(
+                        PresentationCueParameterKeys.AreaHalfAngleDeg,
+                        PresentationCueParameterKind.Float,
+                        floatValue: 45f),
+                    new PresentationCueParameter(
+                        PresentationCueParameterKeys.AreaWidth,
+                        PresentationCueParameterKind.Float,
+                        floatValue: 11f),
+                    new PresentationCueParameter(
+                        PresentationCueParameterKeys.AreaLength,
+                        PresentationCueParameterKind.Float,
+                        floatValue: 11f),
+                });
+
+            var decision = resolver.Resolve(in cue);
+
+            Assert.AreEqual(BattlePresentationCueDecisionKind.Play, decision.Kind);
+            Assert.AreEqual(42030301, decision.SpawnRequest.TemplateId);
+            Assert.AreEqual(90033002, decision.SpawnRequest.VfxId);
+            Assert.AreEqual(5.5f, decision.SpawnRequest.Radius, 0.0001f);
+            Assert.AreEqual(1f, decision.SpawnRequest.Forward.X, 0.0001f);
+            Assert.AreEqual(0f, decision.SpawnRequest.Forward.Y, 0.0001f);
+            Assert.AreEqual(0f, decision.SpawnRequest.Forward.Z, 0.0001f);
+            Assert.AreEqual(1, decision.SpawnRequest.ShapeKind);
+            Assert.AreEqual(45f, decision.SpawnRequest.HalfAngleDeg, 0.0001f);
+            Assert.AreEqual(11f, decision.SpawnRequest.Width, 0.0001f);
+            Assert.AreEqual(11f, decision.SpawnRequest.Length, 0.0001f);
+        }
+
+        [Test]
         public void BattlePresentationCueResolver_PreservesScaleAndRadiusNumericParam()
         {
             var resolver = new BattlePresentationCueResolver();
@@ -2692,7 +2742,8 @@ namespace AbilityKit.Game.Test.UnitTest
             float scale = 0f,
             int durationMsOverride = 0,
             IReadOnlyList<int> numericParamKeys = null,
-            IReadOnlyList<float> numericParamValues = null)
+            IReadOnlyList<float> numericParamValues = null,
+            IReadOnlyList<PresentationCueParameter> parameters = null)
         {
             return new PresentationCueData(
                 stage,
@@ -2736,7 +2787,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 remainingSeconds: 0f,
                 lifecycleReason: 0,
                 numericParamKeys: numericParamKeys,
-                numericParamValues: numericParamValues);
+                numericParamValues: numericParamValues,
+                parameters: parameters);
         }
 
         private static BattleWorldFloatingText CreateFloatingText(float lifetime)

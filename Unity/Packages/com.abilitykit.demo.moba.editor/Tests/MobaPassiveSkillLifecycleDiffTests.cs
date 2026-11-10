@@ -28,7 +28,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             _contexts = new Contexts();
             _entity = _contexts.actor.CreateEntity();
             _entity.AddActorId(ActorId);
-            _entity.AddSkillLoadout(
+            _entity.AddSkillLoadout(0,
                 Array.Empty<ActiveSkillRuntime>(),
                 new[]
                 {
@@ -81,7 +81,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var removedOwnerKey = FindOwnerKey(FirstTriggerId);
             var retainedOwnerKey = FindOwnerKey(SecondTriggerId);
 
-            _entity.ReplaceSkillLoadout(
+            _entity.ReplaceSkillLoadout(0,
                 Array.Empty<ActiveSkillRuntime>(),
                 new[] { CreatePassiveRuntime(SecondPassiveSkillId) });
             _service.SyncActorPassives(_entity, 2);

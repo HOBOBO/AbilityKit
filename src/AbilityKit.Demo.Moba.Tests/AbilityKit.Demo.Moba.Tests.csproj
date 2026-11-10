@@ -56,4 +56,7 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Battle/MobaCharacterHfsmTestFixture.cs" Link="Fixtures/MobaCharacterHfsmTestFixture.cs" />
+  </ItemGroup>
 </Project>

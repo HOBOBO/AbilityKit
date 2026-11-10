@@ -11,7 +11,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
     /// Shooter logic-world driver bridge for AbilityKit.Coordinator.
     /// It centralizes frame advancement, input submission and snapshot-state projection for both client-side authority comparison and server authority runtime.
     /// </summary>
-    public sealed class ShooterBattleDriverHost : ILogicWorldDriverBridge
+    public sealed class ShooterBattleDriverHost : ILogicWorldDriverBridge, ILogicWorldDriverStateBufferBridge
     {
         private readonly IShooterBattleRuntimePort _runtime;
         private readonly List<ShooterPlayerCommand> _commandBuffer = new List<ShooterPlayerCommand>(16);
@@ -106,6 +106,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public SnapshotEntityState[] GetAllEntityStates()
         {
             _stateBuffer.Clear();
+            FillAllEntityStates(_stateBuffer);
+            return _stateBuffer.ToArray();
+        }
+
+        public int FillAllEntityStates(IList<SnapshotEntityState> buffer)
+        {
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+
             var players = _runtime.GetPlayerSnapshotsTransient();
             for (int i = 0; i < players.Length; i++)
             {
@@ -123,10 +131,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     TeamId = 0,
                     IsDead = !player.Alive
                 };
-                _stateBuffer.Add(state.ToSnapshotEntityState());
+                buffer.Add(state.ToSnapshotEntityState());
             }
 
-            return _stateBuffer.ToArray();
+            return players.Length;
         }
 
         private static bool TryConvertInput(in PlayerInput input, out ShooterPlayerCommand command)

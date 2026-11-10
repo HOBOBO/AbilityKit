@@ -7,6 +7,7 @@ using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Config.Plans;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
+using AbilityKit.Triggering.Variables.Numeric;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -28,6 +29,10 @@ namespace AbilityKit.Demo.Moba.Services
 
             context.TryResolve<MobaEventSubscriptionRegistry>(out var eventRegistry);
             context.TryResolve<IPayloadAccessorRegistry>(out var payloadRegistry);
+            if (context.TryResolve<AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase>(out var configs) && configs != null)
+            {
+                AbilityKit.Demo.Moba.Gameplay.Triggering.MobaBattlePayloadFields.RegisterSkillParameterFields(configs);
+            }
             ValidateDatabase(database, eventRegistry, payloadRegistry, report);
         }
 
@@ -87,7 +92,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             ValidateScopeAndEvent(record, eventRegistry, path, businessId, report);
             var argsType = ResolveEventArgsType(record, eventRegistry);
-            ValidatePlan(record.Plan, argsType, payloadRegistry, path + ".plan", businessId, report);
+            ValidatePlan(database, record.Plan, argsType, payloadRegistry, path + ".plan", businessId, report);
         }
 
         private static void ValidateScopeAndEvent(TriggerPlanJsonDatabase.Record record, MobaEventSubscriptionRegistry eventRegistry, string path, string businessId, MobaRuntimeValidationReport report)
@@ -138,6 +143,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         private static void ValidatePlan(
+            TriggerPlanJsonDatabase database,
             TriggerPlan<object> plan,
             Type argsType,
             IPayloadAccessorRegistry payloadRegistry,
@@ -148,7 +154,7 @@ namespace AbilityKit.Demo.Moba.Services
             ValidateNumericRef(plan.PredicateArg0, argsType, payloadRegistry, path + ".predicate.arg0", businessId, report);
             ValidateNumericRef(plan.PredicateArg1, argsType, payloadRegistry, path + ".predicate.arg1", businessId, report);
             ValidatePredicateExpr(plan.PredicateExpr, argsType, payloadRegistry, path + ".predicateExpr", businessId, report);
-            ValidateActions(plan.Actions, argsType, payloadRegistry, path + ".actions", businessId, report);
+            ValidateActions(database, plan.Actions, argsType, payloadRegistry, path + ".actions", businessId, report);
         }
 
         private static void ValidatePredicateExpr(
@@ -171,6 +177,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         private static void ValidateActions(
+            TriggerPlanJsonDatabase database,
             ActionCallPlan[] actions,
             Type argsType,
             IPayloadAccessorRegistry payloadRegistry,
@@ -195,7 +202,7 @@ namespace AbilityKit.Demo.Moba.Services
                 }
 
                 ValidateActionSchedule(action, actionPath, businessId, report);
-                ValidateActionArgs(action, argsType, payloadRegistry, actionPath, businessId, report);
+                ValidateActionArgs(action, database, argsType, payloadRegistry, actionPath, businessId, report);
             }
         }
 
@@ -214,6 +221,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         private static void ValidateActionArgs(
             ActionCallPlan action,
+            TriggerPlanJsonDatabase database,
             Type argsType,
             IPayloadAccessorRegistry payloadRegistry,
             string path,
@@ -226,7 +234,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return;
             }
 
-            var args = ToArgsArray(action);
+            var args = ToArgsArray(action, database);
             var span = new ReadOnlySpan<KeyValuePair<string, ActionArgValue>>(args);
             if (!schema.TryValidateArgs(span, out var error))
             {
@@ -239,7 +247,9 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private static KeyValuePair<string, ActionArgValue>[] ToArgsArray(ActionCallPlan action)
+        private static KeyValuePair<string, ActionArgValue>[] ToArgsArray(
+            ActionCallPlan action,
+            TriggerPlanJsonDatabase database)
         {
             if (action.Args != null && action.Args.Count > 0)
             {
@@ -247,7 +257,9 @@ namespace AbilityKit.Demo.Moba.Services
                 var index = 0;
                 foreach (var pair in action.Args)
                 {
-                    args[index++] = pair;
+                    args[index++] = new KeyValuePair<string, ActionArgValue>(
+                        pair.Key,
+                        ResolveStringTableReference(pair.Value, pair.Key, database));
                 }
 
                 return args;
@@ -259,13 +271,42 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var positional = new List<KeyValuePair<string, ActionArgValue>>(Math.Min(action.Arity, (byte)2));
-            positional.Add(new KeyValuePair<string, ActionArgValue>("arg0", ActionArgValue.Of(action.Arg0, "arg0")));
+            positional.Add(new KeyValuePair<string, ActionArgValue>(
+                "arg0",
+                ResolveStringTableReference(ActionArgValue.Of(action.Arg0, "arg0"), "arg0", database)));
             if (action.Arity > 1)
             {
-                positional.Add(new KeyValuePair<string, ActionArgValue>("arg1", ActionArgValue.Of(action.Arg1, "arg1")));
+                positional.Add(new KeyValuePair<string, ActionArgValue>(
+                    "arg1",
+                    ResolveStringTableReference(ActionArgValue.Of(action.Arg1, "arg1"), "arg1", database)));
             }
 
             return positional.ToArray();
+        }
+
+        private static ActionArgValue ResolveStringTableReference(
+            ActionArgValue value,
+            string argumentName,
+            TriggerPlanJsonDatabase database)
+        {
+            if (database == null
+                || value.Kind != ActionArgKind.NumericValue
+                || value.Ref.Kind != ENumericValueRefKind.Const)
+            {
+                return value;
+            }
+
+            var rawId = value.Ref.ConstValue;
+            if (rawId < int.MinValue || rawId > int.MaxValue || rawId != Math.Truncate(rawId))
+            {
+                return value;
+            }
+
+            var stringId = (int)rawId;
+            return database.TryGetString(stringId, out var stringValue)
+                   && !string.IsNullOrWhiteSpace(stringValue)
+                ? ActionArgValue.OfString(stringValue, argumentName)
+                : value;
         }
 
         private static void ValidateNumericRef(

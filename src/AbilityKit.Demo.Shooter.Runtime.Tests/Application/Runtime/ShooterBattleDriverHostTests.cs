@@ -1,4 +1,5 @@
 using AbilityKit.Coordinator;
+using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Protocol.Shooter;
 using Xunit;
@@ -55,6 +56,22 @@ public sealed class ShooterBattleDriverHostTests
         Assert.Equal(2, states.Length);
         Assert.Contains(states, state => state.EntityId == 1);
         Assert.Contains(states, state => state.EntityId == 2);
+    }
+
+    [Fact]
+    public void FillAllEntityStatesWritesCallerOwnedBuffer()
+    {
+        var runtime = CreateStartedRuntime();
+        var driver = new ShooterBattleDriverHost(runtime);
+        var destination = new List<SnapshotEntityState>();
+
+        driver.Start();
+        var count = driver.FillAllEntityStates(destination);
+
+        Assert.Equal(2, count);
+        Assert.Equal(2, destination.Count);
+        Assert.Contains(destination, state => state.EntityId == 1);
+        Assert.Contains(destination, state => state.EntityId == 2);
     }
 
     private static ShooterBattleRuntimePort CreateStartedRuntime()

@@ -15,6 +15,9 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         [SerializeField] private SkillAimIndicatorView _aimIndicator;
         [SerializeField] private Image _cooldownOverlay;
         [SerializeField] private Text _cooldownText;
+        [SerializeField] private Text _skillNameText;
+        [SerializeField] private Text _skillIconText;
+        [SerializeField] private Image _skillIconImage;
         [SerializeField] private SkillButtonConfig _config = default;
 
         private readonly SkillButtonAimController _aim = new SkillButtonAimController();
@@ -22,6 +25,9 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         private Camera _uiCamera;
         private SkillCooldownPresentationState _cooldownState;
         private bool _previewPressed;
+
+        public string PresentationName { get; private set; } = string.Empty;
+        public int PresentationIconId { get; private set; }
 
         public SkillButtonConfig Config
         {
@@ -51,7 +57,10 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             SkillButtonConfig config,
             SkillAimIndicatorView aimIndicator = null,
             Image cooldownOverlay = null,
-            Text cooldownText = null)
+            Text cooldownText = null,
+            Text skillNameText = null,
+            Text skillIconText = null,
+            Image skillIconImage = null)
         {
             _buttonRect = buttonRect;
             _uiRootRect = uiRootRect;
@@ -59,6 +68,9 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             _aimIndicator = aimIndicator;
             _cooldownOverlay = cooldownOverlay;
             _cooldownText = cooldownText;
+            _skillNameText = skillNameText;
+            _skillIconText = skillIconText;
+            _skillIconImage = skillIconImage;
             _config = config;
             NormalizeConfig(ref _config);
             _gesture.Configure(_config);
@@ -67,6 +79,33 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             EnsureCooldownVisualOrder();
             _aim.Hide();
             RefreshCooldownVisuals();
+            ApplyPresentation(string.Empty, 0);
+        }
+
+        public void ApplyPresentation(string skillName, int iconId)
+        {
+            PresentationName = skillName ?? string.Empty;
+            PresentationIconId = Mathf.Max(0, iconId);
+            if (_skillNameText != null)
+            {
+                _skillNameText.text = PresentationName;
+                _skillNameText.gameObject.SetActive(!string.IsNullOrWhiteSpace(PresentationName));
+            }
+            Sprite resolvedSprite = null;
+            if (_skillIconImage != null)
+            {
+                resolvedSprite = SkillIconResolver.Resolve(PresentationIconId);
+                _skillIconImage.sprite = resolvedSprite;
+                _skillIconImage.preserveAspect = true;
+                _skillIconImage.gameObject.SetActive(resolvedSprite != null);
+            }
+            if (_skillIconText != null)
+            {
+                _skillIconText.text = resolvedSprite == null && PresentationIconId > 0
+                    ? PresentationIconId.ToString()
+                    : string.Empty;
+                _skillIconText.gameObject.SetActive(resolvedSprite == null && PresentationIconId > 0);
+            }
         }
 
         private void Awake()
@@ -163,9 +202,18 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         {
             if (!CanAcceptInput)
             {
+                var wasAimingBeforeReset = _gesture.Aiming;
                 _gesture.Reset();
-                EndAim();
-                ReleasePreview();
+                if (wasAimingBeforeReset)
+                {
+                    CancelAimPreview();
+                }
+                else
+                {
+                    ReleasePreview();
+                }
+
+                _aim.Hide();
                 return;
             }
 

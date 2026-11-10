@@ -51,6 +51,9 @@ namespace AbilityKit.Demo.Moba.Share.Config
 
         public int StackPolicy;
         public int StopPolicy;
+        public int TargetLossPolicy;
+        public int CompletionPolicy;
+        public int StopGraceMs;
 
         public float Scale;
         public float ColorR;
@@ -61,5 +64,12 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public float OffsetX;
         public float OffsetY;
         public float OffsetZ;
+        // 0 = target local (legacy), 1 = world.
+        public int OffsetSpace;
+        // 0 = inherit (legacy), 1 = ignore attachment parent scale.
+        public int ParentScaleMode;
+        // Abstract visual ordering intent; concrete ordering is selected by the client backend.
+        public int OrderingMode;
+        public int OrderingPriority;
     }
 }

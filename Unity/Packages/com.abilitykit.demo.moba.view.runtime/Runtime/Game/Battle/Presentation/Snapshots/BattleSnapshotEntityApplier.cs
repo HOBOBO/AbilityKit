@@ -85,6 +85,7 @@ namespace AbilityKit.Game.Flow
                 transform.Position.y = entry.PositionY;
                 transform.Position.z = entry.PositionZ;
                 transform.Forward = ResolveForward(entry.ForwardX, entry.ForwardY, entry.ForwardZ, transform.Forward);
+                if (entry.HasScale) transform.Scale = ResolveScale(entry.Scale, transform.Scale);
 
                 dirty.Add(entity.Id);
             }
@@ -147,6 +148,7 @@ namespace AbilityKit.Game.Flow
 
                 transform.Position = new Vector3(entry.PositionX, entry.PositionY, entry.PositionZ);
                 if (transform.Forward == default) transform.Forward = Vector3.forward;
+                transform.Scale = ResolveScale(entry.Scale, transform.Scale);
 
                 dirty.Add(entity.Id);
             }
@@ -210,6 +212,13 @@ namespace AbilityKit.Game.Flow
             if (forward.sqrMagnitude > 0.0001f) return forward.normalized;
             if (fallback.sqrMagnitude > 0.0001f) return fallback.normalized;
             return Vector3.forward;
+        }
+
+        private static Vector3 ResolveScale(float scale, Vector3 fallback)
+        {
+            if (float.IsNaN(scale) || float.IsInfinity(scale) || scale < 0f)
+                return fallback == default ? Vector3.one : fallback;
+            return new Vector3(scale, scale, scale);
         }
 
         private static List<IEntityId> GetDirtyEntities(BattleContext ctx, int capacity)

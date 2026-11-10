@@ -105,6 +105,84 @@ public sealed class BattleScenarioRealSkillTests
     }
 
     [Fact]
+    public void Run_JinxE_DeploysTrapsAndProcessesEnterAndExpiry()
+    {
+        var scenario = BattleScenarioCompiler.Compile("jinx-e-production-scenario", new BattleBlock[]
+        {
+            new ExecutionSettingsBlock
+            {
+                TickRate = 30,
+                MaxDurationMs = 7000,
+                SettleDurationMs = 0,
+                EndCondition = TestEndConditionKinds.Duration,
+                DurationMs = 5500,
+            },
+            new SpawnActorBlock
+            {
+                Alias = "jinx",
+                HeroId = 3002,
+                AttributeTemplateId = 3002,
+                PlayerId = "player_1",
+                TeamId = 1,
+                Position = new TestVector3(0, 0, 0),
+            },
+            new SpawnActorBlock
+            {
+                Alias = "first_target",
+                HeroId = 1001,
+                AttributeTemplateId = 1001,
+                TeamId = 2,
+                Position = new TestVector3(0, 0, 5),
+            },
+            new SpawnActorBlock
+            {
+                Alias = "second_target",
+                HeroId = 1001,
+                AttributeTemplateId = 1001,
+                TeamId = 2,
+                Position = new TestVector3(0, 0, 7),
+            },
+            new DirectionTimelineStepBlock("jinx", 3, new TestVector3(0, 0, 1)),
+        });
+
+        var outcome = MobaBattleScenarioWorldRunner.RunDetailed(scenario);
+
+        Assert.True(outcome.Result.Passed, outcome.Result.Summary);
+        Assert.True(outcome.TraceNodes.Any(node => node.Kind == "SkillCast" && node.ConfigId == 30020301),
+            string.Join(",", outcome.TraceNodes.Select(node => $"{node.Kind}:{node.ConfigId}")));
+        Assert.Equal(3, outcome.TraceNodes.Count(node => node.Kind == "AreaSpawn" && node.ConfigId == 42020301));
+        Assert.True(outcome.TraceNodes.Any(node => node.Kind == "AreaEnter" && node.ConfigId == 42020301));
+        Assert.True(outcome.TraceNodes.Any(node => node.Kind == "BuffApply" && node.ConfigId == 32020301));
+        Assert.True(outcome.TraceNodes.Any(node => node.Kind == "DamageApply"));
+        Assert.Equal(3, outcome.TraceNodes.Count(node => node.Kind == "AreaExpire" && node.ConfigId == 42020301));
+    }
+
+    private sealed class DirectionTimelineStepBlock : BattleAtomicBlock
+    {
+        private readonly string _actorAlias;
+        private readonly int _slot;
+        private readonly TestVector3 _direction;
+
+        public DirectionTimelineStepBlock(string actorAlias, int slot, TestVector3 direction)
+        {
+            _actorAlias = actorAlias;
+            _slot = slot;
+            _direction = direction;
+        }
+
+        public override BattleBlockSection Section => BattleBlockSection.Timeline;
+
+        public override void Compile(BattleScenarioBuilder builder) => builder.AddTimelineStep(new TestTimelineStep
+        {
+            AtMs = 100,
+            Action = "cast_skill",
+            ActorAlias = _actorAlias,
+            Slot = _slot,
+            Direction = _direction,
+        });
+    }
+
+    [Fact]
     public void Run_WithPlaceObstacleBlock_PlacesObstacleAndStillHits()
     {
         // PlaceObstacleBlock → TestScenario.Obstacles → 放进碰撞世界。障碍物放在远处，不影响投射物命中。

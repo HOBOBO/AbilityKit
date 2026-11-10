@@ -1,4 +1,5 @@
 using AbilityKit.Demo.Moba;
+using AbilityKit.Game.Battle.Diagnostics.Capture;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -8,6 +9,7 @@ namespace AbilityKit.Game.Flow
         private const int PauseControlWindowId = 0xB0BA;
 
         private readonly BattleDebugPublicationOwner _publication = new BattleDebugPublicationOwner();
+        private readonly BattleCaptureHotkeyController _captureHotkey = new BattleCaptureHotkeyController();
 
         public void OnAttach(in GamePhaseContext ctx)
         {
@@ -21,6 +23,16 @@ namespace AbilityKit.Game.Flow
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!ctx.Entry.DebugEnabled) return;
+            if (ctx.Features.TryGet(out BattleHudFeature hud) && hud != null)
+            {
+                var frame = ctx.Features.TryGet(out BattleContext battleContext) && battleContext != null
+                    ? battleContext.LastFrame
+                    : 0;
+                _captureHotkey.Tick(hud, frame);
+            }
+#endif
             // 恢复推进由 BattleSessionFeature 的正式生命周期负责；Debug feature 仅展示控制与诊断。
         }
 

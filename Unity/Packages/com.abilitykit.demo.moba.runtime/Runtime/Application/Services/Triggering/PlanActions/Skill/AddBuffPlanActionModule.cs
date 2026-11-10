@@ -44,7 +44,29 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var targets = PooledMobaPlanActionLists.GetIntList();
             try
             {
-                if (!MobaActionTargetResolver.TryResolveTargets(in args.TargetRequest, in coreInput, in effectInput, ctx, ActionName, targets))
+                var resolvedTargets = MobaActionTargetResolver.TryResolveTargets(
+                    in args.TargetRequest,
+                    in coreInput,
+                    in effectInput,
+                    ctx,
+                    ActionName,
+                    targets);
+                if (!resolvedTargets
+                    && args.TargetRequest.SourceCode == MobaActionTargetSourceCode.ContextTarget
+                    && MobaActionTargetResolver.TryResolveDirectPayloadTarget(triggerArgs, out var directPayloadTarget))
+                {
+                    targets.Add(directPayloadTarget);
+                    resolvedTargets = true;
+                }
+                if (!resolvedTargets
+                    && args.TargetRequest.SourceCode == MobaActionTargetSourceCode.ContextTarget
+                    && effectInput.TargetActorId > 0)
+                {
+                    targets.Add(effectInput.TargetActorId);
+                    resolvedTargets = true;
+                }
+
+                if (!resolvedTargets)
                 {
                     return;
                 }

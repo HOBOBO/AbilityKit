@@ -11,6 +11,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         /// 拉取速度，单位为距离/秒。
         /// </summary>
         public readonly float Speed;
+        /// <summary>Zero disables scaling; otherwise samples caster-target XZ distance at effect commit.</summary>
+        public readonly float DistanceScaleReference;
+        public readonly float DistanceScaleNear;
+        public readonly float DistanceScaleFar;
 
         /// <summary>
         /// 拉取持续时间，单位毫秒。
@@ -41,8 +45,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public readonly MobaActionTargetRequest TargetRequest;
 
-        public PullArgs(float speed, float durationMs, int directionMode = 0, float targetDistance = 0f, int priority = 12, int motionGroupId = 0, MobaMotionContinuousSettings continuous = default, MobaActionTargetRequest targetRequest = default)
+        public PullArgs(float speed, float durationMs, int directionMode = 0, float targetDistance = 0f, int priority = 12, int motionGroupId = 0, MobaMotionContinuousSettings continuous = default, MobaActionTargetRequest targetRequest = default, float distanceScaleReference = 0f, float distanceScaleNear = 1f, float distanceScaleFar = 1f)
         {
+            if (!IsFinite(distanceScaleReference) || distanceScaleReference < 0f ||
+                !IsFinite(distanceScaleNear) || distanceScaleNear < 0f ||
+                !IsFinite(distanceScaleFar) || distanceScaleFar < 0f ||
+                (distanceScaleReference == 0f && (distanceScaleNear != 1f || distanceScaleFar != 1f)))
+                throw new System.ArgumentOutOfRangeException(nameof(distanceScaleReference), "Distance scaling requires a positive finite reference and finite nonnegative endpoints.");
+            DistanceScaleReference = distanceScaleReference;
+            DistanceScaleNear = distanceScaleNear;
+            DistanceScaleFar = distanceScaleFar;
             Speed = speed;
             DurationMs = durationMs;
             DirectionMode = directionMode;
@@ -52,6 +64,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             Continuous = continuous;
             TargetRequest = targetRequest;
         }
+
+        private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+        public float ResolveDistanceScale(float distance) => DistanceScaleReference == 0f ? 1f :
+            DistanceScaleNear + (DistanceScaleFar - DistanceScaleNear) * System.Math.Max(0f, System.Math.Min(1f, distance / DistanceScaleReference));
 
         public static PullArgs Default => new PullArgs(0f, 0f, 0, 0f, 12, 0, MobaMotionContinuousSettings.Empty, MobaActionTargetRequest.ContextTarget());
     }
