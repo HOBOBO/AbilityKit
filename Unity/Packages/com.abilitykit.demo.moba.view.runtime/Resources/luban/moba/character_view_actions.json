@@ -201,6 +201,147 @@
             }
           ]
         }
+      },
+      {
+        "path": "life/alive/action/weapon.powpow",
+        "action": {
+          "id": "weapon.powpow",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": false,
+              "layer": 0
+            }
+          ]
+        }
+      },
+      {
+        "path": "life/alive/action/moving.powpow",
+        "action": {
+          "id": "moving.powpow",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": false,
+              "layer": 0
+            }
+          ]
+        }
+      },
+      {
+        "path": "life/alive/action/casting.powpow",
+        "action": {
+          "id": "casting.powpow",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": false,
+              "layer": 0
+            }
+          ]
+        }
+      },
+      {
+        "path": "life/alive/action/weapon.fishbones",
+        "action": {
+          "id": "weapon.fishbones",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": false,
+              "layer": 0
+            }
+          ]
+        }
+      },
+      {
+        "path": "life/alive/action/moving.fishbones",
+        "action": {
+          "id": "moving.fishbones",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": false,
+              "layer": 0
+            }
+          ]
+        }
+      },
+      {
+        "path": "life/alive/action/casting.fishbones",
+        "action": {
+          "id": "casting.fishbones",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": false,
+              "layer": 0
+            }
+          ]
+        }
+      },
+      {
+        "path": "life/alive/action/barrel.flight",
+        "action": {
+          "id": "barrel.flight",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": true
+            }
+          ]
+        }
+      },
+      {
+        "path": "life/alive/action/barrel.deployed",
+        "action": {
+          "id": "barrel.deployed",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": true
+            }
+          ]
+        }
+      },
+      {
+        "path": "life/alive/action/empowered",
+        "action": {
+          "id": "empowered",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": true
+            }
+          ]
+        }
       }
     ],
     "variants": [
@@ -245,10 +386,9 @@
         "action": {
           "id": "moving.play",
           "type": "play",
-          "animatorState": "Idle",
-          "frameCount": 238,
           "loop": true,
-          "layer": 0
+          "modelId": 3001,
+          "animationKey": "Base Layer.Walk"
         }
       },
       {
@@ -504,10 +644,9 @@
         "action": {
           "id": "moving.play",
           "type": "play",
-          "animatorState": "Void_Annie_Model_Idle",
-          "frameCount": 100,
           "loop": true,
-          "layer": 0
+          "modelId": 3003,
+          "animationKey": "Base Layer.Walk"
         }
       },
       {
@@ -764,6 +903,708 @@
           "frameCount": 48,
           "loop": false,
           "layer": 0
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/weapon.powpow",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": true,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Idle_Minigun"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/moving.powpow",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": true,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Walk"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.powpow",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": true,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Idle_Minigun"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.powpow",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.AA_Minigun"
+        },
+        "skillId": 30020001
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.powpow",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.AA_Minigun"
+        },
+        "skillId": 30020002
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.powpow",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.AA_Rocket"
+        },
+        "skillId": 30020003
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.powpow",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Spell_Q_RocketToMini"
+        },
+        "skillId": 30020101
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/weapon.fishbones",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": true,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Idle_Rocket"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/moving.fishbones",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": true,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Walk_Rocket"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.fishbones",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": true,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Idle_Rocket"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.fishbones",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.AA_Minigun"
+        },
+        "skillId": 30020001
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.fishbones",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.AA_Minigun"
+        },
+        "skillId": 30020002
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.fishbones",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.AA_Rocket"
+        },
+        "skillId": 30020003
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.fishbones",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Spell_Q_MiniToRocket"
+        },
+        "skillId": 30020101
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/idle",
+        "actionId": "idle.play",
+        "action": {
+          "id": "idle.play",
+          "type": "play",
+          "loop": true,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Idle_Minigun"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/controlled",
+        "actionId": "controlled.play",
+        "action": {
+          "id": "controlled.play",
+          "type": "play",
+          "loop": true,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Idle_Minigun"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.powpow",
+        "skillId": 30020201,
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Spell_W"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.powpow",
+        "skillId": 30020301,
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Spell_E"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.powpow",
+        "skillId": 30020401,
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Spell_R"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.fishbones",
+        "skillId": 30020201,
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Spell_W"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.fishbones",
+        "skillId": 30020301,
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Spell_E"
+        }
+      },
+      {
+        "entityCode": 3002,
+        "path": "life/alive/action/casting.fishbones",
+        "skillId": 30020401,
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "loop": false,
+          "modelId": 3002,
+          "animationKey": "Base Layer.Spell_R"
+        }
+      },
+      {
+        "entityCode": 3004,
+        "path": "life/alive/action/idle",
+        "actionId": "idle.play",
+        "action": {
+          "id": "idle.play",
+          "type": "play",
+          "animatorState": "Veigar_Model_Idle",
+          "loop": true,
+          "layer": 0,
+          "frameCount": 60
+        }
+      },
+      {
+        "entityCode": 3004,
+        "path": "life/alive/action/moving",
+        "actionId": "moving.play",
+        "action": {
+          "id": "moving.play",
+          "type": "play",
+          "loop": true,
+          "modelId": 3004,
+          "animationKey": "Base Layer.Walk"
+        }
+      },
+      {
+        "entityCode": 3004,
+        "path": "life/alive/action/controlled",
+        "actionId": "controlled.play",
+        "action": {
+          "id": "controlled.play",
+          "type": "play",
+          "animatorState": "Veigar_Model_Idle",
+          "loop": true,
+          "layer": 0,
+          "frameCount": 60
+        }
+      },
+      {
+        "entityCode": 3004,
+        "skillId": 30040101,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "attack.play",
+              "type": "play",
+              "animatorState": "Veigar_Model_AA",
+              "loop": false,
+              "layer": 0,
+              "frameCount": 48
+            },
+            {
+              "id": "attack.wait",
+              "type": "wait",
+              "seconds": 2.0
+            }
+          ]
+        }
+      },
+      {
+        "entityCode": 3004,
+        "skillId": 30040201,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "attack.play",
+              "type": "play",
+              "animatorState": "Veigar_Model_SpellQ",
+              "loop": false,
+              "layer": 0,
+              "frameCount": 38
+            },
+            {
+              "id": "attack.wait",
+              "type": "wait",
+              "seconds": 1.583333
+            }
+          ]
+        }
+      },
+      {
+        "entityCode": 3004,
+        "skillId": 30040301,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "attack.play",
+              "type": "play",
+              "animatorState": "Veigar_Model_SpellW",
+              "loop": false,
+              "layer": 0,
+              "frameCount": 80
+            },
+            {
+              "id": "attack.wait",
+              "type": "wait",
+              "seconds": 3.333333
+            }
+          ]
+        }
+      },
+      {
+        "entityCode": 3004,
+        "skillId": 30040401,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "attack.play",
+              "type": "play",
+              "animatorState": "Veigar_Model_SpellE",
+              "loop": false,
+              "layer": 0,
+              "frameCount": 50
+            },
+            {
+              "id": "attack.wait",
+              "type": "wait",
+              "seconds": 2.083333
+            }
+          ]
+        }
+      },
+      {
+        "entityCode": 3004,
+        "skillId": 30040501,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "attack.play",
+              "type": "play",
+              "animatorState": "Veigar_Model_SpellR",
+              "loop": false,
+              "layer": 0,
+              "frameCount": 38
+            },
+            {
+              "id": "attack.wait",
+              "type": "wait",
+              "seconds": 1.583333
+            }
+          ]
+        }
+      },
+      {
+        "entityCode": 3005,
+        "path": "life/alive/action/moving",
+        "actionId": "moving.play",
+        "action": {
+          "id": "moving.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Walk",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3006,
+        "path": "life/alive/action/moving",
+        "actionId": "moving.play",
+        "action": {
+          "id": "moving.play",
+          "type": "play",
+          "modelId": 3006,
+          "animationKey": "Base Layer.Walk",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3007,
+        "path": "life/alive/action/moving",
+        "actionId": "moving.play",
+        "action": {
+          "id": "moving.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Walk",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3005,
+        "path": "life/alive/action/idle",
+        "actionId": "idle.play",
+        "action": {
+          "id": "idle.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3006,
+        "path": "life/alive/action/idle",
+        "actionId": "idle.play",
+        "action": {
+          "id": "idle.play",
+          "type": "play",
+          "modelId": 3006,
+          "animationKey": "Base Layer.Karthus_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3007,
+        "path": "life/alive/action/idle",
+        "actionId": "idle.play",
+        "action": {
+          "id": "idle.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Lux_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3005,
+        "path": "life/alive/action/barrel.flight",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3005,
+        "path": "life/alive/action/barrel.deployed",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3005,
+        "path": "life/alive/action/empowered",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3005,
+        "path": "life/alive/action/controlled",
+        "actionId": "controlled.play",
+        "action": {
+          "id": "controlled.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3005,
+        "skillId": 30050101,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_AutoAttack",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3005,
+        "skillId": 30050201,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_SpellQ",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3005,
+        "skillId": 30050301,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "drink.wait",
+          "type": "wait",
+          "seconds": 1.166667
+        }
+      },
+      {
+        "entityCode": 3005,
+        "skillId": 30050401,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_SpellE",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3005,
+        "skillId": 30050501,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_SpellR",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3005,
+        "skillId": 30050601,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_SpellQ",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3005,
+        "skillId": 30050701,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_AutoAttack_2",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3005,
+        "skillId": 30050702,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_AutoAttack_2",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3005,
+        "skillId": 30050703,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_AutoAttack_2",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3005,
+        "skillId": 30050704,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_AutoAttack_2",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3005,
+        "skillId": 30050705,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3005,
+          "animationKey": "Base Layer.Gragas_Model_AutoAttack_2",
+          "loop": false
         }
       }
     ]

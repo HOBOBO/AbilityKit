@@ -1,0 +1,23 @@
+[
+  {
+    "profileId": "gragas_barrel",
+    "statePath": "/flight",
+    "animatorState": "Base Layer.flight",
+    "clipDurationSeconds": 0.4583333333333333,
+    "playbackDurationSeconds": 0.4583333333333333
+  },
+  {
+    "profileId": "gragas_barrel",
+    "statePath": "/deployed",
+    "animatorState": "Base Layer.deployed",
+    "clipDurationSeconds": 4.25,
+    "playbackDurationSeconds": 4
+  },
+  {
+    "profileId": "gragas_barrel",
+    "statePath": "/detonating",
+    "animatorState": "Base Layer.detonating",
+    "clipDurationSeconds": 0.5,
+    "playbackDurationSeconds": 0.5
+  }
+]

@@ -1,0 +1,70 @@
+{
+  "Id": 30050704,
+  "Name": "Gragas 30050704",
+  "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "RequiredBuffQualificationId": 30050394,
+  "Phases": [
+    {
+      "Type": 19,
+      "PhaseId": "gragas_30050704_economy",
+      "Economy": {
+        "Operation": 0,
+        "ResourceType": 0,
+        "ResourceAmount": 0.0,
+        "UseResolvedResourceCost": true,
+        "ChargeCost": 1,
+        "MaxCharges": 1,
+        "ChargeRecoveryMs": 0,
+        "StartSkillCooldown": true,
+        "SkillCooldownMs": 0,
+        "UseResolvedSkillCooldown": true,
+        "CooldownGroup": "",
+        "SharedCooldownMs": 0,
+        "GlobalCooldownMs": 0,
+        "IgnoreGlobalCooldown": false,
+        "IgnoreResourceCostCheck": false,
+        "IgnoreResourceConsumption": false,
+        "RefundBeforeCommit": true,
+        "RequireExplicitCommit": true,
+        "FailReason": ""
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "gragas_30050704_release",
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 18,
+      "PhaseId": "gragas_30050704_commit",
+      "CommitPoint": {
+        "CommitId": "attack",
+        "RequireEconomyReservation": true
+      }
+    },
+    {
+      "Type": 2,
+      "PhaseId": "gragas_30050704_cast",
+      "Timeline": {
+        "DurationMs": 1667,
+        "Events": [
+          {
+            "AtMs": 300,
+            "EffectId": 30050704,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "gragas_30050704_30050704"
+          }
+        ]
+      }
+    }
+  ]
+}

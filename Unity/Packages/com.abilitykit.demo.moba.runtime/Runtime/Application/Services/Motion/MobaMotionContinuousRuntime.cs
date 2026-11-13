@@ -108,6 +108,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             SourceContextId = identity.SourceContextId;
             _actors = dependencies.Actors;
             _motionSource = dependencies.MotionSource;
+            if (_motionSource is MobaCollisionDashMotionSource collisionDash) collisionDash.Bind(this);
             _source = identity.Source;
             _hitTriggerRuntime = dependencies.HitTriggerRuntime;
             _landingTriggerRuntime = dependencies.LandingTriggerRuntime;
@@ -157,7 +158,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             _sourceAdded = true;
             Log.Info($"[MobaMotionContinuousRuntime] source added. kind={Kind}, owner={OwnerActorId}, sourceActive={_motionSource.IsActive}");
 
-            if (_hitTriggerRuntime.IsValid)
+            if (_hitTriggerRuntime.IsValid && !(_motionSource is MobaCollisionDashMotionSource))
             {
                 entity.ReplaceMotion(
                     motion.Pipeline,

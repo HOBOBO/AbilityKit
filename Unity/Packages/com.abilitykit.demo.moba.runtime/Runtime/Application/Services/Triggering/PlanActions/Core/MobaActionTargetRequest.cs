@@ -5,6 +5,7 @@ using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Core.Logging;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
@@ -236,6 +237,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var aimPosition = coreInput.AimPosition;
+            var aimDirection = coreInput.HasAimDirection ? coreInput.AimDirection : Vec3.Zero;
             if (request.UsesTemplate)
             {
                 if (request.QueryTemplateId <= 0)
@@ -244,13 +246,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     return false;
                 }
 
-                var found = search.TrySearchActorIds(request.QueryTemplateId, effectInput.CasterActorId, in aimPosition, explicitTargetActorId, results);
+                var found = search.TrySearchActorIds(request.QueryTemplateId, effectInput.CasterActorId, in aimPosition, in aimDirection, explicitTargetActorId, results);
                 Log.Warning($"[MobaActionTargetResolver] template query action={actionName} queryId={request.QueryTemplateId} caster={effectInput.CasterActorId} explicitTarget={explicitTargetActorId} found={found} count={results.Count} targets={FormatTargets(results)} aim=({aimPosition.X:0.###},{aimPosition.Y:0.###},{aimPosition.Z:0.###})");
                 return found || !requireMatch;
             }
 
             var template = BuildInlineTemplate(in request, explicitTargetActorId);
-            var inlineFound = search.TrySearchActorIds(template, effectInput.CasterActorId, in aimPosition, explicitTargetActorId, results);
+            var inlineFound = search.TrySearchActorIds(template, effectInput.CasterActorId, in aimPosition, in aimDirection, explicitTargetActorId, results);
             Log.Warning($"[MobaActionTargetResolver] inline query action={actionName} source={request.SourceCode} caster={effectInput.CasterActorId} explicitTarget={explicitTargetActorId} found={inlineFound} count={results.Count} targets={FormatTargets(results)} aim=({aimPosition.X:0.###},{aimPosition.Y:0.###},{aimPosition.Z:0.###})");
             return inlineFound || !requireMatch;
         }

@@ -46,6 +46,8 @@ namespace AbilityKit.Demo.Moba.Systems
             public const string RemoveProjectile = "remove_projectile";
             public const string RemoveArea = "remove_area";
             public const string SpawnArea = "spawn_area";
+            public const string SpawnAreaBatch = "spawn_area_batch";
+            public const string SpawnAreaPattern = "spawn_area_pattern";
             public const string PlayEffect = "play_effect";
             public const string PlaySound = "play_sound";
             public const string Heal = "heal";
@@ -170,6 +172,8 @@ namespace AbilityKit.Demo.Moba.Systems
         public static ActionId RemoveProjectileId => GetActionId(Actions.RemoveProjectile);
         public static ActionId RemoveAreaId => GetActionId(Actions.RemoveArea);
         public static ActionId SpawnAreaId => GetActionId(Actions.SpawnArea);
+          public static ActionId SpawnAreaBatchId => GetActionId(Actions.SpawnAreaBatch);
+          public static ActionId SpawnAreaPatternId => GetActionId(Actions.SpawnAreaPattern);
         public static ActionId SpawnSummonId => GetActionId(Actions.SpawnSummon);
         public static ActionId PlayPresentationId => GetActionId(Actions.PlayPresentation);
         public static ActionId EmitId => GetActionId(Actions.Emit);

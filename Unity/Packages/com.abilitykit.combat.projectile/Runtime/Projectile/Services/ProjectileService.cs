@@ -10,7 +10,7 @@ using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Combat.Projectile
 {
-    public sealed class ProjectileService : IProjectileService, IAreaRollbackService, IWorldInitializable
+    public sealed class ProjectileService : IProjectileService, IProjectileArrivalEventSource, IAreaRollbackService, IWorldInitializable
     {
         private static readonly ObjectPool<List<ProjectileSpawnParams>> s_spawnListPool = Pools.GetPool(
             key: "ProjectileSpawnParamsList",
@@ -25,6 +25,7 @@ namespace AbilityKit.Combat.Projectile
 
         private readonly List<ProjectileSpawnEvent> _spawnEvents = new List<ProjectileSpawnEvent>(32);
         private readonly List<ProjectileHitEvent> _hitEvents = new List<ProjectileHitEvent>(32);
+        private readonly List<ProjectileArrivalEvent> _arrivalEvents = new List<ProjectileArrivalEvent>();
         private readonly List<ProjectileExitEvent> _exitEvents = new List<ProjectileExitEvent>(32);
         private readonly List<ProjectileTickEvent> _tickEvents = new List<ProjectileTickEvent>(32);
 
@@ -65,6 +66,10 @@ namespace AbilityKit.Combat.Projectile
                     _world.SetTrackingTargetProvider(bounceProvider);
                 if (trackingProvider == null) _areas.SetTrackingTargetProvider(bounceProvider);
             }
+            if (services.TryResolve<IProjectileActorIdentityProvider>(out var identityProvider) && identityProvider != null)
+                _world.SetActorIdentityProvider(identityProvider);
+            if (services.TryResolve<IProjectileHitFilterResolver>(out var filterResolver) && filterResolver != null)
+                _world.SetHitFilterResolver(filterResolver);
         }
 
         public int ActiveCount => _world.ActiveCount;
@@ -103,7 +108,7 @@ namespace AbilityKit.Combat.Projectile
         {
             TickSchedules(frame);
             _areas.Tick(frame, _areaEnterEvents, _areaStayEvents, _areaExitEvents, _areaExpireEvents);
-            _world.Tick(frame, fixedDeltaSeconds, _hitEvents, _exitEvents, _tickEvents);
+            _world.Tick(frame, fixedDeltaSeconds, _hitEvents, _exitEvents, _tickEvents, _arrivalEvents);
         }
 
         public AreaId SpawnArea(in AreaSpawnParams p, int frame)
@@ -281,6 +286,12 @@ namespace AbilityKit.Combat.Projectile
             results.AddRange(_hitEvents);
         }
 
+        public void DrainArrivalEvents(List<ProjectileArrivalEvent> results)
+        {
+            if (results == null) return;
+            results.AddRange(_arrivalEvents); _arrivalEvents.Clear();
+        }
+
         public void DrainExitEvents(List<ProjectileExitEvent> results)
         {
             if (results == null) return;
@@ -397,6 +408,7 @@ namespace AbilityKit.Combat.Projectile
             _spawnEvents.Clear();
             _hitEvents.Clear();
             _exitEvents.Clear();
+            _arrivalEvents.Clear();
             _tickEvents.Clear();
 
             _areaSpawnEvents.Clear();
@@ -414,6 +426,7 @@ namespace AbilityKit.Combat.Projectile
             _spawnEvents.Clear();
             _hitEvents.Clear();
             _exitEvents.Clear();
+            _arrivalEvents.Clear();
             _tickEvents.Clear();
 
             _areaSpawnEvents.Clear();

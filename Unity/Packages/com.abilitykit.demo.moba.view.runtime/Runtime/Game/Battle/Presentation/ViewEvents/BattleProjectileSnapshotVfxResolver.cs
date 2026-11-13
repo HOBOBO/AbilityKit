@@ -28,7 +28,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             spec = default;
 
-            var vfxId = _vfx.ResolveSnapshotVfxId(entry.TemplateId, entry.Kind);
+            var vfxId = _vfx.ResolveSnapshotVfxId(entry.TemplateId,
+                entry.Kind == ProjectilePresentationEventKind.Phase ? ProjectilePresentationEventKind.Spawn : entry.Kind);
             if (vfxId <= 0) return false;
 
             var position = _positions.Resolve(in entry);

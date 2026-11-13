@@ -72,8 +72,6 @@ namespace AbilityKit.Game.Flow
             var duration = secondsPerFrame > 0f ? secondsPerFrame : _secondsPerFrame;
             var tickRate = duration > 0f ? Mathf.RoundToInt(1f / duration) : 0;
             if (tickRate <= 0) return;
-            if (_animator != null)
-                _animator.speed = _presentationRateResolver.ResolveRate(PresentationRateChannel.Action);
             SeekPresentation(frameIndex, duration);
             var playback = _state.Evaluate(frameIndex, tickRate, this);
             if (!playback.HasValue || _animator == null ||
@@ -82,6 +80,7 @@ namespace AbilityKit.Game.Flow
             var intent = playback.Value;
             var hash = Animator.StringToHash(intent.AnimatorState);
             if (intent.Layer >= _animator.layerCount || !_animator.HasState(intent.Layer, hash)) return;
+            _animator.speed = _presentationRateResolver.ResolveRate(PresentationRateChannel.Action);
             var localFrame = intent.LocalFrame;
             if (intent.FrameCount > 0)
                 localFrame = intent.Loop ? localFrame % intent.FrameCount :

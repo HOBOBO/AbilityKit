@@ -1,3 +1,4 @@
+using System.Linq;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.View.Lib.Skill;
 using NUnit.Framework;
@@ -42,6 +43,34 @@ namespace AbilityKit.Game.Test.UnitTest
                     SkillAimIndicatorShape.TargetCircle, SkillUsePointMode.TargetPoint);
                 AssertJhinTemplate(harness, 30010401, 27, SkillAimMode.Direction,
                     SkillAimIndicatorShape.Sector, SkillUsePointMode.Aim);
+            }
+        }
+
+        [Test]
+        public void JinxSkills_ShouldUseExpectedAimIndicatorsAndBeSelectableInLocalBattle()
+        {
+            const int heroId = 3002;
+            var skillIds = new[] { 30020101, 30020201, 30020301, 30020401 };
+            var contract = new HeroSkillContract("Jinx", heroId, heroId, skillIds);
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(contract, "jinx_hud_catalog_and_aim_contract"))
+            {
+                Assert.IsTrue(harness.Config.GetAllCharacters().Any(character => character.Id == heroId),
+                    "Jinx must be present in the character catalog consumed by the local hero selector.");
+                Assert.IsTrue(MobaHeroLoadoutResolver.TryResolveHeroConfig(
+                        harness.Config, heroId, out _, out var basicAttackSkillId, out var activeSkills, out var error),
+                    "The local HUD selector filters characters through the production hero-loadout resolver. " + error);
+                Assert.AreEqual(30020001, basicAttackSkillId);
+                CollectionAssert.AreEqual(skillIds, activeSkills,
+                    "All four active skills must resolve before Jinx can appear as a selectable loadout.");
+
+                AssertJinxTemplate(harness, 30020101, 1, enableAim: false,
+                    SkillAimMode.Direction, SkillAimIndicatorShape.Hidden, SkillUsePointMode.None);
+                AssertJinxTemplate(harness, 30020201, 2, enableAim: true,
+                    SkillAimMode.Direction, SkillAimIndicatorShape.DirectionLine, SkillUsePointMode.Aim);
+                AssertJinxTemplate(harness, 30020301, 3, enableAim: true,
+                    SkillAimMode.Point, SkillAimIndicatorShape.TargetCircle, SkillUsePointMode.TargetPoint);
+                AssertJinxTemplate(harness, 30020401, 2, enableAim: true,
+                    SkillAimMode.Direction, SkillAimIndicatorShape.DirectionLine, SkillUsePointMode.Aim);
             }
         }
 
@@ -106,6 +135,28 @@ namespace AbilityKit.Game.Test.UnitTest
             if (shape == SkillAimIndicatorShape.Sector)
                 Assert.AreEqual(10f, template.SectorAngleDegrees, 0.001f,
                     "Curtain Call's indicator should match its narrow configured firing sector.");
+        }
+
+        private static void AssertJinxTemplate(
+            MobaSkillConfigTestHarness harness,
+            int skillId,
+            int expectedTemplateId,
+            bool enableAim,
+            SkillAimMode aimMode,
+            SkillAimIndicatorShape shape,
+            SkillUsePointMode usePointMode)
+        {
+            Assert.IsTrue(harness.Config.TryGetSkill(skillId, out var skill), "Missing Jinx skill " + skillId);
+            Assert.AreEqual(expectedTemplateId, skill.SkillButtonTemplateId,
+                "Jinx skill must use its intended shared HUD template: " + skillId);
+            Assert.IsTrue(harness.Config.TryGetSkillButtonTemplate(expectedTemplateId, out var template),
+                "Missing Jinx aim template " + expectedTemplateId);
+            Assert.AreEqual(enableAim, template.EnableAim, "Wrong aim enablement for Jinx skill " + skillId);
+            Assert.AreEqual((int)aimMode, template.AimMode, "Wrong aim mode for Jinx skill " + skillId);
+            Assert.AreEqual((int)shape, template.IndicatorShape, "Wrong indicator shape for Jinx skill " + skillId);
+            Assert.AreEqual((int)usePointMode, template.UsePointMode, "Wrong release-point mode for Jinx skill " + skillId);
+            Assert.IsTrue(skill.AllowCastWithoutTarget,
+                "Jinx active skills must be releasable from their authored aim snapshot without a locked unit target: " + skillId);
         }
     }
 }

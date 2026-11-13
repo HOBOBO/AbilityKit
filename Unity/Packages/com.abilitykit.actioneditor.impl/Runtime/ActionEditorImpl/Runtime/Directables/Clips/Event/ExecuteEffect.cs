@@ -13,6 +13,8 @@ namespace AbilityKit.ActionEditorImpl
 
         [MenuName("Event Tag")] public string eventTag = "";
 
+        [MenuName("效果失败时终止阶段")] public bool abortOnFailure;
+
         public ActionTimelineRuntimeKind RuntimeKind => ActionTimelineRuntimeKind.Logic;
         public override bool IsValid => effectId > 0;
         public override string Info => "效果 " + effectId;
@@ -22,6 +24,7 @@ namespace AbilityKit.ActionEditorImpl
             if (args == null) return;
             args["effectId"] = effectId.ToString(System.Globalization.CultureInfo.InvariantCulture);
             args["eventTag"] = eventTag ?? string.Empty;
+            args["abortOnFailure"] = abortOnFailure ? "true" : "false";
         }
     }
 }

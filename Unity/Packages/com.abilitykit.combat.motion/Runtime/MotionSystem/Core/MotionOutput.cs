@@ -16,6 +16,9 @@ namespace AbilityKit.Combat.MotionSystem.Core
         /// <summary>本帧是否有主导源提供了碰撞策略覆盖。</summary>
         public bool HasDominantCollisionPolicy;
 
+        /// <summary>The precise source whose collision policy was used for this solve.</summary>
+        public IMotionSource CollisionSource;
+
         public void Clear()
         {
             DesiredDelta = Vec3.Zero;
@@ -23,6 +26,7 @@ namespace AbilityKit.Combat.MotionSystem.Core
             NewVelocity = Vec3.Zero;
             NewForward = Vec3.Zero;
             HasDominantCollisionPolicy = false;
+            CollisionSource = null;
         }
     }
 }

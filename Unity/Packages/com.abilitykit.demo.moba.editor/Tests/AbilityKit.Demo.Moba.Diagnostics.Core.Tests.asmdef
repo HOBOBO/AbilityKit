@@ -48,7 +48,8 @@
   "overrideReferences": true,
   "precompiledReferences": [
     "Entitas.dll",
-    "Sirenix.Serialization.dll"
+    "Sirenix.Serialization.dll",
+    "Newtonsoft.Json.dll"
   ],
   "autoReferenced": true,
   "defineConstraints": [],

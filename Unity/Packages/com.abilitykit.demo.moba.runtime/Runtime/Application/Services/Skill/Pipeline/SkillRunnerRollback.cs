@@ -369,14 +369,22 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        internal void DetachForRollback()
+        internal void DetachForRollback(bool localRollback = false)
         {
             foreach (var entry in _running)
             {
                 SkillPipelineRollback.Detach(entry.Run);
                 if (entry.Continuous != null && entry.Request.WorldServices != null &&
                     entry.Request.WorldServices.TryResolve<IContinuousManager>(out var continuous))
-                    continuous.Unregister(entry.Continuous, ContinuousEndReason.CleanedUp);
+                {
+                    if (localRollback && continuous is MobaContinuousManager manager)
+                    {
+                        var instances = new List<IContinuous>(manager.GetAllContinuous());
+                        instances.Remove(entry.Continuous);
+                        manager.RestoreLocalRegistration(instances);
+                    }
+                    else continuous.Unregister(entry.Continuous, ContinuousEndReason.CleanedUp);
+                }
                 entry.Context?.DiscardCleanupsForRollback();
             }
             _running.Clear();
@@ -388,7 +396,7 @@ namespace AbilityKit.Demo.Moba.Services
             IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> prePhases,
             IAbilityPipelineConfig castConfig,
             IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> castPhases,
-            object abilityInstance, in SkillCastRequest request, SkillCastContext trigger)
+            object abilityInstance, in SkillCastRequest request, SkillCastContext trigger, bool localRollback = false)
         {
             var entry = new Entry(preConfig, prePhases, castConfig, castPhases,
                 abilityInstance, request, trigger, state.Policy)
@@ -404,7 +412,7 @@ namespace AbilityKit.Demo.Moba.Services
             entry.Context = new SkillPipelineContext();
             entry.Context.Initialize(abilityInstance, in request, trigger);
             entry.Context.RestoreRollbackState(in state.Context);
-            if (!TryBindPipelineContinuous(ref entry, config, out var bindError))
+            if (!TryBindPipelineContinuous(ref entry, config, out var bindError, localRollback))
                 throw new InvalidOperationException(bindError);
             try
             {
@@ -418,7 +426,15 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 if (entry.Continuous != null && request.WorldServices != null &&
                     request.WorldServices.TryResolve<IContinuousManager>(out var continuous))
-                    continuous.Unregister(entry.Continuous, ContinuousEndReason.CleanedUp);
+                {
+                    if (localRollback && continuous is MobaContinuousManager manager)
+                    {
+                        var instances = new List<IContinuous>(manager.GetAllContinuous());
+                        instances.Remove(entry.Continuous);
+                        manager.RestoreLocalRegistration(instances);
+                    }
+                    else continuous.Unregister(entry.Continuous, ContinuousEndReason.CleanedUp);
+                }
                 entry.Context.DiscardCleanupsForRollback();
                 throw;
             }
@@ -436,15 +452,16 @@ namespace AbilityKit.Demo.Moba.Services
             return values.ToArray();
         }
 
-        internal void DetachForRollback()
+        internal void DetachForRollback(bool localRollback = false)
         {
-            foreach (var runner in _runners.Values) runner.DetachForRollback();
+            foreach (var runner in _runners.Values) runner.DetachForRollback(localRollback);
             _runners.Clear();
         }
     }
 
     public sealed partial class SkillCastCoordinator
     {
+        internal void DetachForLocalRollback() => _runnerRegistry.DetachForRollback(localRollback: true);
         internal byte[] ExportRunnerRollbackState()
         {
             return SkillRunnerRollbackCodec.Serialize(new SkillRunnerRollbackSnapshot
@@ -473,7 +490,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        internal void ImportRunnerRollbackState(byte[] payload)
+        internal void ImportRunnerRollbackState(byte[] payload, bool localRollback = false)
         {
             ValidateRunnerRollbackState(payload);
             var snapshot = SkillRunnerRollbackCodec.Deserialize(payload);
@@ -497,7 +514,7 @@ namespace AbilityKit.Demo.Moba.Services
                      phase.RootContextId != state.RootContextId))
                     throw new InvalidOperationException($"Skill rollback phase context {state.PhaseContextId} was not restored.");
             }
-            _runnerRegistry.DetachForRollback();
+            _runnerRegistry.DetachForRollback(localRollback);
             _preparation.RestoreRollbackSequences(snapshot.Sequences);
             foreach (var state in snapshot.Entries)
             {
@@ -538,7 +555,7 @@ namespace AbilityKit.Demo.Moba.Services
                 trigger.DiagnosticCommandId = state.DiagnosticCommandId;
                 trigger.FailReason = state.TriggerFailReason;
                 _runnerRegistry.GetOrCreate(state.ActorId).RestoreRollbackEntry(state,
-                    preConfig, prePhases, castConfig, castPhases, this, in request, trigger);
+                    preConfig, prePhases, castConfig, castPhases, this, in request, trigger, localRollback);
             }
         }
 

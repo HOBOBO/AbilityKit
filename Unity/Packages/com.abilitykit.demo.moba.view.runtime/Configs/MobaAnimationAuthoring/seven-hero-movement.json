@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "models": [
+    { "modelId": 3001, "name": "Jhin Battlecast model", "prefabPath": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Model" },
+    { "modelId": 3002, "name": "Jinx Arcanist model", "prefabPath": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_Model" },
+    { "modelId": 3003, "name": "Annie-Void-Model", "prefabPath": "ChampionVfx/14.Void_Annie/Void_Annie_Model" },
+    { "modelId": 3004, "name": "Veigar Hextech model", "prefabPath": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Model" },
+    { "modelId": 3005, "name": "Gragas StarGuardian model", "prefabPath": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_Model" },
+    { "modelId": 3006, "name": "Karthus Project model", "prefabPath": "ChampionVfx/11.Karthus_Project/Karthus_Project_Model" },
+    { "modelId": 3007, "name": "Lux DarkStar model", "prefabPath": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_Model" }
+  ],
+  "animations": [
+    { "modelId": 3001, "animationKey": "Base Layer.Walk", "entityCode": 3001, "path": "life/alive/action/moving", "actionId": "moving.play" },
+    { "modelId": 3002, "animationKey": "Base Layer.Walk", "entityCode": 3002, "path": "life/alive/action/moving.powpow", "actionId": "pose.play" },
+    { "modelId": 3002, "animationKey": "Base Layer.Walk_Rocket", "entityCode": 3002, "path": "life/alive/action/moving.fishbones", "actionId": "pose.play" },
+    { "modelId": 3003, "animationKey": "Base Layer.Walk", "entityCode": 3003, "path": "life/alive/action/moving", "actionId": "moving.play" },
+    { "modelId": 3004, "animationKey": "Base Layer.Walk", "entityCode": 3004, "path": "life/alive/action/moving", "actionId": "moving.play" },
+    { "modelId": 3005, "animationKey": "Base Layer.Walk", "entityCode": 3005, "path": "life/alive/action/moving", "actionId": "moving.play" },
+    { "modelId": 3006, "animationKey": "Base Layer.Walk", "entityCode": 3006, "path": "life/alive/action/moving", "actionId": "moving.play" },
+    { "modelId": 3007, "animationKey": "Base Layer.Walk", "entityCode": 3007, "path": "life/alive/action/moving", "actionId": "moving.play" },
+    { "modelId": 3005, "animationKey": "Base Layer.Gragas_Model_Idle", "entityCode": 3005, "path": "life/alive/action/idle", "actionId": "idle.play" },
+    { "modelId": 3006, "animationKey": "Base Layer.Karthus_Model_Idle", "entityCode": 3006, "path": "life/alive/action/idle", "actionId": "idle.play" },
+    { "modelId": 3007, "animationKey": "Base Layer.Lux_Model_Idle", "entityCode": 3007, "path": "life/alive/action/idle", "actionId": "idle.play" }
+  ]
+}

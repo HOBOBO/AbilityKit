@@ -134,6 +134,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 entry.AssetKey.StartsWith("presentation:vfx-prefab:", StringComparison.Ordinal)));
             Assert.IsTrue(dependencies.Any(entry => entry.AssetPath == "character/character1"));
             Assert.IsTrue(dependencies.Any(entry => entry.AssetPath == "character/character8"));
+            Assert.IsTrue(dependencies.Any(entry =>
+                entry.AssetKey == "presentation:model-prefab:3004" &&
+                entry.AssetPath == "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Model"));
             Assert.IsTrue(dependencies.Any(entry => entry.AssetPath == "effect/bullet_1"));
             Assert.IsTrue(dependencies.All(entry =>
                 UnityEngine.Resources.Load<UnityEngine.Object>(entry.AssetPath) != null),

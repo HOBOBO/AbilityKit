@@ -18,6 +18,35 @@ namespace AbilityKit.Game.Test.UnitTest
     public sealed class BattleViewCameraControllerTests
     {
         [Test]
+        public void BattleMaterials_GetDepthInputAndCameraRebindingPreservesExistingFlags()
+        {
+            var first = new GameObject("first-battle-camera").AddComponent<Camera>();
+            var second = new GameObject("second-battle-camera").AddComponent<Camera>();
+            first.depthTextureMode = DepthTextureMode.None;
+            second.depthTextureMode = DepthTextureMode.Depth | DepthTextureMode.DepthNormals;
+            var controller = new BattleViewCameraController(allowMainCameraFallback: false);
+            try
+            {
+                controller.SetCamera(first);
+                Assert.AreEqual(DepthTextureMode.Depth, first.depthTextureMode);
+                first.depthTextureMode |= DepthTextureMode.DepthNormals;
+                controller.SetCamera(first);
+                controller.SetCamera(second);
+                Assert.AreEqual(DepthTextureMode.DepthNormals, first.depthTextureMode,
+                    "Rebinding must release only the depth input added by this battle view.");
+                controller.Reset();
+                Assert.AreEqual(DepthTextureMode.Depth | DepthTextureMode.DepthNormals, second.depthTextureMode,
+                    "Reset must preserve the camera's pre-existing depth requirements.");
+            }
+            finally
+            {
+                controller.Reset();
+                Object.DestroyImmediate(first.gameObject);
+                Object.DestroyImmediate(second.gameObject);
+            }
+        }
+
+        [Test]
         public void AuxiliaryCamera_DoesNotFallBackToMainCamera()
         {
             var go = new GameObject("main-camera");

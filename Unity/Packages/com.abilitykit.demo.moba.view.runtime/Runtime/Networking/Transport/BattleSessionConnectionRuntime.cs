@@ -41,9 +41,14 @@ namespace AbilityKit.Game.Flow
                 throw new InvalidOperationException(
                     $"GatewayRemote requires numeric WorldId(roomId). worldId='{plan.World.WorldId}'");
 
-            if (plan.Sync.SyncMode != BattleSyncMode.Lockstep)
-                throw new InvalidOperationException(
-                    $"MOBA GatewayRemote only supports Lockstep frame sync. SyncMode={plan.Sync.SyncMode}");
+            if (!MobaBattleSyncModePolicy.TryValidateCombination(
+                    plan.HostMode,
+                    plan.Sync.SyncMode,
+                    plan.Gateway.UseGatewayTransport,
+                    out var syncModeError))
+            {
+                throw new InvalidOperationException(syncModeError);
+            }
 
             var transport = _transportFactory.CreateGatewayRemoteTransport(
                 plan, playerId, roomId, callbackDispatcher, ioDispatcher);

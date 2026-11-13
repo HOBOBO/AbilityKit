@@ -219,6 +219,21 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             }
 
             var entries = snapshot.Entries;
+            foreach (var requiredKey in _registry.RequiredStateKeys)
+            {
+                var count = 0;
+                if (entries != null)
+                    for (var i = 0; i < entries.Length; i++)
+                        if (entries[i].Key == requiredKey) count++;
+                if (count == 1) continue;
+                result = RollbackOperationResult.Failure(
+                    RollbackOperationKind.Restore,
+                    RollbackOperationStatus.ProviderMissing,
+                    snapshot.Frame,
+                    $"Rollback snapshot requires exactly one state entry. key={requiredKey} count={count}",
+                    requiredKey);
+                return false;
+            }
             if (entries == null || entries.Length == 0)
             {
                 result = RollbackOperationResult.Success(RollbackOperationKind.Restore, snapshot.Frame);

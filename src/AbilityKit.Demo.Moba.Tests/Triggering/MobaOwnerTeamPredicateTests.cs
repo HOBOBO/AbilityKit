@@ -4,6 +4,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Predicates;
+using AbilityKit.Demo.Moba.Events.Unit;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
@@ -37,17 +38,23 @@ public sealed class MobaOwnerTeamPredicateTests
             MobaPlanPredicateFunctions.OwnerSameTeamAsPayloadSourceFunctionId, out var sameTeam, out _));
         Assert.True(functions.TryGet<Predicate2<object, IWorldResolver>>(
             MobaPlanPredicateFunctions.OwnerEnemyToPayloadTargetFunctionId, out var enemyTarget, out _));
+        Assert.True(functions.TryGet<Predicate2<object, IWorldResolver>>(
+            MobaPlanPredicateFunctions.OwnerMatchesPayloadSourceFunctionId, out var ownerSource, out _));
 
         var exec = new ExecCtx<IWorldResolver>(resolver, null, functions, null, null, null, null, null, null,
             default, default);
         var sameTeamPayload = new ActorPayload(2, 2);
         var enemyPayload = new ActorPayload(2, 3);
+        var killByOwner = new UnitDieEventPayload(2, 1, 2, 2, 30040001, 40f);
+        var killByOther = new UnitDieEventPayload(2, 3, 2, 2, 30040001, 40f);
 
         using (gates.BeginEvaluationScope(new MobaOwnerBoundTriggerExecutionSource(1, 0, 10, 10, 10, 0)))
         {
             Assert.True(sameTeam(sameTeamPayload, NamedArgsDict.Empty, exec));
             Assert.False(enemyTarget(sameTeamPayload, NamedArgsDict.Empty, exec));
             Assert.True(enemyTarget(enemyPayload, NamedArgsDict.Empty, exec));
+            Assert.True(ownerSource(killByOwner, NamedArgsDict.Empty, exec));
+            Assert.False(ownerSource(killByOther, NamedArgsDict.Empty, exec));
             Assert.False(sameTeam(new ActorPayload(4, 3), NamedArgsDict.Empty, exec));
             Assert.False(enemyTarget(new ActorPayload(3, 4), NamedArgsDict.Empty, exec));
             Assert.False(sameTeam(new object(), NamedArgsDict.Empty, exec));
@@ -57,6 +64,7 @@ public sealed class MobaOwnerTeamPredicateTests
         {
             Assert.False(sameTeam(sameTeamPayload, NamedArgsDict.Empty, exec));
             Assert.False(enemyTarget(enemyPayload, NamedArgsDict.Empty, exec));
+            Assert.False(ownerSource(killByOwner, NamedArgsDict.Empty, exec));
         }
 
         Assert.False(sameTeam(sameTeamPayload, NamedArgsDict.Empty, exec));

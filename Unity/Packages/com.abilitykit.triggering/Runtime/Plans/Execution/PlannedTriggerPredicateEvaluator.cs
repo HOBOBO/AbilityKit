@@ -12,7 +12,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
     /// PlannedTrigger 的谓词评估辅助，统一处理函数谓词和表达式谓词。
     /// </summary>
     internal static class PlannedTriggerPredicateEvaluator<TArgs, TCtx>
-        where TArgs : class
     {
         public static bool Evaluate(in TriggerPlan<TArgs> plan, in TArgs args, in ExecCtx<TCtx> ctx)
         {

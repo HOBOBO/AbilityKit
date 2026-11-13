@@ -33,9 +33,12 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
                 var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
                 while (directory != null)
                 {
-                    var folder = Path.Combine(directory.FullName, "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaStateMachineAuthoring");
-                    if (Directory.Exists(folder))
+                    // Tests run both from a repository checkout (.NET) and a
+                    // Unity project whose Packages directory may be linked.
+                    foreach (var root in new[] { directory.FullName, Path.Combine(directory.FullName, "Unity") })
                     {
+                        var folder = Path.Combine(root, "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaStateMachineAuthoring");
+                        if (!Directory.Exists(folder)) continue;
                         var file = Path.Combine(folder, Path.GetFileName(path) + ".json");
                         text = File.Exists(file) ? File.ReadAllText(file) : null;
                         return text != null;

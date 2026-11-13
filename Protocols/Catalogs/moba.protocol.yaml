@@ -3,7 +3,7 @@ schemaVersion: 1
 catalogId: abilitykit.moba.battle
 projectId: abilitykit.moba
 domain: battle
-revision: 4
+revision: 5
 defaultCodec: memorypack
 messages:
   - id: frame-sync-submit-input.request
@@ -143,6 +143,8 @@ messages:
     kind: push
     payloadType: AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload
     reliability: realtime
+    minimumSchemaVersion: 2
+    maximumSchemaVersion: 2
     maximumPayloadBytes: 1048576
     captureSampleRate: 0.25
   - id: damage-event.push

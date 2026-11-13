@@ -2,6 +2,7 @@ using MemoryPack;
 
 namespace AbilityKit.Ability.FrameSync.Rollback
 {
+    [MemoryPackable]
     public readonly partial struct WorldRollbackSnapshotEntry
     {
         [MemoryPackOrder(0)] public readonly int Key;

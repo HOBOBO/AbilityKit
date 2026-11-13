@@ -32,6 +32,57 @@ public sealed class MobaSkillFlowAcceptanceTests
     private const int Volley = 8413;
 
     [Fact]
+    public void Exact_deployed_recast_commits_without_spending_or_overwriting_original_cooldown()
+    {
+        using var scope = new Scope();
+        var original = scope.NewContext(Instant, 1);
+        Assert.True(scope.Runtimes.TryBindChildChannel(original.RuntimeHandle, 41));
+        var configs = new MobaConfigDatabase();
+        Assert.True(configs.ReloadFromDtoArrays(new Dictionary<Type, Array>
+        {
+            [typeof(SkillDTO)] = new[] { new SkillDTO { Id = Instant, CastFlowId = 8491 } },
+            [typeof(SkillFlowDTO)] = new[] { new SkillFlowDTO { Id = 8491, RecastChannelId = 41 } },
+        }, strict: false).Succeeded);
+        scope.Services.Add(configs);
+        var loadout = new MobaSkillLoadoutService(scope.Services.Resolve<MobaActorLookupService>());
+        loadout.OnInit(scope.Services);
+        Assert.False(loadout.IsIndependentRecastReady(ActorId, 1, Instant));
+        var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Area, 701, 702, 703);
+        Assert.True(scope.Runtimes.RetainChild(original.RuntimeHandle, child, out _));
+        Assert.True(loadout.IsIndependentRecastReady(ActorId, 1, Instant));
+        Assert.False(loadout.IsIndependentRecastReady(ActorId, 1, Charge));
+        scope.Runtimes.MarkPipelineEnded(original.RuntimeHandle, MobaSkillRuntimeEndReason.PipelineCompleted);
+        scope.SkillOne.CooldownEndTimeMs = 10000;
+        scope.SkillOne.CooldownDurationMs = 10000;
+        scope.SkillOne.CooldownGroupId = 19;
+        scope.SkillOne.IgnoreGlobalCooldown = true;
+        var specification = new SkillEconomyPhaseDTO
+        {
+            ResourceType = (int)ResourceType.Mana, UseResolvedResourceCost = false, ResourceAmount = 0,
+            StartSkillCooldown = false, RequireExplicitCommit = true,
+        };
+        var unbound = scope.NewContext(8499, 1, Instant);
+        Assert.False(scope.Economy.TryReserve(unbound, specification, out _));
+        var recast = scope.NewContext(8499, 1, Instant);
+        Assert.True(scope.Runtimes.TrySelectRecastArea(ActorId, 41, out var binding, out _, 1, Instant));
+        Assert.False(scope.Runtimes.TrySelectRecastArea(ActorId, 41, out _, out _, 2, Instant));
+        Assert.True(scope.Runtimes.BindRecastArea(recast.RuntimeHandle, binding));
+        Assert.True(scope.Economy.TryReserve(recast, specification, out var failure), failure);
+        Assert.True(scope.Economy.Commit(recast.RuntimeHandle));
+        Assert.Equal(Fixed64.FromInt32(100), scope.Mana.Current);
+        Assert.Equal(10000, scope.SkillOne.CooldownEndTimeMs);
+        Assert.Equal(10000, scope.SkillOne.CooldownDurationMs);
+        Assert.Equal(19, scope.SkillOne.CooldownGroupId);
+        Assert.True(scope.SkillOne.IgnoreGlobalCooldown);
+        Assert.True(scope.Runtimes.TryClaimChildTerminal(binding));
+        Assert.False(loadout.IsIndependentRecastReady(ActorId, 1, Instant));
+        var late = scope.NewContext(8499, 1, Instant);
+        Assert.False(scope.Runtimes.TryGetRecastArea(recast.RuntimeHandle, out _));
+        Assert.False(scope.Runtimes.BindRecastArea(late.RuntimeHandle, binding));
+        Assert.False(scope.Economy.TryReserve(late, specification, out _));
+    }
+
+    [Fact]
     public void Channel_window_rollback_preserves_tick_boundary()
     {
         using var scope = new Scope();
@@ -485,14 +536,15 @@ public sealed class MobaSkillFlowAcceptanceTests
                 new object(), in request, trigger);
         }
 
-        public SkillPipelineContext NewContext(int id, int slot)
+        public SkillPipelineContext NewContext(int id, int slot, int baseSkillId = 0)
         {
             var aim = Vec3.Zero;
             var direction = Vec3.Forward;
             var root = _executionContexts.Create(new MobaExecutionContextCreateRequest(
                 MobaExecutionKind.SkillCast, id, ActorId, 0, frame: 10));
             var runtime = Runtimes.Create(new MobaSkillCastRuntimeCreateRequest(
-                id, slot, 1, ++_sequence, ActorId, 0, in aim, in direction, root.ContextId));
+                id, slot, 1, ++_sequence, ActorId, 0, in aim, in direction, root.ContextId,
+                baseSkillId: baseSkillId > 0 ? baseSkillId : id));
             var request = new SkillCastRequest(id, slot, ActorId, 0, in aim, in direction,
                 Services, null, null, null);
             var trigger = new SkillCastContext();

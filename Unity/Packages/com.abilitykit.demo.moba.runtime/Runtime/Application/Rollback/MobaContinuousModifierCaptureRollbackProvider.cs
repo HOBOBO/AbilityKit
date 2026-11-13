@@ -6,6 +6,7 @@ using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
+using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
@@ -35,6 +36,59 @@ namespace AbilityKit.Demo.Moba.Rollback
         public void ValidateImport(FrameIndex frame, byte[] payload)
         {
             ReadAndValidate(payload, Collect(), out _, out _, preflight: true);
+        }
+
+        // Only the joint lifecycle preparation supplies isolated, validated target Buffs.
+        // The standalone provider keeps requiring the current non-interval membership.
+        internal void ValidateLifecycleImport(byte[] payload, IReadOnlyList<BuffContinuousRuntime> targetBuffs)
+        {
+            PrepareLifecycleIntervals(payload, targetBuffs, out _);
+        }
+
+        internal List<MobaTriggerIntervalContinuousService.RollbackEntry> PrepareLifecycleIntervals(byte[] payload,
+            IReadOnlyList<BuffContinuousRuntime> targetBuffs, out int nextSourceId)
+        {
+            if (targetBuffs == null) throw new ArgumentNullException(nameof(targetBuffs));
+            var planned = Collect();
+            var remove = new List<Identity>();
+            foreach (var pair in planned)
+                if (pair.Value is BuffContinuousRuntime) remove.Add(pair.Key);
+            foreach (var key in remove) planned.Remove(key);
+            foreach (var buff in targetBuffs)
+            {
+                var projection = (IMobaContinuousProjectionConfig)buff.Config;
+                var specs = (IMobaContinuousModifierConfig)buff.Config;
+                if (specs.Modifiers == null || specs.Modifiers.Count == 0) continue;
+                var key = new Identity(projection.OwnerActorId, projection.ModifierSourceId, projection.TargetActorId);
+                if (projection.ModifierSourceId <= 0 || planned.ContainsKey(key))
+                    throw new InvalidOperationException("Planned Buff modifier source collides with another continuous.");
+                planned.Add(key, buff);
+            }
+            var captures = ReadAndValidate(payload, planned, out nextSourceId, out var intervals, preflight: true,
+                plannedMembership: true);
+            var allocatedSources = new HashSet<int>();
+            var ownerSources = new HashSet<(int, int)>();
+            foreach (var pair in planned)
+            {
+                if (pair.Value is MobaTriggerIntervalContinuousRuntime interval &&
+                    _triggerIntervals != null && _triggerIntervals.OwnsRuntime(interval)) continue;
+                if (!ownerSources.Add((pair.Key.OwnerActorId, pair.Key.ModifierSourceId)) ||
+                    pair.Value.AllocatedModifierSourceId > 0 &&
+                    (pair.Value.AllocatedModifierSourceId >= nextSourceId || !allocatedSources.Add(pair.Value.AllocatedModifierSourceId)))
+                    throw new InvalidOperationException("Modifier allocator or planned source ownership is invalid.");
+            }
+            foreach (var interval in intervals ?? new List<MobaTriggerIntervalContinuousService.RollbackEntry>())
+                if (interval.ModifierSourceId > 0 &&
+                    (!ownerSources.Add((interval.TargetActorId, interval.ModifierSourceId)) || !allocatedSources.Add(interval.ModifierSourceId)))
+                    throw new InvalidOperationException("Planned interval and Buff modifier sources collide.");
+            foreach (var pair in captures)
+            {
+                var specs = ((IMobaContinuousModifierConfig)pair.Key.Config).Modifiers;
+                foreach (var key in pair.Value.Keys)
+                    if (key.DefinitionId != MobaContinuousModifierCaptureKey.From(specs[key.Ordinal], key.Ordinal).DefinitionId)
+                        throw new InvalidOperationException("Planned modifier capture does not match its stable definition.");
+            }
+            return intervals ?? new List<MobaTriggerIntervalContinuousService.RollbackEntry>();
         }
 
         public byte[] ExportState(FrameIndex frame)
@@ -147,10 +201,16 @@ namespace AbilityKit.Demo.Moba.Rollback
             foreach (var pair in restored) _continuous.Reproject(pair.Key);
         }
 
+        internal void RestoreLocalCaptures(byte[] payload)
+        {
+            var captures = ReadAndValidate(payload, Collect(), out _, out _, preflight: false);
+            foreach (var pair in captures) pair.Key.RestoreStableModifierCaptures(pair.Value);
+        }
+
         private List<KeyValuePair<MobaContinuousRuntimeBase, Dictionary<MobaContinuousModifierCaptureKey, MobaModifierCapturedValue>>>
             ReadAndValidate(byte[] payload, SortedDictionary<Identity, MobaContinuousRuntimeBase> runtimes,
                 out int nextSourceId, out List<MobaTriggerIntervalContinuousService.RollbackEntry> intervals,
-                bool preflight)
+                bool preflight, bool plannedMembership = false)
         {
             if (payload == null || payload.Length == 0) throw new InvalidDataException("Continuous modifier capture payload is missing.");
             if (IsNamedEnvelope(payload))
@@ -180,7 +240,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 if (_triggerIntervals == null) intervals = null;
             }
             if (nextSourceId <= 0) throw new InvalidDataException("Invalid modifier source allocator state.");
-            if (!preflight || intervals == null) _continuous.ValidateNextModifierSourceId(nextSourceId);
+            if (!preflight || intervals == null && !plannedMembership) _continuous.ValidateNextModifierSourceId(nextSourceId);
             var count = reader.ReadInt32();
             if (count < 0 || count > 100000) throw new InvalidDataException("Invalid continuous modifier capture count.");
 

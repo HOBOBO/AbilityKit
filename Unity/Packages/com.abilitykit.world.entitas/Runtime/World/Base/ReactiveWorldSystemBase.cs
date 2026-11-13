@@ -168,6 +168,10 @@ namespace AbilityKit.Ability.World
 
         private void OnGroupEntityRemoved(IGroup<TEntity> group, TEntity entity, int index, IComponent component)
         {
+            // Entitas UpdateEntity emits Removed/Added notifications for a replaced
+            // component even while the entity remains a member. Only actual removal
+            // owns lifecycle cleanup; replacement is handled by OnComponentReplaced.
+            if (group.ContainsEntity(entity)) return;
             _pending.Remove(entity);
             Untrack(entity);
 

@@ -179,7 +179,7 @@ namespace AbilityKit.Core.Mathematics
             out RaycastHit hit);
     }
 
-    public sealed class NaiveCollisionWorld : ICollisionWorld, IOrientedBoxSweepCollisionWorld, ISphereSweepCollisionWorld, IShapeOverlapCollisionWorld, Combat.Collision.ICollisionLayerRelation
+    public sealed class NaiveCollisionWorld : ICollisionWorld, IColliderBoundsSource, IOrientedBoxSweepCollisionWorld, ISphereSweepCollisionWorld, IShapeOverlapCollisionWorld, Combat.Collision.ICollisionLayerRelation
     {
         private struct Entry
         {
@@ -458,7 +458,19 @@ namespace AbilityKit.Core.Mathematics
             return count;
         }
 
-        private static Vec3 GetShapeCenter(in ColliderShape shape)
+        public void CopyColliderBounds(List<ColliderBounds> results)
+        {
+            if (results == null) throw new ArgumentNullException(nameof(results));
+            for (var i = 0; i < _entries.Count; i++)
+            {
+                var entry = _entries[i];
+                if (!entry.Alive) continue;
+                var shape = ToWorldShape(in entry.Transform, in entry.LocalShape);
+                results.Add(new ColliderBounds(new ColliderId(i + 1), GetShapeCenter(in shape), GetShapeRadius(in shape), entry.LayerId));
+            }
+        }
+
+        internal static Vec3 GetShapeCenter(in ColliderShape shape)
         {
             switch (shape.Type)
             {
@@ -470,7 +482,7 @@ namespace AbilityKit.Core.Mathematics
             }
         }
 
-        private static float GetShapeRadius(in ColliderShape shape)
+        internal static float GetShapeRadius(in ColliderShape shape)
         {
             switch (shape.Type)
             {
@@ -489,6 +501,8 @@ namespace AbilityKit.Core.Mathematics
             relative = new Vec3(relative.X, 0f, relative.Z);
             var radial = relative.Magnitude;
             if (shape.Kind == OverlapShapeKind.Circle) return radial <= shape.Radius + padding;
+            if (shape.Kind == OverlapShapeKind.Ring)
+                return radial - padding <= shape.Radius && radial + padding >= shape.InnerRadius;
             if (shape.Kind == OverlapShapeKind.Sector)
             {
                 if (radial > shape.Radius + padding) return false;
@@ -601,6 +615,7 @@ namespace AbilityKit.Core.Mathematics
         Circle = 0,
         Sector = 1,
         Rectangle = 2,
+        Ring = 3,
     }
 
     public readonly struct OverlapShapeQuery
@@ -609,6 +624,7 @@ namespace AbilityKit.Core.Mathematics
         public readonly Vec3 Anchor;
         public readonly Vec3 Forward;
         public readonly float Radius;
+        public readonly float InnerRadius;
         public readonly float HalfAngleDeg;
         public readonly float Width;
         public readonly float Length;
@@ -622,12 +638,14 @@ namespace AbilityKit.Core.Mathematics
             float halfAngleDeg = 0f,
             float width = 0f,
             float length = 0f,
-            bool anchorAtOrigin = true)
+            bool anchorAtOrigin = true,
+            float innerRadius = 0f)
         {
             Kind = kind;
             Anchor = anchor;
             Forward = DeterministicMathBridge.Normalize(in forward);
             Radius = MathUtil.Max(0f, radius);
+            InnerRadius = MathUtil.Clamp(innerRadius, 0f, Radius);
             HalfAngleDeg = MathUtil.Clamp(halfAngleDeg, 0f, 180f);
             Width = MathUtil.Max(0f, width);
             Length = MathUtil.Max(0f, length);

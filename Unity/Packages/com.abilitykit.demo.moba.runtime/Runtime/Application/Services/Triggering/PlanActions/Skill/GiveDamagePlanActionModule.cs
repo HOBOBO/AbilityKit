@@ -287,6 +287,18 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     return false;
             }
 
+            var targetMaxHpCoefficient = MobaResourceFixedConvert.ToFixed(args.TargetMaxHpRatioCoefficient);
+            if (!string.IsNullOrWhiteSpace(args.TargetMaxHpRatioSkillLevelParameter) &&
+                !TryResolveSkillLevelParameter(input.ExecutionContext, ctx, args.TargetMaxHpRatioSkillLevelParameter, out targetMaxHpCoefficient, out failure))
+                return false;
+            if (targetMaxHpCoefficient < Fixed64.Zero)
+            { failure = "target max HP coefficient must be non-negative"; return false; }
+            if (targetMaxHpCoefficient != Fixed64.Zero)
+            {
+                if (!TryResolveTargetMissingHealthRatio(targetActorId, ctx, out _, out var maxHp, out failure)) return false;
+                requestedDamage += maxHp * targetMaxHpCoefficient;
+            }
+
             var damageScale = MobaResourceFixedConvert.ToFixed(args.DamageScale);
             if (!string.IsNullOrWhiteSpace(args.DamageScaleSkillLevelParameter)
                 && !TryResolveSkillLevelParameter(input.ExecutionContext, ctx, args.DamageScaleSkillLevelParameter, out damageScale, out failure))

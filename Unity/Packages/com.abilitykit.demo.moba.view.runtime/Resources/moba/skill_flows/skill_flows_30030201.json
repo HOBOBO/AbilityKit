@@ -21,6 +21,8 @@
         "SharedCooldownMs": 0,
         "GlobalCooldownMs": 0,
         "IgnoreGlobalCooldown": false,
+        "IgnoreResourceCostCheck": false,
+        "IgnoreResourceConsumption": false,
         "RefundBeforeCommit": true,
         "RequireExplicitCommit": false,
         "FailReason": "skill_economy_reserve_failed"
@@ -52,7 +54,7 @@
       "Type": 2,
       "PhaseId": "annie_q_cast",
       "Timeline": {
-        "DurationMs": 800,
+        "DurationMs": 2208,
         "Events": [
           {
             "AtMs": 0,

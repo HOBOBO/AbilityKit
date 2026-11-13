@@ -27,7 +27,11 @@ namespace AbilityKit.Game.Battle.Shared.Assets
             new BattleAssetEntry("moba/skills", "config:skills", BattleAssetKind.Config),
             new BattleAssetEntry("moba/characters", "config:characters", BattleAssetKind.Config),
             new BattleAssetEntry("moba/projectiles", "config:projectiles", BattleAssetKind.Config),
-            new BattleAssetEntry("moba/models", "presentation:models", BattleAssetKind.Config),
+            // Model metadata is published with the Luban tables and is consumed
+            // from the same catalog by the config loader and dependency expander.
+            // Keeping the legacy moba/models path here makes the whole lease fail
+            // before the concrete prefab dependency can be loaded.
+            new BattleAssetEntry("luban/moba/models", "presentation:models", BattleAssetKind.Config),
             new BattleAssetEntry("vfx/vfx", "presentation:vfx", BattleAssetKind.Config),
             new BattleAssetEntry("moba/presentation_templates", "presentation:templates", BattleAssetKind.Config),
             new BattleAssetEntry("moba/skill_button_templates", "presentation:skill-buttons", BattleAssetKind.Config),

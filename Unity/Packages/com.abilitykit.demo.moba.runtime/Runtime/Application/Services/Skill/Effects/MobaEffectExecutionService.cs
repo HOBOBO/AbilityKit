@@ -945,14 +945,13 @@ namespace AbilityKit.Demo.Moba.Services
             in ExecCtx<IWorldResolver> ctx,
             in MobaOwnerBoundTriggerExecutionSource source,
             ITrigger<TArgs, IWorldResolver> trigger)
-            where TArgs : class
         {
             if (triggerId <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(triggerId), triggerId, "Trigger id must be positive.");
             }
 
-            if (args == null) throw new ArgumentNullException(nameof(args));
+            if (args is null) throw new ArgumentNullException(nameof(args));
             if (trigger == null) throw new ArgumentNullException(nameof(trigger));
             if (!source.HasExecutionSource) return false;
             if (!PlanExecutor.ValidatePlanScope(triggerId, TriggerPlanScope.OwnerBound))

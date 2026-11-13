@@ -32,7 +32,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         }
 
         private static string[] SourceNames() => CharacterProfileNames()
-            .Concat(new[] { ActorStateMachinesName, "character_bindings" })
+            .Concat(new[] { ActorStateMachinesName, "character_bindings", "actor_state_presentations" })
             .ToArray();
 
         public static string SourcePath(string name) => ProjectPath(SourceFolder + "/" + name + ".json");
@@ -83,6 +83,17 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 
         public static void Validate(string name, string json, string bindingsJson = null)
         {
+            if (name == "actor_state_presentations")
+            {
+                var profiles = JArray.Parse(File.ReadAllText(SourcePath(ActorStateMachinesName)));
+                foreach (var entry in AbilityKit.Demo.Moba.Share.ActorStatePresentationBinding.Load(json))
+                {
+                    var profile = profiles.OfType<JObject>().SingleOrDefault(p => (string)p["id"] == entry.ProfileId);
+                    if (profile == null || !profile["states"].Any(s => (string)s["id"] == entry.StatePath.TrimStart('/')))
+                        throw new InvalidOperationException("Actor presentation references an unknown profile/state.");
+                }
+                return;
+            }
             if (name == "character_bindings")
             {
                 var declarations = JsonConvert.DeserializeObject<MobaCharacterBindings[]>(json) ?? Array.Empty<MobaCharacterBindings>();
@@ -259,6 +270,15 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 {
                     Save();
                     MobaStateMachinePublisher.Check();
+                }
+                if (_kind == 0 && GUILayout.Button("角色动画同步", EditorStyles.toolbarButton))
+                {
+                    if (_dirty) ShowNotification(new GUIContent("请先保存当前状态机修改，再扫描动画。"));
+                    else
+                    {
+                        var suffix = _activeCharacterName.Substring("character_hfsm_".Length);
+                        MobaCharacterAnimationSyncWindow.OpenForEntity(int.TryParse(suffix, out var entityCode) ? entityCode : 0);
+                    }
                 }
             }
 

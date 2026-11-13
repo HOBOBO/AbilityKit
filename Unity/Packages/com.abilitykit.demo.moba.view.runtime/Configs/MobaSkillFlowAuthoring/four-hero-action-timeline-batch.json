@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "flowAsset": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/Moba/SkillFlowCO.asset",
+  "entries": [
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30010101.json",
+      "flowId": 30010101,
+      "phaseIndex": 2,
+      "phaseId": "skill_30010101_action",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jhin-q-flow.json",
+      "previousDurationMs": 500
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30010201.json",
+      "flowId": 30010201,
+      "phaseIndex": 2,
+      "phaseId": "skill_30010201_action",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jhin-w-flow.json",
+      "previousDurationMs": 500
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30010301.json",
+      "flowId": 30010301,
+      "phaseIndex": 2,
+      "phaseId": "skill_30010301_action",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jhin-e-flow.json",
+      "previousDurationMs": 500
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30010401.json"
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30010501.json",
+      "flowId": 30010501,
+      "phaseIndex": 2,
+      "phaseId": "skill_30010501_shot",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jhin-r-regular-shot-flow.json",
+      "previousDurationMs": 50
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30010502.json",
+      "flowId": 30010502,
+      "phaseIndex": 2,
+      "phaseId": "skill_30010502_shot",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jhin-r-final-shot-flow.json",
+      "previousDurationMs": 50
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30010601.json",
+      "flowId": 30010601,
+      "phaseIndex": 1,
+      "phaseId": "skill_30010601_shot",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jhin-basic-attack-1-flow.json",
+      "previousDurationMs": 100
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30010602.json",
+      "flowId": 30010602,
+      "phaseIndex": 1,
+      "phaseId": "skill_30010602_shot",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jhin-basic-attack-2-flow.json",
+      "previousDurationMs": 100
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30010603.json",
+      "flowId": 30010603,
+      "phaseIndex": 1,
+      "phaseId": "skill_30010603_shot",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jhin-basic-attack-3-flow.json",
+      "previousDurationMs": 100
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30010604.json",
+      "flowId": 30010604,
+      "phaseIndex": 1,
+      "phaseId": "skill_30010604_shot",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jhin-basic-attack-4-flow.json",
+      "previousDurationMs": 100
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30020001.json"
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30020002.json",
+      "flowId": 30020002,
+      "phaseIndex": 0,
+      "phaseId": "skill_30020002_attack",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jinx-powpow-basic-attack-flow.json",
+      "previousDurationMs": 500
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30020003.json",
+      "flowId": 30020003,
+      "phaseIndex": 0,
+      "phaseId": "skill_30020003_attack",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jinx-fishbones-basic-attack-flow.json",
+      "previousDurationMs": 500
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30020101.json",
+      "flowId": 30020101,
+      "phaseIndex": 2,
+      "phaseId": "jinx_q_switch_presentation_window",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jinx-q-flow.json",
+      "previousDurationMs": 500
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30020201.json",
+      "flowId": 30020201,
+      "phaseIndex": 2,
+      "phaseId": "skill_30020201_action",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jinx-w-flow.json",
+      "previousDurationMs": 500
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30020301.json",
+      "flowId": 30020301,
+      "phaseIndex": 2,
+      "phaseId": "skill_30020301_action",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jinx-e-flow.json",
+      "previousDurationMs": 500
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30020401.json",
+      "flowId": 30020401,
+      "phaseIndex": 2,
+      "phaseId": "skill_30020401_action",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jinx-r-flow.json",
+      "previousDurationMs": 500
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30030101.json",
+      "flowId": 30030101,
+      "phaseIndex": 2,
+      "phaseId": "annie_basic_attack",
+      "previousDurationMs": 250
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30030201.json",
+      "flowId": 30030201,
+      "phaseIndex": 3,
+      "phaseId": "annie_q_cast",
+      "previousDurationMs": 800
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30030301.json",
+      "flowId": 30030301,
+      "phaseIndex": 3,
+      "phaseId": "annie_w_cast",
+      "previousDurationMs": 500
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30030401.json",
+      "flowId": 30030401,
+      "phaseIndex": 3,
+      "phaseId": "annie_e_cast",
+      "previousDurationMs": 600
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30030501.json",
+      "flowId": 30030501,
+      "phaseIndex": 2,
+      "phaseId": "annie_r_cast",
+      "showcase": "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/annie-r-flow.json",
+      "previousDurationMs": 900
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30040101.json",
+      "flowId": 30040101,
+      "phaseIndex": 2,
+      "phaseId": "veigar_basic_attack",
+      "previousDurationMs": 250
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30040201.json",
+      "flowId": 30040201,
+      "phaseIndex": 3,
+      "phaseId": "veigar_q_cast",
+      "previousDurationMs": 800
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30040301.json",
+      "flowId": 30040301,
+      "phaseIndex": 3,
+      "phaseId": "veigar_w_cast",
+      "previousDurationMs": 500
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30040401.json",
+      "flowId": 30040401,
+      "phaseIndex": 3,
+      "phaseId": "veigar_e_cast",
+      "previousDurationMs": 2084
+    },
+    {
+      "source": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_30040501.json",
+      "flowId": 30040501,
+      "phaseIndex": 2,
+      "phaseId": "veigar_r_cast",
+      "previousDurationMs": 900
+    }
+  ]
+}

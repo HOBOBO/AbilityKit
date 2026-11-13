@@ -15,12 +15,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly float OffsetY;
         public readonly float OffsetZ;
         public readonly float DirectionOffset;
+        public readonly float LateralOffset;
         public readonly int ShapeKind;
         public readonly float HalfAngleDeg;
         public readonly float Width;
         public readonly float Length;
         public readonly float InitialRadius;
         public readonly float RadiusGrowthPerFrame;
+        public readonly float InnerRadius;
         public readonly bool AnchorAtOrigin;
         public readonly int GroupKey;
         public readonly bool ClaimTargetsWithinGroup;
@@ -53,7 +55,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             MobaActionTargetRequest targetRequest = default,
             BlackboardWriteTarget resultTarget = default,
             BlackboardWriteTarget resultCountTarget = default,
-            float directionOffset = 0f)
+            float directionOffset = 0f,
+            float lateralOffset = 0f,
+            float innerRadius = 0f)
         {
             AreaId = areaId;
             PositionMode = positionMode;
@@ -66,12 +70,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             OffsetY = offsetY;
             OffsetZ = offsetZ;
             DirectionOffset = directionOffset;
+            LateralOffset = lateralOffset;
             ShapeKind = shapeKind;
             HalfAngleDeg = halfAngleDeg;
             Width = width;
             Length = length;
             InitialRadius = initialRadius;
             RadiusGrowthPerFrame = radiusGrowthPerFrame;
+            InnerRadius = innerRadius;
             AnchorAtOrigin = anchorAtOrigin;
             GroupKey = groupKey;
             ClaimTargetsWithinGroup = claimTargetsWithinGroup;
@@ -80,5 +86,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             ResultTarget = resultTarget;
             ResultCountTarget = resultCountTarget;
         }
+
     }
 }

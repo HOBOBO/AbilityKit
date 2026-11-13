@@ -272,6 +272,7 @@ MonoBehaviour:
   _battleStartPresets:
   - {fileID: 11400000, guid: 8d3da6860dfaff9439d982857e24b28d, type: 2}
   - {fileID: 11400000, guid: 46d731bcc0b3d3f4aa20aecdacedc7c9, type: 2}
+  - {fileID: 11400000, guid: 7a1f8564a71c48b09d3f652bc314f99a, type: 2}
 --- !u!1 &1094395136577755587
 GameObject:
   m_ObjectHideFlags: 0

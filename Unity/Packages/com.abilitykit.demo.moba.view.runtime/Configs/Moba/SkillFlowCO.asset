@@ -16,16 +16,25 @@ MonoBehaviour:
   - Id: 1
     Name: "\u901A\u7528-\u666E\u901A\u653B\u51FB-\u517C\u5BB9\u56DE\u9000"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244672
   - Id: 10010001
     Name: "\u5EC9\u9887-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244673
   - Id: 10010101
     Name: "\u5EC9\u9887-\u7206\u88C2\u51B2\u649E"
     PipelineContinuousTagTemplateId: 10010001
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244674
     - rid: 277261807049244675
@@ -33,6 +42,9 @@ MonoBehaviour:
   - Id: 10010201
     Name: "\u5EC9\u9887-\u7194\u5CA9\u91CD\u51FB"
     PipelineContinuousTagTemplateId: 10010001
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244677
     - rid: 277261807049244678
@@ -40,6 +52,9 @@ MonoBehaviour:
   - Id: 10010301
     Name: "\u5EC9\u9887-\u5929\u5D29\u5730\u88C2"
     PipelineContinuousTagTemplateId: 10010001
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244680
     - rid: 277261807049244681
@@ -47,11 +62,17 @@ MonoBehaviour:
   - Id: 10020001
     Name: "\u5C0F\u4E54-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244683
   - Id: 10020101
     Name: "\u5C0F\u4E54-\u7EFD\u653E\u4E4B\u821E"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244684
     - rid: 277261807049244685
@@ -59,6 +80,9 @@ MonoBehaviour:
   - Id: 10020201
     Name: "\u5C0F\u4E54-\u751C\u871C\u604B\u98CE"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244687
     - rid: 277261807049244688
@@ -66,6 +90,9 @@ MonoBehaviour:
   - Id: 10020301
     Name: "\u5C0F\u4E54-\u661F\u534E\u7F2D\u4E71"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244690
     - rid: 277261807049244691
@@ -73,11 +100,17 @@ MonoBehaviour:
   - Id: 10030001
     Name: "\u8D75\u4E91-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244693
   - Id: 10030101
     Name: "\u8D75\u4E91-\u60CA\u96F7\u4E4B\u9F99"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244694
     - rid: 277261807049244695
@@ -85,6 +118,9 @@ MonoBehaviour:
   - Id: 10030201
     Name: "\u8D75\u4E91-\u7834\u4E91\u4E4B\u9F99"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244697
     - rid: 277261807049244698
@@ -92,6 +128,9 @@ MonoBehaviour:
   - Id: 10030301
     Name: "\u8D75\u4E91-\u5929\u7FD4\u4E4B\u9F99"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244700
     - rid: 277261807049244701
@@ -99,11 +138,17 @@ MonoBehaviour:
   - Id: 10040011
     Name: "\u58A8\u5B50-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244703
   - Id: 10040101
     Name: "\u58A8\u5B50-\u548C\u5E73\u6F2B\u6B65"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244704
     - rid: 277261807049244705
@@ -111,11 +156,17 @@ MonoBehaviour:
   - Id: 10040112
     Name: "\u58A8\u5B50-\u548C\u5E73\u6F2B\u6B65-\u5F3A\u5316\u8FD1\u6218\u666E\u653B"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244707
   - Id: 10040201
     Name: "\u58A8\u5B50-\u673A\u5173\u91CD\u70AE"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244708
     - rid: 277261807049244709
@@ -123,6 +174,9 @@ MonoBehaviour:
   - Id: 10040301
     Name: "\u58A8\u5B50-\u58A8\u5B88\u6210\u89C4"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244711
     - rid: 277261807049244712
@@ -130,11 +184,17 @@ MonoBehaviour:
   - Id: 10050001
     Name: "\u59B2\u5DF1-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244714
   - Id: 10050101
     Name: "\u59B2\u5DF1-\u7075\u9B42\u51B2\u51FB"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244715
     - rid: 277261807049244716
@@ -142,6 +202,9 @@ MonoBehaviour:
   - Id: 10050201
     Name: "\u59B2\u5DF1-\u5076\u50CF\u9B45\u529B"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244718
     - rid: 277261807049244719
@@ -149,6 +212,9 @@ MonoBehaviour:
   - Id: 10050301
     Name: "\u59B2\u5DF1-\u5973\u738B\u5D07\u62DC"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244721
     - rid: 277261807049244722
@@ -156,11 +222,17 @@ MonoBehaviour:
   - Id: 10060001
     Name: "\u5B34\u653F-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244724
   - Id: 10060101
     Name: "\u5B34\u653F-\u738B\u8005\u60E9\u6212"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244725
     - rid: 277261807049244726
@@ -168,6 +240,9 @@ MonoBehaviour:
   - Id: 10060201
     Name: "\u5B34\u653F-\u738B\u8005\u5B88\u5FA1"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244728
     - rid: 277261807049244729
@@ -175,6 +250,9 @@ MonoBehaviour:
   - Id: 10060301
     Name: "\u5B34\u653F-\u81F3\u5C0A\u738B\u6743"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244731
     - rid: 277261807049244732
@@ -182,11 +260,17 @@ MonoBehaviour:
   - Id: 10070001
     Name: "\u5B59\u5C1A\u9999-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244734
   - Id: 10070101
     Name: "\u5B59\u5C1A\u9999-\u7FFB\u6EDA\u7A81\u88AD"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244735
     - rid: 277261807049244736
@@ -194,11 +278,17 @@ MonoBehaviour:
   - Id: 10070112
     Name: "\u5B59\u5C1A\u9999-\u5F3A\u5316\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244738
   - Id: 10070201
     Name: "\u5B59\u5C1A\u9999-\u7EA2\u83B2\u7206\u5F39"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244739
     - rid: 277261807049244740
@@ -206,6 +296,9 @@ MonoBehaviour:
   - Id: 10070301
     Name: "\u5B59\u5C1A\u9999-\u7A76\u6781\u5F29\u70AE"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244742
     - rid: 277261807049244743
@@ -213,11 +306,17 @@ MonoBehaviour:
   - Id: 10080001
     Name: "\u9C81\u73ED\u4E03\u53F7-\u666E\u901A\u653B\u51FB"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244745
   - Id: 10080101
     Name: "\u9C81\u73ED\u4E03\u53F7-\u6CB3\u8C5A\u624B\u96F7"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244746
     - rid: 277261807049244747
@@ -225,11 +324,17 @@ MonoBehaviour:
   - Id: 10080112
     Name: "\u9C81\u73ED\u4E03\u53F7-\u5F3A\u5316\u626B\u5C04"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244749
   - Id: 10080201
     Name: "\u9C81\u73ED\u4E03\u53F7-\u65E0\u654C\u9CA8\u5634\u70AE"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244750
     - rid: 277261807049244751
@@ -237,6 +342,9 @@ MonoBehaviour:
   - Id: 10080301
     Name: "\u9C81\u73ED\u4E03\u53F7-\u7A7A\u4E2D\u652F\u63F4"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244753
     - rid: 277261807049244754
@@ -244,6 +352,9 @@ MonoBehaviour:
   - Id: 10080401
     Name: "\u9C81\u73ED\u4E03\u53F7-\u7A7A\u4E2D\u652F\u63F4-\u53EC\u5524\u7269\u6295\u5F39"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244756
     - rid: 277261807049244757
@@ -251,6 +362,9 @@ MonoBehaviour:
   - Id: 30010101
     Name: "\u620F\u547D\u5E08-\u66FC\u821E\u624B\u96F7"
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244766
     - rid: 277261807049244767
@@ -258,6 +372,9 @@ MonoBehaviour:
   - Id: 30010201
     Name: Jhin - Deadly Flourish
     PipelineContinuousTagTemplateId: 3015
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244769
     - rid: 277261807049244770
@@ -265,6 +382,9 @@ MonoBehaviour:
   - Id: 30010301
     Name: Jhin - Captive Audience
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244772
     - rid: 277261807049244773
@@ -272,12 +392,18 @@ MonoBehaviour:
   - Id: 30010401
     Name: Jhin - Curtain Call
     PipelineContinuousTagTemplateId: 3015
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244775
     - rid: 277261807049244776
   - Id: 30010501
     Name: Jhin - Curtain Call Regular Shot
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244777
     - rid: 277261807049244778
@@ -285,6 +411,9 @@ MonoBehaviour:
   - Id: 30010502
     Name: Jhin - Curtain Call Final Shot
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244780
     - rid: 277261807049244781
@@ -292,35 +421,55 @@ MonoBehaviour:
   - Id: 30010601
     Name: Jhin - Basic Attack 1
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244783
     - rid: 277261807049244784
   - Id: 30010602
     Name: Jhin - Basic Attack 2
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244785
     - rid: 277261807049244786
   - Id: 30010603
     Name: Jhin - Basic Attack 3
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244787
     - rid: 277261807049244788
   - Id: 30010604
     Name: Jhin - Basic Attack 4
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244789
     - rid: 277261807049244790
   - Id: 30030101
     Name: Annie - Basic Attack
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
+    - rid: 277261807169044490
+    - rid: 277261807169044491
     - rid: 277261807049244791
   - Id: 30030201
     Name: Annie - Disintegrate
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807169044483
     - rid: 277261807049244792
@@ -329,6 +478,9 @@ MonoBehaviour:
   - Id: 30030301
     Name: Annie - Incinerate
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807169044484
     - rid: 277261807049244795
@@ -337,6 +489,9 @@ MonoBehaviour:
   - Id: 30030401
     Name: Annie - Molten Shield
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807169044485
     - rid: 277261807049244798
@@ -345,6 +500,9 @@ MonoBehaviour:
   - Id: 30030501
     Name: Annie - Summon Tibbers
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261821083910144
     - rid: 277261821083910145
@@ -352,40 +510,233 @@ MonoBehaviour:
   - Id: 30020101
     Name: Jinx - Switcheroo!
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
-    - rid: 277261837396869120
-    - rid: 277261837396869121
+    - rid: 277261898929930240
+    - rid: 277261898929930241
+    - rid: 277261898929930242
   - Id: 30020002
     Name: Jinx - Pow-Pow Basic Attack
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
-    - rid: 277261837396869122
+    - rid: 277261898929930243
   - Id: 30020003
     Name: Jinx - Fishbones Basic Attack
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
-    - rid: 277261837396869123
+    - rid: 277261898929930244
   - Id: 30020201
     Name: Jinx - Zap!
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
-    - rid: 277261837396869124
-    - rid: 277261837396869125
-    - rid: 277261837396869126
+    - rid: 277261898929930245
+    - rid: 277261898929930246
+    - rid: 277261898929930247
   - Id: 30020301
     Name: Jinx - Flame Chompers!
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
-    - rid: 277261854369382400
-    - rid: 277261854369382401
-    - rid: 277261854369382402
+    - rid: 277261898929930248
+    - rid: 277261898929930249
+    - rid: 277261898929930250
   - Id: 30020401
     Name: Jinx - Super Mega Death Rocket!
     PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
     Phases:
-    - rid: 277261868385435648
-    - rid: 277261868385435649
-    - rid: 277261868385435650
+    - rid: 277261898929930251
+    - rid: 277261898929930252
+    - rid: 277261898929930253
+  - Id: 30040101
+    Name: Veigar - Basic Attack
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 277261898929931253
+    - rid: 277261898929931254
+    - rid: 277261898929931255
+  - Id: 30040201
+    Name: Veigar - Baleful Strike
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 277261898929931256
+    - rid: 277261898929931257
+    - rid: 277261898929931258
+    - rid: 277261898929931259
+  - Id: 30040301
+    Name: Veigar - Dark Matter
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 277261898929931260
+    - rid: 277261898929931261
+    - rid: 277261898929931262
+    - rid: 277261898929931263
+  - Id: 30040401
+    Name: Veigar - Event Horizon
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 277261898929931264
+    - rid: 277261898929931265
+    - rid: 277261898929931266
+    - rid: 277261898929931267
+  - Id: 30040501
+    Name: Veigar - Primordial Burst
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 277261898929931268
+    - rid: 277261898929931269
+    - rid: 277261898929931270
+  - Id: 30050101
+    Name: Gragas 30050101
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 277261942003597312
+    - rid: 277261942003597313
+    - rid: 277261942003597314
+    - rid: 277261942003597315
+  - Id: 30050201
+    Name: Gragas 30050201
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 1
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 277261942003597316
+    - rid: 277261942003597317
+    - rid: 277261942003597318
+    - rid: 277261942003597319
+  - Id: 30050301
+    Name: Gragas 30050301
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 277261942003597320
+    - rid: 277261942003597321
+    - rid: 277261942003597322
+    - rid: 277261942003597323
+  - Id: 30050401
+    Name: Gragas 30050401
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 277261942003597324
+    - rid: 277261942003597325
+    - rid: 277261942003597326
+    - rid: 277261942003597327
+  - Id: 30050501
+    Name: Gragas 30050501
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 277261942003597328
+    - rid: 277261942003597329
+    - rid: 277261942003597330
+    - rid: 277261942003597331
+  - Id: 30050601
+    Name: Gragas 30050601
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 1
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 277261942003597332
+    - rid: 277261942003597333
+    - rid: 277261942003597334
+    - rid: 277261942003597335
+  - Id: 30050701
+    Name: Gragas 30050701
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 30050391
+    Phases:
+    - rid: 277261942003597336
+    - rid: 277261942003597337
+    - rid: 277261942003597338
+    - rid: 277261942003597339
+  - Id: 30050702
+    Name: Gragas 30050702
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 30050392
+    Phases:
+    - rid: 277261942003597340
+    - rid: 277261942003597341
+    - rid: 277261942003597342
+    - rid: 277261942003597343
+  - Id: 30050703
+    Name: Gragas 30050703
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 30050393
+    Phases:
+    - rid: 277261942003597344
+    - rid: 277261942003597345
+    - rid: 277261942003597346
+    - rid: 277261942003597347
+  - Id: 30050704
+    Name: Gragas 30050704
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 30050394
+    Phases:
+    - rid: 277261942003597348
+    - rid: 277261942003597349
+    - rid: 277261942003597350
+    - rid: 277261942003597351
+  - Id: 30050705
+    Name: Gragas 30050705
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    RequiredBuffQualificationId: 30050395
+    Phases:
+    - rid: 277261942003597352
+    - rid: 277261942003597353
+    - rid: 277261942003597354
+    - rid: 277261942003597355
   legacyDataList: []
   references:
     version: 2
@@ -1240,16 +1591,16 @@ MonoBehaviour:
     - rid: 277261807049244768
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
-        PhaseId: 
+        PhaseId: skill_30010101_action
         Timeline:
-          DurationMs: 500
+          DurationMs: 700
           Events:
           - AtMs: 0
             EffectId: 30010101
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: jhin_q_cast
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: 44a0ad3a9e0f42f6849648f506b6fbc4, type: 3}
     - rid: 277261807049244769
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -1267,16 +1618,16 @@ MonoBehaviour:
     - rid: 277261807049244771
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
-        PhaseId: 
+        PhaseId: skill_30010201_action
         Timeline:
-          DurationMs: 500
+          DurationMs: 3208
           Events:
           - AtMs: 0
             EffectId: 30010201
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: jhin_w_cast
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: f4bdcd74c0144f9ea51a51f24efc2c4d, type: 3}
     - rid: 277261807049244772
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -1294,16 +1645,16 @@ MonoBehaviour:
     - rid: 277261807049244774
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
-        PhaseId: 
+        PhaseId: skill_30010301_action
         Timeline:
-          DurationMs: 500
+          DurationMs: 1600
           Events:
           - AtMs: 0
             EffectId: 30010301
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: jhin_e_cast
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: 007f38445dd342e5b14a7e540dcddf83, type: 3}
     - rid: 277261807049244775
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -1337,14 +1688,14 @@ MonoBehaviour:
       data:
         PhaseId: skill_30010501_shot
         Timeline:
-          DurationMs: 50
+          DurationMs: 2000
           Events:
           - AtMs: 0
             EffectId: 30010401
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: jhin_r_regular_shot
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: fffabe014ab84be59bc0afef18289248, type: 3}
     - rid: 277261807049244780
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -1364,99 +1715,103 @@ MonoBehaviour:
       data:
         PhaseId: skill_30010502_shot
         Timeline:
-          DurationMs: 50
+          DurationMs: 2583
           Events:
           - AtMs: 0
             EffectId: 30010411
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: jhin_r_final_shot
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: 2a1afc734d024681b5df842975c66c91, type: 3}
     - rid: 277261807049244783
       type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: selected_parameters_commit
         CommitId: shot
+        RequireEconomyReservation: 0
     - rid: 277261807049244784
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30010601_shot
         Timeline:
-          DurationMs: 100
+          DurationMs: 3250
           Events:
           - AtMs: 0
             EffectId: 30010601
             ExecuteMode: 0
             AbortOnFailure: 1
             EventTag: jhin_basic_attack_1
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: 94b3e94a4bd1415e83b705f6a5b0ed88, type: 3}
     - rid: 277261807049244785
       type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: selected_parameters_commit
         CommitId: shot
+        RequireEconomyReservation: 0
     - rid: 277261807049244786
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30010602_shot
         Timeline:
-          DurationMs: 100
+          DurationMs: 3250
           Events:
           - AtMs: 0
             EffectId: 30010602
             ExecuteMode: 0
             AbortOnFailure: 1
             EventTag: jhin_basic_attack_2
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: 6711bec76da041bdb8b39bb6e20ffd2d, type: 3}
     - rid: 277261807049244787
       type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: selected_parameters_commit
         CommitId: shot
+        RequireEconomyReservation: 0
     - rid: 277261807049244788
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30010603_shot
         Timeline:
-          DurationMs: 100
+          DurationMs: 3625
           Events:
           - AtMs: 0
             EffectId: 30010603
             ExecuteMode: 0
             AbortOnFailure: 1
             EventTag: jhin_basic_attack_3
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: dc13552ef6dd4f36955f63a228d34c28, type: 3}
     - rid: 277261807049244789
       type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: selected_parameters_commit
         CommitId: shot
+        RequireEconomyReservation: 0
     - rid: 277261807049244790
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30010604_shot
         Timeline:
-          DurationMs: 100
+          DurationMs: 3625
           Events:
           - AtMs: 0
             EffectId: 30010604
             ExecuteMode: 0
             AbortOnFailure: 1
             EventTag: jhin_basic_attack_4
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: fbbee0f826c64e9da48a11e12ed23d12, type: 3}
     - rid: 277261807049244791
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: annie_basic_attack
         Timeline:
-          DurationMs: 250
+          DurationMs: 1875
           Events:
           - AtMs: 0
             EffectId: 30030101
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: annie_basic_attack
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: 2b5a2f1874d842d48b3a64985cf51709, type: 3}
     - rid: 277261807049244792
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -1476,14 +1831,14 @@ MonoBehaviour:
       data:
         PhaseId: annie_q_cast
         Timeline:
-          DurationMs: 800
+          DurationMs: 2208
           Events:
           - AtMs: 0
             EffectId: 30030201
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: annie_q_cast
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: 080ec376edda4c2d882db24f44582d48, type: 3}
     - rid: 277261807049244795
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -1503,14 +1858,14 @@ MonoBehaviour:
       data:
         PhaseId: annie_w_cast
         Timeline:
-          DurationMs: 500
+          DurationMs: 3000
           Events:
           - AtMs: 0
             EffectId: 30030301
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: annie_w_cast
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: aa8864eb51f642f5b75c18cf8db2319c, type: 3}
     - rid: 277261807049244798
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -1530,14 +1885,14 @@ MonoBehaviour:
       data:
         PhaseId: annie_e_cast
         Timeline:
-          DurationMs: 600
+          DurationMs: 4167
           Events:
           - AtMs: 0
             EffectId: 30030401
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: annie_e_cast
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: bdd8fa6ae92d4c78934a0a39b09c1e59, type: 3}
     - rid: 277261807049244801
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -1618,7 +1973,10 @@ MonoBehaviour:
         SharedCooldownMs: 0
         GlobalCooldownMs: 0
         IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
         RefundBeforeCommit: 1
+        RequireExplicitCommit: 0
         FailReason: skill_economy_reserve_failed
     - rid: 277261807169044484
       type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
@@ -1638,7 +1996,10 @@ MonoBehaviour:
         SharedCooldownMs: 0
         GlobalCooldownMs: 0
         IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
         RefundBeforeCommit: 1
+        RequireExplicitCommit: 0
         FailReason: skill_economy_reserve_failed
     - rid: 277261807169044485
       type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
@@ -1658,8 +2019,40 @@ MonoBehaviour:
         SharedCooldownMs: 0
         GlobalCooldownMs: 0
         IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
         RefundBeforeCommit: 1
+        RequireExplicitCommit: 0
         FailReason: skill_economy_reserve_failed
+    - rid: 277261807169044490
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_basic_attack_economy
+        Operation: 0
+        ResourceType: 0
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 0
+        FailReason: skill_economy_reserve_failed
+    - rid: 277261807169044491
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: annie_basic_attack_commit
+        CommitId: attack
+        RequireEconomyReservation: 0
     - rid: 277261821083910144
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -1679,120 +2072,918 @@ MonoBehaviour:
       data:
         PhaseId: annie_r_cast
         Timeline:
-          DurationMs: 900
+          DurationMs: 1250
           Events:
           - AtMs: 0
             EffectId: 30030501
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: annie_r_cast
-        MobaLogicTimeline: {fileID: 0}
-    - rid: 277261837396869120
+        MobaLogicTimeline: {fileID: 4900000, guid: da0e79166d594fb0b3c59b0018b81748, type: 3}
+    - rid: 277261898929930240
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30020101_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 277261837396869121
+    - rid: 277261898929930241
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30020101_commit
         TriggerIds: 9473a6350512ca01
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 277261837396869122
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+    - rid: 277261898929930242
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
-        PhaseId: skill_30020002_commit
-        TriggerIds: 6912ca01
-        AbortOnFailure: 1
-        FailReason: basic_attack_launch_failed
-    - rid: 277261837396869123
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+        PhaseId: jinx_q_switch_presentation_window
+        Timeline:
+          DurationMs: 1000
+          Events: []
+        MobaLogicTimeline: {fileID: 4900000, guid: b1191a2a347b1a9498f09767adf8d7e3, type: 3}
+    - rid: 277261898929930243
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
-        PhaseId: skill_30020003_commit
-        TriggerIds: 6a12ca01
-        AbortOnFailure: 1
-        FailReason: basic_attack_launch_failed
-    - rid: 277261837396869124
+        PhaseId: skill_30020002_attack
+        Timeline:
+          DurationMs: 1567
+          Events:
+          - AtMs: 100
+            EffectId: 30020201
+            ExecuteMode: 0
+            AbortOnFailure: 1
+            EventTag: basic_attack_launch
+        MobaLogicTimeline: {fileID: 4900000, guid: 67a95f41fcbeae549a41ee82cd773792, type: 3}
+    - rid: 277261898929930244
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020003_attack
+        Timeline:
+          DurationMs: 1567
+          Events:
+          - AtMs: 100
+            EffectId: 30020202
+            ExecuteMode: 0
+            AbortOnFailure: 1
+            EventTag: basic_attack_launch
+        MobaLogicTimeline: {fileID: 4900000, guid: 87efe85c0e70d4c45ab306417f8cd019, type: 3}
+    - rid: 277261898929930245
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30020201_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 277261837396869125
+    - rid: 277261898929930246
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30020201_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 277261837396869126
+    - rid: 277261898929930247
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
-        PhaseId: 
+        PhaseId: skill_30020201_action
         Timeline:
-          DurationMs: 500
+          DurationMs: 1550
           Events:
           - AtMs: 0
             EffectId: 30020203
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: jinx_w_cast
-        MobaLogicTimeline: {fileID: 0}
-    - rid: 277261854369382400
+        MobaLogicTimeline: {fileID: 4900000, guid: 87d32620fe5e92941a7ecd8f99931fab, type: 3}
+    - rid: 277261898929930248
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30020301_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 277261854369382401
+    - rid: 277261898929930249
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30020301_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 277261854369382402
+    - rid: 277261898929930250
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
-        PhaseId: 
+        PhaseId: skill_30020301_action
         Timeline:
-          DurationMs: 500
+          DurationMs: 1367
           Events:
           - AtMs: 0
             EffectId: 30020303
             ExecuteMode: 0
             AbortOnFailure: 1
             EventTag: jinx_e_deploy_three_traps
-        MobaLogicTimeline: {fileID: 0}
-    - rid: 277261868385435648
+        MobaLogicTimeline: {fileID: 4900000, guid: bef121cabb8f0584d9170f49a4a8ada3, type: 3}
+    - rid: 277261898929930251
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30020401_release
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 277261868385435649
+    - rid: 277261898929930252
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30020401_commit
         TriggerIds: 9473a635
         AbortOnFailure: 1
         FailReason: skill_commit_failed
-    - rid: 277261868385435650
+    - rid: 277261898929930253
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
-        PhaseId: 
+        PhaseId: skill_30020401_action
         Timeline:
-          DurationMs: 500
+          DurationMs: 1800
           Events:
           - AtMs: 0
             EffectId: 30020403
             ExecuteMode: 0
             AbortOnFailure: 1
             EventTag: jinx_r_launch_rocket
-        MobaLogicTimeline: {fileID: 0}
+        MobaLogicTimeline: {fileID: 4900000, guid: 6607bccf61ef6e345b01265e5225838f, type: 3}
+    - rid: 277261898929931253
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_basic_attack_economy
+        Operation: 0
+        ResourceType: 0
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 0
+        FailReason: skill_economy_reserve_failed
+    - rid: 277261898929931254
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_basic_attack_commit
+        CommitId: attack
+        RequireEconomyReservation: 0
+    - rid: 277261898929931255
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_basic_attack
+        Timeline:
+          DurationMs: 2000
+          Events:
+          - AtMs: 0
+            EffectId: 30040101
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: veigar_basic_attack
+        MobaLogicTimeline: {fileID: 4900000, guid: b9526a5a98855e040a9cabe7b4e28849, type: 3}
+    - rid: 277261898929931256
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_q_economy
+        Operation: 0
+        ResourceType: 2
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 0
+        FailReason: skill_economy_reserve_failed
+    - rid: 277261898929931257
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_q_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261898929931258
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_q_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261898929931259
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_q_cast
+        Timeline:
+          DurationMs: 1583
+          Events:
+          - AtMs: 0
+            EffectId: 30040201
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: veigar_q_cast
+        MobaLogicTimeline: {fileID: 4900000, guid: 9b628d94625a4f84ebe5eee5a5b7217d, type: 3}
+    - rid: 277261898929931260
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_w_economy
+        Operation: 0
+        ResourceType: 2
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 1
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 0
+        FailReason: skill_economy_reserve_failed
+    - rid: 277261898929931261
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_w_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261898929931262
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_w_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261898929931263
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_w_cast
+        Timeline:
+          DurationMs: 3333
+          Events:
+          - AtMs: 0
+            EffectId: 30040301
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: veigar_w_cast
+        MobaLogicTimeline: {fileID: 4900000, guid: 6e678fffad2ec6e449e8f84747e7b861, type: 3}
+    - rid: 277261898929931264
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_e_economy
+        Operation: 0
+        ResourceType: 2
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 1
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 0
+        FailReason: skill_economy_reserve_failed
+    - rid: 277261898929931265
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_e_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261898929931266
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_e_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261898929931267
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_e_cast
+        Timeline:
+          DurationMs: 2084
+          Events:
+          - AtMs: 0
+            EffectId: 30040401
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: veigar_e_cast
+        MobaLogicTimeline: {fileID: 4900000, guid: ce0782c1ec8bc88479c7195e3fe65324, type: 3}
+    - rid: 277261898929931268
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_r_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261898929931269
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_r_commit
+        TriggerIds: 9473a635
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277261898929931270
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_r_cast
+        Timeline:
+          DurationMs: 1583
+          Events:
+          - AtMs: 0
+            EffectId: 30040501
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: veigar_r_cast
+        MobaLogicTimeline: {fileID: 4900000, guid: e2122a7c205edcf40a14593e407129ab, type: 3}
+    - rid: 277261942003597312
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050101_economy
+        Operation: 0
+        ResourceType: 0
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: 
+    - rid: 277261942003597313
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050101_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261942003597314
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050101_commit
+        CommitId: attack
+        RequireEconomyReservation: 1
+    - rid: 277261942003597315
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050101_cast
+        Timeline:
+          DurationMs: 1333
+          Events:
+          - AtMs: 300
+            EffectId: 30050101
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050101_30050101
+        MobaLogicTimeline: {fileID: 4900000, guid: e429eb72a5c4bcd4e81d73890b79e96b, type: 3}
+    - rid: 277261942003597316
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050201_economy
+        Operation: 0
+        ResourceType: 2
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: 
+    - rid: 277261942003597317
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050201_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261942003597318
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050201_commit
+        CommitId: cast
+        RequireEconomyReservation: 1
+    - rid: 277261942003597319
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050201_cast
+        Timeline:
+          DurationMs: 1250
+          Events:
+          - AtMs: 0
+            EffectId: 30050001
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050201_30050001
+          - AtMs: 250
+            EffectId: 30050201
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050201_30050201
+        MobaLogicTimeline: {fileID: 4900000, guid: 662f135096a1f9548a67341d53391432, type: 3}
+    - rid: 277261942003597320
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050301_economy
+        Operation: 0
+        ResourceType: 2
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: 
+    - rid: 277261942003597321
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050301_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261942003597322
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050301_commit
+        CommitId: cast
+        RequireEconomyReservation: 1
+    - rid: 277261942003597323
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050301_cast
+        Timeline:
+          DurationMs: 1167
+          Events:
+          - AtMs: 0
+            EffectId: 30050301
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050301_30050301
+          - AtMs: 1000
+            EffectId: 30050311
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050301_30050311
+        MobaLogicTimeline: {fileID: 4900000, guid: 8e397488771651a439d95307956afc8d, type: 3}
+    - rid: 277261942003597324
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050401_economy
+        Operation: 0
+        ResourceType: 2
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: 
+    - rid: 277261942003597325
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050401_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261942003597326
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050401_commit
+        CommitId: cast
+        RequireEconomyReservation: 1
+    - rid: 277261942003597327
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050401_cast
+        Timeline:
+          DurationMs: 1333
+          Events:
+          - AtMs: 0
+            EffectId: 30050001
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050401_30050001
+          - AtMs: 0
+            EffectId: 30050401
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050401_30050401
+        MobaLogicTimeline: {fileID: 4900000, guid: e72d550a29f12f64380b7e47b45c6d1e, type: 3}
+    - rid: 277261942003597328
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050501_economy
+        Operation: 0
+        ResourceType: 2
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: 
+    - rid: 277261942003597329
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050501_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261942003597330
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050501_commit
+        CommitId: cast
+        RequireEconomyReservation: 1
+    - rid: 277261942003597331
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050501_cast
+        Timeline:
+          DurationMs: 1333
+          Events:
+          - AtMs: 0
+            EffectId: 30050001
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050501_30050001
+          - AtMs: 250
+            EffectId: 30050501
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050501_30050501
+        MobaLogicTimeline: {fileID: 4900000, guid: 440ecfda4b6c0434ea65854516f30a90, type: 3}
+    - rid: 277261942003597332
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050601_economy
+        Operation: 0
+        ResourceType: 0
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 0
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: 
+    - rid: 277261942003597333
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050601_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261942003597334
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050601_commit
+        CommitId: cast
+        RequireEconomyReservation: 1
+    - rid: 277261942003597335
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050601_cast
+        Timeline:
+          DurationMs: 1250
+          Events:
+          - AtMs: 0
+            EffectId: 30050601
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050601_30050601
+        MobaLogicTimeline: {fileID: 4900000, guid: 7ce34f3669833a14594325b1d522de95, type: 3}
+    - rid: 277261942003597336
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050701_economy
+        Operation: 0
+        ResourceType: 0
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: 
+    - rid: 277261942003597337
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050701_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261942003597338
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050701_commit
+        CommitId: attack
+        RequireEconomyReservation: 1
+    - rid: 277261942003597339
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050701_cast
+        Timeline:
+          DurationMs: 1667
+          Events:
+          - AtMs: 300
+            EffectId: 30050701
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050701_30050701
+        MobaLogicTimeline: {fileID: 4900000, guid: 380ebe5ccf2b1134592d783890f415ec, type: 3}
+    - rid: 277261942003597340
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050702_economy
+        Operation: 0
+        ResourceType: 0
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: 
+    - rid: 277261942003597341
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050702_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261942003597342
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050702_commit
+        CommitId: attack
+        RequireEconomyReservation: 1
+    - rid: 277261942003597343
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050702_cast
+        Timeline:
+          DurationMs: 1667
+          Events:
+          - AtMs: 300
+            EffectId: 30050702
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050702_30050702
+        MobaLogicTimeline: {fileID: 4900000, guid: 3eab0652d099e664a997425d9451a8da, type: 3}
+    - rid: 277261942003597344
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050703_economy
+        Operation: 0
+        ResourceType: 0
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: 
+    - rid: 277261942003597345
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050703_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261942003597346
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050703_commit
+        CommitId: attack
+        RequireEconomyReservation: 1
+    - rid: 277261942003597347
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050703_cast
+        Timeline:
+          DurationMs: 1667
+          Events:
+          - AtMs: 300
+            EffectId: 30050703
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050703_30050703
+        MobaLogicTimeline: {fileID: 4900000, guid: 7d89a28d5d4221d4488338d64664c577, type: 3}
+    - rid: 277261942003597348
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050704_economy
+        Operation: 0
+        ResourceType: 0
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: 
+    - rid: 277261942003597349
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050704_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261942003597350
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050704_commit
+        CommitId: attack
+        RequireEconomyReservation: 1
+    - rid: 277261942003597351
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050704_cast
+        Timeline:
+          DurationMs: 1667
+          Events:
+          - AtMs: 300
+            EffectId: 30050704
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050704_30050704
+        MobaLogicTimeline: {fileID: 4900000, guid: 84846e0d85438f241a1ea6e5f87fe1b1, type: 3}
+    - rid: 277261942003597352
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050705_economy
+        Operation: 0
+        ResourceType: 0
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: 
+    - rid: 277261942003597353
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050705_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277261942003597354
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050705_commit
+        CommitId: attack
+        RequireEconomyReservation: 1
+    - rid: 277261942003597355
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: gragas_30050705_cast
+        Timeline:
+          DurationMs: 1667
+          Events:
+          - AtMs: 300
+            EffectId: 30050705
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: gragas_30050705_30050705
+        MobaLogicTimeline: {fileID: 4900000, guid: 7795b06dc1b3c414ea8940c27b70039c, type: 3}

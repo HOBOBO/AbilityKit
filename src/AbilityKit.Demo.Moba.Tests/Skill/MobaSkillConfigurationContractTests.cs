@@ -308,6 +308,22 @@ public sealed class MobaSkillConfigurationContractTests
         Assert.True(report.ShouldBlockStartup);
     }
 
+    [Theory]
+    [InlineData(true, false, false)]
+    [InlineData(false, false, true)]
+    [InlineData(true, true, true)]
+    public void Positive_cost_explicit_commit_requires_a_prior_explicit_reservation(bool reserve, bool reverse, bool blocked)
+    {
+        var reservation = new SkillPhaseDTO { Type = (int)SkillPhaseType.Economy, PhaseId = "reserve",
+            Economy = new SkillEconomyPhaseDTO { RequireExplicitCommit = reserve } };
+        var commit = new SkillPhaseDTO { Type = (int)SkillPhaseType.CommitPoint, PhaseId = "commit",
+            CommitPoint = new SkillCommitPointPhaseDTO { CommitId = "cast", RequireEconomyReservation = true } };
+        var phases = reverse ? new[] { commit, reservation } : new[] { reservation, commit };
+        var configs = CreateConfigDatabase(10, new[] { CreateRulePlanPhase("release", 900101011) }.Concat(phases).ToArray());
+        var report = Validate(configs);
+        Assert.Equal(blocked, report.Entries.Any(e => e.Code == "moba.skill.contract.release_commit_required"));
+    }
+
     [Fact]
     public void Reacquire_without_search_query_or_range_blocks_startup()
     {

@@ -89,6 +89,7 @@ namespace AbilityKit.Demo.Moba.Events
         // ========== 区域事件 ==========
         /// <summary>区域进入</summary>
         public const string Area_Enter = "area.enter";
+        public const string Area_Cross = "area.cross";
         /// <summary>区域退出</summary>
         public const string Area_Exit = "area.exit";
         /// <summary>区域 Tick</summary>

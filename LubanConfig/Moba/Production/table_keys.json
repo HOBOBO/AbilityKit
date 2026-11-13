@@ -3,5 +3,6 @@
   "brains": "BrainId",
   "battle_start": "RowId",
   "character_view_actions": "RowId",
-  "tag_hud_presentations": "DefinitionId"
+  "tag_hud_presentations": "DefinitionId",
+  "model_animations": "Id"
 }

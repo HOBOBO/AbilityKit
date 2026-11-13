@@ -9,7 +9,7 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaCombatActivityService : IService
     {
         private readonly IWorldClock _clock;
-        private readonly Dictionary<int, float> _lastCombatTimeByActorId = new Dictionary<int, float>();
+        private Dictionary<int, float> _lastCombatTimeByActorId = new Dictionary<int, float>();
 
         public MobaCombatActivityService(IWorldClock clock)
         {
@@ -46,7 +46,17 @@ namespace AbilityKit.Demo.Moba.Services
             return actorId > 0 && _lastCombatTimeByActorId.Remove(actorId);
         }
 
-        private float CurrentTime => _clock != null ? _clock.Time : 0f;
+        internal float CurrentTime => _clock != null ? _clock.Time : 0f;
+
+        internal Dictionary<int, float> CaptureCombatTimes()
+            => new Dictionary<int, float>(_lastCombatTimeByActorId);
+
+        // The rollback owner supplies a detached, fully validated map and transfers ownership.
+        // No gameplay or continuous reconciliation is run during this synchronous exchange.
+        internal void RestoreCombatTimes(Dictionary<int, float> prepared)
+        {
+            _lastCombatTimeByActorId = prepared ?? throw new System.ArgumentNullException(nameof(prepared));
+        }
 
         public void Dispose()
         {

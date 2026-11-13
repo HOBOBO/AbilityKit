@@ -2,6 +2,8 @@ param(
     [int]$TcpPort = 44201,
     [int]$HostTimeoutSeconds = 60,
     [string]$Configuration = 'Release',
+    [ValidateSet('frame-sync-authority', 'moba-state-sync-authority')]
+    [string]$SyncTemplateId = 'frame-sync-authority',
     [switch]$NoBuild,
     [switch]$NoCleanup
 )
@@ -47,7 +49,8 @@ if (-not $NoBuild) {
 Write-Host "Starting host-only MOBA silo on port $TcpPort..." -ForegroundColor Cyan
 $siloProc = Start-Process -FilePath 'dotnet' -ArgumentList @(
     'run', '--project', $project, '-c', $Configuration, '--no-build',
-    '--', '--host-only', '--tcp-port', $TcpPort, '--host-timeout-seconds', $HostTimeoutSeconds
+    '--', '--host-only', '--tcp-port', $TcpPort, '--host-timeout-seconds', $HostTimeoutSeconds,
+    '--sync-template', $SyncTemplateId
 ) -WorkingDirectory $projectDirectory -PassThru -NoNewWindow -RedirectStandardOutput (Join-Path $artifactRoot 'moba-silo-out.log') -RedirectStandardError (Join-Path $artifactRoot 'moba-silo-err.log')
 
 try {
@@ -81,7 +84,7 @@ try {
     Write-Host "Running client-only MOBA smoke connecting to port $TcpPort..." -ForegroundColor Cyan
     Push-Location $projectDirectory
     try {
-        & dotnet run --project $project -c $Configuration --no-build -- --client-only --connect-port $TcpPort
+        & dotnet run --project $project -c $Configuration --no-build -- --client-only --connect-port $TcpPort --sync-template $SyncTemplateId
         if ($LASTEXITCODE -ne 0) {
             throw "Client-only MOBA smoke failed with exit code $LASTEXITCODE."
         }

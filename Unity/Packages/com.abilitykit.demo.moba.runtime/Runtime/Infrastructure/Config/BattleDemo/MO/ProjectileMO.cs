@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Share.Config;
 
@@ -14,6 +15,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public float Speed { get; }
         public int LifetimeMs { get; }
         public float MaxDistance { get; }
+        public ProjectileMaxDistanceResponse MaxDistanceResponse { get; }
+        public int[] OnArrivalTriggerIds { get; }
         public float CollisionWidth { get; }
         public float CollisionHeight { get; }
         public float CollisionLength { get; }
@@ -21,11 +24,15 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public ProjectileHitPolicyKind HitPolicyKind { get; }
         public int HitsRemaining { get; }
         public int HitUnitSubType { get; }
+        /// <summary>Zero preserves the default unit and world collision layers.</summary>
+        public int CollisionLayerMask { get; }
         public float BounceSearchRadius { get; }
         public float TrackingArcHeight { get; }
         public float TrackingArcHeightPerUnit { get; }
         public float TrackingArcDurationSeconds { get; }
         public int HitCooldownMs { get; }
+        public ProjectileHitIdentityPolicy HitIdentityPolicy { get; }
+        public IReadOnlyList<ProjectileCollisionRule> CollisionRules { get; }
         public int TickIntervalMs { get; }
 
         public int OnHitEffectId { get; }
@@ -58,6 +65,27 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             hitPolicyParam = 0;
             hitsRemaining = 1;
             error = null;
+
+            if (MaxDistanceResponse != ProjectileMaxDistanceResponse.Exit &&
+                MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination)
+            { error = "Unknown projectile maximum-distance response."; return false; }
+            if (OnArrivalTriggerIds.Length > 0 && MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination)
+            { error = "Arrival triggers require SuspendAtDestination."; return false; }
+
+            if (CollisionRules.Count > 256)
+            {
+                error = "Projectile collision rules exceed the limit of 256.";
+                return false;
+            }
+            for (var i = 0; i < CollisionRules.Count; i++)
+                if (!CollisionRules[i].TryValidate(out error)) return false;
+
+            if (HitIdentityPolicy != ProjectileHitIdentityPolicy.Collider &&
+                HitIdentityPolicy != ProjectileHitIdentityPolicy.OncePerActor)
+            {
+                error = $"Unknown projectile hit identity policy {(int)HitIdentityPolicy}.";
+                return false;
+            }
 
             if (!IsFiniteNonNegative(BounceSearchRadius))
             {
@@ -133,6 +161,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             Speed = dto.Speed;
             LifetimeMs = dto.LifetimeMs;
             MaxDistance = dto.MaxDistance;
+            MaxDistanceResponse = (ProjectileMaxDistanceResponse)dto.MaxDistanceResponse;
+            OnArrivalTriggerIds = dto.OnArrivalTriggerIds ?? Array.Empty<int>();
             CollisionWidth = dto.CollisionWidth;
             CollisionHeight = dto.CollisionHeight;
             CollisionLength = dto.CollisionLength;
@@ -140,11 +170,17 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             HitPolicyKind = (ProjectileHitPolicyKind)dto.HitPolicyKind;
             HitsRemaining = dto.HitsRemaining;
             HitUnitSubType = dto.HitUnitSubType;
+            CollisionLayerMask = dto.CollisionLayerMask;
             BounceSearchRadius = dto.BounceSearchRadius;
             TrackingArcHeight = dto.TrackingArcHeight;
             TrackingArcHeightPerUnit = dto.TrackingArcHeightPerUnit;
             TrackingArcDurationSeconds = dto.TrackingArcDurationSeconds;
             HitCooldownMs = dto.HitCooldownMs;
+            HitIdentityPolicy = (ProjectileHitIdentityPolicy)dto.HitIdentityPolicy;
+            var collisionRules = new ProjectileCollisionRule[dto.CollisionRules?.Length ?? 0];
+            for (var i = 0; i < collisionRules.Length; i++)
+                collisionRules[i] = new ProjectileCollisionRule(dto.CollisionRules[i]);
+            CollisionRules = Array.AsReadOnly(collisionRules);
             TickIntervalMs = dto.TickIntervalMs;
 
             OnHitEffectId = dto.OnHitEffectId;

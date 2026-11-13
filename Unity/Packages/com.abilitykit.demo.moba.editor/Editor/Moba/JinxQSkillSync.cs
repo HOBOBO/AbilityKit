@@ -31,6 +31,23 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Debug.Log("[JinxQSkillSync] Published and checked Jinx Q and mode-specific basic attack flows.");
         }
 
+        [MenuItem("Tools/AbilityKit/Demos/Moba/Jinx/Publish Q Presentation")]
+        public static void SyncPresentationAndPublish()
+        {
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            foreach (var id in new[] { 30020001, 30020002, 30020003, 30020101 })
+            {
+                var path = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_" + id + ".json";
+                Selection.activeObject = AssetDatabase.LoadAssetAtPath<TextAsset>(path)
+                    ?? throw new InvalidDataException("Missing Jinx Q/attack timeline source: " + path);
+                NBC.ActionEditor.LogicJsonExporter.ExportSelectedTimeline();
+            }
+            MobaStateMachinePublisher.Publish();
+            MobaStateMachinePublisher.Check();
+            SyncAndPublish();
+            Debug.Log("[JinxQSkillSync] Q/AA timelines, HFSM and flows published and checked.");
+        }
+
         [MenuItem("Tools/AbilityKit/Demos/Moba/Jinx/Check Q")]
         public static void CheckPublished()
         {
@@ -61,7 +78,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 if (matches.Length > 1)
                     throw new InvalidDataException("SkillFlowCO contains duplicate Jinx flow " + authoredFlow.FlowId + ".");
 
-                var authored = SkillFlowDef.FromDto(dto);
+                var authored = SkillFlowDef.FromDto(dto, matches.Length == 1 ? matches[0].flow : null);
                 if (matches.Length == 1)
                     flows[matches[0].index] = authored;
                 else

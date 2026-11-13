@@ -290,6 +290,20 @@ namespace AbilityKit.Demo.Moba.Services
                     return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.RuntimeServiceMissing, "MobaSkillCastRuntimeService is required for formal skill cast runtime tracking.");
                 }
 
+                configs.TryGetSkillFlow(castFlowId, out var authoredFlow);
+                var childBinding = default(MobaSkillChildRecastBinding);
+                if (authoredFlow != null && authoredFlow.ChildChannelId > 0 && runtimes.HasChildChannel(actorId, authoredFlow.ChildChannelId))
+                {
+                    executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
+                    return SkillCastPreparationResult.Failed("skill.cast.childChannelOccupied", "An active child already occupies this channel.");
+                }
+                if (authoredFlow != null && authoredFlow.RecastChannelId > 0 &&
+                    !runtimes.TrySelectRecastArea(actorId, authoredFlow.RecastChannelId, out childBinding, out var recastError, slot, baseSkillId))
+                {
+                    executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
+                    return SkillCastPreparationResult.Failed("skill.cast.childRecastUnavailable", recastError);
+                }
+
                 var createRequest = MobaSkillCastRuntimeCreateRequestBuilder.Create()
                     .FromCastContext(context)
                     .WithLevelParameters(levelParameters)
@@ -297,6 +311,18 @@ namespace AbilityKit.Demo.Moba.Services
                 var runtime = runtimes.Create(in createRequest);
                 context.RuntimeHandle = runtime.Handle;
                 context.RuntimeId = runtime.RuntimeId;
+                runtimes.FreezeEffectiveCooldown(context.RuntimeHandle, resolvedConfiguration.CooldownMs);
+                if (authoredFlow != null && authoredFlow.RequiredBuffQualificationId > 0 &&
+                    (!_actors.TryGetActorEntity(actorId, out var qualificationOwner) ||
+                     !runtimes.TryReserveBuffQualification(context.RuntimeHandle, authoredFlow.RequiredBuffQualificationId, qualificationOwner)))
+                {
+                    runtimes.ForceTerminate(context.RuntimeHandle, MobaSkillRuntimeEndReason.RollbackCleanup);
+                    executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
+                    return SkillCastPreparationResult.Failed("skill.cast.buffQualificationUnavailable", "The required buff source is missing, ambiguous, or reserved.");
+                }
+                if (authoredFlow != null && authoredFlow.ChildChannelId > 0 && !runtimes.TryBindChildChannel(context.RuntimeHandle, authoredFlow.ChildChannelId) ||
+                    authoredFlow != null && authoredFlow.RecastChannelId > 0 && !runtimes.BindRecastArea(context.RuntimeHandle, in childBinding))
+                    throw new InvalidOperationException("Failed to bind the prepared child channel.");
                 if (!context.RuntimeHandle.IsValid)
                 {
                     executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);

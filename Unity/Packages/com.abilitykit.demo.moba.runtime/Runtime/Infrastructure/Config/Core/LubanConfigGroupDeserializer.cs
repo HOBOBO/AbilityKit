@@ -463,11 +463,14 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 HitPolicyKind = obj["HitPolicyKind"]?.Value<int>() ?? 0,
                 HitsRemaining = obj["HitsRemaining"]?.Value<int>() ?? 0,
                 HitUnitSubType = obj["HitUnitSubType"]?.Value<int>() ?? 0,
+                CollisionLayerMask = obj["CollisionLayerMask"]?.Value<int>() ?? 0,
                 BounceSearchRadius = obj["BounceSearchRadius"]?.Value<float>() ?? 0,
                 TrackingArcHeight = obj["TrackingArcHeight"]?.Value<float>() ?? 0,
                 TrackingArcHeightPerUnit = obj["TrackingArcHeightPerUnit"]?.Value<float>() ?? 0,
                 TrackingArcDurationSeconds = obj["TrackingArcDurationSeconds"]?.Value<float>() ?? 0,
                 HitCooldownMs = obj["HitCooldownMs"]?.Value<int>() ?? 0,
+                HitIdentityPolicy = obj["HitIdentityPolicy"]?.Value<int>() ?? 0,
+                CollisionRules = obj["CollisionRules"]?.ToObject<ProjectileCollisionRuleDTO[]>() ?? Array.Empty<ProjectileCollisionRuleDTO>(),
                 TickIntervalMs = obj["TickIntervalMs"]?.Value<int>() ?? 0,
                 OnHitEffectId = obj["OnHitEffectId"]?.Value<int>() ?? 0,
                 OnSpawnTriggerIds = obj["OnSpawnTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
@@ -502,12 +505,14 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 OffsetY = obj["OffsetY"]?.Value<float>() ?? 0,
                 OffsetZ = obj["OffsetZ"]?.Value<float>() ?? 0,
                 Radius = obj["Radius"]?.Value<float>() ?? 0,
+                InnerRadius = obj["InnerRadius"]?.Value<float>() ?? 0,
                 DelayMs = obj["DelayMs"]?.Value<int>() ?? 0,
                 DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
                 CollisionLayerMask = obj["CollisionLayerMask"]?.Value<int>() ?? 0,
                 MaxTargets = obj["MaxTargets"]?.Value<int>() ?? 0,
                 OnDelayTriggerIds = obj["OnDelayTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 OnEnterTriggerIds = obj["OnEnterTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                OnCrossTriggerIds = obj["OnCrossTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 OnExitTriggerIds = obj["OnExitTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 OnIntervalTriggerIds = obj["OnIntervalTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 IntervalMs = obj["IntervalMs"]?.Value<int>() ?? 0,
@@ -608,6 +613,9 @@ namespace AbilityKit.Demo.Moba.Config.Core
                     ?? obj["ContinuousTagTemplateId"]?.Value<int>()
                     ?? obj["TagTemplateId"]?.Value<int>()
                     ?? 0,
+                ChildChannelId = obj["ChildChannelId"]?.Value<int>() ?? 0,
+                RecastChannelId = obj["RecastChannelId"]?.Value<int>() ?? 0,
+                RequiredBuffQualificationId = obj["RequiredBuffQualificationId"]?.Value<int>() ?? 0,
                 Phases = DeserializeSkillPhases(obj["Phases"])
             };
             return dto;
@@ -830,6 +838,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 SharedCooldownMs = obj["SharedCooldownMs"]?.Value<int>() ?? 0,
                 GlobalCooldownMs = obj["GlobalCooldownMs"]?.Value<int>() ?? 0,
                 IgnoreGlobalCooldown = obj["IgnoreGlobalCooldown"]?.Value<bool>() ?? false,
+                IgnoreResourceCostCheck = obj["IgnoreResourceCostCheck"]?.Value<bool>() ?? false,
+                IgnoreResourceConsumption = obj["IgnoreResourceConsumption"]?.Value<bool>() ?? false,
                 RefundBeforeCommit = obj["RefundBeforeCommit"]?.Value<bool>() ?? true,
                 RequireExplicitCommit = obj["RequireExplicitCommit"]?.Value<bool>() ?? false,
                 FailReason = obj["FailReason"]?.Value<string>(),

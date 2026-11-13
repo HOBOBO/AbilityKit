@@ -20,6 +20,7 @@ namespace AbilityKit.Game.Flow
         private readonly bool _allowMainCameraFallback;
 
         private Camera _camera;
+        private bool _addedDepthTexture;
         private int _trackedActorId;
         private bool _hasTrackedActor;
         private Vector3 _currentPosition;
@@ -64,7 +65,19 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         public void SetCamera(Camera camera)
         {
-            _camera = camera ?? (_allowMainCameraFallback ? Camera.main : null);
+            var nextCamera = camera ?? (_allowMainCameraFallback ? Camera.main : null);
+            if (_camera != nextCamera)
+            {
+                ReleaseDepthTexture();
+                _camera = nextCamera;
+                if (_camera != null)
+                {
+                    // Linked battle materials sample _CameraDepthTexture for
+                    // opacity/intersection. Supply that input for every view.
+                    _addedDepthTexture = (_camera.depthTextureMode & DepthTextureMode.Depth) == 0;
+                    _camera.depthTextureMode |= DepthTextureMode.Depth;
+                }
+            }
             if (_camera != null && !_hasTrackedActor)
             {
                 _currentPosition = _camera.transform.position;
@@ -170,6 +183,7 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         public void Reset()
         {
+            ReleaseDepthTexture();
             _trackedActorId = 0;
             _hasTrackedActor = false;
             _snapPending = false;
@@ -180,6 +194,13 @@ namespace AbilityKit.Game.Flow
             _camera = null;
             _currentPosition = Vector3.zero;
             _lookAtTarget = Vector3.zero;
+        }
+
+        private void ReleaseDepthTexture()
+        {
+            if (_addedDepthTexture && _camera != null)
+                _camera.depthTextureMode &= ~DepthTextureMode.Depth;
+            _addedDepthTexture = false;
         }
 
         private static float CalculateDampingAlpha(float speed, float deltaTime)

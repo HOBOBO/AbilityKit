@@ -18,11 +18,15 @@ public sealed class ProjectileControlTests
         var path = Path.Combine(AppContext.BaseDirectory, "Configs", "moba", "actor_state_machines.json");
         var catalog = new MobaActorStateMachineProfileCatalog();
 
-        Assert.Equal(1, MobaActorStateMachineProfileJsonLoader.LoadJson(File.ReadAllText(path), catalog));
+        Assert.Equal(2, MobaActorStateMachineProfileJsonLoader.LoadJson(File.ReadAllText(path), catalog));
         Assert.True(catalog.TryGet("ying_zheng_ultimate_projectile", out var profile));
         Assert.Equal("prepare", profile.StartState);
         Assert.Equal(3, profile.States.Count);
         Assert.Equal(2, profile.Transitions.Count);
+        Assert.True(catalog.TryGet("gragas_barrel", out var barrel));
+        Assert.Equal("flight", barrel.StartState);
+        Assert.Equal(3, barrel.States.Count);
+        Assert.Equal(2, barrel.Transitions.Count);
     }
 
     [Fact]

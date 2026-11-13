@@ -15,7 +15,7 @@ using AbilityKit.Demo.Moba.Services.StateSync;
 namespace AbilityKit.Demo.Moba.Services.Buffs
 {
     [WorldService(typeof(MobaBuffStateRecoveryProvider))]
-    public sealed class MobaBuffStateRecoveryProvider : IMobaStagedStateRecoveryProvider
+    public sealed partial class MobaBuffStateRecoveryProvider : IMobaStagedStateRecoveryProvider
     {
         public const int DefaultKey = 10030;
         public const int CurrentPayloadVersion = 2;
@@ -126,7 +126,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             }
         }
 
-        private MobaBuffStateRecoveryEntry[] ParseAndValidate(byte[] payload)
+        private MobaBuffStateRecoveryEntry[] ParseAndValidate(byte[] payload,
+            Func<MobaBuffStateRecoveryEntry, bool> targetParentExists = null)
         {
             if (payload == null || payload.Length == 0) return Array.Empty<MobaBuffStateRecoveryEntry>();
 
@@ -185,7 +186,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                 }
 
                 var skillHandle = entry.SkillRuntimeHandle;
-                if (skillHandle.IsValid && !_skillRuntimes.TryGet(in skillHandle, out _))
+                if (skillHandle.IsValid && !(targetParentExists != null
+                    ? targetParentExists(entry) : _skillRuntimes.TryGet(in skillHandle, out _)))
                 {
                     throw new InvalidOperationException($"Buff state parent runtime not found. target={entry.TargetActorId} buffId={entry.BuffId} runtime={skillHandle}.");
                 }

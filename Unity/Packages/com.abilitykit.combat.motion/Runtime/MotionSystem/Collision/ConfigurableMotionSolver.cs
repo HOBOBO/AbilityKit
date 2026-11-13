@@ -48,6 +48,18 @@ namespace AbilityKit.Combat.MotionSystem.Collision
             if (!constraints.Enable) return MotionSolveResult.NoHit(desiredDelta);
             if (_world == null) return MotionSolveResult.NoHit(desiredDelta);
 
+            if (constraints.SelectionKey != 0)
+            {
+                var selected = (_world as IMotionCollisionWorldSelector)?.Select(constraints.SelectionKey);
+                if (selected == null) throw new InvalidOperationException($"Unsupported motion collision selection {constraints.SelectionKey}.");
+                return new ConfigurableMotionSolver(selected, null, Diagnostics).ResolveSelected(moverId, in start, in desiredDelta, in constraints);
+            }
+            return ResolveSelected(moverId, in start, in desiredDelta, in constraints);
+        }
+
+        private MotionSolveResult ResolveSelected(int moverId, in Vec3 start, in Vec3 desiredDelta, in MotionCollisionConstraints constraints)
+        {
+
             Vec3 applied;
             MotionHit hit;
             if (constraints.AllowPassThrough)

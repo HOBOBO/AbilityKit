@@ -28,6 +28,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
         void ExecuteAreaStage(AreaEventArgs payload);
         void ExecuteProjectileSpawn(in ProjectileSpawnEvent evt);
         void ExecuteProjectileTick(in ProjectileTickEvent evt);
+        void ExecuteProjectileArrival(in ProjectileArrivalEvent evt);
         void ExecuteProjectileExit(in ProjectileExitEvent evt);
         void ExecuteProjectileHit(in ProjectileHitEvent evt, int hitActorId);
     }
@@ -91,6 +92,15 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
             var sourceActorId = ResolveSourceActorId(in sourceContext, evt.OwnerId, evt.LauncherActorId);
             ReportProjectileCue(MobaPresentationCueStage.Started, projectile.OnSpawnVfxId, projectile, evt.Projectile, sourceActorId, 0, evt.Frame, evt.Position, in sourceContext, EventProjectileSpawn, 0);
             ExecuteProjectileTriggers(projectile.OnSpawnTriggerIds, BuildProjectileEventArgs(EventProjectileSpawn, projectile, evt.Projectile, sourceActorId, 0, evt.Frame, evt, evt.Position, evt.Direction, default, in sourceContext));
+        }
+
+        public void ExecuteProjectileArrival(in ProjectileArrivalEvent evt)
+        {
+            if (!TryGetProjectile(evt.TemplateId, out var projectile)) return;
+            var source = ResolveProjectileSource(evt.Projectile);
+            var actor = ResolveSourceActorId(in source, evt.OwnerId, evt.LauncherActorId);
+            ExecuteProjectileTriggers(projectile.OnArrivalTriggerIds, BuildProjectileEventArgs("projectile.arrival",
+                projectile, evt.Projectile, actor, 0, evt.Frame, evt, evt.Position, evt.Direction, default, in source));
         }
 
         public void ExecuteProjectileTick(in ProjectileTickEvent evt)
@@ -373,6 +383,8 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                     return Array.Empty<int>();
                 case "area.enter":
                     return aoe.OnEnterTriggerIds;
+                case "area.cross":
+                    return aoe.OnCrossTriggerIds;
                 case "area.exit":
                     return aoe.OnExitTriggerIds;
                 case "area.tick":

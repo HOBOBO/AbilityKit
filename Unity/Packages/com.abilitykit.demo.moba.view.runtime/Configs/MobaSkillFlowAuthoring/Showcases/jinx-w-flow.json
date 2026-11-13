@@ -8,7 +8,9 @@
         "Type": 4,
         "PhaseId": "skill_30020201_release",
         "RulePlan": {
-          "TriggerIds": [900101011],
+          "TriggerIds": [
+            900101011
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
@@ -17,15 +19,18 @@
         "Type": 4,
         "PhaseId": "skill_30020201_commit",
         "RulePlan": {
-          "TriggerIds": [900101012],
+          "TriggerIds": [
+            900101012
+          ],
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
       },
       {
         "Type": 2,
+        "PhaseId": "skill_30020201_action",
         "Timeline": {
-          "DurationMs": 500,
+          "DurationMs": 1550,
           "Events": [
             {
               "AtMs": 0,

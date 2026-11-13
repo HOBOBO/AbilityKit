@@ -22,7 +22,7 @@ public sealed class MobaCharacterHfsmPushPayloadTests
         var context = new ActorContext();
         var actor = context.CreateEntity();
         var actors = new MobaActorRegistry();
-        var definition = MobaCharacterHfsmProfile.CreateDefinition();
+        var definition = MobaCharacterHfsmProfile.CreateGenericDefinition();
         try
         {
             actors.Register(17, actor);

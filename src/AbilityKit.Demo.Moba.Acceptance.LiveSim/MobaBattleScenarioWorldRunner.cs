@@ -45,6 +45,8 @@ public sealed class MobaBattleScenarioWorldRunner
         var envEntities = BindEnvironment(scenario, bootstrapper.RuntimeServices!);
         PlaceObstacles(scenario, bootstrapper.RuntimeServices!);
         AssembleActors(expectation, executor);
+        foreach (var setupAction in expectation.setupActions ?? Array.Empty<MobaAcceptanceSetupActionExpectation>())
+            executor.Execute(setupAction);
         var timelineRunner = new LiveSimTimelineRunner(bootstrapper, executor);
         double simulatedMs;
         LiveSimVirtualNetworkRunResult? networkRun = null;

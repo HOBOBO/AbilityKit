@@ -194,12 +194,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
                     throw new InvalidOperationException($"Owner-bound trigger event is not registered. triggerId={record.TriggerId} eventName={record.EventName}");
                 }
 
-                if (!argsType.IsClass)
-                {
-                    throw new InvalidOperationException(
-                        $"Owner-bound trigger event args must be a reference type. triggerId={record.TriggerId} eventName={record.EventName} argsType={argsType.FullName}");
-                }
-
                 _argsTypeByTriggerId[record.TriggerId] = argsType;
             }
         }
@@ -281,7 +275,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             TriggerPlan<object> plan,
             ITriggerPlanExecutable executionRoot,
             IBlackboardResolver ownerBlackboards)
-            where TArgs : class
         {
             if (_ownerBoundGates == null)
             {
@@ -422,7 +415,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
         }
 
         private sealed class GatedOwnerBoundTrigger<TArgs> : ITrigger<TArgs, IWorldResolver>, ITriggerWithId
-            where TArgs : class
         {
             private readonly long _ownerKey;
             private readonly ITrigger<TArgs, IWorldResolver> _inner;

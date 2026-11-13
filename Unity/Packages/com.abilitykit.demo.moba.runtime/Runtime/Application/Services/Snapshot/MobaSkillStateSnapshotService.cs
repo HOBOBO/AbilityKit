@@ -22,6 +22,7 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaCharacterHfsmParameterService _characterParameters;
         private MobaSkillCastRuntimeService _skillRuntimes;
         private MobaSkillWindowRuntimeService _skillWindows;
+        private MobaSkillLoadoutService _loadout;
         private readonly MobaSnapshotBuffer<MobaSkillStateSnapshotEntry> _entries = new MobaSnapshotBuffer<MobaSkillStateSnapshotEntry>(16, 256);
 
         private FrameIndex _lastFrame;
@@ -45,6 +46,7 @@ namespace AbilityKit.Demo.Moba.Services
             services?.TryResolve(out _characterParameters);
             services?.TryResolve(out _skillRuntimes);
             services?.TryResolve(out _skillWindows);
+            services?.TryResolve(out _loadout);
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
@@ -109,11 +111,13 @@ namespace AbilityKit.Demo.Moba.Services
                     var chargeEndTimeMs = runtime.MaxCharges > 1 && runtime.CurrentCharges <= 0
                         ? runtime.NextChargeRecoveryTimeMs
                         : 0L;
-                    var effectiveEndTimeMs = Math.Max(runtime.CooldownEndTimeMs,
+                    var independentRecast = _loadout?.IsIndependentRecastReady(actorId, i + 1, effectiveSkillId) == true;
+                    var effectiveEndTimeMs = Math.Max(independentRecast ? 0L : runtime.CooldownEndTimeMs,
                         Math.Max(sharedEndTimeMs, Math.Max(globalEndTimeMs, chargeEndTimeMs)));
                     var isCoolingDown = effectiveEndTimeMs > nowMs;
                     var remainingMs = isCoolingDown ? ClampToInt(effectiveEndTimeMs - nowMs) : 0;
-                    var totalMs = isCoolingDown ? Math.Max(runtime.CooldownDurationMs, remainingMs) : Math.Max(0, runtime.CooldownDurationMs);
+                    var slotDurationMs = independentRecast ? 0 : runtime.CooldownDurationMs;
+                    var totalMs = isCoolingDown ? Math.Max(slotDurationMs, remainingMs) : Math.Max(0, slotDurationMs);
                     var sharedRemainingMs = ClampToInt(sharedEndTimeMs - nowMs);
                     var globalRemainingMs = ClampToInt(globalEndTimeMs - nowMs);
                     var chargeRecoveryRemainingMs = ClampToInt(runtime.NextChargeRecoveryTimeMs - nowMs);

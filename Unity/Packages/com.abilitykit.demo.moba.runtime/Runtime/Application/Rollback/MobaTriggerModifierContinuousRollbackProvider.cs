@@ -65,7 +65,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             _service.Restore(runtimes, nextProjectionId);
         }
 
-        private static List<TriggerModifierContinuous> ReadAndValidate(byte[] payload,
+        internal static List<TriggerModifierContinuous> ReadAndValidate(byte[] payload,
             out int nextProjectionId)
         {
             if (payload == null || payload.Length == 0) throw new InvalidDataException("Trigger modifier continuous payload is missing.");
@@ -79,6 +79,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (count < 0 || count > 100000) throw new InvalidDataException("Invalid trigger modifier continuous count.");
             var runtimes = new List<TriggerModifierContinuous>(count);
             var keys = new HashSet<(int OwnerId, int LegacySourceId)>();
+            var projections = new HashSet<int>();
             for (var i = 0; i < count; i++)
             {
                 var ownerId = reader.ReadInt32();
@@ -86,7 +87,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                 var projectionId = reader.ReadInt32();
                 var paused = reader.ReadBoolean();
                 var specCount = reader.ReadInt32();
-                if (ownerId <= 0 || legacySourceId == 0 || projectionId >= 0 ||
+                if (ownerId <= 0 || legacySourceId == 0 || projectionId >= 0 || projectionId >= nextProjectionId ||
+                    !projections.Add(projectionId) ||
                     specCount < 1 || specCount > 10000 || !keys.Add((ownerId, legacySourceId)))
                     throw new InvalidDataException("Invalid trigger modifier continuous entry.");
                 var runtime = new TriggerModifierContinuous(ownerId, legacySourceId, projectionId) { WasPaused = paused };
@@ -98,7 +100,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     var priority = reader.ReadInt32();
                     if (!MobaSkillParamModifierKeys.IsTriggerWritable(parameterId) ||
                         !MobaSkillParamModifierKeys.SupportsOperation(parameterId, op) ||
-                        float.IsNaN(value) || float.IsInfinity(value))
+                        !MobaSkillParamModifierKeys.TryValidateValue(parameterId, value, out _))
                         throw new InvalidDataException("Invalid trigger modifier continuous spec.");
                     runtime.Specs.Add(new ContinuousModifierMO(new ContinuousModifierDTO
                     {

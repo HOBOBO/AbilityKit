@@ -106,6 +106,34 @@ namespace AbilityKit.Demo.Moba.Services
             return _activeByKey.TryGetValue(key, out var owned) && ReferenceEquals(owned, runtime);
         }
 
+        internal List<MobaTriggerIntervalContinuousRuntime> PrepareLocalRollback(IReadOnlyList<RollbackEntry> entries)
+        {
+            ValidateRollbackEntries(entries);
+            var result = new List<MobaTriggerIntervalContinuousRuntime>();
+            foreach (var entry in entries)
+            {
+                _configs.TryGetContinuousProcess(entry.ProcessId, out var process);
+                var runtime = new MobaTriggerIntervalContinuousRuntime(process, entry.SourceActorId,
+                    entry.TargetActorId, entry.OwnerContextId, ResolveRequirements(process), entry.Source);
+                if (entry.ModifierSourceId > 0) runtime.AssignModifierSourceId(entry.ModifierSourceId);
+                runtime.RestoreLocalLifecycle(entry.Paused ? ContinuousState.Paused : ContinuousState.Active,
+                    entry.ElapsedRaw, entry.IntervalRemainingRaw);
+                result.Add(runtime);
+            }
+            return result;
+        }
+
+        internal void RestoreLocalIndex(IReadOnlyList<MobaTriggerIntervalContinuousRuntime> runtimes)
+        {
+            _activeByKey.Clear(); _keysByOwnerContext.Clear();
+            foreach (var runtime in runtimes)
+            {
+                var key = new ProcessKey(runtime.SourceContextId, runtime.ProcessId, runtime.SourceActorId, runtime.TargetActorId);
+                _activeByKey.Add(key, runtime);
+                AddOwnerIndex(runtime.SourceContextId, key);
+            }
+        }
+
         internal void RestoreRollbackEntries(IReadOnlyList<RollbackEntry> entries)
         {
             ValidateRollbackEntries(entries);

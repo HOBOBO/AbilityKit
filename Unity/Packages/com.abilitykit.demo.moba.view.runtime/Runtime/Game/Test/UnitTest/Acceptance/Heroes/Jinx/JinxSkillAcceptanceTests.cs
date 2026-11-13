@@ -6,9 +6,11 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Demo.Moba.Share;
@@ -19,6 +21,7 @@ using AbilityKit.Deterministic;
 using AbilityKit.Game.Flow;
 using AbilityKit.Game.Battle.View;
 using AbilityKit.Game.Battle.View.Lib.Skill;
+using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Modifiers;
 using AbilityKit.Trace;
 using AbilityKit.Protocol.Moba;
@@ -438,6 +441,73 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        [TestCase(0f, 1f)]
+        [TestCase(1f, 0f)]
+        [TestCase(0.6f, 0.8f)]
+        public void E_ReleasesPointAimAndDeploysThreeDirectionalTrapAreas(float directionX, float directionZ)
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(
+                Jinx, "jinx_e_hud_release_and_three_area_deployment_contract"))
+            {
+                Assert.IsTrue(harness.Config.TryGetSkill(ESkillId, out var skill));
+                Assert.AreEqual(ESkillId, skill.CastFlowId);
+                Assert.AreEqual(3, skill.SkillButtonTemplateId);
+                Assert.IsTrue(skill.AllowCastWithoutTarget);
+                Assert.IsTrue(harness.Config.TryGetSkillButtonTemplate(skill.SkillButtonTemplateId, out var button));
+                Assert.IsTrue(button.EnableAim);
+                Assert.AreEqual((int)SkillAimMode.Point, button.AimMode);
+                Assert.AreEqual((int)SkillAimIndicatorShape.TargetCircle, button.IndicatorShape);
+                Assert.AreEqual((int)SkillUsePointMode.TargetPoint, button.UsePointMode);
+                Assert.IsTrue(harness.Config.TryGetAoe(42020301, out var trapArea));
+                Assert.AreEqual(5000, trapArea.DurationMs);
+                HeroSkillHeadlessContract.AssertTriggerActions(
+                    harness, 30020303, (int)TriggeringConstants.SpawnAreaId.Value);
+                HeroSkillHeadlessContract.AssertTriggerActions(
+                    harness, 30020313,
+                    (int)TriggeringConstants.AddBuffId.Value,
+                    (int)TriggeringConstants.GiveDamageId.Value);
+
+                harness.EnterGameAndWarmup(reason: "Jinx E point aim and trap deployment");
+                var casterActorId = harness.AssertPlayerActorBound();
+                var aimPosition = new Vec3(0f, 0f, 8f);
+                var forward = new Vec3(directionX, 0f, directionZ);
+                var right = new Vec3(directionZ, 0f, -directionX);
+                var baseline = harness.CaptureTraceBaseline();
+                var cast = harness.World.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(
+                    casterActorId, slot: 3, aimPos: aimPosition, aimDir: forward, targetActorId: 0);
+                Assert.IsTrue(cast.Success, "Jinx E should release from its point-target slot. " + DescribeCastFailure(cast));
+                harness.TickUntilTraceNodeAfter(baseline, MobaExecutionKind.SkillCast, ESkillId, maxTicks: 10,
+                    message: "Jinx E must enter its production cast flow.");
+                var deploy = harness.TickUntilTraceNodeAfter(baseline, MobaExecutionKind.EffectExecution,
+                    30020303, maxTicks: 40, message: "Jinx E must execute its area deployment trigger.");
+                harness.AssertActionExecutedUnderEffect(deploy.RootId,
+                    (int)TriggeringConstants.SpawnAreaId.Value, TriggeringConstants.Actions.SpawnArea);
+                harness.Tick(1);
+
+                var areaService = harness.World.Services.Resolve<MobaAreaRuntimeService>();
+                var areas = new List<MobaAreaRuntimeInfo>();
+                Assert.IsTrue(areaService.TryGetAreas(areas, ownerActorId: casterActorId, templateId: 42020301));
+                Assert.AreEqual(3, areas.Count, "E must deploy all three trap areas in the same cast.");
+                var expectedOffsets = new[] { -2f, 0f, 2f };
+                for (var i = 0; i < expectedOffsets.Length; i++)
+                {
+                    var found = false;
+                    for (var j = 0; j < areas.Count; j++)
+                    {
+                        var expected = aimPosition + right * expectedOffsets[i];
+                        if ((areas[j].Center - expected).SqrMagnitude > 0.0025f) continue;
+                        Assert.AreEqual(1, areas[j].GroupKey,
+                            "The three traps share the configured group key so each target is claimed once.");
+                        Assert.IsTrue(areas[j].ClaimTargetsWithinGroup);
+                        found = true;
+                        break;
+                    }
+
+                    Assert.IsTrue(found, "Missing E trap at configured lateral offset " + expectedOffsets[i]);
+                }
+            }
+        }
+
         [Test]
         public void R_SkipsNonHeroesAndExplodesOnceOnFirstEnemyHeroUsingHitSnapshot()
         {
@@ -660,23 +730,489 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [UnityTest]
-        public IEnumerator QAndW_LocalHudInputFeatureCommitsQAndDealsWLineDamage()
+        public IEnumerator Q_LocalHudSwitchesRealModelAndBothAttackProjectileVisuals() => LocalHudWeaponClosure();
+
+        [UnityTest]
+        public IEnumerator PlayMode_Q_LocalHudRendersBothWeaponsAndDamagesThroughTerrain()
         {
+            DemoGameplayTestLauncher.OpenMobaLocalForPlay();
+            yield return new EnterPlayMode();
+            Time.captureDeltaTime = 1f / 60f;
+            // Create captured gameplay locals after domain reload, not before it.
+            yield return LocalHudWeaponClosure();
+        }
+
+        [UnityTearDown]
+        public IEnumerator ExitLiveAcceptance()
+        {
+            Time.captureDeltaTime = 0f;
+            if (Application.isPlaying) yield return new ExitPlayMode();
+            DemoGameplayTestLauncher.Clear();
+        }
+
+        private IEnumerator LocalHudWeaponClosure()
+        {
+            var playMode = Application.isPlaying;
             JinxHudInputFixture hud = null;
             try
             {
-                var scene = DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+                if (!playMode) DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+                if (Application.isPlaying)
+                    for (var frame = 0; frame < 180 && !GameEntry.IsInitialized; frame++) yield return null;
+                var entry = UnityEngine.Object.FindObjectOfType<GameEntry>();
+                if (Application.isPlaying && GameEntry.IsInitialized) entry = GameEntry.Instance;
+                Assert.IsNotNull(entry);
+                if (!playMode) InvokePrivate(entry, "Awake");
+                var flow = entry.Get<GameFlowDomain>();
+                if (!playMode) flow.StartWithPersistentSettingsSync();
+                FlowTick(flow, 2);
+                if (!playMode && flow.CurrentPhase != MobaRootState.Battle && flow.BattleEntryState != MobaBattleEntryState.Pending)
+                    flow.EnterBattle(new TestBattleBootstrapper());
+                yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch,
+                    18000, () => "Local battle failed: " + flow.BattleEntryRejection);
+                Assert.IsTrue(entry.TryGet(out BattleContext ctx));
+                var debug = new BattleLocalDebugController(() => ctx, () => null);
+                Assert.IsTrue(System.Array.Exists(debug.CaptureSnapshot().HeroOptions, x => x.HeroId == HeroId),
+                    "The real local hero selector must contain Jinx.");
+                var plan = ctx.Plan;
+                var player = BattleInputSessionIdentity.ResolvePlayerId((IBattleInputSessionIdentityPort)ctx);
+                var command = BattleInputCommandFactory.CreateDebugReplaceHero(
+                    SessionSimRuntimeTuning.ResolveInputSubmitFrame(ctx.LastFrame, in plan), player, HeroId);
+                Assert.IsTrue(new BattleInputSubmitter(ctx.InputRuntime, player,
+                    BattleInputSessionIdentity.ResolveWorldId(in plan)).Submit(in command));
+                yield return TickUntil(flow, () => IsPlayerUsingHero(ctx, "p1", HeroId) &&
+                    TryGetPlayerActor(ctx, "p1", out _, out var a) && a.hasSkillLoadout,
+                    240, "Jinx replacement did not complete.");
+                Assert.IsTrue(ctx.Session.TryGetWorld(out var world));
+                Assert.IsTrue(TryGetPlayerActor(ctx, "p1", out var actorId, out var actor));
+                Assert.IsTrue(TryGetPlayerActor(ctx, "p2", out _, out var enemy));
+                var oldTransform = actor.transform.Value;
+                var origin = new Vec3(7f, oldTransform.Position.Y, -4f);
+                actor.ReplaceTransform(new Transform3(origin, oldTransform.Rotation, oldTransform.Scale));
+                var enemyTransform = enemy.transform.Value;
+                enemy.ReplaceTransform(new Transform3(origin + Vec3.Forward * 6f,
+                    enemyTransform.Rotation, enemyTransform.Scale));
+                var config = world.Services.Resolve<MobaConfigDatabase>();
+                var parameters = world.Services.Resolve<MobaCharacterHfsmParameterService>();
+                var loadout = world.Services.Resolve<MobaSkillLoadoutService>();
+                var input = entry.Get<BattleInputFeature>();
+                Animator model = null;
+                yield return TickUntil(flow, () => (model = FindJinxModel()) != null,
+                    120, "Local hero replacement did not instantiate the Jinx model.");
+                // EditMode manually renders the camera instead of running Unity's
+                // normal visibility loop. Keep transform evaluation enabled while
+                // exercising the production snapshot/Animator bridge.
+                model.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                yield return TickUntil(flow, () => IsAnimatorState(model, "Idle_Minigun"),
+                    60, "Default WeaponMode did not reach the actual minigun idle animation.");
+                var bones = model.GetComponentsInChildren<Transform>(true);
+                Quaternion[] minigunPose = null;
+
+                // Attack, switch, attack, switch back, attack: use pointer events
+                // throughout, rather than bypassing the HUD via TryCastBySlot.
+                for (var modeIndex = 0; modeIndex < 3; modeIndex++)
+                {
+                    var rocket = modeIndex == 1;
+                    if (modeIndex > 0)
+                    {
+                        hud = JinxHudInputFixture.Create(ctx, config, 1, QSkillId);
+                        using var switchPlayback = new WeaponPlaybackProbe(ctx, actor, model, parameters,
+                            actorId, (playMode ? "play-" : "edit-") + "switch-" + modeIndex);
+                        var before = input.SkillSubmitSuccessCount;
+                        hud.PointerDown(hud.ButtonScreenPosition);
+                        hud.PointerUp(hud.ButtonScreenPosition);
+                        var sawSwitch = false;
+                        for (var tick = 0; tick < switchPlayback.ObservationFrameBudget(QSkillId); tick++)
+                        {
+                            FlowTick(flow, 1);
+                            switchPlayback.Sample();
+                            sawSwitch |= IsAnimatorState(model,
+                                rocket ? "Spell_Q_MiniToRocket" : "Spell_Q_RocketToMini");
+                            if (sawSwitch && switchPlayback.HasObservedNormalCompletion) break;
+                            yield return null;
+                        }
+                        Assert.AreEqual(rocket ? 1f : 0f, parameters.Resolve(actorId, WeaponModeParameterId),
+                            "HUD Q did not commit its Buff-derived weapon parameter.");
+                        Assert.AreEqual(before + 1, input.SkillSubmitSuccessCount);
+                        Assert.IsTrue(sawSwitch, "Q did not play the matching switch animation on the actual model.");
+                        switchPlayback.AssertSinglePlayback(QSkillId,
+                            rocket ? "Spell_Q_MiniToRocket" : "Spell_Q_RocketToMini");
+                        hud.Dispose();
+                        hud = null;
+                        yield return TickUntil(flow, () => IsAnimatorState(model,
+                            rocket ? "Idle_Rocket" : "Idle_Minigun"),
+                            90, "Q did not restore the matching weapon idle pose.");
+                    }
+
+                    Assert.IsTrue(loadout.TryResolveSlot(actorId, BasicAttackSlot, out var slot));
+                    Assert.AreEqual(rocket ? FishbonesAttackSkillId : PowPowAttackSkillId, slot.EffectiveSkillId);
+                    if (modeIndex == 0) minigunPose = System.Array.ConvertAll(bones, b => b.localRotation);
+                    if (rocket)
+                    {
+                        var changedBones = 0;
+                        for (var i = 0; i < bones.Length; i++)
+                            if (Quaternion.Angle(minigunPose[i], bones[i].localRotation) > 5f) changedBones++;
+                        TestContext.WriteLine("Jinx weapon switch changed bones=" + changedBones);
+                        Assert.Greater(changedBones, 2, "Q must change the actual skeleton pose, not just Animator's state hash.");
+                    }
+                    CaptureJinxLocalFrame(model, "idle-" + modeIndex);
+                    var hp = enemy.GetMobaAttrs().Hp;
+                    hud = JinxHudInputFixture.Create(ctx, config, BasicAttackSlot, BaseAttackSkillId);
+                    using var flight = new ProjectileActorPresentationProbe(ctx,
+                        world.Services.Resolve<MobaActorRegistry>(), world.Services.Resolve<IProjectileService>(),
+                        rocket ? FishbonesProjectileId : PowPowProjectileId, rocket ? 90032005 : 90032002,
+                        (playMode ? "play-q-" : "edit-q-") + modeIndex,
+                        ((IViewFeatureRuntime)entry.Get<BattleViewFeature>()).Binder);
+                    using var attackPlayback = new WeaponPlaybackProbe(ctx, actor, model, parameters,
+                        actorId, (playMode ? "play-" : "edit-") + "attack-" + modeIndex);
+                    hud.PointerDown(hud.ButtonScreenPosition);
+                    hud.PointerUp(hud.ButtonScreenPosition);
+                    var sawAnimation = false;
+                    var sawProjectile = false;
+                    var capturedAttack = false;
+                    var observedActions = new System.Text.StringBuilder();
+                    var visual = rocket ? "Jinx_Arcanist_AA_Rocket_Projectile" : "Jinx_Arcanist_AA_Minigun_Projectile";
+                    for (var tick = 0; tick < attackPlayback.ObservationFrameBudget(
+                             rocket ? FishbonesAttackSkillId : PowPowAttackSkillId); tick++)
+                    {
+                        FlowTick(flow, 1);
+                        flight.Sample();
+                        attackPlayback.Sample();
+                        if (tick < 20)
+                        {
+                            var action = actor.characterHfsm.Runtime.Action;
+                            var hasViewAction = ((IBattleCharacterActionReadPort)ctx).TryGetCharacterAction(actorId, out var viewAction);
+                            observedActions.Append($"[{tick}:{action.Path},skill={action.SkillId},cast={action.CastInstanceId}," +
+                                $"model={model.GetCurrentAnimatorStateInfo(0).shortNameHash},version={ctx.GetActorEntityVersion(actorId)}," +
+                                $"viewAction={hasViewAction}:{viewAction.Path}/{viewAction.SnapshotFrame}," +
+                                $"mono={model.GetComponentInParent<MonoCharacterHfsmView>() != null}]");
+                        }
+                        sawAnimation |= IsAnimatorState(model, rocket ? "AA_Rocket" : "AA_Minigun");
+                        foreach (var tag in UnityEngine.Object.FindObjectsOfType<BattleVfxPoolableTag>())
+                            if (tag.gameObject.activeInHierarchy && tag.VfxId == (rocket ? 90032005 : 90032002))
+                            {
+                                Assert.IsNotNull(tag.GetComponentInChildren<ParticleSystem>(true),
+                                    "The actual projectile visual must contain the extracted particle effect.");
+                                sawProjectile |= CaptureLiveVfx(tag, "q-" + modeIndex) > 20;
+                            }
+                        if (!capturedAttack && sawAnimation && sawProjectile && flight.HasFollowedFlight && enemy.GetMobaAttrs().Hp < hp)
+                        {
+                            CaptureJinxLocalFrame(model, "attack-" + modeIndex);
+                            capturedAttack = true;
+                        }
+                        if (capturedAttack && attackPlayback.HasObservedNormalCompletion) break;
+                        yield return null;
+                    }
+                    Assert.IsTrue(sawAnimation, "HUD attack did not play the weapon-specific model animation. " +
+                        $"mode={modeIndex},visual={sawProjectile},hp={hp}->{enemy.GetMobaAttrs().Hp},actions={observedActions}");
+                    Assert.IsTrue(sawProjectile, "HUD attack did not instantiate the weapon-specific visible projectile: " + visual);
+                    Assert.Less(enemy.GetMobaAttrs().Hp, hp, "The same attack must also apply real damage.");
+                    flight.AssertFollowedFlight();
+                    attackPlayback.AssertSinglePlayback(rocket ? FishbonesAttackSkillId : PowPowAttackSkillId,
+                        rocket ? "AA_Rocket" : "AA_Minigun");
+                    hud.Dispose();
+                    hud = null;
+                    for (var tick = 0; tick < 35; tick++) { FlowTick(flow, 1); yield return null; }
+                }
+            }
+            finally
+            {
+                hud?.Dispose();
+                if (GameEntry.IsInitialized && GameEntry.Instance != null)
+                    UnityEngine.Object.DestroyImmediate(GameEntry.Instance.gameObject);
+                if (!Application.isPlaying) EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                DemoGameplayTestLauncher.Clear();
+            }
+        }
+
+        // Acceptance-only observation: never seeks the Animator or changes battle state.
+        private sealed class WeaponPlaybackProbe : System.IDisposable
+        {
+            [System.Serializable]
+            private sealed class Row
+            {
+                public int frame, renderFrame, sessionFrame, tickRate, skillId, localFrame, startFrame, stateHash, fullPathHash;
+                public int viewFrame, viewLocalFrame, viewSkillId;
+                public long actionId, castId, viewActionId, factCastId;
+                public string path, viewPath, clipName, castStage;
+                public long observedCastId;
+                public int castElapsedMs, castNextEventIndex;
+                public float weaponMode, normalizedTime, length, speed, speedMultiplier, maxBoneStep;
+                public float clipLength, clipWeight, animatorSpeed;
+                public bool casting, transition, hasView, castEntityPresent, castRunning;
+            }
+
+            private readonly BattleContext _context;
+            private readonly ActorEntity _actor;
+            private readonly Animator _model;
+            private readonly MobaCharacterHfsmParameterService _parameters;
+            private readonly int _actorId;
+            private readonly string _label;
+            private readonly List<Row> _rows = new List<Row>();
+            private readonly Entitas.IGroup<ActorEntity> _casts;
+            private readonly MobaConfigDatabase _config;
+            private long _observedCastId;
+            private readonly Transform[] _bones;
+            private readonly Quaternion[] _previousPose;
+
+            public WeaponPlaybackProbe(BattleContext context, ActorEntity actor, Animator model,
+                MobaCharacterHfsmParameterService parameters, int actorId, string label)
+            {
+                _context = context;
+                _actor = actor;
+                _model = model;
+                _parameters = parameters;
+                _actorId = actorId;
+                _label = label;
+                Assert.IsTrue(context.Session.TryGetWorld(out var world));
+                var contexts = (global::Contexts)world.Services.Resolve<Entitas.IContexts>();
+                _casts = contexts.actor.GetGroup(ActorMatcher.AllOf(
+                    ActorComponentsLookup.SkillCastOwnerActorId, ActorComponentsLookup.SkillCastInstanceId));
+                _config = world.Services.Resolve<MobaConfigDatabase>();
+                _bones = model.GetComponentsInChildren<Transform>(true);
+                _previousPose = System.Array.ConvertAll(_bones, b => b.localRotation);
+                Sample();
+            }
+
+            public void Sample()
+            {
+                var runtime = _actor.characterHfsm.Runtime;
+                var action = runtime.Action;
+                if (action.CastInstanceId > 0) _observedCastId = action.CastInstanceId;
+                // Observe the ECS projection, including its retained terminal row.
+                // FillEndedSnapshots drains the coordinator queue and must not be used by a probe.
+                ActorEntity castEntity = null;
+                foreach (var candidate in _casts.GetEntities())
+                    if (candidate.skillCastOwnerActorId.Value == _actorId &&
+                        candidate.skillCastInstanceId.Value == _observedCastId) castEntity = candidate;
+                var state = _model.GetCurrentAnimatorStateInfo(0);
+                var clips = _model.GetCurrentAnimatorClipInfo(0);
+                var hasView = ((IBattleCharacterActionReadPort)_context).TryGetCharacterAction(_actorId, out var view);
+                var maxStep = 0f;
+                for (var i = 0; i < _bones.Length; i++)
+                {
+                    maxStep = Mathf.Max(maxStep, Quaternion.Angle(_previousPose[i], _bones[i].localRotation));
+                    _previousPose[i] = _bones[i].localRotation;
+                }
+                _rows.Add(new Row {
+                    frame = runtime.Frame, renderFrame = Time.frameCount, sessionFrame = _context.LastFrame,
+                    tickRate = _context.Plan.World.TickRate, path = action.Path,
+                    actionId = action.InstanceId, castId = action.CastInstanceId, skillId = action.SkillId,
+                    observedCastId = _observedCastId, castEntityPresent = castEntity != null,
+                    castStage = castEntity != null && castEntity.hasSkillCastStage
+                        ? castEntity.skillCastStage.Value.ToString() : null,
+                    castRunning = castEntity != null && castEntity.isSkillCastRunningTag,
+                    castElapsedMs = castEntity != null && castEntity.hasSkillCastTimelineRuntime
+                        ? castEntity.skillCastTimelineRuntime.ElapsedMs : -1,
+                    castNextEventIndex = castEntity != null && castEntity.hasSkillCastTimelineRuntime
+                        ? castEntity.skillCastTimelineRuntime.NextEventIndex : -1,
+                    startFrame = action.StartFrame, localFrame = action.LocalFrame,
+                    casting = runtime.FactIsCasting, factCastId = runtime.FactCastInstanceId,
+                    weaponMode = _parameters.Resolve(_actorId, WeaponModeParameterId),
+                    stateHash = state.shortNameHash, fullPathHash = state.fullPathHash,
+                    normalizedTime = state.normalizedTime, length = state.length,
+                    speed = state.speed, speedMultiplier = state.speedMultiplier,
+                    clipName = clips.Length == 1 ? clips[0].clip.name : "clip-count:" + clips.Length,
+                    clipLength = clips.Length == 1 ? clips[0].clip.length : 0f,
+                    clipWeight = clips.Length == 1 ? clips[0].weight : 0f, animatorSpeed = _model.speed,
+                    transition = _model.IsInTransition(0), maxBoneStep = maxStep,
+                    hasView = hasView, viewFrame = hasView ? view.SnapshotFrame : -1,
+                    viewPath = hasView ? view.Path : null, viewActionId = hasView ? view.InstanceId : 0,
+                    viewLocalFrame = hasView ? view.LocalFrame : -1, viewSkillId = hasView ? view.SkillId : 0
+                });
+            }
+
+            public bool HasObservedNormalCompletion => _rows.Exists(row =>
+                row.castStage == SkillCastStage.Completed.ToString() && !row.casting && !row.castRunning);
+
+            public int ObservationFrameBudget(int skillId)
+            {
+                Assert.IsTrue(_config.TryGetSkill(skillId, out var skill));
+                Assert.IsTrue(_config.TryGetSkillFlow(skill.CastFlowId, out var flow));
+                var durationMs = 0;
+                foreach (var phase in flow.Phases)
+                    if (phase.Type == (int)SkillPhaseType.Timeline) durationMs += phase.Timeline.DurationMs;
+                // This fixture yields render frames while the session runs at its
+                // own tick rate. Bound the observation from authored time, then
+                // stop only after observing the actual terminal Cast projection.
+                return Mathf.CeilToInt(durationMs * 0.001f * Mathf.Max(120, _context.Plan.World.TickRate * 4)) + 120;
+            }
+
+            public void AssertSinglePlayback(int skillId, string animatorState)
+            {
+                var actionIds = new HashSet<long>();
+                var castIds = new HashSet<long>();
+                var samples = 0;
+                var firstFrame = -1;
+                var lastFrame = -1;
+                var maxTime = 0f;
+                Row previous = null;
+                foreach (var row in _rows)
+                {
+                    if (row.skillId != skillId) continue;
+                    actionIds.Add(row.actionId);
+                    castIds.Add(row.castId);
+                    if (row.stateHash == Animator.StringToHash(animatorState))
+                    {
+                        Assert.That(row.length * row.speed * row.speedMultiplier,
+                            Is.EqualTo(row.clipLength).Within(.001f),
+                            "The actual Animator playback range must match the formal clip: " + _label);
+                        samples++;
+                        if (firstFrame < 0) firstFrame = row.frame;
+                        lastFrame = row.frame;
+                        maxTime = Mathf.Max(maxTime, row.normalizedTime);
+                    }
+                    if (previous != null && previous.actionId == row.actionId)
+                        Assert.GreaterOrEqual(row.localFrame, previous.localFrame,
+                            "An uninterrupted action cursor must not rewind: " + _label);
+                    previous = row;
+                }
+                Assert.Greater(samples, 1, "Expected continuous actual Animator samples: " + _label);
+                Assert.GreaterOrEqual(maxTime, 0.95f,
+                    "An uninterrupted HUD action must sample the end of its formal animation, not just enter its state: " + _label);
+                Assert.AreEqual(1, castIds.Count, "One HUD press must own one cast: " + _label);
+                Assert.AreEqual(1, actionIds.Count, "Weapon change must not restart this committed action: " + _label);
+                Assert.AreNotEqual(skillId, _rows[_rows.Count - 1].skillId,
+                    "Observation must include the action exit: " + _label);
+                AssertTimelineCompletion(skillId, castIds);
+                TestContext.WriteLine($"Playback {_label}: frames={firstFrame}..{lastFrame}, " +
+                    $"samples={samples}, maxNormalized={maxTime:F6}, actions={actionIds.Count}");
+            }
+
+            private void AssertTimelineCompletion(int skillId, HashSet<long> castIds)
+            {
+                Assert.IsTrue(_config.TryGetSkill(skillId, out var skill));
+                Assert.IsTrue(_config.TryGetSkillFlow(skill.CastFlowId, out var flow));
+                var durationMs = 0;
+                foreach (var phase in flow.Phases)
+                    if (phase.Type == (int)SkillPhaseType.Timeline) durationMs += phase.Timeline.DurationMs;
+                Assert.Greater(durationMs, 0, "This diagnostic expects the configured finite Timeline.");
+                Row completed = null;
+                foreach (var row in _rows)
+                {
+                    if (!castIds.Contains(row.observedCastId) || !row.castEntityPresent) continue;
+                    Assert.That(row.castStage, Is.Not.EqualTo(SkillCastStage.Cancelled.ToString())
+                        .And.Not.EqualTo(SkillCastStage.Failed.ToString()),
+                        "Uninterrupted HUD action must complete normally: " + _label);
+                    if (row.castStage != SkillCastStage.Completed.ToString()) continue;
+                    completed = row;
+                    break;
+                }
+                Assert.IsNotNull(completed, "Observe the terminal cast, not just the Animator exit: " + _label);
+                Assert.IsFalse(completed.castRunning, "Completed cast must leave the active cast group.");
+                Assert.That(completed.castElapsedMs, Is.GreaterThanOrEqualTo(durationMs)
+                    .And.LessThan(durationMs + Mathf.CeilToInt(1000f / completed.tickRate)));
+                Assert.IsFalse(completed.casting, "The same logic frame must clear the casting fact.");
+                Assert.AreNotEqual(skillId, completed.skillId,
+                    "Current-context casting must exit when its Timeline completes.");
+                TestContext.WriteLine($"Cast completion {_label}: frame={completed.frame}, " +
+                    $"cast={completed.observedCastId}, stage={completed.castStage}, " +
+                    $"elapsedMs={completed.castElapsedMs}, configuredTimelineMs={durationMs}, " +
+                    $"running={completed.castRunning}, path={completed.path}");
+            }
+
+            public void Dispose()
+            {
+                var path = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,
+                    "../../local/Logs/jinx-playback-" + _label + ".jsonl"));
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+                System.IO.File.WriteAllLines(path, _rows.ConvertAll(row => JsonUtility.ToJson(row)));
+                TestContext.WriteLine("Continuous playback evidence: " + path);
+            }
+        }
+
+        private static Animator FindJinxModel()
+        {
+            foreach (var animator in UnityEngine.Object.FindObjectsOfType<Animator>())
+                if (animator.runtimeAnimatorController != null &&
+                    animator.runtimeAnimatorController.name == "Jinx_Arcanist_Model") return animator;
+            return null;
+        }
+
+        private static bool IsAnimatorState(Animator animator, string state) =>
+            animator != null && animator.GetCurrentAnimatorStateInfo(0).shortNameHash == Animator.StringToHash(state);
+
+        private static void CaptureJinxLocalFrame(Animator model, string label)
+        {
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) return;
+            var camera = Camera.main;
+            Assert.IsNotNull(camera, "The real local battle must expose its gameplay camera.");
+            var target = RenderTexture.GetTemporary(1280, 720, 24);
+            var previousTarget = camera.targetTexture;
+            var previousActive = RenderTexture.active;
+            var texture = new Texture2D(1280, 720, TextureFormat.RGB24, false);
+            var renderers = model.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            var enabled = System.Array.ConvertAll(renderers, r => r.enabled);
+            try
+            {
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                texture.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0);
+                texture.Apply();
+                var pixels = texture.GetPixels32();
+                var path = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,
+                    "../../local/Logs/jinx-q-" + label + ".png"));
+                System.IO.File.WriteAllBytes(path, texture.EncodeToPNG());
+                foreach (var renderer in renderers) renderer.enabled = false;
+                camera.Render();
+                texture.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0);
+                texture.Apply();
+                var hidden = texture.GetPixels32();
+                var changed = 0;
+                for (var i = 0; i < pixels.Length; i++) if (!pixels[i].Equals(hidden[i])) changed++;
+                TestContext.WriteLine($"Jinx local frame {label}: {path}; model pixels={changed}");
+                Assert.Greater(changed, 32, "Jinx must actually render in the production camera.");
+            }
+            finally
+            {
+                for (var i = 0; i < renderers.Length; i++) renderers[i].enabled = enabled[i];
+                camera.targetTexture = previousTarget;
+                RenderTexture.active = previousActive;
+                RenderTexture.ReleaseTemporary(target);
+                UnityEngine.Object.DestroyImmediate(texture);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator QAndWAndR_LocalHudInputCommitsSwitchAndHitsReleasedRays() =>
+            LocalHudActiveSkillClosure(true);
+
+        [UnityTest]
+        public IEnumerator R_LocalHudClickWorksAfterQWEWithoutRefillingMana() =>
+            LocalHudActiveSkillClosure(false);
+
+        [UnityTest]
+        public IEnumerator PlayMode_QWER_LocalHudShowsProjectilesAndAppliesDamageAndControl()
+        {
+            DemoGameplayTestLauncher.OpenMobaLocalForPlay();
+            yield return new EnterPlayMode();
+            Time.captureDeltaTime = 1f / 60f;
+            yield return LocalHudActiveSkillClosure(true);
+        }
+
+        private IEnumerator LocalHudActiveSkillClosure(bool aimedR)
+        {
+            var playMode = Application.isPlaying;
+            JinxHudInputFixture hud = null;
+            try
+            {
+                var scene = playMode ? SceneManager.GetActiveScene() :
+                    DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
                 Assert.IsTrue(scene.IsValid(), "Unified gameplay scene should load for the local MOBA profile.");
 
+                if (Application.isPlaying)
+                    for (var frame = 0; frame < 180 && !GameEntry.IsInitialized; frame++) yield return null;
                 var entry = UnityEngine.Object.FindObjectOfType<GameEntry>();
+                if (Application.isPlaying && GameEntry.IsInitialized) entry = GameEntry.Instance;
                 Assert.IsNotNull(entry, "Demo scene must contain a GameEntry.");
-                InvokePrivate(entry, "Awake");
+                if (!playMode) InvokePrivate(entry, "Awake");
                 var flow = entry.Get<GameFlowDomain>();
                 Assert.IsNotNull(flow, "GameEntry must expose GameFlowDomain after Awake.");
 
-                flow.StartWithPersistentSettingsSync();
+                if (!playMode) flow.StartWithPersistentSettingsSync();
                 FlowTick(flow, 2);
-                if (flow.CurrentPhase != MobaRootState.Battle &&
+                if (!playMode && flow.CurrentPhase != MobaRootState.Battle &&
                     flow.BattleEntryState != MobaBattleEntryState.Pending)
                 {
                     flow.EnterBattle(new TestBattleBootstrapper());
@@ -684,8 +1220,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 yield return TickUntil(flow,
                     () => flow.CurrentBattlePhase == MobaBattleState.InMatch,
-                    6000,
-                    "The local MOBA battle did not reach InMatch.");
+                    18000,
+                    () => "The local MOBA battle did not reach InMatch. root=" + flow.CurrentPhase +
+                          ", entry=" + flow.BattleEntryState + ", battle=" + flow.CurrentBattlePhase +
+                          ", rejection=" + flow.BattleEntryRejection + ".");
                 Assert.IsTrue(entry.TryGet(out BattleContext ctx),
                     "BattleContext must be attached after entering battle.");
 
@@ -717,6 +1255,10 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsTrue(actors.TryGetActorEntity(enemyActorId, out var enemy) && enemy != null &&
                               enemy.hasAttributeGroup && enemy.hasTransform,
                     "The training opponent must expose combat attributes and a transform.");
+                Assert.IsTrue(actors.TryGetActorEntity(ctx.LocalActorId, out var localActor));
+                var localTransform = localActor.transform.Value;
+                localActor.ReplaceTransform(new Transform3(new Vec3(7f, localTransform.Position.Y, -4f),
+                    localTransform.Rotation, localTransform.Scale));
                 var enemyTransform = enemy.transform.Value;
                 enemy.ReplaceTransform(new Transform3(new Vec3(0f, enemyTransform.Position.Y, 5f),
                     enemyTransform.Rotation, enemyTransform.Scale));
@@ -763,19 +1305,26 @@ namespace AbilityKit.Game.Test.UnitTest
                     "The HUD-submitted Q did not commit Fishbones mode through its Buff Modifier.");
                 hud.Dispose();
                 hud = null;
+                yield return TickUntil(flow,
+                    () => TryGetPlayerActor(ctx, "p1", out _, out var caster) &&
+                          caster.characterHfsm.Runtime.Action.CastInstanceId == 0,
+                    60, "Q must finish its switch action before the next active skill.");
 
                 var enemyHpBefore = enemy.GetMobaAttrs().Hp;
+                var speedBeforeW = enemy.GetMobaAttrs().MoveSpeed;
                 hud = JinxHudInputFixture.Create(ctx, config, slot: 2, skillId: WSkillId);
                 Assert.AreEqual(SkillAimIndicatorShape.DirectionLine, hud.Button.Config.IndicatorShape,
                     "The W button itself must receive the resolved DirectionLine configuration.");
                 var wButtonCenter = hud.ButtonScreenPosition;
                 var wSubmitsBefore = inputFeature.SkillSubmitSuccessCount;
-                const string missingWPresentation =
-                    "Missing MOBA presentation timeline: moba/action_timeline/skill_30020201.moba.presentation";
-                LogAssert.Expect(LogType.Error, missingWPresentation);
                 hud.PointerDown(wButtonCenter);
                 hud.Drag(wButtonCenter + new Vector2(0f, 120f));
-                hud.PointerUp(wButtonCenter + new Vector2(0f, 200f));
+                Assert.IsTrue(new BattleHudAimPreviewPositionResolver().TryResolve(ctx, out var preview));
+                var onRay = preview.CasterPosition + preview.AimDirection * 6f;
+                enemy.ReplaceTransform(new Transform3(new Vec3(onRay.x, onRay.y, onRay.z),
+                    enemyTransform.Rotation, enemyTransform.Scale));
+                FlowTick(flow, 1);
+                hud.PointerUp(wButtonCenter + new Vector2(0f, 120f));
 
                 yield return TickUntil(flow,
                     () => inputFeature.SkillSubmitSuccessCount > wSubmitsBefore,
@@ -786,9 +1335,20 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsFalse(BattleHudInputSource.TryConsumeSkillAimSubmit(ctx, out _),
                     "BattleInputFeature should consume the W aim snapshot exactly once.");
 
+                var rayDiagnostics = new System.Text.StringBuilder();
+                var links = world.Services.Resolve<MobaProjectileLinkService>();
+                var projectileService = world.Services.Resolve<IProjectileService>();
+                var projectiles = new List<MobaProjectileLinkDiagnostics>();
+                var wVisiblePixels = 0;
                 for (var tick = 0; tick < 180 && enemy.GetMobaAttrs().Hp >= enemyHpBefore; tick++)
                 {
                     FlowTick(flow, 1);
+                    wVisiblePixels = Mathf.Max(wVisiblePixels, CaptureLiveVfx(90032027, "w-travel"));
+                    projectiles.Clear();
+                    links.CopyDiagnosticsTo(projectiles);
+                    foreach (var link in projectiles)
+                        if (projectileService.TryGetRuntimeState(link.ProjectileId, out var shot))
+                            rayDiagnostics.Append($"[{tick}:pos={shot.Position},dir={shot.Direction},distance={shot.DistanceTravelled}]");
                     if (enemy.GetMobaAttrs().Hp < enemyHpBefore) break;
                     yield return null;
                 }
@@ -797,14 +1357,89 @@ namespace AbilityKit.Game.Test.UnitTest
                     "The production W projectile should damage the enemy on the released DirectionLine. " +
                     $"hpBefore={enemyHpBefore:F2}, hpAfter={enemy.GetMobaAttrs().Hp:F2}, " +
                     $"submits={inputFeature.SkillSubmitSuccessCount - wSubmitsBefore}, " +
-                    $"enemyPosition={enemy.transform.Value.Position}");
+                    $"enemyPosition={enemy.transform.Value.Position}, preview={preview.AimDirection}, trajectory={rayDiagnostics}");
+                Assert.Less(enemy.GetMobaAttrs().MoveSpeed, speedBeforeW, "The W hit must slow its actual victim.");
+                hud.Dispose();
+                hud = null;
+                yield return TickUntil(flow,
+                    () => localActor.characterHfsm.Runtime.Action.CastInstanceId == 0,
+                    90, "W must finish before releasing R.");
+                hud = JinxHudInputFixture.Create(ctx, config, slot: 3, skillId: ESkillId);
+                var eCenter = hud.ButtonScreenPosition;
+                hud.PointerDown(eCenter);
+                hud.Drag(eCenter + new Vector2(-60f, 100f));
+                Assert.IsTrue(new BattleHudAimPreviewPositionResolver().TryResolve(ctx, out var ePreview));
+                var ePoint = ePreview.CasterPosition + ePreview.AimDirection * ePreview.AimDistance;
+                var eLanding = new Vec3(ePoint.x, ePoint.y, ePoint.z);
+                enemy.ReplaceTransform(new Transform3(eLanding, enemyTransform.Rotation, enemyTransform.Scale));
+                FlowTick(flow, 1);
+                var hpBeforeE = enemy.GetMobaAttrs().Hp;
+                hud.PointerUp(eCenter + new Vector2(-60f, 100f));
+                yield return TickUntil(flow, () =>
+                {
+                    var count = 0;
+                    foreach (var tag in UnityEngine.Object.FindObjectsOfType<BattleVfxPoolableTag>())
+                        if (tag.VfxId == 90032007 && tag.gameObject.activeInHierarchy &&
+                            tag.GetComponentInChildren<ParticleSystem>() != null) count++;
+                    return count == 3;
+                }, 90, "E must create three independent formal trap visuals through the real HUD.");
+                Assert.AreEqual(hpBeforeE, enemy.GetMobaAttrs().Hp, 0.001f,
+                    "E must not apply contact damage before the configured arm delay.");
+                var eVisiblePixels = 0;
+                yield return TickUntil(flow, () =>
+                {
+                    eVisiblePixels = Mathf.Max(eVisiblePixels, CaptureLiveVfx(90032007, "e-traps"));
+                    return enemy.GetMobaAttrs().Hp < hpBeforeE;
+                }, 90, "The armed E trap must damage the enemy at the released indicator landing.");
+                Assert.Greater(eVisiblePixels, 20, "E's real area visuals must render in the gameplay camera.");
+                Assert.IsTrue(HasLiveBuff(enemy, 32020301), "E must apply its root Buff to the same damaged victim.");
+                hud.Dispose();
+                hud = null;
+                yield return TickUntil(flow,
+                    () => localActor.characterHfsm.Runtime.Action.CastInstanceId == 0,
+                    90, "E must finish before releasing R.");
+                Assert.GreaterOrEqual(localActor.GetMobaAttrs().Mana, 100f,
+                    "The official R cost must remain affordable after W and E from a full initial mana pool.");
+                var hpBeforeR = enemy.GetMobaAttrs().Hp;
+                hud = JinxHudInputFixture.Create(ctx, config, slot: 4, skillId: RSkillId);
+                var rCenter = hud.ButtonScreenPosition;
+                hud.PointerDown(rCenter);
+                var rRelease = rCenter;
+                var rOrigin = localActor.transform.Value.Position;
+                var rDirection = localActor.transform.Value.Rotation.Rotate(Vec3.Forward);
+                if (aimedR)
+                {
+                    rRelease += new Vector2(80f, 100f);
+                    hud.Drag(rRelease);
+                    Assert.IsTrue(new BattleHudAimPreviewPositionResolver().TryResolve(ctx, out var rPreview));
+                    rDirection = new Vec3(rPreview.AimDirection.x, 0f, rPreview.AimDirection.z);
+                }
+                var onRRay = rOrigin + rDirection * 7f;
+                enemy.ReplaceTransform(new Transform3(onRRay,
+                    enemyTransform.Rotation, enemyTransform.Scale));
+                FlowTick(flow, 1);
+                hud.PointerUp(rRelease);
+                var rVisiblePixels = 0;
+                yield return TickUntil(flow, () =>
+                {
+                    rVisiblePixels = Mathf.Max(rVisiblePixels, CaptureLiveVfx(90032025, "r-travel"));
+                    return enemy.GetMobaAttrs().Hp < hpBeforeR;
+                }, 120,
+                    () => $"R after Q/W must damage the enemy on its released ray; mana={localActor.GetMobaAttrs().Mana}, hp={enemy.GetMobaAttrs().Hp}");
+                Assert.Greater(rVisiblePixels, 20, "R must render its formal projectile before this same cast impacts.");
+                Assert.Greater(wVisiblePixels, 20, "W must render its formal flying resource in this same cast.");
+                yield return TickUntil(flow, () => !HasLiveBuff(enemy, 30020211) && !HasLiveBuff(enemy, 32020301),
+                    180, "W slow and E root must expire through the normal Buff lifecycle.");
+                Assert.AreEqual(speedBeforeW, enemy.GetMobaAttrs().MoveSpeed, 0.001f,
+                    "W's movement modifier must be removed when its slow expires.");
+
             }
             finally
             {
                 hud?.Dispose();
                 if (GameEntry.IsInitialized && GameEntry.Instance != null)
                     UnityEngine.Object.DestroyImmediate(GameEntry.Instance.gameObject);
-                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                if (!Application.isPlaying) EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 DemoGameplayTestLauncher.Clear();
             }
         }
@@ -938,7 +1573,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var root = new GameObject("JinxHudInputFixture.Root", typeof(RectTransform));
                 var rootRect = (RectTransform)root.transform;
                 rootRect.sizeDelta = new Vector2(1200f, 900f);
-                var buttons = new SkillButtonView[4];
+                var buttons = new SkillButtonView[System.Math.Max(4, slot)];
                 SkillButtonView targetButton = null;
                 for (var i = 0; i < buttons.Length; i++)
                 {
@@ -1002,10 +1637,137 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.Fail(failureMessage);
         }
 
+        private static IEnumerator TickUntil(
+            GameFlowDomain flow,
+            System.Func<bool> predicate,
+            int maxTicks,
+            System.Func<string> failureMessage)
+        {
+            for (var tick = 0; tick < maxTicks; tick++)
+            {
+                FlowTick(flow, 1);
+                if (predicate()) yield break;
+                yield return null;
+            }
+
+            Assert.Fail(failureMessage == null ? string.Empty : failureMessage());
+        }
+
+        private static bool HasLiveBuff(ActorEntity actor, int id)
+        {
+            if (!actor.hasBuffs || actor.buffs.Active == null) return false;
+            foreach (var buff in actor.buffs.Active)
+                if (buff != null && buff.BuffId == id) return true;
+            return false;
+        }
+
+        private static int CaptureLiveVfx(int id, string label)
+        {
+            var pixels = 0;
+            foreach (var tag in UnityEngine.Object.FindObjectsOfType<BattleVfxPoolableTag>())
+                if (tag.VfxId == id && tag.gameObject.activeInHierarchy)
+                    pixels = Mathf.Max(pixels, CaptureLiveVfx(tag, label));
+            return pixels;
+        }
+
+        private static readonly System.Collections.Generic.HashSet<string> InspectedVfx = new();
+        private static readonly Dictionary<string, int> BestVfxPixels = new();
+
+        private static int CaptureLiveVfx(BattleVfxPoolableTag tag, string label)
+        {
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+                Assert.Ignore("Same-cast visual acceptance requires a graphics device.");
+            var camera = Camera.main;
+            Assert.IsNotNull(camera);
+            var renderers = tag.GetComponentsInChildren<Renderer>();
+            var states = System.Array.ConvertAll(renderers, r => r.enabled);
+            var target = RenderTexture.GetTemporary(960, 540, 24);
+            var previousTarget = camera.targetTexture;
+            var previousActive = RenderTexture.active;
+            var texture = new Texture2D(960, 540, TextureFormat.RGB24, false);
+            try
+            {
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                texture.ReadPixels(new Rect(0, 0, 960, 540), 0, 0);
+                texture.Apply();
+                var visible = texture.GetPixels32();
+                var png = texture.EncodeToPNG();
+                foreach (var renderer in renderers) renderer.enabled = false;
+                camera.Render();
+                texture.ReadPixels(new Rect(0, 0, 960, 540), 0, 0);
+                texture.Apply();
+                var hidden = texture.GetPixels32();
+                for (var index = 0; index < renderers.Length; index++) renderers[index].enabled = states[index];
+                var min = new Vector2(1f, 1f);
+                var max = Vector2.zero;
+                // Ignore stray world-space particles at prefab origin. Only pixels
+                // near this actual projectile/area anchor count as its visual.
+                for (var corner = 0; corner < 8; corner++)
+                {
+                    var point = tag.transform.position + Vector3.up * 0.8f + new Vector3(
+                        (corner & 1) == 0 ? -2f : 2f,
+                        (corner & 2) == 0 ? -2f : 2f,
+                        (corner & 4) == 0 ? -2f : 2f);
+                    var projected = camera.WorldToViewportPoint(point);
+                    min = Vector2.Min(min, new Vector2(projected.x, projected.y));
+                    max = Vector2.Max(max, new Vector2(projected.x, projected.y));
+                }
+                var changed = 0;
+                for (var i = 0; i < visible.Length; i++)
+                {
+                    // Repeated game-camera renders can differ by a few quantization
+                    // values. Count a visible contribution, not that background noise.
+                    var delta = System.Math.Abs(visible[i].r - hidden[i].r) +
+                        System.Math.Abs(visible[i].g - hidden[i].g) +
+                        System.Math.Abs(visible[i].b - hidden[i].b);
+                    var x = (i % 960) / 960f;
+                    var y = (i / 960) / 540f;
+                    if (delta > 24 && x >= min.x && x <= max.x && y >= min.y && y <= max.y) changed++;
+                }
+                var firstInspection = InspectedVfx.Add(label + ":" + tag.GetInstanceID());
+                if (firstInspection)
+                {
+                    TestContext.WriteLine($"VFX diagnostics {label}: id={tag.VfxId}, pixels={changed}, position={tag.transform.position}, scale={tag.transform.lossyScale}, camera={camera.name}/{camera.depthTextureMode}, renderers={renderers.Length}");
+                    foreach (var system in tag.GetComponentsInChildren<ParticleSystem>(true))
+                        TestContext.WriteLine($"  {system.name}: active={system.gameObject.activeInHierarchy}, playing={system.isPlaying}, particles={system.particleCount}, time={system.time}, scale={system.transform.lossyScale}, bounds={system.GetComponent<ParticleSystemRenderer>().bounds}");
+                    foreach (var renderer in renderers)
+                        TestContext.WriteLine($"  Renderer {renderer.name}: enabled={renderer.enabled}, shader={renderer.sharedMaterial?.shader.name}, bounds={renderer.bounds}");
+                }
+                var captureKey = (Application.isPlaying ? "play-" : "edit-") + label;
+                if (!BestVfxPixels.TryGetValue(captureKey, out var previousBest) || changed > previousBest)
+                {
+                    var path = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,
+                        "../../local/Logs/jinx-live-" + (Application.isPlaying ? "play-" : "edit-") + label + ".png"));
+                    BestVfxPixels[captureKey] = changed;
+                    System.IO.File.WriteAllBytes(path, png);
+                    TestContext.WriteLine($"Live VFX {tag.VfxId} pixels={changed}; pos={tag.transform.position}; capture={path}");
+                }
+                return changed;
+            }
+            finally
+            {
+                for (var i = 0; i < renderers.Length; i++) renderers[i].enabled = states[i];
+                camera.targetTexture = previousTarget;
+                RenderTexture.active = previousActive;
+                RenderTexture.ReleaseTemporary(target);
+                UnityEngine.Object.DestroyImmediate(texture);
+            }
+        }
+
         private static void FlowTick(GameFlowDomain flow, int ticks)
         {
+            // In Play Mode GameEntry.Update owns the production frame loop.
+            if (Application.isPlaying) return;
             const float fixedDeltaTime = 1f / 30f;
-            for (var tick = 0; tick < ticks; tick++) flow.Tick(fixedDeltaTime);
+            for (var tick = 0; tick < ticks; tick++)
+            {
+                flow.Tick(fixedDeltaTime);
+                foreach (var tag in UnityEngine.Object.FindObjectsOfType<BattleVfxPoolableTag>())
+                    foreach (var system in tag.GetComponentsInChildren<ParticleSystem>())
+                        system.Simulate(fixedDeltaTime, false, false, true);
+            }
         }
 
         private static bool IsPlayerUsingHero(BattleContext context, string playerId, int heroId)

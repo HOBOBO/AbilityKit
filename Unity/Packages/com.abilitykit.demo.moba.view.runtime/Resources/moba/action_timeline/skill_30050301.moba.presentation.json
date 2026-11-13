@@ -1,0 +1,67 @@
+{
+    "schemaVersion": 1,
+    "runtimeType": "presentation",
+    "length": 1.166667,
+    "groups": [
+        {
+            "name": "DrinkAnimation",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.AnimationTrack",
+                    "name": "DrinkFullClip",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.PlayAnimation",
+                            "runtimeType": "presentation",
+                            "start": 0.0,
+                            "length": 1.0,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "clipKey": "Gragas_Model_SpellW",
+                                "clipLength": "6",
+                                "playbackSpeed": "6",
+                                "clipOffset": "0"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Gragas_30050301_CastView",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.EffectTrack",
+                    "name": "CastParticle",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.PlayParticle",
+                            "runtimeType": "presentation",
+                            "start": 0.0,
+                            "length": 1.0,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "presentationTemplateId": "90035016"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "$type": "AbilityKit.ActionSchema.SkillAssetDto"
+}

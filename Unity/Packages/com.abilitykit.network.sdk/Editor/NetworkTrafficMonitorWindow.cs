@@ -21,7 +21,7 @@ namespace AbilityKit.Network.Sdk.Editor
     public sealed class NetworkTrafficMonitorWindow : EditorWindow
     {
         private enum DirectionFilter { All, Inbound, Outbound }
-        private enum DataView { Connections, Routes, Traffic, Intercept }
+        private enum DataView { Connections, Routes, ProtocolMap, Traffic, Intercept }
         private const string FavoritesPreference = "AbilityKit.NetworkTraffic.Favorites";
 
         private readonly List<NetworkTrafficInspectionRow> _visible =
@@ -37,6 +37,7 @@ namespace AbilityKit.Network.Sdk.Editor
         private Vector2 _diagnosticsScroll;
         private Vector2 _listScroll;
         private Vector2 _detailScroll;
+        private Vector2 _protocolScroll;
         private string _search = string.Empty;
         private string _roleFilter = string.Empty;
         private DirectionFilter _directionFilter;
@@ -53,6 +54,7 @@ namespace AbilityKit.Network.Sdk.Editor
         private GUIStyle? _monoStyle;
         private GUIStyle? _rowTitleStyle;
         private GUIStyle? _mutedStyle;
+        private GUIStyle? _directionStyle;
 
         [MenuItem("Window/AbilityKit/Network Diagnostics")]
         [MenuItem("Window/AbilityKit/Network Traffic Monitor")]
@@ -69,7 +71,7 @@ namespace AbilityKit.Network.Sdk.Editor
         {
             Open();
             var window = GetWindow<NetworkTrafficMonitorWindow>();
-            window._dataView = DataView.Traffic;
+            window._dataView = DataView.ProtocolMap;
             window.Repaint();
         }
 
@@ -107,7 +109,7 @@ namespace AbilityKit.Network.Sdk.Editor
             EnsureStyles();
             _dataView = (DataView)GUILayout.Toolbar(
                 (int)_dataView,
-                new[] { "Connections", "Routes", "Traffic", "Intercept" },
+                new[] { "Connections", "Routes", "Protocol Map", "Traffic", "Intercept" },
                 EditorStyles.toolbarButton);
             if (_dataView == DataView.Connections)
             {
@@ -118,6 +120,12 @@ namespace AbilityKit.Network.Sdk.Editor
             if (_dataView == DataView.Routes)
             {
                 DrawRoutes();
+                return;
+            }
+
+            if (_dataView == DataView.ProtocolMap)
+            {
+                DrawProtocolMap();
                 return;
             }
 
@@ -200,6 +208,177 @@ namespace AbilityKit.Network.Sdk.Editor
                 EditorGUILayout.Space(6f);
             }
             EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawProtocolMap()
+        {
+            _protocolScroll = EditorGUILayout.BeginScrollView(_protocolScroll);
+            var uploadPackets = CountDirection(NetworkTrafficDirection.Outbound);
+            var downloadPackets = CountDirection(NetworkTrafficDirection.Inbound);
+            EditorGUILayout.BeginHorizontal();
+            DrawFlowSummary("UPLOAD", uploadPackets, DirectionColor(NetworkTrafficDirection.Outbound));
+            DrawFlowSummary("DOWNLOAD", downloadPackets, DirectionColor(NetworkTrafficDirection.Inbound));
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space(8f);
+            EditorGUILayout.LabelField(
+                "协议类型（点击一项查看对应收发包）",
+                EditorStyles.boldLabel);
+
+            var groups = BuildProtocolGroups();
+            if (groups.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No captured protocol traffic matches the current filters.", MessageType.Info);
+            }
+            else
+            {
+                DrawProtocolGroupSection("UPLOAD  /  客户端 -> 服务端", groups, NetworkTrafficDirection.Outbound);
+                EditorGUILayout.Space(8f);
+                DrawProtocolGroupSection("DOWNLOAD  /  服务端 -> 客户端", groups, NetworkTrafficDirection.Inbound);
+            }
+            EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawFlowSummary(string title, int packetCount, Color color)
+        {
+            var rect = GUILayoutUtility.GetRect(0f, 62f, GUILayout.ExpandWidth(true));
+            if (Event.current.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(rect, new Color(color.r, color.g, color.b, 0.16f));
+                EditorGUI.DrawRect(new Rect(rect.x, rect.y, 5f, rect.height), color);
+            }
+            GUI.Label(new Rect(rect.x + 14f, rect.y + 8f, rect.width - 24f, 24f), title, _rowTitleStyle);
+            GUI.Label(new Rect(rect.x + 14f, rect.y + 32f, rect.width - 24f, 20f),
+                $"{packetCount} packets", _mutedStyle);
+            if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && rect.Contains(Event.current.mousePosition))
+            {
+                _dataView = DataView.Traffic;
+                _directionFilter = title == "UPLOAD" ? DirectionFilter.Outbound : DirectionFilter.Inbound;
+                RebuildVisible();
+                _selectedIndex = _visible.Count > 0 ? _visible.Count - 1 : -1;
+                Event.current.Use();
+            }
+        }
+
+        private void DrawProtocolGroupSection(
+            string title,
+            IReadOnlyList<ProtocolGroup> groups,
+            NetworkTrafficDirection direction)
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.BeginHorizontal();
+            var color = DirectionColor(direction);
+            GUILayout.Label(title, _rowTitleStyle);
+            GUILayout.FlexibleSpace();
+            GUILayout.Label($"{CountDirection(direction)} packets", _mutedStyle);
+            EditorGUILayout.EndHorizontal();
+
+            var found = false;
+            for (var i = 0; i < groups.Count; i++)
+            {
+                var group = groups[i];
+                if (group.Direction != direction) continue;
+                found = true;
+                var rect = GUILayoutUtility.GetRect(0f, 46f, GUILayout.ExpandWidth(true));
+                if (Event.current.type == EventType.Repaint)
+                    EditorGUI.DrawRect(rect, new Color(color.r, color.g, color.b, i % 2 == 0 ? 0.08f : 0.035f));
+                GUI.Label(new Rect(rect.x + 10f, rect.y + 5f, rect.width - 160f, 18f), group.MessageId, _rowTitleStyle);
+                GUI.Label(new Rect(rect.x + 10f, rect.y + 24f, rect.width - 160f, 16f),
+                    $"{group.CatalogId}  |  opcode {group.OpCode}  |  {group.PacketCount} packets  |  {group.ByteCount} B",
+                    _mutedStyle);
+                GUI.Label(new Rect(rect.xMax - 145f, rect.y + 14f, 135f, 18f),
+                    $"last {group.LastSeen.ToLocalTime():HH:mm:ss.fff}", _mutedStyle);
+                if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && rect.Contains(Event.current.mousePosition))
+                {
+                    _dataView = DataView.Traffic;
+                    _directionFilter = direction == NetworkTrafficDirection.Outbound
+                        ? DirectionFilter.Outbound
+                        : DirectionFilter.Inbound;
+                    _search = group.MessageId;
+                    RebuildVisible();
+                    _selectedIndex = _visible.Count > 0 ? _visible.Count - 1 : -1;
+                    Event.current.Use();
+                }
+            }
+            if (!found) GUILayout.Label("No packets", _mutedStyle);
+            EditorGUILayout.EndVertical();
+        }
+
+        private List<ProtocolGroup> BuildProtocolGroups()
+        {
+            var groups = new List<ProtocolGroup>();
+            for (var i = 0; i < _snapshot.Count; i++)
+            {
+                var row = _snapshot[i];
+                if (!MatchesProtocolMap(row)) continue;
+                var traffic = row.Traffic;
+                var messageId = row.Message?.Id ?? (row.IsAmbiguous ? "Ambiguous" : "Unknown");
+                ProtocolGroup? group = null;
+                for (var j = 0; j < groups.Count; j++)
+                {
+                    if (groups[j].Direction == traffic.Direction &&
+                        groups[j].CatalogId == traffic.CatalogId &&
+                        groups[j].OpCode == traffic.OpCode &&
+                        groups[j].MessageId == messageId)
+                    {
+                        group = groups[j];
+                        break;
+                    }
+                }
+                if (group == null)
+                {
+                    group = new ProtocolGroup(traffic.Direction, traffic.CatalogId, traffic.OpCode, messageId);
+                    groups.Add(group);
+                }
+                group.PacketCount++;
+                group.ByteCount += traffic.PayloadLength;
+                if (traffic.TimestampUtc > group.LastSeen) group.LastSeen = traffic.TimestampUtc;
+            }
+            groups.Sort((left, right) =>
+            {
+                var direction = left.Direction.CompareTo(right.Direction);
+                if (direction != 0) return direction;
+                return string.Compare(left.MessageId, right.MessageId, StringComparison.Ordinal);
+            });
+            return groups;
+        }
+
+        private int CountDirection(NetworkTrafficDirection direction)
+        {
+            var count = 0;
+            for (var i = 0; i < _snapshot.Count; i++)
+                if (MatchesProtocolMap(_snapshot[i]) && _snapshot[i].Traffic.Direction == direction) count++;
+            return count;
+        }
+
+        private bool MatchesProtocolMap(NetworkTrafficInspectionRow row)
+        {
+            var traffic = row.Traffic;
+            if (_favoritesOnly && !_favorites.Contains(FavoriteKey(traffic.CatalogId, traffic.OpCode))) return false;
+            if (!string.IsNullOrWhiteSpace(_roleFilter) && !Contains(traffic.Role, _roleFilter)) return false;
+            if (string.IsNullOrWhiteSpace(_search)) return true;
+            return Contains(row.Message?.Id, _search) || Contains(row.Message?.PayloadType, _search) ||
+                   Contains(traffic.CatalogId, _search) || Contains(traffic.ConnectionId, _search) ||
+                   Contains(traffic.Endpoint, _search) || Contains(traffic.OpCode.ToString(), _search);
+        }
+
+        private sealed class ProtocolGroup
+        {
+            public ProtocolGroup(NetworkTrafficDirection direction, string catalogId, uint opCode, string messageId)
+            {
+                Direction = direction;
+                CatalogId = catalogId;
+                OpCode = opCode;
+                MessageId = messageId;
+            }
+
+            public NetworkTrafficDirection Direction { get; }
+            public string CatalogId { get; }
+            public uint OpCode { get; }
+            public string MessageId { get; }
+            public int PacketCount { get; set; }
+            public long ByteCount { get; set; }
+            public DateTimeOffset LastSeen { get; set; }
         }
 
         private void DrawRoute(NetworkRouteDiagnosticsSnapshot snapshot)
@@ -363,7 +542,7 @@ namespace AbilityKit.Network.Sdk.Editor
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUILayout.Label("Time", EditorStyles.miniLabel, GUILayout.Width(82f));
-            GUILayout.Label("Dir", EditorStyles.miniLabel, GUILayout.Width(34f));
+            GUILayout.Label("Flow", EditorStyles.miniLabel, GUILayout.Width(55f));
             GUILayout.Label("Op", EditorStyles.miniLabel, GUILayout.Width(48f));
             GUILayout.Label("Message / Connection", EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
@@ -384,10 +563,13 @@ namespace AbilityKit.Network.Sdk.Editor
             var traffic = row.Traffic;
             GUI.Label(new Rect(rect.x + 7f, rect.y + 4f, 78f, 18f),
                 traffic.TimestampUtc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture), _mutedStyle);
-            GUI.Label(new Rect(rect.x + 88f, rect.y + 4f, 30f, 18f),
-                traffic.Direction == NetworkTrafficDirection.Inbound ? "IN" : "OUT", _rowTitleStyle);
-            GUI.Label(new Rect(rect.x + 121f, rect.y + 4f, 46f, 18f), traffic.OpCode.ToString(), _monoStyle);
-            GUI.Label(new Rect(rect.x + 170f, rect.y + 4f, rect.width - 176f, 18f),
+            var directionLabel = traffic.Direction == NetworkTrafficDirection.Inbound ? "DOWN" : "UP";
+            var directionRect = new Rect(rect.x + 88f, rect.y + 4f, 52f, 18f);
+            if (Event.current.type == EventType.Repaint)
+                EditorGUI.DrawRect(directionRect, DirectionColor(traffic.Direction));
+            GUI.Label(directionRect, directionLabel, _directionStyle);
+            GUI.Label(new Rect(rect.x + 145f, rect.y + 4f, 46f, 18f), traffic.OpCode.ToString(), _monoStyle);
+            GUI.Label(new Rect(rect.x + 196f, rect.y + 4f, rect.width - 202f, 18f),
                 row.Message?.Id ?? (row.IsAmbiguous ? "Ambiguous" : "Unknown"), _rowTitleStyle);
             GUI.Label(new Rect(rect.x + 88f, rect.y + 23f, rect.width - 94f, 16f),
                 $"{traffic.Role}  {traffic.ConnectionId}  seq {traffic.Sequence}  {traffic.PayloadLength} B", _mutedStyle);
@@ -424,7 +606,9 @@ namespace AbilityKit.Network.Sdk.Editor
             DrawField("Role", traffic.Role);
             DrawField("Endpoint", traffic.Endpoint);
             DrawField("Transport", traffic.Transport);
-            DrawField("Direction", traffic.Direction.ToString());
+            DrawField("Direction", traffic.Direction == NetworkTrafficDirection.Outbound
+                ? "UPLOAD  Client -> Server"
+                : "DOWNLOAD  Server -> Client");
             DrawField("Opcode", traffic.OpCode.ToString(CultureInfo.InvariantCulture));
             DrawField("Sequence", traffic.Sequence.ToString(CultureInfo.InvariantCulture));
             DrawField("Flags", traffic.Flags.ToString());
@@ -524,6 +708,11 @@ namespace AbilityKit.Network.Sdk.Editor
         {
             _monoStyle ??= new GUIStyle(EditorStyles.label) { font = EditorStyles.textArea.font, wordWrap = true };
             _rowTitleStyle ??= new GUIStyle(EditorStyles.miniBoldLabel) { clipping = TextClipping.Clip };
+            _directionStyle ??= new GUIStyle(EditorStyles.miniBoldLabel)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                normal = { textColor = Color.white }
+            };
             _mutedStyle ??= new GUIStyle(EditorStyles.miniLabel)
             {
                 normal = { textColor = EditorGUIUtility.isProSkin
@@ -539,6 +728,11 @@ namespace AbilityKit.Network.Sdk.Editor
             if (row.IsKnown) return new Color(0.88f, 0.62f, 0.2f);
             return new Color(0.8f, 0.28f, 0.28f);
         }
+
+        private static Color DirectionColor(NetworkTrafficDirection direction) =>
+            direction == NetworkTrafficDirection.Outbound
+                ? new Color(0.12f, 0.48f, 0.72f)
+                : new Color(0.2f, 0.58f, 0.38f);
 
         private static bool Contains(string? value, string search) =>
             value?.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;

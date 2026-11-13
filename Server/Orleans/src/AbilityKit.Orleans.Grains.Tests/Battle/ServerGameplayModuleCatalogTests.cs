@@ -60,12 +60,14 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.Equal("frame-sync-authority", mobaProfile.DefaultTemplateId);
         Assert.True(mobaProfile.SupportsFrameSync);
         Assert.True(mobaProfile.SupportsStateSyncPush);
-        Assert.False(mobaProfile.SupportsTemplate("state-sync-authority"));
+        Assert.True(mobaProfile.SupportsTemplate("moba-state-sync-authority"));
         Assert.Equal(ServerBattleSyncMode.FrameSync, mobaProfile.ResolveTemplate(null).Mode);
         Assert.Equal(ServerBattleRuntimeMode.BattleWorldWithFrameSync, mobaProfile.ResolveTemplate(null).RuntimeMode);
         Assert.True(mobaProfile.ResolveTemplate(null).RequiresBattleRuntime);
         Assert.Equal(ServerBattleSyncMode.FrameSync, mobaProfile.ResolveTemplate("frame-sync-authority").Mode);
         Assert.Equal(ServerBattleRuntimeMode.BattleWorldWithFrameSync, mobaProfile.ResolveTemplate("frame-sync-authority").RuntimeMode);
+        Assert.Equal(ServerBattleSyncMode.StateSync, mobaProfile.ResolveTemplate("moba-state-sync-authority").Mode);
+        Assert.Equal(ServerBattleRuntimeMode.BattleWorld, mobaProfile.ResolveTemplate("moba-state-sync-authority").RuntimeMode);
         Assert.Equal("frame-sync-authority", moduleCatalog.GameplayCatalog.Resolve(GameplayRoomTypes.Moba).DefaultSyncTemplateId);
         Assert.Equal(ServerBattleSyncMode.StateSync, shooterProfile.DefaultMode);
         Assert.Equal(ShooterServerProtocol.StateSyncAuthorityTemplate, shooterProfile.DefaultTemplateId);
@@ -107,10 +109,10 @@ public sealed class ServerGameplayModuleCatalogTests
         var shooterSummary = CreateSummary(ShooterGameplay.RoomType);
 
         var mobaFrameRoute = RoomFrameSyncRoute.Resolve(mobaSummary, "battle-1", CreateInitParams(syncTemplateId: null));
-        var mobaStateRoute = RoomFrameSyncRoute.Resolve(mobaSummary, "battle-1", CreateInitParams("state-sync-authority"));
+        var mobaStateRoute = RoomFrameSyncRoute.Resolve(mobaSummary, "battle-1", CreateInitParams("moba-state-sync-authority"));
         var shooterRoute = RoomFrameSyncRoute.Resolve(shooterSummary, "battle-2", CreateInitParams(syncTemplateId: null));
         var mobaFrameStartRoute = RoomFrameSyncRoute.ResolveStartRoute(mobaSummary, "battle-1", CreateInitParams(syncTemplateId: null));
-        var mobaStateStartRoute = RoomFrameSyncRoute.ResolveStartRoute(mobaSummary, "battle-1", CreateInitParams("state-sync-authority"));
+        var mobaStateStartRoute = RoomFrameSyncRoute.ResolveStartRoute(mobaSummary, "battle-1", CreateInitParams("moba-state-sync-authority"));
         var shooterStartRoute = RoomFrameSyncRoute.ResolveStartRoute(shooterSummary, "battle-2", CreateInitParams(syncTemplateId: null));
 
         Assert.NotNull(mobaFrameRoute);
@@ -125,8 +127,8 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.True(mobaFrameRoute.EnableRecording);
         Assert.Null(mobaStateRoute);
         Assert.True(mobaStateStartRoute.RequiresBattleRuntime);
-        Assert.True(mobaStateStartRoute.IsUnsupportedTemplate);
-        Assert.Equal("frame-sync-authority", mobaStateStartRoute.SyncTemplateId);
+        Assert.False(mobaStateStartRoute.IsUnsupportedTemplate);
+        Assert.Equal("moba-state-sync-authority", mobaStateStartRoute.SyncTemplateId);
         Assert.Null(shooterRoute);
         Assert.True(shooterStartRoute.RequiresBattleRuntime);
         Assert.False(shooterStartRoute.IsUnsupportedTemplate);
@@ -144,7 +146,8 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.True(moba.RequiresPlayerLoadout);
         Assert.True(moba.SupportsFrameSync);
         Assert.True(moba.SupportsStateSyncPush);
-        Assert.Equal(new[] { "frame-sync-authority" }, moba.SupportedSyncTemplateIds);
+        Assert.Contains("frame-sync-authority", moba.SupportedSyncTemplateIds);
+        Assert.Contains("moba-state-sync-authority", moba.SupportedSyncTemplateIds);
         Assert.Equal(ShooterGameplay.RoomType, shooter.RoomType);
         Assert.False(shooter.RequiresPlayerLoadout);
         Assert.True(shooter.SupportsStateSyncPush);

@@ -245,11 +245,39 @@ namespace AbilityKit.Game.Test.UnitTest
                 };
             }
 
+            if (modelId == 3002)
+            {
+                return new[]
+                {
+                    "Idle_Minigun", "Idle_Rocket", "AA_Minigun", "AA_Rocket",
+                    "Spell_Q_RocketToMini", "Spell_Q_MiniToRocket", "Spell_W", "Spell_E", "Spell_R"
+                };
+            }
+
+            if (modelId == 3004)
+            {
+                return new[]
+                {
+                    "Veigar_Model_Idle", "Veigar_Model_AA", "Veigar_Model_SpellQ",
+                    "Veigar_Model_SpellW", "Veigar_Model_SpellE", "Veigar_Model_SpellR"
+                };
+            }
+
+            if (modelId == 3005)
+            {
+                return new[]
+                {
+                    "Gragas_Model_Idle", "Gragas_Model_AutoAttack", "Gragas_Model_AutoAttack_2",
+                    "Gragas_Model_SpellQ", "Gragas_Model_SpellW", "Gragas_Model_SpellE",
+                    "Gragas_Model_SpellR", "Walk"
+                };
+            }
+
             return new[] { "Idle", "Run", "Attack", "Stun", "Die" };
         }
 
         [Test]
-        public void PresentationModelCatalog_ShouldIncludeEveryConfiguredHeroModel()
+        public void AuthoritativeModelCatalog_ShouldIncludeEveryConfiguredHeroModel()
         {
             var characters = LoadArray<CharacterConfigRoot, CharacterDTO>(
                 "luban/moba/characters",
@@ -257,30 +285,24 @@ namespace AbilityKit.Game.Test.UnitTest
             var configuredModels = LoadArray<ModelConfigRoot, ModelDTO>(
                 "luban/moba/models",
                 root => root.Items);
-            var presentationModels = LoadArray<ModelConfigRoot, ModelDTO>(
-                "moba/models",
-                root => root.Items);
             var configuredById = new Dictionary<int, ModelDTO>(configuredModels.Length);
-            var presentationById = new Dictionary<int, ModelDTO>(presentationModels.Length);
 
             for (var i = 0; i < configuredModels.Length; i++)
                 configuredById.Add(configuredModels[i].Id, configuredModels[i]);
-            for (var i = 0; i < presentationModels.Length; i++)
-                presentationById.Add(presentationModels[i].Id, presentationModels[i]);
 
             for (var i = 0; i < characters.Length; i++)
             {
-                // The Luban roster also contains minion archetypes. Cover the eight
-                // placeholder heroes and the linked Jhin hero while skipping minions.
+                // The Luban roster also contains minion archetypes. Cover the
+                // configured heroes with formal presentation mappings.
                 if ((characters[i].Id < 1001 || characters[i].Id > 1008) &&
-                    characters[i].Id != 3001 && characters[i].Id != 3003) continue;
+                    characters[i].Id != 3001 && characters[i].Id != 3002 &&
+                    characters[i].Id != 3003 && characters[i].Id != 3004 &&
+                    characters[i].Id != 3005) continue;
                 var modelId = characters[i].ModelId;
                 Assert.IsTrue(configuredById.TryGetValue(modelId, out var configured),
                     "Character " + characters[i].Id + " references a missing Luban model: " + modelId);
-                Assert.IsTrue(presentationById.TryGetValue(modelId, out var presentation),
-                    "Presentation model catalog omits hero model: " + modelId);
-                Assert.AreEqual(configured.PrefabPath, presentation.PrefabPath,
-                    "Hero model resource path differs between the Luban config and presentation catalog: " + modelId);
+                Assert.IsNotNull(Resources.Load<GameObject>(configured.PrefabPath),
+                    "Configured hero model prefab is not available: " + configured.PrefabPath);
             }
         }
 
@@ -383,7 +405,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 { 90033001, "ChampionVfx/14.Void_Annie/Void_Annie_Q_Projectile" },
                 { 90033002, "ChampionVfx/14.Void_Annie/Void_Annie_W_Area" },
                 { 90033003, "ChampionVfx/14.Void_Annie/Void_Annie_Q_Hit" },
-                { 90033004, "ChampionVfx/14.Void_Annie/Void_Annie_E" },
+                { 90033004, "moba/AnnieShield" },
                 { 90033005, "ChampionVfx/14.Void_Annie/Void_Annie_R_Summon" },
                 { 90033006, "ChampionVfx/14.Void_Annie/Void_Annie_Tibbers_Spawn" },
             };
@@ -393,8 +415,15 @@ namespace AbilityKit.Game.Test.UnitTest
                 var entry = Array.Find(entries, item => item != null && item.Id == pair.Key);
                 Assert.IsNotNull(entry, "Missing Annie VFX config: " + pair.Key);
                 Assert.AreEqual(pair.Value, entry.Resource, "Annie VFX path mismatch: " + pair.Key);
-                Assert.IsNotNull(Resources.Load<GameObject>(entry.Resource),
-                    "Missing Annie linked VFX prefab: " + entry.Resource);
+                var prefab = Resources.Load<GameObject>(entry.Resource);
+                Assert.IsNotNull(prefab, "Missing Annie linked VFX prefab: " + entry.Resource);
+                if (pair.Key == 90033004)
+                {
+                    var shield = prefab.transform.Find("E_Shield");
+                    Assert.IsNotNull(shield, "Annie's shield variant must retain its linked shield child.");
+                    Assert.IsTrue(shield.gameObject.activeSelf,
+                        "Annie's shield variant must enable the source prefab's disabled shield child.");
+                }
             }
 
             var summons = LoadArray<SummonConfigRoot, SummonDTO>(
@@ -421,6 +450,54 @@ namespace AbilityKit.Game.Test.UnitTest
             AssertPlayback(catalog, 3003, "life/alive/action/casting", 30030501, "Void_Annie_Model_SpellR");
             AssertPlayback(catalog, 30030502, "life/alive/action/moving", 0, "Void_Annie_Tibbers_Run");
             AssertPlayback(catalog, 30030502, "life/alive/action/attack.slot.2", 0, "Void_Annie_Tibbers_Attack2");
+        }
+
+        [Test]
+        public void VeigarActionCatalog_ShouldResolveLinkedAnimatorStates()
+        {
+            var catalog = CharacterPresentationActionCatalog.Load(new ResourcesTextAssetLoader());
+            AssertPlayback(catalog, 3004, "life/alive/action/idle", 0, "Veigar_Model_Idle");
+            AssertPlayback(catalog, 3004, "life/alive/action/moving", 0, "Base Layer.Walk");
+            AssertPlayback(catalog, 3004, "life/alive/action/casting", 30040101, "Veigar_Model_AA");
+            AssertPlayback(catalog, 3004, "life/alive/action/casting", 30040201, "Veigar_Model_SpellQ");
+            AssertPlayback(catalog, 3004, "life/alive/action/casting", 30040301, "Veigar_Model_SpellW");
+            AssertPlayback(catalog, 3004, "life/alive/action/casting", 30040401, "Veigar_Model_SpellE");
+            AssertPlayback(catalog, 3004, "life/alive/action/casting", 30040501, "Veigar_Model_SpellR");
+        }
+
+        [Test]
+        public void VeigarPresentationResources_ShouldResolveFormalModelAndSkillVfx()
+        {
+            var models = LoadArray<ModelConfigRoot, ModelDTO>("luban/moba/models", root => root.Items);
+            var model = Array.Find(models, item => item != null && item.Id == 3004);
+            Assert.IsNotNull(model, "Veigar model config is missing.");
+            var prefab = Resources.Load<GameObject>(model.PrefabPath);
+            Assert.IsNotNull(prefab, "Veigar model prefab is missing: " + model.PrefabPath);
+            Assert.IsNotNull(prefab.GetComponentInChildren<Animator>(true), "Veigar model has no Animator.");
+            Assert.IsNotEmpty(prefab.GetComponentsInChildren<SkinnedMeshRenderer>(true),
+                "Veigar model has no skinned mesh renderer.");
+
+            var vfx = LoadArray<VfxConfigRoot, VfxDTO>("vfx/vfx", root => root.Items);
+            var expected = new Dictionary<int, string>
+            {
+                { 90034001, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_AA_Projectile" },
+                { 90034002, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_AA_Hit" },
+                { 90034003, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_E" },
+                { 90034004, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_E_Activation" },
+                { 90034005, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_E_Cage" },
+                { 90034008, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Q_Projectile" },
+                { 90034011, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_R_Projectile" },
+                { 90034013, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_W_Cast" },
+                { 90034014, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_W_Explosion" },
+            };
+            foreach (var pair in expected)
+            {
+                var entry = Array.Find(vfx, item => item != null && item.Id == pair.Key);
+                Assert.IsNotNull(entry, "Veigar VFX config is missing: " + pair.Key);
+                Assert.AreEqual(pair.Value, entry.Resource, "Veigar VFX path mismatch: " + pair.Key);
+                Assert.IsNotNull(Resources.Load<GameObject>(entry.Resource),
+                    "Veigar VFX prefab is missing: " + entry.Resource);
+            }
         }
 
         private static void AssertPlayback(CharacterPresentationActionCatalog catalog, int entityCode,

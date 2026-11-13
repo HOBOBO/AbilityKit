@@ -12,12 +12,14 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private MobaActorLookupService _actors;
         private MobaContinuousModifierCaptureStore _captureStore;
+        private MobaSkillCastRuntimeService _casts;
 
         public int TargetKind => MobaContinuousModifierTargetKind.Attribute;
 
         public void OnInit(IWorldResolver services)
         {
             services?.TryResolve(out _actors);
+            services?.TryResolve(out _casts);
             _captureStore = services?.Resolve<MobaContinuousModifierCaptureStore>()
                 ?? throw new System.InvalidOperationException("Modifier capture store is unavailable in this world.");
         }
@@ -35,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (!TryGetAttributeTarget(projection.OwnerActorId, out var ctx, out var group))
                 throw new System.InvalidOperationException($"Attribute modifier owner {projection.OwnerActorId} has no attribute target.");
             MobaResourceAttributeContextProjector.Refresh(_actors, projection.OwnerActorId);
+            MobaContinuousCastMagnitude.Capture(continuous, projection, modifiers, _casts);
  
             var stack = MobaContinuousModifierStackResolver.Resolve(continuous.Config);
             for (int i = 0; i < modifiers.Count; i++)

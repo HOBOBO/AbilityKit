@@ -1,0 +1,70 @@
+{
+  "Id": 30040401,
+  "Name": "Veigar - Event Horizon",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 19,
+      "PhaseId": "veigar_e_economy",
+      "Economy": {
+        "Operation": 0,
+        "ResourceType": 2,
+        "ResourceAmount": 0.0,
+        "UseResolvedResourceCost": true,
+        "ChargeCost": 1,
+        "MaxCharges": 1,
+        "ChargeRecoveryMs": 0,
+        "StartSkillCooldown": true,
+        "SkillCooldownMs": 0,
+        "UseResolvedSkillCooldown": true,
+        "CooldownGroup": "",
+        "SharedCooldownMs": 0,
+        "GlobalCooldownMs": 0,
+        "IgnoreGlobalCooldown": false,
+        "IgnoreResourceCostCheck": true,
+        "IgnoreResourceConsumption": false,
+        "RefundBeforeCommit": true,
+        "RequireExplicitCommit": false,
+        "FailReason": "skill_economy_reserve_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "veigar_e_release",
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "veigar_e_commit",
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      }
+    },
+    {
+      "Type": 2,
+      "PhaseId": "veigar_e_cast",
+      "Timeline": {
+        "DurationMs": 2084,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30040401,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "veigar_e_cast"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -14,7 +14,7 @@ namespace AbilityKit.Protocol.Generated
                 "abilitykit.moba.battle",
                 "abilitykit.moba",
                 "battle",
-                4,
+                5,
                 "memorypack",
                 new ProtocolMessageDefinition[]
                 {
@@ -297,8 +297,8 @@ namespace AbilityKit.Protocol.Generated
                         "memorypack",
                         ProtocolReliability.Realtime,
                         null,
-                        1,
-                        1,
+                        2,
+                        2,
                         1048576,
                         0.25d,
                         null

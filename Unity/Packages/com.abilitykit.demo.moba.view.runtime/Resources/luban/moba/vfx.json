@@ -291,7 +291,7 @@
   },
   {
     "Id": 90033004,
-    "Resource": "ChampionVfx/14.Void_Annie/Void_Annie_E",
+    "Resource": "moba/AnnieShield",
     "DurationMs": 2500
   },
   {
@@ -326,12 +326,207 @@
   },
   {
     "Id": 90032025,
-    "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_R_Projectile",
+    "Resource": "MobaVfx/Jinx/R_Projectile",
     "DurationMs": 2500
   },
   {
     "Id": 90032026,
     "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_R_Hit",
     "DurationMs": 1200
+  },
+  {
+    "Id": 90032002,
+    "Resource": "MobaVfx/Jinx/AA_Minigun_Projectile",
+    "DurationMs": 2500
+  },
+  {
+    "Id": 90032005,
+    "Resource": "MobaVfx/Jinx/AA_Rocket_Projectile",
+    "DurationMs": 2500
+  },
+  {
+    "Id": 90032004,
+    "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_AA_Rocket_Hit",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90032007,
+    "Resource": "MobaVfx/Jinx/E_Trap",
+    "DurationMs": 5000
+  },
+  {
+    "Id": 90032027,
+    "Resource": "MobaVfx/Jinx/W_Projectile",
+    "DurationMs": 2500
+  },
+  {
+    "Id": 90034001,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_AA_Projectile",
+    "DurationMs": 2000
+  },
+  {
+    "Id": 90034002,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_AA_Hit",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90034003,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_E",
+    "DurationMs": 5000
+  },
+  {
+    "Id": 90034004,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_E_Activation",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90034005,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_E_Cage",
+    "DurationMs": 4750
+  },
+  {
+    "Id": 90034006,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Q",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90034007,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Q_Hit",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90034008,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Q_Projectile",
+    "DurationMs": 2000
+  },
+  {
+    "Id": 90034009,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_R",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90034010,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_R_Hit",
+    "DurationMs": 900
+  },
+  {
+    "Id": 90034011,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_R_Projectile",
+    "DurationMs": 1500
+  },
+  {
+    "Id": 90034012,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_W",
+    "DurationMs": 1250
+  },
+  {
+    "Id": 90034013,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_W_Cast",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90034014,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_W_Explosion",
+    "DurationMs": 1250
+  },
+  {
+    "Id": 90034015,
+    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_W_Projectile",
+    "DurationMs": 1250
+  },
+  {
+    "Id": 90013019,
+    "Resource": "MobaVfx/Jhin/E_Trap",
+    "DurationMs": 5000
+  },
+  {
+    "Id": 90034016,
+    "Resource": "MobaVfx/Veigar/W_Area",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90034017,
+    "Resource": "MobaVfx/Veigar/E_Area",
+    "DurationMs": 3500
+  },
+  {
+    "Id": 90035001,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_AA_Hit",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90035002,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_AA_Impact",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90035003,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_E",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90035004,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_E_Impact",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90035005,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_Q",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90035006,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_Q_AOE",
+    "DurationMs": 6000
+  },
+  {
+    "Id": 90035007,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_Q_Explosion",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90035008,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_Q_Hit",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90035009,
+    "Resource": "moba/presentation/gragas/Q_Barrel",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90035010,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_R",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90035011,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_R_Hit",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90035012,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_R_Impact",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90035013,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_R_Projectile",
+    "DurationMs": 2000
+  },
+  {
+    "Id": 90035014,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_R_Shockwave",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90035015,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_W",
+    "DurationMs": 2000
+  },
+  {
+    "Id": 90035016,
+    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_W_Cast",
+    "DurationMs": 1000
   }
 ]

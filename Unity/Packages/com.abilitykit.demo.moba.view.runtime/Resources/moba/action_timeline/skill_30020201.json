@@ -1,0 +1,33 @@
+{
+  "groups": [
+    {
+      "name": "Logic_30020201",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "ExistingSkillEffects",
+          "active": true,
+          "actionClips": [
+            {
+              "effectId": 30020203,
+              "eventTag": "jinx_w_cast",
+              "abortOnFailure": false,
+              "startTime": 0.0,
+              "name": "ExecuteEffect",
+              "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        }
+      ]
+    }
+  ],
+  "exportMobaRuntime": true,
+  "length": 1.55,
+  "viewTimeMin": 0,
+  "viewTimeMax": 1.75,
+  "rangeMin": 0,
+  "rangeMax": 1.75,
+  "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
+}

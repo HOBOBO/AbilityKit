@@ -13,7 +13,8 @@ from modifier_parameters import (DOMAIN_NAMES, derive_operation_mask,
 from business.actors import validate_attribute_types
 from business.modifiers import (Rule as ModifierRule, bind_template_definitions,
                                 project_modifier_bindings, validate_conflict_group_keys,
-                                validate_modifier_definitions)
+                                validate_modifier_definitions, derive_evaluation_policy,
+                                validate_evaluation_contract)
 from relations import RelationGraph
 
 
@@ -384,6 +385,30 @@ class ModifierParameterCatalogTests(unittest.TestCase):
         broken[1]["Ops"] = []
         with self.assertRaisesRegex(ValueError, "at least one distinct known operation"):
             validate_attribute_types(broken)
+
+class CastContextMagnitudeTests(unittest.TestCase):
+    def test_explicit_cast_context_is_published_as_snapshot_without_changing_ordinary_context(self):
+        definition = {
+            "Id": 42, "Key": "test.cast-input", "Target": {"Kind": 1, "Id": 1},
+            "Value": {"Op": 3, "Value": 0}, "Magnitude": {"SourceType": 5},
+            "ContextKey": "skill_runtime:cast.sample",
+        }
+        published = bind_template_definitions([{"Id": 43, "DefinitionId": 42, "Kind": 1}], [definition])[0]
+        self.assertEqual(1, published["EvaluationPolicy"])
+        self.assertEqual("skill_runtime:cast.sample", published["MagnitudeContextKey"])
+        validate_evaluation_contract(published, "test")
+        self.assertEqual(0, derive_evaluation_policy({"SourceType": 5}, "legacy:key"))
+        for scope in ("cast", "target", "child"):
+            self.assertEqual(1, derive_evaluation_policy({"SourceType": 5}, f"skill_runtime:{scope}.sample"))
+
+    def test_unsupported_scope_empty_key_and_non_attribute_are_rejected(self):
+        for key in ("skill_runtime:effect.sample", "skill_runtime:cast.", "skill_runtime:cast. sample"):
+            with self.assertRaises(ValueError):
+                derive_evaluation_policy({"SourceType": 5}, key)
+        with self.assertRaisesRegex(ValueError, "Attribute target"):
+            validate_evaluation_contract({"TargetKind": 2, "MagnitudeSourceType": 5,
+                                         "MagnitudeContextKey": "skill_runtime:cast.sample"}, "test")
+
 
 if __name__ == "__main__":
     unittest.main()

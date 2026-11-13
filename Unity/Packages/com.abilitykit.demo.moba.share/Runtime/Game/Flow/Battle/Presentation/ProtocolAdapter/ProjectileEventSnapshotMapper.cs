@@ -38,7 +38,9 @@ namespace AbilityKit.Demo.Moba.Share
                 entry.ProjectileId,
                 entry.ForwardX,
                 entry.ForwardY,
-                entry.ForwardZ);
+                entry.ForwardZ,
+                entry.ActorVersion, entry.ProfileId, entry.StatePath,
+                entry.PhaseInstance, entry.EnteredFrame, entry.SnapshotFrame, entry.LocalSeconds);
         }
     }
 }

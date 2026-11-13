@@ -1,0 +1,38 @@
+{
+    "schemaVersion": 1,
+    "runtimeType": "logic",
+    "length": 1.666667,
+    "groups": [
+        {
+            "name": "Gragas_30050705_Logic",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.SignalTrack",
+                    "name": "CommitEffects",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.ExecuteEffect",
+                            "runtimeType": "logic",
+                            "start": 0.3,
+                            "length": 0.0,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "effectId": "30050705",
+                                "eventTag": "gragas_30050705_30050705",
+                                "abortOnFailure": "false"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "$type": "AbilityKit.ActionSchema.SkillAssetDto"
+}

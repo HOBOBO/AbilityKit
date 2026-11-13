@@ -382,6 +382,29 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        // Only the joint local provider calls this with a fully preflighted target or its
+        // in-memory compensation backup. Unlike prediction retraction it restores the cursor.
+        internal void RestoreLocalRegistry(IReadOnlyList<MobaExecutionContextNode> nodes, long nextId)
+        {
+            var restored = new Dictionary<long, MobaExecutionContextNode>();
+            foreach (var node in nodes)
+                if (node.ContextId < FirstExecutionContextId || node.ContextId >= nextId ||
+                    !restored.TryAdd(node.ContextId, node))
+                    throw new InvalidOperationException("Invalid local execution registry state.");
+            if (nextId < _predictionFloor) throw new InvalidOperationException("Local registry precedes its prediction floor.");
+            _nodes.Clear();
+            foreach (var pair in restored) _nodes.Add(pair.Key, pair.Value);
+            _nextContextId = nextId;
+        }
+
+        internal void NotifyLocalRegistryReconciled()
+        {
+            _lifecycleRevision++;
+            var empty = default(MobaExecutionContextNode);
+            PublishLifecycle(new ContextLifecycleEvent<MobaExecutionContextNode>(
+                ContextLifecycleEventKind.Reconciled, in empty, _lifecycleRevision));
+        }
+
         /// <summary>
         /// Restores lifecycle fields only. Legacy gameplay observers stay silent; read-only
         /// lifecycle observers receive one reconciliation signal and can rebuild their projection.
@@ -509,7 +532,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private static bool HasSameIdentity(
+        internal static bool HasSameIdentity(
             in MobaExecutionContextNode current,
             in MobaExecutionContextNode restored)
         {

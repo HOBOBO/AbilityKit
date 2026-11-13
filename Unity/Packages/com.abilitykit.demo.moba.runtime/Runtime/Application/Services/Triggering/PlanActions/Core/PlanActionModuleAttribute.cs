@@ -65,10 +65,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int RemoveSharedShield = 21;
 
         public const int SpawnArea = 24;
+        public const int SpawnAreaBatch = 25;
+        public const int SpawnAreaPattern = 25;
         public const int SpawnSummon = 30;
         public const int RemoveSummon = 31;
         public const int RemoveProjectile = 31;
         public const int RemoveArea = 32;
+        public const int ResolveCastArea = 32;
+        public const int ConsumeBuffQualification = 33;
 
         public const int PlayPresentation = 40;
         public const int Emit = 40;

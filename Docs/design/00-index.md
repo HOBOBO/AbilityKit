@@ -272,6 +272,30 @@ flowchart TB
 | [03.21-MOBA Runtime 战斗逻辑层实战指南](../../local/Docs/AbilityKit战斗逻辑层设计草稿.md) | 实战指南（与 19 号互补） | 框架能力组合全景图、6 种扩展模式（0 代码到 50 行代码）、11 个实战反模式 + 修复路径、7 步上手流程 + 接入里程碑 |
 | [03.22-Console Demo Bootstrap 与 FeatureHost 装配链路深潜](09-ImplementationExamples/MOBA/20-ConsoleDemoBootstrapAndFeatureDeepDive.md) | Console Demo 装配 | Bootstrap/FeatureHost、共享双连接 StateSync、真实墙钟网络 Tick、自动输入、两套 replay 与现存 attach/view/Hybrid 债务 |
 | [03.23-MOBA 技能能力缺口矩阵](09-ImplementationExamples/MOBA/21-SkillCapabilityGapMatrix.md) | 能力评估 | 六条机制轴 × 61 条技能形态的判定表；经三轮回源码重验：B 类 10 条是"能力+构建+编辑器+往返+单测全齐、仅生产内容为零"的流程问题，C 类初扫 8 条重验后真正保留 4 条——短板在契约层(回滚/重连)，不在机制层；含"召唤物不进快照"的裁定(销毁预测+重执行，前提是 ActorIdAllocator 需进回滚) |
+| [03.24-MOBA 英雄技能制作成熟度评估](09-ImplementationExamples/MOBA/23-MobaSkillAuthoringMaturityAssessment.md) | 流程成熟度与文档治理 | 截至 2026-10-30 的阶段性评估；区分机制存在、作者化发布、生产内容与英雄端到端证据，并给出按权威来源分层维护需求文档的规则 |
+| [03.25-MOBA 特效表现模板管理优化方向](09-ImplementationExamples/MOBA/26-MobaVfxPresentationTemplateManagement.md) | 特效配置体系 | 缩放来源、挂载/跟随、偏移空间、父缩放和渲染排序的职责拆分，以及分批演进与验收契约 |
+| [03.26-MOBA 英雄技能接入基线](09-ImplementationExamples/MOBA/27-MobaHeroSkillIntegrationBaseline.md) | 通用英雄接入基线 | HFSM、Modifier 参数、短期 SkillPipeline、Trigger、逻辑/表现双通道 Action、ActionEditor、模型动作、特效模板、Payload 契约、发布顺序与 P0-P5 验收；含烬映射与新英雄登记模板 |
+| [03.27-MOBA Jhin hero skill contract](09-ImplementationExamples/MOBA/28-JhinHeroSkillContract.md) | Jhin-specific contract | Jhin skill IDs, HFSM parameters 10/11/12, attack/reload/R boundaries, short Q/W/E pipelines, dual-channel actions, model/VFX/Payload rules and acceptance order |
+| [03.28-MOBA 后续英雄瞄准与指示器基线评估](09-ImplementationExamples/MOBA/29-MobaUpcomingHeroAimIndicatorReadiness.md) | 七英雄需求矩阵与点击基础准入 | Jinx、Veigar、Gragas、Karthus、Lux、Jhin、Annie 的目标交互形态初筛；现有 HUD/模板能力、缺口和“需求矩阵→代表闭环→按证据扩配置”的推荐顺序 |
+| [03.29-MOBA 后续英雄技能瞄准与指示器需求矩阵](09-ImplementationExamples/MOBA/30-MobaHeroAimInteractionMatrix.md) | 逐技能输入/瞄准契约草案 | 七名资源英雄的被动及 Q/W/E/R 按钮、输入生命周期、预览几何、执行几何、特殊边界和待版本核准项；用于代表闭环与配置字段评审 |
+| [七英雄一比一机制对照](../../plans/MobaSevenHeroOneToOneMechanicComparison.md) | 版本化机制与实现差距对照 | Riot Data Dragon 16.22.1 官方参数、每英雄逐技能差距、仓库能力证据和验收边界 |
+| [七英雄复刻进度账](../../plans/MobaSevenHeroReplicationProgress.md) | 实施状态台账 | Jinx、Veigar、Gragas、Karthus、Lux、Jhin、Annie 的设计/实现证据、当前阶段和完成定义 |
+| [七英雄当前模块支撑度审计](../../plans/MobaSevenHeroImplementationCapabilityAudit.md) | 模块能力与缺口 | HUD 指示器/输入、护盾、召唤物及 Area/Projectile/回滚链路的代码证据、七英雄映射和准入门槛 |
+| [七英雄底层能力实施路线图](../../plans/MobaSevenHeroFoundationImplementationRoadmap.md) | 底层建设顺序 | 从输入/几何、事件归因、持续机制、护盾、召唤物回滚与行为、表现到代表切片和英雄内容的依赖顺序及验收门槛 |
+| [03.30-MOBA Battle Scenario 技能闭环验收流程](09-ImplementationExamples/MOBA/31-MobaBattleScenarioSkillAcceptanceWorkflow.md) | 场景驱动验收与回放协作 | Battle Scenario 权威断言、Unity HUD/表现闭环、录像索引、回放验证、烬 E/W 首批模板及金克丝推进顺序 |
+| [03.31-MOBA Battle Scenario 编辑器工作区方向](../../plans/BattleScenarioEditorWorkspaceDirection.md) | 平台边界与落地路线 | 通用平台/项目扩展职责、作者资产→TestScenario→artifact 契约链、环境作者体验、状态驱动输入扩展、Editor/Web 分阶段交付与验收门槛 |
+| [03.32-MOBA 七英雄一比一复刻进度账](../../plans/MobaSevenHeroReplicationProgress.md) | 七英雄统一实施状态 | 汇总 Jhin、Jinx、Veigar、Gragas、Karthus、Lux、Annie 的文档、实现证据、下一阶段和统一完成定义 |
+| [维迦技能实现方案](../../plans/VeigarSkillImplementationPlan.md) | 英雄机制设计 | 被动成长、Q 穿透、W 延迟区域、E 环形边界、R 锁定弹体及验收 |
+| [古拉加斯技能实现方案](../../plans/GragasSkillImplementationPlan.md) | 英雄机制设计 | 被动恢复、Q 可重施酒桶、W 强化普攻、E 冲刺碰撞、R 击退及验收 |
+| [卡尔萨斯技能实现方案](../../plans/KarthusSkillImplementationPlan.md) | 英雄机制设计 | 死亡施法状态、Q 孤立判定、W 墙体、E Toggle 光环、R 全图引导及验收 |
+| [拉克丝技能实现方案](../../plans/LuxSkillImplementationPlan.md) | 英雄机制设计 | 被动标记、Q 穿透控制、W 往返护盾、E 可重施区域、R 方向激光及验收 |
+| [安妮技能实现方案](../../plans/AnnieSkillImplementationPlan.md) | 英雄机制设计 | 被动控制、Q/W 命中、E 护盾反伤、R 提伯斯召唤/持续行为及验收 |
+| [03.33-MOBA Summon behavior activation foundation](09-ImplementationExamples/MOBA/38-MobaSummonBehaviorActivationFoundation.md) | Summon and Brain lifecycle | Creation-frame behavior binding, ordered first BrainTick, nested root-owner policy, deferred capacity replacement, rollback/presentation boundaries, and focused smoke evidence |
+| [03.34-MOBA Shield absorb payload and rollback foundation](09-ImplementationExamples/MOBA/39-MobaShieldAbsorbPayloadRollbackFoundation.md) | Shield damage lifecycle | Committed absorb amount through DamageResult, AfterApply payload access, and shield rollback replay evidence |
+| [03.35-MOBA Brain normal-attack candidate foundation](09-ImplementationExamples/MOBA/40-MobaBrainNormalAttackCandidateFoundation.md) | Summon Brain skill selection | Optional SkillType filter for ready-skill selection, enabling behavior trees to isolate configured normal attacks without changing default candidate selection |
+| [03.36-MOBA 英雄特例收敛方案](09-ImplementationExamples/MOBA/41-MobaHeroSpecialCaseConvergenceProposal.md) | 通用机制治理 | Cast、Counter、HFSM 和 Brain 的英雄专属分支收敛范围与确认边界 |
+| [03.37-MOBA 英雄特例收敛结果](09-ImplementationExamples/MOBA/42-MobaHeroSpecialCaseConvergenceResults.md) | 实施与验收 | 已批准方案的迁移结果及当次遗留阻断 |
+| [03.38-MOBA 显式效果目标存在查询](09-ImplementationExamples/MOBA/43-MobaExplicitTriggerQueryScopeProposal.md) | Trigger Scope 与无状态查询 | 通用查询谓词、孙尚香 Global/Callable 迁移、正式发布及专项验收；旧 Authoring 样例失败单独记录 |
 | [04-Shooter Demo 与 Orleans Smoke](09-ImplementationExamples/04-Shooter%20Demo%20与%20Orleans%20Smoke.md) | 网络闭环与分层证据 | 默认 `state-sync-authority`、AuthoritativeInterpolation、2 人 Room 与 packed 1/30；区分本地模拟玩家、真实 Room 成员、E3 契约、历史 E4 artifact 和 E5 gate |
 | [04.1-Shooter 专题总览](09-ImplementationExamples/Shooter/00-Overview.md) | Shooter 导航 | 项目级综合参考入口，区分模板/Profile/controller、可复用机制与 Shooter 应用编排；默认两名 Room 成员 ready，证据按 E0-E5 阅读 |
 | [04.2-Shooter Runtime、Svelto 装配与恢复边界](09-ImplementationExamples/Shooter/01-RuntimeSveltoSimulation.md) | Shooter 运行时 | Blueprint/WorldModule、窄 RuntimePort、float Tick、结构提交、容量与 packed 恢复，以及 runtime 不拥有客户端表现/网络生命周期 |

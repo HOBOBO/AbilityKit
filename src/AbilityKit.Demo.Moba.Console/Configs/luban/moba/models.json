@@ -100,5 +100,29 @@
     "Name": "Annie Tibbers model",
     "PrefabPath": "ChampionVfx/14.Void_Annie/Void_Annie_Tibbers_Model",
     "Scale": 1
+  },
+  {
+    "Id": 3004,
+    "Name": "Veigar Hextech model",
+    "PrefabPath": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Model",
+    "Scale": 1
+  },
+  {
+    "Id": 3005,
+    "Name": "Gragas StarGuardian model",
+    "PrefabPath": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_Model",
+    "Scale": 0
+  },
+  {
+    "Id": 3006,
+    "Name": "Karthus Project model",
+    "PrefabPath": "ChampionVfx/11.Karthus_Project/Karthus_Project_Model",
+    "Scale": 0
+  },
+  {
+    "Id": 3007,
+    "Name": "Lux DarkStar model",
+    "PrefabPath": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_Model",
+    "Scale": 0
   }
 ]

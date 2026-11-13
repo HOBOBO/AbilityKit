@@ -4,6 +4,9 @@ using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.HFSM.Extension;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Demo.Moba.Services.Triggering;
+using AbilityKit.Triggering.Blackboard;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
@@ -11,12 +14,85 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
     {
         public static void Register(MobaActorStateMachineRuntimeRegistry registry)
         {
+            registry.RegisterAction("projectile.awaitArrival", (board, _) => new AwaitProjectileArrivalBehaviour(board));
+            registry.RegisterAction("projectile.awaitCastNumber", (board, argument) => new AwaitProjectileCastNumberBehaviour(board, argument));
+            registry.RegisterAction("projectile.remove", (board, _) => new RemoveProjectileBehaviour(board));
             registry.RegisterAction(
                 "projectile.moveRelative",
                 (blackboard, argument) => new MoveProjectileRelativeBehaviour(blackboard, argument));
             registry.RegisterAction(
                 "projectile.resume",
                 (blackboard, _) => new ResumeProjectileBehaviour(blackboard));
+        }
+    }
+
+    internal sealed class AwaitProjectileArrivalBehaviour : ProjectileActionBehaviourBase, IRollbackActionBehaviour
+    {
+        public AwaitProjectileArrivalBehaviour(MobaActorStateMachineBlackboard board) : base(board) { }
+        public void Reset() { }
+        public ActionBehaviourStatus Tick(in ActionBehaviourContext context)
+        {
+            if (!TryResolve(out var projectiles, out var id) || !projectiles.TryGetRuntimeState(id, out var state))
+                return ActionBehaviourStatus.Failure;
+            if (state.HasArrived) return ActionBehaviourStatus.Success;
+            if (state.IsSuspended) projectiles.ResumeSimulation(id);
+            return ActionBehaviourStatus.Running;
+        }
+        public ActionBehaviourSnapshot CaptureSnapshot() => new ActionBehaviourSnapshot("Projectile.AwaitArrival");
+        public void RestoreSnapshot(ActionBehaviourSnapshot snapshot)
+        {
+            if (snapshot?.Kind != "Projectile.AwaitArrival") throw new InvalidOperationException("Invalid arrival action snapshot.");
+        }
+    }
+
+    internal sealed class AwaitProjectileCastNumberBehaviour : ProjectileActionBehaviourBase, IRollbackActionBehaviour
+    {
+        private readonly int _key;
+        private readonly double _threshold;
+        public AwaitProjectileCastNumberBehaviour(MobaActorStateMachineBlackboard board, string argument) : base(board)
+        {
+            var parts = (argument ?? "").Split(',');
+            if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0]))
+                throw new FormatException("projectile.awaitCastNumber expects 'key,threshold'.");
+            _key = BlackboardIdMapper.KeyId("skill_runtime.cast." + parts[0]);
+            _threshold = double.Parse(parts[1], CultureInfo.InvariantCulture);
+            if (double.IsNaN(_threshold) || double.IsInfinity(_threshold)) throw new FormatException("Non-finite threshold.");
+        }
+        public void Reset() { }
+        public ActionBehaviourStatus Tick(in ActionBehaviourContext context)
+        {
+            if (!TryResolve(out _, out var id) ||
+                !Blackboard.Services.Resolve<MobaProjectileLinkService>().TryGetSource(id, out var source) ||
+                !Blackboard.Services.Resolve<MobaSkillCastRuntimeService>().TryGetBlackboard(source.SkillRuntimeHandle, out var board))
+                return ActionBehaviourStatus.Failure;
+            var adapter = new MobaSkillRuntimeBlackboardAdapter(board, MobaSkillRuntimeBlackboardAddress.Cast);
+            return adapter.TryGetDouble(_key, out var value) && value >= _threshold
+                ? ActionBehaviourStatus.Success : ActionBehaviourStatus.Running;
+        }
+        public ActionBehaviourSnapshot CaptureSnapshot() => new ActionBehaviourSnapshot("Projectile.AwaitCastNumber");
+        public void RestoreSnapshot(ActionBehaviourSnapshot snapshot)
+        {
+            if (snapshot?.Kind != "Projectile.AwaitCastNumber") throw new InvalidOperationException("Invalid Cast wait snapshot.");
+        }
+    }
+
+    internal sealed class RemoveProjectileBehaviour : ProjectileActionBehaviourBase, IRollbackActionBehaviour
+    {
+        private bool _done;
+        public RemoveProjectileBehaviour(MobaActorStateMachineBlackboard board) : base(board) { }
+        public void Reset() => _done = false;
+        public ActionBehaviourStatus Tick(in ActionBehaviourContext context)
+        {
+            if (_done) return ActionBehaviourStatus.Success;
+            if (!TryResolve(out var projectiles, out var id)) return ActionBehaviourStatus.Failure;
+            _done = projectiles.Despawn(id, Blackboard.Services.Resolve<IFrameTime>().Frame.Value, ProjectileExitReason.Manual);
+            return _done ? ActionBehaviourStatus.Success : ActionBehaviourStatus.Failure;
+        }
+        public ActionBehaviourSnapshot CaptureSnapshot() => new ActionBehaviourSnapshot("Projectile.Remove", booleanValue: _done);
+        public void RestoreSnapshot(ActionBehaviourSnapshot snapshot)
+        {
+            if (snapshot?.Kind != "Projectile.Remove") throw new InvalidOperationException("Invalid remove action snapshot.");
+            _done = snapshot.BooleanValue;
         }
     }
 

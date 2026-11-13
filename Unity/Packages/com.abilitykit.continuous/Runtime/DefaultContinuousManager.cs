@@ -240,6 +240,34 @@ namespace AbilityKit.Continuous
         }
 
         /// <summary>
+        /// Rebuilds registration indices from an already validated recovery plan. Does not
+        /// invoke admission, runtime lifecycle methods, binders, or public gameplay events.
+        /// The caller owns restoring binder state and compensating a failed recovery.
+        /// </summary>
+        protected void RestoreRegistrationForRollback(IReadOnlyList<IContinuous> instances)
+        {
+            if (instances == null) throw new ArgumentNullException(nameof(instances));
+            var unique = new HashSet<IContinuous>();
+            foreach (var instance in instances)
+                if (instance?.Config == null || instance.IsTerminated || !unique.Add(instance))
+                    throw new InvalidOperationException("Invalid rollback continuous registration.");
+            foreach (var instance in _registrationOrder)
+                instance.OnEnded -= HandleContinuousEnded;
+            _registered.Clear();
+            _registrationOrder.Clear();
+            _ownerContinuous.Clear();
+            _active.Clear();
+            foreach (var instance in instances)
+            {
+                _registered.Add(instance);
+                _registrationOrder.Add(instance);
+                AddOwnerIndex(instance);
+                if (instance.IsActive) _active.Add(instance);
+                instance.OnEnded += HandleContinuousEnded;
+            }
+        }
+
+        /// <summary>
         /// 获取所有活跃持续体快照。
         /// </summary>
         public IReadOnlyList<IContinuous> GetAllActiveContinuous()

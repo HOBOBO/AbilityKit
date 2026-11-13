@@ -1,3 +1,5 @@
+using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
+
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     public enum DamageNumberSlot
@@ -21,6 +23,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly float RepeatTargetDecayFactor;
         public readonly int TargetHitCountKeyBase;
         public readonly float TargetMissingHpRatioCoefficient;
+        public readonly MobaEffectMagnitudeSpec Magnitude;
 
         public AdjustDamageNumberArgs(
             DamageNumberSlot numberSlot,
@@ -33,7 +36,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             bool skipFirstHit,
             float repeatTargetDecayFactor,
             int targetHitCountKeyBase,
-            float targetMissingHpRatioCoefficient)
+            float targetMissingHpRatioCoefficient,
+            MobaEffectMagnitudeSpec magnitude = default)
         {
             NumberSlot = numberSlot;
             Op = op;
@@ -46,6 +50,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             RepeatTargetDecayFactor = repeatTargetDecayFactor;
             TargetHitCountKeyBase = targetHitCountKeyBase;
             TargetMissingHpRatioCoefficient = targetMissingHpRatioCoefficient;
+            Magnitude = magnitude;
         }
     }
 }

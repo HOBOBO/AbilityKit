@@ -12,7 +12,7 @@
       "catalogId": "abilitykit.moba.battle",
       "projectId": "abilitykit.moba",
       "domain": "battle",
-      "revision": 4,
+      "revision": 5,
       "defaultCodec": "memorypack",
       "messages": [
         {
@@ -260,8 +260,8 @@
           "payloadType": "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload",
           "codec": "memorypack",
           "reliability": "realtime",
-          "minimumSchemaVersion": 1,
-          "maximumSchemaVersion": 1,
+          "minimumSchemaVersion": 2,
+          "maximumSchemaVersion": 2,
           "maximumPayloadBytes": 1048576,
           "captureSampleRate": 0.25
         },
@@ -355,6 +355,19 @@
           "maximumSchemaVersion": 1,
           "maximumPayloadBytes": 262144,
           "captureSampleRate": 1
+        },
+        {
+          "id": "shield-state.push",
+          "opCode": 4015,
+          "direction": "s2c",
+          "kind": "push",
+          "payloadType": "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 0.25
         }
       ]
     },

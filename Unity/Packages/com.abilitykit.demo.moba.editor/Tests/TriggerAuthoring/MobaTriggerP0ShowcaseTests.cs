@@ -5,11 +5,13 @@ using System.Linq;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor;
 using AbilityKit.Ability.Editor.Utilities;
+using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using RuntimeStableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
 {
@@ -21,6 +23,80 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
             "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/Packages/ability_moba_tests_p0_showcase.Module.asset";
         private const string SourcePath =
             "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaTriggerAuthoring/Showcases/moba-p0-complex-skill.trigger.json";
+
+        [Test]
+        public void ResidenceSample_RoundTripsToExplicitCastWriteBeforeDamageRead()
+        {
+            var absolutePath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", SourcePath));
+            var document = TriggerAuthoringSourceCodec.ReadFile(absolutePath);
+            var trigger = document.Module.Triggers.Single();
+            trigger.Actions = new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "seq" };
+            var write = new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "set_num_var" };
+            write.Arguments.Add(new TriggerArgumentData
+            {
+                Name = "target", Value = new TriggerValueRefData
+                {
+                    Source = TriggerValueSource.Context, Type = TriggerValueType.Number,
+                    Path = "skill_runtime:cast.residence_ratio"
+                }
+            });
+            write.Arguments.Add(new TriggerArgumentData
+            {
+                Name = "value", Value = new TriggerValueRefData
+                {
+                    Source = TriggerValueSource.Payload, Type = TriggerValueType.Number,
+                    Path = "area_residence_ratio"
+                }
+            });
+            var damage = new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "give_damage" };
+            damage.Arguments.Add(new TriggerArgumentData
+            {
+                Name = "magnitude_type", Value = new TriggerValueRefData
+                { Source = TriggerValueSource.Constant, Type = TriggerValueType.Integer, IntegerValue = 6 }
+            });
+            damage.Arguments.Add(new TriggerArgumentData
+            {
+                Name = "magnitude_parameter", Value = new TriggerValueRefData
+                { Source = TriggerValueSource.Constant, Type = TriggerValueType.String, StringValue = "damage" }
+            });
+            const string scale = "1 + skill_runtime.cast.residence_ratio * 0.5";
+            damage.Arguments.Add(new TriggerArgumentData
+            {
+                Name = "magnitude_coefficient", Value = new TriggerValueRefData
+                { Source = TriggerValueSource.Expression, Type = TriggerValueType.Number, Expression = scale }
+            });
+            trigger.Actions.Children.Add(write);
+            trigger.Actions.Children.Add(damage);
+            var roundTrip = TriggerAuthoringSourceCodec.Deserialize(TriggerAuthoringSourceCodec.Serialize(document));
+            var project = AssetDatabase.LoadAssetAtPath<TriggerAuthoringProjectAsset>(ProjectPath);
+            Assert.That(project, Is.Not.Null);
+            var context = new TriggerAuthoringValidationContext
+            {
+                Types = TriggerTypeDescriptorCatalog.CreateForProject(project),
+                Events = TriggerEventDescriptorCatalog.FromProject(project),
+                ValueSources = TriggerAuthoringValueSourceCatalog.CreateForProject(project),
+                GlobalBlackboard = TriggerGlobalBlackboardDescriptorCatalog.FromAsset(project.GlobalBlackboardCatalog),
+                Templates = TriggerTemplateDescriptorCatalog.FromAsset(project.TemplateCatalog)
+            };
+            var diagnostics = TriggerAuthoringValidator.Validate(roundTrip.Module, context);
+            Assert.That(TriggerAuthoringValidator.HasErrors(diagnostics), Is.False,
+                string.Join("\n", diagnostics.Select(item => item.Code + " " + item.Path + ": " + item.Message)));
+            var export = TriggerAuthoringRuntimeExporter.Build(roundTrip.Module, context);
+            Assert.That(export.Success, Is.True, export.BuildMessage());
+            var runtime = new TriggerPlanJsonDatabase();
+            runtime.LoadFromJson(TriggerAuthoringRuntimeExporter.Serialize(export.Database), "residence-sample");
+            Assert.That(runtime.TryGetExecutionRootByTriggerId(trigger.Id, out var root), Is.True);
+            var actions = Enumerate(root).OfType<ActionCallTriggerPlanExecutable>().ToArray();
+            Assert.That(actions, Has.Length.EqualTo(2));
+            var target = actions[0].Action.Args["target"];
+            Assert.That(target.Kind, Is.EqualTo(ActionArgKind.BlackboardTarget));
+            Assert.That(target.BlackboardTarget.BoardId, Is.EqualTo(BlackboardIdMapper.BoardId("skill_runtime.cast")));
+            Assert.That(target.BlackboardTarget.KeyId, Is.EqualTo(BlackboardIdMapper.KeyId("skill_runtime.cast.residence_ratio")));
+            Assert.That(target.BlackboardTarget.KeyType, Is.EqualTo(BlackboardKeyType.Double));
+            Assert.That(actions[0].Action.Args["value"].Ref,
+                Is.EqualTo(NumericValueRef.PayloadField(RuntimeStableStringId.Get("payload:area_residence_ratio"))));
+            Assert.That(actions[1].Action.Args["magnitude_coefficient"].Ref, Is.EqualTo(NumericValueRef.Expr(scale)));
+        }
 
         [TestCase("give_damage")]
         [TestCase("heal")]

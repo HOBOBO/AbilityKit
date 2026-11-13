@@ -8,7 +8,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
     /// 负责按 ActionCallPlan 顺序解析具名参数委托与位置参数委托，避免 PlannedTrigger 继续承载注册表查找细节。
     /// </summary>
     internal static class PlannedTriggerActionBindingResolver<TArgs, TCtx>
-        where TArgs : class
     {
         public static void ResolveAll(
             ActionCallPlan[] actions,

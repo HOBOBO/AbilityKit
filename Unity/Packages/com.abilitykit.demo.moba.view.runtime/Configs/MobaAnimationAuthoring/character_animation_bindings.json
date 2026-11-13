@@ -1,0 +1,325 @@
+{
+  "schemaVersion": 1,
+  "bindings": [
+    {
+      "target": {
+        "modelId": 3001,
+        "animationKey": "Base Layer.Walk"
+      },
+      "source": {
+        "modelGuid": "d8e25a73b9af455aaff7b3d0fcbd7bd2",
+        "modelFileId": 113668,
+        "controllerGuid": "bef38a5dc21c48a58a3afc89bf1f5f3d",
+        "controllerFileId": 9100000,
+        "stateGuid": "bef38a5dc21c48a58a3afc89bf1f5f3d",
+        "stateFileId": 110796749,
+        "clipGuid": "e9eefc47e4303a7429c77d50fa6dacbb",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3002,
+        "animationKey": "Base Layer.AA_Minigun"
+      },
+      "source": {
+        "modelGuid": "7734b9aed22c43659ee2d90b4e9062f6",
+        "modelFileId": 196794,
+        "controllerGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "controllerFileId": 9100000,
+        "stateGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "stateFileId": 110244470,
+        "clipGuid": "ed45272b869741d9a71e599e215c9c77",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3002,
+        "animationKey": "Base Layer.AA_Rocket"
+      },
+      "source": {
+        "modelGuid": "7734b9aed22c43659ee2d90b4e9062f6",
+        "modelFileId": 196794,
+        "controllerGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "controllerFileId": 9100000,
+        "stateGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "stateFileId": 110219306,
+        "clipGuid": "2a74b6973fd342b6984331e2cd43d7e7",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3002,
+        "animationKey": "Base Layer.Idle_Minigun"
+      },
+      "source": {
+        "modelGuid": "7734b9aed22c43659ee2d90b4e9062f6",
+        "modelFileId": 196794,
+        "controllerGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "controllerFileId": 9100000,
+        "stateGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "stateFileId": 110269986,
+        "clipGuid": "729fbf1330564fd2952c2bda0473dd37",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3002,
+        "animationKey": "Base Layer.Idle_Rocket"
+      },
+      "source": {
+        "modelGuid": "7734b9aed22c43659ee2d90b4e9062f6",
+        "modelFileId": 196794,
+        "controllerGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "controllerFileId": 9100000,
+        "stateGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "stateFileId": 110206076,
+        "clipGuid": "eec7e289bf9d4b69a3621ce51af5050a",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3002,
+        "animationKey": "Base Layer.Spell_E"
+      },
+      "source": {
+        "modelGuid": "7734b9aed22c43659ee2d90b4e9062f6",
+        "modelFileId": 196794,
+        "controllerGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "controllerFileId": 9100000,
+        "stateGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "stateFileId": 110238800,
+        "clipGuid": "4f3c669a9d974471b15ea2b86a2657ae",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3002,
+        "animationKey": "Base Layer.Spell_Q_MiniToRocket"
+      },
+      "source": {
+        "modelGuid": "7734b9aed22c43659ee2d90b4e9062f6",
+        "modelFileId": 196794,
+        "controllerGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "controllerFileId": 9100000,
+        "stateGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "stateFileId": 110295630,
+        "clipGuid": "62398467d3da445da5dfc7cb5c98d365",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3002,
+        "animationKey": "Base Layer.Spell_Q_RocketToMini"
+      },
+      "source": {
+        "modelGuid": "7734b9aed22c43659ee2d90b4e9062f6",
+        "modelFileId": 196794,
+        "controllerGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "controllerFileId": 9100000,
+        "stateGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "stateFileId": 110273352,
+        "clipGuid": "00461973f9a3416b857c3c35f8e106ca",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3002,
+        "animationKey": "Base Layer.Spell_R"
+      },
+      "source": {
+        "modelGuid": "7734b9aed22c43659ee2d90b4e9062f6",
+        "modelFileId": 196794,
+        "controllerGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "controllerFileId": 9100000,
+        "stateGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "stateFileId": 110247380,
+        "clipGuid": "528d19330cef47a5a70ee6875bf0ee5c",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3002,
+        "animationKey": "Base Layer.Spell_W"
+      },
+      "source": {
+        "modelGuid": "7734b9aed22c43659ee2d90b4e9062f6",
+        "modelFileId": 196794,
+        "controllerGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "controllerFileId": 9100000,
+        "stateGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "stateFileId": 110216596,
+        "clipGuid": "1f48a5cfc0854d46b6e462a405714efd",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3002,
+        "animationKey": "Base Layer.Walk"
+      },
+      "source": {
+        "modelGuid": "7734b9aed22c43659ee2d90b4e9062f6",
+        "modelFileId": 196794,
+        "controllerGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "controllerFileId": 9100000,
+        "stateGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "stateFileId": 110796749,
+        "clipGuid": "f4d3b2fca61e0fb47a80c21ea4938b13",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3002,
+        "animationKey": "Base Layer.Walk_Rocket"
+      },
+      "source": {
+        "modelGuid": "7734b9aed22c43659ee2d90b4e9062f6",
+        "modelFileId": 196794,
+        "controllerGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "controllerFileId": 9100000,
+        "stateGuid": "eadf76eabcaa42fd8d9bbcf7ff6e84f3",
+        "stateFileId": 110796750,
+        "clipGuid": "3efae6a9da066f941b965370b9ae531c",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3003,
+        "animationKey": "Base Layer.Walk"
+      },
+      "source": {
+        "modelGuid": "046622c25bad4ef4a2fcda1186c8b0c7",
+        "modelFileId": 179488,
+        "controllerGuid": "9fd7122d0f7c460fa6a898b42ae27047",
+        "controllerFileId": 9100000,
+        "stateGuid": "9fd7122d0f7c460fa6a898b42ae27047",
+        "stateFileId": 110700001,
+        "clipGuid": "3b94fcb2a58f62d4db9360f904544cba",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3004,
+        "animationKey": "Base Layer.Walk"
+      },
+      "source": {
+        "modelGuid": "23b6df18f7f548de9f1bc3fc36fce90a",
+        "modelFileId": 186856,
+        "controllerGuid": "dee382cdadd54280b7799c874f6a93a2",
+        "controllerFileId": 9100000,
+        "stateGuid": "dee382cdadd54280b7799c874f6a93a2",
+        "stateFileId": 110700001,
+        "clipGuid": "78e269b647bf4d24996c2a0887af547f",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3005,
+        "animationKey": "Base Layer.Gragas_Model_Idle"
+      },
+      "source": {
+        "modelGuid": "a0d33e47b0f14cf893f64a0a6959a559",
+        "modelFileId": 187400,
+        "controllerGuid": "c2026e0d07464b68a397275a5bc146c3",
+        "controllerFileId": 9100000,
+        "stateGuid": "c2026e0d07464b68a397275a5bc146c3",
+        "stateFileId": 110200000,
+        "clipGuid": "95bfe5871dae4bbb9baa53db8f425f4a",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3005,
+        "animationKey": "Base Layer.Walk"
+      },
+      "source": {
+        "modelGuid": "a0d33e47b0f14cf893f64a0a6959a559",
+        "modelFileId": 187400,
+        "controllerGuid": "c2026e0d07464b68a397275a5bc146c3",
+        "controllerFileId": 9100000,
+        "stateGuid": "c2026e0d07464b68a397275a5bc146c3",
+        "stateFileId": 110700001,
+        "clipGuid": "b76bd7857bdba9747a7d9bffd1984e62",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3006,
+        "animationKey": "Base Layer.Karthus_Model_Idle"
+      },
+      "source": {
+        "modelGuid": "a0de6fecb51c47e485cbe7310fe0a037",
+        "modelFileId": 147426,
+        "controllerGuid": "0feef97f6f124af799dd6c2e6bf135e9",
+        "controllerFileId": 9100000,
+        "stateGuid": "0feef97f6f124af799dd6c2e6bf135e9",
+        "stateFileId": 110200000,
+        "clipGuid": "907b7878f8b94238827764fe24914796",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3006,
+        "animationKey": "Base Layer.Walk"
+      },
+      "source": {
+        "modelGuid": "a0de6fecb51c47e485cbe7310fe0a037",
+        "modelFileId": 147426,
+        "controllerGuid": "0feef97f6f124af799dd6c2e6bf135e9",
+        "controllerFileId": 9100000,
+        "stateGuid": "0feef97f6f124af799dd6c2e6bf135e9",
+        "stateFileId": 110700001,
+        "clipGuid": "1cd7b393cb0e08f4bb81c9f1d51e4943",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3007,
+        "animationKey": "Base Layer.Lux_Model_Idle"
+      },
+      "source": {
+        "modelGuid": "845b056e4f8840008ac98534a8e1e0c4",
+        "modelFileId": 123488,
+        "controllerGuid": "cc470eac9994403c96f0dfd2ac131eca",
+        "controllerFileId": 9100000,
+        "stateGuid": "cc470eac9994403c96f0dfd2ac131eca",
+        "stateFileId": 110200000,
+        "clipGuid": "3f827bb0107145b5a6953c1d6dca8a87",
+        "clipFileId": 7400000
+      }
+    },
+    {
+      "target": {
+        "modelId": 3007,
+        "animationKey": "Base Layer.Walk"
+      },
+      "source": {
+        "modelGuid": "845b056e4f8840008ac98534a8e1e0c4",
+        "modelFileId": 123488,
+        "controllerGuid": "cc470eac9994403c96f0dfd2ac131eca",
+        "controllerFileId": 9100000,
+        "stateGuid": "cc470eac9994403c96f0dfd2ac131eca",
+        "stateFileId": 110700001,
+        "clipGuid": "04bc65f7561cc0f4c9c285ac569a3fb8",
+        "clipFileId": 7400000
+      }
+    }
+  ]
+}

@@ -16,8 +16,9 @@ namespace AbilityKit.Combat.Projectile
             in Vec3 spawnPosition = default,
             float distanceTravelled = 0f,
             int spawnFrame = 0,
-            float elapsedSeconds = 0f)
+            float elapsedSeconds = 0f, int arrivedFrame = -1)
         {
+            ArrivedFrame = arrivedFrame;
             Id = id;
             Position = position;
             Direction = direction;
@@ -32,6 +33,8 @@ namespace AbilityKit.Combat.Projectile
             ElapsedSeconds = elapsedSeconds;
         }
 
+        public int ArrivedFrame { get; }
+        public bool HasArrived => ArrivedFrame >= 0;
         public ProjectileId Id { get; }
         public Vec3 Position { get; }
         public Vec3 Direction { get; }

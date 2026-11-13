@@ -1917,5 +1917,590 @@
     "ConflictGroup": 0,
     "ConditionSetId": 0,
     "Deprecated": false
+  },
+  {
+    "Id": 1000028,
+    "Key": "VeigarPhenomenalEvilPowerPerStack",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8005001,
+    "Key": "GragasBarrelInFlight",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 4
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8005002,
+    "Key": "GragasBarrelDeployed",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 4
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 2
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2005001,
+    "Key": "GragasBarrelRecastSlot",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 1
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30050601,
+      "ReferenceId": 0,
+      "HfsmParameterId": 4,
+      "HfsmParameterComparison": 4,
+      "HfsmParameterExpectedValue": 1
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1005001,
+    "Key": "GragasSampledBarrelSlow",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 5,
+      "BaseValue": 0,
+      "Coefficient": -1,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "skill_runtime:cast.sampled_magnitude",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8005011,
+    "Key": "GragasEmpoweredRank1",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2005011,
+    "Key": "GragasEmpoweredSlot1",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30050701,
+      "ReferenceId": 0,
+      "HfsmParameterId": 5,
+      "HfsmParameterComparison": 1,
+      "HfsmParameterExpectedValue": 1
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8005012,
+    "Key": "GragasEmpoweredRank2",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 2
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2005012,
+    "Key": "GragasEmpoweredSlot2",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30050702,
+      "ReferenceId": 0,
+      "HfsmParameterId": 5,
+      "HfsmParameterComparison": 1,
+      "HfsmParameterExpectedValue": 2
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8005013,
+    "Key": "GragasEmpoweredRank3",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 3
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2005013,
+    "Key": "GragasEmpoweredSlot3",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30050703,
+      "ReferenceId": 0,
+      "HfsmParameterId": 5,
+      "HfsmParameterComparison": 1,
+      "HfsmParameterExpectedValue": 3
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8005014,
+    "Key": "GragasEmpoweredRank4",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 4
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2005014,
+    "Key": "GragasEmpoweredSlot4",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30050704,
+      "ReferenceId": 0,
+      "HfsmParameterId": 5,
+      "HfsmParameterComparison": 1,
+      "HfsmParameterExpectedValue": 4
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8005015,
+    "Key": "GragasEmpoweredRank5",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 5
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2005015,
+    "Key": "GragasEmpoweredSlot5",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30050705,
+      "ReferenceId": 0,
+      "HfsmParameterId": 5,
+      "HfsmParameterComparison": 1,
+      "HfsmParameterExpectedValue": 5
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
   }
 ]

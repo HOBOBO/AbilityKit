@@ -699,7 +699,8 @@ namespace AbilityKit.Demo.Moba.Services
             return state == EAbilityPipelineState.Completed;
         }
 
-        private static bool TryBindPipelineContinuous(ref Entry entry, IAbilityPipelineConfig pipelineConfig, out string error)
+        private static bool TryBindPipelineContinuous(ref Entry entry, IAbilityPipelineConfig pipelineConfig, out string error,
+            bool localRollback = false)
         {
             error = null;
             var context = entry.Context;
@@ -749,7 +750,15 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var runtime = new SkillPipelineContinuousRuntime(context, config, requirements, ownerExecutionBlockedResultMask);
-            if (!continuous.TryActivate(runtime))
+            if (localRollback)
+            {
+                if (!(continuous is MobaContinuousManager manager))
+                    throw new InvalidOperationException("Local pipeline restore requires the MOBA continuous manager.");
+                runtime.RestoreLocalLifecycle(ContinuousState.Active, 0, 0);
+                var instances = new List<IContinuous>(manager.GetAllContinuous()) { runtime };
+                manager.RestoreLocalRegistration(instances);
+            }
+            else if (!continuous.TryActivate(runtime))
             {
                 continuous.Unregister(runtime, ContinuousEndReason.CleanedUp);
                 error = $"Pipeline continuous activation failed. {failContext}";

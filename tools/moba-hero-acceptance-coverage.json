@@ -287,10 +287,10 @@
           "W_FiresDirectionalProjectileDealsRankDamageOnceAndStopsAtFirstEnemy"
         ],
         "hudInput": [
-          "QAndW_LocalHudInputFeatureCommitsQAndDealsWLineDamage"
+          "QAndWAndR_LocalHudInputCommitsSwitchAndHitsReleasedRays"
         ],
         "indicatorGeometry": [
-          "QAndW_LocalHudInputFeatureCommitsQAndDealsWLineDamage"
+          "QAndWAndR_LocalHudInputCommitsSwitchAndHitsReleasedRays"
         ]
       }
     },
@@ -347,6 +347,19 @@
         "indicatorGeometry": [
           "LocalBattleScenario_AllFourHudSlotsSubmitProductionSkillInput"
         ]
+      }
+    },
+    {
+      "heroId": 3004,
+      "heroName": "Veigar",
+      "fixture": "AbilityKit.Game.Test.UnitTest.VeigarSkillAcceptanceTests",
+      "gate": "moba-veigar-unity",
+      "sceneContract": "published-veigar-headless-contracts",
+      "coverage": {
+        "skillGameplay": "not-covered",
+        "presentation": "not-covered",
+        "hudInput": "not-covered",
+        "rollback": "not-covered"
       }
     }
   ]

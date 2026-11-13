@@ -1,7 +1,38 @@
 {
     "schemaVersion": 1,
     "runtimeType": "logic",
-    "length": 0.1,
-    "groups": [],
+    "length": 3.625,
+    "groups": [
+        {
+            "name": "Logic_30010603",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.SignalTrack",
+                    "name": "ExistingSkillEffects",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.ExecuteEffect",
+                            "runtimeType": "logic",
+                            "start": 0.0,
+                            "length": 0.0,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "effectId": "30010603",
+                                "eventTag": "jhin_basic_attack_3",
+                                "abortOnFailure": "true"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
     "$type": "AbilityKit.ActionSchema.SkillAssetDto"
 }

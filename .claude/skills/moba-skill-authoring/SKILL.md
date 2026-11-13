@@ -35,6 +35,21 @@ description: 开发、修改或审查 AbilityKit MOBA 英雄技能及相关共�
 
 `Production/Archive/skill_flows.xlsx`、`Production/Datas/J-资源节点表.xlsx` 的 `Ability节点` 子 sheet 中旧触发器节点、`Resources/ability/triggers/` 分文件和 `MiniTemplate` 均不是这些生产内容的编辑入口。状态机与旧 `effect_plans` 也不再从 Excel 发布；`J-效果表.xlsx` 中未被战斗使用的 `效果`、`旧Buff`、`持续效果` 子 sheet 已删除。不要直接改发布后的 `Resources/moba/*.json`、`Resources/luban/`、`Resources/ability/ability_trigger_plans.json` 或 Console 副本来修技能。
 
+模型动作资料由 `Production/Datas/model-animations.xlsx` 独立维护，导出 `moba/model_animations`；导出目标是模型内稳定动作键，不依赖 HFSM 状态或技能。状态表现 `play` 使用 `modelId + animationKey` 引用资料，引用与内联动画字段互斥；未迁移的内联动作兼容保留。导出工具只同步正式资源元数据，不能自动把素材时长写成施法锁定或状态退出时间。完整契约见 `Docs/MobaStateMachineAuthoring.md` 与 `plans/ModelAnimationCatalogDecoupling.md`。
+
+### 技能动作时长与提前退出检查
+
+新英雄动作接入、动画未播完、固定 500ms 退出、调整动作延迟或播放速度时，先读
+[ActionEditor 时长与 Cast 接线检查](references/action-timeline-timing.md)。
+单次施法时间轴阶段以 ActionEditor 审阅后的完整导出 `length` 为准，包含延迟、串并行编排及显式尾段；
+不能用裸 Clip.length、最后一个伤害事件、仅剩逻辑轨道的最晚事件或固定占位值代替。
+先确认源时间轴有真实内容、片段结束没有越过总长、Flow 实际引用对应 `*.moba.logic.json`，
+再核对发布、HFSM Action 和真实 Animator 播放。logic/presentation 分流保留相同总长，不能在分流后各自缩短。
+对 HFSM 播放的动作，另核对它相对 Cast/阶段的起点和退出边；空时间轴不证明覆盖了这些动作。
+多阶段 Cast 必须按阶段树计算，独立投射物/区域和长期模式仍由各自生命周期管理。
+完整导出时长是该时间轴阶段的依据，不代表整次 Cast 时长、冷却或所有对象寿命都相等。
+先修源与既有导出/引用链；另设正常收尾窗口、改取消/冲突规则或快照语义时，仍须单独确认机制。
+
 角色条件组合、状态 Cast 职责、瞄准作用域和 Cast 参数快照必须在 `character_bindings.json` 中显式声明，按 `DefinitionId` 关联；完整字段、恢复和发布契约见 [`Docs/MobaStateMachineAuthoring.md`](../../../Docs/MobaStateMachineAuthoring.md)。Counter 的线性投影、Cast 的提交快照、Brain 的方向意图和 Pull 的距离缩放各自使用独立配置，不得在通用逻辑中通过英雄身份、固定参数编号或路径后缀推断这些职责。这些已批准能力的配置组合可以继续推进；本段不授权新增规范外机制。
 
 ### Trigger Scope 契约
@@ -417,6 +432,10 @@ dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj --f
 ---
 
 *本 skill 与 `Docs/design/09-ImplementationExamples/MOBA/{13,14,18}` 互为镜像：本文是执行手册，文档是设计理由。改动规范时两边都要动。*
+## 投射物拦截配置（2026-11-12 已批准契约）
+
+既有单位分类与静态障碍可用投射物表 `CollisionRules` 有序数组配置 Ignore/Hit/Block。Role 1 冻结追踪目标、2 其他 Actor、3 静态世界；MainType/UnitSubType/Relation 省略或 0 为任意。Relation 1 敌方、2 友方、3 中立/未分队；Response 0 Ignore、1 Hit、2 Block。首项匹配，未匹配沿用既有响应；自身忽略，Hit 不放宽友伤和 HitUnitSubType，世界只允许 Ignore/Block。规则在发射时冻结，随值快照恢复并绑定当前世界 registry；不得捕获旧世界或按英雄识别。碰撞层掩码先决定参与集合，规则再决定响应。完整契约见 `Docs/design/08-GameplayModules/04-ProjectileSystem.md` §10.1。主动拦截墙/护盾等仍须另提方案。
+
 ## 8. 通用英雄接入基线（必须先完成）
 
 新英雄或重做英雄技能前，先填写并评审 [`27-MobaHeroSkillIntegrationBaseline.md`](../../../Docs/design/09-ImplementationExamples/MOBA/27-MobaHeroSkillIntegrationBaseline.md) 的英雄登记表。该基线是跨英雄复用的职责和验收契约，英雄文档只记录差异，不复制发布流程。

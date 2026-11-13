@@ -2,6 +2,15 @@ using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Combat.Projectile
 {
+    public enum ProjectileMaxDistanceResponse { Exit = 0, SuspendAtDestination = 1 }
+
+    public enum ProjectileHitIdentityPolicy
+    {
+        Collider = 0,
+        /// <summary>Accept each resolved actor at most once during this projectile's lifetime.</summary>
+        OncePerActor = 1,
+    }
+
     public enum ProjectileHitPolicyKind
     {
         ExitOnHit = 0,
@@ -33,6 +42,7 @@ namespace AbilityKit.Combat.Projectile
 
         public readonly int LifetimeFrames;
         public readonly float MaxDistance;
+        public readonly ProjectileMaxDistanceResponse MaxDistanceResponse;
 
         public readonly int CollisionLayerMask;
         public readonly ColliderId IgnoreCollider;
@@ -51,6 +61,7 @@ namespace AbilityKit.Combat.Projectile
         /// <summary>Optional stable key for resolving the filter after importing into another world.</summary>
         public readonly int HitFilterKey;
         public readonly int HitCooldownFrames;
+        public readonly ProjectileHitIdentityPolicy HitIdentityPolicy;
 
         public readonly bool StartSuspended;
         public readonly int PatternSlotIndex;
@@ -88,7 +99,9 @@ namespace AbilityKit.Combat.Projectile
             float trackingArcDurationSeconds = 0f,
             float bounceSearchRadius = 0f,
             float trackingArcHeightPerUnit = 0f,
-            int hitFilterKey = 0)
+            int hitFilterKey = 0,
+            ProjectileHitIdentityPolicy hitIdentityPolicy = ProjectileHitIdentityPolicy.Collider,
+            ProjectileMaxDistanceResponse maxDistanceResponse = ProjectileMaxDistanceResponse.Exit)
         {
             OwnerId = ownerId;
             TemplateId = templateId;
@@ -108,6 +121,7 @@ namespace AbilityKit.Combat.Projectile
             ReturnStopDistance = returnStopDistance;
             LifetimeFrames = lifetimeFrames;
             MaxDistance = maxDistance;
+            MaxDistanceResponse = maxDistanceResponse;
             CollisionLayerMask = collisionLayerMask;
             IgnoreCollider = ignoreCollider;
             CollisionHalfExtents = new Vec3(
@@ -126,6 +140,7 @@ namespace AbilityKit.Combat.Projectile
             HitFilter = hitFilter;
             HitFilterKey = hitFilterKey;
             HitCooldownFrames = hitCooldownFrames;
+            HitIdentityPolicy = hitIdentityPolicy;
 
             StartSuspended = startSuspended;
             PatternSlotIndex = patternSlotIndex < 0 ? 0 : patternSlotIndex;
@@ -147,7 +162,7 @@ namespace AbilityKit.Combat.Projectile
                 returnSpeed: ReturnSpeed,
                 returnStopDistance: ReturnStopDistance,
                 lifetimeFrames: LifetimeFrames,
-                maxDistance: MaxDistance,
+                maxDistance: MaxDistance, maxDistanceResponse: MaxDistanceResponse,
                 collisionLayerMask: CollisionLayerMask,
                 ignoreCollider: IgnoreCollider,
                 hitPolicy: HitPolicy,
@@ -157,7 +172,7 @@ namespace AbilityKit.Combat.Projectile
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
                 hitCooldownFrames: HitCooldownFrames,
-                hitFilterKey: HitFilterKey,
+                hitIdentityPolicy: HitIdentityPolicy, hitFilterKey: HitFilterKey,
                 startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,
@@ -177,12 +192,12 @@ namespace AbilityKit.Combat.Projectile
                 spawnFrame: SpawnFrame, position: Position, direction: Direction,
                 speed: Speed, returnAfterFrames: ReturnAfterFrames,
                 returnSpeed: ReturnSpeed, returnStopDistance: ReturnStopDistance,
-                lifetimeFrames: LifetimeFrames, maxDistance: MaxDistance,
+                lifetimeFrames: LifetimeFrames, maxDistance: MaxDistance, maxDistanceResponse: MaxDistanceResponse,
                 collisionLayerMask: CollisionLayerMask, ignoreCollider: IgnoreCollider,
                 hitPolicy: HitPolicy, hitsRemaining: HitsRemaining,
                 hitPolicyKind: HitPolicyKind, hitPolicyParam: HitPolicyParam,
                 tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
-                hitCooldownFrames: HitCooldownFrames, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
+                hitCooldownFrames: HitCooldownFrames, hitIdentityPolicy: HitIdentityPolicy, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
                 collisionHalfExtents: CollisionHalfExtents,
@@ -201,12 +216,12 @@ namespace AbilityKit.Combat.Projectile
                 spawnFrame: SpawnFrame, position: Position, direction: Direction,
                 speed: Speed, returnAfterFrames: ReturnAfterFrames,
                 returnSpeed: ReturnSpeed, returnStopDistance: ReturnStopDistance,
-                lifetimeFrames: LifetimeFrames, maxDistance: MaxDistance,
+                lifetimeFrames: LifetimeFrames, maxDistance: MaxDistance, maxDistanceResponse: MaxDistanceResponse,
                 collisionLayerMask: CollisionLayerMask, ignoreCollider: IgnoreCollider,
                 hitPolicy: HitPolicy, hitsRemaining: HitsRemaining,
                 hitPolicyKind: HitPolicyKind, hitPolicyParam: HitPolicyParam,
                 tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
-                hitCooldownFrames: HitCooldownFrames, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
+                hitCooldownFrames: HitCooldownFrames, hitIdentityPolicy: HitIdentityPolicy, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
                 collisionHalfExtents: CollisionHalfExtents,
@@ -224,12 +239,12 @@ namespace AbilityKit.Combat.Projectile
                 spawnFrame: SpawnFrame, position: Position, direction: Direction,
                 speed: speed, returnAfterFrames: ReturnAfterFrames,
                 returnSpeed: ReturnSpeed, returnStopDistance: ReturnStopDistance,
-                lifetimeFrames: LifetimeFrames, maxDistance: MaxDistance,
+                lifetimeFrames: LifetimeFrames, maxDistance: MaxDistance, maxDistanceResponse: MaxDistanceResponse,
                 collisionLayerMask: CollisionLayerMask, ignoreCollider: IgnoreCollider,
                 hitPolicy: HitPolicy, hitsRemaining: HitsRemaining,
                 hitPolicyKind: HitPolicyKind, hitPolicyParam: HitPolicyParam,
                 tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
-                hitCooldownFrames: HitCooldownFrames, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
+                hitCooldownFrames: HitCooldownFrames, hitIdentityPolicy: HitIdentityPolicy, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
                 collisionHalfExtents: CollisionHalfExtents,
@@ -247,12 +262,12 @@ namespace AbilityKit.Combat.Projectile
                 spawnFrame: SpawnFrame, position: Position, direction: Direction,
                 speed: Speed, returnAfterFrames: ReturnAfterFrames,
                 returnSpeed: ReturnSpeed, returnStopDistance: ReturnStopDistance,
-                lifetimeFrames: lifetimeFrames, maxDistance: MaxDistance,
+                lifetimeFrames: lifetimeFrames, maxDistance: MaxDistance, maxDistanceResponse: MaxDistanceResponse,
                 collisionLayerMask: CollisionLayerMask, ignoreCollider: IgnoreCollider,
                 hitPolicy: HitPolicy, hitsRemaining: HitsRemaining,
                 hitPolicyKind: HitPolicyKind, hitPolicyParam: HitPolicyParam,
                 tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
-                hitCooldownFrames: HitCooldownFrames, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
+                hitCooldownFrames: HitCooldownFrames, hitIdentityPolicy: HitIdentityPolicy, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
                 collisionHalfExtents: CollisionHalfExtents,
@@ -270,12 +285,12 @@ namespace AbilityKit.Combat.Projectile
                 spawnFrame: SpawnFrame, position: Position, direction: Direction,
                 speed: Speed, returnAfterFrames: ReturnAfterFrames,
                 returnSpeed: ReturnSpeed, returnStopDistance: ReturnStopDistance,
-                lifetimeFrames: LifetimeFrames, maxDistance: MaxDistance,
+                lifetimeFrames: LifetimeFrames, maxDistance: MaxDistance, maxDistanceResponse: MaxDistanceResponse,
                 collisionLayerMask: CollisionLayerMask, ignoreCollider: IgnoreCollider,
                 hitPolicy: null, hitsRemaining: HitsRemaining,
                 hitPolicyKind: HitPolicyKind, hitPolicyParam: hitPolicyParam,
                 tickIntervalFrames: TickIntervalFrames, hitFilter: HitFilter,
-                hitCooldownFrames: HitCooldownFrames, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
+                hitCooldownFrames: HitCooldownFrames, hitIdentityPolicy: HitIdentityPolicy, hitFilterKey: HitFilterKey, startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex, patternSlotCount: PatternSlotCount,
                 trackingTargetActorId: TrackingTargetActorId,
                 collisionHalfExtents: CollisionHalfExtents,
@@ -300,7 +315,7 @@ namespace AbilityKit.Combat.Projectile
                 returnSpeed: ReturnSpeed,
                 returnStopDistance: ReturnStopDistance,
                 lifetimeFrames: LifetimeFrames,
-                maxDistance: MaxDistance,
+                maxDistance: MaxDistance, maxDistanceResponse: MaxDistanceResponse,
                 collisionLayerMask: CollisionLayerMask,
                 ignoreCollider: IgnoreCollider,
                 hitPolicy: HitPolicy,
@@ -310,7 +325,7 @@ namespace AbilityKit.Combat.Projectile
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
                 hitCooldownFrames: HitCooldownFrames,
-                hitFilterKey: HitFilterKey,
+                hitIdentityPolicy: HitIdentityPolicy, hitFilterKey: HitFilterKey,
                 startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,
@@ -337,7 +352,7 @@ namespace AbilityKit.Combat.Projectile
                 returnSpeed: ReturnSpeed,
                 returnStopDistance: ReturnStopDistance,
                 lifetimeFrames: LifetimeFrames,
-                maxDistance: MaxDistance,
+                maxDistance: MaxDistance, maxDistanceResponse: MaxDistanceResponse,
                 collisionLayerMask: CollisionLayerMask,
                 ignoreCollider: IgnoreCollider,
                 hitPolicy: HitPolicy,
@@ -347,7 +362,7 @@ namespace AbilityKit.Combat.Projectile
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
                 hitCooldownFrames: HitCooldownFrames,
-                hitFilterKey: HitFilterKey,
+                hitIdentityPolicy: HitIdentityPolicy, hitFilterKey: HitFilterKey,
                 startSuspended: StartSuspended,
                 patternSlotIndex: slotIndex,
                 patternSlotCount: slotCount,
@@ -374,7 +389,7 @@ namespace AbilityKit.Combat.Projectile
                 returnSpeed: ReturnSpeed,
                 returnStopDistance: ReturnStopDistance,
                 lifetimeFrames: LifetimeFrames,
-                maxDistance: MaxDistance,
+                maxDistance: MaxDistance, maxDistanceResponse: MaxDistanceResponse,
                 collisionLayerMask: CollisionLayerMask,
                 ignoreCollider: IgnoreCollider,
                 hitPolicy: HitPolicy,
@@ -384,7 +399,7 @@ namespace AbilityKit.Combat.Projectile
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
                 hitCooldownFrames: HitCooldownFrames,
-                hitFilterKey: HitFilterKey,
+                hitIdentityPolicy: HitIdentityPolicy, hitFilterKey: HitFilterKey,
                 startSuspended: StartSuspended,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,

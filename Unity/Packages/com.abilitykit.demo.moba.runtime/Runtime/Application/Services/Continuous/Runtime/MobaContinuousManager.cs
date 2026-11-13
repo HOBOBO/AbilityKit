@@ -124,6 +124,34 @@ namespace AbilityKit.Demo.Moba.Services
 
         internal int NextModifierSourceId => _lifecycleBinder?.NextSourceId ?? 1;
 
+        internal void ValidateLocalSubscriptions(IReadOnlyList<IContinuous> instances) =>
+            _ownerBoundTriggerBinder?.PrepareLocalRebind(instances);
+
+        internal Action PrepareLocalSubscriptionRebind(IReadOnlyList<IContinuous> instances) =>
+            _ownerBoundTriggerBinder?.PrepareLocalRebind(instances) ?? (() => { });
+
+        internal void ClearLocalProjections() => _lifecycleBinder?.ClearLocalProjections();
+
+        internal void RestoreLocalRegistration(IReadOnlyList<IContinuous> instances) =>
+            RestoreRegistrationForRollback(instances);
+
+        internal void RestoreLocalProjectionOwners(IReadOnlyList<IContinuous> instances, int nextId) =>
+            _lifecycleBinder?.RestoreLocalOwners(instances, nextId);
+
+        internal void ProjectLocalOwners(IReadOnlyList<IContinuous> instances, Action projected = null) =>
+            _lifecycleBinder?.ProjectLocalOwners(instances, projected);
+
+        internal bool IsLocallyPausedByTags(IContinuous instance) =>
+            _services != null && _services.TryResolve<MobaContinuousTagRuleService>(out var rules) && rules.IsLocallyPausedByTags(instance);
+
+        internal void RestoreLocalTagState(IReadOnlyList<IContinuous> paused, IReadOnlyCollection<int> actors)
+        {
+            if (_services == null) return;
+            if (_services.TryResolve<MobaContinuousTagRuleService>(out var rules)) rules.RestoreLocalPauseOwnership(paused);
+            foreach (var actor in actors) _effectiveTags?.MarkDirty(actor);
+            if (_services.TryResolve<MobaTagPresentationCueReporter>(out var cues)) cues.RebaselineForLocalRollback(actors);
+        }
+
         internal void ValidateNextModifierSourceId(int nextSourceId)
         {
             _lifecycleBinder?.ValidateNextSourceId(nextSourceId);

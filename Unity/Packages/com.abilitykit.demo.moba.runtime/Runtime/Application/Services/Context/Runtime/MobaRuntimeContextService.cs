@@ -202,6 +202,43 @@ namespace AbilityKit.Demo.Moba.Services
             return contextId;
         }
 
+        internal Action CaptureLocalLifecycleCompensation()
+        {
+            ThrowIfDisposed();
+            var structure = _registry.CaptureLocalRollbackStructure();
+            var snapshots = _snapshots.CaptureLocalPruningCompensation();
+            var generations = new Dictionary<long, long>(_generations);
+            var bindings = _buffProvider.CaptureLocalCompensation();
+            return () =>
+            {
+                structure(); snapshots(); bindings();
+                _generations.Clear();
+                foreach (var pair in generations) _generations.Add(pair.Key, pair.Value);
+            };
+        }
+
+        internal void RestoreLocalBuffBindings(long nextId, IReadOnlyCollection<long> targetIds,
+            IReadOnlyList<(BuffRuntime Runtime, int TargetActorId)> buffs, int frame)
+        {
+            var owned = new List<long>();
+            foreach (var buff in buffs)
+                if (buff.Runtime.RuntimeContextId != 0) owned.Add(buff.Runtime.RuntimeContextId);
+            _registry.RestoreLocalRollbackEntities(nextId, targetIds, owned);
+            _buffProvider.Clear();
+            _generations.Clear();
+            _snapshots.RemoveFromEntityId(nextId);
+            foreach (var buff in buffs)
+            {
+                var runtime = buff.Runtime;
+                var id = runtime.RuntimeContextId;
+                if (id == 0) continue;
+                _snapshots.Remove(id);
+                EnsureGeneration(id);
+                _registry.TryGetReference(id, out runtime.RuntimeContextIdentity);
+                _buffProvider.Bind(id, runtime, buff.TargetActorId, MobaRuntimeContextLifecycleState.Active, frame);
+            }
+        }
+
         internal static void ValidateRestoredBuffReference(long contextId, long version)
         {
             if (contextId < 0L || contextId == long.MaxValue ||
@@ -300,6 +337,16 @@ namespace AbilityKit.Demo.Moba.Services
         private sealed class MobaBuffRealtimeContextProvider : IContextRealtimeValueProvider
         {
             private readonly Dictionary<long, Entry> _entries = new Dictionary<long, Entry>();
+
+            internal Action CaptureLocalCompensation()
+            {
+                var entries = new Dictionary<long, Entry>(_entries);
+                return () =>
+                {
+                    _entries.Clear();
+                    foreach (var pair in entries) _entries.Add(pair.Key, pair.Value);
+                };
+            }
 
             public void Bind(long contextId, BuffRuntime runtime, int targetActorId, MobaRuntimeContextLifecycleState state, int frame)
             {

@@ -315,7 +315,7 @@ flowchart LR
     F --> G["Rebuild Projectile list from pool"]
 ```
 
-该快照只覆盖 `ProjectileWorld` 的 active projectile 列表与 `_nextId`，并不覆盖 `ProjectileService` 的 schedule、AreaWorld、事件缓冲、`_nextScheduleId`、return/tracking provider 或项目自定义过滤器。Import 会清空 schedule 和各类事件缓冲，但不会恢复或清理 AreaWorld；恢复对象的 HitFilter/HitCooldown 也会回到默认值。Demo 层额外的 Actor 链接、来源上下文、技能 retain handle 和表现游标同样需要由项目侧在更高层恢复事务中重建。
+该快照只覆盖 `ProjectileWorld` 的 active projectile 列表与 `_nextId`，并不覆盖 `ProjectileService` 的 schedule、AreaWorld、事件缓冲、`_nextScheduleId`、return/tracking provider 或项目自定义过滤器实例。投射物快照会保存 `TotalHitCount`、命中冷却游标（`HitCooldownFrames`、`LastHitCollider`、`LastHitAllowedFrame`）以及稳定的 `HitFilterKey`；同一个 `ProjectileWorld` 会复用已注册过滤器，跨 World 恢复时必须通过 `IProjectileHitFilterResolver` 提供同一 key 的过滤器，否则 Import 明确失败，不会静默退回默认过滤。Demo 层额外的 Actor 链接、来源上下文、技能 retain handle 和表现游标同样需要由项目侧在更高层恢复事务中重建。
 
 ---
 
@@ -387,12 +387,22 @@ flowchart TD
 | `IProjectileSpawnPattern` | 自定义单次发射产生几个投射物、方向如何分布 | 需要保持确定性，避免依赖非确定随机 |
 | `IProjectileSpawnPatternProvider` | 每次调度时动态生成 pattern | 可读取修饰器，但要保证同一帧输入一致 |
 | `IProjectileHitFilter` | 阵营过滤、友军过滤、不可命中过滤 | 不应直接造成副作用，只返回是否命中 |
+| `IProjectileHitFilterResolver` | 回滚时按稳定 key 重建过滤器实例 | 旧过滤器沿用 key 契约；无法解析时必须显式失败 |
+| `IProjectileHitFilterSnapshotSource` / `IProjectileHitFilterSnapshotResolver` | 保存过滤器的值描述，恢复时绑定目标世界服务 | 只序列化版本化值数据，不保存 registry 或旧世界引用；缺失 resolver 显式失败 |
 | `IProjectileHitPolicy` | 命中即消失、穿透、多段命中 | 通过 `hitsRemaining` 保持状态可序列化 |
 | `IProjectileReturnTargetProvider` | 回旋镖、返回发射器、返回角色 | 返回目标丢失时会触发 `ReturnTargetLost` 退出 |
 | 事件 drain/peek | 表现层、触发器、快照系统消费事件 | drain 会清空缓冲，需要明确消费顺序 |
 | Rollback import/export | 帧同步、预测、回滚 | 业务层附加绑定不由底层自动恢复 |
 
 投射物系统的核心约束是：底层只关心“运动 + 碰撞 + 生命周期事件”，业务层效果必须通过事件转译进入 Triggering、Damage、Buff 或表现系统。这样可以避免底层模块反向依赖 MOBA 规则，也让同一投射物内核可用于不同玩法。
+
+### 10.1 可配置拦截响应（2026-11-12 用户批准）
+
+MOBA 投射物生产表的可选 `CollisionRules` 通过现有复杂数组列投影至 DTO/MO。按配置顺序首项匹配：`Role` 1=冻结追踪目标、2=其他 Actor、3=静态世界；`MainType`、`UnitSubType` 沿用既有分类，0 为任意；`Relation` 0=任意、1=敌方、2=友方、3=中立/未分队。`Response` 沿用公共枚举 0=Ignore、1=Hit、2=Block。Ignore 不发 Hit/不耗命中预算；Block 退出且无伤害；Hit 继续走原命中次数/贯穿/弹射。自身始终忽略，Hit 不放宽既有友伤/单位类型资格；世界规则不允许 Hit 或 Actor 分类。空规则保留既有默认响应。
+
+MOBA filter 在发射时复制规则和冻结目标身份，借助可选值快照接口保存；目标世界 resolver 重新绑定当地 registry。公共包只处理字节描述及响应接口，不依赖 MOBA 分类。未知枚举、非法世界规则和超过 256 条规则明确拒绝。碰撞层掩码仍先决定是否参与碰撞，规则只处理参与碰撞的对象。主动拦截墙、护盾、反射及耐久不在本批批准范围。
+
+`OncePerActor` 是独立可选的命中身份策略：由注入 provider 解析 Actor，在 Hit 被接受与消耗预算前进行整段弹体寿命去重，集合随快照恢复；默认按 Collider 保持兼容。Block/Ignore 先执行，不受 Actor 去重改写。配置与批准记录见 `plans/VeigarQerClosure.2026-11-12.md`。
 
 ---
 
@@ -415,3 +425,32 @@ flowchart TD
 ---
 
 *文档类型：Canonical 设计（Projectile 跨模块边界） | 事实基线：2026-08-16 | 证据等级：公共包局部 E3；E4 仅限日期化历史 artifact | 文档版本：v3.0*
+
+## Area cleanup and failed-spawn compensation
+
+### Destination suspension (approved 2026-11-13)
+
+`ProjectileSpawnParams.MaxDistanceResponse` defaults to `Exit`. `SuspendAtDestination`
+clamps movement to the remaining distance, records `ArrivedFrame`, suspends simulation
+and emits one `ProjectileArrivalEvent`, without Exit or entity removal. Arrived projectiles
+cannot resume flight; explicit despawn, owner cleanup and world disposal remain available.
+Suspension preserves the existing lifetime-pause contract and performs no flight collision.
+`IProjectileArrivalEventSource` exposes arrival events without changing existing service stubs.
+Rollback payload version 17 includes the response and arrival frame; older versions fail
+before clearing the current world. Arrival callbacks must be consumed before the battle's
+end-of-frame rollback capture, together with their resulting Area/Cast state.
+
+MOBA arrival triggers execute with the original projectile source and actual arrival position.
+The projectile actor retains its original Cast until removal. An Area can remain the sole
+gameplay timer/terminal claimant while projectile HFSM actions await arrival, await an
+explicit original-Cast number, and remove the projectile after a configured presentation tail.
+These actions carry rollback state and never inspect hero or resource identity.
+
+`AreaWorld` deliberately exposes two removal paths:
+
+- `DespawnArea(id, frame)` is gameplay removal. It appends `AreaExpireEvent`, which `MobaAreaSyncSystem` consumes and may turn into the configured expire trigger.
+- `IAreaRollbackService.CancelArea(id)` is failed-creation or rollback cleanup. It removes the low-level Area silently and never appends an expire event.
+
+MOBA area creation registers service metadata only after the low-level Area exists. If metadata registration fails, compensation first cancels the low-level Area without an event, then removes runtime metadata, indexes, delay markers, execution context and skill-runtime retains. The next sync pass therefore has no stale `AreaExpireEvent` whose metadata has already been removed.
+
+This is required for multi-area skills such as Jinx E: a failed later spawn must not dispatch an expire trigger for an earlier trap, and cancelling a cast must not look like normal gameplay expiration. Normal removal actions continue to use `DespawnArea` and preserve existing gameplay semantics.

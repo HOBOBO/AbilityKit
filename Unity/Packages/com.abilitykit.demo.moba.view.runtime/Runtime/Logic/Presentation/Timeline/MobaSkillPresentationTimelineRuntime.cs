@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.ActionSchema;
@@ -237,6 +238,9 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
         {
             var isAnimation = clip.type == AnimationType;
             var resource = isAnimation ? clip.args["clipKey"] : string.Empty;
+            var speed = ReadAnimationNumber(clip, "playbackSpeed", 1f);
+            var clipOffset = ReadAnimationNumber(clip, "clipOffset", 0f);
+            var sourceLength = ReadAnimationNumber(clip, "clipLength", clip.length);
             var durationMs = clip.length > 0 ? (int)Math.Max(1, clip.length * 1000f) : 0;
             if (!isAnimation && _templateResolver != null &&
                 clip.args.TryGetValue("presentationTemplateId", out var templateText) &&
@@ -258,8 +262,17 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
                 resourceKey: isAnimation ? string.Empty : resource,
                 assetKind: isAnimation ? PresentationAssetKind.Animation : PresentationAssetKind.Particle,
                 playback: isAnimation
-                    ? new PresentationPlaybackSpec(clipKey: resource, normalizedTime: offset > 0f ? offset / Math.Max(clip.length, 0.0001f) : 0f)
+                    ? new PresentationPlaybackSpec(clipKey: resource, speed: speed,
+                        normalizedTime: Math.Max(0f, clipOffset + offset * speed) / Math.Max(sourceLength, 0.0001f))
                     : PresentationPlaybackSpec.Default);
+        }
+
+        private static float ReadAnimationNumber(ClipDto clip, string name, float fallback)
+        {
+            return clip.args.TryGetValue(name, out var text) &&
+                   float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) &&
+                   !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f
+                ? value : fallback;
         }
     }
 }

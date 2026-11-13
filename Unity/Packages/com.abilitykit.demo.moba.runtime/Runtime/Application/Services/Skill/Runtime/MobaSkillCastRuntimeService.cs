@@ -11,7 +11,7 @@ using AbilityKit.Core.Pooling;
 namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(MobaSkillCastRuntimeService))]
-    public sealed class MobaSkillCastRuntimeService : IService
+    public sealed partial class MobaSkillCastRuntimeService : IService
     {
         private static readonly ObjectPool<List<long>> s_longListPool = Pools.GetPool(
             createFunc: () => new List<long>(8),
@@ -513,6 +513,18 @@ namespace AbilityKit.Demo.Moba.Services
             _nextGeneration = Math.Max(1, snapshot.NextGeneration);
         }
 
+        internal Action CaptureLocalCompensation()
+        {
+            var state = CaptureRollbackSnapshot();
+            var instances = new Dictionary<long, MobaSkillCastRuntime>(_runtimes);
+            return () =>
+            {
+                _runtimes.Clear();
+                foreach (var pair in instances) _runtimes.Add(pair.Key, pair.Value);
+                RestoreRollbackSnapshot(state);
+            };
+        }
+
         private bool EndPipeline(MobaSkillCastRuntime runtime, MobaSkillRuntimeEndReason reason, SkillCastStage stage)
         {
             if (runtime == null || runtime.IsEnded || runtime.IsEnding || runtime.PipelineEnded) return false;
@@ -620,7 +632,7 @@ namespace AbilityKit.Demo.Moba.Services
             return false;
         }
 
-        private bool TryFindRetain(
+        internal bool TryFindRetain(
             in MobaSkillCastRuntimeHandle runtimeHandle,
             in MobaSkillRuntimeChildRef child,
             out MobaSkillRuntimeRetainHandle retainHandle)

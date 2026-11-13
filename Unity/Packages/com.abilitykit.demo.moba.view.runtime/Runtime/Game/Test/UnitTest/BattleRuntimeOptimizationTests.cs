@@ -2098,6 +2098,150 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void MobaBattleSyncModePolicy_ExposesFormalGatewayBoundary()
+        {
+            Assert.IsTrue(MobaBattleSyncModePolicy.TryValidateCombination(
+                BattleHostMode.Local,
+                BattleSyncMode.Lockstep,
+                useGatewayTransport: false,
+                out var localError), localError);
+            Assert.IsTrue(MobaBattleSyncModePolicy.TryValidateCombination(
+                BattleHostMode.Local,
+                BattleSyncMode.SnapshotAuthority,
+                useGatewayTransport: false,
+                out var localStateError), localStateError);
+            Assert.IsTrue(MobaBattleSyncModePolicy.TryValidateCombination(
+                BattleHostMode.GatewayRemote,
+                BattleSyncMode.Lockstep,
+                useGatewayTransport: true,
+                out var gatewayError), gatewayError);
+            Assert.IsTrue(MobaBattleSyncModePolicy.TryValidateCombination(
+                BattleHostMode.GatewayRemote,
+                BattleSyncMode.SnapshotAuthority,
+                useGatewayTransport: true,
+                out var gatewayStateError), gatewayStateError);
+            Assert.AreEqual("Moba.AuthoritativeRemoteInterpolation",
+                MobaBattleSyncModePolicy.GetGatewayProfileName(BattleSyncMode.SnapshotAuthority));
+            Assert.IsFalse(MobaBattleSyncModePolicy.TryValidateCombination(
+                BattleHostMode.GatewayRemote,
+                BattleSyncMode.HybridPredictReconcile,
+                useGatewayTransport: true,
+                out var unsupportedError));
+            StringAssert.Contains("not declared", unsupportedError);
+        }
+
+        [Test]
+        public void MobaBattleSyncModePolicy_LocalLobbyOnlyAdvertisesFrameSyncUntilStateTransportIsReady()
+        {
+            var framePreset = ScriptableObject.CreateInstance<BattleStartPresetSO>();
+            var statePreset = ScriptableObject.CreateInstance<BattleStartPresetSO>();
+            framePreset.HostMode = BattleHostMode.Local;
+            framePreset.SyncMode = BattleSyncMode.Lockstep;
+            statePreset.HostMode = BattleHostMode.Local;
+            statePreset.SyncMode = BattleSyncMode.SnapshotAuthority;
+
+            try
+            {
+                Assert.IsTrue(MobaBattleSyncModePolicy.CanSelectInLocalDemo(
+                    framePreset, out var frameError), frameError);
+                Assert.IsFalse(MobaBattleSyncModePolicy.CanSelectInLocalDemo(
+                    statePreset, out var stateError));
+                StringAssert.Contains("authority transport", stateError);
+                Assert.AreEqual("MOBA 帧同步", MobaBattleSyncModePolicy.GetDisplayName(BattleSyncMode.Lockstep));
+                Assert.AreEqual("MOBA 状态同步", MobaBattleSyncModePolicy.GetDisplayName(BattleSyncMode.SnapshotAuthority));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(framePreset);
+                UnityEngine.Object.DestroyImmediate(statePreset);
+            }
+        }
+
+        [Test]
+        public void MobaBattleSyncModePolicy_AllowsConfiguredGatewayStateSyncPresetInLobby()
+        {
+            var preset = ScriptableObject.CreateInstance<BattleStartPresetSO>();
+            var gateway = ScriptableObject.CreateInstance<BattleGatewayConfigSO>();
+            preset.HostMode = BattleHostMode.GatewayRemote;
+            preset.SyncMode = BattleSyncMode.SnapshotAuthority;
+            preset.GatewaySO = gateway;
+            gateway.UseGatewayTransport = true;
+
+            try
+            {
+                Assert.IsTrue(MobaBattleSyncModePolicy.CanSelectInSyncModeLobby(
+                    preset, out var reason), reason);
+                gateway.UseGatewayTransport = false;
+                Assert.IsFalse(MobaBattleSyncModePolicy.CanSelectInSyncModeLobby(
+                    preset, out _));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(preset);
+                UnityEngine.Object.DestroyImmediate(gateway);
+            }
+        }
+
+        [Test]
+        public void BattleStartPlanAssembler_MapsLocalFrameSyncPresetWithoutChangingLaunchInputs()
+        {
+            var config = ScriptableObject.CreateInstance<BattleStartConfig>();
+            var preset = ScriptableObject.CreateInstance<BattleStartPresetSO>();
+            var enterGame = ScriptableObject.CreateInstance<BattleEnterGameConfigSO>();
+            var players = ScriptableObject.CreateInstance<BattlePlayersConfigSO>();
+            var heroLoadout = new MobaPlayerLoadout(
+                new PlayerId("p1"), 1, 3010, 3010, 1, 30100601, new[] { 30100101 }, 0);
+            var req = new EnterMobaGameReq(
+                new PlayerId("p1"), "sync-policy-test", 1, 12345, 30, 2,
+                players: new[] { heroLoadout }, gameplayId: 1);
+
+            preset.HostMode = BattleHostMode.Local;
+            preset.SyncMode = BattleSyncMode.Lockstep;
+            preset.EnterGameSO = enterGame;
+            preset.PlayersSO = players;
+            config.Preset = preset;
+
+            try
+            {
+                var options = BattleStartPlanAssembler.BuildPlanOptions(
+                    config, in req, createWorldPayload: null, createWorldOpCode: 0);
+
+                Assert.AreEqual(BattleHostMode.Local, options.HostMode);
+                Assert.AreEqual(BattleSyncMode.Lockstep, options.Sync.SyncMode);
+                Assert.AreEqual("p1", options.World.PlayerId);
+                Assert.AreEqual(30, options.World.TickRate);
+                Assert.AreEqual(2, options.World.InputDelayFrames);
+                Assert.AreEqual("sync-policy-test", req.MatchId);
+                Assert.AreEqual(heroLoadout.PlayerId, req.Players[0].PlayerId);
+                Assert.AreEqual(heroLoadout.HeroId, req.Players[0].HeroId);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(players);
+                UnityEngine.Object.DestroyImmediate(enterGame);
+                UnityEngine.Object.DestroyImmediate(preset);
+                UnityEngine.Object.DestroyImmediate(config);
+            }
+        }
+
+        [Test]
+        public void DemoLobby_SyncModeSelectionDisablesAutomaticLocalEntry()
+        {
+            Assert.IsFalse(DemoLobbyOnGUIFeature.ShouldAutoEnterLocalBattle(
+                null,
+                alreadyInBattle: false,
+                hasBattleConfig: true,
+                alreadyAttempted: false,
+                enableSyncModeSelection: true));
+            Assert.IsTrue(DemoLobbyOnGUIFeature.ShouldAutoEnterLocalBattle(
+                null,
+                alreadyInBattle: false,
+                hasBattleConfig: true,
+                alreadyAttempted: false,
+                enableSyncModeSelection: false));
+        }
+
+        [Test]
         public void BattleScopeManager_RejectsQueuedSessionCallbackFromPreviousScope()
         {
             using var host = new BattleWorldScopeHost();

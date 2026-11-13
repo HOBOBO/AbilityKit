@@ -11,7 +11,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
     /// PlannedTrigger 的调度注册辅助，统一封装 ActionScheduler 注册与执行器选择。
     /// </summary>
     internal static class PlannedTriggerScheduleRegistrar<TArgs, TCtx>
-        where TArgs : class
     {
         public static void RegisterOrReplace(
             RuntimeActionScheduler actionScheduler,

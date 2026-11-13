@@ -176,6 +176,65 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void IgnoredResourceConsumption_LeavesResourceUntouchedAndDoesNotRefund()
+        {
+            using var scope = new EconomyTestScope();
+            var context = scope.CreateCast(slot: 1, skillId: EconomyTestScope.SkillOneId);
+            var specification = scope.Reservation();
+            specification.IgnoreResourceCostCheck = true;
+            specification.IgnoreResourceConsumption = true;
+
+            Assert.That(scope.Economy.TryReserve(context, specification, out var failure), Is.True, failure);
+            Assert.That(scope.Mana.Current, Is.EqualTo(Fixed64.FromInt32(100)));
+            Assert.That(scope.Economy.TryGetReleaseResourceAdjustment(
+                context.RuntimeHandle, ResourceType.Mana, out var adjustment, out var ignored), Is.True);
+            Assert.That(adjustment, Is.EqualTo(Fixed64.FromInt32(10)));
+            Assert.That(ignored, Is.True);
+
+            Assert.That(scope.Economy.Commit(context.RuntimeHandle), Is.True);
+            Assert.That(scope.Economy.TryRefundKillCost(
+                context.RuntimeHandle, EconomyTestScope.ActorId, EconomyTestScope.SkillOneId, out _), Is.False);
+            Assert.That(scope.Runtimes.Cancel(context.RuntimeHandle), Is.True);
+            Assert.That(scope.Mana.Current, Is.EqualTo(Fixed64.FromInt32(100)));
+        }
+
+        [Test]
+        public void IgnoredResourceConsumption_StillChecksResourceWhenCostCheckIsEnabled()
+        {
+            using var scope = new EconomyTestScope();
+            scope.Mana.Current = Fixed64.FromInt32(5);
+            var context = scope.CreateCast(slot: 1, skillId: EconomyTestScope.SkillOneId);
+            var specification = scope.Reservation();
+            specification.IgnoreResourceConsumption = true;
+
+            Assert.That(scope.Economy.TryReserve(context, specification, out var failure), Is.False);
+            Assert.That(failure, Does.Contain("Insufficient"));
+            Assert.That(scope.Mana.Current, Is.EqualTo(Fixed64.FromInt32(5)));
+        }
+
+        [Test]
+        public void IgnoredResourceConsumption_RollbackPreservesReleaseProjectionFlags()
+        {
+            using var scope = new EconomyTestScope();
+            var context = scope.CreateCast(slot: 1, skillId: EconomyTestScope.SkillOneId);
+            var specification = scope.Reservation();
+            specification.IgnoreResourceCostCheck = true;
+            specification.IgnoreResourceConsumption = true;
+            Assert.That(scope.Economy.TryReserve(context, specification, out var failure), Is.True, failure);
+
+            var provider = new MobaSkillEconomyRollbackProvider(scope.Economy);
+            var payload = provider.Export(new FrameIndex(0));
+            Assert.That(scope.Runtimes.Cancel(context.RuntimeHandle), Is.True);
+            provider.Import(new FrameIndex(0), payload);
+
+            Assert.That(scope.Economy.TryGetReleaseResourceAdjustment(
+                context.RuntimeHandle, ResourceType.Mana, out var adjustment, out var ignored), Is.True);
+            Assert.That(adjustment, Is.EqualTo(Fixed64.FromInt32(10)));
+            Assert.That(ignored, Is.True);
+            Assert.That(scope.Mana.Current, Is.EqualTo(Fixed64.FromInt32(100)));
+        }
+
+        [Test]
         public void CommittedSkillCost_CanBeRefundedOnceAndRestoredForRollbackReplay()
         {
             using var scope = new EconomyTestScope();

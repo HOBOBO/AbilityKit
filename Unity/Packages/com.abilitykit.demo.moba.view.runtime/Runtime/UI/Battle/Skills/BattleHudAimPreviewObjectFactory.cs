@@ -151,7 +151,9 @@ namespace AbilityKit.Game.Flow
 
         private static Material CreateMaterial(Color color)
         {
-            var shader = Shader.Find("Unlit/Color") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
+            // Unlit/Color ignores alpha and blend properties: an overlay using it
+            // hides the very projectile that the translucent preview describes.
+            var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Standard");
             var material = shader != null ? new Material(shader) : new Material(Shader.Find("Sprites/Default"));
             material.color = color;
             material.hideFlags = HideFlags.DontSave;

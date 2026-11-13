@@ -10,7 +10,6 @@ namespace AbilityKit.Triggering.Runtime
         private static readonly MethodInfo RegisterPlanAsMethod = typeof(TriggerRunnerPlanExtensions).GetMethod(nameof(RegisterPlanAs), BindingFlags.NonPublic | BindingFlags.Static);
 
         public static IDisposable RegisterPlan<TArgs, TCtx>(this TriggerRunner<TCtx> runner, EventKey<TArgs> key, in TriggerPlan<TArgs> plan)
-            where TArgs : class
         {
             if (runner == null) throw new ArgumentNullException(nameof(runner));
             var trigger = new PlannedTrigger<TArgs, TCtx>(plan);
@@ -22,7 +21,6 @@ namespace AbilityKit.Triggering.Runtime
             if (runner == null) throw new ArgumentNullException(nameof(runner));
             if (argsType == null) throw new ArgumentNullException(nameof(argsType));
             if (eventId == 0) throw new ArgumentException("Event id must be non-zero.", nameof(eventId));
-            if (!argsType.IsClass) throw new ArgumentException("Trigger event args type must be a class.", nameof(argsType));
             if (RegisterPlanAsMethod == null) throw new MissingMethodException(nameof(TriggerRunnerPlanExtensions), nameof(RegisterPlanAs));
 
             try
@@ -37,7 +35,6 @@ namespace AbilityKit.Triggering.Runtime
         }
 
         private static IDisposable RegisterPlanAs<TArgs, TCtx>(TriggerRunner<TCtx> runner, int eventId, TriggerPlan<object> plan)
-            where TArgs : class
         {
             var typedPlan = plan.AsArgs<TArgs>();
             var key = new EventKey<TArgs>(eventId);

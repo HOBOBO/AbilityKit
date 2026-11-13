@@ -4,10 +4,18 @@
   "PipelineContinuousTagTemplateId": 0,
   "Phases": [
     {
+      "Type": 18,
+      "PhaseId": "selected_parameters_commit",
+      "CommitPoint": {
+        "CommitId": "shot",
+        "RequireEconomyReservation": false
+      }
+    },
+    {
       "Type": 2,
       "PhaseId": "skill_30010601_shot",
       "Timeline": {
-        "DurationMs": 100,
+        "DurationMs": 3250,
         "Events": [
           {
             "AtMs": 0,

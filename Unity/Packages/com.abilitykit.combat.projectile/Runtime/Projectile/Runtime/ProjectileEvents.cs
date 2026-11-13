@@ -2,6 +2,20 @@ using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Combat.Projectile
 {
+    public readonly struct ProjectileArrivalEvent
+    {
+        public readonly ProjectileId Projectile;
+        public readonly int OwnerId, TemplateId, LauncherActorId, RootActorId, Frame;
+        public readonly Vec3 Position, Direction;
+        public ProjectileArrivalEvent(ProjectileId projectile, int ownerId, int templateId, int launcherActorId,
+            int rootActorId, int frame, in Vec3 position, in Vec3 direction)
+        {
+            Projectile = projectile; OwnerId = ownerId; TemplateId = templateId;
+            LauncherActorId = launcherActorId; RootActorId = rootActorId; Frame = frame;
+            Position = position; Direction = direction;
+        }
+    }
+
     public readonly struct ProjectileSpawnEvent
     {
         public readonly ProjectileId Projectile;

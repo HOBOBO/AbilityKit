@@ -6,7 +6,6 @@ using MemoryPack;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
-    [MobaRollbackProvider(DefaultKey)]
     public sealed class MobaContextEntityRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider
     {
         public const int DefaultKey = 10011;

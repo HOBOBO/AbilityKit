@@ -24,6 +24,40 @@ public sealed class MobaLubanConfigPipelineTests
     private static readonly int[] HeroIds = { 1001, 1002, 1003, 1004, 1005, 1006, 1007 };
 
     [Fact]
+    public void Published_model_animation_facts_match_binary_and_jinx_actions_use_shared_references()
+    {
+        var assets = new ConsoleTextAssetLoader();
+        Assert.True(assets.TryLoadText("luban/moba/model_animations.json", out var json));
+        Assert.True(assets.TryLoadBytes("luban/moba_bytes/model_animations.bytes", out var bytes));
+        var rows = JArray.Parse(json).Cast<JObject>().ToDictionary(r => r.Value<int>("Id"));
+        var binary = new moba_luban.ModelAnimations(Luban.ByteBuf.Wrap(bytes)).DataList;
+        Assert.Equal(rows.Count, binary.Count);
+        Assert.NotEmpty(binary);
+        var keys = new HashSet<(int ModelId, string ActionKey)>();
+        foreach (var row in binary)
+        {
+            Assert.True(keys.Add((row.ModelId, row.ActionKey)));
+            var fact = rows[row.Id];
+            Assert.Equal(fact.Value<int>("ModelId"), row.ModelId);
+            Assert.Equal(fact.Value<string>("ActionKey"), row.ActionKey);
+            Assert.Equal(fact.Value<string>("AnimatorState"), row.AnimatorState);
+            Assert.Equal(fact.Value<int>("FrameCount"), row.FrameCount);
+            Assert.Equal(fact.Value<double>("FrameRate"), row.FrameRate);
+            Assert.Equal(fact.Value<int>("Layer"), row.Layer);
+        }
+        Assert.True(assets.TryLoadText("luban/moba/character_view_actions.json", out var actions));
+        var count = 0;
+        foreach (var variant in JObject.Parse(actions)["variants"]!.OfType<JObject>().Where(r => r.Value<int>("entityCode") == 3002))
+            foreach (var node in ((JObject)variant["action"]!).DescendantsAndSelf().OfType<JObject>().Where(n => n.Value<string>("type") == "play"))
+            {
+                Assert.Contains((node.Value<int>("modelId"), node.Value<string>("animationKey")!), keys);
+                Assert.All(new[] { "animatorState", "frameCount", "frameRate", "layer" }, field => Assert.Null(node[field]));
+                count++;
+            }
+        Assert.Equal(22, count);
+    }
+
+    [Fact]
     public void Published_counter_callbacks_reference_global_callable_triggers()
     {
         var assets = new ConsoleTextAssetLoader();
@@ -737,6 +771,121 @@ public sealed class MobaLubanConfigPipelineTests
                     $"{table.FilePath}/{id}: expected={expected}, actual={actual}");
             }
         }
+    }
+
+    [Fact]
+    public void Veigar_published_presentation_contract_uses_formal_model_vfx_and_action_frames()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !Directory.Exists(Path.Combine(root.FullName, "Unity", "Packages")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var resources = Path.Combine(root!.FullName, "Unity", "Packages",
+            "com.abilitykit.demo.moba.view.runtime", "Resources");
+        var luban = Path.Combine(resources, "luban", "moba");
+
+        var models = JArray.Parse(File.ReadAllText(Path.Combine(luban, "models.json")));
+        var model = Assert.Single(models, row => row!.Value<int>("Id") == 3004);
+        Assert.Equal("ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Model",
+            model!["PrefabPath"]!.Value<string>());
+
+        var allVfx = JArray.Parse(File.ReadAllText(Path.Combine(luban, "vfx.json")))
+            .Cast<JObject>().ToDictionary(row => row.Value<int>("Id"));
+        var vfx = allVfx.Values.Where(row => row.Value<int>("Id") is >= 90034001 and <= 90034015)
+            .ToDictionary(row => row.Value<int>("Id"));
+        Assert.Equal(15, vfx.Count);
+        Assert.All(vfx.Values, row => Assert.StartsWith("ChampionVfx/09.Veigar_Hextech/",
+            row.Value<string>("Resource")));
+        Assert.Equal("ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Q_Projectile",
+            vfx[90034008].Value<string>("Resource"));
+        Assert.Equal("ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_W_Explosion",
+            vfx[90034014].Value<string>("Resource"));
+
+        var projectiles = JArray.Parse(File.ReadAllText(Path.Combine(luban, "projectiles.json")))
+            .Cast<JObject>().ToDictionary(row => row.Value<int>("Id"));
+        Assert.Equal(90034008, projectiles[32040101].Value<int>("VfxId"));
+        Assert.Equal(90034007, projectiles[32040101].Value<int>("OnHitVfxId"));
+        Assert.Equal(90034011, projectiles[32040501].Value<int>("VfxId"));
+        Assert.Equal(90034010, projectiles[32040501].Value<int>("OnHitVfxId"));
+
+        var aoes = JArray.Parse(File.ReadAllText(Path.Combine(luban, "aoes.json")))
+            .Cast<JObject>().ToDictionary(row => row.Value<int>("Id"));
+        // Areas use anchored derivatives; projectile and timeline source resources stay intact.
+        Assert.Equal(90034016, aoes[42040301].Value<int>("VfxId"));
+        Assert.Equal("MobaVfx/Veigar/W_Area", allVfx[90034016].Value<string>("Resource"));
+        Assert.Equal(0, aoes[42040401].Value<int>("VfxId"));
+        Assert.Equal(90034017, aoes[42040402].Value<int>("VfxId"));
+        Assert.Equal(new[] { 30040413 }, aoes[42040401]["OnCrossTriggerIds"]!.Values<int>());
+        Assert.Empty(aoes[42040401]["OnExitTriggerIds"]?.Values<int>() ?? Array.Empty<int>());
+        Assert.Equal("MobaVfx/Veigar/E_Area", allVfx[90034017].Value<string>("Resource"));
+
+        var skills = JArray.Parse(File.ReadAllText(Path.Combine(luban, "skills.json")))
+            .Cast<JObject>().ToDictionary(row => row.Value<int>("Id"));
+        Assert.Equal(new[] { 90034001, 90034008, 90034013, 90034004, 90034011 },
+            new[] { 30040101, 30040201, 30040301, 30040401, 30040501 }
+                .Select(id => skills[id].Value<int>("PreviewVfxId")).ToArray());
+
+        var actions = JObject.Parse(File.ReadAllText(Path.Combine(resources, "moba", "character_view_actions.json")));
+        var variants = (JArray)actions["variants"]!;
+        var expected = new Dictionary<int, (string State, int Frames)>
+        {
+            [30040101] = ("Veigar_Model_AA", 48),
+            [30040201] = ("Veigar_Model_SpellQ", 38),
+            [30040301] = ("Veigar_Model_SpellW", 80),
+            [30040401] = ("Veigar_Model_SpellE", 50),
+            [30040501] = ("Veigar_Model_SpellR", 38),
+        };
+        foreach (var pair in expected)
+        {
+            var variant = Assert.Single(variants, row => row!.Value<int?>("entityCode") == 3004 &&
+                row.Value<int?>("skillId") == pair.Key);
+            var play = Assert.Single(variant!["action"]!["actions"]!, row => row!.Value<string>("type") == "play");
+            Assert.Equal(pair.Value.State, play!["animatorState"]!.Value<string>());
+            Assert.Equal(pair.Value.Frames, play["frameCount"]!.Value<int>());
+            Assert.Equal(Math.Round(pair.Value.Frames / 24m, 6),
+                variant["action"]!["actions"]![1]!["seconds"]!.Value<decimal>());
+        }
+    }
+
+    [Fact]
+    public void Veigar_r_published_configuration_uses_target_missing_health_formula_and_cap()
+    {
+        var assets = new ConsoleTextAssetLoader();
+        Assert.True(assets.TryLoadText("luban/ability/ability_trigger_plans.json", out var text));
+        var triggers = (JArray)JObject.Parse(text)["Triggers"]!;
+        var trigger = triggers.Single(row => row!.Value<int>("TriggerId") == 30040511);
+        var action = trigger["Actions"]!.Children()
+            .Single(row => row.Value<int>("ActionId") == 176148626);
+        var args = action["Args"]!;
+
+        Assert.Equal(150f, args["damage_value"]!["ConstValue"]!.Value<float>());
+        Assert.Equal(0.5f, args["source_attack_ratio"]!["ConstValue"]!.Value<float>());
+        Assert.Equal(0.5f, args["target_missing_hp_ratio_coefficient"]!["ConstValue"]!.Value<float>());
+        Assert.Equal(300f, args["target_missing_hp_bonus_max"]!["ConstValue"]!.Value<float>());
+        Assert.Equal(600f, args["damage_max"]!["ConstValue"]!.Value<float>());
+    }
+
+    [Theory]
+    [InlineData(30040101, 90034001)]
+    [InlineData(30040201, 90034008)]
+    [InlineData(30040301, 90034013)]
+    [InlineData(30040401, 90034004)]
+    [InlineData(30040501, 90034011)]
+    public void Veigar_action_timeline_presentation_references_published_vfx(int skillId, int vfxId)
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !Directory.Exists(Path.Combine(root.FullName, "Unity", "Packages")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var path = Path.Combine(root!.FullName, "Unity", "Packages",
+            "com.abilitykit.demo.moba.view.runtime", "Resources", "moba", "action_timeline",
+            $"skill_{skillId}.moba.presentation.json");
+        var timeline = JObject.Parse(File.ReadAllText(path));
+        var ids = timeline.Descendants().OfType<JObject>()
+            .Where(row => row.Value<string>("type") == "AbilityKit.ActionEditorImpl.PlayParticle")
+            .Select(row => row["args"]?["presentationTemplateId"]?.Value<int>())
+            .Where(id => id.HasValue).Select(id => id!.Value).ToArray();
+        Assert.Contains(vfxId, ids);
     }
 
     private static void AssertHeroes(MobaConfigDatabase database)

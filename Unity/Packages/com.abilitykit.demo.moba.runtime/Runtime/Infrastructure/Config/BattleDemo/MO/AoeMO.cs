@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public float OffsetZ { get; }
 
         public float Radius { get; }
+        public float InnerRadius { get; }
         public int DelayMs { get; }
         public int DurationMs { get; }
         public int CollisionLayerMask { get; }
@@ -23,6 +24,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
         public int[] OnDelayTriggerIds { get; }
         public int[] OnEnterTriggerIds { get; }
+        public int[] OnCrossTriggerIds { get; }
         public int[] OnExitTriggerIds { get; }
         public int[] OnIntervalTriggerIds { get; }
         public int IntervalMs { get; }
@@ -42,6 +44,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             OffsetZ = dto.OffsetZ;
 
             Radius = dto.Radius;
+            InnerRadius = dto.InnerRadius > 0f ? Math.Min(dto.InnerRadius, dto.Radius) : 0f;
             DelayMs = dto.DelayMs;
             DurationMs = dto.DurationMs;
             CollisionLayerMask = dto.CollisionLayerMask;
@@ -49,6 +52,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
             OnDelayTriggerIds = dto.OnDelayTriggerIds ?? Array.Empty<int>();
             OnEnterTriggerIds = dto.OnEnterTriggerIds ?? Array.Empty<int>();
+            OnCrossTriggerIds = dto.OnCrossTriggerIds ?? Array.Empty<int>();
             OnExitTriggerIds = dto.OnExitTriggerIds ?? Array.Empty<int>();
             OnIntervalTriggerIds = dto.OnIntervalTriggerIds ?? Array.Empty<int>();
             IntervalMs = dto.IntervalMs;

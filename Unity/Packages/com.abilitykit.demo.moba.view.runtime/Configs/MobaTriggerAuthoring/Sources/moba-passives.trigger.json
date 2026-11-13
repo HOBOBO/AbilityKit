@@ -7348,6 +7348,302 @@
           ],
           "elseChildren": []
         }
+      },
+      {
+        "id": 30040001,
+        "name": "Veigar Passive - ability hit growth",
+        "groupPath": "trigger_30040000",
+        "tags": [
+          "moba",
+          "veigar",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_8e4c91b913ee4d04a6b7e8f0a9c2d1e3",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_1e73a90c4f8d4b62a5e9c7d1f0b3a826",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "owner_matches_payload_source",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_7c2d4e8f1a6b49c0b5e3d9f702a8c164",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_4a9f0c2e7b1d4638a5e6c9f102d7b845",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_kind"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_3f8a1c5e7b2d4906a4c9e0f173b6d825",
+          "enabled": true,
+          "kind": "Action",
+          "type": "add_buff",
+          "arguments": [
+            {
+              "name": "buff_ids",
+              "value": {
+                "source": "Constant",
+                "type": "IntegerList",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [
+                  30040000
+                ],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "target_self",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": true,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Each positive skill damage result grants one permanent growth stack to its owner."
+      },
+      {
+        "id": 30040002,
+        "name": "Veigar Passive - unit kill growth",
+        "groupPath": "trigger_30040000",
+        "tags": [
+          "moba",
+          "veigar",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "unit.die",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_3a6f4c1d8e2b4a709c5d7f0e1b6a2c83",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_6b2e9d4f1a7c4385b0e6d2f9a1c7e854",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "owner_matches_payload_source",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_8c1f5a7e3d2b4960b4e9f6a1c7d0e285",
+          "enabled": true,
+          "kind": "Action",
+          "type": "add_buff",
+          "arguments": [
+            {
+              "name": "buff_ids",
+              "value": {
+                "source": "Constant",
+                "type": "IntegerList",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "",
+                "integerListValue": [
+                  30040000
+                ],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "target_self",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": true,
+                "stringValue": "",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Each final unit kill grants one permanent growth stack to its owner."
       }
     ]
   }

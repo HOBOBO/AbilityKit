@@ -66,6 +66,34 @@ public sealed class MobaBTreeCombatNodeTests
     }
 
     [Fact]
+    public void Owner_follow_request_moves_only_beyond_configured_stop_range()
+    {
+        var request = RunSequence(bb =>
+        {
+            bb.SetBool(MobaBTreeKeys.OwnerTargetValid, true);
+            bb.SetInt64(MobaBTreeKeys.OwnerTargetId, 7);
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetX, Fixed64.FromInt32(10));
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetY, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetZ, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetDistance, Fixed64.FromInt32(10));
+        }, MobaBTreeNodeTypes.ShouldFollowOwner, MobaBTreeNodeTypes.MoveToOwner,
+            MobaBTreeNodeTypes.ArbitrateCombatIntent);
+
+        var bb = request.Blackboard;
+        Assert.Equal(NodeState.Success, request.RootNodeState);
+        Assert.True(bb.GetBool(MobaBTreeKeys.HasMove));
+        Assert.Equal(10f, bb.GetFixed64(MobaBTreeKeys.MoveX).ToSingle());
+        Assert.Equal(5f, bb.GetFixed64(MobaBTreeKeys.MoveStopRange).ToSingle());
+
+        var stopped = RunSequence(bb2 =>
+        {
+            bb2.SetBool(MobaBTreeKeys.OwnerTargetValid, true);
+            bb2.SetFixed64(MobaBTreeKeys.OwnerTargetDistance, Fixed64.FromInt32(5));
+        }, MobaBTreeNodeTypes.ShouldFollowOwner);
+        Assert.Equal(NodeState.Failure, stopped.RootNodeState);
+    }
+
+    [Fact]
     public void Clearing_invalid_facts_removes_stale_payload_values()
     {
         var definition = new TreeDefinition();

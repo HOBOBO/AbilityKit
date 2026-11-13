@@ -12,7 +12,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
     /// 负责 Action 委托缓存、具名/位置参数解析与单 Action 调用，让 PlannedTrigger 聚焦触发器编排。
     /// </summary>
     internal sealed class PlannedTriggerActionExecutor<TArgs, TCtx>
-        where TArgs : class
     {
         private readonly TriggerPlan<TArgs> _plan;
         private NamedAction0<TArgs, object, TCtx>[] _actions0;

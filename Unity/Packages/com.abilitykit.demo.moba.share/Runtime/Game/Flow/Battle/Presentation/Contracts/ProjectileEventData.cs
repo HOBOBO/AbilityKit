@@ -18,6 +18,13 @@ namespace AbilityKit.Demo.Moba.Share
         public float ForwardX { get; }
         public float ForwardY { get; }
         public float ForwardZ { get; }
+        public int ActorVersion { get; }
+        public string ProfileId { get; }
+        public string StatePath { get; }
+        public int PhaseInstance { get; }
+        public int EnteredFrame { get; }
+        public int SnapshotFrame { get; }
+        public float LocalSeconds { get; }
 
         public ProjectileEventData(
             ProjectilePresentationEventKind kind,
@@ -34,7 +41,9 @@ namespace AbilityKit.Demo.Moba.Share
             int projectileId,
             float forwardX,
             float forwardY,
-            float forwardZ)
+            float forwardZ,
+            int actorVersion = 0, string profileId = null, string statePath = null,
+            int phaseInstance = 0, int enteredFrame = 0, int snapshotFrame = 0, float localSeconds = 0)
         {
             Kind = kind;
             ProjectileActorId = projectileActorId;
@@ -51,6 +60,13 @@ namespace AbilityKit.Demo.Moba.Share
             ForwardX = forwardX;
             ForwardY = forwardY;
             ForwardZ = forwardZ;
+            ActorVersion = actorVersion;
+            ProfileId = profileId;
+            StatePath = statePath;
+            PhaseInstance = phaseInstance;
+            EnteredFrame = enteredFrame;
+            SnapshotFrame = snapshotFrame;
+            LocalSeconds = localSeconds;
         }
     }
 
@@ -60,5 +76,6 @@ namespace AbilityKit.Demo.Moba.Share
         Spawn = 1,
         Hit = 2,
         Exit = 3,
+        Phase = 4,
     }
 }

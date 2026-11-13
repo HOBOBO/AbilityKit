@@ -30,12 +30,15 @@ public sealed partial class DRAoes : Luban.BeanBase
         OffsetZ = _buf.ReadFloat();
         {int n0 = _buf.ReadSize(); OnDelayTriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnDelayTriggerIds.Add(_e0);}}
         {int n0 = _buf.ReadSize(); OnEnterTriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnEnterTriggerIds.Add(_e0);}}
+        {int n0 = _buf.ReadSize(); OnExitTriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnExitTriggerIds.Add(_e0);}}
         {int n0 = _buf.ReadSize(); OnIntervalTriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnIntervalTriggerIds.Add(_e0);}}
+        InnerRadius = _buf.ReadFloat();
         Radius = _buf.ReadFloat();
         VfxId = _buf.ReadInt();
         ConsumeOnFirstEnter = _buf.ReadBool();
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
+        {int n0 = _buf.ReadSize(); OnCrossTriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnCrossTriggerIds.Add(_e0);}}
     }
 
     public static DRAoes DeserializeDRAoes(ByteBuf _buf)
@@ -100,9 +103,17 @@ public sealed partial class DRAoes : Luban.BeanBase
     /// </summary>
     public readonly System.Collections.Generic.List<int> OnEnterTriggerIds;
     /// <summary>
+    /// Target exit trigger IDs.
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> OnExitTriggerIds;
+    /// <summary>
     /// 区域每次间隔执行的触发器 ID 列表。
     /// </summary>
     public readonly System.Collections.Generic.List<int> OnIntervalTriggerIds;
+    /// <summary>
+    /// Inner radius for a ring; zero means a solid shape.
+    /// </summary>
+    public readonly float InnerRadius;
     /// <summary>
     /// 半径，使用战斗世界单位。
     /// </summary>
@@ -123,6 +134,10 @@ public sealed partial class DRAoes : Luban.BeanBase
     /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
     /// </summary>
     public readonly string NullFields;
+    /// <summary>
+    /// Complete swept Rectangle boundary crossing triggers; enables authoritative sweep.
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> OnCrossTriggerIds;
    
     public const int __ID__ = 2024557322;
     public override int GetTypeId() => __ID__;
@@ -148,12 +163,15 @@ public sealed partial class DRAoes : Luban.BeanBase
         + "OffsetZ:" + OffsetZ + ","
         + "OnDelayTriggerIds:" + Luban.StringUtil.CollectionToString(OnDelayTriggerIds) + ","
         + "OnEnterTriggerIds:" + Luban.StringUtil.CollectionToString(OnEnterTriggerIds) + ","
+        + "OnExitTriggerIds:" + Luban.StringUtil.CollectionToString(OnExitTriggerIds) + ","
         + "OnIntervalTriggerIds:" + Luban.StringUtil.CollectionToString(OnIntervalTriggerIds) + ","
+        + "InnerRadius:" + InnerRadius + ","
         + "Radius:" + Radius + ","
         + "VfxId:" + VfxId + ","
         + "ConsumeOnFirstEnter:" + ConsumeOnFirstEnter + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
+        + "OnCrossTriggerIds:" + Luban.StringUtil.CollectionToString(OnCrossTriggerIds) + ","
         + "}";
     }
 }

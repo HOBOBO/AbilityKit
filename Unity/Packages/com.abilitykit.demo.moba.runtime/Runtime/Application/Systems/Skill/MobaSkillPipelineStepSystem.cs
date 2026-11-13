@@ -6,6 +6,8 @@ using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.Triggering.PlanActions;
+using AbilityKit.Combat.Projectile;
+using AbilityKit.Demo.Moba.Services.Area;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
@@ -16,6 +18,9 @@ namespace AbilityKit.Demo.Moba.Systems
         private IWorldClock _clock;
         private MobaCombatRulesService _combatRules;
         private MobaBuffService _buffs;
+        private MobaSkillCastRuntimeService _casts;
+        private IProjectileService _projectiles;
+        private MobaAreaRuntimeService _areas;
 
         private MobaWorldSystemServices _systemServices;
         private global::Entitas.IGroup<global::ActorEntity> _group;
@@ -31,6 +36,9 @@ namespace AbilityKit.Demo.Moba.Systems
             Services.TryResolve(out _clock);
             Services.TryResolve(out _combatRules);
             Services.TryResolve(out _buffs);
+            Services.TryResolve(out _casts);
+            Services.TryResolve(out _projectiles);
+            Services.TryResolve(out _areas);
             _systemServices = MobaWorldSystemExecution.Resolve(Services);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId));
         }
@@ -80,7 +88,10 @@ namespace AbilityKit.Demo.Moba.Systems
                         {
                             _skills.CancelAll(actorId);
                             if (actorResult.Failure == MobaCombatRuleFailure.Dead)
+                            {
+                                _casts?.EndOwnerChildChannels(actorId, DespawnOwnedChild);
                                 _buffs?.EndAllForActor(actorId, MobaExecutionEndReason.Dead);
+                            }
                         }
                     }
                     _skills.Step(actorId);
@@ -111,6 +122,15 @@ namespace AbilityKit.Demo.Moba.Systems
                 MobaBattleDiagnosticMetric.SkillPipelineStep,
                 start,
                 MobaBattleDiagnosticsDefaults.SkillPipelineStepWarnMs);
+        }
+
+        private void DespawnOwnedChild(MobaSkillRuntimeChildRef child)
+        {
+            if (child.Kind == MobaSkillRuntimeChildKind.Projectile)
+                _projectiles?.Despawn(new ProjectileId((int)child.ChildId),
+                    Services.Resolve<AbilityKit.Ability.FrameSync.IFrameTime>().Frame.Value, ProjectileExitReason.Manual);
+            else if (child.Kind == MobaSkillRuntimeChildKind.Area)
+                _areas?.DespawnArea((int)child.ChildId);
         }
     }
 }

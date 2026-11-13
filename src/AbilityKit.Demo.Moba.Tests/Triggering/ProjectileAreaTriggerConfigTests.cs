@@ -7,6 +7,17 @@ namespace AbilityKit.Demo.Moba.Tests.Triggering;
 
 public sealed class ProjectileAreaTriggerConfigTests
 {
+    [Theory]
+    [InlineData("[{\"Id\":9003}]", 0)]
+    [InlineData("[{\"Id\":9003,\"CollisionLayerMask\":1}]", 1)]
+    public void Projectile_collision_layer_selection_survives_json_and_runtime_mapping(string json, int expected)
+    {
+        var dtos = (ProjectileDTO[])LubanConfigGroupDeserializer.Instance.DeserializeFromText(json, typeof(ProjectileDTO));
+        var configs = CreateConfigDatabase(null, Assert.Single(dtos));
+        Assert.True(configs.TryGetProjectile(9003, out var projectile));
+        Assert.Equal(expected, projectile.CollisionLayerMask);
+    }
+
     [Fact]
     public void Luban_area_json_preserves_one_shot_flag_and_defaults_legacy_rows_to_false()
     {

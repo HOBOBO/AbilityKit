@@ -64,6 +64,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 payloads.RegisterDoubleAccessor(gameplayAccessor, GameplayLifecyclePayloadAccessor.SupportsField);
 
                 var battleAccessor = new MobaBattlePayloadAccessor();
+                payloads.RegisterIntAccessor<Services.Projectile.AreaEventArgs>(battleAccessor, MobaBattlePayloadAccessor.SupportsAreaField);
+                payloads.RegisterDoubleAccessor<Services.Projectile.AreaEventArgs>(battleAccessor, MobaBattlePayloadAccessor.SupportsAreaField);
                 payloads.RegisterIntAccessor<AttackInfo>(battleAccessor, MobaBattlePayloadAccessor.SupportsAttackInfoField);
                 payloads.RegisterDoubleAccessor<AttackInfo>(battleAccessor, MobaBattlePayloadAccessor.SupportsAttackInfoField);
                 payloads.RegisterIntAccessor<AttackCalcInfo>(battleAccessor, MobaBattlePayloadAccessor.SupportsAttackCalcInfoField);

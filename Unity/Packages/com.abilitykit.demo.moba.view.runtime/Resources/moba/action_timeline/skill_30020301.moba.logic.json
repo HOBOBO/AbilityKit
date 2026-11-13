@@ -1,0 +1,38 @@
+{
+    "schemaVersion": 1,
+    "runtimeType": "logic",
+    "length": 1.366667,
+    "groups": [
+        {
+            "name": "Logic_30020301",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.SignalTrack",
+                    "name": "ExistingSkillEffects",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.ExecuteEffect",
+                            "runtimeType": "logic",
+                            "start": 0.0,
+                            "length": 0.0,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "effectId": "30020303",
+                                "eventTag": "jinx_e_deploy_three_traps",
+                                "abortOnFailure": "true"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "$type": "AbilityKit.ActionSchema.SkillAssetDto"
+}

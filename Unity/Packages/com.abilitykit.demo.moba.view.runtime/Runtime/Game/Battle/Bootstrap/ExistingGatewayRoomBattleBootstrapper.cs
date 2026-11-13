@@ -120,7 +120,8 @@ namespace AbilityKit.Game.Flow
             var checkpoint = default(MobaReliableBattleEventCheckpoint);
             _checkpointStore?.TryLoad(_battleId, out checkpoint);
             var launchSpec = BuildAuthoritativeLaunchSpec(in plan.LaunchSpec);
-            _syncCapabilities?.EnsureProfile("Lockstep");
+            var syncProfileName = MobaBattleSyncModePolicy.GetGatewayProfileName(plan.Sync.SyncMode);
+            _syncCapabilities?.EnsureProfile(syncProfileName);
             var createWorldPayload = launchSpec.ToCreateWorldInitPayload();
             var worldOptions = new BattleStartPlanWorldOptions(
                 _worldId.ToString(CultureInfo.InvariantCulture), world.WorldType, world.ClientId,
@@ -130,7 +131,7 @@ namespace AbilityKit.Game.Flow
                 _gatewayRegion, _gatewayServerId, false, false, _roomId,
                 gateway.CreateRoomOpCode, gateway.JoinRoomOpCode, _battleId, gateway.MaxPlayers);
             var syncOptions = new BattleStartPlanSyncOptions(
-                BattleSyncMode.Lockstep, plan.Sync.ViewEventSourceMode, plan.Sync.EnabledSnapshotRegistryIds);
+                plan.Sync.SyncMode, plan.Sync.ViewEventSourceMode, plan.Sync.EnabledSnapshotRegistryIds);
             var createWorldOptions = new BattleStartPlanCreateWorldOptions(
                 createWorld.OpCode, MobaCreateWorldInitCodec.Serialize(in createWorldPayload));
             var authority = plan.Authority;
@@ -152,7 +153,7 @@ namespace AbilityKit.Game.Flow
                 source.InputDelayFrames, players, source.GameplayId);
             var profile = new MobaBattleLaunchProfile(
                 source.WorldType, source.ClientId, source.LaunchMode,
-                MobaBattleLaunchSyncMode.FrameSync, source.AuthorityMode,
+                source.SyncMode, source.AuthorityMode,
                 source.RuleSetId, source.ConfigVersion, source.ProtocolVersion,
                 source.TickRate, source.InputDelayFrames);
             return new MobaBattleLaunchSpec(

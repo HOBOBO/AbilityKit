@@ -7,6 +7,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Rollback;
@@ -311,6 +312,24 @@ public sealed class MobaEntitasRollbackTests
             var error = Assert.Throws<InvalidOperationException>(() => MobaRollbackRegistryBuilder.Create(world));
             Assert.Contains("Missing provider keys", error.Message);
         }
+    }
+
+    [Fact]
+    public void Battle_registry_rejects_clock_without_explicit_restore_contract()
+    {
+        var services = new TestWorldResolver();
+        services.Add<IWorldClock>(new NonRestorableClock());
+        using var world = new TestEntitasWorld(new Contexts(), services, "MobaBattle");
+        var error = Assert.Throws<InvalidOperationException>(() => MobaRollbackRegistryBuilder.Create(world));
+        Assert.Contains("requires a restorable WorldClock", error.Message);
+        Assert.Contains(nameof(NonRestorableClock), error.Message);
+    }
+
+    private sealed class NonRestorableClock : IWorldClock
+    {
+        public float DeltaTime => 0f;
+        public float Time => 0f;
+        public void Tick(float deltaTime) { }
     }
 
     [Fact]

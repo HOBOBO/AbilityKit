@@ -40,6 +40,7 @@
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Platform/Unity/Presentation/Entities/Components/BattleCharacterHfsmComponent.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Platform/Unity/Presentation/Entities/Components/CharacterPresentationActions.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Platform/Unity/Presentation/Entities/Components/ModelAnimationCatalog.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.editor/Tests/MobaModifierNumericGoldenCases.cs" />
   </ItemGroup>
 

@@ -49,6 +49,16 @@ namespace AbilityKit.Game.Flow
                 throw new InvalidOperationException("GatewaySO is required when HostMode is GatewayRemote.");
             }
 
+            var syncMode = preset != null ? preset.SyncMode : config.SyncMode;
+            if (!MobaBattleSyncModePolicy.TryValidateCombination(
+                    hostMode,
+                    syncMode,
+                    gateway != null && gateway.UseGatewayTransport,
+                    out var syncModeError))
+            {
+                throw new InvalidOperationException(syncModeError);
+            }
+
             var numericRoomId = 0UL;
             var joinRoomId = string.Empty;
             if (overrides != null && overrides.HasNumericRoomId) numericRoomId = overrides.NumericRoomId;
@@ -69,7 +79,7 @@ namespace AbilityKit.Game.Flow
                     inputDelayFrames: req.InputDelayFrames)
                 .WithHostMode(hostMode)
                 .WithSync(
-                    syncMode: preset != null ? preset.SyncMode : config.SyncMode,
+                    syncMode: syncMode,
                     viewEventSourceMode: preset != null ? preset.ViewEventSourceMode : config.ViewEventSourceMode)
                 .WithAuthority(
                     enableClientPrediction: preset != null ? preset.EnableClientPrediction : config.EnableClientPrediction,

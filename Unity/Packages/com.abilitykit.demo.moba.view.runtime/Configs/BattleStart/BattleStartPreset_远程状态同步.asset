@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e1b6b1291856de4c9fda26c00fc50e2, type: 3}
+  m_Name: "BattleStartPreset_\u8FDC\u7A0B\u72B6\u6001\u540C\u6B65"
+  m_EditorClassIdentifier:
+  WorldId: room_state_sync
+  WorldType: battle
+  ClientId: battle_client
+  HostMode: 1
+  AutoConnect: 1
+  AutoCreateWorld: 1
+  AutoJoin: 1
+  AutoReady: 1
+  SyncMode: 1
+  ViewEventSourceMode: 0
+  EnabledSnapshotRegistryIds: []
+  EnableClientPrediction: 0
+  EnableConfirmedAuthorityWorld: 0
+  EnterGameSO: {fileID: 11400000, guid: fd05a7e6b830b7b4cb4a5b6b5b69f044, type: 2}
+  PlayersSO: {fileID: 11400000, guid: e8aded3721956be4285b5ee469628261, type: 2}
+  RunModeSO: {fileID: 11400000, guid: 045d6898e1839e04b9a59c742624c6a6, type: 2}
+  GatewaySO: {fileID: 11400000, guid: 04a8c5ec5617630468ff9a1d1a66340c, type: 2}
+  FeatureSet: {fileID: 11400000, guid: 32d18bdffd8397e4d9ce3f55dc1a5f85, type: 2}
+  SessionModuleSet: {fileID: 11400000, guid: 911a8dbf6192c984e89acd7f095f78cf, type: 2}

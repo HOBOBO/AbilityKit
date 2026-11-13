@@ -16,7 +16,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     /// </summary>
     internal static class MobaBTreeAssetLoader
     {
-        private static readonly System.Collections.Generic.Dictionary<string, string> s_cache = new();
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> s_cache = new();
 
         public static bool TryLoad(string treeName, out string json)
         {

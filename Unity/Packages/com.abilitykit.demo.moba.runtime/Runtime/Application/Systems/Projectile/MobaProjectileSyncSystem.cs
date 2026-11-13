@@ -46,10 +46,12 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
         private IMobaBattleDiagnosticEventSink _eventCollector;
         private MobaActorStateMachineFactory _stateMachineFactory;
 
+        private readonly List<ProjectileArrivalEvent> _arrivals = new List<ProjectileArrivalEvent>();
         private readonly List<ProjectileSpawnEvent> _spawns = new List<ProjectileSpawnEvent>(64);
         private readonly List<ProjectileHitEvent> _hits = new List<ProjectileHitEvent>(128);
         private readonly List<ProjectileTickEvent> _ticks = new List<ProjectileTickEvent>(128);
         private readonly List<ProjectileExitEvent> _exits = new List<ProjectileExitEvent>(64);
+        private readonly List<int> _transformActorIds = new List<int>(64);
 
         private IProjectileSyncHandler _spawnHandler;
         private IProjectileSyncHandler _tickHandler;
@@ -113,9 +115,35 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             if (_projectiles == null || _links == null || _registry == null) return;
 
             ProcessSpawns();
+            _arrivals.Clear();
+            if (_projectiles is IProjectileArrivalEventSource arrivals) arrivals.DrainArrivalEvents(_arrivals);
+            foreach (var arrival in _arrivals) _stageTriggers?.ExecuteProjectileArrival(in arrival);
             ProcessTicks();
+            SyncActiveTransforms();
             ProcessHits();
             ProcessExits();
+        }
+
+        private void SyncActiveTransforms()
+        {
+            // Gameplay tick events are optional and periodic. Actor projection must
+            // follow the authoritative runtime every frame even without tick effects.
+            _transformActorIds.Clear();
+            _transformActorIds.AddRange(_registry.CopyActorIdsInOrder());
+            foreach (var actorId in _transformActorIds)
+            {
+                if (!_links.TryGetProjectileId(actorId, out var projectileId)
+                    || !_projectiles.TryGetRuntimeState(projectileId, out var state)
+                    || !_registry.TryGet(actorId, out var actor) || actor == null) continue;
+
+                var current = actor.hasTransform ? actor.transform.Value : Transform3.Identity;
+                var direction = state.Direction.SqrMagnitude > 0.0001f
+                    ? DeterministicMathBridge.Normalize(state.Direction)
+                    : current.Forward;
+                var position = state.Position;
+                var rotation = Quat.LookRotation(direction, Vec3.Up);
+                actor.ReplaceTransform(new Transform3(in position, in rotation, in current.Scale));
+            }
         }
 
         private void ProcessSpawns()

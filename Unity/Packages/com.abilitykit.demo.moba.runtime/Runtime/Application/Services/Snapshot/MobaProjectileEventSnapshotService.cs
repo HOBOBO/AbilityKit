@@ -15,6 +15,8 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly MobaLogicWorldRunGateService _phase;
         private readonly MobaProjectileLinkService _links;
+        private readonly IProjectileService _projectiles;
+        [WorldInject(required: false)] private MobaActorRegistry _actors = null;
  
         private FrameIndex _lastFrame;
  
@@ -24,6 +26,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _links = links;
+            _projectiles = projectiles;
             _lastFrame = new FrameIndex(-999999);
         }
 
@@ -63,6 +66,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
             _lastFrame = frame;
 
+            RecordActivePhases(frame);
             if (_projectileEntries.Count == 0)
             {
                 snapshot = default;
@@ -139,12 +143,42 @@ namespace AbilityKit.Demo.Moba.Services
             if (_links != null && _links.TryGetActorId(projectile, out var projectileActorId) && projectileActorId > 0)
             {
                 entry.ProjectileActorId = projectileActorId;
+                entry.ActorVersion = _actors?.GetEntityVersion(projectileActorId) ?? 0;
                 return;
             }
 
             if (_links != null && _links.TryGetRetiredActorId(projectile, out projectileActorId) && projectileActorId > 0)
             {
                 entry.ProjectileActorId = projectileActorId;
+                entry.ActorVersion = _actors?.GetEntityVersion(projectileActorId) ?? 0;
+            }
+        }
+
+        // A full active phase cursor makes reconnect/rollback presentation independent
+        // of having observed the original spawn. It never dispatches gameplay effects.
+        private void RecordActivePhases(FrameIndex frame)
+        {
+            if (_actors == null || _links == null || _projectiles == null) return;
+            foreach (var actorId in _actors.CopyActorIdsInOrder())
+            {
+                if (!_actors.TryGet(actorId, out var actor) || !actor.hasActorStateMachine ||
+                    !_links.TryGetProjectileId(actorId, out var id) ||
+                    !_links.TryGetSource(id, out var source) ||
+                    !_projectiles.TryGetRuntimeState(id, out var projectile)) continue;
+                var runtime = actor.actorStateMachine.Runtime;
+                if (runtime == null || runtime.IsDisposed) continue;
+                var state = runtime.State;
+                _projectileEntries.Add(new MobaProjectileEventSnapshotEntry {
+                    Kind = (int)ProjectileEventKind.Phase, ProjectileId = id.Value,
+                    ProjectileActorId = actorId, ActorVersion = _actors.GetEntityVersion(actorId),
+                    OwnerActorId = source.SourceActorId, TemplateId = source.ProjectileConfigId,
+                    LauncherActorId = projectile.LauncherActorId, RootActorId = projectile.RootActorId,
+                    X = projectile.Position.X, Y = projectile.Position.Y, Z = projectile.Position.Z,
+                    ForwardX = projectile.Direction.X, ForwardY = projectile.Direction.Y, ForwardZ = projectile.Direction.Z,
+                    ProfileId = runtime.ProfileId, StatePath = state.ActiveStatePath,
+                    PhaseInstance = state.EnteredFrame, EnteredFrame = state.EnteredFrame,
+                    SnapshotFrame = frame.Value, LocalSeconds = state.DurationSeconds
+                });
             }
         }
 

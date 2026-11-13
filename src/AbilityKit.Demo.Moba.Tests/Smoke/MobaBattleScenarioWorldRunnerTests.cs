@@ -1,4 +1,5 @@
 using AbilityKit.BattleScenario;
+using AbilityKit.Demo.Moba.Acceptance;
 using AbilityKit.Demo.Moba.BattleScenario;
 using AbilityKit.Demo.Moba.EnvironmentModel;
 using AbilityKit.Scenario;
@@ -11,6 +12,45 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 /// <summary>验证 MOBA 世界执行核心：TestScenario → boot → 生成 actors → 施放 → 采 trace → 断言判定 → 中性结果。</summary>
 public sealed class MobaBattleScenarioWorldRunnerTests
 {
+    [Fact]
+    public void Run_ExecutesSetupActionsBeforeAssertions()
+    {
+        var scenario = new TestScenario
+        {
+            CaseId = "runner-setup",
+            Actors = new[]
+            {
+                new TestActor
+                {
+                    Alias = "target",
+                    HeroId = 1001,
+                    AttributeTemplateId = 1001,
+                    TeamId = 2,
+                    Position = new TestVector3(4, 0, 0),
+                },
+            },
+            Setup = new[]
+            {
+                new TestSetupAction
+                {
+                    Action = "set_attr",
+                    ActorAlias = "target",
+                    Property = "hp",
+                    Value = 1234,
+                },
+            },
+            Expectations = new MobaBattleScenarioAssertions
+            {
+                State = { new MobaStateAssertion { Alias = "target", Property = "hp", ExpectedValue = "1234" } },
+            },
+        };
+
+        var result = MobaBattleScenarioWorldRunner.Run(scenario);
+
+        Assert.True(result.Passed, result.Summary);
+        Assert.Contains("verdict=PASSED", result.Summary);
+    }
+
     [Fact]
     public void Run_CastsSkillAndCapturesTrace()
     {

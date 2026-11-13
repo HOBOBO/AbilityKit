@@ -36,9 +36,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             if (runtime.SkillRuntimeRetainHandle.IsValid) return true;
 
             var childId = runtime.SourceContextId;
-            // A normal add_buff request may carry the current skill handle for
-            // provenance while remaining duration-owned. Only instance-scoped
-            // Buffs have a source context that can be retained as a child.
+            // A duration-owned Buff without a source context cannot retain a child.
+            // In a fully assembled world EnsureBuffContext may create this identity
+            // even for normal add_buff, so retain follows the actual runtime identity.
             if (childId == 0L) return true;
 
             var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Buff, childId, runtime.SourceContextId, runtime.BuffId);

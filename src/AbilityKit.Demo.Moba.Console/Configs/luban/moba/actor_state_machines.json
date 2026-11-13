@@ -46,5 +46,63 @@
         "mode": "onSucceeded"
       }
     ]
+  },
+  {
+    "id": "gragas_barrel",
+    "startState": "flight",
+    "states": [
+      {
+        "id": "flight",
+        "kind": "actionState",
+        "needsExitTime": true,
+        "completionPolicy": "hold",
+        "behaviorRoot": {
+          "kind": "action",
+          "type": "projectile.awaitArrival"
+        }
+      },
+      {
+        "id": "deployed",
+        "kind": "actionState",
+        "needsExitTime": true,
+        "completionPolicy": "hold",
+        "behaviorRoot": {
+          "kind": "action",
+          "type": "projectile.awaitCastNumber",
+          "argument": "phase_complete,1"
+        }
+      },
+      {
+        "id": "detonating",
+        "kind": "actionState",
+        "needsExitTime": true,
+        "completionPolicy": "hold",
+        "behaviorRoot": {
+          "kind": "sequence",
+          "children": [
+            {
+              "kind": "delay",
+              "durationSeconds": 0.5
+            },
+            {
+              "kind": "action",
+              "type": "projectile.remove"
+            }
+          ]
+        }
+      }
+    ],
+    "transitions": [
+      {
+        "to": "deployed",
+        "mode": "onSucceeded",
+        "from": "flight"
+      },
+      {
+        "to": "detonating",
+        "mode": "onSucceeded",
+        "from": "deployed"
+      }
+    ]
   }
 ]

@@ -18,6 +18,63 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         private const string SerializationRegressionAssetPath = SerializationRegressionFolder + "/SkillFlow.asset";
 
         [Test]
+        public void CastContracts_SurviveJsonImportAuthoringSaveAndReload()
+        {
+            const string json = "[{\"Id\":990092,\"ChildChannelId\":17,\"RecastChannelId\":19,\"RequiredBuffQualificationId\":12345,\"Phases\":[" +
+                "{\"Type\":19,\"PhaseId\":\"reserve\",\"Economy\":{\"RequireExplicitCommit\":true,\"FailReason\":\"\"}}," +
+                "{\"Type\":18,\"PhaseId\":\"commit\",\"CommitPoint\":{\"CommitId\":\"attack\",\"RequireEconomyReservation\":true}}]}]";
+            if (!AssetDatabase.IsValidFolder(SerializationRegressionFolder))
+                AssetDatabase.CreateFolder("Assets", "SkillFlowSerializationRegressionTmp");
+            try
+            {
+                var dto = (SkillFlowDTO)LubanConfigGroupDeserializer.Instance.DeserializeFromText(json, typeof(SkillFlowDTO)).GetValue(0);
+                var asset = ScriptableObject.CreateInstance<SkillFlowSO>();
+                asset.dataList = new[] { SkillFlowDef.FromDto(dto) };
+                AssetDatabase.CreateAsset(asset, SerializationRegressionAssetPath);
+                EditorUtility.SetDirty(asset);
+                AssetDatabase.SaveAssets();
+                Resources.UnloadAsset(asset);
+                var restored = AssetDatabase.LoadAssetAtPath<SkillFlowSO>(SerializationRegressionAssetPath).dataList[0].ToDto();
+                Assert.AreEqual(17, restored.ChildChannelId);
+                Assert.AreEqual(19, restored.RecastChannelId);
+                Assert.AreEqual(12345, restored.RequiredBuffQualificationId);
+                Assert.IsTrue(restored.Phases[0].Economy.RequireExplicitCommit);
+                Assert.IsTrue(restored.Phases[1].CommitPoint.RequireEconomyReservation);
+                Assert.AreEqual("attack", restored.Phases[1].CommitPoint.CommitId);
+            }
+            finally { AssetDatabase.DeleteAsset(SerializationRegressionFolder); }
+        }
+
+        [Test]
+        public void RuntimeDtoReimport_PreservesExplicitTimelineReferencesByStablePhaseId()
+        {
+            var logic = new TextAsset("{\"schemaVersion\":1,\"runtimeType\":\"logic\",\"length\":1.2,\"groups\":[]}");
+            try
+            {
+                var previous = new SkillFlowDef { Id = 990099, Phases = new List<SkillPhaseDef>
+                {
+                    new SkillTimelinePhaseDef { PhaseId = "cast", MobaLogicTimeline = logic }
+                }};
+                var dto = new SkillFlowDTO { Id = previous.Id, Phases = new[]
+                {
+                    new SkillPhaseDTO { Type = (int)SkillPhaseType.Sequence, PhaseId = "sequence", Children = new[]
+                    {
+                        new SkillPhaseDTO { Type = (int)SkillPhaseType.Timeline, PhaseId = "new-phase", Timeline = new SkillTimelinePhaseDTO() },
+                        new SkillPhaseDTO { Type = (int)SkillPhaseType.Timeline, PhaseId = "cast", Timeline = new SkillTimelinePhaseDTO { DurationMs = 500 } }
+                    }}
+                }};
+                var restored = SkillFlowDef.FromDto(dto, previous);
+                var children = ((SkillSequencePhaseDef)restored.Phases[0]).Children;
+                Assert.IsNull(((SkillTimelinePhaseDef)children[0]).MobaLogicTimeline);
+                Assert.AreSame(logic, ((SkillTimelinePhaseDef)children[1]).MobaLogicTimeline);
+                Assert.AreEqual(1200, restored.ToDto().Phases[0].Children[1].Timeline.DurationMs);
+                dto.Id++;
+                Assert.Throws<InvalidOperationException>(() => SkillFlowDef.FromDto(dto, previous));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(logic); }
+        }
+
+        [Test]
         public void SerializeReferencePhases_RemainDistinctAcrossCreateAppendAndReload()
         {
             if (!AssetDatabase.IsValidFolder(SerializationRegressionFolder))
@@ -108,13 +165,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 var copied = AssetDatabase.LoadAssetAtPath<SkillFlowSO>(copiedAssetPath);
                 Assert.That(copied, Is.Not.Null);
                 var originalFlows = copied.dataList ?? Array.Empty<SkillFlowDef>();
-                Assert.That(originalFlows.Any(flow => flow != null && flow.Id == 30020101), Is.False,
-                    "The fixture should exercise an append, not a replacement.");
+                var appendedId = checked(originalFlows.Where(flow => flow != null).Max(flow => flow.Id) + 1);
 
                 var values = LubanConfigGroupDeserializer.Instance.DeserializeFromText(
                     File.ReadAllText(sourcePath), typeof(SkillFlowDTO));
                 Assert.That(values, Has.Length.EqualTo(1));
                 var jinxDto = (SkillFlowDTO)values.GetValue(0);
+                jinxDto.Id = appendedId;
 
                 // Match the production syncer's additive path: retain the loaded objects and append a fresh DTO graph.
                 copied.dataList = originalFlows.Concat(new[] { SkillFlowDef.FromDto(jinxDto) }).ToArray();
@@ -126,7 +183,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 copied = AssetDatabase.LoadAssetAtPath<SkillFlowSO>(copiedAssetPath);
                 Assert.That(copied, Is.Not.Null);
                 Assert.That(copied.dataList, Has.Length.EqualTo(originalFlows.Length + 1));
-                Assert.That(copied.dataList.Count(flow => flow != null && flow.Id == 30020101), Is.EqualTo(1));
+                Assert.That(copied.dataList.Count(flow => flow != null && flow.Id == appendedId), Is.EqualTo(1));
 
                 foreach (var flow in copied.dataList)
                 {

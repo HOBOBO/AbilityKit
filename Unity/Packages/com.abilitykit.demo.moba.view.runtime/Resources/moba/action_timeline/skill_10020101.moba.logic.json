@@ -25,7 +25,8 @@
                             "blendOut": 0.0,
                             "args": {
                                 "effectId": "10020101",
-                                "eventTag": "xq_skill_1_cast"
+                                "eventTag": "xq_skill_1_cast",
+                                "abortOnFailure": "false"
                             }
                         }
                     ]

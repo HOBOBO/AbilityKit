@@ -25,6 +25,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         public const string MoveAlongLaunchHeading = "moba.moveAlongLaunchHeading";
         public const string ResolveHeadingAim = "moba.resolveHeadingAim";
         public const string MoveToEnemy = "moba.moveToEnemy";
+        public const string SelectOwner = "moba.selectOwner";
+        public const string MoveToOwner = "moba.moveToOwner";
         public const string HoldPosition = "moba.holdPosition";
         public const string ArbitrateCombatIntent = "moba.arbitrateCombatIntent";
 
@@ -34,6 +36,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         public const string CanMove = "moba.canMove";
         public const string SelectedSkillInRange = "moba.selectedSkillInRange";
         public const string ShouldApproachEnemy = "moba.shouldApproachEnemy";
+        public const string HasOwner = "moba.hasOwner";
+        public const string NoEnemy = "moba.noEnemy";
+        public const string ShouldFollowOwner = "moba.shouldFollowOwner";
     }
 
     /// <summary>
@@ -220,7 +225,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                 if (_requiredSkillType > 0 && (long)skill.SkillType != _requiredSkillType) continue;
                 var range = Math.Max(0f, skill.Range);
                 maxConfiguredRange = Math.Max(maxConfiguredRange, range);
-                if (runtime.CooldownEndTimeMs > nowMs) continue;
+                if (runtime.CooldownEndTimeMs > nowMs &&
+                    _runtime.SkillLoadout?.IsIndependentRecastReady((int)behavior.OwnerId.Value, i + 1, skill.Id) != true) continue;
 
                 candidates.Add(new MobaSkillSelectionCandidate(skill.Id, i + 1, range));
             }
@@ -368,6 +374,82 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         }
     }
 
+    /// <summary>Resolves the direct owner relationship into reusable blackboard facts.</summary>
+    [NodeType(MobaBTreeNodeTypes.SelectOwner, "选择主人", "MOBA", NodeKind.Action)]
+    public sealed class MobaSelectOwnerNode : ActionNodeBase
+    {
+        public override NodeState OnTick(ExecutionContext context)
+        {
+            var bb = context.Blackboard;
+            MobaBTreeBlackboard.ClearOwnerTarget(bb);
+            var runtime = context.Services.Resolve<MobaBTreeRuntimeContext>();
+            var behavior = runtime.Behavior;
+            var world = runtime.World;
+            var registry = runtime.Registry;
+            if (behavior == null || world == null || registry == null || behavior.OwnerId.Value <= 0 ||
+                behavior.OwnerId.Value > int.MaxValue ||
+                !registry.TryGet((int)behavior.OwnerId.Value, out var self) || self == null ||
+                !self.hasOwnerLink || self.ownerLink == null || self.ownerLink.OwnerActorId <= 0 ||
+                !registry.TryGet(self.ownerLink.OwnerActorId, out var owner) || owner == null ||
+                !owner.isEnabled || !owner.hasTransform)
+                return NodeState.Success;
+
+            var position = owner.transform.Value.Position;
+            bb.SetBool(MobaBTreeKeys.OwnerTargetValid, true);
+            bb.SetInt64(MobaBTreeKeys.OwnerTargetId, self.ownerLink.OwnerActorId);
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetX, Fixed64.FromSingle(position.X));
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetY, Fixed64.FromSingle(position.Y));
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetZ, Fixed64.FromSingle(position.Z));
+            var summonPosition = world.GetPosition(behavior.OwnerId);
+            var horizontalDelta = new Vec3(summonPosition.X - position.X, 0f, summonPosition.Z - position.Z);
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetDistance,
+                Fixed64.FromSingle(DeterministicMathBridge.Magnitude(in horizontalDelta)));
+            return NodeState.Success;
+        }
+    }
+
+    /// <summary>Publishes movement toward the resolved owner until the configured stop range.</summary>
+    [NodeType(MobaBTreeNodeTypes.MoveToOwner, "移动至主人", "MOBA", NodeKind.Action)]
+    public sealed class MobaMoveToOwnerNode : ActionNodeBase, NodeDescriptorProvider
+    {
+        public const string PriorityProperty = "priority";
+        public const string StopRangeProperty = "stopRange";
+        public const long DefaultPriority = 40;
+        public const float DefaultStopRange = 5f;
+        private long _priority = DefaultPriority;
+        private Fixed64 _stopRange = Fixed64.FromSingle(DefaultStopRange);
+
+        public NodeDescriptor BuildDescriptor(NodeTypeAttribute attribute) => new(
+            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, NodeKind.Action, 0, 0,
+            () => new MobaMoveToOwnerNode(), new[]
+            {
+                new PropertyField(PriorityProperty, ValueType.Int64, PropertyValue.Of(DefaultPriority), "移动意图优先级"),
+                new PropertyField(StopRangeProperty, ValueType.Fixed64,
+                    PropertyValue.Of(Fixed64.FromSingle(DefaultStopRange)), "停止距离")
+            });
+
+        public override void OnInit(in NodeInitContext context)
+        {
+            _priority = context.Properties.GetInt64(PriorityProperty, DefaultPriority);
+            _stopRange = context.Properties.GetFixed64(StopRangeProperty, Fixed64.FromSingle(DefaultStopRange));
+            if (_stopRange < Fixed64.Zero) _stopRange = Fixed64.Zero;
+        }
+
+        public override NodeState OnTick(ExecutionContext context)
+        {
+            var bb = context.Blackboard;
+            if (!bb.GetBool(MobaBTreeKeys.OwnerTargetValid)) return NodeState.Failure;
+            bb.SetInt64(MobaBTreeKeys.MoveRequestPriority, _priority);
+            bb.SetBool(MobaBTreeKeys.MoveRequestIsDirection, false);
+            bb.SetFixed64(MobaBTreeKeys.MoveRequestX, bb.GetFixed64(MobaBTreeKeys.OwnerTargetX));
+            bb.SetFixed64(MobaBTreeKeys.MoveRequestY, bb.GetFixed64(MobaBTreeKeys.OwnerTargetY));
+            bb.SetFixed64(MobaBTreeKeys.MoveRequestZ, bb.GetFixed64(MobaBTreeKeys.OwnerTargetZ));
+            bb.SetFixed64(MobaBTreeKeys.MoveRequestStopRange, _stopRange);
+            bb.SetBool(MobaBTreeKeys.MoveRequestValid, true);
+            return NodeState.Success;
+        }
+    }
+
     /// <summary>发布保持意图（intent.hold.*）。</summary>
     [NodeType(MobaBTreeNodeTypes.HoldPosition, "发布保持意图", "MOBA", NodeKind.Action)]
     public sealed class MobaHoldPositionNode : ActionNodeBase, NodeDescriptorProvider
@@ -475,6 +557,46 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     {
         protected override bool Validate(ExecutionContext context)
             => context.Blackboard.GetBool(MobaBTreeKeys.TargetValid);
+    }
+
+    [NodeType(MobaBTreeNodeTypes.NoEnemy, "没有敌方目标", "MOBA", NodeKind.Condition)]
+    public sealed class MobaNoEnemyNode : ConditionNodeBase
+    {
+        protected override bool Validate(ExecutionContext context)
+            => !context.Blackboard.GetBool(MobaBTreeKeys.TargetValid);
+    }
+
+    [NodeType(MobaBTreeNodeTypes.HasOwner, "主人有效", "MOBA", NodeKind.Condition)]
+    public sealed class MobaHasOwnerNode : ConditionNodeBase
+    {
+        protected override bool Validate(ExecutionContext context)
+            => context.Blackboard.GetBool(MobaBTreeKeys.OwnerTargetValid);
+    }
+
+    [NodeType(MobaBTreeNodeTypes.ShouldFollowOwner, "超出跟随距离", "MOBA", NodeKind.Condition)]
+    public sealed class MobaShouldFollowOwnerNode : ConditionNodeBase, NodeDescriptorProvider
+    {
+        public const string StopRangeProperty = "stopRange";
+        public const float DefaultStopRange = 5f;
+        private Fixed64 _stopRange = Fixed64.FromSingle(DefaultStopRange);
+
+        public NodeDescriptor BuildDescriptor(NodeTypeAttribute attribute) => new(
+            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, NodeKind.Condition, 0, 0,
+            () => new MobaShouldFollowOwnerNode(), new[]
+            {
+                new PropertyField(StopRangeProperty, ValueType.Fixed64,
+                    PropertyValue.Of(Fixed64.FromSingle(DefaultStopRange)), "跟随停止距离")
+            });
+
+        public override void OnInit(in NodeInitContext context)
+        {
+            _stopRange = context.Properties.GetFixed64(StopRangeProperty, Fixed64.FromSingle(DefaultStopRange));
+            if (_stopRange < Fixed64.Zero) _stopRange = Fixed64.Zero;
+        }
+
+        protected override bool Validate(ExecutionContext context)
+            => context.Blackboard.GetBool(MobaBTreeKeys.OwnerTargetValid) &&
+               context.Blackboard.GetFixed64(MobaBTreeKeys.OwnerTargetDistance) > _stopRange;
     }
 
     [NodeType(MobaBTreeNodeTypes.HasSelectedSkill, "有技能候选", "MOBA", NodeKind.Condition)]

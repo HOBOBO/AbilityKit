@@ -29,7 +29,7 @@
       "Type": 2,
       "PhaseId": "annie_r_cast",
       "Timeline": {
-        "DurationMs": 900,
+        "DurationMs": 1250,
         "Events": [
           {
             "AtMs": 0,

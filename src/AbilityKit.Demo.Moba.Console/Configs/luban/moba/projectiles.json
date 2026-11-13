@@ -21,7 +21,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 2,
@@ -45,7 +50,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30020101,
@@ -69,7 +79,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30040201,
@@ -99,7 +114,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30050101,
@@ -126,7 +146,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30050201,
@@ -150,7 +175,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30050301,
@@ -174,7 +204,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30060301,
@@ -205,7 +240,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30020001,
@@ -229,7 +269,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30040011,
@@ -253,7 +298,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30050001,
@@ -277,7 +327,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30060001,
@@ -301,7 +356,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30070001,
@@ -325,7 +385,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30070301,
@@ -353,7 +418,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30070201,
@@ -383,7 +453,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30070202,
@@ -413,7 +488,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30070302,
@@ -447,7 +527,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30080001,
@@ -471,7 +556,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30080101,
@@ -501,7 +591,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30080201,
@@ -533,7 +628,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30080301,
@@ -565,7 +665,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 30080401,
@@ -597,7 +702,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 32010101,
@@ -629,7 +739,12 @@
     "TrackingArcHeight": 1,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0.1,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 32010201,
@@ -661,7 +776,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 32010401,
@@ -693,7 +813,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 32010402,
@@ -727,7 +852,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 32010601,
@@ -759,7 +889,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 32010602,
@@ -791,7 +926,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 32010301,
@@ -825,7 +965,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 32030101,
@@ -855,7 +1000,12 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 0,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 32020201,
@@ -882,12 +1032,17 @@
     "Speed": 30,
     "StateMachineProfileId": "",
     "TickIntervalMs": 33,
-    "VfxId": 0,
+    "VfxId": 90032002,
     "BounceSearchRadius": 0,
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 1,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 32020202,
@@ -903,7 +1058,7 @@
     "OnExitTriggerIds": [],
     "OnExpireVfxId": 0,
     "OnHitEffectId": 30020212,
-    "OnHitVfxId": 0,
+    "OnHitVfxId": 90032004,
     "OnSpawnVfxId": 0,
     "ReturnAfterMs": 0,
     "ReturnSpeed": 0,
@@ -914,12 +1069,17 @@
     "Speed": 24,
     "StateMachineProfileId": "",
     "TickIntervalMs": 33,
-    "VfxId": 0,
+    "VfxId": 90032005,
     "BounceSearchRadius": 0,
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 1,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 32020203,
@@ -941,12 +1101,17 @@
     "ReturnStopDistance": 0,
     "Speed": 33,
     "TickIntervalMs": 33,
-    "VfxId": 0,
+    "VfxId": 90032027,
     "BounceSearchRadius": 0,
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 0
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 1,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   },
   {
     "Id": 32020403,
@@ -973,6 +1138,180 @@
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
-    "HitUnitSubType": 1
+    "HitUnitSubType": 1,
+    "CollisionLayerMask": 1,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
+  },
+  {
+    "Id": 32040101,
+    "CollisionHeight": 1,
+    "CollisionLength": 0.8,
+    "CollisionWidth": 0.8,
+    "HitCooldownMs": 1000,
+    "HitPolicyKind": 1,
+    "HitsRemaining": 2,
+    "LifetimeMs": 1000,
+    "MaxDistance": 6.25,
+    "Name": "Veigar Q projectile",
+    "OnExpireVfxId": 0,
+    "OnHitEffectId": 30040211,
+    "OnHitVfxId": 90034007,
+    "OnSpawnVfxId": 0,
+    "ReturnAfterMs": 0,
+    "ReturnSpeed": 0,
+    "ReturnStopDistance": 0,
+    "Speed": 22,
+    "TickIntervalMs": 0,
+    "VfxId": 90034008,
+    "BounceSearchRadius": 0,
+    "TrackingArcHeight": 0,
+    "TrackingArcDurationSeconds": 0,
+    "TrackingArcHeightPerUnit": 0,
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 1,
+    "HitIdentityPolicy": 1,
+    "CollisionRules": [],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
+  },
+  {
+    "Id": 32040501,
+    "CollisionHeight": 1.5,
+    "CollisionLength": 0.8,
+    "CollisionWidth": 1.2,
+    "HitCooldownMs": 0,
+    "HitPolicyKind": 0,
+    "HitsRemaining": 1,
+    "LifetimeMs": 15000,
+    "MaxDistance": 25,
+    "Name": "Veigar R projectile",
+    "OnExpireVfxId": 0,
+    "OnHitEffectId": 30040511,
+    "OnHitVfxId": 90034010,
+    "OnSpawnVfxId": 0,
+    "ReturnAfterMs": 0,
+    "ReturnSpeed": 0,
+    "ReturnStopDistance": 0,
+    "Speed": 25,
+    "TickIntervalMs": 33,
+    "VfxId": 90034011,
+    "BounceSearchRadius": 0,
+    "TrackingArcHeight": 0,
+    "TrackingArcDurationSeconds": 0,
+    "TrackingArcHeightPerUnit": 0,
+    "HitUnitSubType": 1,
+    "CollisionLayerMask": 5,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [
+      {
+        "Role": 2,
+        "Response": 0
+      },
+      {
+        "Role": 3,
+        "Response": 2
+      }
+    ],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
+  },
+  {
+    "Id": 32050201,
+    "CollisionHeight": 0.1,
+    "CollisionLength": 0.1,
+    "CollisionWidth": 0.1,
+    "HitCooldownMs": 0,
+    "HitPolicyKind": 1,
+    "HitsRemaining": 1,
+    "LifetimeMs": 2000,
+    "MaxDistance": 8.5,
+    "Name": "Gragas Q barrel",
+    "OnExitTriggerIds": [],
+    "OnExpireVfxId": 0,
+    "OnHitEffectId": 0,
+    "OnHitVfxId": 0,
+    "OnSpawnVfxId": 0,
+    "ReturnAfterMs": 0,
+    "ReturnSpeed": 0,
+    "ReturnStopDistance": 0,
+    "SpawnRandomOffsetX": 0,
+    "SpawnRandomOffsetY": 0,
+    "SpawnRandomOffsetZ": 0,
+    "Speed": 10,
+    "StateMachineProfileId": "gragas_barrel",
+    "TickIntervalMs": 0,
+    "VfxId": 90035009,
+    "BounceSearchRadius": 0,
+    "TrackingArcHeight": 0,
+    "TrackingArcDurationSeconds": 0,
+    "TrackingArcHeightPerUnit": 0,
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 1,
+    "HitIdentityPolicy": 1,
+    "CollisionRules": [
+      {
+        "Role": 2,
+        "Response": 0
+      },
+      {
+        "Role": 3,
+        "Response": 0
+      }
+    ],
+    "MaxDistanceResponse": 1,
+    "OnArrivalTriggerIds": [
+      30050211
+    ]
+  },
+  {
+    "Id": 32050501,
+    "CollisionHeight": 0.1,
+    "CollisionLength": 0.1,
+    "CollisionWidth": 0.1,
+    "HitCooldownMs": 0,
+    "HitPolicyKind": 1,
+    "HitsRemaining": 1,
+    "LifetimeMs": 2000,
+    "MaxDistance": 10,
+    "Name": "Gragas R cask",
+    "OnExitTriggerIds": [
+      30050511
+    ],
+    "OnExpireVfxId": 0,
+    "OnHitEffectId": 0,
+    "OnHitVfxId": 0,
+    "OnSpawnVfxId": 0,
+    "ReturnAfterMs": 0,
+    "ReturnSpeed": 0,
+    "ReturnStopDistance": 0,
+    "SpawnRandomOffsetX": 0,
+    "SpawnRandomOffsetY": 0,
+    "SpawnRandomOffsetZ": 0,
+    "Speed": 20,
+    "StateMachineProfileId": "",
+    "TickIntervalMs": 0,
+    "VfxId": 90035013,
+    "BounceSearchRadius": 0,
+    "TrackingArcHeight": 0,
+    "TrackingArcDurationSeconds": 0,
+    "TrackingArcHeightPerUnit": 0,
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 1,
+    "HitIdentityPolicy": 1,
+    "CollisionRules": [
+      {
+        "Role": 2,
+        "Response": 0
+      },
+      {
+        "Role": 3,
+        "Response": 0
+      }
+    ],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
   }
 ]

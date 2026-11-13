@@ -35,12 +35,13 @@ namespace AbilityKit.Demo.Moba.Rollback
                     value.ActorId, value.SkillId, value.SkillSlot, value.ResourceType,
                     value.ResourceAmountRaw, value.ChargeCost, value.RefundBeforeCommit,
                     value.CooldownMs, value.CooldownGroupId, value.SharedCooldownMs,
-                    value.GlobalCooldownMs, (int)value.State, value.RequireExplicitCommit);
+                    value.GlobalCooldownMs, (int)value.State, value.RequireExplicitCommit,
+                    value.ResourceConsumed, value.IgnoreResourceCostCheck);
             }
             var cooldowns = ToEntries(snapshot.Cooldowns);
             var globalCooldowns = ToEntries(snapshot.GlobalCooldowns);
             var killRefunds = ToRefundEntries(snapshot.KillRefunds);
-            return MemoryPackSerializer.Serialize(new MobaSkillEconomyRollbackPayload(3, transactions, cooldowns, globalCooldowns, killRefunds));
+            return MemoryPackSerializer.Serialize(new MobaSkillEconomyRollbackPayload(4, transactions, cooldowns, globalCooldowns, killRefunds));
         }
 
         public void ImportState(FrameIndex frame, byte[] payload)
@@ -51,7 +52,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 return;
             }
             var state = MemoryPackSerializer.Deserialize<MobaSkillEconomyRollbackPayload>(payload);
-            if (state.Version != 3) throw new InvalidOperationException($"Unsupported skill economy rollback payload version '{state.Version}'.");
+            if (state.Version != 4) throw new InvalidOperationException($"Unsupported skill economy rollback payload version '{state.Version}'.");
             var source = state.Transactions ?? Array.Empty<MobaSkillEconomyTransactionRollbackEntry>();
             var transactions = new MobaSkillEconomyTransactionSnapshot[source.Length];
             for (var i = 0; i < source.Length; i++)
@@ -62,7 +63,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                     in handle, value.ActorId, value.SkillId, value.SkillSlot, value.ResourceType,
                     value.ResourceAmountRaw, value.ChargeCost, value.RefundBeforeCommit,
                     value.CooldownMs, value.CooldownGroupId, value.SharedCooldownMs,
-                    value.GlobalCooldownMs, (MobaSkillEconomyTransactionState)value.State, value.RequireExplicitCommit);
+                    value.GlobalCooldownMs, (MobaSkillEconomyTransactionState)value.State, value.RequireExplicitCommit,
+                    value.ResourceConsumed, value.IgnoreResourceCostCheck);
             }
             _economy.RestoreRollbackSnapshot(new MobaSkillEconomyServiceSnapshot(
                 transactions, FromEntries(state.Cooldowns), FromEntries(state.GlobalCooldowns), FromRefundEntries(state.KillRefunds)));
@@ -149,8 +151,10 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(12)] public readonly int SharedCooldownMs; [MemoryPackOrder(13)] public readonly int GlobalCooldownMs;
         [MemoryPackOrder(14)] public readonly int State;
         [MemoryPackOrder(15)] public readonly bool RequireExplicitCommit;
-        public MobaSkillEconomyTransactionRollbackEntry(long runtimeId,int generation,long rootContextId,int actorId,int skillId,int skillSlot,int resourceType,long resourceAmountRaw,int chargeCost,bool refundBeforeCommit,int cooldownMs,int cooldownGroupId,int sharedCooldownMs,int globalCooldownMs,int state,bool requireExplicitCommit)
-        {RuntimeId=runtimeId;Generation=generation;RootContextId=rootContextId;ActorId=actorId;SkillId=skillId;SkillSlot=skillSlot;ResourceType=resourceType;ResourceAmountRaw=resourceAmountRaw;ChargeCost=chargeCost;RefundBeforeCommit=refundBeforeCommit;CooldownMs=cooldownMs;CooldownGroupId=cooldownGroupId;SharedCooldownMs=sharedCooldownMs;GlobalCooldownMs=globalCooldownMs;State=state;RequireExplicitCommit=requireExplicitCommit;}
+        [MemoryPackOrder(16)] public readonly bool ResourceConsumed;
+        [MemoryPackOrder(17)] public readonly bool IgnoreResourceCostCheck;
+        public MobaSkillEconomyTransactionRollbackEntry(long runtimeId,int generation,long rootContextId,int actorId,int skillId,int skillSlot,int resourceType,long resourceAmountRaw,int chargeCost,bool refundBeforeCommit,int cooldownMs,int cooldownGroupId,int sharedCooldownMs,int globalCooldownMs,int state,bool requireExplicitCommit,bool resourceConsumed,bool ignoreResourceCostCheck)
+        {RuntimeId=runtimeId;Generation=generation;RootContextId=rootContextId;ActorId=actorId;SkillId=skillId;SkillSlot=skillSlot;ResourceType=resourceType;ResourceAmountRaw=resourceAmountRaw;ChargeCost=chargeCost;RefundBeforeCommit=refundBeforeCommit;CooldownMs=cooldownMs;CooldownGroupId=cooldownGroupId;SharedCooldownMs=sharedCooldownMs;GlobalCooldownMs=globalCooldownMs;State=state;RequireExplicitCommit=requireExplicitCommit;ResourceConsumed=resourceConsumed;IgnoreResourceCostCheck=ignoreResourceCostCheck;}
     }
 
     [MemoryPackable]

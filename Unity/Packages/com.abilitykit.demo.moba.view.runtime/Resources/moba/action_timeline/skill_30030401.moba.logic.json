@@ -2,6 +2,37 @@
     "schemaVersion": 1,
     "runtimeType": "logic",
     "length": 4.166667,
-    "groups": [],
+    "groups": [
+        {
+            "name": "Logic_30030401",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.SignalTrack",
+                    "name": "ExistingSkillEffects",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.ExecuteEffect",
+                            "runtimeType": "logic",
+                            "start": 0.0,
+                            "length": 0.0,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "effectId": "30030401",
+                                "eventTag": "annie_e_cast",
+                                "abortOnFailure": "false"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
     "$type": "AbilityKit.ActionSchema.SkillAssetDto"
 }

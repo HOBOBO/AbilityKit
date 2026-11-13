@@ -53,7 +53,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             var flows = asset.dataList ?? Array.Empty<SkillFlowDef>();
             var matches = flows.Select((flow, index) => new { flow, index }).Where(x => x.flow != null && x.flow.Id == dto.Id).ToArray();
             if (matches.Length > 1) throw new InvalidDataException("SkillFlowCO contains duplicate Jinx E flow.");
-            var authored = SkillFlowDef.FromDto(dto);
+            var authored = SkillFlowDef.FromDto(dto, matches.Length == 1 ? matches[0].flow : null);
             asset.dataList = matches.Length == 1
                 ? flows.Select((flow, index) => index == matches[0].index ? authored : flow).ToArray()
                 : flows.Concat(new[] { authored }).ToArray();

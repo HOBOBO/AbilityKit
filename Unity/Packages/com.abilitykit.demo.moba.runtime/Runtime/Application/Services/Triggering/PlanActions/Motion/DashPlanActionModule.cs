@@ -125,6 +125,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 hasCompletionCollisionPolicy = true;
             }
 
+            if (args.StopOnCollision || args.CollisionSelection != 0)
+            {
+                collisionPolicy = new MotionCollisionConstraints(true, false, MotionEndOverlapPolicy.AllowInside,
+                    DashCollisionRadius, 0f, MobaCollisionLayers.UnitMask | (args.PassThroughWalls ? 0 : MobaCollisionLayers.WorldMask),
+                    0, slideAlongWalls: false, selectionKey: args.CollisionSelection);
+                hasCollisionPolicy = true;
+            }
+
             var source = new FixedDeltaMotionSource(
                 velocity,
                 duration,
@@ -145,7 +153,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     args.HitTriggerPlanId,
                     actorId,
                     input.ActionInput.ExecutionScope.EffectConfigId,
-                    input.ActionInput.ExecutionScope);
+                    input.ActionInput.ExecutionScope,
+                    input.ActionInput.ExecutionContext.SkillRuntimeHandle);
             }
 
             if (!MobaMotionContinuousActionRuntime.TryActivate(
@@ -156,7 +165,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     actorId,
                     actorId,
                     duration,
-                    source,
+                    args.StopOnCollision ? new MobaCollisionDashMotionSource(source, hitTriggerRuntime) : (IMotionSource)source,
                     args.Continuous,
                     hitTriggerRuntime,
                     out var rejectReason))

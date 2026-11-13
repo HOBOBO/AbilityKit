@@ -124,6 +124,30 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        internal void ClearLocalProjections()
+        {
+            // Clear by ledger ownership, without ending runtimes or destroying captures.
+            foreach (var continuous in new List<IContinuous>(_owners.Values)) ClearModifiers(continuous);
+            _owners.Clear();
+        }
+
+        internal void RestoreLocalOwners(IReadOnlyList<IContinuous> instances, int nextSourceId)
+        {
+            _owners.Clear();
+            foreach (var instance in instances) OnRegistered(instance, null);
+            RestoreNextSourceId(nextSourceId);
+        }
+
+        internal void ProjectLocalOwners(IReadOnlyList<IContinuous> instances, Action projected = null)
+        {
+            foreach (var instance in instances)
+            {
+                ApplyModifiers(instance);
+                projected?.Invoke();
+            }
+            if (instances.Count == 0) projected?.Invoke();
+        }
+
         public void ReprojectTimeVarying(IContinuous continuous)
         {
             if (continuous == null || !continuous.IsActive || continuous.IsTerminated ||

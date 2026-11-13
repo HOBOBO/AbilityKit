@@ -95,13 +95,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var stayIntervalFrames = ResolveStayIntervalFrames(args, intervalMs, ctx.Context);
             var delayFrames = ResolveDelayFrames(aoe.DelayMs, ctx.Context);
             var frame = ResolveFrame(ctx.Context);
-            var aimDirection = input.AimDirection;
+            var aimDirection = new Vec3(input.AimDirection.X, 0f, input.AimDirection.Z);
             var areaForward = input.HasAimDirection
                 ? DeterministicMathBridge.Normalize(in aimDirection)
                 : Vec3.Forward;
             if (areaForward.SqrMagnitude <= 0.000001f) areaForward = Vec3.Forward;
             var offset = new Vec3(aoe.OffsetX + args.OffsetX, aoe.OffsetY + args.OffsetY, aoe.OffsetZ + args.OffsetZ)
-                         + areaForward * args.DirectionOffset;
+                       + areaForward * args.DirectionOffset
+                       + new Vec3(areaForward.Z, 0f, -areaForward.X) * args.LateralOffset;
 
             if (!args.HasTargetRequest)
             {
@@ -116,7 +117,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 center = center + offset;
                 LogInvestigation(ctx,
                     $"resolved area params center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} stayIntervalFrames={stayIntervalFrames} delayFrames={delayFrames} collisionMask={collisionLayerMask} frame={frame}");
-                if (SpawnOneArea(projectiles, areaRuntime, executionContexts, args, aoe, input, ctx, in center, in areaForward, input.TargetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId) &&
+                if (SpawnOneArea(this, projectiles, areaRuntime, executionContexts, args, aoe, input, ctx, in center, in areaForward, input.TargetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId) &&
                     (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, runtimeAreaId, out var outputError) ||
                      !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, 1, out outputError)))
                 {
@@ -154,7 +155,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     center = center + offset;
                     LogInvestigation(ctx,
                         $"resolved target area params target={targetActorId} center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} stayIntervalFrames={stayIntervalFrames} delayFrames={delayFrames} collisionMask={collisionLayerMask} frame={frame}");
-                    if (SpawnOneArea(projectiles, areaRuntime, executionContexts, args, aoe, input, ctx, in center, in areaForward, targetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId))
+                    if (SpawnOneArea(this, projectiles, areaRuntime, executionContexts, args, aoe, input, ctx, in center, in areaForward, targetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId))
                     {
                         if (firstRuntimeAreaId == 0) firstRuntimeAreaId = runtimeAreaId;
                         spawned++;
@@ -177,7 +178,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
         }
 
-        private bool SpawnOneArea(
+        internal static bool SpawnOneArea(
+            SpawnAreaPlanActionModule logger,
             IProjectileService projectiles,
             MobaAreaRuntimeService areaRuntime,
             MobaExecutionContextRegistry executionContexts,
@@ -199,12 +201,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             runtimeAreaId = 0;
             var origin = input.BuildOrigin(input.CasterActorId, targetActorId, MobaExecutionKind.AreaSpawn, args.AreaId);
             var skillRuntimeHandle = origin.SkillRuntimeHandle;
-            LogInvestigation(ctx,
+            logger.LogInvestigation(ctx,
                 $"resolved origin immediate={origin.ImmediateContextId} parent={origin.EffectiveParentContextId} root={origin.EffectiveRootContextId} owner={origin.OwnerContextId} target={targetActorId}");
             if (origin.EffectiveParentContextId == 0L)
             {
                 AbilityKit.Core.Logging.Log.Warning($"[SpawnAreaPlanActionModule] rejected missing source context areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} immediate={origin.ImmediateContextId} parent={origin.EffectiveParentContextId} root={origin.EffectiveRootContextId} owner={origin.OwnerContextId}");
-                LogRejected(ctx, $"requires source context. areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId}");
+                logger.LogRejected(ctx, $"requires source context. areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId}");
                 return false;
             }
 
@@ -221,7 +223,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (sourceContextId == 0L)
             {
                 AbilityKit.Core.Logging.Log.Warning($"[SpawnAreaPlanActionModule] rejected area context creation failed areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} parent={origin.EffectiveParentContextId}");
-                LogRejected(ctx, $"area context creation failed. areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId}");
+                logger.LogRejected(ctx, $"area context creation failed. areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId}");
                 return false;
             }
 
@@ -232,13 +234,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 ? origin.OwnerContextId
                 : sourceContextId;
 
-            LogInvestigation(ctx,
+            logger.LogInvestigation(ctx,
                 $"resolved area context source={sourceContextId} parent={origin.EffectiveParentContextId} root={rootContextId} owner={ownerContextId} target={targetActorId}");
 
-            var shapeKind = args.ShapeKind < (int)OverlapShapeKind.Circle || args.ShapeKind > (int)OverlapShapeKind.Rectangle
+            var shapeKind = args.ShapeKind < (int)OverlapShapeKind.Circle || args.ShapeKind > (int)OverlapShapeKind.Ring
                 ? OverlapShapeKind.Circle
                 : (OverlapShapeKind)args.ShapeKind;
             var initialRadius = args.InitialRadius > 0f ? args.InitialRadius : radius;
+            var innerRadius = args.InnerRadius > 0f ? args.InnerRadius : aoe.InnerRadius;
             var width = args.Width > 0f ? args.Width : radius * 2f;
             var length = args.Length > 0f ? args.Length : radius * 2f;
             var spawnParams = new AreaSpawnParams(
@@ -262,7 +265,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 followActorId: input.CasterActorId,
                 rootContextId: rootContextId,
                 groupKey: args.GroupKey,
-                claimTargetsWithinGroup: args.ClaimTargetsWithinGroup);
+                claimTargetsWithinGroup: args.ClaimTargetsWithinGroup,
+                innerRadius: innerRadius,
+                boundarySweep: aoe.OnCrossTriggerIds.Length > 0);
             var areaId = projectiles.SpawnArea(in spawnParams, frame);
             if (areaId.Value <= 0)
             {
@@ -272,7 +277,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 }
 
                 AbilityKit.Core.Logging.Log.Warning($"[SpawnAreaPlanActionModule] rejected spawn failed areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} collisionMask={collisionLayerMask} frame={frame}");
-                LogRejected(ctx, $"spawn failed. areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames}");
+                logger.LogRejected(ctx, $"spawn failed. areaId={args.AreaId} caster={input.CasterActorId} target={targetActorId} center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames}");
                 return false;
             }
 
@@ -298,7 +303,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     length,
                     skillRuntimeHandle,
                     args.GroupKey,
-                    args.ClaimTargetsWithinGroup);
+                    args.ClaimTargetsWithinGroup,
+                    innerRadius);
             }
             catch (Exception ex)
             {
@@ -325,11 +331,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 }
 
                 AbilityKit.Core.Logging.Log.Exception(ex, $"[SpawnAreaPlanActionModule] register spawn failed and was rolled back. areaId={areaId.Value} templateId={args.AreaId} caster={input.CasterActorId} target={targetActorId}");
-                LogRejected(ctx, $"runtime registration failed. areaId={args.AreaId} runtimeId={areaId.Value}");
+                logger.LogRejected(ctx, $"runtime registration failed. areaId={args.AreaId} runtimeId={areaId.Value}");
                 return false;
             }
 
-            LogApplied(ctx, $"templateId={args.AreaId} runtimeId={areaId.Value} caster={input.CasterActorId} target={targetActorId} radius={radius} lifetimeFrames={lifetimeFrames}");
+            logger.LogApplied(ctx, $"templateId={args.AreaId} runtimeId={areaId.Value} caster={input.CasterActorId} target={targetActorId} radius={radius} lifetimeFrames={lifetimeFrames}");
             runtimeAreaId = areaId.Value;
             return true;
         }
@@ -375,7 +381,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return frameTime.TimeToFrame(frameTime.Time + seconds).Value - frameTime.Frame.Value;
         }
 
-        private static int ResolveLifetimeFrames(SpawnAreaArgs args, int durationMs, IWorldResolver services)
+        internal static int ResolveLifetimeFrames(SpawnAreaArgs args, int durationMs, IWorldResolver services)
         {
             if (args.DurationFrames > 0) return args.DurationFrames;
             if (durationMs <= 0)
@@ -387,7 +393,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return Math.Max(1, SecondsToFrameCount(frameTime, durationMs / 1000f));
         }
 
-        private static int ResolveDelayFrames(int configDelayMs, IWorldResolver services)
+        internal static int ResolveDelayFrames(int configDelayMs, IWorldResolver services)
         {
             if (configDelayMs <= 0) return 0;
 
@@ -395,7 +401,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return Math.Max(1, SecondsToFrameCount(frameTime, configDelayMs / 1000f));
         }
 
-        private static int ResolveStayIntervalFrames(SpawnAreaArgs args, int configIntervalMs, IWorldResolver services)
+        internal static int ResolveStayIntervalFrames(SpawnAreaArgs args, int configIntervalMs, IWorldResolver services)
         {
             if (args.StayIntervalFrames > 0) return args.StayIntervalFrames;
             if (configIntervalMs <= 0) return 0;
@@ -404,7 +410,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return Math.Max(1, SecondsToFrameCount(frameTime, configIntervalMs / 1000f));
         }
 
-        private static int ResolveFrame(IWorldResolver services)
+        internal static int ResolveFrame(IWorldResolver services)
         {
             return ResolveFrameTime(services).Frame.Value;
         }

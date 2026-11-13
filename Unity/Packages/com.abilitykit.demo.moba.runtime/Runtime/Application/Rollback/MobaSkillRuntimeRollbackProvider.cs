@@ -118,7 +118,9 @@ namespace AbilityKit.Demo.Moba.Rollback
                         $"Skill child execution context {child.ContextId} is missing at rollback capture.");
                 if (node.RootContextId != expectedRootId || !MatchesChild(in node, in child))
                     throw new InvalidOperationException(
-                        $"Skill child execution context {child.ContextId} does not match its runtime child reference.");
+                        $"Skill child execution context {child.ContextId} does not match its runtime child reference. " +
+                        $"expectedRoot={expectedRootId} actualRoot={node.RootContextId} expectedChildKind={child.Kind} " +
+                        $"expectedConfig={child.ConfigId} actualKind={node.Kind} actualConfig={node.ConfigId}.");
                 nodes.Add(new MobaSkillExecutionContextRollbackEntry(in node));
             }
 
@@ -188,7 +190,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             return MatchesChild(node.Kind, node.ConfigId, child.Kind, child.ConfigId);
         }
 
-        private static bool MatchesChild(in MobaExecutionContextNode node, in MobaSkillRuntimeChildRollbackEntry child)
+        internal static bool MatchesChild(in MobaExecutionContextNode node, in MobaSkillRuntimeChildRollbackEntry child)
         {
             return MatchesChild(node.Kind, node.ConfigId, (MobaSkillRuntimeChildKind)child.Kind, child.ConfigId);
         }
@@ -199,7 +201,11 @@ namespace AbilityKit.Demo.Moba.Rollback
             MobaSkillRuntimeChildKind childKind,
             int childConfigId)
         {
-            if (childConfigId != 0 && executionConfigId != childConfigId) return false;
+            // A launcher child reference identifies the launcher row, while its
+            // execution context identifies the projectile row produced by that
+            // launcher. Those are different config domains by design.
+            if (childKind != MobaSkillRuntimeChildKind.ProjectileLauncher &&
+                childConfigId != 0 && executionConfigId != childConfigId) return false;
             switch (childKind)
             {
                 case MobaSkillRuntimeChildKind.Effect:

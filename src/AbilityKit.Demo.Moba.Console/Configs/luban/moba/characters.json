@@ -171,5 +171,35 @@
       30020301,
       30020401
     ]
+  },
+  {
+    "Id": 3004,
+    "AttributeTemplateId": 3004,
+    "ModelId": 3004,
+    "Name": "Veigar",
+    "PassiveSkillIds": [
+      30040000
+    ],
+    "SkillIds": [
+      30040201,
+      30040301,
+      30040401,
+      30040501
+    ]
+  },
+  {
+    "Id": 3005,
+    "AttributeTemplateId": 3005,
+    "ModelId": 3005,
+    "Name": "Gragas",
+    "PassiveSkillIds": [
+      30050000
+    ],
+    "SkillIds": [
+      30050201,
+      30050301,
+      30050401,
+      30050501
+    ]
   }
 ]

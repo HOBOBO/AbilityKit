@@ -1,0 +1,33 @@
+{
+  "groups": [
+    {
+      "name": "Logic_30030401",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "ExistingSkillEffects",
+          "active": true,
+          "actionClips": [
+            {
+              "effectId": 30030401,
+              "eventTag": "annie_e_cast",
+              "abortOnFailure": false,
+              "startTime": 0.0,
+              "name": "ExecuteEffect",
+              "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        }
+      ]
+    }
+  ],
+  "exportMobaRuntime": true,
+  "length": 4.166667,
+  "viewTimeMin": 0,
+  "rangeMin": 0,
+  "$type": "AbilityKit.ActionEditorImpl.SkillAsset",
+  "rangeMax": 4.25,
+  "viewTimeMax": 4.25
+}

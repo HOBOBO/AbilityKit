@@ -270,6 +270,64 @@ namespace AbilityKit.Context
             }
         }
 
+        /// <summary>Captures local entity structure for recovery compensation, preserving identities
+        /// and property references. No simulation or flow mutation may interleave with recovery.</summary>
+        public Action CaptureLocalRollbackStructure()
+        {
+            lock (_lock)
+            {
+                var entities = new Dictionary<long, EntityData>(_entities);
+                var nextId = _nextEntityId;
+                var nextGeneration = _nextGeneration;
+                return () =>
+                {
+                    lock (_lock)
+                    {
+                        foreach (var entity in _entities.Values)
+                            if (entity.FlowId != 0 && _flows.TryGetValue(entity.FlowId, out var flow)) flow.RemoveEntity(entity.Id);
+                        _entities.Clear();
+                        _entitiesByPropertyType.Clear();
+                        foreach (var pair in entities)
+                        {
+                            _entities.Add(pair.Key, pair.Value);
+                            foreach (var type in pair.Value.Properties.Keys) AddPropertyIndex(type, pair.Key);
+                            if (pair.Value.FlowId != 0 && _flows.TryGetValue(pair.Value.FlowId, out var flow)) flow.AddEntity(pair.Key);
+                        }
+                        _nextEntityId = nextId;
+                        _nextGeneration = nextGeneration;
+                    }
+                };
+            }
+        }
+
+        /// <summary>Silent local structure restore. Missing IDs must have been declared reconstructible
+        /// by the owning domain; surviving entities retain their local generation and properties.</summary>
+        public void RestoreLocalRollbackEntities(long nextEntityId, IReadOnlyCollection<long> targetIds,
+            IReadOnlyCollection<long> reconstructibleIds)
+        {
+            var target = new HashSet<long>(targetIds ?? throw new ArgumentNullException(nameof(targetIds)));
+            var reconstructible = new HashSet<long>(reconstructibleIds ?? throw new ArgumentNullException(nameof(reconstructibleIds)));
+            lock (_lock)
+            {
+                if (nextEntityId < 1 || target.Count != targetIds.Count) throw new InvalidOperationException("Invalid local context roster.");
+                foreach (var id in target)
+                    if (id <= 0 || id >= nextEntityId || !_entities.ContainsKey(id) && !reconstructible.Contains(id))
+                        throw new InvalidOperationException("Missing context outside declared local recovery ownership.");
+                var missing = target.Count(id => !_entities.ContainsKey(id));
+                if (missing > long.MaxValue - _nextGeneration) throw new InvalidOperationException("Context generations exhausted.");
+                foreach (var id in _entities.Keys.Where(id => !target.Contains(id)).ToArray())
+                {
+                    var entity = _entities[id];
+                    foreach (var type in entity.Properties.Keys) RemovePropertyIndex(type, id);
+                    if (entity.FlowId != 0 && _flows.TryGetValue(entity.FlowId, out var flow)) flow.RemoveEntity(id);
+                    _entities.Remove(id);
+                }
+                foreach (var id in target.OrderBy(id => id))
+                    if (!_entities.ContainsKey(id)) _entities.Add(id, new EntityData(id, 0L, _nextGeneration++));
+                _nextEntityId = nextEntityId;
+            }
+        }
+
         public FlowContextScope BeginFlow(string name = null, long ownerEntityId = 0, long parentFlowId = 0, FlowContextPhase disposePhase = FlowContextPhase.Completed)
         {
             var flowId = CreateFlow(name, ownerEntityId, parentFlowId);

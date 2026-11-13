@@ -102,7 +102,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
             float length,
             MobaSkillCastRuntimeHandle skillRuntimeHandle = default,
             int groupKey = 0,
-            bool claimTargetsWithinGroup = false)
+            bool claimTargetsWithinGroup = false,
+            float innerRadius = 0f)
         {
             if (areaId.Value <= 0) return;
             EnsureObjectBootstrapRegistered();
@@ -132,7 +133,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
                 length,
                 skillRuntimeHandle,
                 groupKey,
-                claimTargetsWithinGroup);
+                claimTargetsWithinGroup,
+                innerRadius);
 
             if (_areas.TryGetValue(areaId.Value, out var oldInfo))
             {
@@ -624,6 +626,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
         public readonly int OwnerActorId;
         public readonly Vec3 Center;
         public readonly float Radius;
+        public readonly float InnerRadius;
         public readonly int ShapeKind;
         public readonly Vec3 Forward;
         public readonly float HalfAngleDeg;
@@ -696,7 +699,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
             float length,
             MobaSkillCastRuntimeHandle skillRuntimeHandle = default,
             int groupKey = 0,
-            bool claimTargetsWithinGroup = false)
+            bool claimTargetsWithinGroup = false,
+            float innerRadius = 0f)
         {
             AreaId = areaId;
             TemplateId = templateId;
@@ -708,6 +712,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             HalfAngleDeg = halfAngleDeg > 0f ? halfAngleDeg : 0f;
             Width = width > 0f ? width : radius * 2f;
             Length = length > 0f ? length : radius * 2f;
+            InnerRadius = innerRadius > 0f ? Math.Min(innerRadius, radius) : 0f;
             CollisionLayerMask = collisionLayerMask;
             MaxTargets = maxTargets;
             SpawnFrame = spawnFrame;
@@ -727,7 +732,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
 
         public static int Normalize(int shapeKind)
         {
-            return shapeKind >= 0 && shapeKind <= 2 ? shapeKind : Circle;
+            return shapeKind >= 0 && shapeKind <= 3 ? shapeKind : Circle;
         }
 
         public static Vec3 NormalizeForward(in Vec3 forward)

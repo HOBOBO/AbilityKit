@@ -433,6 +433,13 @@ types:
       - { id: 12, name: forwardX, scalarType: float, required: true }
       - { id: 13, name: forwardY, scalarType: float, required: true }
       - { id: 14, name: forwardZ, scalarType: float, required: true }
+      - { id: 15, name: actorVersion, scalarType: int32, required: true }
+      - { id: 16, name: profileId, scalarType: string, required: false }
+      - { id: 17, name: statePath, scalarType: string, required: false }
+      - { id: 18, name: phaseInstance, scalarType: int32, required: true }
+      - { id: 19, name: enteredFrame, scalarType: int32, required: true }
+      - { id: 20, name: snapshotFrame, scalarType: int32, required: true }
+      - { id: 21, name: localSeconds, scalarType: float, required: true }
 
   - name: MobaProjectileEventSnapshotPayload
     fields:
@@ -441,6 +448,7 @@ types:
         type: AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry
         array: true
         required: true
+      - { id: 1, name: version, scalarType: int32, required: true }
 
   - name: MobaSkillStateSnapshotEntry
     fields:

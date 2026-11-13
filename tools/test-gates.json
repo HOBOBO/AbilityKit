@@ -1029,7 +1029,7 @@
         "release-candidate",
         "batch-merge"
       ],
-      "failurePolicy": "Preserve Unity command, log, and NUnit XML artifacts. Headless coverage verifies passive charge/stun, Q projectile/refund, W sector, E shield/Buff, R summon, and Tibbers behavior. The local HUD scenario submits Q/W/E/R through BattleInputFeature and checks the published indicator geometry. Presentation fixture verifies linked model/VFX consumption and lifecycle.",
+      "failurePolicy": "Preserve Unity command, log, and NUnit XML artifacts. Headless coverage verifies passive charge/stun, Q projectile/refund, W sector and empty casts, E shield/Buff, targetless R summon, single R impact versus summon attack attribution/cooldown, and Tibbers behavior. The local HUD scenario submits Q/W/E/R through BattleInputFeature, checks indicator geometry, and requires actual E shield and R summon/model results. With graphics enabled it also checks production camera depth input and visible skin pixels after spawn VFX expires; null-graphics runs cannot prove visibility. Presentation fixture verifies linked model/VFX consumption and lifecycle.",
       "ciPolicy": {
         "runOnPullRequest": false,
         "runOnPush": false,
@@ -1057,7 +1057,7 @@
       "name": "moba-jinx-unity",
       "level": "P2",
       "owner": "MOBA Runtime/Unity Test",
-      "description": "Jinx acceptance covers the hero-local WeaponMode profile, production Q mode toggling through mutually exclusive Buff Modifiers, Pow-Pow/Fishbones basic-attack routing and projectile damage, plus a local battle Q click and W directional HUD release through BattleInputFeature. W DirectionLine template geometry and projectile damage are covered; rollback and rendered presentation remain uncovered.",
+      "description": "Jinx acceptance covers the hero-local WeaponMode profile, mutually exclusive Buff Modifiers, and the production local HUD sequence minigun attack / Q / rocket attack / Q / minigun attack. It checks real Animator states and skeleton pose, weapon-specific particle instances and damage. Graphics-enabled runs also capture production-camera frames and verify visible model pixels. W/E/R logic contracts remain separate from their final visual acceptance; rollback is not covered.",
       "scope": [
         "unity-editmode",
         "moba-hero-acceptance",
@@ -1074,7 +1074,7 @@
         "release-candidate",
         "batch-merge"
       ],
-      "failurePolicy": "Preserve Unity command, log, and NUnit XML artifacts. The gate verifies headless Q/basic-attack/W contracts and a local battle Q/W HUD path through BattleInputFeature, including published DirectionLine geometry and W damage. It does not claim rollback or rendered on-screen presentation acceptance.",
+      "failurePolicy": "Preserve Unity command, log, and NUnit XML artifacts. Q must pass both switch directions, actual skeleton pose, Animator and projectile-particle consumption, and damage through the local HUD path. Camera screenshots and pixel checks run only with a graphics device; nographics results must not be reported as rendered visual acceptance. Full Q stat parity and rollback remain uncovered.",
       "ciPolicy": {
         "runOnPullRequest": false,
         "runOnPush": false,
@@ -1083,7 +1083,7 @@
       },
       "steps": [
         {
-          "name": "Jinx Q/W HUD input, weapon mode, attack, and DirectionLine acceptance",
+          "name": "Jinx local HUD weapon switching, model/projectile consumption, and skill logic acceptance",
           "kind": "unity-editmode-test",
           "projectPath": "Unity",
           "testPlatform": "EditMode",
@@ -1136,6 +1136,55 @@
           "projectPath": "Unity",
           "testPlatform": "EditMode",
           "testFilter": "AbilityKit.Game.Tests.JhinUnityPresentationConsumptionTests"
+        }
+      ]
+    },
+    {
+      "name": "moba-veigar-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Execute the existing Veigar published-content acceptance fixture; coverage remains unclaimed until its result artifacts are reviewed.",
+      "scope": ["unity-editmode", "moba-veigar", "authoritative-artifacts"],
+      "requiredBefore": ["claim-latest-veigar-unity-result"],
+      "failurePolicy": "Preserve matching command, log, and NUnit XML. Do not infer HUD, rendered presentation, or rollback coverage from headless content contracts.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Veigar published-content acceptance",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.VeigarSkillAcceptanceTests"
+        }
+      ]
+    },
+    {
+      "name": "moba-gragas-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Verify published Gragas skills in real battles and consume actual Unity model, projectile and area VFX.",
+      "scope": ["unity-editmode", "moba-hero-acceptance", "moba-gragas", "authoritative-artifacts"],
+      "requiredBefore": ["release-candidate", "batch-merge"],
+      "failurePolicy": "Block Gragas publication acceptance on runtime or Unity consumption failures; retain TRX, NUnit XML and logs.",
+      "ciPolicy": {"runOnPullRequest": false, "runOnPush": false, "runOnSchedule": true, "artifactRequired": true},
+      "steps": [
+        {
+          "name": "Gragas published skill runtime",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
+          "filter": "FullyQualifiedName~GragasRuntimeTests"
+        },
+        {
+          "name": "Gragas Unity model and VFX consumption",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.GragasUnityPresentationConsumptionTests"
         }
       ]
     },

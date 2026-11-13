@@ -27,6 +27,7 @@ using AbilityKit.Triggering.Eventing;
 using AbilityKit.World.ECS;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using EntityBattleNetId = AbilityKit.Game.Battle.Entity.BattleNetId;
 
@@ -72,7 +73,7 @@ namespace AbilityKit.Game.Tests
                     (SkillId: AnnieWSkillId, VfxId: 90033002,
                         Resource: "ChampionVfx/14.Void_Annie/Void_Annie_W_Area"),
                     (SkillId: AnnieESkillId, VfxId: 90033004,
-                        Resource: "ChampionVfx/14.Void_Annie/Void_Annie_E"),
+                        Resource: "moba/AnnieShield"),
                     (SkillId: AnnieRSkillId, VfxId: AnnieRPreviewVfxId,
                         Resource: "ChampionVfx/14.Void_Annie/Void_Annie_R_Summon"),
                 };
@@ -104,7 +105,7 @@ namespace AbilityKit.Game.Tests
                     "ChampionVfx/14.Void_Annie/Void_Annie_Q_Hit");
                 AssertBuffPresentation(harness, templates, vfxDb,
                     AnnieEBuffId, 90033004,
-                    "ChampionVfx/14.Void_Annie/Void_Annie_E");
+                    "moba/AnnieShield");
             }
         }
 
@@ -253,6 +254,78 @@ namespace AbilityKit.Game.Tests
             yield return null;
         }
 
+        [Test]
+        public void Q_LinkedFireballIsVisibleWithinItsActualFlightWindow()
+        {
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+                Assert.Ignore("Fireball image acceptance requires a graphics device.");
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.NewPreviewScene();
+            var instance = UnityEngine.Object.Instantiate(Resources.Load<GameObject>(
+                "ChampionVfx/14.Void_Annie/Void_Annie_Q_Projectile"));
+            var cameraObject = new GameObject("AnnieFireballAcceptanceCamera");
+            var camera = cameraObject.AddComponent<Camera>();
+            SceneManager.MoveGameObjectToScene(instance, scene);
+            SceneManager.MoveGameObjectToScene(cameraObject, scene);
+            camera.scene = scene;
+            var target = RenderTexture.GetTemporary(512, 512, 24);
+            var texture = new Texture2D(512, 512, TextureFormat.RGB24, false);
+            var previous = RenderTexture.active;
+            try
+            {
+                camera.transform.position = new Vector3(4f, 5f, -6f);
+                camera.transform.LookAt(Vector3.zero);
+                camera.orthographic = true;
+                camera.orthographicSize = 3f;
+                camera.depthTextureMode = DepthTextureMode.Depth;
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.12f, 0.12f, 0.12f);
+                camera.targetTexture = target;
+                instance.SetActive(false);
+                camera.Render();
+                RenderTexture.active = target;
+                texture.ReadPixels(new Rect(0, 0, 512, 512), 0, 0);
+                texture.Apply();
+                var hidden = texture.GetPixels32();
+                instance.SetActive(true);
+                var maxPixels = 0;
+                foreach (var time in new[] { 0.03f, 0.1f, 0.2f })
+                {
+                    foreach (var animator in instance.GetComponentsInChildren<Animator>())
+                    {
+                        animator.Rebind();
+                        animator.Update(time);
+                    }
+                    foreach (var particles in instance.GetComponentsInChildren<ParticleSystem>())
+                        particles.Simulate(time, false, true, true);
+                    camera.Render();
+                    texture.ReadPixels(new Rect(0, 0, 512, 512), 0, 0);
+                    texture.Apply();
+                    var visible = texture.GetPixels32();
+                    var pixels = 0;
+                    for (var i = 0; i < visible.Length; i++)
+                        if (!visible[i].Equals(hidden[i])) pixels++;
+                    TestContext.WriteLine("Q flight time=" + time + " visible pixels=" + pixels);
+                    if (pixels <= maxPixels) continue;
+                    maxPixels = pixels;
+                    var path = System.IO.Path.GetFullPath(System.IO.Path.Combine(
+                        Application.dataPath, "../../local/Logs/annie-q-linked-flight.png"));
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+                    System.IO.File.WriteAllBytes(path, texture.EncodeToPNG());
+                    TestContext.WriteLine("Q flight image=" + path);
+                }
+                Assert.Greater(maxPixels, 20, "The linked fireball must render during its sub-0.27-second flight.");
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+                RenderTexture.ReleaseTemporary(target);
+                UnityEngine.Object.DestroyImmediate(texture);
+                UnityEngine.Object.DestroyImmediate(instance);
+                UnityEngine.Object.DestroyImmediate(cameraObject);
+                UnityEditor.SceneManagement.EditorSceneManager.ClosePreviewScene(scene);
+            }
+        }
+
         [UnityTest]
         public IEnumerator E_RealBuffCueConsumesConfiguredShieldVfx()
         {
@@ -332,6 +405,10 @@ namespace AbilityKit.Game.Tests
                         "Annie E shield cue must resolve the authored Annie shield VFX.");
                     Assert.IsTrue(vfxEntity.TryGetRef(out BattleViewGameObjectComponent viewComponent));
                     Assert.IsNotNull(viewComponent.GameObject);
+                    var shield = viewComponent.GameObject.transform.Find("E_Shield");
+                    Assert.IsNotNull(shield, "The linked shield hierarchy must be preserved by the variant.");
+                    Assert.IsTrue(shield.gameObject.activeInHierarchy,
+                        "A spawned VFX entity is insufficient: the shield's particle parent must be active.");
                     Assert.IsNotEmpty(
                         viewComponent.GameObject.GetComponentsInChildren<ParticleSystem>(true),
                         "Annie E shield cue must instantiate the linked particle prefab.");
@@ -894,9 +971,6 @@ namespace AbilityKit.Game.Tests
                     actionContext.SetAction(new CharacterActionData(
                         tibbersActorId, 1, 48, "life/alive/action/attack.slot.1",
                         ((long)tibbersActorId << 32) | 4u, 4, 0, 901, AnnieBasicAttackSkillId));
-                    LogAssert.Expect(LogType.Error,
-                        "Missing MOBA presentation timeline: moba/action_timeline/skill_" +
-                        AnnieBasicAttackSkillId + ".moba.presentation");
                     binder.Sync(entity, actionContext);
                     Assert.AreEqual("life/alive/action/attack.slot.1", tibbersHfsm.Action.Path);
                     var attackPlayback = tibbersHfsm.Evaluate(48, 30, null);

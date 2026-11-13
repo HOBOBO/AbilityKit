@@ -12,6 +12,7 @@ using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Demo.Moba.Services.Projectile;
 
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -34,6 +35,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var input = MobaMovementActionInputResolver.Resolve(triggerArgs, ctx);
+            // Resolve once, before querying or visiting targets. Origin zero is a valid world position.
+            Vec3 origin = default;
+            if (args.OriginSource != MobaMotionOriginSource.CasterPosition &&
+                !TryResolveExplicitOrigin(triggerArgs, in input, args.OriginSource, ctx, out origin))
+            {
+                LogRejected(ctx, $"missing explicit motion origin: {args.OriginSource}");
+                return;
+            }
             var targets = PooledMobaPlanActionLists.GetIntList();
             try
             {
@@ -44,7 +53,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     return;
                 }
 
-                ExecuteForTargets(input, args, ctx, targets);
+                ExecuteForTargets(input, args, ctx, targets, origin);
             }
             finally
             {
@@ -52,7 +61,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
         }
 
-        private void ExecuteForTargets(MobaMovementActionInput input, PullArgs args, ExecCtx<IWorldResolver> ctx, List<int> targets)
+        private void ExecuteForTargets(MobaMovementActionInput input, PullArgs args, ExecCtx<IWorldResolver> ctx, List<int> targets, Vec3 origin)
         {
             if (targets == null || targets.Count == 0)
             {
@@ -69,11 +78,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             for (int i = 0; i < targets.Count; i++)
             {
-                ExecuteForTarget(input, args, ctx, registry, targets[i]);
+                ExecuteForTarget(input, args, ctx, registry, targets[i], origin);
             }
         }
 
-        private void ExecuteForTarget(MobaMovementActionInput input, PullArgs args, ExecCtx<IWorldResolver> ctx, MobaActorRegistry registry, int targetId)
+        private void ExecuteForTarget(MobaMovementActionInput input, PullArgs args, ExecCtx<IWorldResolver> ctx, MobaActorRegistry registry, int targetId, Vec3 origin)
         {
             if (targetId <= 0)
             {
@@ -95,6 +104,26 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var pullDir = input.ResolvePullDirection(args.DirectionMode, targetId);
+            if (args.OriginSource != MobaMotionOriginSource.CasterPosition && (args.DirectionMode == 0 || args.DirectionMode == 3))
+            {
+                if (!targetEntity.hasTransform) return;
+                var deltaFromOrigin = targetEntity.transform.Value.Position - origin;
+                var radial = new Vec3(deltaFromOrigin.X, 0f, deltaFromOrigin.Z);
+                var fallback = Vec3.Forward;
+                var aimHandle = input.ActionInput.ExecutionContext.SkillRuntimeHandle;
+                var hasAim = false;
+                var aim = Vec3.Zero;
+                if (aimHandle.IsValid && ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var aimCasts) && aimCasts.TryGet(in aimHandle, out var aimCast))
+                { aim = aimCast.AimDir; hasAim = true; }
+                else hasAim = input.TryGetAimDirection(out aim);
+                if (hasAim)
+                {
+                    var planarAim = new Vec3(aim.X, 0f, aim.Z);
+                    if (planarAim.SqrMagnitude > 0.000001f) fallback = DeterministicMathBridge.Normalize(in planarAim);
+                }
+                pullDir = radial.SqrMagnitude > 0.000001f ? DeterministicMathBridge.Normalize(in radial) : fallback;
+                if (args.DirectionMode == 0) pullDir = -pullDir;
+            }
             if (pullDir.SqrMagnitude <= 0f)
             {
                 LogRejected(ctx, $"cannot resolve pull direction. mode={args.DirectionMode} targetId={targetId}");
@@ -104,13 +133,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var scale = 1f;
             if (args.DistanceScaleReference > 0f)
             {
-                if (input.CasterActorId <= 0 || !registry.TryGet(input.CasterActorId, out var caster) ||
-                    caster == null || !caster.hasTransform || !targetEntity.hasTransform)
+                var distanceOrigin = origin;
+                if (args.OriginSource == MobaMotionOriginSource.CasterPosition)
                 {
-                    LogRejected(ctx, "distance scaling requires caster and target transforms");
-                    return;
+                    if (input.CasterActorId <= 0 || !registry.TryGet(input.CasterActorId, out var caster) || caster == null || !caster.hasTransform)
+                    { LogRejected(ctx, "distance scaling requires caster transform"); return; }
+                    distanceOrigin = caster.transform.Value.Position;
                 }
-                var delta = targetEntity.transform.Value.Position - caster.transform.Value.Position;
+                if (!targetEntity.hasTransform) return;
+                var delta = targetEntity.transform.Value.Position - distanceOrigin;
                 scale = args.ResolveDistanceScale(DeterministicMathBridge.Sqrt(delta.X * delta.X + delta.Z * delta.Z));
             }
             var duration = args.DurationMs / 1000f;
@@ -155,6 +186,28 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 LogRejected(ctx, rejectReason);
             }
+        }
+
+        private static bool TryResolveExplicitOrigin(object payload, in MobaMovementActionInput input,
+            MobaMotionOriginSource source, ExecCtx<IWorldResolver> ctx, out Vec3 point)
+        {
+            point = default;
+            if (source == MobaMotionOriginSource.FrozenAimPosition)
+            {
+                var handle = input.ActionInput.ExecutionContext.SkillRuntimeHandle;
+                if (handle.IsValid && ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var casts) && casts.TryGet(in handle, out var cast))
+                { point = cast.AimPos; return true; }
+                return false;
+            }
+            if (payload is MobaTriggerConditionContext condition) payload = condition.Payload;
+            switch (payload)
+            {
+                case ProjectileHitArgs hit: point = hit.Point; return true;
+                case ProjectileEventArgs projectile: point = projectile.Position; return true;
+                case AreaEventArgs area: point = area.Center; return true;
+                case MobaMotionHitArgs motion: point = motion.Point; return true;
+            }
+            return false;
         }
 
         private sealed class KnockupTrajectory : ITrajectory3D

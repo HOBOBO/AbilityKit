@@ -69,6 +69,16 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public void OnRegistered(IContinuous continuous, IContinuousManager manager) { }
+
+        internal void RebaselineForLocalRollback(IReadOnlyCollection<int> owners)
+        {
+            _lastTags.Clear();
+            foreach (var owner in owners)
+            {
+                var tags = _effectiveTags.GetEffectiveTags(owner);
+                if (tags.Count > 0) _lastTags.Add(owner, tags);
+            }
+        }
         public void OnActivated(IContinuous continuous, IContinuousManager manager) => ReportChange(continuous);
         public void OnPaused(IContinuous continuous, IContinuousManager manager) => ReportChange(continuous);
         public void OnResumed(IContinuous continuous, IContinuousManager manager) => ReportChange(continuous);

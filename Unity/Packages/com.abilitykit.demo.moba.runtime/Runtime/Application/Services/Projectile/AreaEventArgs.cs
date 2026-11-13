@@ -20,6 +20,10 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public Vec3 Center;
         public float Radius;
         public ColliderId Collider;
+        public int CrossingDirection;
+        public bool HasResidenceSample;
+        public float ResidenceMs;
+        public float ResidenceRatio;
 
         public int CollisionLayerMask;
         public int MaxTargets;

@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Combat.Projectile
@@ -7,6 +8,7 @@ namespace AbilityKit.Combat.Projectile
         public readonly int OwnerId;
         public readonly Vec3 Center;
         public readonly float Radius;
+        public readonly float InnerRadius;
 
         public readonly int LifetimeFrames;
         public readonly int CollisionLayerMask;
@@ -30,6 +32,7 @@ namespace AbilityKit.Combat.Projectile
         public readonly long RootContextId;
         public readonly int GroupKey;
         public readonly bool ClaimTargetsWithinGroup;
+        public readonly bool BoundarySweep;
 
         public AreaSpawnParams(
             int ownerId,
@@ -52,11 +55,14 @@ namespace AbilityKit.Combat.Projectile
             int followActorId = 0,
             long rootContextId = 0,
             int groupKey = 0,
-            bool claimTargetsWithinGroup = false)
+            bool claimTargetsWithinGroup = false,
+            float innerRadius = 0f,
+            bool boundarySweep = false)
         {
             OwnerId = ownerId;
             Center = center;
             Radius = radius;
+            InnerRadius = Math.Max(0f, Math.Min(innerRadius, radius));
             LifetimeFrames = lifetimeFrames;
             CollisionLayerMask = collisionLayerMask;
             StayIntervalFrames = stayIntervalFrames;
@@ -75,13 +81,14 @@ namespace AbilityKit.Combat.Projectile
             RootContextId = rootContextId;
             GroupKey = groupKey;
             ClaimTargetsWithinGroup = claimTargetsWithinGroup;
+            BoundarySweep = boundarySweep;
         }
 
         public AreaSpawnParams WithCenter(in Vec3 center)
         {
             return new AreaSpawnParams(OwnerId, center, Radius, LifetimeFrames, CollisionLayerMask, StayIntervalFrames,
                 ShapeKind, Forward, HalfAngleDeg, Width, Length, AnchorAtOrigin, RadiusGrowthPerFrame, InitialRadius, ArmDelayFrames, ConsumeOnFirstEnter, FollowOwner, FollowActorId,
-                RootContextId, GroupKey, ClaimTargetsWithinGroup);
+                RootContextId, GroupKey, ClaimTargetsWithinGroup, InnerRadius, BoundarySweep);
         }
     }
 }

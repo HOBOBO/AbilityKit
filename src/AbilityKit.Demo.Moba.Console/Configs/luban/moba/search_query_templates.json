@@ -676,5 +676,180 @@
     "Selector": {
       "Kind": 4097
     }
+  },
+  {
+    "Id": 52040101,
+    "ExplicitTargetPolicy": 0,
+    "MaxCount": 2,
+    "Name": "Veigar Q target query",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 0,
+        "Radius": 6
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 0
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52040501,
+    "ExplicitTargetPolicy": 0,
+    "MaxCount": 1,
+    "Name": "Veigar R target query",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 0,
+        "Radius": 6
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 0
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52040201,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 10,
+    "Name": "Veigar W impact target query",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 1,
+        "Radius": 4.5
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 0
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52050201,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 32,
+    "Name": "Gragas barrel explosion",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 1,
+        "Radius": 2.5
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 1
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52050301,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 32,
+    "Name": "Gragas empowered splash",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 2,
+        "Radius": 2.5
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 2
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52050401,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 32,
+    "Name": "Gragas body slam impact",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 3,
+        "Radius": 1.8
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 3
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52050501,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 32,
+    "Name": "Gragas cask explosion",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 3,
+        "Radius": 4
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8196,
+        "Source": 3
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
   }
 ]

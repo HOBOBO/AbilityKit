@@ -48,7 +48,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             AddExactEvents(events, new[] { "projectile.spawn", "projectile.tick", "projectile.exit" },
                 "投射物", "ProjectileEventArgs", ProjectileFields());
             events.Add(Exact("projectile.hit", "投射物命中", "投射物", "ProjectileHitArgs", ProjectileHitFields(), false, true));
-            AddExactEvents(events, new[] { "area.spawn", "area.tick", "area.enter", "area.exit", "area.end" },
+            AddExactEvents(events, new[] { "area.spawn", "area.tick", "area.enter", "area.cross", "area.exit", "area.end" },
                 "区域", "AreaEventArgs", AreaFields());
             AddExactEvents(events, new[] { "summon.spawn", "summon.despawn", "summon.die" },
                 "召唤物", "SummonEventPayload", SummonFields());
@@ -192,7 +192,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Field("area_id", TriggerValueType.Integer), Field("template_id", TriggerValueType.Integer),
                 Field("owner_actor_id", TriggerValueType.Integer), Field("target_actor_id", TriggerValueType.Integer),
                 Field("frame", TriggerValueType.Integer), Field("center", TriggerValueType.Vector3),
-                Field("radius", TriggerValueType.Number), Field("max_targets", TriggerValueType.Integer)
+                Field("radius", TriggerValueType.Number), Field("max_targets", TriggerValueType.Integer),
+                Field("crossing_direction", TriggerValueType.Integer)
             };
         }
 

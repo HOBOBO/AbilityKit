@@ -39,11 +39,24 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 skipFirstHit,
                 repeatTargetDecayFactor,
                 targetHitCountKeyBase,
-                targetMissingHpRatioCoefficient);
+                targetMissingHpRatioCoefficient,
+                MobaEffectMagnitudeSchemaReader.Read(namedArgs, in ctx, 0f));
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            if (MobaEffectMagnitudeSchemaReader.HasMagnitudeArgs(args))
+            {
+                if (HasAny(args, "value", "modifier_value", "modifiervalue",
+                        "repeat_target_decay_factor", "repeattargetdecayfactor", "decay_factor", "decayfactor",
+                        "target_missing_hp_ratio_coefficient", "targetmissinghpratiocoefficient", "missing_hp_ratio_coefficient", "missinghpratiocoefficient"))
+                {
+                    error = "adjust_damage_number magnitude inputs cannot be combined with value, repeat decay or missing-health inputs.";
+                    return false;
+                }
+                error = null;
+                return true;
+            }
             if (HasAny(args, "value", "modifier_value", "modifiervalue")
                 || HasAny(args, "repeat_target_decay_factor", "repeattargetdecayfactor", "decay_factor", "decayfactor")
                 || HasAny(args, "target_missing_hp_ratio_coefficient", "targetmissinghpratiocoefficient", "missing_hp_ratio_coefficient", "missinghpratiocoefficient"))

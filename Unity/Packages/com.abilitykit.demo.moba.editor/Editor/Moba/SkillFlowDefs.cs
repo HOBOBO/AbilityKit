@@ -20,6 +20,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         [MinValue(0)]
         [Tooltip("技能 Pipeline 整体生命周期绑定的持续标签模板。0 表示不绑定。")]
         public int PipelineContinuousTagTemplateId;
+        [MinValue(0)] public int ChildChannelId;
+        [MinValue(0)] public int RecastChannelId;
+        [MinValue(0)] public int RequiredBuffQualificationId;
 
         [SerializeReference]
         [HideReferenceObjectPicker]
@@ -42,6 +45,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 Id = Id,
                 Name = Name,
                 PipelineContinuousTagTemplateId = PipelineContinuousTagTemplateId,
+                ChildChannelId = ChildChannelId,
+                RecastChannelId = RecastChannelId,
+                RequiredBuffQualificationId = RequiredBuffQualificationId,
                 Phases = ConvertPhases(Phases),
             };
         }
@@ -50,16 +56,52 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         /// 运行时 DTO（JSON 真相）→ 富作者形态 Def。用于把历史 JSON 配置迁移进编辑器 dataList。
         /// 无 Def 对应的相位类型（如 Handlers）会被跳过。
         /// </summary>
-        public static SkillFlowDef FromDto(SkillFlowDTO dto)
+        public static SkillFlowDef FromDto(SkillFlowDTO dto, SkillFlowDef previous = null)
         {
             if (dto == null) return null;
-            return new SkillFlowDef
+            var result = new SkillFlowDef
             {
                 Id = dto.Id,
                 Name = dto.Name,
                 PipelineContinuousTagTemplateId = dto.PipelineContinuousTagTemplateId,
+                ChildChannelId = dto.ChildChannelId,
+                RecastChannelId = dto.RecastChannelId,
+                RequiredBuffQualificationId = dto.RequiredBuffQualificationId,
                 Phases = SkillPhaseDef.ConvertPhasesFromDto(dto.Phases),
             };
+            // Runtime DTOs cannot carry Unity TextAsset references. Preserve
+            // explicitly authored references by stable phase ID on reimport.
+            if (previous != null)
+            {
+                if (previous.Id != dto.Id) throw new InvalidOperationException("Cannot preserve references from a different flow.");
+                var timelines = new Dictionary<string, TextAsset>(StringComparer.Ordinal);
+                foreach (var phase in EnumeratePhases(previous.Phases))
+                    if (phase is SkillTimelinePhaseDef timeline && timeline.MobaLogicTimeline != null)
+                    {
+                        if (string.IsNullOrWhiteSpace(phase.PhaseId) || timelines.ContainsKey(phase.PhaseId))
+                            throw new InvalidOperationException("Referenced timelines require unique stable phase IDs.");
+                        timelines.Add(phase.PhaseId, timeline.MobaLogicTimeline);
+                    }
+                foreach (var phase in EnumeratePhases(result.Phases))
+                    if (phase is SkillTimelinePhaseDef timeline && !string.IsNullOrWhiteSpace(phase.PhaseId) &&
+                        timelines.TryGetValue(phase.PhaseId, out var source))
+                        timeline.MobaLogicTimeline = source;
+            }
+            return result;
+        }
+
+        internal static IEnumerable<SkillPhaseDef> EnumeratePhases(IEnumerable<SkillPhaseDef> phases)
+        {
+            if (phases == null) yield break;
+            foreach (var phase in phases)
+            {
+                if (phase == null) continue;
+                yield return phase;
+                if (phase is SkillCompositePhaseDef composite)
+                    foreach (var child in EnumeratePhases(composite.Children)) yield return child;
+                if (phase is SkillRepeatPhaseDef repeat && repeat.Phase != null)
+                    foreach (var child in EnumeratePhases(new[] { repeat.Phase })) yield return child;
+            }
         }
 
         internal static SkillPhaseDTO[] ConvertPhases(IReadOnlyList<SkillPhaseDef> phases)
@@ -206,6 +248,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     def = new SkillCommitPointPhaseDef
                     {
                         CommitId = (dto.CommitPoint ?? new SkillCommitPointPhaseDTO()).CommitId,
+                        RequireEconomyReservation = (dto.CommitPoint ?? new SkillCommitPointPhaseDTO()).RequireEconomyReservation,
                     };
                     break;
                 case SkillPhaseType.Economy:
@@ -226,7 +269,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                         SharedCooldownMs = economy.SharedCooldownMs,
                         GlobalCooldownMs = economy.GlobalCooldownMs,
                         IgnoreGlobalCooldown = economy.IgnoreGlobalCooldown,
+                        IgnoreResourceCostCheck = economy.IgnoreResourceCostCheck,
+                        IgnoreResourceConsumption = economy.IgnoreResourceConsumption,
                         RefundBeforeCommit = economy.RefundBeforeCommit,
+                        RequireExplicitCommit = economy.RequireExplicitCommit,
                         FailReason = economy.FailReason,
                     };
                     break;
@@ -536,12 +582,13 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     {
         [Required]
         public string CommitId;
+        public bool RequireEconomyReservation;
         public override SkillPhaseType PhaseType => SkillPhaseType.CommitPoint;
 
         public override SkillPhaseDTO ToDto()
         {
             var dto = CreateDto();
-            dto.CommitPoint = new SkillCommitPointPhaseDTO { CommitId = CommitId };
+            dto.CommitPoint = new SkillCommitPointPhaseDTO { CommitId = CommitId, RequireEconomyReservation = RequireEconomyReservation };
             return dto;
         }
     }
@@ -563,7 +610,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         [MinValue(0)] public int SharedCooldownMs;
         [MinValue(0)] public int GlobalCooldownMs;
         public bool IgnoreGlobalCooldown;
+        public bool IgnoreResourceCostCheck;
+        public bool IgnoreResourceConsumption;
         public bool RefundBeforeCommit = true;
+        public bool RequireExplicitCommit;
         public string FailReason;
 
         public override SkillPhaseType PhaseType => SkillPhaseType.Economy;
@@ -587,7 +637,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 SharedCooldownMs = SharedCooldownMs,
                 GlobalCooldownMs = GlobalCooldownMs,
                 IgnoreGlobalCooldown = IgnoreGlobalCooldown,
+                IgnoreResourceCostCheck = IgnoreResourceCostCheck,
+                IgnoreResourceConsumption = IgnoreResourceConsumption,
                 RefundBeforeCommit = RefundBeforeCommit,
+                RequireExplicitCommit = RequireExplicitCommit,
                 FailReason = FailReason,
             };
             return dto;

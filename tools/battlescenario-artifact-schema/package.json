@@ -1,0 +1,16 @@
+{
+  "name": "@abilitykit/battlescenario-artifact-schema",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Schema validation tests for BattleScenario run artifacts.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1"
+  }
+}

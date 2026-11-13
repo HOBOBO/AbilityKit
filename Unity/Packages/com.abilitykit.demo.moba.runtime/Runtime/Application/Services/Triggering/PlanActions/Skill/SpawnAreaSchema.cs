@@ -27,12 +27,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var offsetY = ReadFloat(namedArgs, ctx, 0f, "offset_y", "offsety", "y");
             var offsetZ = ReadFloat(namedArgs, ctx, 0f, "offset_z", "offsetz", "z");
             var directionOffset = ReadFloat(namedArgs, ctx, 0f, "direction_offset", "directionoffset", "forward_offset", "forwardoffset");
+            var lateralOffset = ReadFloat(namedArgs, ctx, 0f, "lateral_offset", "lateraloffset");
             var shapeKind = ReadInt(namedArgs, ctx, 0, "shape_kind", "shapekind", "shape");
             var halfAngleDeg = ReadFloat(namedArgs, ctx, 0f, "half_angle_deg", "halfangledeg", "sector_half_angle");
             var width = ReadFloat(namedArgs, ctx, 0f, "width", "shape_width");
             var length = ReadFloat(namedArgs, ctx, 0f, "length", "shape_length");
             var initialRadius = ReadFloat(namedArgs, ctx, 0f, "initial_radius", "initialradius");
             var radiusGrowthPerFrame = ReadFloat(namedArgs, ctx, 0f, "radius_growth_per_frame", "radiusgrowthperframe", "growth_per_frame");
+            var innerRadius = ReadFloat(namedArgs, ctx, 0f, "inner_radius", "innerradius", "ring_inner_radius");
             var anchorAtOrigin = ReadBoolNonZero(namedArgs, ctx, true, "anchor_at_origin", "anchoratorigin", "front_anchor");
             var groupKey = ReadInt(namedArgs, ctx, 0, "area_group_key", "areagroupkey", "group_key", "groupkey");
             var claimTargetsWithinGroup = ReadBoolNonZero(namedArgs, ctx, false, "claim_targets_within_group", "claimtargetswithingroup", "group_target_claim");
@@ -43,7 +45,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return new SpawnAreaArgs(areaId, positionMode, radiusOverride, durationFrames, durationMs, stayIntervalFrames, collisionLayerMaskOverride, offsetX, offsetY, offsetZ,
                 shapeKind, halfAngleDeg, width, length, initialRadius, radiusGrowthPerFrame, anchorAtOrigin,
                 groupKey, claimTargetsWithinGroup,
-                hasTargetRequest, targetRequest, resultTarget, resultCountTarget, directionOffset);
+                hasTargetRequest, targetRequest, resultTarget, resultCountTarget, directionOffset, lateralOffset, innerRadius);
         }
 
         private static bool HasExplicitTargetRequest(Dictionary<string, ActionArgValue> namedArgs)

@@ -44,9 +44,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly MobaMotionContinuousSettings Continuous;
 
         public readonly MobaActionTargetRequest TargetRequest;
+        public readonly MobaMotionOriginSource OriginSource;
 
-        public PullArgs(float speed, float durationMs, int directionMode = 0, float targetDistance = 0f, int priority = 12, int motionGroupId = 0, MobaMotionContinuousSettings continuous = default, MobaActionTargetRequest targetRequest = default, float distanceScaleReference = 0f, float distanceScaleNear = 1f, float distanceScaleFar = 1f)
+        public PullArgs(float speed, float durationMs, int directionMode = 0, float targetDistance = 0f, int priority = 12, int motionGroupId = 0, MobaMotionContinuousSettings continuous = default, MobaActionTargetRequest targetRequest = default, float distanceScaleReference = 0f, float distanceScaleNear = 1f, float distanceScaleFar = 1f, MobaMotionOriginSource originSource = MobaMotionOriginSource.CasterPosition)
         {
+            if (!System.Enum.IsDefined(typeof(MobaMotionOriginSource), originSource))
+                throw new System.ArgumentOutOfRangeException(nameof(originSource));
+            OriginSource = originSource;
             if (!IsFinite(distanceScaleReference) || distanceScaleReference < 0f ||
                 !IsFinite(distanceScaleNear) || distanceScaleNear < 0f ||
                 !IsFinite(distanceScaleFar) || distanceScaleFar < 0f ||

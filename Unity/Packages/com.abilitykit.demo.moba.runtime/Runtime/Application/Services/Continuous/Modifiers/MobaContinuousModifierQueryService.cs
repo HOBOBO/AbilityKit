@@ -409,6 +409,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         private MobaContinuousModifierExplainResult BuildExplainResult(MobaContinuousModifierEntry entry, AttributeContext context)
         {
+            if (MobaContinuousCastMagnitude.IsRequested(entry.Spec))
+                return ExplainCastCapture(entry);
             var spec = entry.Spec;
             var projection = entry.Projection;
             var ownerActorId = projection?.OwnerActorId ?? 0;
@@ -467,6 +469,29 @@ namespace AbilityKit.Demo.Moba.Services
                 reason,
                 spec.DefinitionId,
                 entry.Ordinal);
+        }
+
+        private static MobaContinuousModifierExplainResult ExplainCastCapture(MobaContinuousModifierEntry entry)
+        {
+            var spec = entry.Spec;
+            var runtime = entry.Continuous as MobaContinuousRuntimeBase;
+            var unit = 0f;
+            var value = 0f;
+            var captured = runtime != null &&
+                runtime.TryGetModifierCapture(spec, entry.Ordinal, 1, spec.Op, out unit) &&
+                runtime.TryGetModifierCapture(spec, entry.Ordinal, entry.Stack, spec.Op, out value);
+            // A target AttributeContext cannot reconstruct a Cast-scoped input. Diagnostics
+            // must describe the persistent result, including after the source Cast is gone.
+            return new MobaContinuousModifierExplainResult(
+                entry.Continuous, entry.Projection?.OwnerActorId ?? 0,
+                spec.TargetKind, spec.TargetId, spec.Op, spec.Value, spec.EvaluationPolicy,
+                spec.Priority, entry.Stack, entry.Projection?.ModifierSourceId ?? 0,
+                new MobaContinuousModifierMagnitudeView(spec.Magnitude, unit, captured),
+                new MobaContinuousModifierMagnitudeView(spec.Magnitude, value, captured, false),
+                new MobaContinuousModifierMagnitudeView(MagnitudeSource.Fixed(value), value, captured, false),
+                value, captured, value, captured, "OnApplySnapshot",
+                captured ? "Persistent Continuous capture from explicit Cast input" : "Cast input has not been captured",
+                spec.DefinitionId, entry.Ordinal);
         }
 
         private static float EvaluateMagnitude(MagnitudeSource source, IContinuous continuous, AttributeContext context)
@@ -548,6 +573,13 @@ namespace AbilityKit.Demo.Moba.Services
         public float ResolveMagnitude(MobaContinuousModifierEntry entry, AttributeContext context = null)
         {
             if (entry.Spec == null || entry.Continuous == null) return 0f;
+            if (MobaContinuousCastMagnitude.IsRequested(entry.Spec))
+            {
+                if (entry.Continuous is MobaContinuousRuntimeBase runtime &&
+                    runtime.TryGetModifierCapture(entry.Spec, entry.Ordinal, 1, entry.Spec.Op, out var captured))
+                    return captured;
+                throw new InvalidOperationException("Cast input has not been captured for this modifier.");
+            }
             return EvaluateMagnitude(entry.Spec.Magnitude, entry.Continuous, context ?? ResolveAttributeContext(entry.Projection?.OwnerActorId ?? 0));
         }
     }

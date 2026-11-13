@@ -5,6 +5,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Services.StateMachine;
+using AbilityKit.Demo.Moba.Config.Core;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -15,6 +16,8 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly Dictionary<int, int[]> _skillIdsByActorId = new Dictionary<int, int[]>();
         private MobaSkillSlotCandidateService _candidates;
         private MobaCharacterHfsmParameterService _parameters;
+        private MobaConfigDatabase _configs;
+        private MobaSkillCastRuntimeService _casts;
 
         public MobaSkillLoadoutService(MobaActorLookupService actors)
         {
@@ -25,6 +28,18 @@ namespace AbilityKit.Demo.Moba.Services
         {
             services?.TryResolve(out _candidates);
             services?.TryResolve(out _parameters);
+            services?.TryResolve(out _configs);
+            services?.TryResolve(out _casts);
+        }
+
+        /// <summary>Only a deployed child in the effective skill's explicit channel bypasses its slot cooldown.</summary>
+        public bool IsIndependentRecastReady(int actorId, int slot, int effectiveSkillId)
+        {
+            return _configs != null && _casts != null &&
+                TryResolveSlot(actorId, slot, out var resolved) && resolved.EffectiveSkillId == effectiveSkillId &&
+                _configs.TryGetSkill(effectiveSkillId, out var skill) &&
+                _configs.TryGetSkillFlow(skill.CastFlowId, out var flow) && flow.RecastChannelId > 0 &&
+                _casts.TrySelectRecastArea(actorId, flow.RecastChannelId, out _, out _, slot, resolved.BaseSkillId);
         }
 
         public void SetLoadout(int actorId, int[] skillIds)

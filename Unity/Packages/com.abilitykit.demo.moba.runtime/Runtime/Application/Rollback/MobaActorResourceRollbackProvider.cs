@@ -71,6 +71,10 @@ namespace AbilityKit.Demo.Moba.Rollback
                         MaxAttribute = AttributeId.FromRaw(entry.MaxAttributeId),
                     };
                 }
+                // Normal resource mutations refresh these derived context inputs. Rollback
+                // must do the same after the complete map is restored, before the next tick
+                // can evaluate resource-dependent modifiers against predicted ratios.
+                MobaResourceAttributeContextProjector.Refresh(actor);
             }
         }
 

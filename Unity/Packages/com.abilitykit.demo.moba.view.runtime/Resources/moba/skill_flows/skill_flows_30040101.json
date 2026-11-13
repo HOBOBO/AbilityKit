@@ -1,0 +1,56 @@
+{
+  "Id": 30040101,
+  "Name": "Veigar - Basic Attack",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 19,
+      "PhaseId": "veigar_basic_attack_economy",
+      "Economy": {
+        "Operation": 0,
+        "ResourceType": 0,
+        "ResourceAmount": 0.0,
+        "UseResolvedResourceCost": true,
+        "ChargeCost": 1,
+        "MaxCharges": 1,
+        "ChargeRecoveryMs": 0,
+        "StartSkillCooldown": true,
+        "SkillCooldownMs": 0,
+        "UseResolvedSkillCooldown": true,
+        "CooldownGroup": "",
+        "SharedCooldownMs": 0,
+        "GlobalCooldownMs": 0,
+        "IgnoreGlobalCooldown": false,
+        "IgnoreResourceCostCheck": false,
+        "IgnoreResourceConsumption": false,
+        "RefundBeforeCommit": true,
+        "RequireExplicitCommit": false,
+        "FailReason": "skill_economy_reserve_failed"
+      }
+    },
+    {
+      "Type": 18,
+      "PhaseId": "veigar_basic_attack_commit",
+      "CommitPoint": {
+        "CommitId": "attack",
+        "RequireEconomyReservation": false
+      }
+    },
+    {
+      "Type": 2,
+      "PhaseId": "veigar_basic_attack",
+      "Timeline": {
+        "DurationMs": 2000,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30040101,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "veigar_basic_attack"
+          }
+        ]
+      }
+    }
+  ]
+}

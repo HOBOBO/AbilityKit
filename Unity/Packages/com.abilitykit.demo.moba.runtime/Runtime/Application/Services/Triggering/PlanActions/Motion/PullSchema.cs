@@ -33,7 +33,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return new PullArgs(speed, durationMs, directionMode, targetDistance, priority, motionGroupId, continuous, targetRequest,
                 ReadFloat(namedArgs, ctx, 0f, "distance_scale_reference"),
                 ReadFloat(namedArgs, ctx, 1f, "distance_scale_near"),
-                ReadFloat(namedArgs, ctx, 1f, "distance_scale_far"));
+                ReadFloat(namedArgs, ctx, 1f, "distance_scale_far"),
+                ReadEnum(namedArgs, ctx, MobaMotionOriginSource.CasterPosition, "origin_source"));
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
@@ -42,6 +43,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var referenceIsConstant = true;
             foreach (var arg in args)
             {
+                if (arg.Key == "origin_source" && arg.Value.Kind == ActionArgKind.NumericValue && arg.Value.Ref.Kind == ENumericValueRefKind.Const)
+                {
+                    var origin = arg.Value.Ref.ConstValue;
+                    if (origin != 0 && origin != 1 && origin != 2)
+                    { error = "origin_source must be CasterPosition (0), FrozenAimPosition (1), or ContextPoint (2)."; return false; }
+                }
                 if (arg.Key != "distance_scale_reference" && arg.Key != "distance_scale_near" && arg.Key != "distance_scale_far") continue;
                 var constant = arg.Value.Kind == ActionArgKind.NumericValue && arg.Value.Ref.Kind == ENumericValueRefKind.Const;
                 if (arg.Key == "distance_scale_reference") referenceIsConstant = constant;

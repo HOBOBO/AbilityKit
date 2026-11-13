@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using AbilityKit.Ability.Config;
 using AbilityKit.HFSM.Definition;
 using Newtonsoft.Json;
@@ -21,6 +22,8 @@ namespace AbilityKit.Game.Battle.Component
         [JsonProperty("frameRate")] public decimal FrameRate;
         [JsonProperty("loop")] public bool Loop;
         [JsonProperty("layer")] public int Layer;
+        [JsonProperty("modelId")] public int ModelId;
+        [JsonProperty("animationKey")] public string AnimationKey;
     }
 
     public readonly struct CharacterPlaybackIntent
@@ -97,6 +100,7 @@ namespace AbilityKit.Game.Battle.Component
         // Zero denotes the shared/headless catalog. Entity-specific variants
         // are only eligible on a catalog created for a positive entity code.
         private int _entityCode;
+        private ModelAnimationCatalog _animations = new ModelAnimationCatalog();
 
         public int Version { get; private set; } = 1;
         public float AuthoredFrameRate { get; private set; } = DefaultAuthoredFrameRate;
@@ -104,17 +108,27 @@ namespace AbilityKit.Game.Battle.Component
         public static CharacterPresentationActionCatalog Load(ITextAssetLoader loader)
         {
             if (loader != null && loader.TryLoadText(ResourcePath, out var json) &&
-                !string.IsNullOrWhiteSpace(json)) return LoadJson(json);
+                !string.IsNullOrWhiteSpace(json)) return LoadJson(json, ModelAnimationCatalog.Load(loader));
             return CreateDefault();
         }
 
-        public static CharacterPresentationActionCatalog LoadJson(string json)
+        public static CharacterPresentationActionCatalog LoadJson(string json, ModelAnimationCatalog animations = null)
         {
             if (string.IsNullOrWhiteSpace(json)) throw new ArgumentException("Action catalog is empty.", nameof(json));
             var token = JToken.Parse(json, new JsonLoadSettings
             {
                 DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error
             });
+            if (!(token is JObject rootToken)) throw new InvalidOperationException("Action catalog requires an object.");
+            foreach (var node in rootToken.Descendants().OfType<JObject>())
+                if (node.Property("animationKey") != null || node.Property("modelId") != null)
+                {
+                    if (node["modelId"]?.Type != JTokenType.Integer || node.Value<int>("modelId") <= 0 ||
+                        node["animationKey"]?.Type != JTokenType.String ||
+                        string.IsNullOrWhiteSpace(node.Value<string>("animationKey")) ||
+                        new[] { "animatorState", "frameCount", "frameRate", "layer" }.Any(field => node.Property(field) != null))
+                        throw new InvalidOperationException("Model animation reference must be complete and cannot mix inline animation facts.");
+                }
             var dto = token.ToObject<CatalogDto>(JsonSerializer.Create(new JsonSerializerSettings
             {
                 MissingMemberHandling = MissingMemberHandling.Error
@@ -122,6 +136,7 @@ namespace AbilityKit.Game.Battle.Component
             if (dto == null || dto.SchemaVersion != 1 || dto.States == null)
                 throw new InvalidOperationException("Unsupported character presentation catalog.");
             var catalog = new CharacterPresentationActionCatalog();
+            catalog._animations = animations ?? new ModelAnimationCatalog();
             catalog.AuthoredFrameRate = dto.FrameRate > 0
                 ? (float)dto.FrameRate
                 : DefaultAuthoredFrameRate;
@@ -130,6 +145,7 @@ namespace AbilityKit.Game.Battle.Component
                 if (entry == null || string.IsNullOrWhiteSpace(entry.Path) || entry.Action == null)
                     throw new InvalidOperationException("Character presentation state requires a path and action.");
                 ValidateAction(entry.Action, new HashSet<string>(StringComparer.Ordinal));
+                catalog.ValidateAnimationReferences(entry.Action);
                 if (!catalog._states.TryAdd(entry.Path, Clone(entry.Action)))
                     throw new InvalidOperationException("Duplicate character presentation state path: " + entry.Path);
             }
@@ -147,6 +163,7 @@ namespace AbilityKit.Game.Battle.Component
                     if (!catalog._states.ContainsKey(variant.Path))
                         throw new InvalidOperationException("Character presentation variant has unknown state path.");
                     ValidateAction(variant.Action, new HashSet<string>(StringComparer.Ordinal));
+                    catalog.ValidateAnimationReferences(variant.Action);
                     catalog._variants.Add(variant);
                     if (!catalog._variantEntityCodesByPath.TryGetValue(variant.Path, out var entityCodes))
                     {
@@ -173,6 +190,7 @@ namespace AbilityKit.Game.Battle.Component
             }
             var result = new CharacterPresentationActionCatalog();
             result._entityCode = entityCode;
+            result._animations = _animations;
             foreach (var entry in _states)
                 result._states.Add(entry.Key, Clone(entry.Value));
             result.Version = Version;
@@ -206,6 +224,7 @@ namespace AbilityKit.Game.Battle.Component
                 Version = Version,
                 AuthoredFrameRate = AuthoredFrameRate
             };
+            result._animations = _animations;
             foreach (var entry in _states)
                 if (paths.Contains(entry.Key)) result._states.Add(entry.Key, Clone(entry.Value));
             foreach (var entry in _runtimeOverrides)
@@ -277,11 +296,15 @@ namespace AbilityKit.Game.Battle.Component
             // behavior for actions that do not declare a skill override.
             if (_entityCode > 0)
             {
-                for (var i = 0; i < _variants.Count; i++)
+                for (var pass = 0; pass < 2; pass++)
                 {
-                    var variant = _variants[i];
-                    if (variant.SkillId == 0 || (skillId > 0 && variant.SkillId == skillId))
-                        Replace(action, variant.ActionId, variant.Action);
+                    for (var i = 0; i < _variants.Count; i++)
+                    {
+                        var variant = _variants[i];
+                        if (!string.Equals(variant.Path, path, StringComparison.Ordinal)) continue;
+                        if (pass == 0 ? variant.SkillId == 0 : skillId > 0 && variant.SkillId == skillId)
+                            Replace(action, variant.ActionId, variant.Action);
+                    }
                 }
             }
             // Runtime replacements are local to this catalog instance and must
@@ -292,6 +315,7 @@ namespace AbilityKit.Game.Battle.Component
                 _runtimeOverrides.TryGetValue((path ?? string.Empty) + "\u001f0", out runtimeAction);
             if (runtimeAction != null)
                 action = Clone(runtimeAction);
+            ResolveAnimations(action);
             return true;
         }
 
@@ -303,6 +327,7 @@ namespace AbilityKit.Game.Battle.Component
             if (!Replace(next, actionId, replacement))
                 throw new InvalidOperationException("Character presentation action slot is unknown: " + actionId);
             ValidateAction(next, new HashSet<string>(StringComparer.Ordinal));
+            ValidateAnimationReferences(next);
             _states[path] = next;
             _runtimeOverrides[path + "\u001f0"] = Clone(next);
             Version = checked(Version + 1);
@@ -334,7 +359,8 @@ namespace AbilityKit.Game.Battle.Component
                 Id = source.Id, Type = source.Type, Message = source.Message,
                 Seconds = source.Seconds, AnimatorState = source.AnimatorState,
                 FrameCount = source.FrameCount, FrameRate = source.FrameRate,
-                Loop = source.Loop, Layer = source.Layer
+                Loop = source.Loop, Layer = source.Layer,
+                ModelId = source.ModelId, AnimationKey = source.AnimationKey
             };
             if (source.Actions != null)
             {
@@ -348,6 +374,11 @@ namespace AbilityKit.Game.Battle.Component
         {
             if (action == null || string.IsNullOrWhiteSpace(action.Id) || !ids.Add(action.Id))
                 throw new InvalidOperationException("Character presentation action IDs must be unique and non-empty.");
+            var reference = action.ModelId != 0 || action.AnimationKey != null;
+            if (reference && (action.Type != "play" || action.ModelId <= 0 ||
+                string.IsNullOrWhiteSpace(action.AnimationKey) || action.AnimatorState != null ||
+                action.FrameCount != 0 || action.FrameRate != 0 || action.Layer != 0))
+                throw new InvalidOperationException("Model animation reference must be complete and cannot mix inline animation facts.");
             switch (action.Type)
             {
                 case "sequence":
@@ -370,6 +401,27 @@ namespace AbilityKit.Game.Battle.Component
                 default:
                     throw new InvalidOperationException("Unsupported character presentation action: " + action.Type);
             }
+        }
+
+        private void ValidateAnimationReferences(CharacterPresentationAction action)
+        {
+            if (action.AnimationKey != null) _animations.Get(action.ModelId, action.AnimationKey);
+            if (action.Actions != null)
+                foreach (var child in action.Actions) ValidateAnimationReferences(child);
+        }
+
+        private void ResolveAnimations(CharacterPresentationAction action)
+        {
+            if (action.AnimationKey != null)
+            {
+                var entry = _animations.Get(action.ModelId, action.AnimationKey);
+                action.AnimatorState = entry.AnimatorState;
+                action.FrameCount = entry.FrameCount;
+                action.FrameRate = entry.FrameRate;
+                action.Layer = entry.Layer;
+            }
+            if (action.Actions != null)
+                foreach (var child in action.Actions) ResolveAnimations(child);
         }
 
         private static CharacterPresentationAction Sequence(string id, params CharacterPresentationAction[] children) =>

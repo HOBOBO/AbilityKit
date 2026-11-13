@@ -13,6 +13,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         public static void PublishAndCheck()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            MobaCharacterAnimationSync.CheckIfConfigured();
             MobaStateMachinePublisher.Publish();
             MobaStateMachinePublisher.Check();
             Invoke("ImportProductionSourcesBatch");

@@ -9,6 +9,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
         Spawn = 1,
         Hit = 2,
         Exit = 3,
+        Phase = 4,
     }
 
     public partial struct MobaProjectileEventSnapshotEntry
@@ -23,7 +24,9 @@ namespace AbilityKit.Protocol.Moba.StateSync
         {
         }
 
+        [MemoryPackConstructor]
         public MobaProjectileEventSnapshotEntry(int kind, int projectileActorId, int ownerActorId, int templateId, int launcherActorId, int rootActorId, float x, float y, float z, int hitCollider, int exitReason, int projectileId, float forwardX, float forwardY, float forwardZ)
+            : this()
         {
             Kind = kind;
             ProjectileActorId = projectileActorId;
@@ -49,15 +52,17 @@ namespace AbilityKit.Protocol.Moba.StateSync
         public MobaProjectileEventSnapshotPayload(MobaProjectileEventSnapshotEntry[] entries)
         {
             Entries = entries;
+            Version = MobaProjectileEventSnapshotCodec.CurrentVersion;
         }
     }
 
     public static class MobaProjectileEventSnapshotCodec
     {
+        public const int CurrentVersion = 2;
         public static byte[] Serialize(MobaProjectileEventSnapshotEntry[] entries)
         {
             entries ??= Array.Empty<MobaProjectileEventSnapshotEntry>();
-            var payload = new MobaProjectileEventSnapshotPayload { Entries = entries };
+            var payload = new MobaProjectileEventSnapshotPayload { Entries = entries, Version = CurrentVersion };
             return MemoryPackSerializer.Serialize(payload);
         }
 
@@ -67,6 +72,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
                 return Array.Empty<MobaProjectileEventSnapshotEntry>();
 
             var p = MemoryPackSerializer.Deserialize<MobaProjectileEventSnapshotPayload>(payload);
+            if (p.Version != CurrentVersion) throw new InvalidOperationException("Unsupported projectile event snapshot version.");
             return p.Entries ?? Array.Empty<MobaProjectileEventSnapshotEntry>();
         }
     }

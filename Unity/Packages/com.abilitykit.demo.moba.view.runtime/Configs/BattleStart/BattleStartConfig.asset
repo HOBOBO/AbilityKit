@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: BattleStartConfig
   m_EditorClassIdentifier: 
   Preset: {fileID: 11400000, guid: 8d3da6860dfaff9439d982857e24b28d, type: 2}
+  EnableSyncModeSelection: 0
   RuntimeOverrides: {fileID: 0}
   WorldId: room_1
   WorldType: battle

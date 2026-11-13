@@ -65,10 +65,13 @@ namespace AbilityKit.Combat.Projectile
         public IProjectileHitFilter HitFilter;
         public int HitFilterKey;
         public int HitCooldownFrames;
+        public ProjectileHitIdentityPolicy HitIdentityPolicy;
         public ColliderId LastHitCollider;
         public int LastHitAllowedFrame;
 
         public bool IsSuspended;
+        public ProjectileMaxDistanceResponse MaxDistanceResponse;
+        public int ArrivedFrame = -1;
         public int PatternSlotIndex;
         public int PatternSlotCount;
 
@@ -119,9 +122,12 @@ namespace AbilityKit.Combat.Projectile
             HitFilter = null;
             HitFilterKey = 0;
             HitCooldownFrames = 0;
+            HitIdentityPolicy = default;
             LastHitCollider = default;
             LastHitAllowedFrame = 0;
             IsSuspended = false;
+            MaxDistanceResponse = ProjectileMaxDistanceResponse.Exit;
+            ArrivedFrame = -1;
             PatternSlotIndex = 0;
             PatternSlotCount = 0;
             HitActorIds.Clear();

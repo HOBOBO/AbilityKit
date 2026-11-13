@@ -11,7 +11,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
     /// PlannedTrigger 的参数解析辅助，统一处理具名参数、位置参数和 NumericValueRef 解析。
     /// </summary>
     internal static class PlannedTriggerArgumentResolver<TArgs, TCtx>
-        where TArgs : class
     {
         public static NamedArgsDict ResolveNamedArgs(in TArgs args, in ActionCallPlan call, in ExecCtx<TCtx> ctx)
         {

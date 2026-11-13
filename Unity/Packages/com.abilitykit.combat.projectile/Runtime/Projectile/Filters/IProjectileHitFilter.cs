@@ -24,6 +24,17 @@ namespace AbilityKit.Combat.Projectile
         IProjectileHitFilter Resolve(int key);
     }
 
+    /// <summary>Optional value-only state; never serialize service or world references.</summary>
+    public interface IProjectileHitFilterSnapshotSource
+    {
+        byte[] CaptureSnapshot();
+    }
+
+    public interface IProjectileHitFilterSnapshotResolver : IProjectileHitFilterResolver
+    {
+        IProjectileHitFilter ResolveSnapshot(byte[] snapshot);
+    }
+
     public interface IProjectileCollisionResponseResolver
     {
         ProjectileCollisionResponse ResolveCollision(int ownerId, ColliderId collider, int frame);

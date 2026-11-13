@@ -47,6 +47,10 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         public const string SourceTeamId = "source_team_id";
         public const string TargetTeamId = "target_team_id";
         public const string Frame = "frame";
+        public const string AreaCrossingDirection = "crossing_direction";
+        public const string AreaResidenceMs = "area_residence_ms";
+        public const string AreaResidenceRatio = "area_residence_ratio";
+        public const string ProjectileExitReason = "projectile_exit_reason";
         public const string ProjectileDistanceTravelled = "projectile_distance_travelled";
         public const string ProjectileElapsedSeconds = "projectile_elapsed_seconds";
         public const string ProjectileElapsedFrames = "projectile_elapsed_frames";
@@ -80,14 +84,17 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
                 foreach (var name in table.ParamNames)
                 {
                     if (string.IsNullOrWhiteSpace(name)) continue;
-                    RegisteredSkillParameterFieldIds.Add(FieldId("skill_level_" + name));
+                    var fieldId = FieldId("skill_level_" + name);
+                    lock (RegisteredSkillParameterFieldIds)
+                        RegisteredSkillParameterFieldIds.Add(fieldId);
                 }
             }
         }
 
         public static bool IsRegisteredSkillParameterField(int fieldId)
         {
-            return RegisteredSkillParameterFieldIds.Contains(fieldId);
+            lock (RegisteredSkillParameterFieldIds)
+                return RegisteredSkillParameterFieldIds.Contains(fieldId);
         }
 
         public static bool IsKnownFieldId(int fieldId)
@@ -100,6 +107,8 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
                 || MobaBattlePayloadAccessor.SupportsUnitDieField(fieldId)
                 || MobaBattlePayloadAccessor.SupportsUnitEventField(fieldId)
                 || MobaBattlePayloadAccessor.SupportsProjectileHitField(fieldId)
+                || MobaBattlePayloadAccessor.SupportsAreaField(fieldId)
+                || MobaBattlePayloadAccessor.SupportsProjectileEventField(fieldId)
                 || IsRegisteredSkillParameterField(fieldId)
                 || MobaMinionBaseDamagePayloadAccessor.SupportsField(fieldId);
         }
@@ -245,7 +254,17 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         nameof(MobaBattlePayloadFields.ProjectileTargetMaxHp),
         nameof(MobaBattlePayloadFields.ProjectileTargetMissingHealthRatio),
         nameof(MobaBattlePayloadFields.ProjectileSkillLevel))]
+    [GeneratePayloadFieldIds(typeof(MobaBattlePayloadFields), "SupportsAreaField", false,
+        nameof(MobaBattlePayloadFields.AreaCrossingDirection),
+        nameof(MobaBattlePayloadFields.AreaResidenceMs),
+        nameof(MobaBattlePayloadFields.AreaResidenceRatio))]
+    [GeneratePayloadFieldIds(typeof(MobaBattlePayloadFields), "SupportsProjectileEventField", false,
+        nameof(MobaBattlePayloadFields.ProjectileExitReason))]
     public sealed partial class MobaBattlePayloadAccessor :
+        IPayloadIntAccessor<ProjectileEventArgs>,
+        IPayloadDoubleAccessor<ProjectileEventArgs>,
+        IPayloadIntAccessor<AreaEventArgs>,
+        IPayloadDoubleAccessor<AreaEventArgs>,
         IPayloadIntAccessor<AttackInfo>,
         IPayloadDoubleAccessor<AttackInfo>,
         IPayloadIntAccessor<AttackCalcInfo>,
@@ -263,6 +282,36 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         IPayloadIntAccessor<ProjectileHitArgs>,
         IPayloadDoubleAccessor<ProjectileHitArgs>
     {
+        public bool TryGet(in ProjectileEventArgs args, int fieldId, out int value)
+        {
+            value = 0;
+            if (args == null || args.EventId != "projectile.exit" || fieldId != ProjectileExitReasonId) return false;
+            value = (int)args.ExitReason;
+            return true;
+        }
+        public bool TryGet(in ProjectileEventArgs args, int fieldId, out double value)
+        { var found = TryGet(in args, fieldId, out int integer); value = integer; return found; }
+
+        public bool TryGet(in AreaEventArgs args, int fieldId, out int value)
+        {
+            value = 0;
+            if (args == null || fieldId != AreaCrossingDirectionId) return false;
+            value = args.CrossingDirection;
+            return true;
+        }
+
+        public bool TryGet(in AreaEventArgs args, int fieldId, out double value)
+        {
+            if (args != null && args.HasResidenceSample)
+            {
+                if (fieldId == AreaResidenceMsId) { value = args.ResidenceMs; return true; }
+                if (fieldId == AreaResidenceRatioId) { value = args.ResidenceRatio; return true; }
+            }
+            var found = TryGet(in args, fieldId, out int integer);
+            value = integer;
+            return found;
+        }
+
         public bool TryGet(in AttackInfo args, int fieldId, out int value)
         {
             value = 0;

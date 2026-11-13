@@ -313,5 +313,41 @@
     "FanAngleDeg": 0,
     "IntervalMs": 0,
     "Name": "Jinx R rocket launcher"
+  },
+  {
+    "Id": 33040101,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Veigar Q launcher"
+  },
+  {
+    "Id": 33040501,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Veigar R launcher"
+  },
+  {
+    "Id": 33050201,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Gragas Q barrel"
+  },
+  {
+    "Id": 33050501,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Gragas R cask"
   }
 ]

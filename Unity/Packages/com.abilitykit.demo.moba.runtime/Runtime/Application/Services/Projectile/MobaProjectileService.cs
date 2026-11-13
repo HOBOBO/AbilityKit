@@ -42,6 +42,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         [WorldInject(required: false)] private IWorldRandom _random = null;
         [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
 
+        private static int ResolveCollisionLayerMask(ProjectileMO projectile) =>
+            projectile != null && projectile.CollisionLayerMask != 0
+                ? projectile.CollisionLayerMask
+                : MobaCollisionLayers.UnitMask | MobaCollisionLayers.WorldMask;
+
         public bool Shoot(int casterActorId, ProjectileEmitterType emitterType, int projectileCode, float speed, int lifetimeFrames, float maxDistance, in Vec3 aimPos, in Vec3 aimDir)
         {
             return Shoot(casterActorId, emitterType, projectileCode, speed, lifetimeFrames, maxDistance, in aimPos, in aimDir, default);
@@ -66,7 +71,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             var trackingArcHeight = 0f;
             var trackingArcHeightPerUnit = 0f;
             var trackingArcDurationSeconds = 0f;
-            var hitUnitSubType = 0;
             ProjectileMO projectileConfig = null;
             if (_configs != null && _configs.TryGetProjectile(projectileCode, out projectileConfig) &&
                 projectileConfig != null)
@@ -81,7 +85,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 trackingArcHeight = projectileConfig.TrackingArcHeight;
                 trackingArcHeightPerUnit = projectileConfig.TrackingArcHeightPerUnit;
                 trackingArcDurationSeconds = projectileConfig.TrackingArcDurationSeconds;
-                hitUnitSubType = projectileConfig.HitUnitSubType;
             }
             if (_skillParamModifiers != null)
             {
@@ -144,7 +147,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 var ignore = default(ColliderId);
                 if (caster.hasCollisionId) ignore = caster.collisionId.Value;
 
-                var collisionMask = MobaCollisionLayers.UnitMask | MobaCollisionLayers.WorldMask;
+                var collisionMask = ResolveCollisionLayerMask(projectileConfig);
 
                 var spawnFrame = GetCurrentFrame();
 
@@ -162,13 +165,16 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     returnStopDistance: 0f,
                     lifetimeFrames: lifetimeFrames,
                     maxDistance: maxDistance,
+                    maxDistanceResponse: projectileConfig?.MaxDistanceResponse ?? ProjectileMaxDistanceResponse.Exit,
                     collisionLayerMask: collisionMask,
                     ignoreCollider: ignore,
                     hitsRemaining: hitPolicyKind == ProjectileHitPolicyKind.Pierce ? 0 :
                         hitPolicyKind == ProjectileHitPolicyKind.Bounce ? hitPolicyParam : 1,
                     hitPolicyKind: hitPolicyKind,
                     hitPolicyParam: hitPolicyParam,
-                    hitFilter: new MobaTeamProjectileHitFilter(_registry, hitUnitSubType),
+                    hitFilter: new MobaProjectileCollisionFilter(_registry, projectileConfig?.HitUnitSubType ?? 0,
+                        sourceContext.InitialTargetActorId, projectileConfig?.CollisionRules),
+                    hitIdentityPolicy: projectileConfig?.HitIdentityPolicy ?? ProjectileHitIdentityPolicy.Collider,
                     trackingTargetActorId: sourceContext.InitialTargetActorId,
                     trackingArcHeight: trackingArcHeight,
                     trackingArcHeightPerUnit: trackingArcHeightPerUnit,
@@ -237,82 +243,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 transaction.Rollback(ex);
                 Log.Exception(ex, $"[MobaProjectileService] projectile post-spawn initialization failed. projectileCode={projectileCode} actorId={projectileActorId} casterActorId={casterActorId}");
                 return false;
-            }
-        }
-
-        private sealed class MobaTeamProjectileHitFilter : IProjectileHitFilter, IProjectileCollisionResponseResolver
-        {
-            private readonly MobaActorRegistry _registry;
-            private readonly int _hitUnitSubType;
-
-            public MobaTeamProjectileHitFilter(MobaActorRegistry registry, int hitUnitSubType = 0)
-            {
-                _registry = registry;
-                _hitUnitSubType = hitUnitSubType;
-            }
-
-            public bool ShouldHit(int ownerId, ColliderId collider, int frame)
-            {
-                return ResolveCollision(ownerId, collider, frame) == ProjectileCollisionResponse.Hit;
-            }
-
-            public ProjectileCollisionResponse ResolveCollision(int ownerId, ColliderId collider, int frame)
-            {
-                if (collider.Value == 0) return ProjectileCollisionResponse.Ignore;
-                if (_registry == null) return ProjectileCollisionResponse.Ignore;
-
-                if (!_registry.TryGet(ownerId, out var owner) || owner == null)
-                {
-                    return ProjectileCollisionResponse.Ignore;
-                }
-
-                var ownerTeam = owner.hasTeam ? owner.team.Value : Team.None;
-
-                global::ActorEntity hitEntity = null;
-                try
-                {
-                    foreach (var kv in _registry.Entries)
-                    {
-                        var e = kv.Value;
-                        if (e == null || !e.hasCollisionId) continue;
-                        if (e.collisionId.Value.Equals(collider))
-                        {
-                            hitEntity = e;
-                            break;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, "[MobaProjectileService] ResolveCollision resolve collider->entity failed");
-                    return ProjectileCollisionResponse.Ignore;
-                }
-
-                // 不在 actor 注册表里的 collider 是静态世界/障碍物（墙体），应挡住投射物而非穿透。
-                if (hitEntity == null)
-                {
-                    return ProjectileCollisionResponse.Block;
-                }
-
-                // 不命中自身。
-                if (hitEntity.hasActorId && hitEntity.actorId.Value == ownerId) return ProjectileCollisionResponse.Ignore;
-
-                if (_hitUnitSubType > 0 &&
-                    (!hitEntity.hasEntityMainType || hitEntity.entityMainType.Value != EntityMainType.Unit ||
-                     !hitEntity.hasUnitSubType || (int)hitEntity.unitSubType.Value != _hitUnitSubType))
-                {
-                    return ProjectileCollisionResponse.Ignore;
-                }
-
-                var targetTeam = hitEntity.hasTeam ? hitEntity.team.Value : Team.None;
-
-                // 默认策略：阻止同队友伤；允许命中中立或未分队目标。
-                if (ownerTeam != Team.None && targetTeam != Team.None && ownerTeam == targetTeam)
-                {
-                    return ProjectileCollisionResponse.Ignore;
-                }
-
-                return ProjectileCollisionResponse.Hit;
             }
         }
 
@@ -561,7 +491,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 tickIntervalFrames = 1;
             }
 
-            var collisionMask = MobaCollisionLayers.UnitMask | MobaCollisionLayers.WorldMask;
+            var collisionMask = ResolveCollisionLayerMask(projectile);
             var ignore = default(ColliderId);
             if (caster.hasCollisionId) ignore = caster.collisionId.Value;
 
@@ -580,6 +510,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 returnStopDistance: returnStopDistance,
                 lifetimeFrames: lifetimeFrames,
                 maxDistance: request.MaxDistance > 0f ? System.Math.Min(request.MaxDistance, projectile.MaxDistance) : projectile.MaxDistance,
+                maxDistanceResponse: projectile.MaxDistanceResponse,
                 collisionLayerMask: collisionMask,
                 ignoreCollider: ignore,
                 hitPolicy: null,
@@ -587,8 +518,10 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 hitPolicyKind: hitPolicyKind,
                 hitPolicyParam: hitPolicyParam,
                 tickIntervalFrames: tickIntervalFrames,
-                hitFilter: new MobaTeamProjectileHitFilter(_registry, projectile.HitUnitSubType),
+                hitFilter: new MobaProjectileCollisionFilter(_registry, projectile.HitUnitSubType,
+                    request.TrackTarget ? request.SourceContext.InitialTargetActorId : 0, projectile.CollisionRules),
                 hitCooldownFrames: hitCooldownFrames,
+                hitIdentityPolicy: projectile.HitIdentityPolicy,
                 startSuspended: hasStateMachine,
                 trackingTargetActorId: request.TrackTarget ? request.SourceContext.InitialTargetActorId : 0,
                 collisionHalfExtents: new Vec3(

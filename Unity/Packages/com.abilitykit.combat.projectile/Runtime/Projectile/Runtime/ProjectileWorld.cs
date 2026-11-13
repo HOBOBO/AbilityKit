@@ -21,11 +21,14 @@ namespace AbilityKit.Combat.Projectile
         bool TryGetTrackingTargetPosition(int targetActorId, out Vec3 position);
     }
 
-    /// <summary>Supplies actor identity and deterministic retargeting for bouncing projectiles.</summary>
-    public interface IProjectileBounceTargetProvider : IProjectileTrackingTargetProvider
+    public interface IProjectileActorIdentityProvider : IService
     {
         bool TryResolveActorId(ColliderId collider, out int actorId);
+    }
 
+    /// <summary>Supplies actor identity and deterministic retargeting for bouncing projectiles.</summary>
+    public interface IProjectileBounceTargetProvider : IProjectileTrackingTargetProvider, IProjectileActorIdentityProvider
+    {
         /// <remarks>Apply owner/team eligibility, exclude hitActorIds, and break ties stably (for example by actor id).</remarks>
         bool TrySelectNextTarget(int ownerId, int hitActorId, in Vec3 projectilePosition, IReadOnlyList<int> hitActorIds,
             float searchRadius, out int targetActorId, out Vec3 targetPosition);
@@ -59,6 +62,7 @@ namespace AbilityKit.Combat.Projectile
         private IProjectileReturnTargetProvider _returnTargetProvider;
         private IProjectileTrackingTargetProvider _trackingTargetProvider;
         private IProjectileBounceTargetProvider _bounceTargetProvider;
+        private IProjectileActorIdentityProvider _actorIdentityProvider;
         private IProjectileHitFilterResolver _hitFilterResolver;
 
         private int _nextId = 1;
@@ -82,9 +86,20 @@ namespace AbilityKit.Combat.Projectile
         public void SetBounceTargetProvider(IProjectileBounceTargetProvider provider)
         {
             _bounceTargetProvider = provider;
+            _actorIdentityProvider = provider;
             // A bounce provider owns actor lookup and therefore must also keep the selected actor position current.
             if (provider != null && _trackingTargetProvider == null)
                 _trackingTargetProvider = provider;
+        }
+
+        public void SetActorIdentityProvider(IProjectileActorIdentityProvider provider) => _actorIdentityProvider = provider;
+
+        private void ValidateHitIdentity(ProjectileHitIdentityPolicy policy)
+        {
+            if (policy != ProjectileHitIdentityPolicy.Collider && policy != ProjectileHitIdentityPolicy.OncePerActor)
+                throw new ArgumentOutOfRangeException(nameof(policy));
+            if (policy == ProjectileHitIdentityPolicy.OncePerActor && _actorIdentityProvider == null)
+                throw new InvalidOperationException("OncePerActor requires an actor identity provider.");
         }
 
         /// <summary>
@@ -101,6 +116,13 @@ namespace AbilityKit.Combat.Projectile
 
         public ProjectileId Spawn(in ProjectileSpawnParams p)
         {
+            ValidateHitIdentity(p.HitIdentityPolicy);
+            if (p.MaxDistanceResponse != ProjectileMaxDistanceResponse.Exit &&
+                p.MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination)
+                throw new ArgumentOutOfRangeException(nameof(p.MaxDistanceResponse));
+            if (p.MaxDistanceResponse == ProjectileMaxDistanceResponse.SuspendAtDestination &&
+                (!(p.MaxDistance > 0) || float.IsInfinity(p.MaxDistance)))
+                throw new ArgumentOutOfRangeException(nameof(p.MaxDistance));
             // Validate/resolve behavior before acquiring a pooled instance so invalid config
             // cannot leak a projectile when the policy factory rejects it.
             var hitPolicy = p.HitPolicy ?? ProjectileHitPolicyFactory.Create(p.HitPolicyKind, p.HitPolicyParam);
@@ -167,9 +189,12 @@ namespace AbilityKit.Combat.Projectile
             proj.HitFilter = hitFilter;
             proj.HitFilterKey = hitFilterKey;
             proj.HitCooldownFrames = p.HitCooldownFrames;
+            proj.HitIdentityPolicy = p.HitIdentityPolicy;
             proj.LastHitCollider = default;
             proj.LastHitAllowedFrame = 0;
             proj.IsSuspended = p.StartSuspended;
+            proj.MaxDistanceResponse = p.MaxDistanceResponse;
+            proj.ArrivedFrame = -1;
             proj.PatternSlotIndex = p.PatternSlotIndex;
             proj.PatternSlotCount = p.PatternSlotCount;
 
@@ -198,7 +223,7 @@ namespace AbilityKit.Combat.Projectile
                 projectile.SpawnPosition.ToVec3(),
                 projectile.DistanceTravelled.ToSingle(),
                 projectile.SpawnFrame,
-                projectile.ElapsedSeconds.ToSingle());
+                projectile.ElapsedSeconds.ToSingle(), projectile.ArrivedFrame);
             return true;
         }
 
@@ -226,6 +251,7 @@ namespace AbilityKit.Combat.Projectile
         {
             var projectile = Find(id);
             if (projectile == null) return false;
+            if (projectile.ArrivedFrame >= 0) return false;
             projectile.IsSuspended = false;
             return true;
         }
@@ -290,12 +316,15 @@ namespace AbilityKit.Combat.Projectile
                     hitFilterKey: p.HitFilterKey,
                     hitCooldownFrames: p.HitCooldownFrames,
                     lastHitCollider: p.LastHitCollider.Value,
-                    lastHitAllowedFrame: p.LastHitAllowedFrame
+                    lastHitAllowedFrame: p.LastHitAllowedFrame,
+                    hitIdentityPolicy: p.HitIdentityPolicy,
+                    maxDistanceResponse: p.MaxDistanceResponse, arrivedFrame: p.ArrivedFrame,
+                    hitFilterSnapshot: (p.HitFilter as IProjectileHitFilterSnapshotSource)?.CaptureSnapshot()
                 );
             }
 
             return MemoryPackSerializer.Serialize(new ProjectileWorldSnapshotPayload(
-                version: 14,
+                version: 17,
                 frame: frame,
                 nextId: _nextId,
                 items: items,
@@ -305,10 +334,18 @@ namespace AbilityKit.Combat.Projectile
 
         public void ImportRollback(FrameIndex frame, byte[] payload)
         {
-            Clear();
-            if (payload == null || payload.Length == 0) return;
-
+            if (payload == null || payload.Length == 0) { Clear(); return; }
             var snap = MemoryPackSerializer.Deserialize<ProjectileWorldSnapshotPayload>(payload);
+            if (snap.Version != 17) throw new InvalidOperationException("Unsupported projectile rollback version.");
+            foreach (var item in snap.Items ?? Array.Empty<ProjectileWorldSnapshotItem>())
+            {
+                if ((item.MaxDistanceResponse != ProjectileMaxDistanceResponse.Exit &&
+                     item.MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination) ||
+                    item.ArrivedFrame < -1 || (item.ArrivedFrame >= 0 &&
+                    (item.MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination || item.IsSuspended == 0)))
+                    throw new InvalidOperationException("Invalid projectile destination snapshot.");
+            }
+            Clear();
             _nextId = snap.NextId <= 0 ? 1 : snap.NextId;
             _nextHitFilterKey = snap.NextHitFilterKey <= 0 ? 1 : snap.NextHitFilterKey;
             TrimHitFilters(_nextHitFilterKey);
@@ -319,6 +356,8 @@ namespace AbilityKit.Combat.Projectile
             {
                 var it = snap.Items[i];
                 if (it.Id <= 0) continue;
+                ValidateHitIdentity(it.HitIdentityPolicy);
+                var restoredFilter = RestoreHitFilter(it.HitFilterKey, it.HitFilterSnapshot);
 
                 var p = Pool.Get();
                 p.Id = new ProjectileId(it.Id);
@@ -367,17 +406,20 @@ namespace AbilityKit.Combat.Projectile
                     Fixed64.FromRaw(it.HalfExtentsZ));
                 p.HitsRemaining = it.HitsRemaining;
                 p.HitPolicyKind = it.HitPolicyKind;
+                p.HitIdentityPolicy = it.HitIdentityPolicy;
                 p.HitPolicyParam = it.HitPolicyParam;
                 p.HitPolicy = ProjectileHitPolicyFactory.Create(it.HitPolicyKind, it.HitPolicyParam);
                 p.TickIntervalFrames = it.TickIntervalFrames;
                 p.NextTickFrame = it.NextTickFrame;
                 p.TotalHitCount = it.TotalHitCount;
                 p.HitFilterKey = it.HitFilterKey;
-                p.HitFilter = ResolveHitFilter(it.HitFilterKey);
+                p.HitFilter = restoredFilter;
                 p.HitCooldownFrames = it.HitCooldownFrames;
                 p.LastHitCollider = new ColliderId(it.LastHitCollider);
                 p.LastHitAllowedFrame = it.LastHitAllowedFrame;
                 p.IsSuspended = it.IsSuspended != 0;
+                p.MaxDistanceResponse = it.MaxDistanceResponse;
+                p.ArrivedFrame = it.ArrivedFrame;
                 p.PatternSlotIndex = it.PatternSlotIndex;
                 p.PatternSlotCount = it.PatternSlotCount;
 
@@ -419,6 +461,19 @@ namespace AbilityKit.Combat.Projectile
             if (filter == null)
                 throw new InvalidOperationException($"Projectile hit filter key {key} is not registered and no resolver returned an instance.");
             BindHitFilter(filter, key);
+            return filter;
+        }
+
+        private IProjectileHitFilter RestoreHitFilter(int key, byte[] snapshot)
+        {
+            if (snapshot == null || snapshot.Length == 0) return ResolveHitFilter(key);
+            if (key <= 0 || !(_hitFilterResolver is IProjectileHitFilterSnapshotResolver resolver))
+                throw new InvalidOperationException("Projectile filter snapshot requires a snapshot resolver and a positive filter key.");
+            var filter = resolver.ResolveSnapshot(snapshot);
+            if (filter == null) throw new InvalidOperationException("Projectile filter snapshot resolver returned no filter.");
+            if (_hitFilters.TryGetValue(key, out var previous)) _hitFilterKeys.Remove(previous);
+            _hitFilters[key] = filter;
+            _hitFilterKeys[filter] = key;
             return filter;
         }
 
@@ -483,14 +538,14 @@ namespace AbilityKit.Combat.Projectile
             return false;
         }
 
-        public void Tick(int frame, float fixedDeltaSeconds, List<ProjectileHitEvent> hitEvents, List<ProjectileExitEvent> exitEvents, List<ProjectileTickEvent> tickEvents)
+        public void Tick(int frame, float fixedDeltaSeconds, List<ProjectileHitEvent> hitEvents, List<ProjectileExitEvent> exitEvents, List<ProjectileTickEvent> tickEvents, List<ProjectileArrivalEvent> arrivalEvents = null)
         {
             // float 重载仅为边界兼容；dt 的位与平台无关（FrameTime 用 IEEE 除法得到 fixedDelta），
             // FromSingle 是单次精确换算。新代码应优先使用 Fixed64 重载。
-            Tick(frame, Fixed64.FromSingle(fixedDeltaSeconds), hitEvents, exitEvents, tickEvents);
+            Tick(frame, Fixed64.FromSingle(fixedDeltaSeconds), hitEvents, exitEvents, tickEvents, arrivalEvents);
         }
 
-        public void Tick(int frame, Fixed64 fixedDeltaSeconds, List<ProjectileHitEvent> hitEvents, List<ProjectileExitEvent> exitEvents, List<ProjectileTickEvent> tickEvents)
+        public void Tick(int frame, Fixed64 fixedDeltaSeconds, List<ProjectileHitEvent> hitEvents, List<ProjectileExitEvent> exitEvents, List<ProjectileTickEvent> tickEvents, List<ProjectileArrivalEvent> arrivalEvents = null)
         {
             if (_active.Count == 0) return;
 
@@ -768,15 +823,18 @@ namespace AbilityKit.Combat.Projectile
                         continue;
                     }
 
-                    // Bounce is limited to distinct actors across the projectile's lifetime.
+                    // Bounce and opt-in identity policies exclude previously accepted actors.
                     // A target can own multiple colliders, and the next tracking arc starts at
                     // the previous hit point, so suppress every collider that resolves to an
                     // actor already in the bounce history before applying hit policy again.
-                    if (p.HitPolicyKind == ProjectileHitPolicyKind.Bounce &&
-                        _bounceTargetProvider != null &&
-                        _bounceTargetProvider.TryResolveActorId(hit.Collider, out var candidateActorId) &&
-                        p.HitActorIds.Contains(candidateActorId))
+                    var candidateActorId = 0;
+                    var identityProvider = p.HitIdentityPolicy == ProjectileHitIdentityPolicy.OncePerActor
+                        ? _actorIdentityProvider : p.HitPolicyKind == ProjectileHitPolicyKind.Bounce ? _bounceTargetProvider : null;
+                    var hasActorIdentity = identityProvider != null &&
+                        identityProvider.TryResolveActorId(hit.Collider, out candidateActorId) && candidateActorId > 0;
+                    if (hasActorIdentity && p.HitActorIds.Contains(candidateActorId))
                     {
+                        skippedDistanceThisTick += sweptDistance + EpsilonAdvance;
                         if (hitColliderCount < hitColliderIdsThisTick.Length)
                         {
                             hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
@@ -822,6 +880,7 @@ namespace AbilityKit.Combat.Projectile
                         hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
                     }
 
+                    if (hasActorIdentity) p.HitActorIds.Add(candidateActorId);
                     p.TotalHitCount++;
                     var hitDistance = p.DistanceTravelled + skippedDistanceThisTick + sweptDistance;
                     var elapsedAtAcceptedHit = p.ElapsedSeconds + EstimateElapsedWithinTick(
@@ -939,6 +998,15 @@ namespace AbilityKit.Combat.Projectile
                     p.DistanceLeft -= travelled;
                     if (p.DistanceLeft <= EpsilonAdvance)
                     {
+                        if (p.MaxDistanceResponse == ProjectileMaxDistanceResponse.SuspendAtDestination)
+                        {
+                            p.DistanceLeft = Fixed64.Zero;
+                            p.ArrivedFrame = frame;
+                            p.IsSuspended = true;
+                            arrivalEvents?.Add(new ProjectileArrivalEvent(p.Id, p.OwnerId, p.TemplateId,
+                                p.LauncherActorId, p.RootActorId, frame, p.Position.ToVec3(), p.Direction.ToVec3()));
+                            continue;
+                        }
                         exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.MaxDistance, frame, p.Position.ToVec3()));
                         RemoveAtSwapBack(i);
                         i--;
@@ -1254,6 +1322,10 @@ namespace AbilityKit.Combat.Projectile
         [MemoryPackOrder(50)] public readonly long SpawnPositionZ;
         [MemoryPackOrder(51)] public readonly long DistanceTravelledRaw;
         [MemoryPackOrder(52)] public readonly long ElapsedSecondsRaw;
+        [MemoryPackOrder(53)] public readonly ProjectileHitIdentityPolicy HitIdentityPolicy;
+        [MemoryPackOrder(54)] public readonly byte[] HitFilterSnapshot;
+        [MemoryPackOrder(55)] public readonly ProjectileMaxDistanceResponse MaxDistanceResponse;
+        [MemoryPackOrder(56)] public readonly int ArrivedFrame;
 
         public ProjectileWorldSnapshotItem(
             int id,
@@ -1308,7 +1380,10 @@ namespace AbilityKit.Combat.Projectile
             long spawnPositionY = 0,
             long spawnPositionZ = 0,
             long distanceTravelledRaw = 0,
-            long elapsedSecondsRaw = 0)
+            long elapsedSecondsRaw = 0,
+            ProjectileHitIdentityPolicy hitIdentityPolicy = ProjectileHitIdentityPolicy.Collider,
+            byte[] hitFilterSnapshot = null,
+            ProjectileMaxDistanceResponse maxDistanceResponse = ProjectileMaxDistanceResponse.Exit, int arrivedFrame = -1)
         {
             Id = id;
             OwnerId = ownerId;
@@ -1363,6 +1438,9 @@ namespace AbilityKit.Combat.Projectile
             SpawnPositionZ = spawnPositionZ;
             DistanceTravelledRaw = distanceTravelledRaw;
             ElapsedSecondsRaw = elapsedSecondsRaw;
+            HitIdentityPolicy = hitIdentityPolicy;
+            HitFilterSnapshot = hitFilterSnapshot;
+            MaxDistanceResponse = maxDistanceResponse; ArrivedFrame = arrivedFrame;
         }
     }
 

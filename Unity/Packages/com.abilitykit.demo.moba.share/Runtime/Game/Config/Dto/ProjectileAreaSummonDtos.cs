@@ -27,6 +27,8 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public float Speed;
         public int LifetimeMs;
         public float MaxDistance;
+        public int MaxDistanceResponse;
+        public int[] OnArrivalTriggerIds;
         public float CollisionWidth;
         public float CollisionHeight;
         public float CollisionLength;
@@ -34,11 +36,14 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int HitPolicyKind;
         public int HitsRemaining;
         public int HitUnitSubType;
+        public int CollisionLayerMask;
         public float BounceSearchRadius;
         public float TrackingArcHeight;
         public float TrackingArcHeightPerUnit;
         public float TrackingArcDurationSeconds;
         public int HitCooldownMs;
+        public int HitIdentityPolicy;
+        public ProjectileCollisionRuleDTO[] CollisionRules;
         public int TickIntervalMs;
 
         public int OnHitEffectId;
@@ -60,6 +65,20 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public float SpawnRandomOffsetZ;
     }
 
+    public enum ProjectileCollisionRole { TrackingTarget = 1, OtherActor = 2, StaticWorld = 3 }
+    public enum ProjectileCollisionRelation { Any = 0, Enemy = 1, Ally = 2, Neutral = 3 }
+
+    [Serializable]
+    public sealed class ProjectileCollisionRuleDTO
+    {
+        public ProjectileCollisionRole Role;
+        public int MainType;
+        public int UnitSubType;
+        public ProjectileCollisionRelation Relation;
+        // Existing ProjectileCollisionResponse: 0 Ignore, 1 Hit, 2 Block.
+        public int Response;
+    }
+
     [Serializable]
     public sealed class AoeDTO
     {
@@ -74,6 +93,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public float OffsetZ;
 
         public float Radius;
+        public float InnerRadius;
         public int DelayMs;
         public int DurationMs;
         public int CollisionLayerMask;
@@ -81,6 +101,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
 
         public int[] OnDelayTriggerIds;
         public int[] OnEnterTriggerIds;
+        public int[] OnCrossTriggerIds;
         public int[] OnExitTriggerIds;
         public int[] OnIntervalTriggerIds;
         public int IntervalMs;

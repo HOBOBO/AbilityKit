@@ -90,6 +90,9 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int Id;
         public string Name;
         public int PipelineContinuousTagTemplateId;
+        public int ChildChannelId;
+        public int RecastChannelId;
+        public int RequiredBuffQualificationId;
         public SkillPhaseDTO[] Phases;
     }
 
@@ -267,6 +270,14 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int SharedCooldownMs;
         public int GlobalCooldownMs;
         public bool IgnoreGlobalCooldown;
+        // Separates the release predicate from the economy debit. When enabled,
+        // the shared release condition accepts the cast after its configured
+        // resource reservation even if the live resource was already debited.
+        public bool IgnoreResourceCostCheck;
+        // When enabled, the phase validates the cast but does not debit the
+        // configured resource. The transaction still carries the resolved cost
+        // so release predicates and rollback remain deterministic.
+        public bool IgnoreResourceConsumption;
         public bool RefundBeforeCommit = true;
         public bool RequireExplicitCommit;
         public string FailReason;

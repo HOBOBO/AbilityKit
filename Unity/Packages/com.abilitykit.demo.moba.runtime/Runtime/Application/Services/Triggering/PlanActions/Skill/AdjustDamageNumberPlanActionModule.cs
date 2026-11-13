@@ -1,6 +1,7 @@
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Triggering.Registry;
@@ -31,6 +32,23 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var modifierValue = MobaResourceFixedConvert.ToFixed(args.Value);
+            if (args.Magnitude.Enabled)
+            {
+                if (!MobaPlanActionInputResolver.TryResolveEffect(triggerArgs, ctx, out var input))
+                {
+                    LogRejected(ctx, "magnitude requires combat execution context.");
+                    return;
+                }
+                var executionContext = input.ExecutionContext;
+                if (!MobaEffectMagnitudeResolver.TryEvaluate(in args.Magnitude, in executionContext, in ctx,
+                        input.CasterActorId, input.CasterActorId, attack.TargetActorId, default,
+                        out var sampledValue, out _, out var failure))
+                {
+                    LogRejected(ctx, failure);
+                    return;
+                }
+                modifierValue = MobaResourceFixedConvert.ToFixed(sampledValue);
+            }
             var hitCount = 0;
             var decayFactor = Fixed64.One;
             if (args.RepeatTargetDecayFactor > 0f)

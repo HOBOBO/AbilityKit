@@ -99,7 +99,6 @@ namespace AbilityKit.Triggering.Testing
         }
 
         public IDisposable Register<TArgs>(EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase = 0, int priority = 0)
-            where TArgs : class
         {
             ThrowIfDisposed();
             var registration = Runner.Register(key, trigger, phase, priority);
@@ -108,7 +107,6 @@ namespace AbilityKit.Triggering.Testing
         }
 
         public IDisposable RegisterPlan<TArgs>(EventKey<TArgs> key, in TriggerPlan<TArgs> plan)
-            where TArgs : class
         {
             ThrowIfDisposed();
             var registration = Runner.RegisterPlan(key, in plan);

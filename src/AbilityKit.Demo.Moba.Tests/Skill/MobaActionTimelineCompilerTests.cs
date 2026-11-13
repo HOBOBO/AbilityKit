@@ -6,6 +6,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.ActionTimeline;
 using AbilityKit.Game.Flow.Battle.Presentation.Timeline;
+using AbilityKit.Game.Flow;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Skill;
@@ -79,6 +80,18 @@ public sealed class MobaActionTimelineCompilerTests
     }
 
     [Fact]
+    public void Logic_compilation_preserves_explicit_effect_failure_policy()
+    {
+        var source = CreateSource();
+        var logic = ActionTimelinePartition.Create(source, ActionTimelineRuntimeTypes.Logic);
+        Assert.False(Assert.Single(MobaActionTimelineCompiler.CompileLogicPhase(logic).Events).AbortOnFailure);
+        logic.groups[0].tracks[0].clips[0].args["abortOnFailure"] = "true";
+        Assert.True(Assert.Single(MobaActionTimelineCompiler.CompileLogicPhase(logic).Events).AbortOnFailure);
+        logic.groups[0].tracks[0].clips[0].args["abortOnFailure"] = "invalid";
+        Assert.Throws<InvalidDataException>(() => MobaActionTimelineCompiler.CompileLogicPhase(logic));
+    }
+
+    [Fact]
     public void Logic_compilation_rejects_invalid_effect_and_visual_payload()
     {
         var source = CreateSource();
@@ -109,6 +122,33 @@ public sealed class MobaActionTimelineCompilerTests
         runtime.Stop();
         runtime.Stop();
         Assert.Equal(77, Assert.Single(sink.Stops));
+    }
+
+    [Theory]
+    [InlineData(1f, 0f, 0.1f)]
+    [InlineData(3f, 0.4f, 0.5f)]
+    public void Presentation_animation_request_preserves_source_speed_offset_and_length(float speed, float sourceOffset, float expectedNormalized)
+    {
+        var visual = ActionTimelinePartition.Create(CreateSource(), ActionTimelineRuntimeTypes.Presentation);
+        var clip = visual.groups[0].tracks[0].clips[0];
+        clip.length = 1f;
+        clip.args["clipLength"] = "2";
+        clip.args["playbackSpeed"] = speed.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        clip.args["clipOffset"] = sourceOffset.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var sink = new RequestSink();
+        var runtime = new MobaSkillPresentationTimelineRuntime(1, visual, sink);
+        runtime.StartAt(0.2f);
+        Assert.Equal(speed, sink.Request.Playback.Speed);
+        Assert.Equal(expectedNormalized, sink.Request.Playback.NormalizedTime, 4);
+        Assert.Equal("attack", sink.Request.Playback.ClipKey);
+    }
+
+    private sealed class RequestSink : IMobaSkillPresentationTimelineSink, IMobaSkillPresentationRequestSink
+    {
+        public PresentationRequest Request;
+        public void OnPresentationRequest(in PresentationRequest request, GroupDto group, ClipDto clip, float offsetSeconds) => Request = request;
+        public void OnClipStart(long skillInstanceId, GroupDto group, ClipDto clip, float offsetSeconds) { }
+        public void OnTimelineStop(long skillInstanceId) { }
     }
 
     [Fact]

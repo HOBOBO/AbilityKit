@@ -135,6 +135,40 @@ namespace AbilityKit.Context
             }
         }
 
+        /// <summary>Compensation checkpoint for a synchronous local recovery that only prunes
+        /// snapshots. Snapshot payloads must not be mutated or saved while recovery is running.</summary>
+        public Action CaptureLocalPruningCompensation()
+        {
+            lock (_lock)
+            {
+                var latest = new Dictionary<long, SnapshotRecord>(_snapshots);
+                var frames = new Dictionary<long, int>(_latestFrameByEntity);
+                var versions = new Dictionary<long, long>(_latestVersionByEntity);
+                var history = new Dictionary<long, ContextSnapshotRecord>(_history);
+                var retained = new Dictionary<long, int>(_retained);
+                var order = _saveOrder.ToArray();
+                var source = _bySource.ToDictionary(p => p.Key, p => new HashSet<long>(p.Value));
+                var owner = _byOwner.ToDictionary(p => p.Key, p => new HashSet<long>(p.Value));
+                var entities = _historyByEntity.ToDictionary(p => p.Key, p => new List<long>(p.Value));
+                return () =>
+                {
+                    lock (_lock)
+                    {
+                        _snapshots.Clear(); foreach (var p in latest) _snapshots.Add(p.Key, p.Value);
+                        _latestFrameByEntity.Clear(); foreach (var p in frames) _latestFrameByEntity.Add(p.Key, p.Value);
+                        _latestVersionByEntity.Clear(); foreach (var p in versions) _latestVersionByEntity.Add(p.Key, p.Value);
+                        _history.Clear(); foreach (var p in history) _history.Add(p.Key, p.Value);
+                        _retained.Clear(); foreach (var p in retained) _retained.Add(p.Key, p.Value);
+                        _bySource.Clear(); foreach (var p in source) _bySource.Add(p.Key, new HashSet<long>(p.Value));
+                        _byOwner.Clear(); foreach (var p in owner) _byOwner.Add(p.Key, new HashSet<long>(p.Value));
+                        _historyByEntity.Clear(); foreach (var p in entities) _historyByEntity.Add(p.Key, new List<long>(p.Value));
+                        _saveOrder.Clear(); _orderNodes.Clear();
+                        foreach (var id in order) _orderNodes.Add(id, _saveOrder.AddLast(id));
+                    }
+                };
+            }
+        }
+
         public void RemoveFromEntityId(long firstEntityId)
         {
             lock (_lock)

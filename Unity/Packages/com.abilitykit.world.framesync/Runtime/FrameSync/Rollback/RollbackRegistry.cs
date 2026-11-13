@@ -9,8 +9,21 @@ namespace AbilityKit.Ability.FrameSync.Rollback
         private readonly Dictionary<int, IRollbackStateProvider> _byKey = new Dictionary<int, IRollbackStateProvider>(16);
 
         private bool _sealed;
+        private readonly List<int> _requiredStateKeys = new List<int>();
 
         public IReadOnlyList<IRollbackStateProvider> Providers => _providers;
+        public IReadOnlyList<int> RequiredStateKeys => _requiredStateKeys.AsReadOnly();
+
+        /// <summary>Require exactly one state entry for a registered provider before any import.
+        /// Registries without requirements retain their existing partial snapshot contract.</summary>
+        public void RequireState(int key)
+        {
+            if (_sealed) throw new InvalidOperationException("Rollback registry is sealed.");
+            if (!_byKey.ContainsKey(key)) throw new InvalidOperationException($"Required rollback provider not registered: {key}");
+            if (_requiredStateKeys.Contains(key)) return;
+            _requiredStateKeys.Add(key);
+            _requiredStateKeys.Sort();
+        }
 
         public void Seal()
         {
@@ -62,6 +75,7 @@ namespace AbilityKit.Ability.FrameSync.Rollback
         {
             _providers.Clear();
             _byKey.Clear();
+            _requiredStateKeys.Clear();
             _sealed = false;
         }
     }

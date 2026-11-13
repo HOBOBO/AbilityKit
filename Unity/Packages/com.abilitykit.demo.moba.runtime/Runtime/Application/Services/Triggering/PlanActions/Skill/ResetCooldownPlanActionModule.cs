@@ -59,7 +59,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     throw new InvalidOperationException($"[Plan] reset_cooldown failed: active skill not found. actorId={effectInput.CasterActorId}, skillId={skillId}, slot={skillSlot}");
                 }
 
-                if (args.ReductionMs <= 0)
+                var reductionMs = args.ReductionMs;
+                if (args.ReductionRatio.HasValue)
+                {
+                    var handle = coreInput.ExecutionContext.SkillRuntimeHandle;
+                    if (!ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var casts) || casts == null ||
+                        !casts.TryResolveCooldownRefund(in handle, effectInput.CasterActorId, skillId, skillSlot, args.ReductionRatio.Value, out reductionMs))
+                        throw new InvalidOperationException("reset_cooldown ratio requires the matching original cast and frozen effective cooldown.");
+                    if (reductionMs == 0) return;
+                }
+                if (!args.ReductionRatio.HasValue && reductionMs <= 0)
                 {
                     if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, effectInput.CasterActorId, skillSlot, skillId, 0L, 0))
                     {
@@ -82,8 +91,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     return;
                 }
 
-                var reducedEndTimeMs = Math.Max(nowMs, runtime.CooldownEndTimeMs - args.ReductionMs);
-                var reducedDurationMs = Math.Max(0, runtime.CooldownDurationMs - args.ReductionMs);
+                var reducedEndTimeMs = Math.Max(nowMs, runtime.CooldownEndTimeMs - reductionMs);
+                var reducedDurationMs = Math.Max(0, runtime.CooldownDurationMs - reductionMs);
                 if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, effectInput.CasterActorId, skillSlot, skillId, reducedEndTimeMs, reducedDurationMs))
                 {
                     throw new InvalidOperationException($"[Plan] reset_cooldown failed to reduce active skill. actorId={effectInput.CasterActorId}, skillId={skillId}, slot={skillSlot}, reductionMs={args.ReductionMs}");

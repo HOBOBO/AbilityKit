@@ -108,5 +108,19 @@
     "CooldownMs": 0,
     "Name": "Jinx - Switcheroo mode candidates",
     "TriggerIds": []
+  },
+  {
+    "Id": 30040000,
+    "CooldownMs": 0,
+    "Name": "Veigar Passive - Phenomenal Evil Power",
+    "TriggerIds": [
+      30040001,
+      30040002
+    ]
+  },
+  {
+    "Id": 30050000,
+    "CooldownMs": 0,
+    "Name": "Gragas Happy Hour (explicit successful commit)"
   }
 ]

@@ -50,7 +50,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             var flows = asset.dataList ?? Array.Empty<SkillFlowDef>();
             var existing = flows.SingleOrDefault(flow => flow != null && flow.Id == dto.Id);
             if (existing == null) flows = flows.Concat(new[] { SkillFlowDef.FromDto(dto) }).ToArray();
-            else flows[Array.IndexOf(flows, existing)] = SkillFlowDef.FromDto(dto);
+            else flows[Array.IndexOf(flows, existing)] = SkillFlowDef.FromDto(dto, existing);
             asset.dataList = flows;
             EditorUtility.SetDirty(asset);
         }

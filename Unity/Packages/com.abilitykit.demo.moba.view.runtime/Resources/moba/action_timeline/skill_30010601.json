@@ -22,13 +22,35 @@
           "$type": "AbilityKit.ActionEditorImpl.EffectTrack"
         }
       ]
+    },
+    {
+      "name": "Logic_30010601",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "ExistingSkillEffects",
+          "active": true,
+          "actionClips": [
+            {
+              "effectId": 30010601,
+              "eventTag": "jhin_basic_attack_1",
+              "abortOnFailure": true,
+              "startTime": 0.0,
+              "name": "ExecuteEffect",
+              "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        }
+      ]
     }
   ],
   "exportMobaRuntime": true,
-  "length": 0.1,
+  "length": 3.25,
   "viewTimeMin": 0.0,
-  "viewTimeMax": 0.5,
+  "viewTimeMax": 3.25,
   "rangeMin": 0.0,
-  "rangeMax": 0.5,
+  "rangeMax": 3.25,
   "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
 }

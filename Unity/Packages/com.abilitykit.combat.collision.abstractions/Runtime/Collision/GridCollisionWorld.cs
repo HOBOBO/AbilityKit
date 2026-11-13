@@ -11,7 +11,7 @@ namespace AbilityKit.Combat.Collision
     /// - 层过滤（LayerFilter）
     /// - 层关系矩阵（CollisionLayerMatrix）
     /// </summary>
-    public sealed class GridCollisionWorld : ICollisionWorld, ICollisionLayerRelation, ICollisionWorldDebugView, IOrientedBoxSweepCollisionWorld, ISphereSweepCollisionWorld, IShapeOverlapCollisionWorld
+    public sealed class GridCollisionWorld : ICollisionWorld, IColliderBoundsSource, ICollisionLayerRelation, ICollisionWorldDebugView, IOrientedBoxSweepCollisionWorld, ISphereSweepCollisionWorld, IShapeOverlapCollisionWorld
     {
         private readonly GridBroadphase _broadphase;
         private readonly int _initialCapacity;
@@ -52,6 +52,18 @@ namespace AbilityKit.Combat.Collision
         public bool ShouldDetect(int layerA, int layerB)
         {
             return _layerMatrix.ShouldDetect(layerA, layerB);
+        }
+
+        public void CopyColliderBounds(List<ColliderBounds> results)
+        {
+            if (results == null) throw new ArgumentNullException(nameof(results));
+            for (var i = 0; i < _entries.Length; i++)
+            {
+                var entry = _entries[i];
+                if (!entry.Alive) continue;
+                var shape = ToWorldShape(in entry.Transform, in entry.LocalShape);
+                results.Add(new ColliderBounds(new ColliderId(i + 1), NaiveCollisionWorld.GetShapeCenter(in shape), NaiveCollisionWorld.GetShapeRadius(in shape), entry.LayerId));
+            }
         }
 
         public int CopyWorldShapes(List<CollisionWorldDebugShape> results)
@@ -310,6 +322,9 @@ namespace AbilityKit.Combat.Collision
             if (shape.Kind == OverlapShapeKind.Circle)
                 return radial <= shape.Radius + padding;
 
+            if (shape.Kind == OverlapShapeKind.Ring)
+                return radial - padding <= shape.Radius && radial + padding >= shape.InnerRadius;
+
             if (shape.Kind == OverlapShapeKind.Sector)
             {
                 if (radial > shape.Radius + padding) return false;
@@ -421,7 +436,7 @@ namespace AbilityKit.Combat.Collision
 
                 var worldShape = ToWorldShape(in _entries[idx].Transform, in _entries[idx].LocalShape);
                 if (!SphereSweepQueries.SweepVsShape(in start, in dir, maxDistance, radius, in worldShape, out var d, out var n)) continue;
-                if (d >= best) continue;
+                if (d > best || d.Equals(best) && candidateId >= bestId.Value) continue;
 
                 best = d;
                 bestId = new ColliderId(candidateId);

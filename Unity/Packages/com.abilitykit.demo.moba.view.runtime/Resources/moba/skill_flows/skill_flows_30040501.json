@@ -1,0 +1,45 @@
+{
+  "Id": 30040501,
+  "Name": "Veigar - Primordial Burst",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "veigar_r_release",
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "veigar_r_commit",
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      }
+    },
+    {
+      "Type": 2,
+      "PhaseId": "veigar_r_cast",
+      "Timeline": {
+        "DurationMs": 1583,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30040501,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "veigar_r_cast"
+          }
+        ]
+      }
+    }
+  ]
+}

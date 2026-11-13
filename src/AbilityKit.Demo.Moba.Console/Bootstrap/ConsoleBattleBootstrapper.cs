@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Ability.Host.Extensions.Moba.Server.Network;
 using AbilityKit.Ability.Host.Framework;
@@ -512,6 +513,35 @@ namespace AbilityKit.Demo.Moba.Console
             {
                 RecordCurrentSnapshot();
             }
+        }
+
+        /// <summary>
+        /// Restores a rollback snapshot and realigns the Console simulation clock to that snapshot.
+        /// The Console tick loop treats <see cref="ConsoleBattleContext.LastFrame"/> as its frame
+        /// authority and writes it into <see cref="FrameTime"/> before each world tick, so restoring
+        /// only the world's rollback providers would otherwise be overwritten on the next tick.
+        /// </summary>
+        public bool TryRestoreSimulationFrame(
+            RollbackCoordinator rollback,
+            FrameIndex frame,
+            out RollbackOperationResult result)
+        {
+            if (rollback == null) throw new ArgumentNullException(nameof(rollback));
+            var services = _runtimeWorld?.Services
+                ?? throw new InvalidOperationException("Cannot align the simulation clock without an active runtime world.");
+            if (!services.TryResolve<IFrameTime>(out var frameTime) || frameTime is not FrameTime concrete)
+                throw new InvalidOperationException("Cannot restore simulation time without a mutable FrameTime service.");
+
+            if (!rollback.TryRestore(frame, out result)) return false;
+            if (concrete.Frame.Value != frame.Value)
+                throw new InvalidOperationException(
+                    $"Rollback snapshot restored frame {concrete.Frame.Value}, expected {frame.Value}. " +
+                    "The rollback registry must include FrameTimeRollbackStateProvider.");
+
+            _context.LastFrame = frame.Value;
+            _context.LogicTimeSeconds = concrete.Time;
+            _totalTime = concrete.Time;
+            return true;
         }
 
         /// <summary>把世界帧时钟步进到当前帧。验收 harness 的 TickWorld 也这么做（frameTime.StepTo(Frame+1, delta)）。</summary>

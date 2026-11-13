@@ -47,6 +47,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         public int SourceConfigId { get; set; }
         public int Frame { get; set; }
         public int MotionTargetId { get; set; }
+        public long MotionSourceContextId { get; set; }
         public ColliderId HitCollider { get; set; }
         public Vec3 Point { get; set; }
         public Vec3 Normal { get; set; }
@@ -119,7 +120,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         }
     }
 
-    public sealed class MobaMotionCollisionWorldAdapter : IMotionCollisionWorld
+    public sealed class MobaMotionCollisionWorldAdapter : IMotionCollisionWorld, IMotionCollisionWorldSelector
     {
         private const int ProjectionDirectionCount = 64;
         private const int ProjectionBinarySearchSteps = 16;
@@ -150,13 +151,23 @@ namespace AbilityKit.Demo.Moba.Services.Motion
 
         private readonly ICollisionWorld _world;
         private readonly MobaActorRegistry _actors;
+        private readonly int _selectionKey;
+        private MobaMotionCollisionWorldAdapter _enemySelection;
         private readonly List<ColliderId> _candidates = new List<ColliderId>(16);
         private readonly List<ColliderId> _sampleOverlaps = new List<ColliderId>(16);
 
-        public MobaMotionCollisionWorldAdapter(ICollisionWorld world, MobaActorRegistry actors)
+        public MobaMotionCollisionWorldAdapter(ICollisionWorld world, MobaActorRegistry actors, int selectionKey = 0)
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _actors = actors;
+            _selectionKey = selectionKey;
+        }
+
+        public IMotionCollisionWorld Select(int selectionKey)
+        {
+            if (selectionKey == 0) return this;
+            if (selectionKey != 1) return null;
+            return _enemySelection ?? (_enemySelection = new MobaMotionCollisionWorldAdapter(_world, _actors, 1));
         }
 
         public bool Sweep(
@@ -178,9 +189,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             }
 
             var ignoredCollider = ResolveIgnoredCollider(moverId);
-            var ignoredColliders = ignoredCollider.Value > 0
-                ? new[] { ignoredCollider.Value }
-                : null;
+            var ignoredColliders = BuildIgnoredColliders(moverId, in start, in desiredDelta, radius, obstacleMask, ignoreMask);
             var layerFilter = new LayerFilter(ResolveMask(obstacleMask), ignoredColliders);
             var sweepRadius = MathUtil.Max(radius, 0.01f);
             var direction = desiredDelta / distance;
@@ -250,10 +259,10 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             for (var i = 0; i < _candidates.Count; i++)
             {
                 var collider = _candidates[i];
-                if (ShouldIgnore(collider, ignoredCollider, ignoreMask)) continue;
+                if (ShouldIgnore(collider, ignoredCollider, ignoreMask) || !AcceptSelection(moverId, collider)) continue;
 
                 if (!TryResolveHitTime(start, direction, distance, sweepRadius, collider, in layerFilter, out var time01, out var normal)) continue;
-                if (time01 < bestTime)
+                if (time01 < bestTime || (time01.Equals(bestTime) && collider.Value < bestCollider.Value))
                 {
                     bestTime = time01;
                     bestCollider = collider;
@@ -286,7 +295,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             for (var i = 0; i < _sampleOverlaps.Count; i++)
             {
                 var collider = _sampleOverlaps[i];
-                if (ShouldIgnore(collider, ignoredCollider, ignoreMask)) continue;
+                if (ShouldIgnore(collider, ignoredCollider, ignoreMask) || !AcceptSelection(moverId, collider)) continue;
 
                 _sampleOverlaps.Clear();
                 return true;
@@ -487,6 +496,38 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             if (_actors == null) return default;
             if (!_actors.TryGet(moverId, out var entity) || entity == null) return default;
             return entity.hasCollisionId ? entity.collisionId.Value : default;
+        }
+
+        private int[] BuildIgnoredColliders(int moverId, in Vec3 start, in Vec3 delta, float radius, int mask, int ignoreMask)
+        {
+            var ignored = ResolveIgnoredCollider(moverId);
+            if (_selectionKey == 0 && ignoreMask == 0) return ignored.Value > 0 ? new[] { ignored.Value } : null;
+            var filter = new LayerFilter(ResolveMask(mask));
+            _candidates.Clear();
+            _world.OverlapSphere(new Sphere(start + delta * 0.5f, DeterministicMathBridge.Magnitude(in delta) * 0.5f + MathUtil.Max(radius, 0.01f)), in filter, _candidates);
+            var excluded = new List<int>(_candidates.Count + 1);
+            if (ignored.Value > 0) excluded.Add(ignored.Value);
+            for (var i = 0; i < _candidates.Count; i++)
+                if (ShouldIgnore(_candidates[i], ignored, ignoreMask) || !AcceptSelection(moverId, _candidates[i])) excluded.Add(_candidates[i].Value);
+            _candidates.Clear();
+            return excluded.Count > 0 ? excluded.ToArray() : null;
+        }
+
+        private bool AcceptSelection(int moverId, ColliderId collider)
+        {
+            if (_selectionKey == 0) return true;
+            if (_actors == null || !_actors.TryGet(moverId, out var mover) || mover == null || !mover.hasTeam) return false;
+            foreach (var pair in _actors.Entries)
+            {
+                var actor = pair.Value;
+                if (actor == null || !actor.hasCollisionId || !actor.collisionId.Value.Equals(collider)) continue;
+                return actor.hasActorId && actor.actorId.Value != moverId && actor.hasTeam &&
+                    mover.team.Value != Team.None && actor.team.Value != Team.None && actor.team.Value != mover.team.Value &&
+                    actor.hasEntityMainType && actor.entityMainType.Value == EntityMainType.Unit &&
+                    actor.isEnabled && (!actor.hasAttributeGroup || actor.GetMobaAttrs().Hp > 0f);
+            }
+            // Static geometry remains governed by the independent obstacle mask.
+            return true;
         }
 
         private static int ResolveMask(int mask)

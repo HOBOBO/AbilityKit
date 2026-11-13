@@ -2,6 +2,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Projectile;
+using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Pipeline;
 using AbilityKit.Triggering.Runtime;
 
@@ -38,14 +39,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 aimPosition = payloadAimPosition;
                 aimDirection = payloadAimDirection;
-                hasAimPosition = aimPosition.SqrMagnitude > 0f;
+                hasAimPosition = aimPosition.SqrMagnitude > 0f || HasExplicitPoint(triggerArgs);
                 hasAimDirection = aimDirection.SqrMagnitude > 0f;
             }
             else if (TryResolveAim(executionContext.Payload, out payloadAimPosition, out payloadAimDirection))
             {
                 aimPosition = payloadAimPosition;
                 aimDirection = payloadAimDirection;
-                hasAimPosition = aimPosition.SqrMagnitude > 0f;
+                hasAimPosition = aimPosition.SqrMagnitude > 0f || HasExplicitPoint(executionContext.Payload);
                 hasAimDirection = aimDirection.SqrMagnitude > 0f;
             }
 
@@ -93,6 +94,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         private static bool TryResolveAim(object payload, out Vec3 aimPosition, out Vec3 aimDirection)
         {
+            if (payload is MobaTriggerConditionContext condition) payload = condition.Payload;
             aimPosition = Vec3.Zero;
             aimDirection = Vec3.Zero;
 
@@ -128,22 +130,31 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 aimPosition = projectileEvent.Position;
                 aimDirection = projectileEvent.Direction;
-                return HasAim(in aimPosition, in aimDirection);
+                return true;
             }
 
             if (payload is ProjectileHitArgs projectileHitEvent)
             {
                 aimPosition = projectileHitEvent.Point;
-                return aimPosition.SqrMagnitude > 0f;
+                return true;
             }
 
             if (payload is AreaEventArgs areaEvent)
             {
                 aimPosition = areaEvent.Center;
-                return aimPosition.SqrMagnitude > 0f;
+                return true;
             }
 
+            if (payload is MobaMotionHitArgs motionHit)
+            { aimPosition = motionHit.Point; return true; }
+
             return false;
+        }
+
+        private static bool HasExplicitPoint(object payload)
+        {
+            if (payload is MobaTriggerConditionContext condition) payload = condition.Payload;
+            return payload is ProjectileEventArgs || payload is ProjectileHitArgs || payload is AreaEventArgs || payload is MobaMotionHitArgs;
         }
 
         private static bool HasAim(in Vec3 aimPosition, in Vec3 aimDirection)

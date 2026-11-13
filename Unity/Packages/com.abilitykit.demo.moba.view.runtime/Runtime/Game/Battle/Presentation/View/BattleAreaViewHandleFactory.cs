@@ -45,7 +45,7 @@ namespace AbilityKit.Game.Flow
             var aoe = _resources.TryGetAoe(evt.TemplateId);
             if (aoe == null) return null;
 
-            var pos = _positions.Resolve(in evt, aoe.OffsetX, aoe.OffsetY, aoe.OffsetZ);
+            var pos = _positions.Resolve(in evt);
             var attach = _attachResolver.Resolve(binder, evt.OwnerActorId, aoe.AttachMode);
             var handle = _handles.Create(in evt);
 
@@ -61,16 +61,11 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class BattleAreaViewPositionResolver
     {
-        public Vector3 Resolve(
-            in AreaEventData evt,
-            float offsetX,
-            float offsetY,
-            float offsetZ)
+        public Vector3 Resolve(in AreaEventData evt)
         {
-            return new Vector3(
-                evt.X + offsetX,
-                evt.Y + offsetY,
-                evt.Z + offsetZ);
+            // SpawnAreaPlanActionModule already applied all spawn offsets before
+            // publishing this authoritative world center. Match the AOE VFX cue.
+            return new Vector3(evt.X, evt.Y, evt.Z);
         }
     }
 

@@ -1,0 +1,236 @@
+[
+  {
+    "Id": 1,
+    "ModelId": 3002,
+    "ActionKey": "Base Layer.Idle_Minigun",
+    "AnimatorState": "Base Layer.Idle_Minigun",
+    "FrameCount": 80,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 2,
+    "ModelId": 3002,
+    "ActionKey": "Base Layer.AA_Minigun",
+    "AnimatorState": "Base Layer.AA_Minigun",
+    "FrameCount": 94,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 3,
+    "ModelId": 3002,
+    "ActionKey": "Base Layer.AA_Rocket",
+    "AnimatorState": "Base Layer.AA_Rocket",
+    "FrameCount": 94,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 4,
+    "ModelId": 3002,
+    "ActionKey": "Base Layer.Spell_Q_RocketToMini",
+    "AnimatorState": "Base Layer.Spell_Q_RocketToMini",
+    "FrameCount": 60,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 5,
+    "ModelId": 3002,
+    "ActionKey": "Base Layer.Idle_Rocket",
+    "AnimatorState": "Base Layer.Idle_Rocket",
+    "FrameCount": 80,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 6,
+    "ModelId": 3002,
+    "ActionKey": "Base Layer.Spell_Q_MiniToRocket",
+    "AnimatorState": "Base Layer.Spell_Q_MiniToRocket",
+    "FrameCount": 60,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 7,
+    "ModelId": 3002,
+    "ActionKey": "Base Layer.Spell_W",
+    "AnimatorState": "Base Layer.Spell_W",
+    "FrameCount": 93,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 8,
+    "ModelId": 3002,
+    "ActionKey": "Base Layer.Spell_E",
+    "AnimatorState": "Base Layer.Spell_E",
+    "FrameCount": 82,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 9,
+    "ModelId": 3002,
+    "ActionKey": "Base Layer.Spell_R",
+    "AnimatorState": "Base Layer.Spell_R",
+    "FrameCount": 108,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 10,
+    "ModelId": 3001,
+    "ActionKey": "Base Layer.Walk",
+    "AnimatorState": "Base Layer.Walk",
+    "FrameCount": 24,
+    "FrameRate": 24,
+    "Layer": 0
+  },
+  {
+    "Id": 11,
+    "ModelId": 3002,
+    "ActionKey": "Base Layer.Walk",
+    "AnimatorState": "Base Layer.Walk",
+    "FrameCount": 24,
+    "FrameRate": 24,
+    "Layer": 0
+  },
+  {
+    "Id": 12,
+    "ModelId": 3002,
+    "ActionKey": "Base Layer.Walk_Rocket",
+    "AnimatorState": "Base Layer.Walk_Rocket",
+    "FrameCount": 24,
+    "FrameRate": 24,
+    "Layer": 0
+  },
+  {
+    "Id": 13,
+    "ModelId": 3003,
+    "ActionKey": "Base Layer.Walk",
+    "AnimatorState": "Base Layer.Walk",
+    "FrameCount": 24,
+    "FrameRate": 24,
+    "Layer": 0
+  },
+  {
+    "Id": 14,
+    "ModelId": 3004,
+    "ActionKey": "Base Layer.Walk",
+    "AnimatorState": "Base Layer.Walk",
+    "FrameCount": 24,
+    "FrameRate": 24,
+    "Layer": 0
+  },
+  {
+    "Id": 15,
+    "ModelId": 3005,
+    "ActionKey": "Base Layer.Walk",
+    "AnimatorState": "Base Layer.Walk",
+    "FrameCount": 24,
+    "FrameRate": 24,
+    "Layer": 0
+  },
+  {
+    "Id": 16,
+    "ModelId": 3005,
+    "ActionKey": "Base Layer.Gragas_Model_Idle",
+    "AnimatorState": "Base Layer.Gragas_Model_Idle",
+    "FrameCount": 150,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 17,
+    "ModelId": 3006,
+    "ActionKey": "Base Layer.Walk",
+    "AnimatorState": "Base Layer.Walk",
+    "FrameCount": 24,
+    "FrameRate": 24,
+    "Layer": 0
+  },
+  {
+    "Id": 18,
+    "ModelId": 3006,
+    "ActionKey": "Base Layer.Karthus_Model_Idle",
+    "AnimatorState": "Base Layer.Karthus_Model_Idle",
+    "FrameCount": 200,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 19,
+    "ModelId": 3007,
+    "ActionKey": "Base Layer.Walk",
+    "AnimatorState": "Base Layer.Walk",
+    "FrameCount": 24,
+    "FrameRate": 24,
+    "Layer": 0
+  },
+  {
+    "Id": 20,
+    "ModelId": 3007,
+    "ActionKey": "Base Layer.Lux_Model_Idle",
+    "AnimatorState": "Base Layer.Lux_Model_Idle",
+    "FrameCount": 116,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300502,
+    "ModelId": 3005,
+    "ActionKey": "Base Layer.Gragas_Model_AutoAttack",
+    "AnimatorState": "Base Layer.Gragas_Model_AutoAttack",
+    "FrameCount": 80,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300503,
+    "ModelId": 3005,
+    "ActionKey": "Base Layer.Gragas_Model_AutoAttack_2",
+    "AnimatorState": "Base Layer.Gragas_Model_AutoAttack_2",
+    "FrameCount": 100,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300504,
+    "ModelId": 3005,
+    "ActionKey": "Base Layer.Gragas_Model_SpellQ",
+    "AnimatorState": "Base Layer.Gragas_Model_SpellQ",
+    "FrameCount": 75,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300505,
+    "ModelId": 3005,
+    "ActionKey": "Base Layer.Gragas_Model_SpellW",
+    "AnimatorState": "Base Layer.Gragas_Model_SpellW",
+    "FrameCount": 360,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300506,
+    "ModelId": 3005,
+    "ActionKey": "Base Layer.Gragas_Model_SpellE",
+    "AnimatorState": "Base Layer.Gragas_Model_SpellE",
+    "FrameCount": 80,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300507,
+    "ModelId": 3005,
+    "ActionKey": "Base Layer.Gragas_Model_SpellR",
+    "AnimatorState": "Base Layer.Gragas_Model_SpellR",
+    "FrameCount": 80,
+    "FrameRate": 60,
+    "Layer": 0
+  }
+]

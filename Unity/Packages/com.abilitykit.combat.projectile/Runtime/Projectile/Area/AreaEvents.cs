@@ -26,13 +26,17 @@ namespace AbilityKit.Combat.Projectile
         public readonly int OwnerId;
         public readonly ColliderId Collider;
         public readonly int Frame;
+        // Nonzero only for a complete swept crossing missed by overlap Enter.
+        // Rectangle right normal defines outward (+1); inward is -1.
+        public readonly int CrossingDirection;
 
-        public AreaEnterEvent(AreaId area, int ownerId, ColliderId collider, int frame)
+        public AreaEnterEvent(AreaId area, int ownerId, ColliderId collider, int frame, int crossingDirection = 0)
         {
             Area = area;
             OwnerId = ownerId;
             Collider = collider;
             Frame = frame;
+            CrossingDirection = crossingDirection;
         }
     }
 

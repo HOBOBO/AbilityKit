@@ -226,6 +226,18 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        internal bool IsLocallyPausedByTags(IContinuous continuous) => _pausedByTags.Contains(continuous);
+
+        internal void RestoreLocalPauseOwnership(IReadOnlyList<IContinuous> paused)
+        {
+            _pausedByTags.Clear(); _lastResults.Clear(); _pendingOwners.Clear(); _ownerSnapshot.Clear();
+            foreach (var instance in paused)
+            {
+                if (!instance.IsPaused) throw new InvalidOperationException("Tag pause ownership requires a paused continuous.");
+                _pausedByTags.Add(instance);
+            }
+        }
+
         private void ReconcileOwnerNow(int ownerActorId)
         {
             var ownerCount = _continuous.GetOwnerContinuous(ownerActorId)?.Count ?? 0;

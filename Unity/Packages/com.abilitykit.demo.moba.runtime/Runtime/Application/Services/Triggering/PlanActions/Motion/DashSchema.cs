@@ -5,6 +5,7 @@ using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Variables.Numeric;
 using AbilityKit.Demo.Moba.Systems;
 
 
@@ -32,11 +33,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var continuous = ReadContinuousSettings(namedArgs, ctx);
             var passThroughWalls = ReadBool(namedArgs, ctx, false, "pass_through_walls", "passthroughwalls", "pass_walls", "passwalls");
 
-            return new DashArgs(speed, durationMs, directionMode, priority, applyToCaster, hitTriggerPlanId, motionGroupId, moveToAimPosition, continuous, passThroughWalls);
+            var selection = ReadInt(namedArgs, ctx, 0, "collision_selection");
+            var stopOnCollision = ReadBool(namedArgs, ctx, false, "stop_on_collision");
+            return new DashArgs(speed, durationMs, directionMode, priority, applyToCaster, hitTriggerPlanId, motionGroupId, moveToAimPosition, continuous, passThroughWalls, selection, stopOnCollision);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            foreach (var pair in args)
+                if (pair.Key == "collision_selection" && (pair.Value.Kind != ActionArgKind.NumericValue || pair.Value.Ref.Kind != ENumericValueRefKind.Const ||
+                    pair.Value.Ref.ConstValue != 0 && pair.Value.Ref.ConstValue != 1))
+                { error = "collision_selection must be 0 (default) or 1 (living enemies)"; return false; }
             error = null;
             return true;
         }

@@ -762,7 +762,8 @@ public sealed class MobaCharacterHfsmTests
     {
         var path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(SourcePath())!,
             "../../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/character_view_actions.json"));
-        var catalog = CharacterPresentationActionCatalog.LoadJson(File.ReadAllText(path));
+        var catalog = CharacterPresentationActionCatalog.LoadJson(File.ReadAllText(path),
+            ModelAnimationCatalog.LoadJson(File.ReadAllText(Path.Combine(Path.GetDirectoryName(path)!, "model_animations.json"))));
         var definition = MobaCharacterHfsmTestFixture.CreateDefinition();
         using var logic = new MobaCharacterHfsmRuntime(17, definition, 0, Fixed64.Zero);
         var view = new BattleCharacterHfsmComponent(definition, catalog);
@@ -835,7 +836,8 @@ public sealed class MobaCharacterHfsmTests
     {
         var path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(SourcePath())!,
             "../../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/character_view_actions.json"));
-        var catalog = CharacterPresentationActionCatalog.LoadJson(File.ReadAllText(path));
+        var catalog = CharacterPresentationActionCatalog.LoadJson(File.ReadAllText(path),
+            ModelAnimationCatalog.LoadJson(File.ReadAllText(Path.Combine(Path.GetDirectoryName(path)!, "model_animations.json"))));
         var definition = MobaCharacterHfsmTestFixture.CreateDefinition();
         using var logic = new MobaCharacterHfsmRuntime(17, definition, 0, Fixed64.Zero);
         logic.Tick(1, Time(1), true, false, false, 321, 10001);

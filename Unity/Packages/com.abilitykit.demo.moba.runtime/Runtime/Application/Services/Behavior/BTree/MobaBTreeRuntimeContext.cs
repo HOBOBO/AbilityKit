@@ -77,6 +77,13 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         public const string OwnerCanCast = "self.canCast";
         public const string EvaluationFrame = "self.evaluationFrame";
 
+        public const string OwnerTargetValid = "ownerTarget.valid";
+        public const string OwnerTargetId = "ownerTarget.actorId";
+        public const string OwnerTargetX = "ownerTarget.x";
+        public const string OwnerTargetY = "ownerTarget.y";
+        public const string OwnerTargetZ = "ownerTarget.z";
+        public const string OwnerTargetDistance = "ownerTarget.distance";
+
         public const string TargetValid = "target.valid";
         public const string TargetId = "target.actorId";
         public const string TargetX = "target.x";
@@ -175,6 +182,13 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             Ensure(definition, MobaBTreeKeys.OwnerCanCast, ValueType.Bool);
             Ensure(definition, MobaBTreeKeys.EvaluationFrame, ValueType.Int64);
 
+            Ensure(definition, MobaBTreeKeys.OwnerTargetValid, ValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.OwnerTargetId, ValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.OwnerTargetX, ValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.OwnerTargetY, ValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.OwnerTargetZ, ValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.OwnerTargetDistance, ValueType.Fixed64);
+
             Ensure(definition, MobaBTreeKeys.TargetValid, ValueType.Bool);
             Ensure(definition, MobaBTreeKeys.TargetId, ValueType.Int64);
             Ensure(definition, MobaBTreeKeys.TargetX, ValueType.Fixed64);
@@ -268,6 +282,16 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetFixed64(MobaBTreeKeys.TargetZ, Fixed64.Zero);
             bb.SetFixed64(MobaBTreeKeys.TargetDistance, Fixed64.Zero);
             bb.SetInt64(MobaBTreeKeys.TargetSelectedFrame, 0);
+        }
+
+        public static void ClearOwnerTarget(Blackboard bb)
+        {
+            bb.SetBool(MobaBTreeKeys.OwnerTargetValid, false);
+            bb.SetInt64(MobaBTreeKeys.OwnerTargetId, 0);
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetX, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetY, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetZ, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetDistance, Fixed64.Zero);
         }
 
         public static void ClearSkill(Blackboard bb, Fixed64 defaultApproachRange)

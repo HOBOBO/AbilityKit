@@ -19,7 +19,9 @@
   "tag_behavior_gates": {},
   "continuous_tag_templates": {},
   "projectile_launchers": {},
-  "projectiles": {},
+  "projectiles": {
+    "CollisionRules": "array"
+  },
   "aoes": {},
   "emitters": {},
   "summons": {},
@@ -45,5 +47,6 @@
     "variants": "array"
   },
   "ability_nodes": {},
-  "hero_level_skill_growth_parameters": {}
+  "hero_level_skill_growth_parameters": {},
+  "model_animations": {}
 }

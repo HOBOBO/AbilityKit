@@ -15,7 +15,7 @@
       "Type": 2,
       "PhaseId": "skill_30010603_shot",
       "Timeline": {
-        "DurationMs": 100,
+        "DurationMs": 3625,
         "Events": [
           {
             "AtMs": 0,

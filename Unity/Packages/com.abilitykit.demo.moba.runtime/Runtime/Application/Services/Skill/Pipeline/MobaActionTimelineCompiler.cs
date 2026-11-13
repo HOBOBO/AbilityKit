@@ -41,11 +41,17 @@ namespace AbilityKit.Demo.Moba.Services
                             !int.TryParse(raw, NumberStyles.None, CultureInfo.InvariantCulture, out var effectId) || effectId <= 0)
                             throw new InvalidDataException("Unsupported or invalid MOBA logic clip: " + clip.type);
 
+                        var abortOnFailure = false;
+                        if (clip.args.TryGetValue("abortOnFailure", out var abortRaw) &&
+                            !bool.TryParse(abortRaw, out abortOnFailure))
+                            throw new InvalidDataException("Invalid MOBA logic clip abortOnFailure: " + abortRaw);
+
                         events.Add(new SkillTimelineEventDTO
                         {
                             AtMs = ToMilliseconds(clip.start),
                             EffectId = effectId,
                             ExecuteMode = 0,
+                            AbortOnFailure = abortOnFailure,
                             EventTag = clip.args.TryGetValue("eventTag", out var tag) ? tag : null
                         });
                     }

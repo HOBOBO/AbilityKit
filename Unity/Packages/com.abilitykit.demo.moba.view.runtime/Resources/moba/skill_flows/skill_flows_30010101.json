@@ -27,8 +27,9 @@
     },
     {
       "Type": 2,
+      "PhaseId": "skill_30010101_action",
       "Timeline": {
-        "DurationMs": 500,
+        "DurationMs": 700,
         "Events": [
           {
             "AtMs": 0,

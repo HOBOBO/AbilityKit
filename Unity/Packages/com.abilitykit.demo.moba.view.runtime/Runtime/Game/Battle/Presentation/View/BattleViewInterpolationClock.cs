@@ -4,6 +4,7 @@ namespace AbilityKit.Game.Flow
     {
         private double _renderTime;
         private int _lastFrame;
+        private bool _initialized;
 
         public double RenderTime => _renderTime;
 
@@ -32,9 +33,19 @@ namespace AbilityKit.Game.Flow
             var target = logicTime - backTime;
             if (target < 0d) target = 0d;
 
+            // A newly attached view may join an already advancing simulation.
+            // Starting at zero leaves it at MaxLagTicks indefinitely when both
+            // clocks advance at the same rate, hiding short-lived projectiles.
+            var initialize = !_initialized;
+            if (initialize)
+            {
+                _renderTime = target;
+                _initialized = true;
+            }
+
             var frameAdvanced = false;
             var frame = ctx.LastFrame;
-            if (_lastFrame != frame)
+            if (initialize || _lastFrame != frame)
             {
                 _lastFrame = frame;
                 frameAdvanced = true;
@@ -72,6 +83,7 @@ namespace AbilityKit.Game.Flow
         {
             _renderTime = 0d;
             _lastFrame = 0;
+            _initialized = false;
         }
     }
 }

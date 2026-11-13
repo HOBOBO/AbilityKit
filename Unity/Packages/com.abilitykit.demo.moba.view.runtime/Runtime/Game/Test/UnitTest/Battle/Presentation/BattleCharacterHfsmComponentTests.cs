@@ -13,6 +13,84 @@ namespace AbilityKit.Game.Tests
     public sealed class BattleCharacterHfsmComponentTests
     {
         [Test]
+        public void ModelAnimationReferencesShareFactsAndRemainIsolatedBetweenModels()
+        {
+            var animations = ModelAnimationCatalog.LoadJson(@"[
+                {'Id':1,'ModelId':71,'ActionKey':'attack','AnimatorState':'Primary','FrameCount':60,'FrameRate':60,'Layer':0},
+                {'Id':2,'ModelId':72,'ActionKey':'attack','AnimatorState':'Other','FrameCount':24,'FrameRate':24,'Layer':1}]");
+            const string json = @"{'schemaVersion':1,'states':[
+                {'path':'life/alive/action/casting','action':{'id':'cast','type':'sequence','actions':[
+                    {'id':'play','type':'play','modelId':71,'animationKey':'attack','loop':false}]}},
+                {'path':'life/alive/action/idle','action':{'id':'idle','type':'sequence','actions':[
+                    {'id':'play','type':'play','modelId':71,'animationKey':'attack','loop':true}]}}],
+                'variants':[{'entityCode':42,'path':'life/alive/action/casting','actionId':'play',
+                    'action':{'id':'play','type':'play','modelId':72,'animationKey':'attack'}}]}";
+            var catalog = CharacterPresentationActionCatalog.LoadJson(json, animations);
+            var primary = new BattleCharacterHfsmComponent(MobaCharacterHfsmProfile.CreateGenericDefinition(), catalog);
+            var cast = new CharacterActionData(1, 1, 1, "life/alive/action/casting", 1, 1, 0, 10, 7001);
+            primary.ApplyPresentation(in cast);
+            var playback = primary.Evaluate(1, 30).Value;
+            Assert.AreEqual("Primary", playback.AnimatorState);
+            Assert.AreEqual(30, playback.FrameCount);
+            Assert.AreEqual(1f, playback.DurationSeconds);
+            var idle = new CharacterActionData(1, 1, 2, "life/alive/action/idle", 2, 2, 0, 0, 0);
+            primary.ApplyPresentation(in idle);
+            Assert.IsTrue(primary.Evaluate(2, 30).Value.Loop);
+            var other = new BattleCharacterHfsmComponent(MobaCharacterHfsmProfile.CreateGenericDefinition(), catalog, 42);
+            other.ApplyPresentation(in cast);
+            Assert.AreEqual("Other", other.Evaluate(1, 30).Value.AnimatorState);
+            Assert.AreEqual(1, other.Evaluate(1, 30).Value.Layer);
+        }
+
+        [TestCase("'animationKey':'missing','modelId':71")]
+        [TestCase("'animationKey':'attack','modelId':71,'frameCount':0")]
+        [TestCase("'animationKey':'attack','modelId':71,'layer':0")]
+        [TestCase("'animationKey':'attack'")]
+        [TestCase("'modelId':0")]
+        [TestCase("'animationKey':null")]
+        [TestCase("'modelId':0,'animationKey':null")]
+        [TestCase("'modelId':null,'animationKey':'attack'")]
+        public void InvalidModelReferencesNeverFallBackToInlineAnimation(string fields)
+        {
+            var animations = ModelAnimationCatalog.LoadJson(@"[
+                {'Id':1,'ModelId':71,'ActionKey':'attack','AnimatorState':'Cast','FrameCount':24,'FrameRate':24,'Layer':0}]");
+            var json = "{'schemaVersion':1,'states':[{'path':'life/alive/action/casting','action':" +
+                "{'id':'play','type':'play'," + fields + "}}]}";
+            Assert.Throws<InvalidOperationException>(() => CharacterPresentationActionCatalog.LoadJson(json, animations));
+        }
+
+        [Test]
+        public void DuplicateModelAnimationKeysAreRejected()
+        {
+            Assert.Throws<InvalidOperationException>(() => ModelAnimationCatalog.LoadJson(@"[
+                {'Id':1,'ModelId':71,'ActionKey':'attack','AnimatorState':'Cast','FrameCount':24,'FrameRate':24,'Layer':0},
+                {'Id':2,'ModelId':71,'ActionKey':'attack','AnimatorState':'Cast','FrameCount':24,'FrameRate':24,'Layer':0}]") );
+        }
+
+        [TestCase(0, "CastDefault")]
+        [TestCase(7001, "CastSkill")]
+        public void PresentationVariantsStayWithinPathAndSkillWinsRegardlessOfRowOrder(int skillId, string expected)
+        {
+            const string json = @"{'schemaVersion':1,'states':[
+                {'path':'life/alive/action/casting','action':{'id':'cast','type':'sequence','actions':[
+                    {'id':'pose','type':'play','animatorState':'Base'}]}},
+                {'path':'life/alive/action/idle','action':{'id':'idle','type':'sequence','actions':[
+                    {'id':'pose','type':'play','animatorState':'Idle'}]}}],
+                'variants':[
+                    {'entityCode':42,'path':'life/alive/action/casting','skillId':7001,'actionId':'pose',
+                     'action':{'id':'pose','type':'play','animatorState':'CastSkill'}},
+                    {'entityCode':42,'path':'life/alive/action/casting','actionId':'pose',
+                     'action':{'id':'pose','type':'play','animatorState':'CastDefault'}},
+                    {'entityCode':42,'path':'life/alive/action/idle','actionId':'pose',
+                     'action':{'id':'pose','type':'play','animatorState':'IdleVariant'}}]}";
+            var view = new BattleCharacterHfsmComponent(MobaCharacterHfsmProfile.CreateGenericDefinition(),
+                CharacterPresentationActionCatalog.LoadJson(json), 42);
+            var action = new CharacterActionData(1, 1, 1, "life/alive/action/casting", 1, 1, 0, 10, skillId);
+            view.ApplyPresentation(in action);
+            Assert.AreEqual(expected, view.Evaluate(1, 30).Value.AnimatorState);
+        }
+
+        [Test]
         public void PresentationActionProjectsWithoutLogicWorld()
         {
             var view = new BattleCharacterHfsmComponent();
@@ -210,30 +288,34 @@ namespace AbilityKit.Game.Tests
                 Assert.AreEqual("life/alive/action/weapon.fishbones", runtime.Action.Path);
 
                 runtime.Tick(1, Fixed64.FromRaw(1000), true, false, true, 0, 0);
-                Assert.AreEqual("life/alive/action/moving", runtime.Action.Path);
+                Assert.AreEqual("life/alive/action/moving.fishbones", runtime.Action.Path);
                 mode = ModifierData.Override(ModifierKey.FromPacked(weaponModeParameterId), 0f,
                     sourceId: unchecked((int)modeSourceId));
                 parameters.Set(actorId, modeSourceId, weaponModeParameterId, in mode);
                 runtime.ReevaluateCurrentFrame();
-                Assert.AreEqual("life/alive/action/moving", runtime.Action.Path,
+                Assert.AreEqual("life/alive/action/moving.powpow", runtime.Action.Path,
                     "Changing weapon mode must not interrupt movement.");
                 runtime.Tick(2, Fixed64.FromRaw(2000), true, false, false, 0, 0);
-                Assert.AreEqual("life/alive/action/idle", runtime.Action.Path);
-                runtime.ReevaluateCurrentFrame();
                 Assert.AreEqual("life/alive/action/weapon.powpow", runtime.Action.Path);
 
                 runtime.Tick(3, Fixed64.FromRaw(3000), true, false, false, castInstanceId, modeSkillId);
-                Assert.AreEqual("life/alive/action/casting", runtime.Action.Path);
+                Assert.AreEqual("life/alive/action/casting.powpow", runtime.Action.Path);
                 mode = ModifierData.Override(ModifierKey.FromPacked(weaponModeParameterId), 1f,
                     sourceId: unchecked((int)modeSourceId));
                 parameters.Set(actorId, modeSourceId, weaponModeParameterId, in mode);
                 runtime.ReevaluateCurrentFrame();
-                Assert.AreEqual("life/alive/action/casting", runtime.Action.Path,
+                Assert.AreEqual("life/alive/action/casting.fishbones", runtime.Action.Path,
                     "Changing weapon mode must not interrupt an active cast.");
+                Assert.AreEqual(castInstanceId, runtime.Action.CastInstanceId);
                 runtime.Tick(4, Fixed64.FromRaw(4000), true, false, false, 0, 0);
-                Assert.AreEqual("life/alive/action/idle", runtime.Action.Path);
-                runtime.ReevaluateCurrentFrame();
                 Assert.AreEqual("life/alive/action/weapon.fishbones", runtime.Action.Path);
+                runtime.Tick(5, Fixed64.FromRaw(5000), true, true, false, 0, 0);
+                Assert.AreEqual("life/alive/action/controlled", runtime.Action.Path);
+                runtime.Tick(6, Fixed64.FromRaw(6000), true, false, false, 0, 0);
+                Assert.AreEqual("life/alive/action/weapon.fishbones", runtime.Action.Path);
+                parameters.ClearSource(actorId, modeSourceId);
+                runtime.ReevaluateCurrentFrame();
+                Assert.AreEqual("life/alive/action/weapon.powpow", runtime.Action.Path);
             }
         }
 

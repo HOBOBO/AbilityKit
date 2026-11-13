@@ -54,5 +54,26 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(14)]
         public float ForwardZ;
 
+        [MemoryPackOrder(15)]
+        public int ActorVersion;
+
+        [MemoryPackOrder(16)]
+        public string? ProfileId;
+
+        [MemoryPackOrder(17)]
+        public string? StatePath;
+
+        [MemoryPackOrder(18)]
+        public int PhaseInstance;
+
+        [MemoryPackOrder(19)]
+        public int EnteredFrame;
+
+        [MemoryPackOrder(20)]
+        public int SnapshotFrame;
+
+        [MemoryPackOrder(21)]
+        public float LocalSeconds;
+
     }
 }

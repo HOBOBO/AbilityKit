@@ -311,8 +311,8 @@ namespace AbilityKit.Protocol.Generated
                 ProtocolReliability.Realtime,
                 null,
                 "moba.protocol.yaml",
-                1,
-                1,
+                2,
+                2,
                 1048576,
                 0.25d,
                 null),
@@ -427,6 +427,22 @@ namespace AbilityKit.Protocol.Generated
                 1,
                 262144,
                 1d,
+                null),
+            new ProtocolMessageMetadata(
+                "abilitykit.moba.battle",
+                "shield-state.push",
+                4015u,
+                ProtocolDirection.ServerToClient,
+                ProtocolPacketKind.Push,
+                "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload",
+                "memorypack",
+                ProtocolReliability.Reliable,
+                null,
+                "moba.protocol.yaml",
+                1,
+                1,
+                1048576,
+                0.25d,
                 null),
             new ProtocolMessageMetadata(
                 "abilitykit.room",
@@ -1450,6 +1466,7 @@ namespace AbilityKit.Protocol.Generated
             public const uint abilitykit_moba_battle_skill_state_push = 4011u;
             public const uint abilitykit_moba_battle_player_hero_changed_push = 4012u;
             public const uint abilitykit_moba_battle_action_ack_push = 4013u;
+            public const uint abilitykit_moba_battle_shield_state_push = 4015u;
             public const uint abilitykit_room_guest_login_request = 100u;
             public const uint abilitykit_room_guest_login_response = 100u;
             public const uint abilitykit_room_account_login_request = 111u;
@@ -1543,6 +1560,7 @@ namespace AbilityKit.Protocol.Generated
                 ["abilitykit.moba.battle/skill-state.push"] = "moba.protocol.yaml",
                 ["abilitykit.moba.battle/player-hero-changed.push"] = "moba.protocol.yaml",
                 ["abilitykit.moba.battle/action-ack.push"] = "moba.protocol.yaml",
+                ["abilitykit.moba.battle/shield-state.push"] = "moba.protocol.yaml",
                 ["abilitykit.room/guest-login.request"] = "room.protocol.yaml",
                 ["abilitykit.room/guest-login.response"] = "room.protocol.yaml",
                 ["abilitykit.room/account-login.request"] = "room.protocol.yaml",

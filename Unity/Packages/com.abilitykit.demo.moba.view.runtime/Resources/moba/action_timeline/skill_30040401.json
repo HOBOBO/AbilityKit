@@ -1,0 +1,56 @@
+{
+  "groups": [
+    {
+      "name": "Veigar_30040401_Presentation",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "CastPresentation",
+          "active": true,
+          "actionClips": [
+            {
+              "resourceKey": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_E_Activation",
+              "resPath": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_E_Activation.prefab",
+              "startTime": 0.0,
+              "length": 1.0,
+              "name": "PlayParticle",
+              "presentationTemplateId": 90034004,
+              "$type": "AbilityKit.ActionEditorImpl.PlayParticle"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.EffectTrack"
+        }
+      ]
+    },
+    {
+      "name": "Logic_30040401",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "ExistingSkillEffects",
+          "active": true,
+          "actionClips": [
+            {
+              "effectId": 30040401,
+              "eventTag": "veigar_e_cast",
+              "abortOnFailure": false,
+              "startTime": 0.0,
+              "name": "ExecuteEffect",
+              "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        }
+      ]
+    }
+  ],
+  "exportMobaRuntime": true,
+  "length": 2.084,
+  "viewTimeMin": 0.0,
+  "viewTimeMax": 2.25,
+  "rangeMin": 0.0,
+  "rangeMax": 2.25,
+  "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
+}

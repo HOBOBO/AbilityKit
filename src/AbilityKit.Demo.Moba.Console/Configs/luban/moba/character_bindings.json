@@ -306,13 +306,190 @@
     "DefinitionId": "moba.character.3002",
     "States": [
       {
+        "Path": "life/alive/action/casting.powpow",
+        "CastContext": "Current"
+      },
+      {
+        "Path": "life/alive/action/casting.fishbones",
+        "CastContext": "Current"
+      }
+    ],
+    "Conditions": [
+      {
+        "Key": "cast.powpow",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "casting"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 0
+            }
+          ]
+        }
+      },
+      {
+        "Key": "cast.fishbones",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "casting"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 1
+            }
+          ]
+        }
+      },
+      {
+        "Key": "move.powpow",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "moving"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 0
+            }
+          ]
+        }
+      },
+      {
+        "Key": "move.fishbones",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "moving"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 1
+            }
+          ]
+        }
+      },
+      {
+        "Key": "rest.powpow",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "idle"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 0
+            }
+          ]
+        }
+      },
+      {
+        "Key": "rest.fishbones",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "idle"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 1
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "DefinitionId": "moba.character.default",
+    "States": [
+      {
         "Path": "life/alive/action/casting",
         "CastContext": "Current"
       }
     ]
   },
   {
-    "DefinitionId": "moba.character.default",
+    "DefinitionId": "moba.character.3005",
+    "Conditions": [
+      {
+        "Key": "barrel.flight.rest",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "idle"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 1
+            }
+          ]
+        }
+      },
+      {
+        "Key": "barrel.deployed.rest",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "idle"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 2
+            }
+          ]
+        }
+      },
+      {
+        "Key": "empowered.rest",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "idle"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 0
+            },
+            {
+              "ParameterId": 5,
+              "Comparison": "gt",
+              "Value": 0
+            }
+          ]
+        }
+      },
+      {
+        "Key": "normal.rest",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "idle"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 0
+            },
+            {
+              "ParameterId": 5,
+              "Comparison": "eq",
+              "Value": 0
+            }
+          ]
+        }
+      }
+    ],
     "States": [
       {
         "Path": "life/alive/action/casting",

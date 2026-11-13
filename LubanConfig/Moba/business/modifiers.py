@@ -117,7 +117,7 @@ def expected_mount(domain, target_kind):
     return MOUNT_BY_TARGET_KIND.get(target_kind) or MOUNT_BY_DOMAIN.get(domain)
 
 
-def derive_evaluation_policy(magnitude):
+def derive_evaluation_policy(magnitude, context_key=None):
     """Return the runtime evaluation policy implied by a definition's magnitude source.
 
     Magnitudes that read other state must be sampled once so that later changes cannot rewrite an
@@ -126,6 +126,11 @@ def derive_evaluation_policy(magnitude):
     source = (magnitude or {}).get("SourceType", 0)
     if source not in MAGNITUDE_SOURCE_TYPES:
         raise ValueError(f"unknown magnitude source type {source}")
+    if source == 5 and isinstance(context_key, str) and context_key.startswith("skill_runtime:"):
+        scope, separator, name = context_key[len("skill_runtime:"):].partition(".")
+        if scope not in ("cast", "target", "child") or not separator or not name.strip() or name != name.strip():
+            raise ValueError(f"invalid Cast modifier context key {context_key!r}")
+        return 1
     return 1 if source in SNAPSHOT_MAGNITUDE_SOURCES else 0
 
 
@@ -135,7 +140,10 @@ def validate_evaluation_contract(modifier, owner):
     # EvaluationPolicy is derived during publication. Raw workbook rows may carry the
     # default zero value, so validate the derived policy rather than treating that default
     # as an authored override.
-    policy = derive_evaluation_policy({"SourceType": source})
+    policy = derive_evaluation_policy({"SourceType": source}, modifier.get("MagnitudeContextKey"))
+    if source == 5 and str(modifier.get("MagnitudeContextKey") or "").startswith("skill_runtime:"):
+        if modifier.get("TargetKind") != 1:
+            raise ValueError(f"{owner}: Cast context magnitudes require an Attribute target")
     role = modifier.get("AttributeSourceRole", 0)
     if policy not in EVALUATION_POLICIES:
         raise ValueError(f"{owner}: invalid EvaluationPolicy {policy}")
@@ -271,7 +279,7 @@ def bind_template_definitions(templates, definitions):
     catalog = {}
     for definition in definitions:
         flat = flatten_definition(definition)
-        flat["EvaluationPolicy"] = derive_evaluation_policy(definition.get("Magnitude"))
+        flat["EvaluationPolicy"] = derive_evaluation_policy(definition.get("Magnitude"), definition.get("ContextKey"))
         flat["DefinitionId"] = definition["Id"]
         flat["DefinitionKey"] = definition["Key"]
         flat["MountPoint"] = definition.get("MountPoint", 0)

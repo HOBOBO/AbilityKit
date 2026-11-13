@@ -8,6 +8,7 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly IAbilityPipelineContext _inner;
         private readonly EffectContextKind _kind;
+        internal IAbilityPipelineContext Inner => _inner;
 
         public static IEffectContext Wrap(IAbilityPipelineContext ctx)
         {

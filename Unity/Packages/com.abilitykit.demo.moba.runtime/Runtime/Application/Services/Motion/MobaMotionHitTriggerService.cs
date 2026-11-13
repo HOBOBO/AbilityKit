@@ -18,7 +18,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         [WorldInject(required: false)] private MobaTriggerExecutionGateway _triggers = null;
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
 
-        public bool TryExecute(int moverActorId, in MotionHit hit, in Vec3 point, in MobaMotionHitTriggerRuntime runtime)
+        public bool TryExecute(int moverActorId, in MotionHit hit, in Vec3 point, in MobaMotionHitTriggerRuntime runtime, long motionSourceContextId = 0)
         {
             if (!runtime.IsValid) return false;
             if (!hit.Hit || hit.TargetId <= 0) return false;
@@ -40,6 +40,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
                 SourceConfigId = runtime.SourceConfigId,
                 Frame = _frameTime != null ? _frameTime.Frame.Value : 0,
                 MotionTargetId = hit.TargetId,
+                MotionSourceContextId = motionSourceContextId,
                 HitCollider = hitCollider,
                 Point = point,
                 Normal = hit.Normal,

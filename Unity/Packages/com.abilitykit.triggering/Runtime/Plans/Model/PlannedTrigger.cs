@@ -16,7 +16,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
     /// 从 TriggerPlan 解析委托，并在满足条件时执行 Actions
     /// </summary>
     public sealed class PlannedTrigger<TArgs, TCtx> : ITrigger<TArgs, TCtx>, ITriggerWithId
-        where TArgs : class
     {
         public delegate TriggerPlanExecutionResult ExecutionRootDelegate(
             in TArgs args,

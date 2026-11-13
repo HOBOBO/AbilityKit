@@ -20,6 +20,7 @@ using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Trace;
 using AbilityKit.Triggering.Eventing;
@@ -137,6 +138,14 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsTrue(config.TryGetSkill(WSkillId, out var wSkill));
                 Assert.IsTrue(config.TryGetSkill(ESkillId, out var eSkill));
                 Assert.IsTrue(config.TryGetSkill(RSkillId, out var rSkill));
+                Assert.IsTrue(TryGetPlayerActor(ctx, "p1", out _, out var localOwner));
+                Assert.IsTrue(TryGetPlayerActor(ctx, "p2", out _, out var localEnemy),
+                    "The production local scenario must provide an enemy for target-selection and hit checks.");
+                world.Services.Resolve<MobaBrainService>().DeactivateBrain(localEnemy);
+                var cameraForward = Camera.main != null ? Camera.main.transform.forward : Vector3.forward;
+                cameraForward.y = 0f;
+                cameraForward.Normalize();
+                var aimedDirection = new Vec3(cameraForward.x, 0f, cameraForward.z);
 
                 var specs = new[]
                 {
@@ -161,22 +170,26 @@ namespace AbilityKit.Game.Test.UnitTest
                 for (var i = 0; i < huds.Length; i++)
                     huds[i] = AnnieHudInputFixture.Create(ctx, specs, templates, i + 1);
 
+                var measuredQTravel = 0f;
                 for (var slot = 1; slot <= 4; slot++)
                 {
                     var before = inputFeature.SkillSubmitSuccessCount;
                     var button = huds[slot - 1];
                     var center = button.ButtonScreenPosition;
+                    SetScenarioActorPosition(localEnemy, localOwner.transform.Value.Position + aimedDirection * (slot == 1 ? 5.5f : 3f));
+                    var enemyHpBefore = localEnemy.GetMobaAttrs().Hp;
+                    button.PointerDown(center);
                     if (slot == 2 || slot == 4)
                     {
-                        button.PointerDown(center);
                         button.Drag(center + new Vector2(0f, 120f));
-                        button.PointerUp(center + new Vector2(0f, 200f));
                     }
-                    else
-                    {
-                        button.PointerDown(center);
-                        button.PointerUp(center);
-                    }
+                    FlowTick(flow, 12);
+                    yield return null;
+                    Assert.AreEqual(before, inputFeature.SkillSubmitSuccessCount,
+                        "Holding a HUD button must not submit its skill before release.");
+                    Assert.AreEqual(enemyHpBefore, localEnemy.GetMobaAttrs().Hp, 0.001f,
+                        "Holding a HUD button must not apply combat damage.");
+                    button.PointerUp(slot == 2 || slot == 4 ? center + new Vector2(0f, 200f) : center);
 
                     yield return TickUntil(flow,
                         () => inputFeature.SkillSubmitSuccessCount > before,
@@ -186,8 +199,159 @@ namespace AbilityKit.Game.Test.UnitTest
                     if (slot == 2 || slot == 4)
                         Assert.IsFalse(BattleHudInputSource.TryConsumeSkillAimSubmit(ctx, out _),
                             "BattleInputFeature must consume the aimed skill snapshot once for slot " + slot + ".");
+                    // Submission is not proof that the logic world accepted the cast.
+                    if (slot == 1 || slot == 2)
+                    {
+                        var sawProjectile = false;
+                        var projectileStart = Vector3.zero;
+                        var projectileTravel = 0f;
+                        yield return TickUntil(flow, () =>
+                        {
+                            var fireball = GameObject.Find("Vfx_90033001");
+                            if (fireball != null)
+                            {
+                                if (!sawProjectile) projectileStart = fireball.transform.position;
+                                sawProjectile = true;
+                                projectileTravel = Mathf.Max(projectileTravel,
+                                    Vector3.Distance(projectileStart, fireball.transform.position));
+                            }
+                            return localEnemy.GetMobaAttrs().Hp < enemyHpBefore;
+                        }, 120, "The local HUD skill " + slot + " did not damage its in-range enemy.");
+                        if (slot == 1)
+                        {
+                            Assert.IsTrue(sawProjectile,
+                                "HUD Q must select its target automatically and show its moving fireball before impact.");
+                            measuredQTravel = projectileTravel;
+                        }
+                        var hud = entry.Get<BattleHudFeature>();
+                        Assert.IsNotNull(hud);
+                        var binder = GetPrivateField(hud, "_binder");
+                        var hpBars = GetPrivateField(binder, "_hpBars");
+                        var bars = GetPrivateField(hpBars, "_byActorId") as System.Collections.IDictionary;
+                        Assert.IsNotNull(bars, "The production HUD must expose its live HP bars.");
+                        var hpHandle = bars[localEnemy.actorId.Value];
+                        Assert.IsNotNull(hpHandle, "Skill damage must create/update its target's HUD HP bar.");
+                        Assert.AreEqual(localEnemy.GetMobaAttrs().Hp, (float)GetPrivateField(hpHandle, "Hp"), 0.01f,
+                            "Damage HP must reach the actual HUD, not only the authoritative actor.");
+                        var fill = GetPrivateField(hpHandle, "HpFill") as UnityEngine.UI.Image;
+                        Assert.IsNotNull(fill);
+                        var maxHp = (float)GetPrivateField(hpHandle, "MaxHp");
+                        Assert.AreEqual(localEnemy.GetMobaAttrs().Hp / maxHp, fill.fillAmount, 0.00001f,
+                            "The visible HP image must show the authoritative HP fraction.");
+                        Assert.Less(fill.fillAmount, enemyHpBefore / maxHp,
+                            "The actual HP fill must decrease after the released skill hits.");
+                        Assert.IsTrue(System.Array.Exists(UnityEngine.Object.FindObjectsOfType<TextMesh>(),
+                            text => text.gameObject.name == "DamageText" && !string.IsNullOrEmpty(text.text)),
+                            "The production damage event must create a visible damage number.");
+                        TestContext.WriteLine("HUD skill=" + slot + " HP=" + enemyHpBefore + " -> " + localEnemy.GetMobaAttrs().Hp);
+                    }
+                    if (slot == 3)
+                    {
+                        yield return TickUntil(flow, () =>
+                            TryGetPlayerActor(ctx, "p1", out var ownerId, out _) &&
+                            world.Services.Resolve<MobaShieldService>().GetTotalRemaining(ownerId) > 0f,
+                            90, "The local HUD E input did not apply Annie's shield.");
+                        yield return TickUntil(flow, () => GameObject.Find("Vfx_90033004") != null,
+                            30, "HUD E must consume its Buff cue in the production view.");
+                        var shieldRoot = GameObject.Find("Vfx_90033004").transform.Find("E_Shield");
+                        Assert.IsNotNull(shieldRoot);
+                        Assert.IsTrue(shieldRoot.gameObject.activeInHierarchy,
+                            "The production E particle hierarchy must be enabled, not merely instantiated.");
+                    }
+                    if (slot == 4)
+                    {
+                        var summons = world.Services.Resolve<MobaSummonService>();
+                        var summonIds = new List<int>();
+                        yield return TickUntil(flow, () =>
+                            TryGetPlayerActor(ctx, "p1", out var ownerId, out _) &&
+                            summons.TryGetSummons(ownerId, summonIds, TibbersSummonId) && summonIds.Count == 1,
+                            90, "The local HUD R input did not create Tibbers.");
+                        var summonId = summonIds[0];
+                        GameObject shell = null;
+                        yield return TickUntil(flow, () =>
+                            (shell = FindLocalActorShell(summonId)) != null,
+                            60, "Tibbers exists in the logic world but has no active local model shell.");
+                        Assert.IsNotNull(shell.GetComponentInChildren<Animator>(true),
+                            "The local Tibbers shell must load the linked model, not a fallback primitive.");
+                        var renderers = shell.GetComponentsInChildren<SkinnedMeshRenderer>();
+                        Assert.IsNotEmpty(renderers, "The linked Tibbers model must contain an active skinned mesh.");
+                        foreach (var renderer in renderers)
+                        {
+                            TestContext.WriteLine("Local Tibbers shell=" + shell.transform.position +
+                                " meshBounds=" + renderer.bounds + " scale=" + renderer.transform.lossyScale);
+                            Assert.IsTrue(renderer.enabled, "Tibbers renderer must be enabled.");
+                            Assert.IsNotNull(renderer.sharedMesh, "Tibbers must load its authored skin mesh.");
+                            Assert.Greater(renderer.sharedMesh.vertexCount, 0);
+                            Assert.Less(Vector3.Distance(renderer.bounds.center, shell.transform.position), 4f,
+                                "Tibbers mesh must be near its authoritative ground position.");
+                            Assert.Greater(renderer.transform.lossyScale.sqrMagnitude, 0.001f,
+                                "Tibbers model must have nonzero world scale.");
+                            Assert.Greater(renderer.bounds.size.sqrMagnitude, 0.001f,
+                                "Tibbers renderer must have visible world bounds.");
+                            foreach (var material in renderer.sharedMaterials)
+                            {
+                                Assert.IsNotNull(material, "Tibbers must load its linked skin material.");
+                                Assert.IsNotNull(material.shader);
+                                TestContext.WriteLine("Local Tibbers material=" + material.name +
+                                    " shader=" + material.shader.name + " texture=" + material.mainTexture);
+                            }
+                        }
+                        for (var tick = 0; tick < 90; tick++)
+                        {
+                            FlowTick(flow, 1);
+                            yield return null;
+                        }
+                        Assert.IsTrue(shell != null && shell.activeInHierarchy,
+                            "Tibbers must remain visible after its spawn VFX lifetime.");
+                        CaptureLocalBattleFrame(renderers);
+                        Assert.IsTrue(world.Services.Resolve<MobaActorRegistry>().TryGet(summonId, out var localSummon));
+                        SetScenarioActorPosition(localEnemy, new Vec3(-12f, 0f, -12f));
+                        SetScenarioActorPosition(localOwner, localSummon.transform.Value.Position - Vec3.Right * 10f);
+                        var followDistanceBefore = (localSummon.transform.Value.Position - localOwner.transform.Value.Position).Magnitude;
+                        var shellPositionBefore = shell.transform.position;
+                        for (var tick = 0; tick < 100 &&
+                             (localSummon.transform.Value.Position - localOwner.transform.Value.Position).Magnitude >= followDistanceBefore - 0.3f; tick++)
+                        {
+                            FlowTick(flow, 1);
+                            yield return null;
+                        }
+                        Assert.Less((localSummon.transform.Value.Position - localOwner.transform.Value.Position).Magnitude,
+                            followDistanceBefore - 0.3f,
+                            "The local summon must follow its owner when enemies are outside its perception radius. " +
+                            "Summon=" + localSummon.transform.Value.Position + " Owner=" + localOwner.transform.Value.Position +
+                            " Enemy=" + localEnemy.transform.Value.Position + " InitialDistance=" + followDistanceBefore);
+                        yield return TickUntil(flow, () => Vector3.Distance(shell.transform.position, shellPositionBefore) > 0.2f,
+                            30, "The visible summon must follow the authoritative moving actor.");
+                        SetScenarioActorPosition(localEnemy, localSummon.transform.Value.Position + Vec3.Right);
+                        var attackHpBefore = localEnemy.GetMobaAttrs().Hp;
+                        var summonAnimator = shell.GetComponentInChildren<Animator>(true);
+                        var sawAttackAnimation = false;
+                        yield return TickUntil(flow, () =>
+                        {
+                            sawAttackAnimation |= summonAnimator.GetCurrentAnimatorStateInfo(0)
+                                .IsName("Void_Annie_Tibbers_Attack1");
+                            return localEnemy.GetMobaAttrs().Hp < attackHpBefore;
+                        },
+                            100, "The local summon must acquire and attack an enemy entering its perception radius.");
+                        Assert.IsTrue(sawAttackAnimation,
+                            "Tibbers must play its configured attack animation when the real HUD battle attack deals damage.");
+                    }
+                    FlowTick(flow, 30);
                     yield return null;
+                    // These are independent full-cast checks, not a cancel/queue
+                    // acceptance scenario. Await the authored cast before the
+                    // next HUD gesture instead of assuming a fixed short tail.
+                    Assert.IsTrue(config.TryGetSkillFlow(skills[slot - 1].CastFlowId, out var completedFlow));
+                    var durationMs = 0;
+                    foreach (var phase in completedFlow.Phases)
+                        if (phase.Type == (int)SkillPhaseType.Timeline) durationMs += phase.Timeline.DurationMs;
+                    yield return TickUntil(flow, () => !world.Services.Resolve<SkillCastCoordinator>()
+                            .TryGetRunningBySlot(localOwner.actorId.Value, slot, out _),
+                        Mathf.CeilToInt(durationMs * 0.001f * Mathf.Max(120, ctx.Plan.World.TickRate * 4)) + 120,
+                        "The previous HUD skill must finish its authored Cast before testing the next slot.");
                 }
+                Assert.Greater(measuredQTravel, 1f,
+                    "The real HUD Q fireball must visibly travel, not merely create a stationary prefab.");
             }
             finally
             {
@@ -199,6 +363,12 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        private static void SetScenarioActorPosition(ActorEntity actor, Vec3 position)
+        {
+            var transform = actor.transform.Value;
+            actor.ReplaceTransform(new Transform3(position, transform.Rotation, transform.Scale));
+        }
+
         private static BattleHudSkillPresentationSpec ResolveHudSpec(
             MobaConfigDatabase configs, SkillMO skill, SkillAimIndicatorShape expectedShape)
         {
@@ -207,6 +377,67 @@ namespace AbilityKit.Game.Test.UnitTest
             var spec = new BattleHudSkillPresentationSpecResolver().Resolve(skill, template);
             Assert.AreEqual(expectedShape, spec.IndicatorShape, "Unexpected indicator for skill " + skill.Id);
             return spec;
+        }
+
+        private static void CaptureLocalBattleFrame(SkinnedMeshRenderer[] actorRenderers)
+        {
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null ||
+                Camera.main == null) return;
+            var camera = Camera.main;
+            Assert.AreNotEqual(0, (int)(camera.depthTextureMode & DepthTextureMode.Depth),
+                "Production battle camera must supply the linked materials' depth input.");
+            var target = RenderTexture.GetTemporary(1280, 720, 24);
+            var previousTarget = camera.targetTexture;
+            var previousActive = RenderTexture.active;
+            var image = new Texture2D(1280, 720, TextureFormat.RGB24, false);
+            try
+            {
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                image.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0);
+                image.Apply();
+                var visiblePixels = image.GetPixels32();
+                var path = System.IO.Path.GetFullPath(System.IO.Path.Combine(
+                    Application.dataPath, "../../local/Logs/annie-local-tibbers.png"));
+                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                TestContext.WriteLine("Production local battle after HUD R summon: " + path);
+                // Prove the actual skin contributes pixels through the production
+                // camera, rather than only proving that a Renderer component exists.
+                try
+                {
+                    foreach (var renderer in actorRenderers) renderer.enabled = false;
+                    camera.Render();
+                    image.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0);
+                    image.Apply();
+                    var hiddenPixels = image.GetPixels32();
+                    var changedPixels = 0;
+                    for (var i = 0; i < visiblePixels.Length; i++)
+                        if (!visiblePixels[i].Equals(hiddenPixels[i])) changedPixels++;
+                    TestContext.WriteLine("Local Tibbers visible skin pixels=" + changedPixels);
+                    Assert.Greater(changedPixels, 32,
+                        "Tibbers skin must contribute visible pixels to the production camera frame.");
+                }
+                finally
+                {
+                    foreach (var renderer in actorRenderers) if (renderer != null) renderer.enabled = true;
+                }
+            }
+            finally
+            {
+                camera.targetTexture = previousTarget;
+                RenderTexture.active = previousActive;
+                RenderTexture.ReleaseTemporary(target);
+                UnityEngine.Object.DestroyImmediate(image);
+            }
+        }
+
+        private static GameObject FindLocalActorShell(int actorId)
+        {
+            foreach (var handle in UnityEngine.Object.FindObjectsOfType<MonoViewHandle>())
+                if (handle.ActorId == actorId && handle.gameObject.activeInHierarchy)
+                    return handle.gameObject;
+            return null;
         }
 
         private sealed class AnnieHudInputFixture : System.IDisposable
@@ -631,8 +862,9 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
-        [Test]
-        public void Q_ShouldLaunchConfiguredProjectileAndApplyConfiguredDamageOnHit()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void Q_ShouldLaunchConfiguredProjectileAndApplyConfiguredDamageOnHit(bool explicitTarget)
         {
             using (var harness = HeroSkillHeadlessContract.CreateHarness(
                 Annie, "annie_q_projectile_damage_runtime_contract_world"))
@@ -661,7 +893,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var hpBefore = harness.GetActorHp(targetActorId);
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var cast = skills.TryCastBySlot(actorId, 1, aimPos: default, aimDir: Vec3.Right,
-                    targetActorId: targetActorId);
+                    targetActorId: explicitTarget ? targetActorId : 0);
                 Assert.IsTrue(cast.Success, "Annie Q should release successfully: " + cast.FailReason);
 
                 var effectTrace = harness.TickUntilTraceNode(
@@ -752,8 +984,9 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
-        [Test]
-        public void W_ShouldApplyConfiguredSectorDamageOnlyToTargetsInsideTheCastDirection()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void W_ShouldApplyConfiguredSectorDamageOnlyToTargetsInsideTheCastDirection(bool includeAimPosition)
         {
             using (var harness = HeroSkillHeadlessContract.CreateHarness(
                 Annie, "annie_w_sector_damage_runtime_contract_world"))
@@ -765,15 +998,18 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 harness.EnterGameAndWarmup(reason: "Annie W sector damage contract");
                 var actorId = harness.AssertPlayerActorBound();
+                var caster = harness.AssertActorEntity(actorId);
+                var origin = new Vec3(20f, 0f, 30f);
+                caster.ReplaceTransform(new Transform3(origin, caster.transform.Value.Rotation, caster.transform.Value.Scale));
                 var insideActorId = HeroSkillHeadlessContract.SpawnEnemyHero(
-                    harness, "annie_w_inside_target", 9304, x: 3f, z: 0f);
+                    harness, "annie_w_inside_target", 9304, x: origin.X + 3f, z: origin.Z);
                 var outsideActorId = HeroSkillHeadlessContract.SpawnEnemyHero(
-                    harness, "annie_w_outside_target", 9305, x: 3f, z: 4f);
+                    harness, "annie_w_outside_target", 9305, x: origin.X + 3f, z: origin.Z + 4f);
                 var insideHpBefore = harness.GetActorHp(insideActorId);
                 var outsideHpBefore = harness.GetActorHp(outsideActorId);
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
-                var cast = skills.TryCastBySlot(actorId, 2, aimPos: new Vec3(3f, 0f, 0f), aimDir: Vec3.Right,
-                    targetActorId: insideActorId);
+                var cast = skills.TryCastBySlot(actorId, 2,
+                    aimPos: includeAimPosition ? origin + Vec3.Right * 3f : Vec3.Zero, aimDir: Vec3.Right);
                 Assert.IsTrue(cast.Success, "Annie W should release successfully: " + cast.FailReason);
 
                 harness.TickUntilTraceNode(
@@ -787,6 +1023,34 @@ namespace AbilityKit.Game.Test.UnitTest
                     "Annie W should damage a target inside its forward sector.");
                 Assert.AreEqual(outsideHpBefore, harness.GetActorHp(outsideActorId), 0.001f,
                     "Annie W should not damage a target outside its configured sector.");
+            }
+        }
+
+        [TestCase(2, WSkillId)]
+        [TestCase(4, RSkillId)]
+        public void AreaSkills_ShouldCastAtEmptyGroundWithoutAnEnemy(int slot, int skillId)
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(
+                Annie, "annie_empty_ground_" + slot))
+            {
+                harness.EnterGameAndWarmup(reason: "Annie empty-ground area cast contract");
+                var ownerId = harness.AssertPlayerActorBound();
+                var owner = harness.AssertActorEntity(ownerId);
+                var aimPos = owner.transform.Value.Position + Vec3.Right * 3f;
+                var cast = harness.World.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(
+                    ownerId, slot, aimPos: aimPos, aimDir: Vec3.Right, targetActorId: 0);
+                Assert.IsTrue(cast.Success, "Annie area skill must accept an empty-ground cast: " + cast.FailReason);
+                harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, skillId,
+                    maxTicks: 90, message: "Empty-ground cast must reach its configured effect.");
+                if (slot == 4)
+                {
+                    var summons = harness.World.Services.Resolve<MobaSummonService>();
+                    var ids = new List<int>();
+                    Assert.IsTrue(summons.TryGetSummons(ownerId, ids, TibbersSummonId));
+                    Assert.AreEqual(1, ids.Count, "Empty-ground R must still summon Tibbers exactly once.");
+                    Assert.Less((harness.AssertActorEntity(ids[0]).transform.Value.Position - aimPos).Magnitude,
+                        0.5f, "Empty-ground R must summon at the submitted aim point.");
+                }
             }
         }
 
@@ -896,6 +1160,21 @@ namespace AbilityKit.Game.Test.UnitTest
                     harness.Tick(1);
                 Assert.Less(harness.GetActorHp(targetActorId), tibbersAttackHpBefore,
                     "Tibbers behavior tree must select its loaded basic attack and damage the nearest enemy.");
+                harness.Tick(90);
+                var impactCount = 0;
+                var summonAttackCount = 0;
+                foreach (var node in harness.Trace.GetNodesByKind((int)MobaExecutionKind.DamageApply))
+                {
+                    if (node.Metadata.ConfigId == RSkillId && node.Metadata.SourceActorId == actorId)
+                        impactCount++;
+                    if (node.Metadata.SourceActorId == tibbersActorId &&
+                        node.Metadata.ConfigId == BasicAttackSkillId)
+                        summonAttackCount++;
+                }
+                Assert.AreEqual(1, impactCount, "R impact must settle once; later damage must come from summon attacks.");
+                Assert.Greater(summonAttackCount, 0, "The later hit must identify Tibbers as its damage source.");
+                Assert.LessOrEqual(summonAttackCount, 5,
+                    "Tibbers must respect the configured 800ms attack cooldown rather than dealing damage each tick.");
 
                 for (var i = 0; i < 500 && summons.GetAliveCount(actorId, TibbersSummonId) > 0; i++)
                     harness.Tick(1);
@@ -1020,7 +1299,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var target = harness.AssertActorEntity(targetActorId);
                 var targetTransform = target.transform.Value;
                 target.ReplaceTransform(new Transform3(
-                    new Vec3(20f, targetTransform.Position.Y, targetTransform.Position.Z),
+                    new Vec3(14f, targetTransform.Position.Y, targetTransform.Position.Z),
                     targetTransform.Rotation,
                     targetTransform.Scale));
 
@@ -1034,10 +1313,71 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.Less(distanceAfterChase, distanceBeforeChase - 0.25f,
                     "Tibbers must publish movement while the selected basic attack is out of range.");
 
-                for (var i = 0; i < 240 && harness.GetActorHp(targetActorId) >= hpBeforeAttack - 0.01f; i++)
+                for (var i = 0; i < 120 && harness.GetActorHp(targetActorId) >= hpBeforeAttack - 0.01f; i++)
                     harness.Tick(1);
                 Assert.Less(harness.GetActorHp(targetActorId), hpBeforeAttack,
-                    "Tibbers must re-check attack range and resume its loaded basic attack after chasing.");
+                    "Tibbers must re-check attack range and resume its loaded basic attack after chasing. " +
+                    "Summon=" + tibbers.transform.Value.Position + " Target=" + target.transform.Value.Position +
+                    " Distance=" + distanceAfterChase);
+            }
+        }
+
+        [Test]
+        public void Tibbers_BehaviorTreeShouldFollowOwnerWhenNoEnemyIsAvailable()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(
+                Annie, "annie_tibbers_follow_owner_runtime_contract_world"))
+            {
+                harness.EnterGameAndWarmup(reason: "Annie Tibbers owner follow contract");
+                var ownerActorId = harness.AssertPlayerActorBound();
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(
+                    harness, "annie_tibbers_follow_cast_target", 9312, x: 2f, z: 0f);
+                var cast = harness.World.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(
+                    ownerActorId, 4, aimPos: new Vec3(2f, 0f, 0f), aimDir: Vec3.Right,
+                    targetActorId: targetActorId);
+                Assert.IsTrue(cast.Success, "Annie R should release successfully: " + cast.FailReason);
+                harness.TickUntilTraceNode(MobaExecutionKind.SummonSpawn, TibbersSummonId, maxTicks: 80,
+                    message: "Annie R should spawn Tibbers before the owner follow check.");
+
+                var summons = harness.World.Services.Resolve<MobaSummonService>();
+                var summonActorIds = new List<int>(1);
+                Assert.IsTrue(summons.TryGetSummons(ownerActorId, summonActorIds, TibbersSummonId));
+                Assert.AreEqual(1, summonActorIds.Count);
+                var tibbers = harness.AssertActorEntity(summonActorIds[0]);
+                var owner = harness.AssertActorEntity(ownerActorId);
+                var brains = harness.World.Services.Resolve<MobaBrainService>();
+                var target = harness.AssertActorEntity(targetActorId);
+                var targetTransform = target.transform.Value;
+                target.ReplaceTransform(new Transform3(
+                    new Vec3(owner.transform.Value.Position.X + 32f, targetTransform.Position.Y,
+                        targetTransform.Position.Z), targetTransform.Rotation, targetTransform.Scale));
+                var ownerPosition = owner.transform.Value.Position;
+                tibbers.ReplaceTransform(new Transform3(
+                    new Vec3(ownerPosition.X + 12f, ownerPosition.Y, ownerPosition.Z),
+                    tibbers.transform.Value.Rotation, tibbers.transform.Value.Scale));
+
+                var distanceBeforeFollow = (tibbers.transform.Value.Position - ownerPosition).Magnitude;
+                harness.Tick(180);
+                var distanceAfterFollow = (tibbers.transform.Value.Position - owner.transform.Value.Position).Magnitude;
+                Assert.Less(distanceAfterFollow, distanceBeforeFollow - 0.25f,
+                    "Tibbers must move toward its owner when no enemy is available.");
+
+                var withinStopRange = owner.transform.Value.Position;
+                tibbers.ReplaceTransform(new Transform3(
+                    new Vec3(withinStopRange.X + 4f, withinStopRange.Y + 20f, withinStopRange.Z),
+                    tibbers.transform.Value.Rotation, tibbers.transform.Value.Scale));
+                var stoppedPosition = tibbers.transform.Value.Position;
+                harness.Tick(60);
+                var stoppedOffset = tibbers.transform.Value.Position - owner.transform.Value.Position;
+                var stoppedDistanceSquared = stoppedOffset.X * stoppedOffset.X + stoppedOffset.Z * stoppedOffset.Z;
+                Assert.That(stoppedDistanceSquared, Is.LessThanOrEqualTo(5.25f * 5.25f),
+                    "Tibbers should remain inside the configured five-unit horizontal owner stop range.");
+                Assert.That((tibbers.transform.Value.Position - stoppedPosition).Magnitude, Is.LessThan(0.25f),
+                    "Tibbers should stop moving after reaching the owner stop range.");
+                Assert.IsTrue(brains.TryGetBehavior(tibbers.actorBrain.BehaviorInstanceId, out var tibbersBehavior),
+                    "Tibbers should retain its behavior runtime while following its owner.");
+                Assert.IsFalse(tibbersBehavior.Output.Movement.HasValue,
+                    "A large height difference must not keep owner-follow movement active inside the horizontal stop range.");
             }
         }
 

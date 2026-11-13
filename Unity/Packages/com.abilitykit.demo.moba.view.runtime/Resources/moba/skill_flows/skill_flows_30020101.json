@@ -25,6 +25,14 @@
         "AbortOnFailure": true,
         "FailReason": "skill_commit_failed"
       }
+    },
+    {
+      "Type": 2,
+      "PhaseId": "jinx_q_switch_presentation_window",
+      "Timeline": {
+        "DurationMs": 1000,
+        "Events": []
+      }
     }
   ]
 }

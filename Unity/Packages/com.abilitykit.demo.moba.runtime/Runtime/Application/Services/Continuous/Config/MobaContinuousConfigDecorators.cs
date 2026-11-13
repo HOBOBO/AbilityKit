@@ -165,6 +165,7 @@ namespace AbilityKit.Demo.Moba.Services
                 throw new System.InvalidOperationException($"Modifier {spec.TargetKind}:{spec.TargetId} has an unknown evaluation policy {spec.EvaluationPolicy}.");
 
             var magnitude = spec.Magnitude;
+            MobaContinuousCastMagnitude.Validate(spec);
             if (magnitude.Type == MagnitudeSourceType.Attribute)
             {
                 if (spec.AttributeSourceRole < MobaModifierAttributeSourceRole.Owner ||

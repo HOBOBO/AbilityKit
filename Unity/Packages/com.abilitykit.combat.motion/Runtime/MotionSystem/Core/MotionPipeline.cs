@@ -180,6 +180,7 @@ namespace AbilityKit.Combat.MotionSystem.Core
                         completionPolicySource.HasCompletionCollisionPolicy)
                     {
                         output.DominantCollisionPolicy = completionPolicySource.CompletionCollisionPolicy;
+                        output.CollisionSource = source;
                         output.HasDominantCollisionPolicy = true;
                         break;
                     }
@@ -189,6 +190,7 @@ namespace AbilityKit.Combat.MotionSystem.Core
                         policySource.HasCollisionPolicy)
                     {
                         output.DominantCollisionPolicy = policySource.CollisionPolicy;
+                        output.CollisionSource = source;
                         output.HasDominantCollisionPolicy = true;
                         break;
                     }

@@ -1,0 +1,33 @@
+{
+  "groups": [
+    {
+      "name": "Logic_30020003",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "ExistingSkillEffects",
+          "active": true,
+          "actionClips": [
+            {
+              "effectId": 30020202,
+              "eventTag": "basic_attack_launch",
+              "abortOnFailure": true,
+              "startTime": 0.1,
+              "name": "ExecuteEffect",
+              "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        }
+      ]
+    }
+  ],
+  "exportMobaRuntime": true,
+  "length": 1.566667,
+  "viewTimeMin": 0,
+  "viewTimeMax": 1.75,
+  "rangeMin": 0,
+  "rangeMax": 1.75,
+  "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
+}

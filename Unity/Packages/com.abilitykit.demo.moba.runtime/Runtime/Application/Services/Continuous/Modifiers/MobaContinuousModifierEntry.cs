@@ -60,12 +60,21 @@ namespace AbilityKit.Demo.Moba.Services
                     var spec = entry.Spec;
                     if (spec == null) continue;
 
+                    var magnitude = ApplyStack(spec.Magnitude, entry.Stack, spec.Op);
+                    if (MobaContinuousCastMagnitude.IsRequested(spec))
+                    {
+                        if (!(entry.Continuous is MobaContinuousRuntimeBase runtime) ||
+                            !runtime.TryGetModifierCapture(spec, entry.Ordinal, entry.Stack, spec.Op, out var captured))
+                            throw new InvalidOperationException("Cast input has not been captured for this modifier.");
+                        magnitude = MagnitudeSource.Fixed(captured);
+                    }
+
                     var key = ModifierKey.Create((byte)spec.TargetKind, ToByte(spec.TargetId));
                     rented[written++] = new ModifierData
                     {
                         Key = key,
                         Op = ToModifierOp(spec.Op),
-                        Magnitude = ApplyStack(spec.Magnitude, entry.Stack, spec.Op),
+                        Magnitude = magnitude,
                         Priority = spec.Priority,
                         SourceId = entry.Projection?.ModifierSourceId ?? 0,
                         SourceNameIndex = -1,

@@ -13,7 +13,8 @@
     "OffsetZ": 0,
     "OnDelayTriggerIds": [],
     "Radius": 5,
-    "VfxId": 0
+    "VfxId": 0,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40010201,
@@ -31,7 +32,8 @@
       10010211
     ],
     "Radius": 3.5,
-    "VfxId": 90001001
+    "VfxId": 90001001,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40010301,
@@ -49,7 +51,8 @@
       10010331
     ],
     "Radius": 4.5,
-    "VfxId": 90001003
+    "VfxId": 90001003,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40010311,
@@ -67,7 +70,8 @@
       10010331
     ],
     "Radius": 4.5,
-    "VfxId": 90001003
+    "VfxId": 90001003,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40010321,
@@ -86,7 +90,8 @@
       10010341
     ],
     "Radius": 4.5,
-    "VfxId": 90001003
+    "VfxId": 90001003,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40020201,
@@ -104,7 +109,8 @@
       10020211
     ],
     "Radius": 4,
-    "VfxId": 90002002
+    "VfxId": 90002002,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40020301,
@@ -122,7 +128,8 @@
       10020313
     ],
     "Radius": 2.5,
-    "VfxId": 90002003
+    "VfxId": 90002003,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40030201,
@@ -143,7 +150,8 @@
       10030214
     ],
     "Radius": 3.5,
-    "VfxId": 90003002
+    "VfxId": 90003002,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40030202,
@@ -161,7 +169,8 @@
       10030212
     ],
     "Radius": 4.5,
-    "VfxId": 90003002
+    "VfxId": 90003002,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40030203,
@@ -179,7 +188,8 @@
       10030213
     ],
     "Radius": 5.5,
-    "VfxId": 90003002
+    "VfxId": 90003002,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40030301,
@@ -200,7 +210,8 @@
       10030321
     ],
     "Radius": 4.5,
-    "VfxId": 90003003
+    "VfxId": 90003003,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40030302,
@@ -221,7 +232,8 @@
       10030321
     ],
     "Radius": 5.5,
-    "VfxId": 90003003
+    "VfxId": 90003003,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40040201,
@@ -243,7 +255,8 @@
       10040212
     ],
     "Radius": 3.5,
-    "VfxId": 90004004
+    "VfxId": 90004004,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40040301,
@@ -263,7 +276,8 @@
       10040322
     ],
     "Radius": 5,
-    "VfxId": 90004003
+    "VfxId": 90004003,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40050201,
@@ -281,7 +295,8 @@
       10050211
     ],
     "Radius": 3,
-    "VfxId": 90005002
+    "VfxId": 90005002,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40060101,
@@ -303,7 +318,8 @@
       10060111
     ],
     "Radius": 4,
-    "VfxId": 90006001
+    "VfxId": 90006001,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40060201,
@@ -321,7 +337,8 @@
       10060211
     ],
     "Radius": 4,
-    "VfxId": 90006002
+    "VfxId": 90006002,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40070101,
@@ -343,7 +360,8 @@
       10070113
     ],
     "Radius": 4,
-    "VfxId": 90006001
+    "VfxId": 90006001,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40070201,
@@ -361,7 +379,8 @@
       10070211
     ],
     "Radius": 4,
-    "VfxId": 90006002
+    "VfxId": 90006002,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40070202,
@@ -383,7 +402,8 @@
       10070212
     ],
     "Radius": 3.5,
-    "VfxId": 90004004
+    "VfxId": 90004004,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40070203,
@@ -402,7 +422,8 @@
       10070212
     ],
     "Radius": 4,
-    "VfxId": 90007003
+    "VfxId": 90007003,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40080101,
@@ -421,7 +442,8 @@
       10080113
     ],
     "Radius": 3.5,
-    "VfxId": 90008003
+    "VfxId": 90008003,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40070301,
@@ -440,7 +462,8 @@
       10070314
     ],
     "Radius": 3.5,
-    "VfxId": 90007003
+    "VfxId": 90007003,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 40080401,
@@ -459,7 +482,8 @@
       10080412
     ],
     "Radius": 3.5,
-    "VfxId": 90008006
+    "VfxId": 90008006,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 42010301,
@@ -477,8 +501,9 @@
       30010311
     ],
     "Radius": 3,
-    "VfxId": 90013003,
-    "ConsumeOnFirstEnter": true
+    "VfxId": 90013019,
+    "ConsumeOnFirstEnter": true,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 42030301,
@@ -493,13 +518,14 @@
     "OffsetY": 0,
     "OffsetZ": 0,
     "Radius": 5.5,
-    "VfxId": 90033002
+    "VfxId": 90033002,
+    "OnCrossTriggerIds": []
   },
   {
     "Id": 42020301,
     "AttachMode": 0,
     "CollisionLayerMask": 1,
-    "DelayMs": 0,
+    "DelayMs": 500,
     "DurationMs": 5000,
     "MaxTargets": 1,
     "ModelId": 0,
@@ -511,7 +537,134 @@
       30020313
     ],
     "Radius": 1.25,
-    "VfxId": 90032006,
-    "ConsumeOnFirstEnter": false
+    "VfxId": 90032007,
+    "ConsumeOnFirstEnter": false,
+    "OnCrossTriggerIds": []
+  },
+  {
+    "Id": 42040301,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 450,
+    "DurationMs": 700,
+    "MaxTargets": 10,
+    "ModelId": 90000102,
+    "Name": "Veigar W Dark Matter impact area",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [
+      30040311
+    ],
+    "Radius": 4.5,
+    "VfxId": 90034016,
+    "OnCrossTriggerIds": []
+  },
+  {
+    "Id": 42040401,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 450,
+    "DurationMs": 3500,
+    "MaxTargets": 10,
+    "ModelId": 0,
+    "Name": "Veigar E Event Horizon hexagonal boundary",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnEnterTriggerIds": [
+      30040413
+    ],
+    "Radius": 0.875,
+    "VfxId": 0,
+    "OnCrossTriggerIds": [
+      30040413
+    ]
+  },
+  {
+    "Id": 42040402,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 450,
+    "DurationMs": 3500,
+    "MaxTargets": 10,
+    "ModelId": 0,
+    "Name": "Veigar E central cage presentation lifetime",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0.875,
+    "VfxId": 90034017
+  },
+  {
+    "Id": 42050201,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 4000,
+    "DurationMs": 4000,
+    "IntervalMs": 0,
+    "MaxTargets": 32,
+    "ModelId": 0,
+    "Name": "Gragas Q deployed barrel",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [
+      30050212
+    ],
+    "OnEnterTriggerIds": [],
+    "OnExitTriggerIds": [],
+    "OnIntervalTriggerIds": [],
+    "InnerRadius": 0,
+    "Radius": 2.5,
+    "VfxId": 90035006,
+    "ConsumeOnFirstEnter": false,
+    "OnCrossTriggerIds": []
+  },
+  {
+    "Id": 42050202,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 0,
+    "DurationMs": 1000,
+    "IntervalMs": 0,
+    "MaxTargets": 32,
+    "ModelId": 0,
+    "Name": "Gragas Q explosion",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [],
+    "OnEnterTriggerIds": [],
+    "OnExitTriggerIds": [],
+    "OnIntervalTriggerIds": [],
+    "InnerRadius": 0,
+    "Radius": 0.1,
+    "VfxId": 90035007,
+    "ConsumeOnFirstEnter": false,
+    "OnCrossTriggerIds": []
+  },
+  {
+    "Id": 42050501,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 0,
+    "DurationMs": 1000,
+    "IntervalMs": 0,
+    "MaxTargets": 32,
+    "ModelId": 0,
+    "Name": "Gragas R impact",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [],
+    "OnEnterTriggerIds": [],
+    "OnExitTriggerIds": [],
+    "OnIntervalTriggerIds": [],
+    "InnerRadius": 0,
+    "Radius": 0.1,
+    "VfxId": 90035012,
+    "ConsumeOnFirstEnter": false,
+    "OnCrossTriggerIds": []
   }
 ]

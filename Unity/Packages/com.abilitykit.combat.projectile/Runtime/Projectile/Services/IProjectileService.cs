@@ -4,6 +4,11 @@ using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Combat.Projectile
 {
+    public interface IProjectileArrivalEventSource
+    {
+        void DrainArrivalEvents(List<ProjectileArrivalEvent> results);
+    }
+
     public interface IProjectileService : IService
     {
         int ActiveCount { get; }

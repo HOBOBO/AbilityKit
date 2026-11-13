@@ -60,11 +60,21 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 HasAny(namedArgs, "target_missing_hp_bonus_min", "targetmissinghpbonusmin"),
                 HasAny(namedArgs, "target_missing_hp_bonus_max", "targetmissinghpbonusmax"),
                 HasAny(namedArgs, "damage_min", "damagemin"),
-                HasAny(namedArgs, "damage_max", "damagemax"));
+                HasAny(namedArgs, "damage_max", "damagemax"),
+                ReadFloat(namedArgs, ctx, 0f, "target_max_hp_ratio_coefficient"),
+                MobaEffectMagnitudeSchemaReader.ReadString(namedArgs, in ctx, "target_max_hp_ratio_skill_level_parameter"));
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            if (!ValidateOptionalString(args, "target_max_hp_ratio_skill_level_parameter", out error, "target_max_hp_ratio_skill_level_parameter")) return false;
+            if (HasAny(args, "target_max_hp_ratio_coefficient"))
+            {
+                if (HasAny(args, "target_max_hp_ratio_skill_level_parameter") ||
+                    !TryReadConstantNumber(args, out var ratio, "target_max_hp_ratio_coefficient") ||
+                    double.IsNaN(ratio) || double.IsInfinity(ratio) || ratio < 0)
+                { error = "target max HP coefficient must use one non-negative constant or skill level parameter"; return false; }
+            }
             if (HasAny(args, "damage_value_ref", "damagevalueref")
                 && !RequireNumericValue(args, "damage_value_ref", out error, "damage_value_ref", "damagevalueref"))
                 return false;

@@ -66,6 +66,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly bool HasTargetMissingHpBonusMax;
         public readonly bool HasDamageMin;
         public readonly bool HasDamageMax;
+        public readonly float TargetMaxHpRatioCoefficient;
+        public readonly string TargetMaxHpRatioSkillLevelParameter;
 
         public GiveDamageArgs(
             float damageValue,
@@ -93,7 +95,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             bool hasTargetMissingHpBonusMin = false,
             bool hasTargetMissingHpBonusMax = false,
             bool hasDamageMin = false,
-            bool hasDamageMax = false)
+            bool hasDamageMax = false,
+            float targetMaxHpRatioCoefficient = 0f,
+            string targetMaxHpRatioSkillLevelParameter = null)
         {
             DamageValue = damageValue;
             ReasonParam = reasonParam;
@@ -121,6 +125,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             HasTargetMissingHpBonusMax = hasTargetMissingHpBonusMax;
             HasDamageMin = hasDamageMin;
             HasDamageMax = hasDamageMax;
+            TargetMaxHpRatioCoefficient = targetMaxHpRatioCoefficient;
+            TargetMaxHpRatioSkillLevelParameter = targetMaxHpRatioSkillLevelParameter;
         }
 
         public static GiveDamageArgs Default => new GiveDamageArgs(0f, 0, DamageType.Physical, MobaActionTargetRequest.ContextTarget());

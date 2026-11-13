@@ -31,6 +31,7 @@ namespace AbilityKit.Demo.Moba.Systems
         private IFrameTime _frameTime;
         private IMobaMapRuntimeService _maps;
         private MobaCombatRulesService _combatRules;
+        private MobaSkillLoadoutService _loadout;
         private Entitas.IGroup<global::ActorEntity> _group;
 
         public MobaBrainOutputApplySystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -45,6 +46,7 @@ namespace AbilityKit.Demo.Moba.Systems
             Services.TryResolve(out _frameTime);
             Services.TryResolve(out _maps);
             Services.TryResolve(out _combatRules);
+            Services.TryResolve(out _loadout);
             _group = Contexts.Actor().GetGroup(global::ActorMatcher.AllOf(
                 global::ActorComponentsLookup.ActorId,
                 global::ActorComponentsLookup.ActorBrain));
@@ -94,7 +96,10 @@ namespace AbilityKit.Demo.Moba.Systems
                     var dx = targetPos.X - ownerPos.X;
                     var dz = targetPos.Z - ownerPos.Z;
                     var length = DeterministicMathBridge.Sqrt(dx * dx + dz * dz);
-                    if (length > intent.MoveStopRange + 0.0001f)
+                    // The behavior's stop range is also used by its strict cast-range
+                    // condition. An added tolerance can stop just outside that range,
+                    // leaving the actor unable to move or cast indefinitely.
+                    if (length > intent.MoveStopRange)
                     {
                         WriteMoveInput(e, dx / length, dz / length);
                         wroteMovement = true;
@@ -129,8 +134,11 @@ namespace AbilityKit.Demo.Moba.Systems
             if (index < 0 || index >= actor.skillLoadout.ActiveSkills.Length) return false;
             var runtime = actor.skillLoadout.ActiveSkills[index];
             if (runtime == null) return false;
-            if (expectedSkillId > 0 && runtime.SkillId != expectedSkillId) return false;
-            return _frameTime == null || runtime.CooldownEndTimeMs <= MobaSkillRuntimeAccess.GetCurrentTimeMs(_frameTime);
+            var effectiveSkillId = _loadout != null && _loadout.TryGetSkillId(actor.actorId.Value, slot, out var resolved)
+                ? resolved : runtime.SkillId;
+            if (expectedSkillId > 0 && effectiveSkillId != expectedSkillId) return false;
+            return _frameTime == null || runtime.CooldownEndTimeMs <= MobaSkillRuntimeAccess.GetCurrentTimeMs(_frameTime) ||
+                _loadout?.IsIndependentRecastReady(actor.actorId.Value, slot, effectiveSkillId) == true;
         }
 
         private static void WriteMoveInput(global::ActorEntity e, float dx, float dz)

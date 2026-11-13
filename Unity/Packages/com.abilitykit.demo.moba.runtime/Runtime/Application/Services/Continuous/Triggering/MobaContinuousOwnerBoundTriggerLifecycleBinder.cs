@@ -111,6 +111,46 @@ namespace AbilityKit.Demo.Moba.Services
             return continuous != null && continuous.IsActive && !continuous.IsPaused && !continuous.IsTerminated;
         }
 
+        // Validate exact sources and trigger definitions, then change only gate references.
+        // Existing gateway subscriptions and their Blackboard instances remain alive.
+        internal Action PrepareLocalRebind(IReadOnlyList<IContinuous> target)
+        {
+            var replacements = new Dictionary<long, Binding>();
+            foreach (var continuous in target)
+            {
+                if (!(continuous.Config is IMobaContinuousOwnerBoundTriggerConfig config) ||
+                    config.TriggerIds == null || config.TriggerIds.Count == 0 ||
+                    continuous.State == ContinuousState.Inactive) continue;
+                if (!(continuous is IMobaContinuousExecutionContextProvider provider) ||
+                    !provider.TryGetCombatExecutionContext(out var context) || !context.HasExecutionSource)
+                    throw new InvalidOperationException("Local continuous subscription has no execution source.");
+                var key = CreateSubscriptionOwnerKey(continuous, context);
+                if (!_bindingsByOwnerKey.TryGetValue(key, out var old) ||
+                    old.TriggerIds.Count != config.TriggerIds.Count)
+                    throw new InvalidOperationException("Local rollback requires identical continuous subscriptions.");
+                for (var i = 0; i < old.TriggerIds.Count; i++)
+                    if (old.TriggerIds[i] != config.TriggerIds[i])
+                        throw new InvalidOperationException("Local continuous trigger definition changed.");
+                var source = new MobaOwnerBoundTriggerExecutionSource(context.SourceActorId,
+                    context.TargetActorId > 0 ? context.TargetActorId : context.SourceActorId,
+                    context.ParentContextId, context.RootContextId != 0 ? context.RootContextId : context.ParentContextId,
+                    context.OwnerContextId != 0 ? context.OwnerContextId : context.ParentContextId, context.ConfigId);
+                if (!old.Source.Equals(source) || !replacements.TryAdd(key, new Binding(continuous, old.TriggerIds, old.Source)))
+                    throw new InvalidOperationException("Local continuous subscription source changed or collided.");
+            }
+            if (replacements.Count != _bindingsByOwnerKey.Count)
+                throw new InvalidOperationException("Local rollback cannot reconstruct missing continuous subscriptions.");
+            return () =>
+            {
+                _bindingsByOwnerKey.Clear(); _ownerKeyByContinuous.Clear();
+                foreach (var pair in replacements)
+                {
+                    _bindingsByOwnerKey.Add(pair.Key, pair.Value);
+                    _ownerKeyByContinuous.Add(pair.Value.Continuous, pair.Key);
+                }
+            };
+        }
+
         public void Complete(long ownerKey, int triggerId)
         {
         }

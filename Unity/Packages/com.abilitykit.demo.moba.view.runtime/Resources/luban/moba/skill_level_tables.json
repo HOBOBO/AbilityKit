@@ -1923,7 +1923,7 @@
     "Levels": [
       {
         "CooldownMs": 80000,
-        "Cost": 250,
+        "Cost": 100,
         "Params": [
           100,
           10,
@@ -1933,7 +1933,7 @@
       },
       {
         "CooldownMs": 70000,
-        "Cost": 250,
+        "Cost": 100,
         "Params": [
           200,
           10,
@@ -1943,7 +1943,7 @@
       },
       {
         "CooldownMs": 60000,
-        "Cost": 250,
+        "Cost": 100,
         "Params": [
           300,
           10,
@@ -2217,6 +2217,373 @@
       "summonHealth",
       "summonDamage",
       "summonDurationMs"
+    ]
+  },
+  {
+    "Id": 30040000,
+    "Levels": [
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": []
+      }
+    ],
+    "ParamNames": []
+  },
+  {
+    "Id": 30040101,
+    "Levels": [
+      {
+        "CooldownMs": 800,
+        "Cost": 0,
+        "Params": [
+          60
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30040201,
+    "Levels": [
+      {
+        "CooldownMs": 6000,
+        "Cost": 40,
+        "Params": [
+          80
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30040301,
+    "Levels": [
+      {
+        "CooldownMs": 10000,
+        "Cost": 70,
+        "Params": [
+          70
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30040401,
+    "Levels": [
+      {
+        "CooldownMs": 18000,
+        "Cost": 70,
+        "Params": [
+          1.75,
+          1.25,
+          3500,
+          1000
+        ]
+      }
+    ],
+    "ParamNames": [
+      "radius",
+      "innerRadius",
+      "durationMs",
+      "stunDurationMs"
+    ]
+  },
+  {
+    "Id": 30040501,
+    "Levels": [
+      {
+        "CooldownMs": 120000,
+        "Cost": 100,
+        "Params": [
+          150
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30050101,
+    "Levels": [
+      {
+        "CooldownMs": 1481,
+        "Cost": 0,
+        "Params": [
+          0
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30050201,
+    "Levels": [
+      {
+        "CooldownMs": 10000,
+        "Cost": 80,
+        "Params": [
+          80,
+          0.4
+        ]
+      },
+      {
+        "CooldownMs": 9000,
+        "Cost": 80,
+        "Params": [
+          120,
+          0.45
+        ]
+      },
+      {
+        "CooldownMs": 8000,
+        "Cost": 80,
+        "Params": [
+          160,
+          0.5
+        ]
+      },
+      {
+        "CooldownMs": 7000,
+        "Cost": 80,
+        "Params": [
+          200,
+          0.55
+        ]
+      },
+      {
+        "CooldownMs": 6000,
+        "Cost": 80,
+        "Params": [
+          240,
+          0.6
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "slow"
+    ]
+  },
+  {
+    "Id": 30050301,
+    "Levels": [
+      {
+        "CooldownMs": 5000,
+        "Cost": 30,
+        "Params": [
+          20,
+          0.1
+        ]
+      },
+      {
+        "CooldownMs": 5000,
+        "Cost": 30,
+        "Params": [
+          50,
+          0.12
+        ]
+      },
+      {
+        "CooldownMs": 5000,
+        "Cost": 30,
+        "Params": [
+          80,
+          0.14
+        ]
+      },
+      {
+        "CooldownMs": 5000,
+        "Cost": 30,
+        "Params": [
+          110,
+          0.16
+        ]
+      },
+      {
+        "CooldownMs": 5000,
+        "Cost": 30,
+        "Params": [
+          140,
+          0.18
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "reduction"
+    ]
+  },
+  {
+    "Id": 30050401,
+    "Levels": [
+      {
+        "CooldownMs": 14000,
+        "Cost": 50,
+        "Params": [
+          80
+        ]
+      },
+      {
+        "CooldownMs": 13500,
+        "Cost": 50,
+        "Params": [
+          125
+        ]
+      },
+      {
+        "CooldownMs": 13000,
+        "Cost": 50,
+        "Params": [
+          170
+        ]
+      },
+      {
+        "CooldownMs": 12500,
+        "Cost": 50,
+        "Params": [
+          215
+        ]
+      },
+      {
+        "CooldownMs": 12000,
+        "Cost": 50,
+        "Params": [
+          260
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30050501,
+    "Levels": [
+      {
+        "CooldownMs": 100000,
+        "Cost": 100,
+        "Params": [
+          200
+        ]
+      },
+      {
+        "CooldownMs": 85000,
+        "Cost": 100,
+        "Params": [
+          300
+        ]
+      },
+      {
+        "CooldownMs": 70000,
+        "Cost": 100,
+        "Params": [
+          400
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30050601,
+    "Levels": [
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          0
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30050701,
+    "Levels": [
+      {
+        "CooldownMs": 1481,
+        "Cost": 0,
+        "Params": [
+          20
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30050702,
+    "Levels": [
+      {
+        "CooldownMs": 1481,
+        "Cost": 0,
+        "Params": [
+          50
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30050703,
+    "Levels": [
+      {
+        "CooldownMs": 1481,
+        "Cost": 0,
+        "Params": [
+          80
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30050704,
+    "Levels": [
+      {
+        "CooldownMs": 1481,
+        "Cost": 0,
+        "Params": [
+          110
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30050705,
+    "Levels": [
+      {
+        "CooldownMs": 1481,
+        "Cost": 0,
+        "Params": [
+          140
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
     ]
   }
 ]

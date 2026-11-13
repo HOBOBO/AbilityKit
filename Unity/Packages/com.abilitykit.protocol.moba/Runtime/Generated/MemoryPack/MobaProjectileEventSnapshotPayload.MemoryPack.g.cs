@@ -14,5 +14,8 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(0)]
         public AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry[] Entries;
 
+        [MemoryPackOrder(1)]
+        public int Version;
+
     }
 }

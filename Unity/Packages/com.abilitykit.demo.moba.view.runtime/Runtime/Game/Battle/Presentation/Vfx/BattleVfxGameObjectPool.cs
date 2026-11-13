@@ -163,7 +163,20 @@ namespace AbilityKit.Game.Battle.Vfx
                         {
                             if (go == null) return;
                             BattleVfxPoolableTag.Attach(go).VfxId = vfxId;
+                            // A paused or completed pooled system retains its playback
+                            // cursor. Restore fresh-instance semantics on every lease,
+                            // including editor previews without Unity's automatic loop.
                             go.SetActive(true);
+                            var particles = go.GetComponentsInChildren<ParticleSystem>(true);
+                            foreach (var particle in particles)
+                            {
+                                particle.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
+                                particle.Simulate(0f, false, true, true);
+                                particle.Clear(false);
+                            }
+                            foreach (var particle in particles)
+                                if (particle.gameObject.activeInHierarchy && particle.main.playOnAwake)
+                                    particle.Play(false);
                         },
                         onRelease: go =>
                         {

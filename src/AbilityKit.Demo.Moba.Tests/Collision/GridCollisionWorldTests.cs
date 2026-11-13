@@ -140,6 +140,33 @@ public sealed class GridCollisionWorldTests
     }
 
     [Fact]
+    public void OverlapShape_ring_matches_outer_boundary_and_excludes_inner_disc()
+    {
+        var naive = new NaiveCollisionWorld();
+        var grid = new GridCollisionWorld(cellSize: 1f, initialCapacity: 8);
+        var innerNaive = AddSphere(naive, new Vec3(0f, 0f, 1f), 0.2f);
+        var edgeNaive = AddSphere(naive, new Vec3(0f, 0f, 2f), 0.2f);
+        var outerNaive = AddSphere(naive, new Vec3(0f, 0f, 4f), 0.2f);
+        AddSphere(grid, new Vec3(0f, 0f, 1f), 0.2f);
+        AddSphere(grid, new Vec3(0f, 0f, 2f), 0.2f);
+        AddSphere(grid, new Vec3(0f, 0f, 4f), 0.2f);
+
+        var shape = new OverlapShapeQuery(OverlapShapeKind.Ring,
+            Vec3.Zero, Vec3.Forward, radius: 4f, innerRadius: 2f);
+        var filter = new LayerFilter(WorldMask);
+        var naiveResults = new List<ColliderId>();
+        var gridResults = new List<ColliderId>();
+        var naiveCount = ((IShapeOverlapCollisionWorld)naive).OverlapShape(in shape, in filter, naiveResults);
+        var gridCount = ((IShapeOverlapCollisionWorld)grid).OverlapShape(in shape, in filter, gridResults);
+
+        Assert.Equal(naiveCount, gridCount);
+        Assert.Equal(2, gridCount);
+        Assert.DoesNotContain(innerNaive, gridResults);
+        Assert.Contains(edgeNaive, gridResults);
+        Assert.Contains(outerNaive, gridResults);
+    }
+
+    [Fact]
     public void OverlapShape_respects_existing_results_list_contents()
     {
         var world = new GridCollisionWorld(cellSize: 1f, initialCapacity: 8);

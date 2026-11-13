@@ -57,6 +57,15 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             ? System.Math.Max(0L, _durationRaw.Value - ElapsedRaw)
             : (long?)null;
 
+        internal long? DurationRaw => _durationRaw;
+
+        internal void RestoreLocalDuration(long? durationRaw)
+        {
+            _durationRaw = durationRaw;
+            _config.DurationSeconds = durationRaw.HasValue
+                ? Deterministic.Fixed64.FromRaw(durationRaw.Value).ToSingle() : (float?)null;
+        }
+
         public void BindRuntime(BuffRuntime runtime)
         {
             Runtime = runtime;

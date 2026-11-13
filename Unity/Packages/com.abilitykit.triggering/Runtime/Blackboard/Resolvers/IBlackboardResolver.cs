@@ -87,7 +87,7 @@ namespace AbilityKit.Triggering.Blackboard
         bool TryRestoreSnapshot(BlackboardSnapshotBoard snapshot, out string error);
     }
 
-    public sealed class OwnerBlackboardStore : IOwnerBlackboardSnapshotStore, IOwnerBlackboardSnapshotValidator
+    public sealed partial class OwnerBlackboardStore : IOwnerBlackboardSnapshotStore, IOwnerBlackboardSnapshotValidator, IOwnerBlackboardMembershipSnapshotStore
     {
         private readonly IBlackboardResolver _fallback;
         private readonly Dictionary<long, IBlackboardResolver> _owners =

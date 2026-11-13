@@ -16,6 +16,7 @@ namespace AbilityKit.Combat.Projectile
             maxSize: 2048);
 
         private static int CompareCollider(ColliderId a, ColliderId b) => a.Value.CompareTo(b.Value);
+        private static readonly IComparer<ColliderId> ColliderComparer = Comparer<ColliderId>.Create(CompareCollider);
 
         private readonly ICollisionWorld _collision;
         private IProjectileTrackingTargetProvider? _trackingTargetProvider;
@@ -24,6 +25,7 @@ namespace AbilityKit.Combat.Projectile
         private int _nextGroupId = 1;
         private readonly Dictionary<int, AreaGroup> _groups = new Dictionary<int, AreaGroup>();
         private readonly Dictionary<AreaGroupIdentity, int> _groupKeys = new Dictionary<AreaGroupIdentity, int>();
+        private readonly List<ColliderBounds> _bounds = new List<ColliderBounds>(64);
 
         public AreaWorld(ICollisionWorld collision)
         {
@@ -47,7 +49,9 @@ namespace AbilityKit.Combat.Projectile
                     a.IsArmed ? 1 : 0, a.ConsumeOnFirstEnter ? 1 : 0, a.EnterConsumed ? 1 : 0, a.FollowOwner ? 1 : 0,
                     Bits(a.FollowOffset.X), Bits(a.FollowOffset.Y), Bits(a.FollowOffset.Z),
                     a.FollowActorId,
-                    a.GetPrevList().ConvertAll(x => x.Value).ToArray(), a.GroupId);
+                    a.GetPrevList().ConvertAll(x => x.Value).ToArray(), a.GroupId, Bits(a.InnerRadius),
+                    a.BoundarySweep, a.SweepReady, Bits(a.PreviousCenter.X), Bits(a.PreviousCenter.Y), Bits(a.PreviousCenter.Z),
+                    ExportSamples(a));
             }
             var groups = new AreaGroupSnapshotItem[_groups.Count];
             var groupIndex = 0;
@@ -59,7 +63,7 @@ namespace AbilityKit.Combat.Projectile
                 groups[groupIndex++] = new AreaGroupSnapshotItem(pair.Key, pair.Value.RootContextId, pair.Value.GroupKey, targets);
             }
             Array.Sort(groups, (a, b) => a.GroupId.CompareTo(b.GroupId));
-            return MemoryPackSerializer.Serialize(new AreaWorldSnapshot(3, frame, _nextId, items, _nextGroupId, groups));
+            return MemoryPackSerializer.Serialize(new AreaWorldSnapshot(5, frame, _nextId, items, _nextGroupId, groups));
         }
 
         public void ImportRollback(byte[] payload)
@@ -67,7 +71,7 @@ namespace AbilityKit.Combat.Projectile
             Clear();
             if (payload == null || payload.Length == 0) return;
             var snapshot = MemoryPackSerializer.Deserialize<AreaWorldSnapshot>(payload);
-            if (snapshot.Version != 2 && snapshot.Version != 3) throw new InvalidOperationException($"Unsupported Area snapshot version {snapshot.Version}.");
+            if (snapshot.Version < 2 || snapshot.Version > 5) throw new InvalidOperationException($"Unsupported Area snapshot version {snapshot.Version}.");
             _nextId = snapshot.NextId > 0 ? snapshot.NextId : 1;
             _nextGroupId = snapshot.NextGroupId > 0 ? snapshot.NextGroupId : 1;
             if (snapshot.Groups != null)
@@ -90,6 +94,7 @@ namespace AbilityKit.Combat.Projectile
                 a.Id = new AreaId(item.Id); a.OwnerId = item.OwnerId;
                 a.Center = new Vec3(Float(item.CenterX), Float(item.CenterY), Float(item.CenterZ));
                 a.Radius = Float(item.Radius); a.MaxRadius = Float(item.MaxRadius); a.RadiusGrowthPerFrame = Float(item.RadiusGrowth);
+                a.InnerRadius = item.InnerRadius == 0 ? 0f : Float(item.InnerRadius);
                 a.ShapeKind = (OverlapShapeKind)item.ShapeKind;
                 a.Forward = new Vec3(Float(item.ForwardX), Float(item.ForwardY), Float(item.ForwardZ));
                 a.HalfAngleDeg = Float(item.HalfAngle); a.Width = Float(item.Width); a.Length = Float(item.Length);
@@ -100,6 +105,12 @@ namespace AbilityKit.Combat.Projectile
                 a.FollowOffset = new Vec3(Float(item.FollowOffsetX), Float(item.FollowOffsetY), Float(item.FollowOffsetZ));
                 a.FollowActorId = item.FollowActorId;
                 a.GroupId = item.GroupId;
+                a.BoundarySweep = item.BoundarySweep;
+                a.SweepReady = item.SweepReady;
+                a.PreviousCenter = new Vec3(Float(item.PreviousCenterX), Float(item.PreviousCenterY), Float(item.PreviousCenterZ));
+                if (item.Samples != null)
+                    foreach (var sample in item.Samples)
+                        a.PreviousPositions[sample.ColliderId] = new Vec3(Float(sample.X), Float(sample.Y), Float(sample.Z));
                 var prev = a.GetPrevList();
                 if (item.Overlaps != null) foreach (var id in item.Overlaps) if (id > 0) prev.Add(new ColliderId(id));
                 prev.Sort(CompareCollider);
@@ -121,6 +132,8 @@ namespace AbilityKit.Combat.Projectile
 
         public AreaId Spawn(in AreaSpawnParams p, int frame, List<AreaSpawnEvent> spawnEvents)
         {
+            if (p.BoundarySweep && (p.ShapeKind != OverlapShapeKind.Rectangle || !(_collision is IColliderBoundsSource)))
+                throw new InvalidOperationException("Boundary sweep requires a Rectangle and authoritative collider bounds.");
             var groupId = p.ClaimTargetsWithinGroup ? GetOrCreateGroup(p.RootContextId, p.GroupKey) : 0;
             var a = Pool.Get();
             a.Id = new AreaId(_nextId++);
@@ -128,9 +141,10 @@ namespace AbilityKit.Combat.Projectile
             a.Center = p.Center;
             a.Radius = p.InitialRadius > 0f ? Math.Min(p.InitialRadius, p.Radius) : p.Radius;
             a.MaxRadius = p.Radius;
-            a.ShapeKind = p.ShapeKind == OverlapShapeKind.Sector || p.ShapeKind == OverlapShapeKind.Rectangle
+            a.ShapeKind = p.ShapeKind == OverlapShapeKind.Sector || p.ShapeKind == OverlapShapeKind.Rectangle || p.ShapeKind == OverlapShapeKind.Ring
                 ? p.ShapeKind
                 : OverlapShapeKind.Circle;
+            a.InnerRadius = Math.Min(p.InnerRadius, a.Radius);
             a.Forward = p.Forward.SqrMagnitude > 0.000001f ? p.Forward.Normalized : Vec3.Forward;
             a.HalfAngleDeg = p.HalfAngleDeg;
             a.Width = p.Width;
@@ -147,6 +161,7 @@ namespace AbilityKit.Combat.Projectile
             a.FollowOwner = p.FollowOwner;
             a.FollowActorId = p.FollowActorId > 0 ? p.FollowActorId : p.OwnerId;
             a.GroupId = groupId;
+            a.BoundarySweep = p.BoundarySweep;
             if (a.FollowOwner && _trackingTargetProvider != null && _trackingTargetProvider.TryGetTrackingTargetPosition(a.FollowActorId, out var ownerPosition))
                 a.FollowOffset = p.Center - ownerPosition;
             else
@@ -261,6 +276,15 @@ namespace AbilityKit.Combat.Projectile
         {
             if (_active.Count == 0) return;
 
+            _bounds.Clear();
+            for (var k = 0; k < _active.Count; k++)
+            {
+                if (!_active[k].BoundarySweep) continue;
+                ((IColliderBoundsSource)_collision).CopyColliderBounds(_bounds);
+                _bounds.Sort((a, b) => a.Collider.Value.CompareTo(b.Collider.Value));
+                break;
+            }
+
             for (int i = 0; i < _active.Count; i++)
             {
                 var a = _active[i];
@@ -297,6 +321,8 @@ namespace AbilityKit.Combat.Projectile
                 if (!a.IsArmed)
                 {
                     a.GetPrevList().Clear();
+                    a.SweepReady = false;
+                    a.PreviousPositions.Clear();
                     if (a.RadiusGrowthPerFrame > 0f)
                         a.Radius = Math.Min(a.Radius + a.RadiusGrowthPerFrame, a.MaxRadius);
                     a.LifetimeFramesLeft--;
@@ -329,7 +355,8 @@ namespace AbilityKit.Combat.Projectile
                         a.HalfAngleDeg,
                         a.Width,
                         a.Length,
-                        a.AnchorAtOrigin);
+                        a.AnchorAtOrigin,
+                        a.InnerRadius);
                     count = shapeWorld.OverlapShape(in shape, in filter, curr);
                 }
                 else
@@ -388,6 +415,9 @@ namespace AbilityKit.Combat.Projectile
                     ci++;
                 }
 
+                if (a.BoundarySweep)
+                    CollectSweptCrossings(a, frame, curr, prevList, enterEvents);
+
                 // 按间隔发送 Stay 事件。
                 if (a.StayIntervalFrames > 0 && frame >= a.NextStayFrame)
                 {
@@ -406,6 +436,70 @@ namespace AbilityKit.Combat.Projectile
                     a.Radius = Math.Min(a.Radius + a.RadiusGrowthPerFrame, a.MaxRadius);
                 a.LifetimeFramesLeft--;
             }
+        }
+
+        private void CollectSweptCrossings(Area area, int frame, List<ColliderId> current,
+            List<ColliderId> previous, List<AreaEnterEvent> events)
+        {
+            var filter = new LayerFilter(area.LayerMask);
+            var right = Vec3.Cross(Vec3.Up, area.Forward).Normalized;
+            foreach (var sample in _bounds)
+            {
+                if (!filter.IsLayerIncluded(sample.LayerId)) continue;
+                if (!area.EnterConsumed && area.SweepReady &&
+                    previous.BinarySearch(sample.Collider, ColliderComparer) < 0 &&
+                    current.BinarySearch(sample.Collider, ColliderComparer) < 0 &&
+                    area.PreviousPositions.TryGetValue(sample.Collider.Value, out var oldPosition))
+                {
+                    var start = oldPosition - area.PreviousCenter;
+                    var end = sample.Center - area.Center;
+                    var x0 = Vec3.Dot(start, right);
+                    var x1 = Vec3.Dot(end, right);
+                    // Cross the entire thickness in the normal direction, rather than
+                    // report a tangent pass along an end cap as inward/outward.
+                    var halfWidth = area.Width * 0.5f + sample.Radius;
+                    if ((x0 < -halfWidth && x1 > halfWidth || x0 > halfWidth && x1 < -halfWidth) &&
+                        SegmentIntersectsRectangle(x0, Vec3.Dot(start, area.Forward),
+                            x1, Vec3.Dot(end, area.Forward), halfWidth,
+                            area.Length * 0.5f + sample.Radius, area.AnchorAtOrigin ? area.Length * 0.5f : 0f))
+                        events?.Add(new AreaEnterEvent(area.Id, area.OwnerId, sample.Collider, frame, x1 > x0 ? 1 : -1));
+                }
+            }
+            area.PreviousPositions.Clear();
+            foreach (var sample in _bounds)
+                if (filter.IsLayerIncluded(sample.LayerId)) area.PreviousPositions[sample.Collider.Value] = sample.Center;
+            area.PreviousCenter = area.Center;
+            area.SweepReady = true;
+        }
+
+        private static bool SegmentIntersectsRectangle(float x0, float z0, float x1, float z1,
+            float halfWidth, float halfLength, float lengthOffset)
+        {
+            var t0 = 0f;
+            var t1 = 1f;
+            return ClipSlab(x0, x1 - x0, -halfWidth, halfWidth, ref t0, ref t1) &&
+                   ClipSlab(z0, z1 - z0, lengthOffset - halfLength, lengthOffset + halfLength, ref t0, ref t1);
+        }
+
+        private static bool ClipSlab(float start, float delta, float min, float max, ref float t0, ref float t1)
+        {
+            if (Math.Abs(delta) <= 0.000001f) return start >= min && start <= max;
+            var a = (min - start) / delta;
+            var b = (max - start) / delta;
+            if (a > b) { var tmp = a; a = b; b = tmp; }
+            t0 = Math.Max(t0, a);
+            t1 = Math.Min(t1, b);
+            return t0 <= t1;
+        }
+
+        private static AreaSweepSample[] ExportSamples(Area area)
+        {
+            var samples = new AreaSweepSample[area.PreviousPositions.Count];
+            var i = 0;
+            foreach (var sample in area.PreviousPositions)
+                samples[i++] = new AreaSweepSample(sample.Key, Bits(sample.Value.X), Bits(sample.Value.Y), Bits(sample.Value.Z));
+            Array.Sort(samples, (a, b) => a.ColliderId.CompareTo(b.ColliderId));
+            return samples;
         }
 
         private void RemoveAtSwapBack(int index)
@@ -443,6 +537,7 @@ namespace AbilityKit.Combat.Projectile
             public int OwnerId;
             public Vec3 Center;
             public float Radius;
+            public float InnerRadius;
             public float MaxRadius;
             public float RadiusGrowthPerFrame;
             public OverlapShapeKind ShapeKind;
@@ -464,6 +559,10 @@ namespace AbilityKit.Combat.Projectile
             public Vec3 FollowOffset;
             public int FollowActorId;
             public int GroupId;
+            public bool BoundarySweep;
+            public bool SweepReady;
+            public Vec3 PreviousCenter;
+            public readonly Dictionary<int, Vec3> PreviousPositions = new Dictionary<int, Vec3>();
 
             private readonly List<ColliderId> _hitsA = new List<ColliderId>(8);
             private readonly List<ColliderId> _hitsB = new List<ColliderId>(8);
@@ -490,6 +589,7 @@ namespace AbilityKit.Combat.Projectile
                 OwnerId = 0;
                 Center = Vec3.Zero;
                 Radius = 0f;
+                InnerRadius = 0f;
                 MaxRadius = 0f;
                 RadiusGrowthPerFrame = 0f;
                 ShapeKind = OverlapShapeKind.Circle;
@@ -510,6 +610,10 @@ namespace AbilityKit.Combat.Projectile
                 FollowOffset = Vec3.Zero;
                 FollowActorId = 0;
                 GroupId = 0;
+                BoundarySweep = false;
+                SweepReady = false;
+                PreviousCenter = Vec3.Zero;
+                PreviousPositions.Clear();
                 _hitsA.Clear();
                 _hitsB.Clear();
                 _aIsPrev = true;
@@ -553,15 +657,35 @@ namespace AbilityKit.Combat.Projectile
         [MemoryPackOrder(28)] public readonly int[] Overlaps;
         [MemoryPackOrder(29)] public readonly int FollowActorId;
         [MemoryPackOrder(30)] public readonly int GroupId;
+        [MemoryPackOrder(31)] public readonly int InnerRadius;
+        [MemoryPackOrder(32)] public readonly bool BoundarySweep;
+        [MemoryPackOrder(33)] public readonly bool SweepReady;
+        [MemoryPackOrder(34)] public readonly int PreviousCenterX;
+        [MemoryPackOrder(35)] public readonly int PreviousCenterY;
+        [MemoryPackOrder(36)] public readonly int PreviousCenterZ;
+        [MemoryPackOrder(37)] public readonly AreaSweepSample[] Samples;
         public AreaSnapshotItem(int id, int ownerId, int centerX, int centerY, int centerZ, int radius, int maxRadius, int radiusGrowth,
             int shapeKind, int forwardX, int forwardY, int forwardZ, int halfAngle, int width, int length, int anchorAtOrigin,
             int lifetimeFramesLeft, int layerMask, int stayIntervalFrames, int nextStayFrame, int armFrame, int isArmed,
-            int consumeOnFirstEnter, int enterConsumed, int followOwner, int followOffsetX, int followOffsetY, int followOffsetZ, int followActorId, int[] overlaps, int groupId = 0)
+            int consumeOnFirstEnter, int enterConsumed, int followOwner, int followOffsetX, int followOffsetY, int followOffsetZ, int followActorId, int[] overlaps, int groupId = 0, int innerRadius = 0,
+            bool boundarySweep = false, bool sweepReady = false, int previousCenterX = 0, int previousCenterY = 0, int previousCenterZ = 0, AreaSweepSample[] samples = null)
         { Id=id; OwnerId=ownerId; CenterX=centerX; CenterY=centerY; CenterZ=centerZ; Radius=radius; MaxRadius=maxRadius; RadiusGrowth=radiusGrowth;
           ShapeKind=shapeKind; ForwardX=forwardX; ForwardY=forwardY; ForwardZ=forwardZ; HalfAngle=halfAngle; Width=width; Length=length;
           AnchorAtOrigin=anchorAtOrigin; LifetimeFramesLeft=lifetimeFramesLeft; LayerMask=layerMask; StayIntervalFrames=stayIntervalFrames;
           NextStayFrame=nextStayFrame; ArmFrame=armFrame; IsArmed=isArmed; ConsumeOnFirstEnter=consumeOnFirstEnter; EnterConsumed=enterConsumed;
-          FollowOwner=followOwner; FollowOffsetX=followOffsetX; FollowOffsetY=followOffsetY; FollowOffsetZ=followOffsetZ; FollowActorId=followActorId; Overlaps=overlaps; GroupId=groupId; }
+          FollowOwner=followOwner; FollowOffsetX=followOffsetX; FollowOffsetY=followOffsetY; FollowOffsetZ=followOffsetZ; FollowActorId=followActorId; Overlaps=overlaps; GroupId=groupId; InnerRadius=innerRadius;
+          BoundarySweep=boundarySweep; SweepReady=sweepReady; PreviousCenterX=previousCenterX; PreviousCenterY=previousCenterY; PreviousCenterZ=previousCenterZ; Samples=samples; }
+    }
+
+    [MemoryPackable]
+    public readonly partial struct AreaSweepSample
+    {
+        [MemoryPackOrder(0)] public readonly int ColliderId;
+        [MemoryPackOrder(1)] public readonly int X;
+        [MemoryPackOrder(2)] public readonly int Y;
+        [MemoryPackOrder(3)] public readonly int Z;
+        public AreaSweepSample(int colliderId, int x, int y, int z)
+        { ColliderId = colliderId; X = x; Y = y; Z = z; }
     }
 
     internal sealed class AreaGroup

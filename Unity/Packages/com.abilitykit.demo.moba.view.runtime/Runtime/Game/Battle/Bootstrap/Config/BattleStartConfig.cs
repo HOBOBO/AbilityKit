@@ -18,6 +18,10 @@ namespace AbilityKit.Game.Flow
         [LabelText("Preset(妯℃澘/瀹屽叏瑕嗙洊)")]
         public BattleStartPresetSO Preset;
 
+        [Header("Lobby Selection")]
+        [LabelText("EnableSyncModeSelection(鍏ュ満鍚敤鍚屾妯″紡閫夋嫨)")]
+        public bool EnableSyncModeSelection;
+
         [LabelText("Flow Profile ID")]
         public string FlowProfileId = "moba.standard";
 

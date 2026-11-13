@@ -3,6 +3,9 @@
     "Id": 1,
     "Name": "通用-普通攻击-兼容回退",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -17,6 +20,9 @@
     "Id": 10010001,
     "Name": "廉颇-普通攻击",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -39,6 +45,9 @@
     "Id": 10010101,
     "Name": "廉颇-爆裂冲撞",
     "PipelineContinuousTagTemplateId": 10010001,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -90,6 +99,9 @@
     "Id": 10010201,
     "Name": "廉颇-熔岩重击",
     "PipelineContinuousTagTemplateId": 10010001,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -141,6 +153,9 @@
     "Id": 10010301,
     "Name": "廉颇-天崩地裂",
     "PipelineContinuousTagTemplateId": 10010001,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -257,6 +272,9 @@
     "Id": 10020001,
     "Name": "小乔-普通攻击",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -279,6 +297,9 @@
     "Id": 10020101,
     "Name": "小乔-绽放之舞",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -323,6 +344,9 @@
     "Id": 10020201,
     "Name": "小乔-甜蜜恋风",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -367,6 +391,9 @@
     "Id": 10020301,
     "Name": "小乔-星华缭乱",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -411,6 +438,9 @@
     "Id": 10030001,
     "Name": "赵云-普通攻击",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -433,6 +463,9 @@
     "Id": 10030101,
     "Name": "赵云-惊雷之龙",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -477,6 +510,9 @@
     "Id": 10030201,
     "Name": "赵云-破云之龙",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -521,6 +557,9 @@
     "Id": 10030301,
     "Name": "赵云-天翔之龙",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -565,6 +604,9 @@
     "Id": 10040011,
     "Name": "墨子-普通攻击",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -587,6 +629,9 @@
     "Id": 10040101,
     "Name": "墨子-和平漫步",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -631,6 +676,9 @@
     "Id": 10040112,
     "Name": "墨子-和平漫步-强化近战普攻",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -653,6 +701,9 @@
     "Id": 10040201,
     "Name": "墨子-机关重炮",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -697,6 +748,9 @@
     "Id": 10040301,
     "Name": "墨子-墨守成规",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -741,6 +795,9 @@
     "Id": 10050001,
     "Name": "妲己-普通攻击",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -763,6 +820,9 @@
     "Id": 10050101,
     "Name": "妲己-灵魂冲击",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -807,6 +867,9 @@
     "Id": 10050201,
     "Name": "妲己-偶像魅力",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -851,6 +914,9 @@
     "Id": 10050301,
     "Name": "妲己-女王崇拜",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -895,6 +961,9 @@
     "Id": 10060001,
     "Name": "嬴政-普通攻击",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -917,6 +986,9 @@
     "Id": 10060101,
     "Name": "嬴政-王者惩戒",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -961,6 +1033,9 @@
     "Id": 10060201,
     "Name": "嬴政-王者守御",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1005,6 +1080,9 @@
     "Id": 10060301,
     "Name": "嬴政-至尊王权",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1049,6 +1127,9 @@
     "Id": 10070001,
     "Name": "孙尚香-普通攻击",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -1071,6 +1152,9 @@
     "Id": 10070101,
     "Name": "孙尚香-翻滚突袭",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1115,6 +1199,9 @@
     "Id": 10070112,
     "Name": "孙尚香-强化普通攻击",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -1138,6 +1225,9 @@
     "Id": 10070201,
     "Name": "孙尚香-红莲爆弹",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1182,6 +1272,9 @@
     "Id": 10070301,
     "Name": "孙尚香-究极弩炮",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1226,6 +1319,9 @@
     "Id": 10080001,
     "Name": "鲁班七号-普通攻击",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -1248,6 +1344,9 @@
     "Id": 10080101,
     "Name": "鲁班七号-河豚手雷",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1292,6 +1391,9 @@
     "Id": 10080112,
     "Name": "鲁班七号-强化扫射",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
@@ -1315,6 +1417,9 @@
     "Id": 10080201,
     "Name": "鲁班七号-无敌鲨嘴炮",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1359,6 +1464,9 @@
     "Id": 10080301,
     "Name": "鲁班七号-空中支援",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1403,6 +1511,9 @@
     "Id": 10080401,
     "Name": "鲁班七号-空中支援-召唤物投弹",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1447,6 +1558,9 @@
     "Id": 30010101,
     "Name": "戏命师-曼舞手雷",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1472,8 +1586,9 @@
       },
       {
         "Type": 2,
+        "PhaseId": "skill_30010101_action",
         "Timeline": {
-          "DurationMs": 500,
+          "DurationMs": 700,
           "Events": [
             {
               "AtMs": 0,
@@ -1491,6 +1606,9 @@
     "Id": 30010201,
     "Name": "Jhin - Deadly Flourish",
     "PipelineContinuousTagTemplateId": 3015,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1516,8 +1634,9 @@
       },
       {
         "Type": 2,
+        "PhaseId": "skill_30010201_action",
         "Timeline": {
-          "DurationMs": 500,
+          "DurationMs": 3208,
           "Events": [
             {
               "AtMs": 0,
@@ -1535,6 +1654,9 @@
     "Id": 30010301,
     "Name": "Jhin - Captive Audience",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1560,8 +1682,9 @@
       },
       {
         "Type": 2,
+        "PhaseId": "skill_30010301_action",
         "Timeline": {
-          "DurationMs": 500,
+          "DurationMs": 1600,
           "Events": [
             {
               "AtMs": 0,
@@ -1579,6 +1702,9 @@
     "Id": 30010401,
     "Name": "Jhin - Curtain Call",
     "PipelineContinuousTagTemplateId": 3015,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1608,6 +1734,9 @@
     "Id": 30010501,
     "Name": "Jhin - Curtain Call Regular Shot",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1635,7 +1764,7 @@
         "Type": 2,
         "PhaseId": "skill_30010501_shot",
         "Timeline": {
-          "DurationMs": 50,
+          "DurationMs": 2000,
           "Events": [
             {
               "AtMs": 0,
@@ -1653,6 +1782,9 @@
     "Id": 30010502,
     "Name": "Jhin - Curtain Call Final Shot",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1680,7 +1812,7 @@
         "Type": 2,
         "PhaseId": "skill_30010502_shot",
         "Timeline": {
-          "DurationMs": 50,
+          "DurationMs": 2583,
           "Events": [
             {
               "AtMs": 0,
@@ -1698,6 +1830,9 @@
     "Id": 30010601,
     "Name": "Jhin - Basic Attack 1",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 18,
@@ -1711,7 +1846,7 @@
         "Type": 2,
         "PhaseId": "skill_30010601_shot",
         "Timeline": {
-          "DurationMs": 100,
+          "DurationMs": 3250,
           "Events": [
             {
               "AtMs": 0,
@@ -1729,6 +1864,9 @@
     "Id": 30010602,
     "Name": "Jhin - Basic Attack 2",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 18,
@@ -1742,7 +1880,7 @@
         "Type": 2,
         "PhaseId": "skill_30010602_shot",
         "Timeline": {
-          "DurationMs": 100,
+          "DurationMs": 3250,
           "Events": [
             {
               "AtMs": 0,
@@ -1760,6 +1898,9 @@
     "Id": 30010603,
     "Name": "Jhin - Basic Attack 3",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 18,
@@ -1773,7 +1914,7 @@
         "Type": 2,
         "PhaseId": "skill_30010603_shot",
         "Timeline": {
-          "DurationMs": 100,
+          "DurationMs": 3625,
           "Events": [
             {
               "AtMs": 0,
@@ -1791,6 +1932,9 @@
     "Id": 30010604,
     "Name": "Jhin - Basic Attack 4",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 18,
@@ -1804,7 +1948,7 @@
         "Type": 2,
         "PhaseId": "skill_30010604_shot",
         "Timeline": {
-          "DurationMs": 100,
+          "DurationMs": 3625,
           "Events": [
             {
               "AtMs": 0,
@@ -1822,16 +1966,24 @@
     "Id": 30020002,
     "Name": "Jinx - Pow-Pow Basic Attack",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
-        "Type": 4,
-        "PhaseId": "skill_30020002_commit",
-        "RulePlan": {
-          "TriggerIds": [
-            30020201
-          ],
-          "AbortOnFailure": true,
-          "FailReason": "basic_attack_launch_failed"
+        "Type": 2,
+        "PhaseId": "skill_30020002_attack",
+        "Timeline": {
+          "DurationMs": 1567,
+          "Events": [
+            {
+              "AtMs": 100,
+              "EffectId": 30020201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "basic_attack_launch"
+            }
+          ]
         }
       }
     ]
@@ -1840,16 +1992,24 @@
     "Id": 30020003,
     "Name": "Jinx - Fishbones Basic Attack",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
-        "Type": 4,
-        "PhaseId": "skill_30020003_commit",
-        "RulePlan": {
-          "TriggerIds": [
-            30020202
-          ],
-          "AbortOnFailure": true,
-          "FailReason": "basic_attack_launch_failed"
+        "Type": 2,
+        "PhaseId": "skill_30020003_attack",
+        "Timeline": {
+          "DurationMs": 1567,
+          "Events": [
+            {
+              "AtMs": 100,
+              "EffectId": 30020202,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "basic_attack_launch"
+            }
+          ]
         }
       }
     ]
@@ -1858,6 +2018,9 @@
     "Id": 30020101,
     "Name": "Jinx - Switcheroo!",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1881,6 +2044,14 @@
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "jinx_q_switch_presentation_window",
+        "Timeline": {
+          "DurationMs": 1000,
+          "Events": []
+        }
       }
     ]
   },
@@ -1888,6 +2059,9 @@
     "Id": 30020201,
     "Name": "Jinx - Zap!",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1913,8 +2087,9 @@
       },
       {
         "Type": 2,
+        "PhaseId": "skill_30020201_action",
         "Timeline": {
-          "DurationMs": 500,
+          "DurationMs": 1550,
           "Events": [
             {
               "AtMs": 0,
@@ -1932,6 +2107,9 @@
     "Id": 30020301,
     "Name": "Jinx - Flame Chompers!",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -1957,8 +2135,9 @@
       },
       {
         "Type": 2,
+        "PhaseId": "skill_30020301_action",
         "Timeline": {
-          "DurationMs": 500,
+          "DurationMs": 1367,
           "Events": [
             {
               "AtMs": 0,
@@ -1976,6 +2155,9 @@
     "Id": 30020401,
     "Name": "Jinx - Super Mega Death Rocket!",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -2001,8 +2183,9 @@
       },
       {
         "Type": 2,
+        "PhaseId": "skill_30020401_action",
         "Timeline": {
-          "DurationMs": 500,
+          "DurationMs": 1800,
           "Events": [
             {
               "AtMs": 0,
@@ -2020,12 +2203,48 @@
     "Id": 30030101,
     "Name": "Annie - Basic Attack",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "annie_basic_attack_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": false,
+          "FailReason": "skill_economy_reserve_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "annie_basic_attack_commit",
+        "CommitPoint": {
+          "CommitId": "attack",
+          "RequireEconomyReservation": false
+        }
+      },
       {
         "Type": 2,
         "PhaseId": "annie_basic_attack",
         "Timeline": {
-          "DurationMs": 250,
+          "DurationMs": 1875,
           "Events": [
             {
               "AtMs": 0,
@@ -2043,6 +2262,9 @@
     "Id": 30030201,
     "Name": "Annie - Disintegrate",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 19,
@@ -2062,6 +2284,8 @@
           "SharedCooldownMs": 0,
           "GlobalCooldownMs": 0,
           "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
           "RequireExplicitCommit": false,
           "FailReason": "skill_economy_reserve_failed"
@@ -2093,7 +2317,7 @@
         "Type": 2,
         "PhaseId": "annie_q_cast",
         "Timeline": {
-          "DurationMs": 800,
+          "DurationMs": 2208,
           "Events": [
             {
               "AtMs": 0,
@@ -2111,6 +2335,9 @@
     "Id": 30030301,
     "Name": "Annie - Incinerate",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 19,
@@ -2130,6 +2357,8 @@
           "SharedCooldownMs": 0,
           "GlobalCooldownMs": 0,
           "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
           "RequireExplicitCommit": false,
           "FailReason": "skill_economy_reserve_failed"
@@ -2161,7 +2390,7 @@
         "Type": 2,
         "PhaseId": "annie_w_cast",
         "Timeline": {
-          "DurationMs": 500,
+          "DurationMs": 3000,
           "Events": [
             {
               "AtMs": 0,
@@ -2179,6 +2408,9 @@
     "Id": 30030401,
     "Name": "Annie - Molten Shield",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 19,
@@ -2198,6 +2430,8 @@
           "SharedCooldownMs": 0,
           "GlobalCooldownMs": 0,
           "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
           "RequireExplicitCommit": false,
           "FailReason": "skill_economy_reserve_failed"
@@ -2229,7 +2463,7 @@
         "Type": 2,
         "PhaseId": "annie_e_cast",
         "Timeline": {
-          "DurationMs": 600,
+          "DurationMs": 4167,
           "Events": [
             {
               "AtMs": 0,
@@ -2247,6 +2481,9 @@
     "Id": 30030501,
     "Name": "Annie - Summon Tibbers",
     "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 4,
@@ -2274,7 +2511,7 @@
         "Type": 2,
         "PhaseId": "annie_r_cast",
         "Timeline": {
-          "DurationMs": 900,
+          "DurationMs": 1250,
           "Events": [
             {
               "AtMs": 0,
@@ -2282,6 +2519,1130 @@
               "ExecuteMode": 0,
               "AbortOnFailure": false,
               "EventTag": "annie_r_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30040101,
+    "Name": "Veigar - Basic Attack",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "veigar_basic_attack_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": false,
+          "FailReason": "skill_economy_reserve_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "veigar_basic_attack_commit",
+        "CommitPoint": {
+          "CommitId": "attack",
+          "RequireEconomyReservation": false
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "veigar_basic_attack",
+        "Timeline": {
+          "DurationMs": 2000,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30040101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "veigar_basic_attack"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30040201,
+    "Name": "Veigar - Baleful Strike",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "veigar_q_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": false,
+          "FailReason": "skill_economy_reserve_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "veigar_q_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "veigar_q_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "veigar_q_cast",
+        "Timeline": {
+          "DurationMs": 1583,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30040201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "veigar_q_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30040301,
+    "Name": "Veigar - Dark Matter",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "veigar_w_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": true,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": false,
+          "FailReason": "skill_economy_reserve_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "veigar_w_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "veigar_w_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "veigar_w_cast",
+        "Timeline": {
+          "DurationMs": 3333,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30040301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "veigar_w_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30040401,
+    "Name": "Veigar - Event Horizon",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "veigar_e_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": true,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": false,
+          "FailReason": "skill_economy_reserve_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "veigar_e_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "veigar_e_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "veigar_e_cast",
+        "Timeline": {
+          "DurationMs": 2084,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30040401,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "veigar_e_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30040501,
+    "Name": "Veigar - Primordial Burst",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 4,
+        "PhaseId": "veigar_r_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "veigar_r_commit",
+        "RulePlan": {
+          "TriggerIds": [
+            900101012
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "veigar_r_cast",
+        "Timeline": {
+          "DurationMs": 1583,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30040501,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "veigar_r_cast"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30050101,
+    "Name": "Gragas 30050101",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "gragas_30050101_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "gragas_30050101_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "gragas_30050101_commit",
+        "CommitPoint": {
+          "CommitId": "attack",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "gragas_30050101_cast",
+        "Timeline": {
+          "DurationMs": 1333,
+          "Events": [
+            {
+              "AtMs": 300,
+              "EffectId": 30050101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050101_30050101"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30050201,
+    "Name": "Gragas 30050201",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 1,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "gragas_30050201_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "gragas_30050201_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "gragas_30050201_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "gragas_30050201_cast",
+        "Timeline": {
+          "DurationMs": 1250,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30050001,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050201_30050001"
+            },
+            {
+              "AtMs": 250,
+              "EffectId": 30050201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050201_30050201"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30050301,
+    "Name": "Gragas 30050301",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "gragas_30050301_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "gragas_30050301_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "gragas_30050301_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "gragas_30050301_cast",
+        "Timeline": {
+          "DurationMs": 1167,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30050301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050301_30050301"
+            },
+            {
+              "AtMs": 1000,
+              "EffectId": 30050311,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050301_30050311"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30050401,
+    "Name": "Gragas 30050401",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "gragas_30050401_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "gragas_30050401_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "gragas_30050401_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "gragas_30050401_cast",
+        "Timeline": {
+          "DurationMs": 1333,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30050001,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050401_30050001"
+            },
+            {
+              "AtMs": 0,
+              "EffectId": 30050401,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050401_30050401"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30050501,
+    "Name": "Gragas 30050501",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "gragas_30050501_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "gragas_30050501_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "gragas_30050501_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "gragas_30050501_cast",
+        "Timeline": {
+          "DurationMs": 1333,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30050001,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050501_30050001"
+            },
+            {
+              "AtMs": 250,
+              "EffectId": 30050501,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050501_30050501"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30050601,
+    "Name": "Gragas 30050601",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 1,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "gragas_30050601_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": false,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "gragas_30050601_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "gragas_30050601_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "gragas_30050601_cast",
+        "Timeline": {
+          "DurationMs": 1250,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30050601,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050601_30050601"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30050701,
+    "Name": "Gragas 30050701",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 30050391,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "gragas_30050701_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "gragas_30050701_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "gragas_30050701_commit",
+        "CommitPoint": {
+          "CommitId": "attack",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "gragas_30050701_cast",
+        "Timeline": {
+          "DurationMs": 1667,
+          "Events": [
+            {
+              "AtMs": 300,
+              "EffectId": 30050701,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050701_30050701"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30050702,
+    "Name": "Gragas 30050702",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 30050392,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "gragas_30050702_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "gragas_30050702_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "gragas_30050702_commit",
+        "CommitPoint": {
+          "CommitId": "attack",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "gragas_30050702_cast",
+        "Timeline": {
+          "DurationMs": 1667,
+          "Events": [
+            {
+              "AtMs": 300,
+              "EffectId": 30050702,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050702_30050702"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30050703,
+    "Name": "Gragas 30050703",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 30050393,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "gragas_30050703_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "gragas_30050703_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "gragas_30050703_commit",
+        "CommitPoint": {
+          "CommitId": "attack",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "gragas_30050703_cast",
+        "Timeline": {
+          "DurationMs": 1667,
+          "Events": [
+            {
+              "AtMs": 300,
+              "EffectId": 30050703,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050703_30050703"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30050704,
+    "Name": "Gragas 30050704",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 30050394,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "gragas_30050704_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "gragas_30050704_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "gragas_30050704_commit",
+        "CommitPoint": {
+          "CommitId": "attack",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "gragas_30050704_cast",
+        "Timeline": {
+          "DurationMs": 1667,
+          "Events": [
+            {
+              "AtMs": 300,
+              "EffectId": 30050704,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050704_30050704"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30050705,
+    "Name": "Gragas 30050705",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "RequiredBuffQualificationId": 30050395,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "gragas_30050705_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "gragas_30050705_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "gragas_30050705_commit",
+        "CommitPoint": {
+          "CommitId": "attack",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "gragas_30050705_cast",
+        "Timeline": {
+          "DurationMs": 1667,
+          "Events": [
+            {
+              "AtMs": 300,
+              "EffectId": 30050705,
+              "ExecuteMode": 0,
+              "AbortOnFailure": false,
+              "EventTag": "gragas_30050705_30050705"
             }
           ]
         }

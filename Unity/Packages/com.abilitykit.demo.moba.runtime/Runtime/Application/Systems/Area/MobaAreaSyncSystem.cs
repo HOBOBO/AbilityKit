@@ -126,7 +126,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 // removes the Area, later Enter events already drained this frame fail here.
                 var consumed = _projectiles.TryAcceptAreaEnter(evt.Area, hitActorId);
                 if (!consumed) continue;
-                PublishAreaEvent("area.enter", evt.Area.Value, info.TemplateId, MobaExecutionKind.AreaEnter, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
+                PublishAreaEvent(evt.CrossingDirection == 0 ? "area.enter" : "area.cross", evt.Area.Value, info.TemplateId, MobaExecutionKind.AreaEnter, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
 
             _exits.Clear();
@@ -226,6 +226,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 Center = center,
                 Radius = radius,
                 Collider = collider,
+                CrossingDirection = raw is AreaEnterEvent enter ? enter.CrossingDirection : 0,
                 CollisionLayerMask = collisionLayerMask,
                 MaxTargets = maxTargets,
                 SourceContextId = sourceContextId,

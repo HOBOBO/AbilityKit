@@ -51,8 +51,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         /// <summary>是否可穿墙：true 时行进忽略墙体，但终点落障碍物内会沿方向投影到边界。</summary>
         public readonly bool PassThroughWalls;
+        public readonly int CollisionSelection;
+        public readonly bool StopOnCollision;
 
-        public DashArgs(float speed, float durationMs, int directionMode = 0, int priority = 10, bool applyToCaster = true, int hitTriggerPlanId = 0, int motionGroupId = 0, bool moveToAimPosition = false, MobaMotionContinuousSettings continuous = default, bool passThroughWalls = false)
+        public DashArgs(float speed, float durationMs, int directionMode = 0, int priority = 10, bool applyToCaster = true, int hitTriggerPlanId = 0, int motionGroupId = 0, bool moveToAimPosition = false, MobaMotionContinuousSettings continuous = default, bool passThroughWalls = false, int collisionSelection = 0, bool stopOnCollision = false)
         {
             Speed = speed;
             DurationMs = durationMs;
@@ -64,6 +66,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             MotionGroupId = motionGroupId;
             Continuous = continuous;
             PassThroughWalls = passThroughWalls;
+            if (collisionSelection < 0 || collisionSelection > 1) throw new System.ArgumentOutOfRangeException(nameof(collisionSelection));
+            CollisionSelection = collisionSelection;
+            StopOnCollision = stopOnCollision;
         }
 
         public static DashArgs Default => new DashArgs(0f, 0f, 0, 10, true, 0, 0, false, MobaMotionContinuousSettings.Empty, false);

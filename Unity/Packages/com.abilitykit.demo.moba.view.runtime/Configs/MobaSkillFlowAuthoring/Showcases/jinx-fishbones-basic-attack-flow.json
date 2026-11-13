@@ -5,12 +5,19 @@
     "PipelineContinuousTagTemplateId": 0,
     "Phases": [
       {
-        "Type": 4,
-        "PhaseId": "skill_30020003_commit",
-        "RulePlan": {
-          "TriggerIds": [30020202],
-          "AbortOnFailure": true,
-          "FailReason": "basic_attack_launch_failed"
+        "Type": 2,
+        "PhaseId": "skill_30020003_attack",
+        "Timeline": {
+          "DurationMs": 1567,
+          "Events": [
+            {
+              "AtMs": 100,
+              "EffectId": 30020202,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "basic_attack_launch"
+            }
+          ]
         }
       }
     ]

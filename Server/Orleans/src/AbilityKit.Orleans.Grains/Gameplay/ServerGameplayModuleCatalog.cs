@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Host.WorldBlueprints;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
 using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
@@ -415,17 +416,49 @@ public sealed class ServerGameplayModuleCatalog
 
     // 模板 id 直接取自 MOBA 的 room descriptor，避免"默认模板"在两处各写一份字面量。
     private static readonly ServerSyncCapabilityDeclaration MobaSyncDeclaration =
-        ServerSyncCapabilityDeclaration.FromTemplates(
-            ServerGameplayDescriptors.Moba.DefaultSyncTemplateId,
-            new ServerSyncTemplateDeclaration(
-                ServerGameplayDescriptors.Moba.DefaultSyncTemplateId,
-                ServerBattleSyncMode.FrameSync,
-                ServerBattleRuntimeMode.BattleWorldWithFrameSync,
-                1,
-                30,
-                NetworkSyncProfiles.Lockstep,
-                0,
-                1));
+        ServerSyncCapabilityDeclaration.FromResolver(
+            ServerBattleSyncProfile.FromTemplates(
+                new ServerBattleSyncTemplate(
+                    ServerGameplayDescriptors.MobaFrameSyncTemplate,
+                    ServerBattleSyncMode.FrameSync,
+                    ServerBattleRuntimeMode.BattleWorldWithFrameSync,
+                    1,
+                    30),
+                new ServerBattleSyncTemplate(
+                    ServerGameplayDescriptors.MobaStateSyncTemplate,
+                    ServerBattleSyncMode.StateSync,
+                    ServerBattleRuntimeMode.BattleWorld,
+                    1,
+                    30)),
+            (_, templateId) =>
+            {
+                if (string.Equals(templateId, ServerGameplayDescriptors.MobaStateSyncTemplate, StringComparison.OrdinalIgnoreCase))
+                {
+                    return new ServerSyncCapabilityDefinition(
+                        "Moba.AuthoritativeRemoteInterpolation",
+                        CreateMobaStateSyncProfile(),
+                        0,
+                        1);
+                }
+
+                return new ServerSyncCapabilityDefinition(
+                    nameof(NetworkSyncModel.Lockstep),
+                    NetworkSyncProfiles.Lockstep,
+                    0,
+                    1);
+            });
+
+    private static NetworkSyncProfile CreateMobaStateSyncProfile() => new(
+        NetworkSyncModel.AuthoritativeInterpolation,
+        ClientPlaybackPolicy.AuthoritativeInterpolation,
+        InputPolicy.ImmediateSubmit,
+        SnapshotPolicy.FullSnapshot | SnapshotPolicy.DeltaSnapshot |
+        SnapshotPolicy.FixedRateStateStream | SnapshotPolicy.EventStream,
+        InterestPolicy.AllEntities,
+        RecoveryPolicy.RequestFullSnapshot,
+        ServerValidationPolicy.AuthoritativeOnly | ServerValidationPolicy.InputValidation,
+        ReliableEventPolicy.OrderedDelivery | ReliableEventPolicy.AutomaticAcknowledgement |
+        ReliableEventPolicy.PersistentCheckpoint | ReliableEventPolicy.AuthoritativeBaselineRecovery);
 
     public static ServerGameplayModuleCatalog Default { get; } = new(new[]
     {

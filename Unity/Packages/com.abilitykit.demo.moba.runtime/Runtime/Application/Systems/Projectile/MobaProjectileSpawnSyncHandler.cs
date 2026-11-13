@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             {
                 var evt = spawns[i];
                 BindProjectileSource(evt);
+                RetainProjectileSource(evt);
                 EnsureProjectileActor(evt);
                 IncrementLauncherActiveBullets(evt.LauncherActorId);
                 _sys.ProjectileSnapshots?.RecordSpawn(evt);
@@ -97,6 +98,19 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 
             var projectileSource = launcherSource.WithLaunchContext(projectileContextId);
             links.BindSource(evt.Projectile, in projectileSource);
+        }
+
+        private void RetainProjectileSource(in ProjectileSpawnEvent evt)
+        {
+            var links = _sys.Links;
+            if (links == null || !links.TryGetSource(evt.Projectile, out var source) ||
+                !source.SkillRuntimeHandle.IsValid || links.TryGetRetain(evt.Projectile, out _)) return;
+            var casts = _sys.SkillRuntimes;
+            var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Projectile,
+                evt.Projectile.Value, source.SourceContextId, evt.TemplateId);
+            if (casts == null || !casts.RetainChild(source.SkillRuntimeHandle, in child, out var retain))
+                throw new InvalidOperationException("Scheduled projectile could not retain its original Cast.");
+            links.BindRetain(evt.Projectile, in retain);
         }
 
         private void EnsureProjectileActor(in ProjectileSpawnEvent evt)

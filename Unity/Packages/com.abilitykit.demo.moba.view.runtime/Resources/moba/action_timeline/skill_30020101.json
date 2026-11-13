@@ -1,0 +1,10 @@
+{
+  "groups": [],
+  "exportMobaRuntime": true,
+  "length": 1.0,
+  "viewTimeMin": 0,
+  "viewTimeMax": 1.0,
+  "rangeMin": 0,
+  "rangeMax": 1.0,
+  "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
+}

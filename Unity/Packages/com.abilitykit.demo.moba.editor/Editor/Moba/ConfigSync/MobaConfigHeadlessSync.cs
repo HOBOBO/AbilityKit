@@ -396,7 +396,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     var defs = new List<SkillFlowDef>(dtos.Length);
                     foreach (var dto in dtos)
                     {
-                        var def = SkillFlowDef.FromDto(dto);
+                        var previous = Array.Find(flowSo.dataList ?? Array.Empty<SkillFlowDef>(), flow => flow != null && flow.Id == dto.Id);
+                        var def = SkillFlowDef.FromDto(dto, previous);
                         if (def != null) defs.Add(def);
                     }
 

@@ -61,14 +61,18 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
 
                 var result = m.Pipeline.Tick(e.actorId.Value, ref state, dt, ref output);
 
-                var hitTriggerRuntime = m.HitTriggerRuntime;
-                if (_hitTriggers != null && hitTriggerRuntime.IsValid && result.Hit.Hit)
+                // A piercing source still sweeps units on its last step, then applies its existing wall endpoint policy.
+                if (output.CollisionSource is MobaCollisionDashMotionSource endpointDash && endpointDash.HasEndpointPolicy &&
+                    (result.Hit.Hit || !endpointDash.IsActive) && m.Solver is AbilityKit.Combat.MotionSystem.Collision.ConfigurableMotionSolver endpointSolver)
                 {
-                    if (_hitTriggers.TryExecute(e.actorId.Value, in result.Hit, in state.Position, in hitTriggerRuntime))
-                    {
-                        hitTriggerRuntime = default;
-                    }
+                    var endpointPolicy = endpointDash.EndpointPolicy;
+                    var endpoint = state.Position;
+                    var zero = Vec3.Zero;
+                    var correction = endpointSolver.Resolve(e.actorId.Value, in endpoint, in zero, in endpointPolicy);
+                    state.Position += correction.AppliedDelta;
                 }
+
+                var hitTriggerRuntime = m.HitTriggerRuntime;
 
                 var desiredForward = output.NewForward.SqrMagnitude > 0f ? output.NewForward : state.Forward;
                 var newRot = desiredForward.SqrMagnitude > 0f ? Quat.LookRotation(desiredForward, Vec3.Up) : t.Rotation;
@@ -85,6 +89,24 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                     newEvents: m.Events,
                     newInitialized: true,
                     newHitTriggerRuntime: hitTriggerRuntime);
+
+                // Write the collision position first. A callback may create new motion; never overwrite it afterwards.
+                if (result.Hit.Hit && output.CollisionSource is MobaCollisionDashMotionSource collisionDash)
+                {
+                    if (collisionDash.TryClaimCollision() && _hitTriggers != null)
+                    {
+                        var callback = collisionDash.Callback;
+                        _hitTriggers.TryExecute(e.actorId.Value, in result.Hit, in state.Position, in callback, collisionDash.SourceContextId);
+                    }
+                }
+                else if (_hitTriggers != null && hitTriggerRuntime.IsValid && result.Hit.Hit &&
+                    _hitTriggers.TryExecute(e.actorId.Value, in result.Hit, in state.Position, in hitTriggerRuntime))
+                {
+                    var current = e.motion;
+                    if (current.HitTriggerRuntime.Equals(hitTriggerRuntime))
+                        e.ReplaceMotion(current.Pipeline, current.State, current.Output, current.Solver,
+                            current.Policy, current.Events, current.Initialized, default);
+                }
             }
         }
     }

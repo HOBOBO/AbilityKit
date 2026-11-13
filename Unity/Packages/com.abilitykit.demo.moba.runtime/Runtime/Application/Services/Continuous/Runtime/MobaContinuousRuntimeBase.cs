@@ -172,6 +172,16 @@ namespace AbilityKit.Demo.Moba.Services
 
         public event Action<IContinuous, ContinuousEndReason> OnEnded;
 
+        internal void RestoreLocalLifecycle(ContinuousState state, long elapsedRaw, long intervalRaw)
+        {
+            if (state != ContinuousState.Active && state != ContinuousState.Paused && state != ContinuousState.Inactive ||
+                elapsedRaw < 0 || intervalRaw < 0)
+                throw new InvalidOperationException("Invalid local continuous lifecycle state.");
+            State = state;
+            _elapsedRaw = elapsedRaw;
+            _intervalRemainingRaw = intervalRaw;
+        }
+
         public void Activate()
         {
             if (State == ContinuousState.Active) return;

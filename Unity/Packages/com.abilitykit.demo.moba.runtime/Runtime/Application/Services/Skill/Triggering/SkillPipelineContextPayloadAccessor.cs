@@ -257,11 +257,27 @@ namespace AbilityKit.Demo.Moba.Services
 
             current = MobaResourceFixedConvert.ToSingle(state.Current);
             max = ResolveResourceMax(actor, state, resourceType);
+            // ReserveCast debits the live resource before the shared release
+            // trigger runs. Project the cast-owned reservation back into the
+            // release predicate so the same cost is not checked twice.
+            if (context.TryGetSkillRuntimeHandle(out var handle) &&
+                context.WorldServices != null &&
+                context.WorldServices.TryResolve<MobaSkillEconomyService>(out var economy) && economy != null &&
+                economy.TryGetReleaseResourceAdjustment(in handle, resourceType, out var adjustment, out _))
+            {
+                current += MobaResourceFixedConvert.ToSingle(adjustment);
+            }
             return true;
         }
 
         private double GetCooldownRemainingMs(SkillPipelineContext context)
         {
+            // Independent child recasts reserve their own zero-cooldown input;
+            // the original slot cooldown continues running on the loadout.
+            if (context != null && context.TryGetSkillRuntimeHandle(out var handle) &&
+                context.WorldServices != null &&
+                context.WorldServices.TryResolve<MobaSkillCastRuntimeService>(out var casts) && casts != null &&
+                casts.TryGetRecastArea(in handle, out _)) return 0d;
             var actors = ResolveActors(context);
             if (context == null || actors == null) return 0d;
             if (!MobaSkillRuntimeAccess.TryGetActiveSkill(actors, context.CasterActorId, context.SkillSlot, context.SkillId, out var runtime) || runtime == null) return 0d;
@@ -434,6 +450,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryGet(in object args, int fieldId, out int value)
         {
+            if (args is EffectContextWrapper wrapper)
+            {
+                object inner = wrapper.Inner;
+                return TryGet(in inner, fieldId, out value);
+            }
             if (_inner != null && args is SkillPipelineContext context)
             {
                 return _inner.TryGet(in context, fieldId, out value);
@@ -450,6 +471,10 @@ namespace AbilityKit.Demo.Moba.Services
                 return _battle.TryGet(in calc, NormalizeBattleFieldId(fieldId), out value);
             if (args is AbilityKit.Demo.Moba.DamageResult damage)
                 return _battle.TryGet(in damage, NormalizeBattleFieldId(fieldId), out value);
+            if (args is AbilityKit.Demo.Moba.Services.Projectile.AreaEventArgs area)
+                return _battle.TryGet(in area, NormalizeBattleFieldId(fieldId), out value);
+            if (args is AbilityKit.Demo.Moba.Services.Projectile.ProjectileEventArgs projectile)
+                return _battle.TryGet(in projectile, NormalizeBattleFieldId(fieldId), out value);
 
             if (TryGetBattleReflection(args, fieldId, out value)) return true;
 
@@ -459,6 +484,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryGet(in object args, int fieldId, out double value)
         {
+            if (args is EffectContextWrapper wrapper)
+            {
+                object inner = wrapper.Inner;
+                return TryGet(in inner, fieldId, out value);
+            }
             if (_inner != null && args is SkillPipelineContext context)
             {
                 return _inner.TryGet(in context, fieldId, out value);
@@ -472,6 +502,10 @@ namespace AbilityKit.Demo.Moba.Services
                 return _battle.TryGet(in calc, NormalizeBattleFieldId(fieldId), out value);
             if (args is AbilityKit.Demo.Moba.DamageResult damage)
                 return _battle.TryGet(in damage, NormalizeBattleFieldId(fieldId), out value);
+            if (args is AbilityKit.Demo.Moba.Services.Projectile.AreaEventArgs area)
+                return _battle.TryGet(in area, NormalizeBattleFieldId(fieldId), out value);
+            if (args is AbilityKit.Demo.Moba.Services.Projectile.ProjectileEventArgs projectile)
+                return _battle.TryGet(in projectile, NormalizeBattleFieldId(fieldId), out value);
 
             if (TryGetBattleReflection(args, fieldId, out value)) return true;
 

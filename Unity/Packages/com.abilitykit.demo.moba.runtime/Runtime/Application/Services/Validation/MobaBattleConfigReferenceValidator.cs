@@ -360,6 +360,13 @@ namespace AbilityKit.Demo.Moba.Services
 
             var hasRelease = ContainsSkillRulePlanTrigger(flow.Phases, DefaultSkillReleaseTriggerId);
             var hasCommit = ContainsSkillRulePlanTrigger(flow.Phases, DefaultSkillCommitTriggerId);
+            // Explicit reservations use the required CommitPoint contract instead
+            // of the legacy default commit RulePlan. Require the same validated
+            // sequential pairing used by ValidateExplicitCommitFlow.
+            var reservationCount = 0;
+            var requiredCommitCount = 0;
+            var explicitSequenceValid = CheckExplicitCommitSequence(flow.Phases, ref reservationCount, ref requiredCommitCount);
+            hasCommit |= explicitSequenceValid && reservationCount == 1 && requiredCommitCount == 1;
             if (hasRelease && hasCommit) return;
 
             report.Error(
@@ -669,6 +676,7 @@ namespace AbilityKit.Demo.Moba.Services
                 ValidateTriggerRefs(triggers, projectile.OnSpawnTriggerIds, report, path + ".onSpawnTriggerIds", projectile.Id, TriggerPlanScope.Global);
                 ValidateTriggerRefs(triggers, projectile.OnHitTriggerIds, report, path + ".onHitTriggerIds", projectile.Id, TriggerPlanScope.Global);
                 ValidateTriggerRefs(triggers, projectile.OnTickTriggerIds, report, path + ".onTickTriggerIds", projectile.Id, TriggerPlanScope.Global);
+                ValidateTriggerRefs(triggers, projectile.OnArrivalTriggerIds, report, path + ".onArrivalTriggerIds", projectile.Id, TriggerPlanScope.Global);
                 ValidateTriggerRefs(triggers, projectile.OnExitTriggerIds, report, path + ".onExitTriggerIds", projectile.Id, TriggerPlanScope.Global);
 
                 if (projectile.Speed < 0f)
@@ -788,6 +796,7 @@ namespace AbilityKit.Demo.Moba.Services
                 ValidateTriggerRefs(triggers, area.OnDelayTriggerIds, report, path + ".onDelayTriggerIds", area.Id, TriggerPlanScope.Global);
                 ValidateTriggerRefs(triggers, area.OnEnterTriggerIds, report, path + ".onEnterTriggerIds", area.Id, TriggerPlanScope.Global);
                 ValidateTriggerRefs(triggers, area.OnExitTriggerIds, report, path + ".onExitTriggerIds", area.Id, TriggerPlanScope.Global);
+                ValidateTriggerRefs(triggers, area.OnCrossTriggerIds, report, path + ".onCrossTriggerIds", area.Id, TriggerPlanScope.Global);
                 ValidateTriggerRefs(triggers, area.OnIntervalTriggerIds, report, path + ".onIntervalTriggerIds", area.Id, TriggerPlanScope.Global);
 
                 if (area.Radius < 0f)

@@ -1,0 +1,33 @@
+{
+  "groups": [
+    {
+      "name": "Gragas_30050703_Logic",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "CommitEffects",
+          "active": true,
+          "actionClips": [
+            {
+              "effectId": 30050703,
+              "eventTag": "gragas_30050703_30050703",
+              "abortOnFailure": false,
+              "startTime": 0.3,
+              "name": "ExecuteEffect",
+              "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        }
+      ]
+    }
+  ],
+  "exportMobaRuntime": true,
+  "length": 1.666667,
+  "viewTimeMin": 0.0,
+  "viewTimeMax": 1.666667,
+  "rangeMin": 0.0,
+  "rangeMax": 1.666667,
+  "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
+}

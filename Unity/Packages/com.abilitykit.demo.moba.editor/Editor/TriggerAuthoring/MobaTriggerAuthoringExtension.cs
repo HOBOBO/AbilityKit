@@ -101,6 +101,10 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
         {
             RegisterSkillRuntimeValue(context, "effect", "target_collection", TriggerValueType.Integer, "技能运行时/Effect/目标集合");
             RegisterSkillRuntimeValue(context, "effect", "current_target", TriggerValueType.Integer, "技能运行时/Effect/当前遍历目标");
+            RegisterSkillRuntimeValue(context, "cast", "residence_ratio", TriggerValueType.Number, "技能运行时/Cast/驻留比例采样");
+            RegisterSkillRuntimeValue(context, "cast", "base_magnitude", TriggerValueType.Number, "技能运行时/Cast/基础数值采样");
+            RegisterSkillRuntimeValue(context, "cast", "sampled_magnitude", TriggerValueType.Number, "技能运行时/Cast/最终数值采样");
+            RegisterSkillRuntimeValue(context, "cast", "phase_complete", TriggerValueType.Number, "技能运行时/Cast/阶段完成标志");
             RegisterSkillRuntimeValue(context, "cast", "showcase_combo", TriggerValueType.Number, "技能运行时/Cast/连击计数");
             RegisterSkillRuntimeValue(context, "effect", "showcase_snapshot_damage", TriggerValueType.Number, "技能运行时/Effect/伤害快照");
             RegisterSkillRuntimeValue(context, "target", "showcase_snapshot_damage", TriggerValueType.Number, "技能运行时/Target/逐目标伤害快照");
@@ -318,6 +322,8 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("damage_value_ref", TriggerValueType.Number),
                 Optional("damage_value_ref_skill_level_parameter", TriggerValueType.String),
                 Optional("target_missing_hp_ratio_coefficient", TriggerValueType.Number),
+                Optional("target_max_hp_ratio_coefficient", TriggerValueType.Number),
+                Optional("target_max_hp_ratio_skill_level_parameter", TriggerValueType.String),
                 Optional("target_missing_hp_ratio_skill_level_parameter", TriggerValueType.String),
                 Optional("target_missing_hp_bonus_min", TriggerValueType.Number),
                 Optional("target_missing_hp_bonus_max", TriggerValueType.Number),
@@ -329,7 +335,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 DamageReason("reason_kind"),
                 Optional("reason_param", TriggerValueType.Integer),
                 Choice("attribute_source", false, Option(0, "归属实体"), Option(1, "触发器所有者"))))));
-            context.RegisterAction(Action("adjust_damage_number", "调整伤害数值", "Action/Combat",
+            context.RegisterAction(Action("adjust_damage_number", "调整伤害数值", "Action/Combat", WithMagnitude("damage_modifier",
                 OneOf("damage_modifier", "value", TriggerValueType.Number),
                 OneOf("damage_modifier", "repeat_target_decay_factor", TriggerValueType.Number),
                 OneOf("damage_modifier", "target_missing_hp_ratio_coefficient", TriggerValueType.Number),
@@ -340,7 +346,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("reason_param", TriggerValueType.Integer),
                 Optional("require_skill_runtime", TriggerValueType.Boolean),
                 Optional("skip_first_hit", TriggerValueType.Boolean),
-                Optional("target_hit_count_key_base", TriggerValueType.Integer)));
+                Optional("target_hit_count_key_base", TriggerValueType.Integer))));
             context.RegisterAction(Action("set_attack_critical", "Set attack critical", "Action/Combat", Optional("reason_kind", TriggerValueType.Integer), Optional("reason_param", TriggerValueType.Integer)));
             context.RegisterAction(Action("take_damage", "承受伤害", "Action/Combat",
                 Optional("rate", TriggerValueType.Number), Optional("reason_param", TriggerValueType.Integer)));
@@ -428,6 +434,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("offset_x", TriggerValueType.Number), Optional("offset_y", TriggerValueType.Number),
                 Optional("offset_z", TriggerValueType.Number),
                 Optional("direction_offset", TriggerValueType.Number),
+                Optional("lateral_offset", TriggerValueType.Number),
                 Optional("shape_kind", TriggerValueType.Integer),
                 Optional("half_angle_deg", TriggerValueType.Number),
                 Optional("width", TriggerValueType.Number), Optional("length", TriggerValueType.Number),
@@ -436,6 +443,58 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("anchor_at_origin", TriggerValueType.Boolean),
                 Optional("area_group_key", TriggerValueType.Integer),
                 Optional("claim_targets_within_group", TriggerValueType.Boolean),
+                OptionalOutput("result", TriggerValueType.Integer),
+                OptionalOutput("result_count", TriggerValueType.Integer))));
+            context.RegisterAction(Action("spawn_area_batch", "批量生成区域", "Action/Area", WithTargets(
+                Reference("area_id", AreaSemanticId),
+                Optional("position_mode", TriggerValueType.Integer), Optional("radius", TriggerValueType.Number),
+                Optional("duration_frames", TriggerValueType.Integer), Optional("duration_ms", TriggerValueType.Integer),
+                Optional("stay_interval_frames", TriggerValueType.Integer),
+                Optional("collision_layer_mask", TriggerValueType.Integer),
+                Optional("offset_x", TriggerValueType.Number), Optional("offset_y", TriggerValueType.Number),
+                Optional("offset_z", TriggerValueType.Number),
+                Optional("direction_offset", TriggerValueType.Number),
+                Optional("lateral_offset", TriggerValueType.Number),
+                Optional("shape_kind", TriggerValueType.Integer),
+                Optional("width", TriggerValueType.Number), Optional("length", TriggerValueType.Number),
+                Optional("initial_radius", TriggerValueType.Number),
+                Optional("radius_growth_per_frame", TriggerValueType.Number),
+                Optional("anchor_at_origin", TriggerValueType.Boolean),
+                Optional("area_group_key", TriggerValueType.Integer),
+                Optional("claim_targets_within_group", TriggerValueType.Boolean),
+                Optional("pattern_kind", TriggerValueType.Integer),
+                Required("pattern_count", TriggerValueType.Integer),
+                Required("pattern_apothem", TriggerValueType.Number),
+                Optional("pattern_start_angle_deg", TriggerValueType.Number),
+                Optional("pattern_angle_step_deg", TriggerValueType.Number),
+                Required("pattern_edge_width", TriggerValueType.Number),
+                Optional("pattern_edge_length", TriggerValueType.Number),
+                OptionalOutput("result", TriggerValueType.Integer),
+                OptionalOutput("result_count", TriggerValueType.Integer))));
+            context.RegisterAction(Action("spawn_area_pattern", "按布局生成区域组", "Action/Area", WithTargets(
+                Reference("area_id", AreaSemanticId),
+                Optional("position_mode", TriggerValueType.Integer), Optional("radius", TriggerValueType.Number),
+                Optional("duration_frames", TriggerValueType.Integer), Optional("duration_ms", TriggerValueType.Integer),
+                Optional("stay_interval_frames", TriggerValueType.Integer),
+                Optional("collision_layer_mask", TriggerValueType.Integer),
+                Optional("offset_x", TriggerValueType.Number), Optional("offset_y", TriggerValueType.Number),
+                Optional("offset_z", TriggerValueType.Number),
+                Optional("direction_offset", TriggerValueType.Number),
+                Optional("lateral_offset", TriggerValueType.Number),
+                Optional("shape_kind", TriggerValueType.Integer),
+                Optional("width", TriggerValueType.Number), Optional("length", TriggerValueType.Number),
+                Optional("initial_radius", TriggerValueType.Number),
+                Optional("radius_growth_per_frame", TriggerValueType.Number),
+                Optional("anchor_at_origin", TriggerValueType.Boolean),
+                Optional("area_group_key", TriggerValueType.Integer),
+                Optional("claim_targets_within_group", TriggerValueType.Boolean),
+                Required("pattern_kind", TriggerValueType.Integer),
+                Required("pattern_count", TriggerValueType.Integer),
+                Required("pattern_apothem", TriggerValueType.Number),
+                Optional("pattern_start_angle_deg", TriggerValueType.Number),
+                Optional("pattern_angle_step_deg", TriggerValueType.Number),
+                Optional("pattern_edge_width", TriggerValueType.Number),
+                Optional("pattern_edge_length", TriggerValueType.Number),
                 OptionalOutput("result", TriggerValueType.Integer),
                 OptionalOutput("result_count", TriggerValueType.Integer))));
             context.RegisterAction(Action("remove_area", "移除区域", "Action/Area", WithTargets(
@@ -453,7 +512,8 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Required("cooldown_ms", TriggerValueType.Integer)));
             context.RegisterAction(Action("reset_cooldown", "重置冷却", "Action/Skill", WithTargets(
                 Reference("skill_id", SkillSemanticId, false, "skill_identity"),
-                OneOf("skill_identity", "skill_slot", TriggerValueType.Integer))));
+                OneOf("skill_identity", "skill_slot", TriggerValueType.Integer),
+                Optional("reduction_ms", TriggerValueType.Integer), Optional("reduction_ratio", TriggerValueType.Number))));
             context.RegisterAction(Action("add_skill_param_modifier", "添加技能参数修饰", "Action/Skill", WithTargets(
                 Reference("parameter_id", ModifierParameterSemanticId),
                 Choice("operation", false,
@@ -473,9 +533,15 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("direction_mode", TriggerValueType.Integer), Optional("priority", TriggerValueType.Integer),
                 Optional("apply_to_caster", TriggerValueType.Boolean),
                 Optional("hit_trigger_plan_id", TriggerValueType.Integer),
+                Optional("collision_selection", TriggerValueType.Integer),
+                Optional("stop_on_collision", TriggerValueType.Boolean),
                 Optional("motion_group_id", TriggerValueType.Integer),
                 Optional("move_to_aim_position", TriggerValueType.Boolean),
                 Optional("pass_through_walls", TriggerValueType.Boolean))));
+            context.RegisterAction(Action("resolve_cast_area", "结算施法区域", "Action/Skill",
+                Required("terminal_trigger_id", TriggerValueType.Integer), Optional("maturation_ms", TriggerValueType.Integer)));
+            context.RegisterAction(Action("consume_buff_qualification", "消费来源强化资格", "Action/Skill",
+                Required("hit_trigger_id", TriggerValueType.Integer)));
             context.RegisterAction(Action("jump", "跳跃", "Action/Motion", WithContinuous(
                 Optional("height", TriggerValueType.Number), Optional("duration_ms", TriggerValueType.Number),
                 Optional("priority", TriggerValueType.Integer), Optional("apply_to_caster", TriggerValueType.Boolean),
@@ -483,6 +549,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("landing_trigger_ids", TriggerValueType.IntegerList))));
             context.RegisterAction(Action("pull", "拉拽", "Action/Motion", WithTargets(WithContinuous(
                 Optional("speed", TriggerValueType.Number), Optional("duration_ms", TriggerValueType.Number),
+                Optional("origin_source", TriggerValueType.Integer),
                 Optional("direction_mode", TriggerValueType.Integer), Optional("target_distance", TriggerValueType.Number),
                 Optional("distance_scale_reference", TriggerValueType.Number), Optional("distance_scale_near", TriggerValueType.Number),
                 Optional("distance_scale_far", TriggerValueType.Number),

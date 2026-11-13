@@ -122,6 +122,13 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        internal void RestoreLocalIndex(IReadOnlyList<TriggerModifierContinuous> runtimes, int nextProjectionId)
+        {
+            _active.Clear();
+            foreach (var runtime in runtimes) _active.Add((runtime.OwnerActorId, runtime.LegacySourceId), runtime);
+            _nextProjectionId = nextProjectionId;
+        }
+
         private void DisposeActive()
         {
             foreach (var runtime in _active.Values)

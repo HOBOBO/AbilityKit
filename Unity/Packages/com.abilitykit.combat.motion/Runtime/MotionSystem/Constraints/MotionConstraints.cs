@@ -24,6 +24,9 @@ namespace AbilityKit.Combat.MotionSystem.Constraints
         public readonly int ObstacleMask;
         public readonly int IgnoreMask;
 
+        /// <summary>Optional domain collision selection; zero preserves the collision world's default.</summary>
+        public readonly int SelectionKey;
+
         /// <summary>撞击后是否沿墙切向滑动（而非单次钳制丢弃切向分量）。默认 false 以保持既有行为。</summary>
         public readonly bool SlideAlongWalls;
 
@@ -45,7 +48,8 @@ namespace AbilityKit.Combat.MotionSystem.Constraints
             int ignoreMask,
             bool slideAlongWalls = false,
             int maxSlideIterations = 2,
-            float wallSlideSpeedRecovery = 0f)
+            float wallSlideSpeedRecovery = 0f,
+            int selectionKey = 0)
         {
             Enable = enable;
             AllowPassThrough = allowPassThrough;
@@ -54,6 +58,7 @@ namespace AbilityKit.Combat.MotionSystem.Constraints
             Skin = skin;
             ObstacleMask = obstacleMask;
             IgnoreMask = ignoreMask;
+            SelectionKey = selectionKey;
             SlideAlongWalls = slideAlongWalls;
             MaxSlideIterations = maxSlideIterations < 1 ? 1 : maxSlideIterations;
             WallSlideSpeedRecovery = wallSlideSpeedRecovery < 0f

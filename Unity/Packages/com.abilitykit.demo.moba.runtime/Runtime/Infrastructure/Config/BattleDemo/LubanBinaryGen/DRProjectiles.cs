@@ -48,6 +48,11 @@ public sealed partial class DRProjectiles : Luban.BeanBase
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
         HitUnitSubType = _buf.ReadInt();
+        CollisionLayerMask = _buf.ReadInt();
+        HitIdentityPolicy = _buf.ReadInt();
+        CollisionRules = _buf.ReadString();
+        MaxDistanceResponse = _buf.ReadInt();
+        {int n0 = _buf.ReadSize(); OnArrivalTriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnArrivalTriggerIds.Add(_e0);}}
     }
 
     public static DRProjectiles DeserializeDRProjectiles(ByteBuf _buf)
@@ -183,6 +188,26 @@ public sealed partial class DRProjectiles : Luban.BeanBase
     /// 命中单位子类型过滤；0 表示不限，正数只命中对应 UnitSubType，不匹配的单位会被忽略并继续飞行。
     /// </summary>
     public readonly int HitUnitSubType;
+    /// <summary>
+    /// Collision layers: 0 preserves Unit|World; nonzero selects layers explicitly.
+    /// </summary>
+    public readonly int CollisionLayerMask;
+    /// <summary>
+    /// 0: Collider (legacy); 1: OncePerActor for the projectile lifetime, including rollback.
+    /// </summary>
+    public readonly int HitIdentityPolicy;
+    /// <summary>
+    /// Ordered JSON rules: Role 1 tracking target/2 other actor/3 world; MainType/UnitSubType/Relation 0 any; Response 0 Ignore/1 Hit/2 Block. Empty preserves legacy.
+    /// </summary>
+    public readonly string CollisionRules;
+    /// <summary>
+    /// MaxDistanceResponse
+    /// </summary>
+    public readonly int MaxDistanceResponse;
+    /// <summary>
+    /// OnArrivalTriggerIds
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> OnArrivalTriggerIds;
    
     public const int __ID__ = -48050628;
     public override int GetTypeId() => __ID__;
@@ -226,6 +251,11 @@ public sealed partial class DRProjectiles : Luban.BeanBase
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
         + "HitUnitSubType:" + HitUnitSubType + ","
+        + "CollisionLayerMask:" + CollisionLayerMask + ","
+        + "HitIdentityPolicy:" + HitIdentityPolicy + ","
+        + "CollisionRules:" + CollisionRules + ","
+        + "MaxDistanceResponse:" + MaxDistanceResponse + ","
+        + "OnArrivalTriggerIds:" + Luban.StringUtil.CollectionToString(OnArrivalTriggerIds) + ","
         + "}";
     }
 }

@@ -40,7 +40,8 @@ namespace AbilityKit.Demo.Moba.Services
             in MobaSkillCastRuntimeHandle handle, int actorId, int skillId, int skillSlot,
             int resourceType, long resourceAmountRaw, int chargeCost, bool refundBeforeCommit,
             int cooldownMs, int cooldownGroupId, int sharedCooldownMs, int globalCooldownMs,
-            MobaSkillEconomyTransactionState state, bool requireExplicitCommit = false)
+            MobaSkillEconomyTransactionState state, bool requireExplicitCommit = false,
+            bool resourceConsumed = true, bool ignoreResourceCostCheck = false)
         {
             Handle = handle;
             ActorId = actorId;
@@ -51,6 +52,8 @@ namespace AbilityKit.Demo.Moba.Services
             ChargeCost = chargeCost;
             RefundBeforeCommit = refundBeforeCommit;
             RequireExplicitCommit = requireExplicitCommit;
+            ResourceConsumed = resourceConsumed;
+            IgnoreResourceCostCheck = ignoreResourceCostCheck;
             CooldownMs = cooldownMs;
             CooldownGroupId = cooldownGroupId;
             SharedCooldownMs = sharedCooldownMs;
@@ -67,6 +70,8 @@ namespace AbilityKit.Demo.Moba.Services
         public int ChargeCost { get; }
         public bool RefundBeforeCommit { get; }
         public bool RequireExplicitCommit { get; }
+        public bool ResourceConsumed { get; }
+        public bool IgnoreResourceCostCheck { get; }
         public int CooldownMs { get; }
         public int CooldownGroupId { get; }
         public int SharedCooldownMs { get; }
@@ -153,6 +158,8 @@ namespace AbilityKit.Demo.Moba.Services
             public int ChargeCost;
             public bool RefundBeforeCommit;
             public bool RequireExplicitCommit;
+            public bool ResourceConsumed;
+            public bool IgnoreResourceCostCheck;
             public int CooldownMs;
             public int CooldownGroupId;
             public int SharedCooldownMs;
@@ -209,6 +216,27 @@ namespace AbilityKit.Demo.Moba.Services
         public bool HasActiveTransaction(in MobaSkillCastRuntimeHandle handle)
         {
             return TryGetTransaction(in handle, out _);
+        }
+
+        /// <summary>
+        /// Returns the amount reserved by this cast for release predicates. A
+        /// reservation has already reduced the live resource, so callers that
+        /// validate a release against the resolved cost must include it once.
+        /// </summary>
+        public bool TryGetReleaseResourceAdjustment(
+            in MobaSkillCastRuntimeHandle handle,
+            ResourceType resourceType,
+            out Fixed64 amount,
+            out bool ignoreCostCheck)
+        {
+            amount = Fixed64.Zero;
+            ignoreCostCheck = false;
+            if (!TryGetTransaction(in handle, out var transaction) ||
+                transaction.ResourceType != resourceType) return false;
+            if (!transaction.ResourceConsumed && !transaction.IgnoreResourceCostCheck) return false;
+            amount = transaction.ResourceAmount;
+            ignoreCostCheck = transaction.IgnoreResourceCostCheck;
+            return amount > Fixed64.Zero || ignoreCostCheck;
         }
 
         public bool TryRefundKillCost(in MobaSkillCastRuntimeHandle handle, int killerActorId, int skillId, out Fixed64 amount)
@@ -295,11 +323,13 @@ namespace AbilityKit.Demo.Moba.Services
                 ? context.ResolvedConfiguration.ResourceCost
                 : specification.ResourceAmount;
             var resourceAmount = amount > 0f ? MobaResourceFixedConvert.ToFixed(amount) : Fixed64.Zero;
-            skill.CooldownGroupId = cooldownGroupId;
-            skill.IgnoreGlobalCooldown = specification.IgnoreGlobalCooldown;
+            var independentRecast = _runtimes.TryGetRecastArea(in handle, out var recastBinding) &&
+                _runtimes.TryGet(recastBinding.Original, out var original) &&
+                original.CasterActorId == context.CasterActorId && original.SkillSlot == context.SkillSlot &&
+                original.BaseSkillId == skill.SkillId;
             var availability = GetAvailability(
                 context.CasterActorId, skill, chargeCost, cooldownGroupId,
-                specification.IgnoreGlobalCooldown, nowMs);
+                specification.IgnoreGlobalCooldown, nowMs, independentRecast);
             if (!availability.Available)
             {
                 failure = availability.Reason;
@@ -310,8 +340,30 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            if (!TryConsumeResource(context.CasterActorId, resourceType, resourceAmount,
-                    out failure, out var resourceBeforeRaw, out var resourceAfterRaw))
+            if (!independentRecast)
+            {
+                skill.CooldownGroupId = cooldownGroupId;
+                skill.IgnoreGlobalCooldown = specification.IgnoreGlobalCooldown;
+            }
+
+            var resourceConsumed = !specification.IgnoreResourceConsumption;
+            long resourceBeforeRaw;
+            long resourceAfterRaw;
+            if (resourceConsumed)
+            {
+                if (!TryConsumeResource(context.CasterActorId, resourceType, resourceAmount,
+                        out failure, out resourceBeforeRaw, out resourceAfterRaw))
+                {
+                    TryCollectEconomy(context, specification,
+                        BattleDiagnosticSkillExecutionStage.EconomyRejected,
+                        resourceType, resourceAmount.RawValue, resourceBeforeRaw, resourceAfterRaw,
+                        chargeCost, BattleDiagnosticEventOutcome.Failed, failure);
+                    return false;
+                }
+            }
+            else if (!TryReadResource(context.CasterActorId, resourceType, resourceAmount,
+                         specification.IgnoreResourceCostCheck, out failure,
+                         out resourceBeforeRaw, out resourceAfterRaw))
             {
                 TryCollectEconomy(context, specification,
                     BattleDiagnosticSkillExecutionStage.EconomyRejected,
@@ -342,6 +394,8 @@ namespace AbilityKit.Demo.Moba.Services
                 ChargeCost = chargeCost,
                 RefundBeforeCommit = specification.RefundBeforeCommit,
                 RequireExplicitCommit = specification.RequireExplicitCommit,
+                ResourceConsumed = resourceConsumed,
+                IgnoreResourceCostCheck = specification.IgnoreResourceCostCheck,
                 CooldownMs = cooldownMs,
                 CooldownGroupId = cooldownGroupId,
                 SharedCooldownMs = Math.Max(0, specification.SharedCooldownMs),
@@ -352,7 +406,7 @@ namespace AbilityKit.Demo.Moba.Services
             // runtime reaches the normal Commit callback.  Retain the one-shot
             // kill refund receipt when the resource is reserved so unit.die can
             // consume it at any point during the cast lifetime.
-            if (resourceAmount > Fixed64.Zero && resourceType != ResourceType.Hp)
+            if (resourceConsumed && resourceAmount > Fixed64.Zero && resourceType != ResourceType.Hp)
             {
                 _killRefunds[handle.RuntimeId] = new KillRefund
                 {
@@ -388,6 +442,15 @@ namespace AbilityKit.Demo.Moba.Services
             var amount = specification.UseResolvedResourceCost
                 ? context.ResolvedConfiguration.ResourceCost
                 : specification.ResourceAmount;
+            if (specification.IgnoreResourceConsumption)
+            {
+                TryCollectEconomy(context, specification,
+                    BattleDiagnosticSkillExecutionStage.ResourceConsumed,
+                    resourceType, amount > 0f ? MobaResourceFixedConvert.ToFixed(amount).RawValue : 0L,
+                    0L, 0L, 0, BattleDiagnosticEventOutcome.Succeeded,
+                    "resource consumption ignored");
+                return true;
+            }
             var succeeded = TryConsumeResource(
                 context.CasterActorId,
                 resourceType,
@@ -427,7 +490,7 @@ namespace AbilityKit.Demo.Moba.Services
                 _globalCooldowns[transaction.ActorId] = nowMs + transaction.GlobalCooldownMs;
 
             transaction.State = MobaSkillEconomyTransactionState.Committed;
-            if (transaction.ResourceAmount > Fixed64.Zero && transaction.ResourceType != ResourceType.Hp &&
+            if (transaction.ResourceConsumed && transaction.ResourceAmount > Fixed64.Zero && transaction.ResourceType != ResourceType.Hp &&
                 !_killRefunds.ContainsKey(handle.RuntimeId))
             {
                 _killRefunds[handle.RuntimeId] = new KillRefund
@@ -545,7 +608,8 @@ namespace AbilityKit.Demo.Moba.Services
                     in value.Handle, value.ActorId, value.SkillId, value.SkillSlot,
                     (int)value.ResourceType, value.ResourceAmount.RawValue, value.ChargeCost,
                     value.RefundBeforeCommit, value.CooldownMs, value.CooldownGroupId,
-                    value.SharedCooldownMs, value.GlobalCooldownMs, value.State, value.RequireExplicitCommit));
+                    value.SharedCooldownMs, value.GlobalCooldownMs, value.State, value.RequireExplicitCommit,
+                    value.ResourceConsumed, value.IgnoreResourceCostCheck));
             }
             transactions.Sort((left, right) => left.Handle.RuntimeId.CompareTo(right.Handle.RuntimeId));
 
@@ -594,6 +658,8 @@ namespace AbilityKit.Demo.Moba.Services
                     ChargeCost = value.ChargeCost,
                     RefundBeforeCommit = value.RefundBeforeCommit,
                     RequireExplicitCommit = value.RequireExplicitCommit,
+                    ResourceConsumed = value.ResourceConsumed,
+                    IgnoreResourceCostCheck = value.IgnoreResourceCostCheck,
                     CooldownMs = value.CooldownMs,
                     CooldownGroupId = value.CooldownGroupId,
                     SharedCooldownMs = value.SharedCooldownMs,
@@ -624,11 +690,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         private MobaSkillEconomyAvailability GetAvailability(
             int actorId, ActiveSkillRuntime skill, int chargeCost, int cooldownGroupId,
-            bool ignoreGlobalCooldown, long nowMs)
+            bool ignoreGlobalCooldown, long nowMs, bool independentRecast = false)
         {
             if (skill == null) return new MobaSkillEconomyAvailability(false, "Active skill runtime is unavailable.", 0, 0L);
             RefreshCharges(skill, nowMs);
-            if (skill.CooldownEndTimeMs > nowMs)
+            if (!independentRecast && skill.CooldownEndTimeMs > nowMs)
                 return new MobaSkillEconomyAvailability(false, "Skill is cooling down.", skill.CurrentCharges, skill.CooldownEndTimeMs);
             if (chargeCost > 0 && skill.CurrentCharges < chargeCost)
                 return new MobaSkillEconomyAvailability(false, "Skill has no available charges.", skill.CurrentCharges, skill.NextChargeRecoveryTimeMs);
@@ -674,11 +740,45 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
+        private bool TryReadResource(
+            int actorId,
+            ResourceType resourceType,
+            Fixed64 amount,
+            bool ignoreCostCheck,
+            out string failure,
+            out long beforeRaw,
+            out long afterRaw)
+        {
+            failure = null;
+            beforeRaw = 0L;
+            afterRaw = 0L;
+            if (amount <= Fixed64.Zero) return true;
+            if (resourceType == ResourceType.Hp)
+            {
+                failure = "Health costs require a health commit rather than a resource debit.";
+                return false;
+            }
+            if (!_actors.TryGetActorEntity(actorId, out var actor) ||
+                !MobaResourceMutation.TryGetState(actor, resourceType, out var resource))
+            {
+                failure = "Required skill resource is unavailable.";
+                return false;
+            }
+            beforeRaw = resource.Current.RawValue;
+            afterRaw = beforeRaw;
+            if (!ignoreCostCheck && resource.Current < amount)
+            {
+                failure = "Insufficient skill resource.";
+                return false;
+            }
+            return true;
+        }
+
         private void Refund(Transaction transaction, out long beforeRaw, out long afterRaw)
         {
             beforeRaw = 0L;
             afterRaw = 0L;
-            if (transaction.ResourceAmount > Fixed64.Zero &&
+            if (transaction.ResourceConsumed && transaction.ResourceAmount > Fixed64.Zero &&
                 _actors.TryGetActorEntity(transaction.ActorId, out var actor) && actor != null &&
                 actor.hasResourceContainer && actor.resourceContainer.Value?.Map != null &&
                 actor.resourceContainer.Value.Map.TryGetValue(transaction.ResourceType, out var resource) && resource != null)

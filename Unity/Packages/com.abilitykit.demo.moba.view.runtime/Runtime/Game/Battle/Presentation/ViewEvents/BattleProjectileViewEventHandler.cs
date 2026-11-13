@@ -26,6 +26,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         /// after reconnect or replay.
         /// </summary>
         private readonly HashSet<int> _seenHitProjectileIds = new HashSet<int>();
+        private readonly Dictionary<int, int> _phaseActorVersions = new Dictionary<int, int>();
 
         public BattleProjectileViewEventHandler(
             EC.IECWorld world,
@@ -100,6 +101,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _shellSpawner?.Clear();
             _deduplicator.Clear();
             ResetCrossSourceDeduplication();
+            _phaseActorVersions.Clear();
+            _vfxSpawner.ClearPhaseHandles();
         }
 
         public void ClearPool() => _shellPool?.Clear();
@@ -115,8 +118,27 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         private void HandleSnapshotEntry(ProjectileEventData entry)
         {
+            if (entry.Kind == ProjectilePresentationEventKind.Phase)
+            {
+                if (!_vfxSpawner.HasPhaseBinding(in entry)) return;
+                if (_phaseActorVersions.TryGetValue(entry.ProjectileActorId, out var version) && version != entry.ActorVersion)
+                {
+                    if (entry.ActorVersion < version) return;
+                    _vfxSpawner.StopFollowingActor(entry.ProjectileActorId);
+                }
+                _phaseActorVersions[entry.ProjectileActorId] = entry.ActorVersion;
+                if (!_vfxSpawner.ApplyPhase(in entry) && _snapshotVfx.TryResolve(in entry, out var phaseSpec))
+                {
+                    _vfxSpawner.TrySpawn(in phaseSpec, retainLifecycle: true);
+                    _vfxSpawner.ApplyPhase(in entry);
+                }
+                return;
+            }
             if (entry.Kind == ProjectilePresentationEventKind.Exit)
             {
+                if (entry.ActorVersion > 0 && _phaseActorVersions.TryGetValue(entry.ProjectileActorId, out var version) &&
+                    version != entry.ActorVersion) return;
+                _phaseActorVersions.Remove(entry.ProjectileActorId);
                 // Exit cleanup is idempotent. Completed projectile identities must not remain
                 // in session-lifetime caches after a high-volume launch has finished.
                 _deduplicator.ForgetLifecycle(in entry);

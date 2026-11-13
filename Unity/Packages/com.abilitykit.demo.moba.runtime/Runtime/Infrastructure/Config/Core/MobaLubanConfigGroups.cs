@@ -240,7 +240,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 // Mirrors the exporter: a magnitude that reads other state must be sampled once,
                 // everything else stays realtime. Keep this in sync with
                 // LubanConfig/Moba/business/modifiers.py::derive_evaluation_policy.
-                ["EvaluationPolicy"] = DeriveEvaluationPolicy(row.Magnitude.SourceType),
+                ["EvaluationPolicy"] = DeriveEvaluationPolicy(row.Magnitude.SourceType, row.ContextKey),
                 ["AttributeSourceRole"] = (int)row.AttributeSourceRole,
                 ["CandidateSkillId"] = row.Candidate.SkillId,
                 ["CandidateReferenceId"] = row.Candidate.ReferenceId,
@@ -265,10 +265,12 @@ namespace AbilityKit.Demo.Moba.Config.Core
         /// replayed from the capture store; magnitudes derived from the continuous instance itself
         /// are already deterministic and stay realtime.
         /// </summary>
-        private static int DeriveEvaluationPolicy(moba_luban.MagnitudeSourceType source)
+        private static int DeriveEvaluationPolicy(moba_luban.MagnitudeSourceType source, string contextKey)
         {
             return source == moba_luban.MagnitudeSourceType.Attribute ||
-                   source == moba_luban.MagnitudeSourceType.LinearFormula
+                   source == moba_luban.MagnitudeSourceType.LinearFormula ||
+                   source == moba_luban.MagnitudeSourceType.ContextFloat &&
+                   (contextKey?.StartsWith("skill_runtime:", StringComparison.Ordinal) ?? false)
                 ? (int)moba_luban.ModifierEvaluationPolicy.OnApplySnapshot
                 : (int)moba_luban.ModifierEvaluationPolicy.Realtime;
         }
