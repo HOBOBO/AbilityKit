@@ -20,6 +20,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly int ContinuousProcessId;
         public readonly MobaActionTargetRequest TargetRequest;
         public readonly bool TrackTarget;
+        public readonly bool UseAimDistance;
         public readonly BlackboardWriteTarget ResultTarget;
         public readonly BlackboardWriteTarget ResultCountTarget;
 
@@ -30,13 +31,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             in MobaActionTargetRequest targetRequest,
             bool trackTarget,
             BlackboardWriteTarget resultTarget = default,
-            BlackboardWriteTarget resultCountTarget = default)
+            BlackboardWriteTarget resultCountTarget = default, bool useAimDistance = true)
         {
             LauncherId = launcherId;
             ProjectileId = projectileId;
             ContinuousProcessId = continuousProcessId;
             TargetRequest = targetRequest;
-            TrackTarget = trackTarget;
+            TrackTarget = trackTarget; UseAimDistance = useAimDistance;
             ResultTarget = resultTarget;
             ResultCountTarget = resultCountTarget;
         }

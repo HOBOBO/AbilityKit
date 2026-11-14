@@ -178,6 +178,12 @@ namespace AbilityKit.Game.Flow
         {
             var text = CreateOverlayText(parent, name, 16, TextAnchor.LowerCenter);
             text.color = Color.white;
+            // Keep long names (including alternate loadouts) inside their button.
+            text.rectTransform.anchorMax = new Vector2(1f, 0.36f);
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = 9;
+            text.resizeTextMaxSize = 16;
             return text;
         }
 

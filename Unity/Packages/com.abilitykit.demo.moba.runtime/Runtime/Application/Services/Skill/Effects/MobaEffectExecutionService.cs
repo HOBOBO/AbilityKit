@@ -106,6 +106,15 @@ namespace AbilityKit.Demo.Moba.Services
 
         public long CurrentEffectContextId => _executionScopes.Count > 0 ? _executionScopes.Peek().EffectContextId : 0;
 
+        internal bool TryGetCurrentEffectScratch(out Triggering.MobaEffectSessionScratch blackboard)
+        {
+            blackboard = null;
+            if (_executionScopes.Count == 0) return false;
+            var scope = _executionScopes.Peek();
+            blackboard = scope.Scratch ?? (scope.Scratch = new Triggering.MobaEffectSessionScratch());
+            return true;
+        }
+
         public bool TryGetCurrentExecutionContext(out MobaCombatExecutionContext context)
         {
             context = default;
@@ -411,6 +420,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (_executionScopes.Count == 0) return;
 
             var scope = _executionScopes.Pop();
+            scope.Scratch?.End();
             try
             {
                 if (scope.CurrentActionId != 0L)
@@ -1003,12 +1013,16 @@ namespace AbilityKit.Demo.Moba.Services
                 if (conditionsPassed)
                 {
                     TryGetCurrentTriggerCollections(out var collections);
+                    IBlackboardResolver actionBlackboards = ctx.Blackboards;
+                    if (TryGetCurrentEffectScratch(out var scratch))
+                        actionBlackboards = new Triggering.MobaEffectSessionBlackboardResolver(
+                            scratch, CurrentEffectContextId, actionBlackboards);
                     var actionCtx = new ExecCtx<IWorldResolver>(
                         new MobaTriggerPlanExecutionContextFactory.CurrentEffectWorldResolver(_services ?? ctx.Context, this),
                         ctx.EventBus,
                         ctx.Functions,
                         ctx.Actions,
-                        ctx.Blackboards,
+                        actionBlackboards,
                         ctx.Payloads,
                         ctx.StronglyTypedPayloads,
                         ctx.IdNames,

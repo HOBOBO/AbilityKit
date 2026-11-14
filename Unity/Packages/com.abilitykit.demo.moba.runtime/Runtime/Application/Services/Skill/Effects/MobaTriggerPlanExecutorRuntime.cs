@@ -146,6 +146,14 @@ namespace AbilityKit.Demo.Moba.Services
                     childContextId,
                     blackboards);
             }
+            else if (currentEffects != null &&
+                currentEffects.TryGetCurrentExecutionContext(out var standaloneContext) &&
+                !standaloneContext.SkillRuntimeHandle.IsValid &&
+                currentEffects.TryGetCurrentEffectScratch(out var scratch))
+            {
+                blackboards = new Triggering.MobaEffectSessionBlackboardResolver(
+                    scratch, currentEffects.CurrentEffectContextId, blackboards);
+            }
             var context = currentEffects != null
                 ? new CurrentEffectWorldResolver(_dependencies.Services, currentEffects)
                 : _dependencies.Services;

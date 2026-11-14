@@ -15,8 +15,8 @@ internal static class GatewayGameplayCatalog
             "moba",
             30,
             "frame-sync-authority",
-            new[] { "frame-sync-authority" },
-            SupportsStateSyncPush: false,
+            new[] { "frame-sync-authority", "moba-state-sync-authority" },
+            SupportsStateSyncPush: true,
             SupportsFrameSync: true),
         new(
             ShooterServerProtocol.RoomType,

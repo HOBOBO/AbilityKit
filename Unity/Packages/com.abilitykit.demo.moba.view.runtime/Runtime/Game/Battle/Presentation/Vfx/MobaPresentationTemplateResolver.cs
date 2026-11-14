@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.ActionSchema;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Game.Flow.Battle.Presentation.Timeline;
 using UnityEngine;
@@ -14,6 +15,14 @@ namespace AbilityKit.Game.Flow
 
         private readonly PresentationTemplateDTO[] _templates;
         private readonly VfxDTO[] _vfx;
+        private long _castInstanceId;
+        private CastPresentationFrame _castFrame;
+
+        public void SetCastFrame(long castInstanceId, in CastPresentationFrame frame)
+        {
+            _castInstanceId = castInstanceId;
+            _castFrame = frame;
+        }
 
         public MobaPresentationTemplateResolver()
         {
@@ -55,6 +64,18 @@ namespace AbilityKit.Game.Flow
                 template.Socket, position, Enum.IsDefined(typeof(PresentationOffsetSpace), template.OffsetSpace)
                     ? (PresentationOffsetSpace)template.OffsetSpace
                     : PresentationOffsetSpace.TargetLocal);
+            var rotation = PresentationRotation.Identity;
+            if (template.PlacementSpace == 1)
+            {
+                if (string.IsNullOrEmpty(logicalKey) || _castInstanceId <= 0 || !_castFrame.HasValue || !_castFrame.IsValid ||
+                    !logicalKey.StartsWith("timeline:" + _castInstanceId + ":", StringComparison.Ordinal)) return false;
+                var facing = Quaternion.LookRotation(new Vector3(_castFrame.ForwardX, _castFrame.ForwardY, _castFrame.ForwardZ));
+                var worldPosition = new Vector3(_castFrame.OriginX, _castFrame.OriginY, _castFrame.OriginZ) +
+                    facing * new Vector3(template.OffsetX, template.OffsetY, template.OffsetZ);
+                position = new PresentationVector3(worldPosition.x, worldPosition.y, worldPosition.z);
+                rotation = new PresentationRotation(facing.x, facing.y, facing.z, facing.w);
+                attachment = new PresentationAttachment(PresentationAttachmentKind.World);
+            }
             var duration = template.DefaultDurationMs > 0 ? template.DefaultDurationMs :
                 vfx.DurationMs > 0 ? vfx.DurationMs : durationMs;
             var scale = template.Scale > 0f ? template.Scale : 1f;
@@ -70,6 +91,7 @@ namespace AbilityKit.Game.Flow
                 logicalKey,
                 assetId,
                 position,
+                rotation: rotation,
                 attachment: attachment,
                 durationMs: duration,
                 scale: scale,
@@ -79,7 +101,7 @@ namespace AbilityKit.Game.Flow
                     ? (PresentationAssetKind)vfx.AssetKind : PresentationAssetKind.Particle,
                 playback: playback,
                 policy: policy,
-                followAttachment: template.Follow,
+                followAttachment: template.PlacementSpace == 0 && template.Follow,
                 parentScaleMode: Enum.IsDefined(typeof(PresentationParentScaleMode), template.ParentScaleMode)
                     ? (PresentationParentScaleMode)template.ParentScaleMode
                     : PresentationParentScaleMode.Inherit,

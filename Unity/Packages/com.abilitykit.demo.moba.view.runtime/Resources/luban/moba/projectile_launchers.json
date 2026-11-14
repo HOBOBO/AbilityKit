@@ -349,5 +349,50 @@
     "FanAngleDeg": 0,
     "IntervalMs": 0,
     "Name": "Gragas R cask"
+  },
+  {
+    "Id": 33060101,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Karthus basic launcher"
+  },
+  {
+    "Id": 33070101,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Lux AA"
+  },
+  {
+    "Id": 33070201,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Lux Q"
+  },
+  {
+    "Id": 33070301,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Lux W"
+  },
+  {
+    "Id": 33070401,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Lux E"
   }
 ]

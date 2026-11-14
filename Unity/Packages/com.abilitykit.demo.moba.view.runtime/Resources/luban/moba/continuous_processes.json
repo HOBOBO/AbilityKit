@@ -33,5 +33,39 @@
     "RequireOutOfCombat": false,
     "TriggerIds": [],
     "Tags": []
+  },
+  {
+    "Id": 30060010,
+    "ContinuousTagTemplateId": 0,
+    "DurationMs": 0,
+    "IntervalMs": 0,
+    "IntervalTriggerIds": [],
+    "ModifierIds": [
+      306001
+    ],
+    "Name": "Karthus exact Q cast range",
+    "OutOfCombatSeconds": 0,
+    "RequireOutOfCombat": false,
+    "TriggerIds": [],
+    "Tags": []
+  },
+  {
+    "Id": 30070010,
+    "ContinuousTagTemplateId": 0,
+    "DurationMs": 0,
+    "IntervalMs": 0,
+    "IntervalTriggerIds": [],
+    "ModifierIds": [
+      307001,
+      307002,
+      307003,
+      307004,
+      307005
+    ],
+    "Name": "Lux precise cast ranges",
+    "OutOfCombatSeconds": 0,
+    "RequireOutOfCombat": false,
+    "TriggerIds": [],
+    "Tags": []
   }
 ]

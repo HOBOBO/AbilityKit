@@ -20,6 +20,8 @@ using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Presentation.Features.Loading;
 using AbilityKit.Game.Battle.Shared.Assets;
+using ProjectileEventData = AbilityKit.Demo.Moba.Share.ProjectileEventData;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Game.Flow;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Room;
@@ -48,6 +50,7 @@ namespace AbilityKit.Game.Test.UnitTest
         private static readonly TimeSpan SoloLobbyObservationDuration = TimeSpan.FromSeconds(2);
         private static readonly TimeSpan SkillObservationDuration = TimeSpan.FromSeconds(3);
         private static readonly TimeSpan MovementInputDuration = TimeSpan.FromSeconds(2.2);
+        private static readonly TimeSpan MovementCatchUpTimeout = TimeSpan.FromSeconds(20);
         private const int SkillSettleRequiredFrames = 30;
         private const float SkillSettlePositionEpsilon = 0.02f;
         private const float KnockupObservationThreshold = 0.20f;
@@ -118,6 +121,8 @@ namespace AbilityKit.Game.Test.UnitTest
         private static bool _coldRecoveryObserved;
         private static bool _coldInputFreezeObserved;
         private static DateTime _completionSettleStartedUtc;
+        private static IDisposable _projectileEventSubscription;
+        private static readonly List<string> _skillProjectileEvents = new List<string>(32);
 
         static MobaMultiplayerHeadlessClientCommand()
         {
@@ -369,6 +374,7 @@ namespace AbilityKit.Game.Test.UnitTest
                             "restored battle world is observable; validating frame-0 lockstep catch-up");
                         return;
                     }
+                    ValidateComparisonViews(context);
                     SetStage(ClientStage.BattleReady, "battle context and both runtime player actors are observable");
                     return;
 
@@ -384,7 +390,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     movementContext.BeginHudMove();
                     movementContext.SetHudMove(
                         _options.Role == ClientRole.Owner ? 1f : -1f,
-                        0.25f);
+                        -1f);
                     SetStage(
                         ClientStage.MovingPlayers,
                         _options.Role == ClientRole.Owner
@@ -408,7 +414,20 @@ namespace AbilityKit.Game.Test.UnitTest
                         ? TimeSpan.FromSeconds(4)
                         : TimeSpan.FromSeconds(5);
                     if (DateTime.UtcNow - _movementStartedUtc < wait) return;
-                    ValidateSynchronizedMovement(RequireBattleContext(entry));
+                    var observationContext = RequireBattleContext(entry);
+                    if (!HasCaughtUpToLastInputAck(observationContext))
+                    {
+                        if (DateTime.UtcNow - _movementStartedUtc < wait + MovementCatchUpTimeout) return;
+
+                        TryGetConfirmedFrame(observationContext, out var confirmedFrame);
+                        var inputStats = BattleFlowDebugProvider.InputSubmissionStats;
+                        throw new TimeoutException(
+                            $"Movement authority did not catch up before timeout. " +
+                            $"confirmedFrame={confirmedFrame}, " +
+                            $"lastInputServerFrame={inputStats?.LastServerFrame ?? 0}.");
+                    }
+
+                    ValidateSynchronizedMovement(observationContext);
                     _movementValidated = true;
                     File.WriteAllText(GetOwnObservationSignalPath(), DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
                     SetStage(ClientStage.WaitingForPeerObservation, "movement validated; waiting for peer observation");
@@ -748,7 +767,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     _options.Region,
                     _options.ServerId,
                     TimeSpan.FromSeconds(_options.RequestTimeoutSeconds),
-                    suppressAutomaticLobbyActions: _options.RunMode != ClientRunMode.ColdReconnect);
+                    suppressAutomaticLobbyActions: _options.RunMode != ClientRunMode.ColdReconnect,
+                    syncTemplateId: _options.SyncTemplateId);
                 SetStage(ClientStage.StartingFromStarter, "Starter is logging in and launching MOBA");
                 return;
             }
@@ -908,6 +928,46 @@ namespace AbilityKit.Game.Test.UnitTest
             return context;
         }
 
+        private static void ValidateComparisonViews(BattleContext context)
+        {
+            EnsureProjectileEventProbe(context);
+            if (!_options!.EnableConfirmedAuthorityWorld) return;
+            var scope = context.Plan.World.WorldId;
+            var hasContext = BattleFlowDebugProvider.TryGetContext(scope, out var publishedContext) &&
+                             publishedContext == context;
+            var hasView = BattleFlowDebugProvider.TryGetView(scope, out var view) && view != null;
+            var hasAuthorityStats = BattleFlowDebugProvider.TryGetConfirmedAuthorityStats(scope, out _);
+            var hasComparisonViews = BattleFlowDebugProvider.TryGetFrameSyncComparisonViewsCreated(
+                scope, out var comparisonViewsCreated) && comparisonViewsCreated;
+            if (!hasContext || !hasView || !hasComparisonViews)
+            {
+                throw new InvalidOperationException(
+                    $"Frame-sync diagnostics were not published for the active battle scope " +
+                    $"(context={hasContext}, view={hasView}, authorityStats={hasAuthorityStats}, " +
+                    $"comparisonViews={hasComparisonViews}).");
+            }
+        }
+
+        private static void EnsureProjectileEventProbe(BattleContext context)
+        {
+            if (_projectileEventSubscription != null || context == null || !context.TryGetFrameSnapshots(out var dispatcher)) return;
+            _projectileEventSubscription = dispatcher.Subscribe<ProjectileEventData[]>(
+                MobaOpCodes.Snapshot.ProjectileEvent,
+                (_, entries) =>
+                {
+                    for (var i = 0; i < entries.Length && _skillProjectileEvents.Count < 32; i++)
+                    {
+                        var entry = entries[i];
+                        if (entry.TemplateId != 32010101) continue;
+                        _skillProjectileEvents.Add(
+                            $"kind={entry.Kind},projectile={entry.ProjectileId},actor={entry.ProjectileActorId}," +
+                            $"pos=({entry.X:F2},{entry.Y:F2},{entry.Z:F2})," +
+                            $"dir=({entry.ForwardX:F2},{entry.ForwardY:F2},{entry.ForwardZ:F2})," +
+                            $"collider={entry.HitCollider},exit={entry.ExitReason},frame={entry.SnapshotFrame}");
+                    }
+                });
+        }
+
         private static void ValidateSynchronizedMovement(BattleContext context)
         {
             if (!_hasOwnerBaseline)
@@ -1035,24 +1095,24 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 return;
             }
-            if (_maxSkillDisplacement < 0.15f)
-            {
-                throw new InvalidOperationException(
-                    $"Owner skill 1 displacement was not observed. role={_options?.Role}, maxDisplacement={_maxSkillDisplacement:F3}.");
-            }
             var damage = _skillTargetBaselineHp - _skillTargetMinimumHp;
             var runtimeRise = _skillTargetMaxRuntimeY - _skillTargetBaselineRuntimePosition.y;
             var presentedRise = _skillTargetMaxPresentedY - _skillTargetBaselinePresentedPosition.y;
-            if (damage < DamageObservationThreshold ||
+            if (_maxSkillDisplacement < 0.15f ||
+                damage < DamageObservationThreshold ||
                 !_skillTargetRuntimeKnockupObserved ||
                 !_skillTargetPresentedKnockupObserved ||
                 !_skillTargetPresentedSampleObserved ||
                 !_skillTargetLanded)
             {
                 throw new InvalidOperationException(
-                    $"Owner skill 1 hit effects were not synchronized. role={_options?.Role}, " +
+                    $"Owner skill 1 observations did not satisfy the current probe contract. role={_options?.Role}, " +
+                    $"casterDisplacement={_maxSkillDisplacement:F3}, " +
                     $"damage={damage:F3}, runtimeRise={runtimeRise:F3}, presentedRise={presentedRise:F3}, " +
-                    $"presentedSample={_skillTargetPresentedSampleObserved}, landed={_skillTargetLanded}.");
+                    $"runtimeKnockup={_skillTargetRuntimeKnockupObserved}, " +
+                    $"presentedKnockup={_skillTargetPresentedKnockupObserved}, " +
+                    $"presentedSample={_skillTargetPresentedSampleObserved}, landed={_skillTargetLanded}, " +
+                    $"projectileEvents=[{string.Join(";", _skillProjectileEvents)}].");
             }
             if (_options?.Role == ClientRole.Owner)
             {
@@ -1158,6 +1218,13 @@ namespace AbilityKit.Game.Test.UnitTest
 
             confirmedFrame = confirmed.Value;
             return true;
+        }
+
+        private static bool HasCaughtUpToLastInputAck(BattleContext context)
+        {
+            if (!TryGetConfirmedFrame(context, out var confirmedFrame)) return false;
+            var lastInputServerFrame = BattleFlowDebugProvider.InputSubmissionStats?.LastServerFrame ?? 0;
+            return lastInputServerFrame <= 0 || confirmedFrame >= lastInputServerFrame;
         }
 
         private static bool TryGetOwnerRuntimePosition(
@@ -1493,6 +1560,7 @@ namespace AbilityKit.Game.Test.UnitTest
             state.skillTargetRuntimeKnockupObserved = _skillTargetRuntimeKnockupObserved;
             state.skillTargetPresentedKnockupObserved = _skillTargetPresentedKnockupObserved;
             state.skillTargetLanded = _skillTargetLanded;
+            state.skillProjectileEvents = _skillProjectileEvents.ToArray();
 
             var authority = BattleFlowDebugProvider.ConfirmedAuthorityWorldStats;
             if (authority != null && context?.PredictionStats == null)
@@ -1742,6 +1810,9 @@ namespace AbilityKit.Game.Test.UnitTest
             _coldRecoveryObserved = false;
             _coldInputFreezeObserved = false;
             _completionSettleStartedUtc = default;
+            _projectileEventSubscription?.Dispose();
+            _projectileEventSubscription = null;
+            _skillProjectileEvents.Clear();
         }
 
         private enum ClientStage
@@ -1800,6 +1871,7 @@ namespace AbilityKit.Game.Test.UnitTest
             public string ServerId = "local";
             public string SyncTemplateId = "frame-sync-authority";
             public int SyncModel = 1;
+            public bool EnableConfirmedAuthorityWorld;
             public string AccountId = string.Empty;
             public string SessionToken = string.Empty;
             public string RoomPath = string.Empty;
@@ -1839,6 +1911,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     ServerId = Value(args, "-gatewayServerId") ?? "local",
                     SyncTemplateId = Value(args, "-mobaHeadlessSyncTemplate") ?? "frame-sync-authority",
                     SyncModel = IntValue(args, "-mobaHeadlessSyncModel", 1),
+                    EnableConfirmedAuthorityWorld = IntValue(args, "-mobaHeadlessEnableConfirmedAuthorityWorld", 0) != 0,
                     AccountId = Required(args, "-mobaHeadlessAccount"),
                     RoomPath = FullPath(Required(args, "-mobaHeadlessRoomPath")),
                     MovementSignalPath = FullPath(Required(args, "-mobaHeadlessMovementSignal")),
@@ -2011,6 +2084,7 @@ namespace AbilityKit.Game.Test.UnitTest
             public bool skillTargetRuntimeKnockupObserved;
             public bool skillTargetPresentedKnockupObserved;
             public bool skillTargetLanded;
+            public string[] skillProjectileEvents = Array.Empty<string>();
             public List<ActorState> actors = new List<ActorState>();
         }
 

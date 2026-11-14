@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Logging;
@@ -10,6 +11,7 @@ using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Config.Plans;
+using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
@@ -153,6 +155,12 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                     throw new InvalidOperationException($"Global trigger event is not registered. triggerId={record.TriggerId} eventName={record.EventName}");
                 }
 
+                if (record.ExecutionRoot != null)
+                {
+                    RegisterGlobalExecutionRoot(runner, argsType.IsClass ? argsType : typeof(object), in record);
+                    continue;
+                }
+
                 if (!argsType.IsClass)
                 {
                     runner.RegisterPlan<object, IWorldResolver>(new EventKey<object>(record.EventId), record.Plan);
@@ -161,6 +169,34 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
                 runner.RegisterPlan(record.EventId, argsType, record.Plan);
             }
+        }
+
+        private static void RegisterGlobalExecutionRoot(
+            TriggerRunner<IWorldResolver> runner, Type argsType, in TriggerPlanJsonDatabase.Record record)
+        {
+            // Event subscriptions must consume the same published execution tree as
+            // callable and owner-bound plans; tree-backed records may have no flat actions.
+            var method = typeof(PlanTriggeringStage).GetMethod(
+                nameof(RegisterGlobalExecutionRootAs), BindingFlags.NonPublic | BindingFlags.Static);
+            try
+            {
+                method.MakeGenericMethod(argsType).Invoke(null,
+                    new object[] { runner, record.EventId, record.Plan, record.ExecutionRoot });
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                throw ex.InnerException;
+            }
+        }
+
+        private static void RegisterGlobalExecutionRootAs<TArgs>(
+            TriggerRunner<IWorldResolver> runner, int eventId, TriggerPlan<object> plan,
+            ITriggerPlanExecutable executionRoot)
+        {
+            var typedPlan = plan.AsArgs<TArgs>();
+            var trigger = new PlannedTrigger<TArgs, IWorldResolver>(typedPlan,
+                (in TArgs args, in ExecCtx<IWorldResolver> ctx) => executionRoot.Execute(args, in ctx));
+            runner.Register(new EventKey<TArgs>(eventId), trigger, typedPlan.Phase, typedPlan.Priority);
         }
 
         private static bool IsGameplayRecord(TriggerPlanJsonDatabase.Record record)

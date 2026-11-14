@@ -1,0 +1,36 @@
+{
+    "schemaVersion": 1,
+    "runtimeType": "presentation",
+    "length": 2.5,
+    "groups": [
+        {
+            "name": "Beam",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.EffectTrack",
+                    "name": "BeamChannel",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.PlayParticle",
+                            "runtimeType": "presentation",
+                            "start": 0.0,
+                            "length": 2.5,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "presentationTemplateId": "90037014"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "$type": "AbilityKit.ActionSchema.SkillAssetDto"
+}

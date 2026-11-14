@@ -2585,5 +2585,412 @@
     "ParamNames": [
       "damage"
     ]
+  },
+  {
+    "Id": 30060101,
+    "Levels": [
+      {
+        "CooldownMs": 1600,
+        "Cost": 0,
+        "Params": [
+          0
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30060201,
+    "Levels": [
+      {
+        "CooldownMs": 1000,
+        "Cost": 20,
+        "Params": [
+          45
+        ]
+      },
+      {
+        "CooldownMs": 1000,
+        "Cost": 25,
+        "Params": [
+          65
+        ]
+      },
+      {
+        "CooldownMs": 1000,
+        "Cost": 30,
+        "Params": [
+          85
+        ]
+      },
+      {
+        "CooldownMs": 1000,
+        "Cost": 35,
+        "Params": [
+          105
+        ]
+      },
+      {
+        "CooldownMs": 1000,
+        "Cost": 40,
+        "Params": [
+          125
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30060301,
+    "Levels": [
+      {
+        "CooldownMs": 15000,
+        "Cost": 70,
+        "Params": [
+          8
+        ]
+      },
+      {
+        "CooldownMs": 15000,
+        "Cost": 70,
+        "Params": [
+          9
+        ]
+      },
+      {
+        "CooldownMs": 15000,
+        "Cost": 70,
+        "Params": [
+          10
+        ]
+      },
+      {
+        "CooldownMs": 15000,
+        "Cost": 70,
+        "Params": [
+          11
+        ]
+      },
+      {
+        "CooldownMs": 15000,
+        "Cost": 70,
+        "Params": [
+          12
+        ]
+      }
+    ],
+    "ParamNames": [
+      "length"
+    ]
+  },
+  {
+    "Id": 30060401,
+    "Levels": [
+      {
+        "CooldownMs": 500,
+        "Cost": 0,
+        "Params": [
+          7.5,
+          7.5,
+          10
+        ]
+      },
+      {
+        "CooldownMs": 500,
+        "Cost": 0,
+        "Params": [
+          12.5,
+          10.5,
+          20
+        ]
+      },
+      {
+        "CooldownMs": 500,
+        "Cost": 0,
+        "Params": [
+          17.5,
+          13.5,
+          30
+        ]
+      },
+      {
+        "CooldownMs": 500,
+        "Cost": 0,
+        "Params": [
+          22.5,
+          16.5,
+          40
+        ]
+      },
+      {
+        "CooldownMs": 500,
+        "Cost": 0,
+        "Params": [
+          27.5,
+          19.5,
+          50
+        ]
+      }
+    ],
+    "ParamNames": [
+      "tick_damage",
+      "tick_cost",
+      "refund"
+    ]
+  },
+  {
+    "Id": 30060501,
+    "Levels": [
+      {
+        "CooldownMs": 200000,
+        "Cost": 100,
+        "Params": [
+          200
+        ]
+      },
+      {
+        "CooldownMs": 180000,
+        "Cost": 100,
+        "Params": [
+          350
+        ]
+      },
+      {
+        "CooldownMs": 160000,
+        "Cost": 100,
+        "Params": [
+          500
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30070101,
+    "Levels": [
+      {
+        "CooldownMs": 1500,
+        "Cost": 0,
+        "Params": [
+          0
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30070201,
+    "Levels": [
+      {
+        "CooldownMs": 10000,
+        "Cost": 50,
+        "Params": [
+          80
+        ]
+      },
+      {
+        "CooldownMs": 10000,
+        "Cost": 50,
+        "Params": [
+          120
+        ]
+      },
+      {
+        "CooldownMs": 10000,
+        "Cost": 50,
+        "Params": [
+          160
+        ]
+      },
+      {
+        "CooldownMs": 10000,
+        "Cost": 50,
+        "Params": [
+          200
+        ]
+      },
+      {
+        "CooldownMs": 10000,
+        "Cost": 50,
+        "Params": [
+          240
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30070301,
+    "Levels": [
+      {
+        "CooldownMs": 12000,
+        "Cost": 60,
+        "Params": [
+          40
+        ]
+      },
+      {
+        "CooldownMs": 11500,
+        "Cost": 65,
+        "Params": [
+          55
+        ]
+      },
+      {
+        "CooldownMs": 11000,
+        "Cost": 70,
+        "Params": [
+          70
+        ]
+      },
+      {
+        "CooldownMs": 10500,
+        "Cost": 75,
+        "Params": [
+          85
+        ]
+      },
+      {
+        "CooldownMs": 10000,
+        "Cost": 80,
+        "Params": [
+          100
+        ]
+      }
+    ],
+    "ParamNames": [
+      "shield"
+    ]
+  },
+  {
+    "Id": 30070401,
+    "Levels": [
+      {
+        "CooldownMs": 10000,
+        "Cost": 70,
+        "Params": [
+          65,
+          0.25
+        ]
+      },
+      {
+        "CooldownMs": 9500,
+        "Cost": 80,
+        "Params": [
+          115,
+          0.3
+        ]
+      },
+      {
+        "CooldownMs": 9000,
+        "Cost": 90,
+        "Params": [
+          165,
+          0.35
+        ]
+      },
+      {
+        "CooldownMs": 8500,
+        "Cost": 100,
+        "Params": [
+          215,
+          0.4
+        ]
+      },
+      {
+        "CooldownMs": 8000,
+        "Cost": 110,
+        "Params": [
+          265,
+          0.45
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage",
+      "slow"
+    ]
+  },
+  {
+    "Id": 30070402,
+    "Levels": [
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          0
+        ]
+      },
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          0
+        ]
+      },
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          0
+        ]
+      },
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          0
+        ]
+      },
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          0
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
+  },
+  {
+    "Id": 30070501,
+    "Levels": [
+      {
+        "CooldownMs": 60000,
+        "Cost": 100,
+        "Params": [
+          300
+        ]
+      },
+      {
+        "CooldownMs": 50000,
+        "Cost": 100,
+        "Params": [
+          400
+        ]
+      },
+      {
+        "CooldownMs": 40000,
+        "Cost": 100,
+        "Params": [
+          500
+        ]
+      }
+    ],
+    "ParamNames": [
+      "damage"
+    ]
   }
 ]

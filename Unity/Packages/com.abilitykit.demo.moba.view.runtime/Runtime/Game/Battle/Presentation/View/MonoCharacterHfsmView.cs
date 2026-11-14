@@ -30,6 +30,8 @@ namespace AbilityKit.Game.Flow
         private readonly PresentationRateResolver _presentationRateResolver = new PresentationRateResolver();
         private readonly Dictionary<long, HashSet<PresentationHandle<PresentationUnityHandle>>> _timelineHandles =
             new Dictionary<long, HashSet<PresentationHandle<PresentationUnityHandle>>>();
+        private int _lastSeekFrame = -1, _lastBoundSnapshotFrame = -1;
+        private long _boundActionInstanceId, _boundCastInstanceId;
 
         public PresentationRateResolver PresentationRateResolver => _presentationRateResolver;
 
@@ -49,6 +51,13 @@ namespace AbilityKit.Game.Flow
 
         public void Bind(BattleCharacterHfsmComponent state, int tickRate)
         {
+            // Dirty entity synchronization may bind a snapshot behind the frame
+            // already sampled by the view timeline. A forward snapshot of the
+            // same action must not replay its one-shot presentation clips.
+            var sameAction = _state == state && state != null &&
+                state.SnapshotFrame >= _lastBoundSnapshotFrame &&
+                state.Action.InstanceId == _boundActionInstanceId &&
+                state.Action.CastInstanceId == _boundCastInstanceId;
             if (_state != state)
                 StopPresentation();
             _state = state;
@@ -58,12 +67,20 @@ namespace AbilityKit.Game.Flow
             // A snapshot can update the existing component instance. Re-seek
             // on every bind so action changes received after the initial spawn
             // also reach the Animator for characters and summons alike.
-            if (state != null) SeekToFrame(state.SnapshotFrame, _secondsPerFrame);
+            if (state != null)
+            {
+                var frame = sameAction ? Mathf.Max(state.SnapshotFrame, _lastSeekFrame) : state.SnapshotFrame;
+                _lastBoundSnapshotFrame = state.SnapshotFrame;
+                _boundActionInstanceId = state.Action.InstanceId;
+                _boundCastInstanceId = state.Action.CastInstanceId;
+                SeekToFrame(frame, _secondsPerFrame);
+            }
         }
 
         public void SeekToFrame(int frameIndex, float secondsPerFrame)
         {
             if (_state == null) return;
+            _lastSeekFrame = frameIndex;
             if (frameIndex < _state.SnapshotFrame)
             {
                 StopPresentation();
@@ -87,7 +104,11 @@ namespace AbilityKit.Game.Flow
                     Mathf.Min(localFrame, intent.FrameCount - 1);
             _animator.Play(hash, intent.Layer, 0f);
             _animator.Update(0f);
-            var length = _animator.GetCurrentAnimatorStateInfo(intent.Layer).length;
+            // The resolved model action owns its authored duration. Unity's
+            // state-info length may still be the default/stale value after a
+            // zero-delta seek; it must not shorten a known animation clip.
+            var length = intent.DurationSeconds > 0f ? intent.DurationSeconds :
+                _animator.GetCurrentAnimatorStateInfo(intent.Layer).length;
             var normalized = length > Mathf.Epsilon && duration > 0f
                 ? Mathf.Max(0, localFrame) * duration / length
                 : 0f;
@@ -134,6 +155,7 @@ namespace AbilityKit.Game.Flow
                     asset.text, this, _presentationTemplateResolver, _presentationRateResolver);
             }
             if (_presentation == null) return;
+            _presentationTemplateResolver.SetCastFrame(action.CastInstanceId, _state.CastFrame);
             var elapsed = Mathf.Max(0, frame - action.StartFrame) * secondsPerFrame;
             _presentation.SeekWithRate(action.CastInstanceId, elapsed);
         }

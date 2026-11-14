@@ -131,7 +131,7 @@
     "Id": 3001,
     "AttributeTemplateId": 3001,
     "ModelId": 3001,
-    "Name": "Jhin",
+    "Name": "烬",
     "PassiveSkillIds": [
       30010000
     ],
@@ -161,7 +161,7 @@
     "Id": 3002,
     "AttributeTemplateId": 3002,
     "ModelId": 3002,
-    "Name": "Jinx",
+    "Name": "金克丝",
     "PassiveSkillIds": [
       30020000
     ],
@@ -176,7 +176,7 @@
     "Id": 3004,
     "AttributeTemplateId": 3004,
     "ModelId": 3004,
-    "Name": "Veigar",
+    "Name": "维迦",
     "PassiveSkillIds": [
       30040000
     ],
@@ -191,7 +191,7 @@
     "Id": 3005,
     "AttributeTemplateId": 3005,
     "ModelId": 3005,
-    "Name": "Gragas",
+    "Name": "古拉加斯",
     "PassiveSkillIds": [
       30050000
     ],
@@ -200,6 +200,36 @@
       30050301,
       30050401,
       30050501
+    ]
+  },
+  {
+    "Id": 3006,
+    "AttributeTemplateId": 3006,
+    "ModelId": 3006,
+    "Name": "卡尔萨斯",
+    "PassiveSkillIds": [
+      30060000
+    ],
+    "SkillIds": [
+      30060201,
+      30060301,
+      30060401,
+      30060501
+    ]
+  },
+  {
+    "Id": 3007,
+    "AttributeTemplateId": 3007,
+    "ModelId": 3007,
+    "Name": "Lux",
+    "PassiveSkillIds": [
+      30070000
+    ],
+    "SkillIds": [
+      30070201,
+      30070301,
+      30070401,
+      30070501
     ]
   }
 ]

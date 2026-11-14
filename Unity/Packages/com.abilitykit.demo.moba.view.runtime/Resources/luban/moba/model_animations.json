@@ -232,5 +232,140 @@
     "FrameCount": 80,
     "FrameRate": 60,
     "Layer": 0
+  },
+  {
+    "Id": 300602,
+    "ModelId": 3006,
+    "ActionKey": "Base Layer.Karthus_Model_AutoAttack",
+    "AnimatorState": "Base Layer.Karthus_Model_AutoAttack",
+    "FrameCount": 180,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300603,
+    "ModelId": 3006,
+    "ActionKey": "Base Layer.Karthus_Model_SpellQ",
+    "AnimatorState": "Base Layer.Karthus_Model_SpellQ",
+    "FrameCount": 150,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300604,
+    "ModelId": 3006,
+    "ActionKey": "Base Layer.Karthus_Model_SpellW",
+    "AnimatorState": "Base Layer.Karthus_Model_SpellW",
+    "FrameCount": 125,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300605,
+    "ModelId": 3006,
+    "ActionKey": "Base Layer.Karthus_Model_SpellE",
+    "AnimatorState": "Base Layer.Karthus_Model_SpellE",
+    "FrameCount": 200,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300606,
+    "ModelId": 3006,
+    "ActionKey": "Base Layer.Karthus_Model_SpellR",
+    "AnimatorState": "Base Layer.Karthus_Model_SpellR",
+    "FrameCount": 288,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300607,
+    "ModelId": 3006,
+    "ActionKey": "Base Layer.Karthus_Model_Death",
+    "AnimatorState": "Base Layer.Karthus_Model_Death",
+    "FrameCount": 288,
+    "FrameRate": 24,
+    "Layer": 0
+  },
+  {
+    "Id": 300608,
+    "ModelId": 3006,
+    "ActionKey": "Base Layer.Karthus_Model_Recall",
+    "AnimatorState": "Base Layer.Karthus_Model_Recall",
+    "FrameCount": 555,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300609,
+    "ModelId": 3006,
+    "ActionKey": "Base Layer.Karthus_Model_RecallLeadout",
+    "AnimatorState": "Base Layer.Karthus_Model_RecallLeadout",
+    "FrameCount": 240,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300702,
+    "ModelId": 3007,
+    "ActionKey": "Base Layer.Lux_Model_AutoAttack",
+    "AnimatorState": "Base Layer.Lux_Model_AutoAttack",
+    "FrameCount": 75,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300703,
+    "ModelId": 3007,
+    "ActionKey": "Base Layer.Lux_Model_SpellQ",
+    "AnimatorState": "Base Layer.Lux_Model_SpellQ",
+    "FrameCount": 75,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300704,
+    "ModelId": 3007,
+    "ActionKey": "Base Layer.Lux_Model_SpellW",
+    "AnimatorState": "Base Layer.Lux_Model_SpellW",
+    "FrameCount": 302,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300705,
+    "ModelId": 3007,
+    "ActionKey": "Base Layer.Lux_Model_SpellE",
+    "AnimatorState": "Base Layer.Lux_Model_SpellE",
+    "FrameCount": 75,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300706,
+    "ModelId": 3007,
+    "ActionKey": "Base Layer.Lux_Model_SpellR",
+    "AnimatorState": "Base Layer.Lux_Model_SpellR",
+    "FrameCount": 150,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300707,
+    "ModelId": 3007,
+    "ActionKey": "Base Layer.Lux_Model_Death",
+    "AnimatorState": "Base Layer.Lux_Model_Death",
+    "FrameCount": 220,
+    "FrameRate": 60,
+    "Layer": 0
+  },
+  {
+    "Id": 300708,
+    "ModelId": 3007,
+    "ActionKey": "Base Layer.Lux_Model_Recall",
+    "AnimatorState": "Base Layer.Lux_Model_Recall",
+    "FrameCount": 540,
+    "FrameRate": 60,
+    "Layer": 0
   }
 ]

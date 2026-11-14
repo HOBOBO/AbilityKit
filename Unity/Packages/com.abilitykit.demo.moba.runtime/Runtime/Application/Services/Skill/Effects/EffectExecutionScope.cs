@@ -11,6 +11,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int SourceActorId;
         public int TargetActorId;
         public bool IsRoot;
+        public Triggering.MobaEffectSessionScratch Scratch;
         public int CurrentActionIndex = -1;
         public long CurrentActionContextId;
         public long CurrentActionId;

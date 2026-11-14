@@ -31,6 +31,7 @@ namespace AbilityKit.Game.Flow
         public readonly bool IsEnemyAiEnabled;
         public readonly BattleDebugHeroOption[] HeroOptions;
         public readonly int CurrentHeroId;
+        public readonly bool IncludePlaceholderHeroes;
 
         public BattleLocalDebugSnapshot(
             bool isAvailable,
@@ -40,7 +41,8 @@ namespace AbilityKit.Game.Flow
             int currentActorId,
             bool isEnemyAiEnabled,
             BattleDebugHeroOption[] heroOptions,
-            int currentHeroId)
+            int currentHeroId,
+            bool includePlaceholderHeroes)
         {
             IsAvailable = isAvailable;
             HostModeName = hostModeName ?? string.Empty;
@@ -50,6 +52,7 @@ namespace AbilityKit.Game.Flow
             IsEnemyAiEnabled = isEnemyAiEnabled;
             HeroOptions = heroOptions ?? Array.Empty<BattleDebugHeroOption>();
             CurrentHeroId = currentHeroId;
+            IncludePlaceholderHeroes = includePlaceholderHeroes;
         }
     }
 
@@ -61,6 +64,7 @@ namespace AbilityKit.Game.Flow
         private BattleDebugHeroOption[] _heroOptions = EmptyHeroOptions;
         private MobaConfigDatabase _heroOptionsDatabase;
         private long _heroOptionsVersion = -1;
+        private bool _includePlaceholderHeroes;
 
         public BattleLocalDebugQuery(Func<BattleContext> ctxResolver)
         {
@@ -166,6 +170,26 @@ namespace AbilityKit.Game.Flow
             }
         }
 
+        public bool IncludePlaceholderHeroes => _includePlaceholderHeroes;
+
+        public void SetIncludePlaceholderHeroes(bool enabled)
+        {
+            if (_includePlaceholderHeroes == enabled) return;
+            _includePlaceholderHeroes = enabled;
+            _heroOptionsDatabase = null;
+            _heroOptionsVersion = -1;
+        }
+
+        public bool IsHeroEnabled(int heroId)
+        {
+            if (!MobaHeroContentGroups.IsEnabled(heroId, _includePlaceholderHeroes)) return false;
+            var ctx = Context;
+            return TryResolveWorldService(ctx, out MobaConfigDatabase config) &&
+                   config != null &&
+                   MobaHeroLoadoutResolver.TryResolveHeroConfig(
+                       config, heroId, out _, out _, out _, out _);
+        }
+
         public int CurrentHeroId
         {
             get
@@ -199,7 +223,8 @@ namespace AbilityKit.Game.Flow
                 CurrentActorId,
                 IsEnemyAiEnabled,
                 HeroOptions,
-                CurrentHeroId);
+                CurrentHeroId,
+                IncludePlaceholderHeroes);
         }
 
         private void RefreshHeroOptions()
@@ -219,6 +244,7 @@ namespace AbilityKit.Game.Flow
             foreach (var character in config.GetAllCharacters())
             {
                 if (character == null ||
+                    !MobaHeroContentGroups.IsEnabled(character.Id, _includePlaceholderHeroes) ||
                     !MobaHeroLoadoutResolver.TryResolveHeroConfig(
                         config,
                         character.Id,
@@ -544,6 +570,12 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
+            if (!_query.IsHeroEnabled(heroId))
+            {
+                message = "该英雄未启用，或缺少完整的战斗配置";
+                return false;
+            }
+
             var playerId = new PlayerId(_query.CurrentPlayerId);
             if (string.IsNullOrEmpty(playerId.Value))
             {
@@ -678,8 +710,12 @@ namespace AbilityKit.Game.Flow
         public bool IsEnemyAiEnabled => _query.IsEnemyAiEnabled;
         public BattleDebugHeroOption[] HeroOptions => _query.HeroOptions;
         public int CurrentHeroId => _query.CurrentHeroId;
+        public bool IncludePlaceholderHeroes => _query.IncludePlaceholderHeroes;
 
         public BattleLocalDebugSnapshot CaptureSnapshot() => _query.CaptureSnapshot();
+
+        public void SetIncludePlaceholderHeroes(bool enabled) =>
+            _query.SetIncludePlaceholderHeroes(enabled);
 
         public bool TrySwitchControl(out string message) => _commands.TrySwitchControl(out message);
 

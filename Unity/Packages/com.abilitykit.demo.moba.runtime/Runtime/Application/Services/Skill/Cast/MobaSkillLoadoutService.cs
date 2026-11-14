@@ -32,14 +32,14 @@ namespace AbilityKit.Demo.Moba.Services
             services?.TryResolve(out _casts);
         }
 
-        /// <summary>Only a deployed child in the effective skill's explicit channel bypasses its slot cooldown.</summary>
+        /// <summary>An exact child in the effective skill's channel bypasses slot cooldown; flight requires explicit opt-in.</summary>
         public bool IsIndependentRecastReady(int actorId, int slot, int effectiveSkillId)
         {
             return _configs != null && _casts != null &&
                 TryResolveSlot(actorId, slot, out var resolved) && resolved.EffectiveSkillId == effectiveSkillId &&
                 _configs.TryGetSkill(effectiveSkillId, out var skill) &&
                 _configs.TryGetSkillFlow(skill.CastFlowId, out var flow) && flow.RecastChannelId > 0 &&
-                _casts.TrySelectRecastArea(actorId, flow.RecastChannelId, out _, out _, slot, resolved.BaseSkillId);
+                _casts.TrySelectRecastArea(actorId, flow.RecastChannelId, out _, out _, slot, resolved.BaseSkillId, flow.QueueRecastInFlight);
         }
 
         public void SetLoadout(int actorId, int[] skillIds)

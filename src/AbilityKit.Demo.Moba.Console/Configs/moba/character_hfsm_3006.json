@@ -1,0 +1,413 @@
+{
+  "formatVersion": 2,
+  "definitionId": "moba.character.3006",
+  "rootMachineId": "life",
+  "parameters": [
+    {
+      "id": 1,
+      "name": "Controlled",
+      "defaultValue": 0,
+      "supportedOperations": [
+        2
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Casting",
+      "defaultValue": 0,
+      "supportedOperations": [
+        2
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Moving",
+      "defaultValue": 0,
+      "supportedOperations": [
+        2
+      ]
+    },
+    {
+      "id": 4,
+      "name": "SpiritActive",
+      "defaultValue": 0,
+      "supportedOperations": [
+        2
+      ]
+    },
+    {
+      "id": 5,
+      "name": "AuraActive",
+      "defaultValue": 0,
+      "supportedOperations": [
+        2
+      ]
+    }
+  ],
+  "machines": [
+    {
+      "id": "action",
+      "initialStateId": "idle",
+      "rememberLastState": false,
+      "states": [
+        {
+          "id": "casting",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        },
+        {
+          "id": "controlled",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        },
+        {
+          "id": "idle",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        },
+        {
+          "id": "moving",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        }
+      ],
+      "transitions": [
+        {
+          "id": "idle.move",
+          "fromAnyState": false,
+          "fromStateId": "idle",
+          "toStateId": "moving",
+          "triggerId": "",
+          "conditionKey": "moving",
+          "actionKey": "",
+          "priority": 40,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "moving.idle",
+          "fromAnyState": false,
+          "fromStateId": "moving",
+          "toStateId": "idle",
+          "triggerId": "",
+          "conditionKey": "idle",
+          "actionKey": "",
+          "priority": 10,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "idle.cast",
+          "fromAnyState": false,
+          "fromStateId": "idle",
+          "toStateId": "casting",
+          "triggerId": "",
+          "conditionKey": "casting",
+          "actionKey": "",
+          "priority": 70,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "moving.cast",
+          "fromAnyState": false,
+          "fromStateId": "moving",
+          "toStateId": "casting",
+          "triggerId": "",
+          "conditionKey": "casting",
+          "actionKey": "",
+          "priority": 70,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "casting.idle",
+          "fromAnyState": false,
+          "fromStateId": "casting",
+          "toStateId": "idle",
+          "triggerId": "",
+          "conditionKey": "idle",
+          "actionKey": "",
+          "priority": 10,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "idle.control",
+          "fromAnyState": false,
+          "fromStateId": "idle",
+          "toStateId": "controlled",
+          "triggerId": "",
+          "conditionKey": "controlled",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "moving.control",
+          "fromAnyState": false,
+          "fromStateId": "moving",
+          "toStateId": "controlled",
+          "triggerId": "",
+          "conditionKey": "controlled",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "casting.control",
+          "fromAnyState": false,
+          "fromStateId": "casting",
+          "toStateId": "controlled",
+          "triggerId": "",
+          "conditionKey": "controlled",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "controlled.idle",
+          "fromAnyState": false,
+          "fromStateId": "controlled",
+          "toStateId": "idle",
+          "triggerId": "",
+          "conditionKey": "free.idle",
+          "actionKey": "",
+          "priority": 10,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "controlled.move",
+          "fromAnyState": false,
+          "fromStateId": "controlled",
+          "toStateId": "moving",
+          "triggerId": "",
+          "conditionKey": "free.move",
+          "actionKey": "",
+          "priority": 40,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        }
+      ]
+    },
+    {
+      "id": "life",
+      "initialStateId": "alive",
+      "rememberLastState": false,
+      "states": [
+        {
+          "id": "alive",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "action",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        },
+        {
+          "id": "dead",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [
+            "trigger.enter.30060001"
+          ],
+          "logicExitActionKeys": [
+            "trigger.exit.30060002"
+          ],
+          "childMachineId": "death",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        }
+      ],
+      "transitions": [
+        {
+          "id": "die",
+          "fromAnyState": false,
+          "fromStateId": "alive",
+          "toStateId": "dead",
+          "triggerId": "",
+          "conditionKey": "dead",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "respawn",
+          "fromAnyState": false,
+          "fromStateId": "dead",
+          "toStateId": "alive",
+          "triggerId": "",
+          "conditionKey": "alive",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        }
+      ]
+    },
+    {
+      "id": "death",
+      "initialStateId": "corpse",
+      "rememberLastState": false,
+      "states": [
+        {
+          "id": "corpse",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        },
+        {
+          "id": "spirit.ready",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        },
+        {
+          "id": "spirit.casting",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        }
+      ],
+      "transitions": [
+        {
+          "id": "corpse.to.spirit.casting",
+          "fromAnyState": false,
+          "fromStateId": "corpse",
+          "toStateId": "spirit.casting",
+          "triggerId": "",
+          "conditionKey": "spirit.cast",
+          "actionKey": "",
+          "priority": 70,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "corpse.to.spirit.ready",
+          "fromAnyState": false,
+          "fromStateId": "corpse",
+          "toStateId": "spirit.ready",
+          "triggerId": "",
+          "conditionKey": "spirit.rest",
+          "actionKey": "",
+          "priority": 10,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "spirit.ready.to.corpse",
+          "fromAnyState": false,
+          "fromStateId": "spirit.ready",
+          "toStateId": "corpse",
+          "triggerId": "",
+          "conditionKey": "spirit.expired",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "spirit.ready.to.spirit.casting",
+          "fromAnyState": false,
+          "fromStateId": "spirit.ready",
+          "toStateId": "spirit.casting",
+          "triggerId": "",
+          "conditionKey": "spirit.cast",
+          "actionKey": "",
+          "priority": 70,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "spirit.casting.to.corpse",
+          "fromAnyState": false,
+          "fromStateId": "spirit.casting",
+          "toStateId": "corpse",
+          "triggerId": "",
+          "conditionKey": "spirit.expired",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "spirit.casting.to.spirit.ready",
+          "fromAnyState": false,
+          "fromStateId": "spirit.casting",
+          "toStateId": "spirit.ready",
+          "triggerId": "",
+          "conditionKey": "spirit.rest",
+          "actionKey": "",
+          "priority": 10,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        }
+      ]
+    }
+  ]
+}

@@ -11,6 +11,19 @@ namespace AbilityKit.Demo.Common.Rooms
         Tiny = 2
     }
 
+    public static class DemoMultiplayerSyncTemplates
+    {
+        public const string FrameSyncAuthority = "frame-sync-authority";
+        public const string MobaStateSyncAuthority = "moba-state-sync-authority";
+
+        public static string Normalize(string? syncTemplateId)
+        {
+            return string.Equals(syncTemplateId, MobaStateSyncAuthority, StringComparison.OrdinalIgnoreCase)
+                ? MobaStateSyncAuthority
+                : FrameSyncAuthority;
+        }
+    }
+
     public sealed class DemoMultiplayerLaunchRequest
     {
         public DemoMultiplayerLaunchRequest(
@@ -21,7 +34,8 @@ namespace AbilityKit.Demo.Common.Rooms
             string accountId,
             string sessionToken,
             TimeSpan timeout,
-            bool suppressAutomaticLobbyActions = false)
+            bool suppressAutomaticLobbyActions = false,
+            string? syncTemplateId = null)
         {
             Host = host ?? string.Empty;
             Port = port;
@@ -31,6 +45,7 @@ namespace AbilityKit.Demo.Common.Rooms
             SessionToken = sessionToken ?? string.Empty;
             Timeout = timeout;
             SuppressAutomaticLobbyActions = suppressAutomaticLobbyActions;
+            SyncTemplateId = DemoMultiplayerSyncTemplates.Normalize(syncTemplateId);
         }
 
         public string Host { get; }
@@ -41,6 +56,7 @@ namespace AbilityKit.Demo.Common.Rooms
         public string SessionToken { get; }
         public TimeSpan Timeout { get; }
         public bool SuppressAutomaticLobbyActions { get; }
+        public string SyncTemplateId { get; }
         public bool IsAuthenticated => !string.IsNullOrWhiteSpace(SessionToken);
     }
 

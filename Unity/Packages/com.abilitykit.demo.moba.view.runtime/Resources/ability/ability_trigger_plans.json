@@ -474,20 +474,6 @@
           "MaxExecutions": -1,
           "CanBeInterrupted": true,
           "RetryMaxRetries": 3
-        },
-        {
-          "ActionId": 1421289908,
-          "Arity": 1,
-          "Args": {
-            "delay_ms": {
-              "Kind": "Const",
-              "ConstValue": 5000.0,
-              "Scale": 1.0
-            }
-          },
-          "MaxExecutions": -1,
-          "CanBeInterrupted": true,
-          "RetryMaxRetries": 3
         }
       ],
       "ExecutionControl": {
@@ -607,6 +593,33 @@
             },
             "win_team_id": {
               "Kind": "Const",
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ],
+      "ExecutionControl": {
+        "Mode": "always"
+      }
+    },
+    {
+      "TriggerId": 900007,
+      "EventName": "unit.die",
+      "EventId": 593237517,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 1421289908,
+          "Arity": 1,
+          "Args": {
+            "delay_ms": {
+              "Kind": "Const",
+              "ConstValue": 5000.0,
               "Scale": 1.0
             }
           },
@@ -18252,6 +18265,4473 @@
           "RetryMaxRetries": 3
         }
       ]
+    },
+    {
+      "TriggerId": 30060001,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "ExecutionRoot": {
+        "Kind": "Sequence",
+        "Children": [
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1241142882,
+              "Arity": 2,
+              "Args": {
+                "buff_ids": {
+                  "Kind": "Const",
+                  "ConstValue": 30060090.0,
+                  "Scale": 1.0
+                },
+                "target_self": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 859871103,
+              "Arity": 2,
+              "Args": {
+                "parameter": {
+                  "Kind": "Const",
+                  "ConstValue": 1520866077.0,
+                  "Scale": 1.0
+                },
+                "result": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 1445747998,
+                  "KeyId": 996397098,
+                  "Scale": 1.0,
+                  "KeyType": 4
+                },
+                "skill_id": {
+                  "Kind": "Const",
+                  "ConstValue": 30060401.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "GreaterThan",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "effect.e_damage",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1241142882,
+                  "Arity": 2,
+                  "Args": {
+                    "buff_ids": {
+                      "Kind": "Const",
+                      "ConstValue": 30060490.0,
+                      "Scale": 1.0
+                    },
+                    "target_self": {
+                      "Kind": "Const",
+                      "ConstValue": 1.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30060002,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 701107549,
+          "Arity": 2,
+          "Args": {
+            "buff_id": {
+              "Kind": "Const",
+              "ConstValue": 30060090.0,
+              "Scale": 1.0
+            },
+            "target_self": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 701107549,
+          "Arity": 2,
+          "Args": {
+            "buff_id": {
+              "Kind": "Const",
+              "ConstValue": 30060490.0,
+              "Scale": 1.0
+            },
+            "target_self": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30060100,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 508656420,
+          "Arity": 2,
+          "Args": {
+            "launcher_id": {
+              "Kind": "Const",
+              "ConstValue": 33060101.0,
+              "Scale": 1.0
+            },
+            "projectile_id": {
+              "Kind": "Const",
+              "ConstValue": 32060101.0,
+              "Scale": 1.0
+            },
+            "track_target": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30060101,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 176148626,
+          "Arity": 2,
+          "Args": {
+            "damage_type": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "damage_value": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "reason_kind": {
+              "Kind": "Const",
+              "ConstValue": 2.0,
+              "Scale": 1.0
+            },
+            "reason_param": {
+              "Kind": "Const",
+              "ConstValue": 30060101.0,
+              "Scale": 1.0
+            },
+            "source_attack_ratio": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "target_mode": {
+              "Kind": "Const",
+              "ConstValue": 2.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1483031378,
+          "Arity": 2,
+          "Args": {
+            "target_mode": {
+              "Kind": "Const",
+              "ConstValue": 3.0,
+              "Scale": 1.0
+            },
+            "template_id": {
+              "Kind": "Const",
+              "ConstValue": 90036001.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30060201,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 1822191218,
+          "Arity": 2,
+          "Args": {
+            "area_id": {
+              "Kind": "Const",
+              "ConstValue": 42060201.0,
+              "Scale": 1.0
+            },
+            "position_mode": {
+              "Kind": "Const",
+              "ConstValue": 2.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30060211,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "ExecutionRoot": {
+        "Kind": "Sequence",
+        "Children": [
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 59565244,
+              "Arity": 2,
+              "Args": {
+                "result": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 1445747998,
+                  "KeyId": 1345651711,
+                  "Scale": 1.0,
+                  "KeyType": 2
+                },
+                "target_max_count": {
+                  "Kind": "Const",
+                  "ConstValue": 2147483647.0,
+                  "Scale": 1.0
+                },
+                "target_query_id": {
+                  "Kind": "Const",
+                  "ConstValue": 52060201.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 117485488,
+              "Arity": 2,
+              "Args": {
+                "target": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 1445747998,
+                  "KeyId": 1372359366,
+                  "Scale": 1.0,
+                  "KeyType": 4
+                },
+                "value": {
+                  "Kind": "Const",
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "ForEach",
+            "Collection": {
+              "Kind": "Var",
+              "DomainId": "skill_runtime",
+              "Key": "effect.target_collection",
+              "Scale": 1.0
+            },
+            "ItemTarget": {
+              "Kind": "BlackboardTarget",
+              "BoardId": 1445747998,
+              "KeyId": 1483040696,
+              "Scale": 1.0,
+              "KeyType": 2
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 151750755,
+                  "Arity": 2,
+                  "Args": {
+                    "target": {
+                      "Kind": "BlackboardTarget",
+                      "BoardId": 1445747998,
+                      "KeyId": 1372359366,
+                      "Scale": 1.0,
+                      "KeyType": 4
+                    },
+                    "value": {
+                      "Kind": "Const",
+                      "ConstValue": 1.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "Count": 1,
+            "MaxIterations": 2147483647,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "ForEach",
+            "Collection": {
+              "Kind": "Var",
+              "DomainId": "skill_runtime",
+              "Key": "effect.target_collection",
+              "Scale": 1.0
+            },
+            "ItemTarget": {
+              "Kind": "BlackboardTarget",
+              "BoardId": 1445747998,
+              "KeyId": 1483040696,
+              "Scale": 1.0,
+              "KeyType": 2
+            },
+            "Children": [
+              {
+                "Kind": "If",
+                "Condition": {
+                  "Kind": "expr",
+                  "Nodes": [
+                    {
+                      "Kind": "CompareNumeric",
+                      "CompareOp": "Equal",
+                      "Left": {
+                        "Kind": "Var",
+                        "DomainId": "skill_runtime",
+                        "Key": "effect.target_count",
+                        "Scale": 1.0
+                      },
+                      "Right": {
+                        "Kind": "Const",
+                        "ConstValue": 1.0,
+                        "Scale": 1.0
+                      }
+                    }
+                  ]
+                },
+                "Children": [
+                  {
+                    "Kind": "Action",
+                    "Action": {
+                      "ActionId": 176148626,
+                      "Arity": 2,
+                      "Args": {
+                        "damage_type": {
+                          "Kind": "Const",
+                          "ConstValue": 2.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_coefficient": {
+                          "Kind": "Const",
+                          "ConstValue": 2.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_parameter": {
+                          "Kind": "Const",
+                          "ConstValue": 2009626731.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_attribute": {
+                          "Kind": "Const",
+                          "ConstValue": 5.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_coefficient": {
+                          "Kind": "Const",
+                          "ConstValue": 0.7,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_type": {
+                          "Kind": "Const",
+                          "ConstValue": 2.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_type": {
+                          "Kind": "Const",
+                          "ConstValue": 6.0,
+                          "Scale": 1.0
+                        },
+                        "reason_kind": {
+                          "Kind": "Const",
+                          "ConstValue": 1.0,
+                          "Scale": 1.0
+                        },
+                        "reason_param": {
+                          "Kind": "Const",
+                          "ConstValue": 30060201.0,
+                          "Scale": 1.0
+                        },
+                        "target_actor_id": {
+                          "Kind": "Var",
+                          "DomainId": "skill_runtime",
+                          "Key": "effect.current_target",
+                          "Scale": 1.0
+                        }
+                      },
+                      "MaxExecutions": -1,
+                      "CanBeInterrupted": true,
+                      "RetryMaxRetries": 3
+                    },
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  }
+                ],
+                "ElseChildren": [
+                  {
+                    "Kind": "Action",
+                    "Action": {
+                      "ActionId": 176148626,
+                      "Arity": 2,
+                      "Args": {
+                        "damage_type": {
+                          "Kind": "Const",
+                          "ConstValue": 2.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_parameter": {
+                          "Kind": "Const",
+                          "ConstValue": 2009626731.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_attribute": {
+                          "Kind": "Const",
+                          "ConstValue": 5.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_coefficient": {
+                          "Kind": "Const",
+                          "ConstValue": 0.35,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_type": {
+                          "Kind": "Const",
+                          "ConstValue": 2.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_type": {
+                          "Kind": "Const",
+                          "ConstValue": 6.0,
+                          "Scale": 1.0
+                        },
+                        "reason_kind": {
+                          "Kind": "Const",
+                          "ConstValue": 1.0,
+                          "Scale": 1.0
+                        },
+                        "reason_param": {
+                          "Kind": "Const",
+                          "ConstValue": 30060201.0,
+                          "Scale": 1.0
+                        },
+                        "target_actor_id": {
+                          "Kind": "Var",
+                          "DomainId": "skill_runtime",
+                          "Key": "effect.current_target",
+                          "Scale": 1.0
+                        }
+                      },
+                      "MaxExecutions": -1,
+                      "CanBeInterrupted": true,
+                      "RetryMaxRetries": 3
+                    },
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  }
+                ],
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "Count": 1,
+            "MaxIterations": 2147483647,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1822191218,
+              "Arity": 2,
+              "Args": {
+                "area_id": {
+                  "Kind": "Const",
+                  "ConstValue": 42060202.0,
+                  "Scale": 1.0
+                },
+                "position_mode": {
+                  "Kind": "Const",
+                  "ConstValue": 2.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30060301,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 117485488,
+          "Arity": 2,
+          "Args": {
+            "target": {
+              "Kind": "BlackboardTarget",
+              "BoardId": 337995124,
+              "KeyId": 398389252,
+              "Scale": 1.0,
+              "KeyType": 4
+            },
+            "value": {
+              "Kind": "PayloadField",
+              "FieldId": 128037286,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1822191218,
+          "Arity": 2,
+          "Args": {
+            "anchor_at_origin": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "area_group_key": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "area_id": {
+              "Kind": "Const",
+              "ConstValue": 42060301.0,
+              "Scale": 1.0
+            },
+            "claim_targets_within_group": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "forward_yaw_deg": {
+              "Kind": "Const",
+              "ConstValue": 90.0,
+              "Scale": 1.0
+            },
+            "length": {
+              "Kind": "PayloadField",
+              "FieldId": 732715181,
+              "Scale": 1.0
+            },
+            "position_mode": {
+              "Kind": "Const",
+              "ConstValue": 2.0,
+              "Scale": 1.0
+            },
+            "shape_kind": {
+              "Kind": "Const",
+              "ConstValue": 2.0,
+              "Scale": 1.0
+            },
+            "width": {
+              "Kind": "Const",
+              "ConstValue": 0.5,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30060311,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "ExecutionRoot": {
+        "Kind": "Sequence",
+        "Children": [
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "Equal",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "cast.wall_rank",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "ConstValue": 1.0,
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1241142882,
+                  "Arity": 1,
+                  "Args": {
+                    "buff_ids": {
+                      "Kind": "Const",
+                      "ConstValue": 30060391.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "Equal",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "cast.wall_rank",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "ConstValue": 2.0,
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1241142882,
+                  "Arity": 1,
+                  "Args": {
+                    "buff_ids": {
+                      "Kind": "Const",
+                      "ConstValue": 30060392.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "Equal",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "cast.wall_rank",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "ConstValue": 3.0,
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1241142882,
+                  "Arity": 1,
+                  "Args": {
+                    "buff_ids": {
+                      "Kind": "Const",
+                      "ConstValue": 30060393.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "Equal",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "cast.wall_rank",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "ConstValue": 4.0,
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1241142882,
+                  "Arity": 1,
+                  "Args": {
+                    "buff_ids": {
+                      "Kind": "Const",
+                      "ConstValue": 30060394.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "Equal",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "cast.wall_rank",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "ConstValue": 5.0,
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1241142882,
+                  "Arity": 1,
+                  "Args": {
+                    "buff_ids": {
+                      "Kind": "Const",
+                      "ConstValue": 30060395.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30060401,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "ExecutionRoot": {
+        "Kind": "If",
+        "Condition": {
+          "Kind": "expr",
+          "Nodes": [
+            {
+              "Kind": "Function",
+              "Left": {
+                "Kind": "Const",
+                "ConstValue": 30060490.0,
+                "Scale": 1.0
+              },
+              "Right": {
+                "Kind": "Const",
+                "Scale": 1.0
+              },
+              "FunctionId": 1554744836,
+              "FunctionArity": 2
+            }
+          ]
+        },
+        "Children": [
+          {
+            "Kind": "Sequence",
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 859871103,
+                  "Arity": 2,
+                  "Args": {
+                    "parameter": {
+                      "Kind": "Const",
+                      "ConstValue": 1520866077.0,
+                      "Scale": 1.0
+                    },
+                    "result": {
+                      "Kind": "BlackboardTarget",
+                      "BoardId": 1445747998,
+                      "KeyId": 996397098,
+                      "Scale": 1.0,
+                      "KeyType": 4
+                    },
+                    "skill_id": {
+                      "Kind": "Const",
+                      "ConstValue": 30060401.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              },
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 176148626,
+                  "Arity": 2,
+                  "Args": {
+                    "damage_type": {
+                      "Kind": "Const",
+                      "ConstValue": 2.0,
+                      "Scale": 1.0
+                    },
+                    "magnitude_secondary_attribute": {
+                      "Kind": "Const",
+                      "ConstValue": 5.0,
+                      "Scale": 1.0
+                    },
+                    "magnitude_secondary_coefficient": {
+                      "Kind": "Const",
+                      "ConstValue": 0.05,
+                      "Scale": 1.0
+                    },
+                    "magnitude_secondary_type": {
+                      "Kind": "Const",
+                      "ConstValue": 2.0,
+                      "Scale": 1.0
+                    },
+                    "magnitude_value": {
+                      "Kind": "Var",
+                      "DomainId": "skill_runtime",
+                      "Key": "effect.e_damage",
+                      "Scale": 1.0
+                    },
+                    "reason_kind": {
+                      "Kind": "Const",
+                      "ConstValue": 1.0,
+                      "Scale": 1.0
+                    },
+                    "reason_param": {
+                      "Kind": "Const",
+                      "ConstValue": 30060401.0,
+                      "Scale": 1.0
+                    },
+                    "target_max_count": {
+                      "Kind": "Const",
+                      "ConstValue": 2147483647.0,
+                      "Scale": 1.0
+                    },
+                    "target_query_id": {
+                      "Kind": "Const",
+                      "ConstValue": 52060401.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              },
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 701107549,
+                  "Arity": 2,
+                  "Args": {
+                    "buff_id": {
+                      "Kind": "Const",
+                      "ConstValue": 30060490.0,
+                      "Scale": 1.0
+                    },
+                    "target_self": {
+                      "Kind": "Const",
+                      "ConstValue": 1.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "ElseChildren": [
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1241142882,
+              "Arity": 2,
+              "Args": {
+                "buff_ids": {
+                  "Kind": "Const",
+                  "ConstValue": 30060490.0,
+                  "Scale": 1.0
+                },
+                "target_self": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30060411,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "ExecutionRoot": {
+        "Kind": "Sequence",
+        "Children": [
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 859871103,
+              "Arity": 2,
+              "Args": {
+                "parameter": {
+                  "Kind": "Const",
+                  "ConstValue": 1018898049.0,
+                  "Scale": 1.0
+                },
+                "result": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 1445747998,
+                  "KeyId": 1777589010,
+                  "Scale": 1.0,
+                  "KeyType": 4
+                },
+                "skill_id": {
+                  "Kind": "Const",
+                  "ConstValue": 30060401.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 859871103,
+              "Arity": 2,
+              "Args": {
+                "parameter": {
+                  "Kind": "Const",
+                  "ConstValue": 1520866077.0,
+                  "Scale": 1.0
+                },
+                "result": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 1445747998,
+                  "KeyId": 996397098,
+                  "Scale": 1.0,
+                  "KeyType": 4
+                },
+                "skill_id": {
+                  "Kind": "Const",
+                  "ConstValue": 30060401.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1781840746,
+              "Arity": 2,
+              "Args": {
+                "amount": {
+                  "Kind": "Var",
+                  "DomainId": "skill_runtime",
+                  "Key": "effect.e_cost",
+                  "Scale": 1.0
+                },
+                "death_cast_skill_id": {
+                  "Kind": "Const",
+                  "ConstValue": 30060604.0,
+                  "Scale": 1.0
+                },
+                "resource_type": {
+                  "Kind": "Const",
+                  "ConstValue": 2.0,
+                  "Scale": 1.0
+                },
+                "result": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 1445747998,
+                  "KeyId": 1000073437,
+                  "Scale": 1.0,
+                  "KeyType": 2
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "Equal",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "effect.e_paid",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "ConstValue": 1.0,
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 176148626,
+                  "Arity": 2,
+                  "Args": {
+                    "damage_type": {
+                      "Kind": "Const",
+                      "ConstValue": 2.0,
+                      "Scale": 1.0
+                    },
+                    "magnitude_secondary_attribute": {
+                      "Kind": "Const",
+                      "ConstValue": 5.0,
+                      "Scale": 1.0
+                    },
+                    "magnitude_secondary_coefficient": {
+                      "Kind": "Const",
+                      "ConstValue": 0.05,
+                      "Scale": 1.0
+                    },
+                    "magnitude_secondary_type": {
+                      "Kind": "Const",
+                      "ConstValue": 2.0,
+                      "Scale": 1.0
+                    },
+                    "magnitude_value": {
+                      "Kind": "Var",
+                      "DomainId": "skill_runtime",
+                      "Key": "effect.e_damage",
+                      "Scale": 1.0
+                    },
+                    "reason_kind": {
+                      "Kind": "Const",
+                      "ConstValue": 1.0,
+                      "Scale": 1.0
+                    },
+                    "reason_param": {
+                      "Kind": "Const",
+                      "ConstValue": 30060401.0,
+                      "Scale": 1.0
+                    },
+                    "target_max_count": {
+                      "Kind": "Const",
+                      "ConstValue": 2147483647.0,
+                      "Scale": 1.0
+                    },
+                    "target_query_id": {
+                      "Kind": "Const",
+                      "ConstValue": 52060401.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 701107549,
+                  "Arity": 2,
+                  "Args": {
+                    "buff_id": {
+                      "Kind": "Const",
+                      "ConstValue": 30060490.0,
+                      "Scale": 1.0
+                    },
+                    "target_self": {
+                      "Kind": "Const",
+                      "ConstValue": 1.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30060421,
+      "EventName": "unit.die",
+      "EventId": 593237517,
+      "Priority": 65,
+      "Scope": 1,
+      "Predicate": {
+        "Kind": "expr",
+        "Nodes": [
+          {
+            "Kind": "Function",
+            "Left": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "FunctionId": 279566872,
+            "FunctionArity": 2
+          },
+          {
+            "Kind": "Function",
+            "Left": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "FunctionId": 2088142531,
+            "FunctionArity": 2
+          },
+          {
+            "Kind": "And"
+          },
+          {
+            "Kind": "Function",
+            "Left": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "FunctionId": 1499695801,
+            "FunctionArity": 2
+          },
+          {
+            "Kind": "Function",
+            "Left": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 2.0,
+              "Scale": 1.0
+            },
+            "FunctionId": 1499695801,
+            "FunctionArity": 2
+          },
+          {
+            "Kind": "Or"
+          },
+          {
+            "Kind": "Function",
+            "Left": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 3.0,
+              "Scale": 1.0
+            },
+            "FunctionId": 1499695801,
+            "FunctionArity": 2
+          },
+          {
+            "Kind": "Or"
+          },
+          {
+            "Kind": "Function",
+            "Left": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 4.0,
+              "Scale": 1.0
+            },
+            "FunctionId": 1499695801,
+            "FunctionArity": 2
+          },
+          {
+            "Kind": "Or"
+          },
+          {
+            "Kind": "And"
+          }
+        ]
+      },
+      "Actions": [
+        {
+          "ActionId": 859871103,
+          "Arity": 2,
+          "Args": {
+            "parameter": {
+              "Kind": "Const",
+              "ConstValue": 1050240204.0,
+              "Scale": 1.0
+            },
+            "result": {
+              "Kind": "BlackboardTarget",
+              "BoardId": 1445747998,
+              "KeyId": 772253081,
+              "Scale": 1.0,
+              "KeyType": 4
+            },
+            "skill_id": {
+              "Kind": "Const",
+              "ConstValue": 30060401.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1742546102,
+          "Arity": 2,
+          "Args": {
+            "amount": {
+              "Kind": "Var",
+              "DomainId": "skill_runtime",
+              "Key": "effect.e_refund",
+              "Scale": 1.0
+            },
+            "resource_type": {
+              "Kind": "Const",
+              "ConstValue": 2.0,
+              "Scale": 1.0
+            },
+            "target_self": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30060501,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "ExecutionRoot": {
+        "Kind": "Sequence",
+        "Children": [
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 701107549,
+              "Arity": 2,
+              "Args": {
+                "buff_id": {
+                  "Kind": "Const",
+                  "ConstValue": 30060590.0,
+                  "Scale": 1.0
+                },
+                "remove_all": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                },
+                "target_max_count": {
+                  "Kind": "Const",
+                  "ConstValue": 2147483647.0,
+                  "Scale": 1.0
+                },
+                "target_query_id": {
+                  "Kind": "Const",
+                  "ConstValue": 52060502.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 59565244,
+              "Arity": 2,
+              "Args": {
+                "result": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 1445747998,
+                  "KeyId": 1345651711,
+                  "Scale": 1.0,
+                  "KeyType": 2
+                },
+                "target_max_count": {
+                  "Kind": "Const",
+                  "ConstValue": 2147483647.0,
+                  "Scale": 1.0
+                },
+                "target_query_id": {
+                  "Kind": "Const",
+                  "ConstValue": 52060501.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "ForEach",
+            "Collection": {
+              "Kind": "Var",
+              "DomainId": "skill_runtime",
+              "Key": "effect.target_collection",
+              "Scale": 1.0
+            },
+            "ItemTarget": {
+              "Kind": "BlackboardTarget",
+              "BoardId": 1445747998,
+              "KeyId": 1483040696,
+              "Scale": 1.0,
+              "KeyType": 2
+            },
+            "Children": [
+              {
+                "Kind": "Sequence",
+                "Children": [
+                  {
+                    "Kind": "Action",
+                    "Action": {
+                      "ActionId": 1822191218,
+                      "Arity": 2,
+                      "Args": {
+                        "area_id": {
+                          "Kind": "Const",
+                          "ConstValue": 42060501.0,
+                          "Scale": 1.0
+                        },
+                        "target_actor_id": {
+                          "Kind": "Var",
+                          "DomainId": "skill_runtime",
+                          "Key": "effect.current_target",
+                          "Scale": 1.0
+                        }
+                      },
+                      "MaxExecutions": -1,
+                      "CanBeInterrupted": true,
+                      "RetryMaxRetries": 3
+                    },
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  },
+                  {
+                    "Kind": "Action",
+                    "Action": {
+                      "ActionId": 176148626,
+                      "Arity": 2,
+                      "Args": {
+                        "damage_type": {
+                          "Kind": "Const",
+                          "ConstValue": 2.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_parameter": {
+                          "Kind": "Const",
+                          "ConstValue": 2009626731.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_attribute": {
+                          "Kind": "Const",
+                          "ConstValue": 5.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_coefficient": {
+                          "Kind": "Const",
+                          "ConstValue": 0.7,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_type": {
+                          "Kind": "Const",
+                          "ConstValue": 2.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_type": {
+                          "Kind": "Const",
+                          "ConstValue": 6.0,
+                          "Scale": 1.0
+                        },
+                        "reason_kind": {
+                          "Kind": "Const",
+                          "ConstValue": 1.0,
+                          "Scale": 1.0
+                        },
+                        "reason_param": {
+                          "Kind": "Const",
+                          "ConstValue": 30060501.0,
+                          "Scale": 1.0
+                        },
+                        "target_actor_id": {
+                          "Kind": "Var",
+                          "DomainId": "skill_runtime",
+                          "Key": "effect.current_target",
+                          "Scale": 1.0
+                        }
+                      },
+                      "MaxExecutions": -1,
+                      "CanBeInterrupted": true,
+                      "RetryMaxRetries": 3
+                    },
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  }
+                ],
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "Count": 1,
+            "MaxIterations": 2147483647,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30060511,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 1241142882,
+          "Arity": 2,
+          "Args": {
+            "buff_ids": {
+              "Kind": "Const",
+              "ConstValue": 30060590.0,
+              "Scale": 1.0
+            },
+            "target_max_count": {
+              "Kind": "Const",
+              "ConstValue": 2147483647.0,
+              "Scale": 1.0
+            },
+            "target_query_id": {
+              "Kind": "Const",
+              "ConstValue": 52060501.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30060512,
+      "EventName": "skill.cast.interrupt",
+      "EventId": 1284223932,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "expr",
+        "Nodes": [
+          {
+            "Kind": "CompareNumeric",
+            "CompareOp": "Equal",
+            "Left": {
+              "Kind": "PayloadField",
+              "FieldId": 1195644125,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 30060501.0,
+              "Scale": 1.0
+            }
+          },
+          {
+            "Kind": "CompareNumeric",
+            "CompareOp": "Equal",
+            "Left": {
+              "Kind": "PayloadField",
+              "FieldId": 1195644125,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 30060605.0,
+              "Scale": 1.0
+            }
+          },
+          {
+            "Kind": "Or"
+          }
+        ]
+      },
+      "ExecutionRoot": {
+        "Kind": "Action",
+        "Action": {
+          "ActionId": 231991321,
+          "Arity": 1,
+          "Args": {
+            "trigger_id": {
+              "Kind": "Const",
+              "ConstValue": 30060514.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30060513,
+      "EventName": "skill.cast.fail",
+      "EventId": 819532169,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "expr",
+        "Nodes": [
+          {
+            "Kind": "CompareNumeric",
+            "CompareOp": "Equal",
+            "Left": {
+              "Kind": "PayloadField",
+              "FieldId": 1195644125,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 30060501.0,
+              "Scale": 1.0
+            }
+          },
+          {
+            "Kind": "CompareNumeric",
+            "CompareOp": "Equal",
+            "Left": {
+              "Kind": "PayloadField",
+              "FieldId": 1195644125,
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "ConstValue": 30060605.0,
+              "Scale": 1.0
+            }
+          },
+          {
+            "Kind": "Or"
+          }
+        ]
+      },
+      "ExecutionRoot": {
+        "Kind": "Action",
+        "Action": {
+          "ActionId": 231991321,
+          "Arity": 1,
+          "Args": {
+            "trigger_id": {
+              "Kind": "Const",
+              "ConstValue": 30060514.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30060514,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 701107549,
+          "Arity": 2,
+          "Args": {
+            "buff_id": {
+              "Kind": "Const",
+              "ConstValue": 30060590.0,
+              "Scale": 1.0
+            },
+            "remove_all": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "target_max_count": {
+              "Kind": "Const",
+              "ConstValue": 2147483647.0,
+              "Scale": 1.0
+            },
+            "target_query_id": {
+              "Kind": "Const",
+              "ConstValue": 52060502.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30060604,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 859871103,
+          "Arity": 2,
+          "Args": {
+            "parameter": {
+              "Kind": "Const",
+              "ConstValue": 1520866077.0,
+              "Scale": 1.0
+            },
+            "result": {
+              "Kind": "BlackboardTarget",
+              "BoardId": 1445747998,
+              "KeyId": 996397098,
+              "Scale": 1.0,
+              "KeyType": 4
+            },
+            "skill_id": {
+              "Kind": "Const",
+              "ConstValue": 30060401.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30070101,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 508656420,
+          "Arity": 2,
+          "Args": {
+            "launcher_id": {
+              "Kind": "Const",
+              "ConstValue": 33070101.0,
+              "Scale": 1.0
+            },
+            "projectile_id": {
+              "Kind": "Const",
+              "ConstValue": 32070101.0,
+              "Scale": 1.0
+            },
+            "track_target": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30070111,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "ExecutionRoot": {
+        "Kind": "Sequence",
+        "Children": [
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1512207490,
+              "Arity": 2,
+              "Args": {
+                "buff_id": {
+                  "Kind": "Const",
+                  "ConstValue": 30070090.0,
+                  "Scale": 1.0
+                },
+                "claim": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                },
+                "eligible_result": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 1445747998,
+                  "KeyId": 628853890,
+                  "Scale": 1.0,
+                  "KeyType": 2
+                },
+                "magnitude_curve_0": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                },
+                "magnitude_curve_1": {
+                  "Kind": "Const",
+                  "ConstValue": 30.0,
+                  "Scale": 1.0
+                },
+                "magnitude_curve_2": {
+                  "Kind": "Const",
+                  "ConstValue": 18.0,
+                  "Scale": 1.0
+                },
+                "magnitude_curve_3": {
+                  "Kind": "Const",
+                  "ConstValue": 200.0,
+                  "Scale": 1.0
+                },
+                "magnitude_level_source": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                },
+                "magnitude_result": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 1445747998,
+                  "KeyId": 1448534208,
+                  "Scale": 1.0,
+                  "KeyType": 4
+                },
+                "magnitude_secondary_attribute": {
+                  "Kind": "Const",
+                  "ConstValue": 5.0,
+                  "Scale": 1.0
+                },
+                "magnitude_secondary_coefficient": {
+                  "Kind": "Const",
+                  "ConstValue": 0.3,
+                  "Scale": 1.0
+                },
+                "magnitude_secondary_type": {
+                  "Kind": "Const",
+                  "ConstValue": 2.0,
+                  "Scale": 1.0
+                },
+                "magnitude_type": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                },
+                "magnitude_value": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                },
+                "result": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 1445747998,
+                  "KeyId": 107681504,
+                  "Scale": 1.0,
+                  "KeyType": 2
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "Equal",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "effect.eligible",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "ConstValue": 1.0,
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 176148626,
+                  "Arity": 2,
+                  "Args": {
+                    "damage_type": {
+                      "Kind": "Const",
+                      "ConstValue": 1.0,
+                      "Scale": 1.0
+                    },
+                    "damage_value": {
+                      "Kind": "Const",
+                      "Scale": 1.0
+                    },
+                    "reason_kind": {
+                      "Kind": "Const",
+                      "ConstValue": 2.0,
+                      "Scale": 1.0
+                    },
+                    "reason_param": {
+                      "Kind": "Const",
+                      "ConstValue": 30070101.0,
+                      "Scale": 1.0
+                    },
+                    "source_attack_ratio": {
+                      "Kind": "Const",
+                      "ConstValue": 1.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              },
+              {
+                "Kind": "If",
+                "Condition": {
+                  "Kind": "expr",
+                  "Nodes": [
+                    {
+                      "Kind": "CompareNumeric",
+                      "CompareOp": "Equal",
+                      "Left": {
+                        "Kind": "Var",
+                        "DomainId": "skill_runtime",
+                        "Key": "effect.claimed",
+                        "Scale": 1.0
+                      },
+                      "Right": {
+                        "Kind": "Const",
+                        "ConstValue": 1.0,
+                        "Scale": 1.0
+                      }
+                    }
+                  ]
+                },
+                "Children": [
+                  {
+                    "Kind": "Action",
+                    "Action": {
+                      "ActionId": 176148626,
+                      "Arity": 2,
+                      "Args": {
+                        "damage_type": {
+                          "Kind": "Const",
+                          "ConstValue": 2.0,
+                          "Scale": 1.0
+                        },
+                        "damage_value": {
+                          "Kind": "Var",
+                          "DomainId": "skill_runtime",
+                          "Key": "effect.passive_damage",
+                          "Scale": 1.0
+                        },
+                        "reason_kind": {
+                          "Kind": "Const",
+                          "ConstValue": 1.0,
+                          "Scale": 1.0
+                        },
+                        "reason_param": {
+                          "Kind": "Const",
+                          "ConstValue": 30070000.0,
+                          "Scale": 1.0
+                        }
+                      },
+                      "MaxExecutions": -1,
+                      "CanBeInterrupted": true,
+                      "RetryMaxRetries": 3
+                    },
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  },
+                  {
+                    "Kind": "Action",
+                    "Action": {
+                      "ActionId": 1483031378,
+                      "Arity": 2,
+                      "Args": {
+                        "target_mode": {
+                          "Kind": "Const",
+                          "ConstValue": 3.0,
+                          "Scale": 1.0
+                        },
+                        "template_id": {
+                          "Kind": "Const",
+                          "ConstValue": 90037007.0,
+                          "Scale": 1.0
+                        }
+                      },
+                      "MaxExecutions": -1,
+                      "CanBeInterrupted": true,
+                      "RetryMaxRetries": 3
+                    },
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  }
+                ],
+                "ElseChildren": [],
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              },
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1483031378,
+                  "Arity": 2,
+                  "Args": {
+                    "target_mode": {
+                      "Kind": "Const",
+                      "ConstValue": 3.0,
+                      "Scale": 1.0
+                    },
+                    "template_id": {
+                      "Kind": "Const",
+                      "ConstValue": 90037001.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30070201,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 508656420,
+          "Arity": 2,
+          "Args": {
+            "launcher_id": {
+              "Kind": "Const",
+              "ConstValue": 33070201.0,
+              "Scale": 1.0
+            },
+            "projectile_id": {
+              "Kind": "Const",
+              "ConstValue": 32070201.0,
+              "Scale": 1.0
+            },
+            "use_aim_distance": {
+              "Kind": "Const",
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30070211,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 176148626,
+          "Arity": 2,
+          "Args": {
+            "damage_type": {
+              "Kind": "Const",
+              "ConstValue": 2.0,
+              "Scale": 1.0
+            },
+            "magnitude_parameter": {
+              "Kind": "Const",
+              "ConstValue": 2009626731.0,
+              "Scale": 1.0
+            },
+            "magnitude_secondary_attribute": {
+              "Kind": "Const",
+              "ConstValue": 5.0,
+              "Scale": 1.0
+            },
+            "magnitude_secondary_coefficient": {
+              "Kind": "Const",
+              "ConstValue": 0.65,
+              "Scale": 1.0
+            },
+            "magnitude_secondary_type": {
+              "Kind": "Const",
+              "ConstValue": 2.0,
+              "Scale": 1.0
+            },
+            "magnitude_type": {
+              "Kind": "Const",
+              "ConstValue": 6.0,
+              "Scale": 1.0
+            },
+            "reason_kind": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "reason_param": {
+              "Kind": "Const",
+              "ConstValue": 30070201.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1512207490,
+          "Arity": 1,
+          "Args": {
+            "buff_id": {
+              "Kind": "Const",
+              "ConstValue": 30070090.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1512207490,
+          "Arity": 1,
+          "Args": {
+            "buff_id": {
+              "Kind": "Const",
+              "ConstValue": 30070290.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1483031378,
+          "Arity": 2,
+          "Args": {
+            "target_mode": {
+              "Kind": "Const",
+              "ConstValue": 3.0,
+              "Scale": 1.0
+            },
+            "template_id": {
+              "Kind": "Const",
+              "ConstValue": 90037011.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30070301,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 951534590,
+          "Arity": 2,
+          "Args": {
+            "duration_ms": {
+              "Kind": "Const",
+              "ConstValue": 2500.0,
+              "Scale": 1.0
+            },
+            "magnitude_parameter": {
+              "Kind": "Const",
+              "ConstValue": 1087512403.0,
+              "Scale": 1.0
+            },
+            "magnitude_secondary_attribute": {
+              "Kind": "Const",
+              "ConstValue": 5.0,
+              "Scale": 1.0
+            },
+            "magnitude_secondary_coefficient": {
+              "Kind": "Const",
+              "ConstValue": 0.4,
+              "Scale": 1.0
+            },
+            "magnitude_secondary_type": {
+              "Kind": "Const",
+              "ConstValue": 2.0,
+              "Scale": 1.0
+            },
+            "magnitude_type": {
+              "Kind": "Const",
+              "ConstValue": 6.0,
+              "Scale": 1.0
+            },
+            "shield_id": {
+              "Kind": "Const",
+              "ConstValue": 30070390.0,
+              "Scale": 1.0
+            },
+            "stacking_policy": {
+              "Kind": "Const",
+              "ConstValue": 4.0,
+              "Scale": 1.0
+            },
+            "target_self": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1483031378,
+          "Arity": 2,
+          "Args": {
+            "target_mode": {
+              "Kind": "Const",
+              "ConstValue": 4.0,
+              "Scale": 1.0
+            },
+            "template_id": {
+              "Kind": "Const",
+              "ConstValue": 90037019.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 508656420,
+          "Arity": 2,
+          "Args": {
+            "launcher_id": {
+              "Kind": "Const",
+              "ConstValue": 33070301.0,
+              "Scale": 1.0
+            },
+            "projectile_id": {
+              "Kind": "Const",
+              "ConstValue": 32070301.0,
+              "Scale": 1.0
+            },
+            "use_aim_distance": {
+              "Kind": "Const",
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30070311,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 951534590,
+          "Arity": 2,
+          "Args": {
+            "duration_ms": {
+              "Kind": "Const",
+              "ConstValue": 2500.0,
+              "Scale": 1.0
+            },
+            "magnitude_parameter": {
+              "Kind": "Const",
+              "ConstValue": 1087512403.0,
+              "Scale": 1.0
+            },
+            "magnitude_secondary_attribute": {
+              "Kind": "Const",
+              "ConstValue": 5.0,
+              "Scale": 1.0
+            },
+            "magnitude_secondary_coefficient": {
+              "Kind": "Const",
+              "ConstValue": 0.4,
+              "Scale": 1.0
+            },
+            "magnitude_secondary_type": {
+              "Kind": "Const",
+              "ConstValue": 2.0,
+              "Scale": 1.0
+            },
+            "magnitude_type": {
+              "Kind": "Const",
+              "ConstValue": 6.0,
+              "Scale": 1.0
+            },
+            "shield_id": {
+              "Kind": "Const",
+              "ConstValue": 30070390.0,
+              "Scale": 1.0
+            },
+            "stacking_policy": {
+              "Kind": "Const",
+              "ConstValue": 4.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1483031378,
+          "Arity": 2,
+          "Args": {
+            "target_mode": {
+              "Kind": "Const",
+              "ConstValue": 3.0,
+              "Scale": 1.0
+            },
+            "template_id": {
+              "Kind": "Const",
+              "ConstValue": 90037019.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30070312,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "ExecutionRoot": {
+        "Kind": "If",
+        "Condition": {
+          "Kind": "expr",
+          "Nodes": [
+            {
+              "Kind": "CompareNumeric",
+              "CompareOp": "Equal",
+              "Left": {
+                "Kind": "PayloadField",
+                "FieldId": 1039330308,
+                "Scale": 1.0
+              },
+              "Right": {
+                "Kind": "Const",
+                "ConstValue": 5.0,
+                "Scale": 1.0
+              }
+            }
+          ]
+        },
+        "Children": [
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 951534590,
+              "Arity": 2,
+              "Args": {
+                "duration_ms": {
+                  "Kind": "Const",
+                  "ConstValue": 2500.0,
+                  "Scale": 1.0
+                },
+                "magnitude_parameter": {
+                  "Kind": "Const",
+                  "ConstValue": 1087512403.0,
+                  "Scale": 1.0
+                },
+                "magnitude_secondary_attribute": {
+                  "Kind": "Const",
+                  "ConstValue": 5.0,
+                  "Scale": 1.0
+                },
+                "magnitude_secondary_coefficient": {
+                  "Kind": "Const",
+                  "ConstValue": 0.4,
+                  "Scale": 1.0
+                },
+                "magnitude_secondary_type": {
+                  "Kind": "Const",
+                  "ConstValue": 2.0,
+                  "Scale": 1.0
+                },
+                "magnitude_type": {
+                  "Kind": "Const",
+                  "ConstValue": 6.0,
+                  "Scale": 1.0
+                },
+                "shield_id": {
+                  "Kind": "Const",
+                  "ConstValue": 30070390.0,
+                  "Scale": 1.0
+                },
+                "stacking_policy": {
+                  "Kind": "Const",
+                  "ConstValue": 4.0,
+                  "Scale": 1.0
+                },
+                "target_self": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1483031378,
+              "Arity": 2,
+              "Args": {
+                "target_mode": {
+                  "Kind": "Const",
+                  "ConstValue": 4.0,
+                  "Scale": 1.0
+                },
+                "template_id": {
+                  "Kind": "Const",
+                  "ConstValue": 90037018.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "ElseChildren": [],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30070401,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 117485488,
+          "Arity": 2,
+          "Args": {
+            "target": {
+              "Kind": "BlackboardTarget",
+              "BoardId": 337995124,
+              "KeyId": 1372175467,
+              "Scale": 1.0,
+              "KeyType": 4
+            },
+            "value": {
+              "Kind": "PayloadField",
+              "FieldId": 128037286,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1241142882,
+          "Arity": 2,
+          "Args": {
+            "buff_ids": {
+              "Kind": "Const",
+              "ConstValue": 30070491.0,
+              "Scale": 1.0
+            },
+            "target_self": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 508656420,
+          "Arity": 2,
+          "Args": {
+            "launcher_id": {
+              "Kind": "Const",
+              "ConstValue": 33070401.0,
+              "Scale": 1.0
+            },
+            "projectile_id": {
+              "Kind": "Const",
+              "ConstValue": 32070401.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30070402,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 1418014495,
+          "Arity": 1,
+          "Args": {
+            "terminal_trigger_id": {
+              "Kind": "Const",
+              "ConstValue": 30070414.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30070411,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "ExecutionRoot": {
+        "Kind": "If",
+        "Condition": {
+          "Kind": "expr",
+          "Nodes": [
+            {
+              "Kind": "CompareNumeric",
+              "CompareOp": "Equal",
+              "Left": {
+                "Kind": "PayloadField",
+                "FieldId": 1039330308,
+                "Scale": 1.0
+              },
+              "Right": {
+                "Kind": "Const",
+                "ConstValue": 3.0,
+                "Scale": 1.0
+              }
+            }
+          ]
+        },
+        "Children": [
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 701107549,
+              "Arity": 2,
+              "Args": {
+                "buff_id": {
+                  "Kind": "Const",
+                  "ConstValue": 30070491.0,
+                  "Scale": 1.0
+                },
+                "target_self": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1241142882,
+              "Arity": 2,
+              "Args": {
+                "buff_ids": {
+                  "Kind": "Const",
+                  "ConstValue": 30070492.0,
+                  "Scale": 1.0
+                },
+                "target_self": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1822191218,
+              "Arity": 2,
+              "Args": {
+                "area_id": {
+                  "Kind": "Const",
+                  "ConstValue": 42070401.0,
+                  "Scale": 1.0
+                },
+                "position_mode": {
+                  "Kind": "Const",
+                  "ConstValue": 2.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1418014495,
+              "Arity": 2,
+              "Args": {
+                "pending_only": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                },
+                "terminal_trigger_id": {
+                  "Kind": "Const",
+                  "ConstValue": 30070414.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "ElseChildren": [],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30070412,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 1418014495,
+          "Arity": 2,
+          "Args": {
+            "owned_area": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "terminal_trigger_id": {
+              "Kind": "Const",
+              "ConstValue": 30070414.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30070413,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "ExecutionRoot": {
+        "Kind": "Sequence",
+        "Children": [
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "Equal",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "cast.rank",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "ConstValue": 1.0,
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1512207490,
+                  "Arity": 1,
+                  "Args": {
+                    "buff_id": {
+                      "Kind": "Const",
+                      "ConstValue": 30070481.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "Equal",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "cast.rank",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "ConstValue": 2.0,
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1512207490,
+                  "Arity": 1,
+                  "Args": {
+                    "buff_id": {
+                      "Kind": "Const",
+                      "ConstValue": 30070482.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "Equal",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "cast.rank",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "ConstValue": 3.0,
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1512207490,
+                  "Arity": 1,
+                  "Args": {
+                    "buff_id": {
+                      "Kind": "Const",
+                      "ConstValue": 30070483.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "Equal",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "cast.rank",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "ConstValue": 4.0,
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1512207490,
+                  "Arity": 1,
+                  "Args": {
+                    "buff_id": {
+                      "Kind": "Const",
+                      "ConstValue": 30070484.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "If",
+            "Condition": {
+              "Kind": "expr",
+              "Nodes": [
+                {
+                  "Kind": "CompareNumeric",
+                  "CompareOp": "Equal",
+                  "Left": {
+                    "Kind": "Var",
+                    "DomainId": "skill_runtime",
+                    "Key": "cast.rank",
+                    "Scale": 1.0
+                  },
+                  "Right": {
+                    "Kind": "Const",
+                    "ConstValue": 5.0,
+                    "Scale": 1.0
+                  }
+                }
+              ]
+            },
+            "Children": [
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1512207490,
+                  "Arity": 1,
+                  "Args": {
+                    "buff_id": {
+                      "Kind": "Const",
+                      "ConstValue": 30070485.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "ElseChildren": [],
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30070414,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "ExecutionRoot": {
+        "Kind": "Sequence",
+        "Children": [
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 701107549,
+              "Arity": 2,
+              "Args": {
+                "buff_id": {
+                  "Kind": "Const",
+                  "ConstValue": 30070491.0,
+                  "Scale": 1.0
+                },
+                "target_self": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 701107549,
+              "Arity": 2,
+              "Args": {
+                "buff_id": {
+                  "Kind": "Const",
+                  "ConstValue": 30070492.0,
+                  "Scale": 1.0
+                },
+                "target_self": {
+                  "Kind": "Const",
+                  "ConstValue": 1.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 59565244,
+              "Arity": 2,
+              "Args": {
+                "result": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 1445747998,
+                  "KeyId": 1345651711,
+                  "Scale": 1.0,
+                  "KeyType": 2
+                },
+                "target_max_count": {
+                  "Kind": "Const",
+                  "ConstValue": 2147483647.0,
+                  "Scale": 1.0
+                },
+                "target_query_id": {
+                  "Kind": "Const",
+                  "ConstValue": 52070401.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "ForEach",
+            "Collection": {
+              "Kind": "Var",
+              "DomainId": "skill_runtime",
+              "Key": "effect.target_collection",
+              "Scale": 1.0
+            },
+            "ItemTarget": {
+              "Kind": "BlackboardTarget",
+              "BoardId": 1445747998,
+              "KeyId": 1483040696,
+              "Scale": 1.0,
+              "KeyType": 2
+            },
+            "Children": [
+              {
+                "Kind": "Sequence",
+                "Children": [
+                  {
+                    "Kind": "Action",
+                    "Action": {
+                      "ActionId": 176148626,
+                      "Arity": 2,
+                      "Args": {
+                        "damage_type": {
+                          "Kind": "Const",
+                          "ConstValue": 2.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_parameter": {
+                          "Kind": "Const",
+                          "ConstValue": 2009626731.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_attribute": {
+                          "Kind": "Const",
+                          "ConstValue": 5.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_coefficient": {
+                          "Kind": "Const",
+                          "ConstValue": 0.8,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_type": {
+                          "Kind": "Const",
+                          "ConstValue": 2.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_type": {
+                          "Kind": "Const",
+                          "ConstValue": 6.0,
+                          "Scale": 1.0
+                        },
+                        "reason_kind": {
+                          "Kind": "Const",
+                          "ConstValue": 1.0,
+                          "Scale": 1.0
+                        },
+                        "reason_param": {
+                          "Kind": "Const",
+                          "ConstValue": 30070401.0,
+                          "Scale": 1.0
+                        },
+                        "target_actor_id": {
+                          "Kind": "Var",
+                          "DomainId": "skill_runtime",
+                          "Key": "effect.current_target",
+                          "Scale": 1.0
+                        }
+                      },
+                      "MaxExecutions": -1,
+                      "CanBeInterrupted": true,
+                      "RetryMaxRetries": 3
+                    },
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  },
+                  {
+                    "Kind": "Action",
+                    "Action": {
+                      "ActionId": 1512207490,
+                      "Arity": 2,
+                      "Args": {
+                        "buff_id": {
+                          "Kind": "Const",
+                          "ConstValue": 30070090.0,
+                          "Scale": 1.0
+                        },
+                        "target_actor_id": {
+                          "Kind": "Var",
+                          "DomainId": "skill_runtime",
+                          "Key": "effect.current_target",
+                          "Scale": 1.0
+                        }
+                      },
+                      "MaxExecutions": -1,
+                      "CanBeInterrupted": true,
+                      "RetryMaxRetries": 3
+                    },
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  },
+                  {
+                    "Kind": "If",
+                    "Condition": {
+                      "Kind": "expr",
+                      "Nodes": [
+                        {
+                          "Kind": "CompareNumeric",
+                          "CompareOp": "Equal",
+                          "Left": {
+                            "Kind": "Var",
+                            "DomainId": "skill_runtime",
+                            "Key": "cast.rank",
+                            "Scale": 1.0
+                          },
+                          "Right": {
+                            "Kind": "Const",
+                            "ConstValue": 1.0,
+                            "Scale": 1.0
+                          }
+                        }
+                      ]
+                    },
+                    "Children": [
+                      {
+                        "Kind": "Action",
+                        "Action": {
+                          "ActionId": 1241142882,
+                          "Arity": 2,
+                          "Args": {
+                            "buff_ids": {
+                              "Kind": "Const",
+                              "ConstValue": 30070481.0,
+                              "Scale": 1.0
+                            },
+                            "target_actor_id": {
+                              "Kind": "Var",
+                              "DomainId": "skill_runtime",
+                              "Key": "effect.current_target",
+                              "Scale": 1.0
+                            }
+                          },
+                          "MaxExecutions": -1,
+                          "CanBeInterrupted": true,
+                          "RetryMaxRetries": 3
+                        },
+                        "Count": 1,
+                        "MaxIterations": 1,
+                        "Weight": 1.0,
+                        "MaxExecutions": -1,
+                        "CanBeInterrupted": true
+                      }
+                    ],
+                    "ElseChildren": [],
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  },
+                  {
+                    "Kind": "If",
+                    "Condition": {
+                      "Kind": "expr",
+                      "Nodes": [
+                        {
+                          "Kind": "CompareNumeric",
+                          "CompareOp": "Equal",
+                          "Left": {
+                            "Kind": "Var",
+                            "DomainId": "skill_runtime",
+                            "Key": "cast.rank",
+                            "Scale": 1.0
+                          },
+                          "Right": {
+                            "Kind": "Const",
+                            "ConstValue": 2.0,
+                            "Scale": 1.0
+                          }
+                        }
+                      ]
+                    },
+                    "Children": [
+                      {
+                        "Kind": "Action",
+                        "Action": {
+                          "ActionId": 1241142882,
+                          "Arity": 2,
+                          "Args": {
+                            "buff_ids": {
+                              "Kind": "Const",
+                              "ConstValue": 30070482.0,
+                              "Scale": 1.0
+                            },
+                            "target_actor_id": {
+                              "Kind": "Var",
+                              "DomainId": "skill_runtime",
+                              "Key": "effect.current_target",
+                              "Scale": 1.0
+                            }
+                          },
+                          "MaxExecutions": -1,
+                          "CanBeInterrupted": true,
+                          "RetryMaxRetries": 3
+                        },
+                        "Count": 1,
+                        "MaxIterations": 1,
+                        "Weight": 1.0,
+                        "MaxExecutions": -1,
+                        "CanBeInterrupted": true
+                      }
+                    ],
+                    "ElseChildren": [],
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  },
+                  {
+                    "Kind": "If",
+                    "Condition": {
+                      "Kind": "expr",
+                      "Nodes": [
+                        {
+                          "Kind": "CompareNumeric",
+                          "CompareOp": "Equal",
+                          "Left": {
+                            "Kind": "Var",
+                            "DomainId": "skill_runtime",
+                            "Key": "cast.rank",
+                            "Scale": 1.0
+                          },
+                          "Right": {
+                            "Kind": "Const",
+                            "ConstValue": 3.0,
+                            "Scale": 1.0
+                          }
+                        }
+                      ]
+                    },
+                    "Children": [
+                      {
+                        "Kind": "Action",
+                        "Action": {
+                          "ActionId": 1241142882,
+                          "Arity": 2,
+                          "Args": {
+                            "buff_ids": {
+                              "Kind": "Const",
+                              "ConstValue": 30070483.0,
+                              "Scale": 1.0
+                            },
+                            "target_actor_id": {
+                              "Kind": "Var",
+                              "DomainId": "skill_runtime",
+                              "Key": "effect.current_target",
+                              "Scale": 1.0
+                            }
+                          },
+                          "MaxExecutions": -1,
+                          "CanBeInterrupted": true,
+                          "RetryMaxRetries": 3
+                        },
+                        "Count": 1,
+                        "MaxIterations": 1,
+                        "Weight": 1.0,
+                        "MaxExecutions": -1,
+                        "CanBeInterrupted": true
+                      }
+                    ],
+                    "ElseChildren": [],
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  },
+                  {
+                    "Kind": "If",
+                    "Condition": {
+                      "Kind": "expr",
+                      "Nodes": [
+                        {
+                          "Kind": "CompareNumeric",
+                          "CompareOp": "Equal",
+                          "Left": {
+                            "Kind": "Var",
+                            "DomainId": "skill_runtime",
+                            "Key": "cast.rank",
+                            "Scale": 1.0
+                          },
+                          "Right": {
+                            "Kind": "Const",
+                            "ConstValue": 4.0,
+                            "Scale": 1.0
+                          }
+                        }
+                      ]
+                    },
+                    "Children": [
+                      {
+                        "Kind": "Action",
+                        "Action": {
+                          "ActionId": 1241142882,
+                          "Arity": 2,
+                          "Args": {
+                            "buff_ids": {
+                              "Kind": "Const",
+                              "ConstValue": 30070484.0,
+                              "Scale": 1.0
+                            },
+                            "target_actor_id": {
+                              "Kind": "Var",
+                              "DomainId": "skill_runtime",
+                              "Key": "effect.current_target",
+                              "Scale": 1.0
+                            }
+                          },
+                          "MaxExecutions": -1,
+                          "CanBeInterrupted": true,
+                          "RetryMaxRetries": 3
+                        },
+                        "Count": 1,
+                        "MaxIterations": 1,
+                        "Weight": 1.0,
+                        "MaxExecutions": -1,
+                        "CanBeInterrupted": true
+                      }
+                    ],
+                    "ElseChildren": [],
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  },
+                  {
+                    "Kind": "If",
+                    "Condition": {
+                      "Kind": "expr",
+                      "Nodes": [
+                        {
+                          "Kind": "CompareNumeric",
+                          "CompareOp": "Equal",
+                          "Left": {
+                            "Kind": "Var",
+                            "DomainId": "skill_runtime",
+                            "Key": "cast.rank",
+                            "Scale": 1.0
+                          },
+                          "Right": {
+                            "Kind": "Const",
+                            "ConstValue": 5.0,
+                            "Scale": 1.0
+                          }
+                        }
+                      ]
+                    },
+                    "Children": [
+                      {
+                        "Kind": "Action",
+                        "Action": {
+                          "ActionId": 1241142882,
+                          "Arity": 2,
+                          "Args": {
+                            "buff_ids": {
+                              "Kind": "Const",
+                              "ConstValue": 30070485.0,
+                              "Scale": 1.0
+                            },
+                            "target_actor_id": {
+                              "Kind": "Var",
+                              "DomainId": "skill_runtime",
+                              "Key": "effect.current_target",
+                              "Scale": 1.0
+                            }
+                          },
+                          "MaxExecutions": -1,
+                          "CanBeInterrupted": true,
+                          "RetryMaxRetries": 3
+                        },
+                        "Count": 1,
+                        "MaxIterations": 1,
+                        "Weight": 1.0,
+                        "MaxExecutions": -1,
+                        "CanBeInterrupted": true
+                      }
+                    ],
+                    "ElseChildren": [],
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  }
+                ],
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "Count": 1,
+            "MaxIterations": 2147483647,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1822191218,
+              "Arity": 2,
+              "Args": {
+                "area_id": {
+                  "Kind": "Const",
+                  "ConstValue": 42070402.0,
+                  "Scale": 1.0
+                },
+                "position_mode": {
+                  "Kind": "Const",
+                  "ConstValue": 2.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
+    },
+    {
+      "TriggerId": 30070500,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 1822191218,
+          "Arity": 2,
+          "Args": {
+            "area_id": {
+              "Kind": "Const",
+              "ConstValue": 42070501.0,
+              "Scale": 1.0
+            },
+            "capture_cast_frame": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "direction_offset": {
+              "Kind": "Const",
+              "ConstValue": 16.7,
+              "Scale": 1.0
+            },
+            "position_mode": {
+              "Kind": "Const",
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30070501,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 1418014495,
+          "Arity": 2,
+          "Args": {
+            "owned_area": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "terminal_trigger_id": {
+              "Kind": "Const",
+              "ConstValue": 30070511.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30070511,
+      "Priority": 65,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "ExecutionRoot": {
+        "Kind": "Sequence",
+        "Children": [
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 59565244,
+              "Arity": 2,
+              "Args": {
+                "result": {
+                  "Kind": "BlackboardTarget",
+                  "BoardId": 1445747998,
+                  "KeyId": 1345651711,
+                  "Scale": 1.0,
+                  "KeyType": 2
+                },
+                "target_max_count": {
+                  "Kind": "Const",
+                  "ConstValue": 2147483647.0,
+                  "Scale": 1.0
+                },
+                "target_query_id": {
+                  "Kind": "Const",
+                  "ConstValue": 52070501.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "ForEach",
+            "Collection": {
+              "Kind": "Var",
+              "DomainId": "skill_runtime",
+              "Key": "effect.target_collection",
+              "Scale": 1.0
+            },
+            "ItemTarget": {
+              "Kind": "BlackboardTarget",
+              "BoardId": 1445747998,
+              "KeyId": 1483040696,
+              "Scale": 1.0,
+              "KeyType": 2
+            },
+            "Children": [
+              {
+                "Kind": "Sequence",
+                "Children": [
+                  {
+                    "Kind": "Action",
+                    "Action": {
+                      "ActionId": 1512207490,
+                      "Arity": 2,
+                      "Args": {
+                        "buff_id": {
+                          "Kind": "Const",
+                          "ConstValue": 30070090.0,
+                          "Scale": 1.0
+                        },
+                        "claim": {
+                          "Kind": "Const",
+                          "ConstValue": 1.0,
+                          "Scale": 1.0
+                        },
+                        "eligible_result": {
+                          "Kind": "BlackboardTarget",
+                          "BoardId": 1445747998,
+                          "KeyId": 628853890,
+                          "Scale": 1.0,
+                          "KeyType": 2
+                        },
+                        "magnitude_curve_0": {
+                          "Kind": "Const",
+                          "ConstValue": 1.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_curve_1": {
+                          "Kind": "Const",
+                          "ConstValue": 30.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_curve_2": {
+                          "Kind": "Const",
+                          "ConstValue": 18.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_curve_3": {
+                          "Kind": "Const",
+                          "ConstValue": 200.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_level_source": {
+                          "Kind": "Const",
+                          "ConstValue": 1.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_result": {
+                          "Kind": "BlackboardTarget",
+                          "BoardId": 1445747998,
+                          "KeyId": 1448534208,
+                          "Scale": 1.0,
+                          "KeyType": 4
+                        },
+                        "magnitude_secondary_attribute": {
+                          "Kind": "Const",
+                          "ConstValue": 5.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_coefficient": {
+                          "Kind": "Const",
+                          "ConstValue": 0.3,
+                          "Scale": 1.0
+                        },
+                        "magnitude_secondary_type": {
+                          "Kind": "Const",
+                          "ConstValue": 2.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_type": {
+                          "Kind": "Const",
+                          "ConstValue": 1.0,
+                          "Scale": 1.0
+                        },
+                        "magnitude_value": {
+                          "Kind": "Const",
+                          "ConstValue": 1.0,
+                          "Scale": 1.0
+                        },
+                        "result": {
+                          "Kind": "BlackboardTarget",
+                          "BoardId": 1445747998,
+                          "KeyId": 107681504,
+                          "Scale": 1.0,
+                          "KeyType": 2
+                        },
+                        "target_actor_id": {
+                          "Kind": "Var",
+                          "DomainId": "skill_runtime",
+                          "Key": "effect.current_target",
+                          "Scale": 1.0
+                        }
+                      },
+                      "MaxExecutions": -1,
+                      "CanBeInterrupted": true,
+                      "RetryMaxRetries": 3
+                    },
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  },
+                  {
+                    "Kind": "If",
+                    "Condition": {
+                      "Kind": "expr",
+                      "Nodes": [
+                        {
+                          "Kind": "CompareNumeric",
+                          "CompareOp": "Equal",
+                          "Left": {
+                            "Kind": "Var",
+                            "DomainId": "skill_runtime",
+                            "Key": "effect.eligible",
+                            "Scale": 1.0
+                          },
+                          "Right": {
+                            "Kind": "Const",
+                            "ConstValue": 1.0,
+                            "Scale": 1.0
+                          }
+                        }
+                      ]
+                    },
+                    "Children": [
+                      {
+                        "Kind": "Action",
+                        "Action": {
+                          "ActionId": 176148626,
+                          "Arity": 2,
+                          "Args": {
+                            "damage_type": {
+                              "Kind": "Const",
+                              "ConstValue": 2.0,
+                              "Scale": 1.0
+                            },
+                            "magnitude_parameter": {
+                              "Kind": "Const",
+                              "ConstValue": 2009626731.0,
+                              "Scale": 1.0
+                            },
+                            "magnitude_secondary_attribute": {
+                              "Kind": "Const",
+                              "ConstValue": 5.0,
+                              "Scale": 1.0
+                            },
+                            "magnitude_secondary_coefficient": {
+                              "Kind": "Const",
+                              "ConstValue": 1.2,
+                              "Scale": 1.0
+                            },
+                            "magnitude_secondary_type": {
+                              "Kind": "Const",
+                              "ConstValue": 2.0,
+                              "Scale": 1.0
+                            },
+                            "magnitude_type": {
+                              "Kind": "Const",
+                              "ConstValue": 6.0,
+                              "Scale": 1.0
+                            },
+                            "reason_kind": {
+                              "Kind": "Const",
+                              "ConstValue": 1.0,
+                              "Scale": 1.0
+                            },
+                            "reason_param": {
+                              "Kind": "Const",
+                              "ConstValue": 30070501.0,
+                              "Scale": 1.0
+                            },
+                            "target_actor_id": {
+                              "Kind": "Var",
+                              "DomainId": "skill_runtime",
+                              "Key": "effect.current_target",
+                              "Scale": 1.0
+                            }
+                          },
+                          "MaxExecutions": -1,
+                          "CanBeInterrupted": true,
+                          "RetryMaxRetries": 3
+                        },
+                        "Count": 1,
+                        "MaxIterations": 1,
+                        "Weight": 1.0,
+                        "MaxExecutions": -1,
+                        "CanBeInterrupted": true
+                      },
+                      {
+                        "Kind": "If",
+                        "Condition": {
+                          "Kind": "expr",
+                          "Nodes": [
+                            {
+                              "Kind": "CompareNumeric",
+                              "CompareOp": "Equal",
+                              "Left": {
+                                "Kind": "Var",
+                                "DomainId": "skill_runtime",
+                                "Key": "effect.claimed",
+                                "Scale": 1.0
+                              },
+                              "Right": {
+                                "Kind": "Const",
+                                "ConstValue": 1.0,
+                                "Scale": 1.0
+                              }
+                            }
+                          ]
+                        },
+                        "Children": [
+                          {
+                            "Kind": "Action",
+                            "Action": {
+                              "ActionId": 176148626,
+                              "Arity": 2,
+                              "Args": {
+                                "damage_type": {
+                                  "Kind": "Const",
+                                  "ConstValue": 2.0,
+                                  "Scale": 1.0
+                                },
+                                "damage_value": {
+                                  "Kind": "Var",
+                                  "DomainId": "skill_runtime",
+                                  "Key": "effect.passive_damage",
+                                  "Scale": 1.0
+                                },
+                                "reason_kind": {
+                                  "Kind": "Const",
+                                  "ConstValue": 1.0,
+                                  "Scale": 1.0
+                                },
+                                "reason_param": {
+                                  "Kind": "Const",
+                                  "ConstValue": 30070000.0,
+                                  "Scale": 1.0
+                                },
+                                "target_actor_id": {
+                                  "Kind": "Var",
+                                  "DomainId": "skill_runtime",
+                                  "Key": "effect.current_target",
+                                  "Scale": 1.0
+                                }
+                              },
+                              "MaxExecutions": -1,
+                              "CanBeInterrupted": true,
+                              "RetryMaxRetries": 3
+                            },
+                            "Count": 1,
+                            "MaxIterations": 1,
+                            "Weight": 1.0,
+                            "MaxExecutions": -1,
+                            "CanBeInterrupted": true
+                          },
+                          {
+                            "Kind": "Action",
+                            "Action": {
+                              "ActionId": 1241142882,
+                              "Arity": 2,
+                              "Args": {
+                                "buff_ids": {
+                                  "Kind": "Const",
+                                  "ConstValue": 30070091.0,
+                                  "Scale": 1.0
+                                },
+                                "target_actor_id": {
+                                  "Kind": "Var",
+                                  "DomainId": "skill_runtime",
+                                  "Key": "effect.current_target",
+                                  "Scale": 1.0
+                                }
+                              },
+                              "MaxExecutions": -1,
+                              "CanBeInterrupted": true,
+                              "RetryMaxRetries": 3
+                            },
+                            "Count": 1,
+                            "MaxIterations": 1,
+                            "Weight": 1.0,
+                            "MaxExecutions": -1,
+                            "CanBeInterrupted": true
+                          }
+                        ],
+                        "ElseChildren": [],
+                        "Count": 1,
+                        "MaxIterations": 1,
+                        "Weight": 1.0,
+                        "MaxExecutions": -1,
+                        "CanBeInterrupted": true
+                      },
+                      {
+                        "Kind": "Action",
+                        "Action": {
+                          "ActionId": 1512207490,
+                          "Arity": 2,
+                          "Args": {
+                            "buff_id": {
+                              "Kind": "Const",
+                              "ConstValue": 30070090.0,
+                              "Scale": 1.0
+                            },
+                            "target_actor_id": {
+                              "Kind": "Var",
+                              "DomainId": "skill_runtime",
+                              "Key": "effect.current_target",
+                              "Scale": 1.0
+                            }
+                          },
+                          "MaxExecutions": -1,
+                          "CanBeInterrupted": true,
+                          "RetryMaxRetries": 3
+                        },
+                        "Count": 1,
+                        "MaxIterations": 1,
+                        "Weight": 1.0,
+                        "MaxExecutions": -1,
+                        "CanBeInterrupted": true
+                      },
+                      {
+                        "Kind": "Action",
+                        "Action": {
+                          "ActionId": 1241142882,
+                          "Arity": 2,
+                          "Args": {
+                            "buff_ids": {
+                              "Kind": "Const",
+                              "ConstValue": 30070590.0,
+                              "Scale": 1.0
+                            },
+                            "target_actor_id": {
+                              "Kind": "Var",
+                              "DomainId": "skill_runtime",
+                              "Key": "effect.current_target",
+                              "Scale": 1.0
+                            }
+                          },
+                          "MaxExecutions": -1,
+                          "CanBeInterrupted": true,
+                          "RetryMaxRetries": 3
+                        },
+                        "Count": 1,
+                        "MaxIterations": 1,
+                        "Weight": 1.0,
+                        "MaxExecutions": -1,
+                        "CanBeInterrupted": true
+                      }
+                    ],
+                    "ElseChildren": [],
+                    "Count": 1,
+                    "MaxIterations": 1,
+                    "Weight": 1.0,
+                    "MaxExecutions": -1,
+                    "CanBeInterrupted": true
+                  }
+                ],
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              }
+            ],
+            "Count": 1,
+            "MaxIterations": 2147483647,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          }
+        ],
+        "Count": 1,
+        "MaxIterations": 1,
+        "Weight": 1.0,
+        "MaxExecutions": -1,
+        "CanBeInterrupted": true
+      }
     }
   ],
   "Strings": {
@@ -18293,8 +22773,10 @@
     "941101615": "小乔二技能：生成击飞区域",
     "941349839": "廉颇二技能：蓄力区域造成物理伤害并降低目标移速",
     "1017261101": "鲁班七号二技能无敌鲨嘴炮：命中造成物理伤害并击退目标",
+    "1018898049": "tick_cost",
     "1019465838": "小乔二技能：区域命中造成法术伤害并击飞目标",
     "1034041671": "妲己三技能女王崇拜：周期搜敌并发射狐火",
+    "1050240204": "refund",
     "1087512403": "shield",
     "1117688528": "孙尚香三技能究极弩炮：发射一枚弩炮，对命中目标造成物理伤害",
     "1134160402": "释放技能1，给自己添加持续掉血buff！",
@@ -18312,6 +22794,7 @@
     "1471806946": "嬴政一技能王者惩戒：在目标点生成延迟剑阵区域",
     "1484795515": "墨子二技能：爆炸范围造成法术伤害并眩晕",
     "1514492491": "墨子一技能和平漫步：向前突进，获得强化普攻Buff，普攻技能ID临时替换为强化炮击",
+    "1520866077": "tick_damage",
     "1562301461": "墨子一技能：突进路径命中造成法术伤害",
     "1588309983": "嬴政三技能至尊王权：启动单个持续飞剑发射器，共11波55支飞剑",
     "1589654996": "寤夐琚姩瑙﹀彂锛氭坊鍔犻湼浣撴垬鎰忎笌闃插尽闊ф€х姸鎬?",

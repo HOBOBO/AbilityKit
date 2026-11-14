@@ -6,6 +6,7 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
@@ -39,7 +40,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         }
 
         public bool ShouldHit(int ownerId, ColliderId collider, int frame) =>
-            ResolveCollision(ownerId, collider, frame) == ProjectileCollisionResponse.Hit;
+            ResolveCollision(ownerId, collider, frame) is ProjectileCollisionResponse.Hit or ProjectileCollisionResponse.SupportContact;
 
         public ProjectileCollisionResponse ResolveCollision(int ownerId, ColliderId collider, int frame)
         {
@@ -80,6 +81,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 break;
             }
             // Block can intercept without damage. Hit never bypasses existing damage eligibility.
+            if (response == ProjectileCollisionResponse.SupportContact)
+                return relation == ProjectileCollisionRelation.Ally && (!target.hasAttributeGroup || target.GetMobaAttrs().Hp > 0f)
+                    ? response : ProjectileCollisionResponse.Ignore;
             if (response != ProjectileCollisionResponse.Hit) return response;
             if (relation == ProjectileCollisionRelation.Ally) return ProjectileCollisionResponse.Ignore;
             if (_hitUnitSubType > 0 && (!target.hasEntityMainType || target.entityMainType.Value != EntityMainType.Unit ||

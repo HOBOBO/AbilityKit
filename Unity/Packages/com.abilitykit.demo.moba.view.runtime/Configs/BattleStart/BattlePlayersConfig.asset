@@ -32,11 +32,11 @@ MonoBehaviour:
     TeamId: 2
     MainType: 1
     UnitSubType: 1
-    HeroId: 1002
-    AttributeTemplateId: 1002
+    HeroId: 3005
+    AttributeTemplateId: 3005
     Level: 1
-    BasicAttackSkillId: 10020001
-    SkillIds: 05e5980069e59800cde59800
+    BasicAttackSkillId: 30050101
+    SkillIds: 9987ca01fd87ca016188ca01c588ca01
     SpawnIndex: 0
     SpawnPosition: {x: 6, y: 0, z: 0}
     BrainId: 100

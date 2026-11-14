@@ -33,26 +33,28 @@ MonoBehaviour:
   AutoReadyDefaultLoadout: 1
   AutoStartWhenReady: 0
   AutoCreateWhenEmpty: 1
-  DefaultHeroId: 1001
+  DefaultHeroId: 3001
   DefaultTeamId: 1
   DefaultSpawnPointId: 0
   DefaultHeroLevel: 1
-  DefaultAttributeTemplateId: 1001
-  DefaultBasicAttackSkillId: 10010001
+  DefaultAttributeTemplateId: 3001
+  DefaultBasicAttackSkillId: 30010601
   DefaultSkillIds:
-  - 10010101
-  - 10010201
-  - 10010301
-  SecondPlayerHeroId: 1002
+  - 30010101
+  - 30010201
+  - 30010301
+  - 30010401
+  SecondPlayerHeroId: 3005
   SecondPlayerTeamId: 2
   SecondPlayerSpawnPointId: 0
   SecondPlayerHeroLevel: 1
-  SecondPlayerAttributeTemplateId: 1002
-  SecondPlayerBasicAttackSkillId: 10020001
+  SecondPlayerAttributeTemplateId: 3005
+  SecondPlayerBasicAttackSkillId: 30050101
   SecondPlayerSkillIds:
-  - 10020101
-  - 10020201
-  - 10020301
+  - 30050201
+  - 30050301
+  - 30050401
+  - 30050501
   StarterSceneName: StarterScene
   TimeSyncOpCode: 1300
   TimeSyncIntervalMs: 1000

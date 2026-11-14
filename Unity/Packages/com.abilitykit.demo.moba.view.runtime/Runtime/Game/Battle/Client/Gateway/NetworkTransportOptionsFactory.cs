@@ -8,6 +8,7 @@ using AbilityKit.Network.Client;
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Room;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Requests;
@@ -76,6 +77,7 @@ namespace AbilityKit.Game.Battle
                 battleTransportFactory: transportFactory,
                 configureBattle: (config, s) =>
                 {
+                    config.WithResponseEnvelopeCodec(TcpGatewayRequestResponseEnvelopeCodec.Instance);
                     if (useFrameSyncInput)
                     {
                         config

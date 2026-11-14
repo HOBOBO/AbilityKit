@@ -1,0 +1,39 @@
+{
+    "schemaVersion": 1,
+    "runtimeType": "presentation",
+    "length": 0.5,
+    "groups": [
+        {
+            "name": "Model",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.AnimationTrack",
+                    "name": "CompleteCastClip",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.PlayAnimation",
+                            "runtimeType": "presentation",
+                            "start": 0.0,
+                            "length": 0.5,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "clipKey": "Karthus_Model_SpellW",
+                                "clipLength": "2.08333349",
+                                "playbackSpeed": "4.166667",
+                                "clipOffset": "0"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "$type": "AbilityKit.ActionSchema.SkillAssetDto"
+}

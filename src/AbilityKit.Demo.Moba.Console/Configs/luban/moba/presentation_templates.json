@@ -25,7 +25,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 2,
@@ -53,7 +54,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90002003,
@@ -81,7 +83,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90003001,
@@ -109,7 +112,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90004001,
@@ -137,7 +141,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90005003,
@@ -165,7 +170,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90006002,
@@ -193,7 +199,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90006003,
@@ -221,7 +228,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90007001,
@@ -249,7 +257,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90007002,
@@ -277,7 +286,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90007003,
@@ -305,7 +315,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90007004,
@@ -333,7 +344,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90007005,
@@ -361,7 +373,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90007006,
@@ -389,7 +402,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90008001,
@@ -417,7 +431,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90008002,
@@ -445,7 +460,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90008003,
@@ -473,7 +489,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90008004,
@@ -501,7 +518,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90008005,
@@ -529,7 +547,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90008006,
@@ -557,7 +576,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90001002,
@@ -585,7 +605,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013001,
@@ -613,7 +634,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013002,
@@ -641,7 +663,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013003,
@@ -669,7 +692,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013004,
@@ -697,7 +721,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013005,
@@ -725,7 +750,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013006,
@@ -753,7 +779,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013007,
@@ -781,7 +808,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013008,
@@ -809,7 +837,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013009,
@@ -837,7 +866,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013010,
@@ -865,7 +895,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013011,
@@ -893,7 +924,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013012,
@@ -921,7 +953,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013013,
@@ -949,7 +982,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013014,
@@ -977,7 +1011,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013015,
@@ -1005,7 +1040,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013016,
@@ -1033,7 +1069,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013017,
@@ -1061,7 +1098,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013018,
@@ -1089,7 +1127,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90033001,
@@ -1117,7 +1156,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90033002,
@@ -1145,7 +1185,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90033003,
@@ -1173,7 +1214,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90033004,
@@ -1201,7 +1243,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90023001,
@@ -1229,7 +1272,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90033005,
@@ -1257,7 +1301,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90033006,
@@ -1285,7 +1330,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90032023,
@@ -1313,7 +1359,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90032024,
@@ -1341,7 +1388,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90032006,
@@ -1369,7 +1417,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90032025,
@@ -1397,7 +1446,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90032026,
@@ -1425,7 +1475,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90032002,
@@ -1453,7 +1504,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90032005,
@@ -1481,7 +1533,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90032004,
@@ -1509,7 +1562,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90032007,
@@ -1537,7 +1591,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90032027,
@@ -1565,7 +1620,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034001,
@@ -1593,7 +1649,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034002,
@@ -1621,7 +1678,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034003,
@@ -1649,7 +1707,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034004,
@@ -1677,7 +1736,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034005,
@@ -1705,7 +1765,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034006,
@@ -1733,7 +1794,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034007,
@@ -1761,7 +1823,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034008,
@@ -1789,7 +1852,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034009,
@@ -1817,7 +1881,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034010,
@@ -1845,7 +1910,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034011,
@@ -1873,7 +1939,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034012,
@@ -1901,7 +1968,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034013,
@@ -1929,7 +1997,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034014,
@@ -1957,7 +2026,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034015,
@@ -1985,7 +2055,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90013019,
@@ -2013,7 +2084,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034016,
@@ -2041,7 +2113,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90034017,
@@ -2069,7 +2142,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035001,
@@ -2097,7 +2171,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035002,
@@ -2125,7 +2200,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035003,
@@ -2153,7 +2229,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035004,
@@ -2181,7 +2258,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035005,
@@ -2209,7 +2287,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035006,
@@ -2237,7 +2316,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035007,
@@ -2265,7 +2345,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035008,
@@ -2293,7 +2374,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035009,
@@ -2321,7 +2403,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 2,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035010,
@@ -2349,7 +2432,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035011,
@@ -2377,7 +2461,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035012,
@@ -2405,7 +2490,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035013,
@@ -2433,7 +2519,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035014,
@@ -2461,7 +2548,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035015,
@@ -2489,7 +2577,8 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   },
   {
     "Id": 90035016,
@@ -2517,6 +2606,1022 @@
     "OrderingPriority": 0,
     "TargetLossPolicy": 0,
     "CompletionPolicy": 0,
-    "StopGraceMs": 0
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036001,
+    "AssetId": 90036001,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1000,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Karthus AA_Hit",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036002,
+    "AssetId": 90036002,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": true,
+    "Kind": 2,
+    "Name": "Karthus AA_Projectile",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036003,
+    "AssetId": 90036003,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": true,
+    "Kind": 3,
+    "Name": "Karthus Death",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036004,
+    "AssetId": 90036004,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 4000,
+    "Follow": true,
+    "Kind": 3,
+    "Name": "Karthus E",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036005,
+    "AssetId": 90036005,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": true,
+    "Kind": 3,
+    "Name": "Karthus E_Area",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036006,
+    "AssetId": 90036006,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 750,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Karthus Q",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036007,
+    "AssetId": 90036007,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 500,
+    "Follow": true,
+    "Kind": 3,
+    "Name": "Karthus Q_Cast",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036008,
+    "AssetId": 90036008,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1500,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Karthus Q_Explosion",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036009,
+    "AssetId": 90036009,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 6000,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Karthus R",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036010,
+    "AssetId": 90036010,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 3250,
+    "Follow": true,
+    "Kind": 3,
+    "Name": "Karthus R_Cast",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036011,
+    "AssetId": 90036011,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 3000,
+    "Follow": true,
+    "Kind": 3,
+    "Name": "Karthus R_Channel",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036012,
+    "AssetId": 90036012,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 3500,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Karthus R_Hit",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036013,
+    "AssetId": 90036013,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": true,
+    "Kind": 3,
+    "Name": "Karthus R_Orbital",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036014,
+    "AssetId": 90036014,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 5000,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Karthus W",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036015,
+    "AssetId": 90036015,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Karthus W_Wall",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037001,
+    "AssetId": 90037001,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1500,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Lux AA_Hit",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037002,
+    "AssetId": 90037002,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": true,
+    "Kind": 2,
+    "Name": "Lux AA_Projectile",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037003,
+    "AssetId": 90037003,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1000,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Lux E",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037004,
+    "AssetId": 90037004,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Lux E_Charge",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037005,
+    "AssetId": 90037005,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1000,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Lux E_Explosion",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037006,
+    "AssetId": 90037006,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": true,
+    "Kind": 2,
+    "Name": "Lux E_Projectile",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037007,
+    "AssetId": 90037007,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1600,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Lux Passive_Hit",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037008,
+    "AssetId": 90037008,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": true,
+    "Kind": 3,
+    "Name": "Lux Passive_Mark",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037009,
+    "AssetId": 90037009,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1000,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Lux Q",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037010,
+    "AssetId": 90037010,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": true,
+    "Kind": 3,
+    "Name": "Lux Q_Cage",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037011,
+    "AssetId": 90037011,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1800,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Lux Q_Hit",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037012,
+    "AssetId": 90037012,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": true,
+    "Kind": 2,
+    "Name": "Lux Q_Projectile",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037013,
+    "AssetId": 90037013,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1000,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Lux R",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037014,
+    "AssetId": 90037014,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 2500,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Lux R_Channel",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 1
+  },
+  {
+    "Id": 90037015,
+    "AssetId": 90037015,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1000,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Lux R_Hit",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037016,
+    "AssetId": 90037016,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1000,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Lux W",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037017,
+    "AssetId": 90037017,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": true,
+    "Kind": 2,
+    "Name": "Lux W_Projectile",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037018,
+    "AssetId": 90037018,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1000,
+    "Follow": true,
+    "Kind": 3,
+    "Name": "Lux W_ShieldReturn",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90037019,
+    "AssetId": 90037019,
+    "AttachMode": 1,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 1000,
+    "Follow": true,
+    "Kind": 3,
+    "Name": "Lux W_ShieldUp",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 0,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
+  },
+  {
+    "Id": 90036016,
+    "AssetId": 90036016,
+    "AttachMode": 0,
+    "ColorA": 1,
+    "ColorB": 1,
+    "ColorG": 1,
+    "ColorR": 1,
+    "DefaultDurationMs": 0,
+    "Follow": false,
+    "Kind": 3,
+    "Name": "Karthus W placement preview",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 0,
+    "Scale": 1,
+    "Socket": "",
+    "StackPolicy": 0,
+    "StopPolicy": 0,
+    "OffsetSpace": 0,
+    "ParentScaleMode": 0,
+    "OrderingMode": 0,
+    "OrderingPriority": 0,
+    "TargetLossPolicy": 0,
+    "CompletionPolicy": 2,
+    "StopGraceMs": 0,
+    "PlacementSpace": 0
   }
 ]

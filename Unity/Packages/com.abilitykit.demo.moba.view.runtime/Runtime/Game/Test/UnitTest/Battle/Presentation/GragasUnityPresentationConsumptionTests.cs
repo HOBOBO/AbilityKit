@@ -24,6 +24,33 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class GragasUnityPresentationConsumptionTests
     {
+        [TestCase(3, 30050401, 3f, 1f)]
+        [TestCase(4, 30050501, 6f, 7f)]
+        public void Impact_displaces_enemy_in_Unity_battle(int slot, int skill, float distance, float minimumDisplacement)
+        {
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { skill },
+                       worldId: "gragas_knockback_" + slot, heroId: 3005, attributeTemplateId: 3005))
+            {
+                harness.EnterGameAndWarmup();
+                var caster = harness.AssertPlayerActorBound();
+                harness.MoveScenarioActor(caster, new MobaAcceptanceVector3Expectation { x = 100, z = 100 });
+                var enemy = harness.SpawnScenarioActor("enemy", 0, "hero", 2, 1001, 1001,
+                    1, 0, 0, "p2", 0, null, 0,
+                    new MobaAcceptanceVector3Expectation { x = 100, z = 100 + distance });
+                harness.Tick(2);
+                var entity = harness.AssertActorEntity(enemy);
+                if (entity.hasActorBrain) entity.RemoveActorBrain();
+                var origin = entity.transform.Value.Position;
+                var hp = new AbilityKit.Demo.Moba.Attributes.MobaAttrs(entity).Hp;
+                Assert.IsTrue(harness.World.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(caster, slot,
+                    slot == 3 ? Vec3.Zero : origin, Vec3.Forward, 0).Success);
+                harness.Tick(48);
+                Assert.Less(new AbilityKit.Demo.Moba.Attributes.MobaAttrs(entity).Hp, hp, "Impact must damage the enemy.");
+                Assert.Greater(entity.transform.Value.Position.Z - origin.Z, minimumDisplacement - .15f,
+                    "Impact must move the enemy, independently of its animation.");
+            }
+        }
+
         [TestCase("life/alive/action/idle", 0, "Gragas_Model_Idle")]
         [TestCase("life/alive/action/barrel.flight", 0, "Gragas_Model_Idle")]
         [TestCase("life/alive/action/barrel.deployed", 0, "Gragas_Model_Idle")]

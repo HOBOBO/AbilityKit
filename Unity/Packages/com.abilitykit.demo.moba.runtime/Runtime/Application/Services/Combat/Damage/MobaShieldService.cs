@@ -1206,13 +1206,15 @@ namespace AbilityKit.Demo.Moba.Services
         private static ShieldLayer FindStackTarget(ShieldContainer container, ShieldLayer incoming)
         {
             if (container == null || incoming == null || container.Layers == null) return null;
-            if (incoming.StackingPolicy != ShieldStackingPolicy.MergeSameShieldAndSource && incoming.StackingPolicy != ShieldStackingPolicy.RefreshSameShieldAndSource) return null;
+            if (incoming.StackingPolicy != ShieldStackingPolicy.MergeSameShieldAndSource && incoming.StackingPolicy != ShieldStackingPolicy.RefreshSameShieldAndSource && incoming.StackingPolicy != ShieldStackingPolicy.MergeSameShieldAndCast) return null;
 
             for (var i = 0; i < container.Layers.Count; i++)
             {
                 var layer = container.Layers[i];
                 if (layer == null) continue;
-                if (layer.ShieldId == incoming.ShieldId && layer.SourceActorId == incoming.SourceActorId) return layer;
+                if (layer.ShieldId == incoming.ShieldId && layer.SourceActorId == incoming.SourceActorId &&
+                    (incoming.StackingPolicy != ShieldStackingPolicy.MergeSameShieldAndCast ||
+                     incoming.RootContextId != 0 && layer.RootContextId == incoming.RootContextId)) return layer;
             }
 
             return null;

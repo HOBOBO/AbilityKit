@@ -858,7 +858,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
         }
         catch (Exception ex)
         {
-            await RollbackCommitAsync(state, "BattleInitException:" + ex.Message, nowUnixMs);
+            await RollbackCommitAsync(state, "BattleInitException:" + ex, nowUnixMs);
             return null;
         }
 

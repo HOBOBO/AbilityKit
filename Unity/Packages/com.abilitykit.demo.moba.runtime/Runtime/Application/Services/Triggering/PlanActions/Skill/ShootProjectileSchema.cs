@@ -28,7 +28,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             TryReadBlackboardTarget(namedArgs, out var resultTarget, "result", "result_id", "launcher_result");
             TryReadBlackboardTarget(namedArgs, out var resultCountTarget, "result_count", "projectile_count");
 
-            return new ShootProjectileArgs(launcherId, projectileId, continuousProcessId, in targetRequest, trackTarget, resultTarget, resultCountTarget);
+            return new ShootProjectileArgs(launcherId, projectileId, continuousProcessId, in targetRequest, trackTarget, resultTarget, resultCountTarget, ReadBool(namedArgs, ctx, true, "use_aim_distance"));
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

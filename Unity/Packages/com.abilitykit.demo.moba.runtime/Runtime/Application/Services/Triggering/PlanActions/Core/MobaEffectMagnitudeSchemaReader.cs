@@ -11,6 +11,8 @@ using AbilityKit.Triggering.Variables.Numeric;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
+    internal enum MobaMagnitudeLevelSource { Skill = 0, CurrentHero = 1 }
+
     internal static class MobaEffectMagnitudeSchemaReader
     {
         public static MobaEffectMagnitudeSpec Read(
@@ -46,7 +48,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 enabled: true,
                 baseSkillLevelParameter: baseSkillParameter,
                 secondarySkillLevelParameter: secondarySkillParameter,
-                secondaryCoefficientSkillLevelParameter: secondaryCoefficientSkillParameter);
+                secondaryCoefficientSkillLevelParameter: secondaryCoefficientSkillParameter,
+                useCurrentHeroLevel: ReadEnum(args, in ctx, MobaMagnitudeLevelSource.Skill, "magnitude_level_source") == MobaMagnitudeLevelSource.CurrentHero);
         }
 
         public static bool HasMagnitudeArgs(Dictionary<string, ActionArgValue> args)

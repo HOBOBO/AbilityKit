@@ -62,10 +62,10 @@ namespace AbilityKit.Game.Flow
             {
                 PlayerId = "p1",
                 TeamId = Team.Team1,
-                HeroId = 1001,
-                AttributeTemplateId = 1001,
-                BasicAttackSkillId = 10010001,
-                SkillIds = new[] { 10010101, 10010201, 10010301 },
+                HeroId = 3001,
+                AttributeTemplateId = 3001,
+                BasicAttackSkillId = 30010601,
+                SkillIds = new[] { 30010101, 30010201, 30010301, 30010401 },
                 SpawnIndex = 0
             }
         };
@@ -77,10 +77,10 @@ namespace AbilityKit.Game.Flow
             {
                 PlayerId = "p2",
                 TeamId = Team.Team2,
-                HeroId = 1002,
-                AttributeTemplateId = 1002,
-                BasicAttackSkillId = 10020001,
-                SkillIds = new[] { 10020101, 10020201, 10020301 },
+                HeroId = 3005,
+                AttributeTemplateId = 3005,
+                BasicAttackSkillId = 30050101,
+                SkillIds = new[] { 30050201, 30050301, 30050401, 30050501 },
                 SpawnIndex = 0,
                 SpawnPosition = new Vector3(6f, 0f, 0f),
                 BrainId = 100,

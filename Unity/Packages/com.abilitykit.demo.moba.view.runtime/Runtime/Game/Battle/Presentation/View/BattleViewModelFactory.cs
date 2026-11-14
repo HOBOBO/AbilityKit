@@ -12,6 +12,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleViewModelPrefabResolver _prefabs;
         private readonly BattleViewAttachRootUtility _attachRoots;
         private BattleViewHierarchyManager _hierarchy;
+        private bool _authorityDebugTint;
 
         public BattleViewModelFactory(
             BattleViewPrimitiveFactory primitives = null,
@@ -35,6 +36,11 @@ namespace AbilityKit.Game.Flow
             _hierarchy = hierarchy;
         }
 
+        public void SetAuthorityDebugTint(bool enabled)
+        {
+            _authorityDebugTint = enabled;
+        }
+
         /// <summary>
         /// Active category corresponding to the shell type, derived from <see cref="BattleEntityKind"/>.
         /// </summary>
@@ -56,6 +62,7 @@ namespace AbilityKit.Game.Flow
             var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateActorFallback(actorId, modelId));
             if (go == null) return null;
             go.name = $"Actor_{actorId}";
+            ApplyAuthorityDebugTint(go);
             _attachRoots.Ensure(go);
             ParentUnderActive(go, BattleEntityKind.Character);
             return go;
@@ -66,6 +73,7 @@ namespace AbilityKit.Game.Flow
             var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateActorFallback(actorId, modelId));
             if (go == null) return null;
             go.name = $"Minion_{actorId}";
+            ApplyAuthorityDebugTint(go);
             _attachRoots.Ensure(go);
             ParentUnderActive(go, BattleEntityKind.Minion);
             return go;
@@ -76,6 +84,7 @@ namespace AbilityKit.Game.Flow
             var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateSummonFallback(actorId, modelId));
             if (go == null) return null;
             go.name = $"Summon_{actorId}";
+            ApplyAuthorityDebugTint(go);
             _attachRoots.Ensure(go);
             ParentUnderActive(go, BattleEntityKind.Summon);
             return go;
@@ -86,6 +95,7 @@ namespace AbilityKit.Game.Flow
             var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateTurretFallback(actorId, modelId));
             if (go == null) return null;
             go.name = $"Turret_{actorId}";
+            ApplyAuthorityDebugTint(go);
             _attachRoots.Ensure(go);
             ParentUnderActive(go, BattleEntityKind.Turret);
             return go;
@@ -96,6 +106,7 @@ namespace AbilityKit.Game.Flow
             var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateMonsterFallback(actorId, modelId));
             if (go == null) return null;
             go.name = $"Monster_{actorId}";
+            ApplyAuthorityDebugTint(go);
             _attachRoots.Ensure(go);
             ParentUnderActive(go, BattleEntityKind.Monster);
             return go;
@@ -106,6 +117,7 @@ namespace AbilityKit.Game.Flow
             var go = InstantiateOrFallback(configs, modelId, () => _primitives.CreateBuildingFallback(actorId, modelId));
             if (go == null) return null;
             go.name = $"Building_{actorId}";
+            ApplyAuthorityDebugTint(go);
             _attachRoots.Ensure(go);
             ParentUnderActive(go, BattleEntityKind.Building);
             return go;
@@ -179,6 +191,35 @@ namespace AbilityKit.Game.Flow
         {
             var renderers = projectile.GetComponentsInChildren<Renderer>(true);
             var darkTint = new Color(0.12f, 0.15f, 0.17f, 1f);
+            var block = new MaterialPropertyBlock();
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var renderer = renderers[i];
+                if (renderer == null) continue;
+                renderer.GetPropertyBlock(block);
+                var materials = renderer.sharedMaterials;
+                for (var materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    var material = materials[materialIndex];
+                    if (material == null) continue;
+                    if (material.HasProperty("_BaseColor")) block.SetColor("_BaseColor", darkTint);
+                    if (material.HasProperty("_Color")) block.SetColor("_Color", darkTint);
+                }
+                renderer.SetPropertyBlock(block);
+                block.Clear();
+            }
+        }
+
+        private void ApplyAuthorityDebugTint(GameObject model)
+        {
+            if (_authorityDebugTint) ApplyVisibilityTint(model);
+        }
+
+        internal static void ApplyVisibilityTint(GameObject model)
+        {
+            if (model == null) return;
+            var renderers = model.GetComponentsInChildren<Renderer>(true);
+            var darkTint = new Color(0.32f, 0.36f, 0.39f, 1f);
             var block = new MaterialPropertyBlock();
             for (var i = 0; i < renderers.Length; i++)
             {

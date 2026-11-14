@@ -11,6 +11,7 @@ namespace AbilityKit.Combat.Projectile
 
         public readonly int[] HitColliderIdsThisTick = new int[HitColliderBufferCapacity];
         public readonly List<int> HitActorIds = new List<int>(8);
+        public readonly List<int> ReturnHitActorIds = new List<int>(8);
 
         public ProjectileId Id;
         public int OwnerId;
@@ -131,6 +132,7 @@ namespace AbilityKit.Combat.Projectile
             PatternSlotIndex = 0;
             PatternSlotCount = 0;
             HitActorIds.Clear();
+            ReturnHitActorIds.Clear();
         }
 
         void IPoolable.OnPoolDestroy()

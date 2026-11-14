@@ -26,6 +26,7 @@ public sealed class ServerMagicStringAnalyzer : DiagnosticAnalyzer
         "pure-state-authority",
         "state-sync-authority",
         "frame-sync-authority",
+        "moba-state-sync-authority",
         "runtime-snapshot-interpolation",
         "predict-rollback-authority");
 

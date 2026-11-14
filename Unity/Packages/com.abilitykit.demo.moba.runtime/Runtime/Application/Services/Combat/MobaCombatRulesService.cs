@@ -188,9 +188,20 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public MobaCombatRuleResult CanCastSkill(int casterActorId, ulong executionBlockedResultMask)
+            => CanCastSkill(casterActorId, executionBlockedResultMask, 0);
+
+        public MobaCombatRuleResult CanCastSkill(int casterActorId, ulong executionBlockedResultMask,
+            int skillId, bool admission = true, float permissionAdvanceSeconds = 0f)
         {
-            if (!TryGetActor(casterActorId, out _)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.InvalidActor, "caster_not_found");
-            if (!IsAlive(casterActorId)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Dead, "caster_dead");
+            if (!TryGetActor(casterActorId, out var actor)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.InvalidActor, "caster_not_found");
+            var deathCasting = actor.hasCharacterHfsm ? actor.characterHfsm.Runtime?.DeathCasting : null;
+            if (!IsAlive(actor))
+            {
+                if (deathCasting?.CanCast(actor, skillId, admission, permissionAdvanceSeconds) != true)
+                    return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Dead, "caster_dead");
+            }
+            else if (deathCasting?.Skill(skillId) != null)
+                return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Disabled, "death_cast_requires_dead_owner");
             if (executionBlockedResultMask != 0UL &&
                 (_tagResults == null || ((ulong)_tagResults.GetResultFlags(casterActorId) & executionBlockedResultMask) != 0UL))
                 return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Disabled, "caster_execution_blocked");

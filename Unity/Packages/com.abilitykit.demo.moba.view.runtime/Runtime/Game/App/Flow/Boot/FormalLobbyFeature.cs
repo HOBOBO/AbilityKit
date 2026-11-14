@@ -305,6 +305,11 @@ namespace AbilityKit.Game.Flow
                 launchRequest?.Region,
                 launchRequest?.ServerId);
             spec.AccountId = launchRequest?.AccountId?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(launchRequest?.SyncTemplateId))
+            {
+                spec.SyncTemplateId = DemoMultiplayerSyncTemplates.Normalize(
+                    launchRequest.SyncTemplateId);
+            }
             error = string.Empty;
             return true;
         }

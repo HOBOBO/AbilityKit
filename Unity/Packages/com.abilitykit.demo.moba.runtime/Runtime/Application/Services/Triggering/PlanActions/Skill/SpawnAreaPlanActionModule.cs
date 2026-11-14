@@ -100,9 +100,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 ? DeterministicMathBridge.Normalize(in aimDirection)
                 : Vec3.Forward;
             if (areaForward.SqrMagnitude <= 0.000001f) areaForward = Vec3.Forward;
+            var castForward = areaForward;
             var offset = new Vec3(aoe.OffsetX + args.OffsetX, aoe.OffsetY + args.OffsetY, aoe.OffsetZ + args.OffsetZ)
                        + areaForward * args.DirectionOffset
                        + new Vec3(areaForward.Z, 0f, -areaForward.X) * args.LateralOffset;
+            // Shape orientation is independent of the existing aim-relative offsets.
+            areaForward = ResolveShapeForward(in areaForward, args.ForwardYawDeg);
 
             if (!args.HasTargetRequest)
             {
@@ -114,6 +117,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     return;
                 }
 
+                var castOrigin = center;
+                if (args.CaptureCastFrame &&
+                    (!ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var castRuntimes) ||
+                     !castRuntimes.TryCapturePresentationFrame(coreInput.ExecutionContext.SkillRuntimeHandle,
+                         input.CasterActorId, in castOrigin, in castForward)))
+                {
+                    LogRejected(ctx, "cannot capture original Cast presentation frame.");
+                    return;
+                }
                 center = center + offset;
                 LogInvestigation(ctx,
                     $"resolved area params center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} stayIntervalFrames={stayIntervalFrames} delayFrames={delayFrames} collisionMask={collisionLayerMask} frame={frame}");
@@ -176,6 +188,18 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 PooledMobaPlanActionLists.Release(targets);
             }
+        }
+
+        public static Vec3 ResolveShapeForward(in Vec3 aimForward, float yawDeg)
+        {
+            if (float.IsNaN(yawDeg) || float.IsInfinity(yawDeg))
+                throw new ArgumentException("forward_yaw_deg must be finite.", nameof(yawDeg));
+            if (yawDeg == 0f) return aimForward;
+            var angle = (yawDeg % 360f) * (float)(Math.PI / 180d);
+            var sin = DeterministicMathBridge.Sin(angle);
+            var cos = DeterministicMathBridge.Cos(angle);
+            return new Vec3(aimForward.X * cos + aimForward.Z * sin, 0f,
+                aimForward.Z * cos - aimForward.X * sin);
         }
 
         internal static bool SpawnOneArea(

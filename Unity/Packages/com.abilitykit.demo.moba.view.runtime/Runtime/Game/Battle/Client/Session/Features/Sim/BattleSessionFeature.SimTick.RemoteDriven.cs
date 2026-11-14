@@ -55,10 +55,24 @@ namespace AbilityKit.Game.Flow
         public bool ShowPredictionView(string instanceId, Vector3 worldOffset,
             BattleProjectionViewCapabilities capabilities)
         {
+            return ShowPredictionViewCore(instanceId, worldOffset, capabilities,
+                allowOverlap: false);
+        }
+
+        private bool ShowPredictionViewCore(string instanceId, Vector3 worldOffset,
+            bool allowOverlap) => ShowPredictionViewCore(instanceId, worldOffset,
+                BattleProjectionViewCapabilities.Actors, allowOverlap);
+
+        private bool ShowPredictionViewCore(string instanceId, Vector3 worldOffset,
+            BattleProjectionViewCapabilities capabilities, bool allowOverlap)
+        {
             if (!_plan.Authority.EnableClientPrediction ||
                 _runtime.Simulation.RemoteDriven.World == null ||
                 _runtime.Simulation.RemoteDriven.Capabilities.ProjectionProducer == null ||
                 _ctx == null) return false;
+            if (!allowOverlap && (HasActiveBattleView() ||
+                _runtime.Presentation.ProjectionViewCount > 0) && worldOffset == Vector3.zero)
+                return false;
             return _runtime.Presentation.AddProjectionView(
                 instanceId, BattleProjectionViewRole.Prediction,
                 new RemoteDrivenProjectionViewSource(_runtime.Simulation, _ctx.RuntimeWorldId),

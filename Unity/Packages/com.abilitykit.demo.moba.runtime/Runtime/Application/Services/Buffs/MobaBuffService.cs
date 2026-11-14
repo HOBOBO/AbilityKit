@@ -23,7 +23,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
     /// 这里不直接改运行时细节，避免入口层和生命周期层职责交叉。
     /// </summary>
     [WorldService(typeof(MobaBuffService))]
-    public sealed class MobaBuffService : IWorldInitializable
+    public sealed partial class MobaBuffService : IWorldInitializable
     {
         private enum BuffCommandKind
         {
@@ -182,7 +182,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             return DrainImmediateCommands(commandSeqs, Math.Max(256, commandSeqs.Count + 32));
         }
 
-        public int EndAllForActor(int targetActorId, MobaExecutionEndReason reason)
+        public int EndAllForActor(int targetActorId, MobaExecutionEndReason reason,
+            Func<BuffRuntime, bool> preserve = null)
         {
             if (targetActorId <= 0 || _draining > 0 || _lifecycle == null) return 0;
 
@@ -201,6 +202,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 {
                     var runtime = active[i];
                     if (runtime == null) continue;
+                    if (preserve?.Invoke(runtime) == true) continue;
                     var countBefore = active.Count;
                     try
                     {

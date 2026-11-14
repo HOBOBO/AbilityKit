@@ -335,6 +335,34 @@ public sealed class MobaCompleteBattleLifecycleSmokeTests
         Assert.Empty(empty);
     }
 
+    [Theory]
+    [InlineData(UnitSubType.None)]
+    [InlineData(UnitSubType.Minion)]
+    public void Hero_respawns_after_a_nonhero_kill_even_when_kill_score_is_rejected(UnitSubType killerType)
+    {
+        using var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        bootstrapper.Initialize();
+        bootstrapper.Start();
+        for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();
+        bootstrapper.SetupBattle();
+        for (var i = 0; i < 10; i++) bootstrapper.Tick();
+        var services = bootstrapper.RuntimeServices!;
+        var heroes = services.Resolve<MobaActorRegistry>().Entries.Where(entry => entry.Value != null &&
+            entry.Value.hasTeam && entry.Value.hasUnitSubType && entry.Value.unitSubType.Value == UnitSubType.Hero &&
+            entry.Value.hasAttributeGroup && entry.Value.hasResourceContainer).ToArray();
+        var victim = heroes.First(entry => entry.Value.team.Value == Team.Team1);
+        var killer = heroes.First(entry => entry.Value.team.Value == Team.Team2);
+        killer.Value.ReplaceUnitSubType(killerType);
+        ExecuteLethalDamage(services.Resolve<DamagePipelineService>(), killer.Key, victim.Key, victim.Value.GetMobaAttrs().Hp);
+        Assert.Equal(0d, services.Resolve<MobaGameplayVariableService>().Get(1002));
+        var respawns = services.Resolve<MobaGameplayRespawnService>();
+        Assert.Equal(victim.Key, Assert.Single(respawns.CapturePending()).ActorId);
+        services.Resolve<MobaGameplayService>().Tick(5f);
+        respawns.Tick();
+        Assert.Empty(respawns.CapturePending());
+        Assert.True(victim.Value.GetMobaAttrs().Hp > 0f);
+    }
+
     [Fact]
     public void Damage_context_lifecycle_is_independent_from_optional_trace()
     {

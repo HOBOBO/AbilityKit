@@ -214,6 +214,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var explicitTargetActorId = ResolveContextTargetActorId(in request, in effectInput);
 
+            // Self is an exact identity for lifecycle effects too (including a
+            // dead owner's death-entry Buff), not a combat search candidate.
+            // Template/filtered requests keep their explicit search contract.
+            if (!request.UsesTemplate && request.SourceCode == MobaActionTargetSourceCode.Self &&
+                request.FilterCode == MobaActionTargetFilterCode.None && effectInput.CasterActorId > 0)
+            {
+                results.Add(effectInput.CasterActorId);
+                return true;
+            }
+
             if (RequiresExplicitTarget(request.SourceCode) && explicitTargetActorId <= 0)
             {
                 MobaPlanActionDiagnostics.Rejected(

@@ -109,6 +109,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
 
     internal struct BuffRemoveRequest
     {
+        public long ExpectedRuntimeContextId;
+        public long ExpectedRuntimeContextVersion;
         public int TargetActorId;
         public int BuffId;
         public int SourceActorId;

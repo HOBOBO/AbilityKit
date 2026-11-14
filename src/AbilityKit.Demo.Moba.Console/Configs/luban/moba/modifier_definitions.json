@@ -2502,5 +2502,1073 @@
     "ConflictGroup": 2,
     "ConditionSetId": 0,
     "Deprecated": false
+  },
+  {
+    "Id": 2006001,
+    "Key": "KarthusPreciseQRange",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 4,
+      "Id": 10004
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 8.75
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8006001,
+    "Key": "KarthusSpiritActive",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 4
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8006002,
+    "Key": "KarthusAuraActive",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 5
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2006002,
+    "Key": "KarthusDeathResourceCost",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 4,
+      "Id": 10002
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2006011,
+    "Key": "KarthusDeathSlot1",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 1
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30060602,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2006012,
+    "Key": "KarthusDeathSlot2",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 2
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30060603,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2006013,
+    "Key": "KarthusDeathSlot3",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 3
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30060604,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2006014,
+    "Key": "KarthusDeathSlot4",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 4
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30060605,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1006001,
+    "Key": "KarthusWallMagicResistance",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 9
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.25
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1006011,
+    "Key": "KarthusWallSlow1",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.4
+    },
+    "Magnitude": {
+      "SourceType": 3,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 5,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [
+      1,
+      0.5
+    ],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1006012,
+    "Key": "KarthusWallSlow2",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.5
+    },
+    "Magnitude": {
+      "SourceType": 3,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 5,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [
+      1,
+      0.5
+    ],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1006013,
+    "Key": "KarthusWallSlow3",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.6
+    },
+    "Magnitude": {
+      "SourceType": 3,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 5,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [
+      1,
+      0.5
+    ],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1006014,
+    "Key": "KarthusWallSlow4",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.7
+    },
+    "Magnitude": {
+      "SourceType": 3,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 5,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [
+      1,
+      0.5
+    ],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1006015,
+    "Key": "KarthusWallSlow5",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.8
+    },
+    "Magnitude": {
+      "SourceType": 3,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 5,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [
+      1,
+      0.5
+    ],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2007001,
+    "Key": "LuxExactRange1",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 4,
+      "Id": 10004
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 5.5
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2007002,
+    "Key": "LuxExactRange2",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 4,
+      "Id": 10004
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 11.75
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2007003,
+    "Key": "LuxExactRange3",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 4,
+      "Id": 10004
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 11.5
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2007004,
+    "Key": "LuxExactRange4",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 4,
+      "Id": 10004
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 11
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2007005,
+    "Key": "LuxExactRange5",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 4,
+      "Id": 10004
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 33.4
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1007011,
+    "Key": "LuxESlow1",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.25
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1007012,
+    "Key": "LuxESlow2",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.3
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1007013,
+    "Key": "LuxESlow3",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.35
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1007014,
+    "Key": "LuxESlow4",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.4
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 1007015,
+    "Key": "LuxESlow5",
+    "MountPoint": 1,
+    "Target": {
+      "Kind": 1,
+      "Id": 17
+    },
+    "Value": {
+      "Op": 3,
+      "Value": -0.45
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 1,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8007001,
+    "Key": "LuxOrbFlying",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 4
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 8007002,
+    "Key": "LuxOrbDeployed",
+    "MountPoint": 7,
+    "Target": {
+      "Kind": 2,
+      "Id": 4
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 2
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 0,
+    "ConditionSetId": 0,
+    "Deprecated": false
+  },
+  {
+    "Id": 2007010,
+    "Key": "LuxOrbRecastSlot",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 3
+    },
+    "Value": {
+      "Op": 0,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30070402,
+      "ReferenceId": 0,
+      "HfsmParameterId": 4,
+      "HfsmParameterComparison": 4,
+      "HfsmParameterExpectedValue": 1
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false
   }
 ]

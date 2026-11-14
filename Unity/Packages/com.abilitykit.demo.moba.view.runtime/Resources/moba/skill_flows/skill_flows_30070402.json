@@ -1,0 +1,73 @@
+{
+  "Id": 30070402,
+  "Name": "Lux 30070402",
+  "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 2,
+  "QueueRecastInFlight": true,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": true,
+  "RequiredBuffQualificationId": 0,
+  "Phases": [
+    {
+      "Type": 19,
+      "PhaseId": "lux_30070402_economy",
+      "Economy": {
+        "Operation": 0,
+        "ResourceType": 0,
+        "ResourceAmount": 0.0,
+        "UseResolvedResourceCost": false,
+        "ChargeCost": 1,
+        "MaxCharges": 1,
+        "ChargeRecoveryMs": 0,
+        "StartSkillCooldown": false,
+        "SkillCooldownMs": 0,
+        "UseResolvedSkillCooldown": true,
+        "CooldownGroup": "",
+        "SharedCooldownMs": 0,
+        "GlobalCooldownMs": 0,
+        "IgnoreGlobalCooldown": false,
+        "IgnoreResourceCostCheck": false,
+        "IgnoreResourceConsumption": false,
+        "RefundBeforeCommit": true,
+        "RequireExplicitCommit": true,
+        "FailReason": ""
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "lux_30070402_release",
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 18,
+      "PhaseId": "lux_30070402_commit",
+      "CommitPoint": {
+        "CommitId": "cast",
+        "RequireEconomyReservation": true
+      }
+    },
+    {
+      "Type": 2,
+      "PhaseId": "lux_30070402_timeline",
+      "Timeline": {
+        "DurationMs": 100,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30070402,
+            "ExecuteMode": 0,
+            "AbortOnFailure": true,
+            "EventTag": "lux_30070402_30070402"
+          }
+        ]
+      }
+    }
+  ]
+}

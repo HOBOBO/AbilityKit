@@ -34,6 +34,7 @@ public sealed partial class DRSkills : Luban.BeanBase
         {int n0 = _buf.ReadSize(); ExecutionBlockedFlagIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); ExecutionBlockedFlagIds.Add(_e0);}}
         PreviewVfxId = _buf.ReadInt();
         AllowCastWithoutTarget = _buf.ReadBool();
+        Uninterruptible = _buf.ReadBool();
     }
 
     public static DRSkills DeserializeDRSkills(ByteBuf _buf)
@@ -113,6 +114,10 @@ public sealed partial class DRSkills : Luban.BeanBase
     /// 无有效目标时是否允许按瞄准方向空放。
     /// </summary>
     public readonly bool AllowCastWithoutTarget;
+    /// <summary>
+    /// Existing cast conflict policy: cannot be interrupted by another cast.
+    /// </summary>
+    public readonly bool Uninterruptible;
    
     public const int __ID__ = 491147888;
     public override int GetTypeId() => __ID__;
@@ -142,6 +147,7 @@ public sealed partial class DRSkills : Luban.BeanBase
         + "ExecutionBlockedFlagIds:" + Luban.StringUtil.CollectionToString(ExecutionBlockedFlagIds) + ","
         + "PreviewVfxId:" + PreviewVfxId + ","
         + "AllowCastWithoutTarget:" + AllowCastWithoutTarget + ","
+        + "Uninterruptible:" + Uninterruptible + ","
         + "}";
     }
 }

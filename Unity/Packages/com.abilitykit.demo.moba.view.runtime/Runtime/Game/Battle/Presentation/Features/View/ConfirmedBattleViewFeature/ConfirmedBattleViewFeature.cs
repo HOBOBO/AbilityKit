@@ -12,6 +12,7 @@ namespace AbilityKit.Game.Flow
         private readonly bool _isPredictionView;
         private readonly BattleProjectionViewCapabilities _capabilities;
         private readonly Camera _assignedCamera;
+        private readonly bool _darkenActors;
         private readonly string _instanceKey = System.Guid.NewGuid().ToString("N");
 
         private readonly System.Collections.Generic.List<IViewSubFeature<ConfirmedBattleViewFeature>> _subFeatures = new System.Collections.Generic.List<IViewSubFeature<ConfirmedBattleViewFeature>>(8);
@@ -22,18 +23,20 @@ namespace AbilityKit.Game.Flow
         public ConfirmedBattleViewFeature(BattleContext confirmedCtx, string viewRole = "Confirmed",
             bool isPredictionView = false)
             : this(confirmedCtx, viewRole, isPredictionView,
-                isPredictionView ? BattleProjectionViewCapabilities.Actors : BattleProjectionViewCapabilities.Full)
+                isPredictionView ? BattleProjectionViewCapabilities.Actors : BattleProjectionViewCapabilities.Full,
+                null, false)
         {
         }
 
         internal ConfirmedBattleViewFeature(BattleContext confirmedCtx, string viewRole,
             bool isPredictionView, BattleProjectionViewCapabilities capabilities)
-            : this(confirmedCtx, viewRole, isPredictionView, capabilities, null)
+            : this(confirmedCtx, viewRole, isPredictionView, capabilities, null, false)
         {
         }
 
         internal ConfirmedBattleViewFeature(BattleContext confirmedCtx, string viewRole,
-            bool isPredictionView, BattleProjectionViewCapabilities capabilities, Camera camera)
+            bool isPredictionView, BattleProjectionViewCapabilities capabilities, Camera camera,
+            bool darkenActors = false)
         {
             _confirmedCtx = confirmedCtx;
             _viewRole = viewRole;
@@ -44,6 +47,7 @@ namespace AbilityKit.Game.Flow
                   BattleProjectionViewCapabilities.FloatingText
                 : capabilities;
             _assignedCamera = camera;
+            _darkenActors = darkenActors;
             SetRuntimeQuery(confirmedCtx?.EntityQuery);
         }
 
@@ -75,7 +79,7 @@ namespace AbilityKit.Game.Flow
 
         private void AttachCore(in GamePhaseContext ctx)
         {
-            AttachViewResources(_viewRole, _instanceKey, _capabilities);
+            AttachViewResources(_viewRole, _instanceKey, _capabilities, _darkenActors);
             EnsureSubFeaturesCreated();
             _subFeatureHost?.Attach(new FeatureModuleContext<ConfirmedBattleViewFeature>(ctx, this));
             OnAllSubFeaturesAttached(ctx);

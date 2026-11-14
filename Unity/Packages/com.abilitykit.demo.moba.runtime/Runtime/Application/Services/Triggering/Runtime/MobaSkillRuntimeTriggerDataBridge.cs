@@ -162,6 +162,36 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
         }
     }
 
+    internal sealed class MobaEffectSessionScratch
+    {
+        public readonly MobaSkillRuntimeBlackboard Blackboard = new MobaSkillRuntimeBlackboard();
+        public bool IsActive { get; private set; } = true;
+        public void End() { IsActive = false; Blackboard.Clear(); }
+    }
+
+    internal sealed class MobaEffectSessionBlackboardResolver : IBlackboardResolver
+    {
+        private readonly IBlackboardResolver _fallback;
+        private readonly MobaEffectSessionScratch _scratch;
+        private readonly MobaSkillRuntimeBlackboardAdapter _effect;
+        public MobaEffectSessionBlackboardResolver(MobaEffectSessionScratch scratch, long effectId, IBlackboardResolver fallback)
+        {
+            _scratch = scratch;
+            _fallback = fallback;
+            _effect = new MobaSkillRuntimeBlackboardAdapter(scratch.Blackboard,
+                new MobaSkillRuntimeBlackboardAddress(MobaSkillRuntimeBlackboardScope.Effect, effectId));
+        }
+        public bool TryResolve(int boardId, out IBlackboard blackboard)
+        {
+            blackboard = null;
+            if (!_scratch.IsActive) return false;
+            if (boardId == MobaSkillRuntimeTriggerBoards.Effect) { blackboard = _effect; return true; }
+            if (boardId == MobaSkillRuntimeTriggerBoards.Cast || boardId == MobaSkillRuntimeTriggerBoards.Target ||
+                boardId == MobaSkillRuntimeTriggerBoards.Child) return false;
+            return _fallback != null && _fallback.TryResolve(boardId, out blackboard);
+        }
+    }
+
     public sealed class MobaSkillRuntimeBlackboardResolver : IBlackboardResolver
     {
         private readonly IBlackboardResolver _fallback;

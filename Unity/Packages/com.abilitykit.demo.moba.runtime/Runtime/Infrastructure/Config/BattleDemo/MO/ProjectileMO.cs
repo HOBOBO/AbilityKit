@@ -67,8 +67,11 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             error = null;
 
             if (MaxDistanceResponse != ProjectileMaxDistanceResponse.Exit &&
-                MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination)
+                MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination &&
+                MaxDistanceResponse != ProjectileMaxDistanceResponse.ReturnToSource)
             { error = "Unknown projectile maximum-distance response."; return false; }
+            if (MaxDistanceResponse == ProjectileMaxDistanceResponse.ReturnToSource && ReturnAfterMs > 0)
+            { error = "Distance and timed return cannot be combined."; return false; }
             if (OnArrivalTriggerIds.Length > 0 && MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination)
             { error = "Arrival triggers require SuspendAtDestination."; return false; }
 
@@ -81,7 +84,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
                 if (!CollisionRules[i].TryValidate(out error)) return false;
 
             if (HitIdentityPolicy != ProjectileHitIdentityPolicy.Collider &&
-                HitIdentityPolicy != ProjectileHitIdentityPolicy.OncePerActor)
+                HitIdentityPolicy != ProjectileHitIdentityPolicy.OncePerActor &&
+                HitIdentityPolicy != ProjectileHitIdentityPolicy.OncePerActorPerLeg)
             {
                 error = $"Unknown projectile hit identity policy {(int)HitIdentityPolicy}.";
                 return false;

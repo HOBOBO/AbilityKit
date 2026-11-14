@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Network.Battle.Projection;
 using UnityEngine;
@@ -12,9 +13,78 @@ namespace AbilityKit.Game.Flow
         private string _spectatorPresentationInstanceId;
         private string _replayPresentationInstanceId;
 
+        private const string FrameSyncPredictionComparisonViewId = "FrameSyncComparison:Prediction";
+        private const string FrameSyncConfirmedComparisonViewId = "FrameSyncComparison:Confirmed";
+
+        public bool FrameSyncComparisonViewsCreated =>
+            TryGetProjectionView(FrameSyncPredictionComparisonViewId, out _) &&
+            TryGetProjectionView(FrameSyncConfirmedComparisonViewId, out _);
+
+        private void ShowFrameSyncComparisonViews()
+        {
+            if (_plan.Sync.SyncMode != BattleSyncMode.Lockstep ||
+                !_plan.Authority.EnableClientPrediction ||
+                !_plan.Authority.EnableConfirmedAuthorityWorld ||
+                _runtime.Simulation.RemoteDriven.World == null ||
+                _runtime.Simulation.Confirmed.World == null ||
+                _ctx == null || _flow == null)
+                return;
+
+            var scope = _plan.World.WorldId;
+            BattleFlowDebugProvider.PublishFrameSyncComparisonViews(scope, false);
+
+            var hasPrediction = TryGetProjectionView(
+                FrameSyncPredictionComparisonViewId, out _);
+            var hasConfirmed = TryGetProjectionView(
+                FrameSyncConfirmedComparisonViewId, out _);
+            if (hasPrediction && hasConfirmed)
+            {
+                BattleFlowDebugProvider.PublishFrameSyncComparisonViews(scope, true);
+                return;
+            }
+            if (hasPrediction)
+                _runtime.Presentation.RemoveProjectionView(FrameSyncPredictionComparisonViewId);
+            if (hasConfirmed)
+                _runtime.Presentation.RemoveProjectionView(FrameSyncConfirmedComparisonViewId);
+
+            var predictionShown = false;
+            try
+            {
+                predictionShown = ShowPredictionViewCore(
+                    FrameSyncPredictionComparisonViewId, Vector3.zero, allowOverlap: true);
+                if (!predictionShown || !ShowConfirmedViewCore(
+                        FrameSyncConfirmedComparisonViewId, Vector3.zero, allowOverlap: true))
+                    throw new InvalidOperationException(
+                        "Unable to create both frame-sync comparison views.");
+                BattleFlowDebugProvider.PublishFrameSyncComparisonViews(scope, true);
+            }
+            catch (Exception exception)
+            {
+                _runtime.Presentation.RemoveProjectionView(FrameSyncConfirmedComparisonViewId);
+                if (predictionShown)
+                    _runtime.Presentation.RemoveProjectionView(FrameSyncPredictionComparisonViewId);
+                AbilityKit.Core.Logging.Log.Warning(
+                    "[BattleSessionFeature] Frame-sync comparison views were not created: " + exception.Message);
+            }
+        }
+
         public bool ShowConfirmedView(string instanceId, Vector3 worldOffset,
             BattleProjectionViewCapabilities capabilities = BattleProjectionViewCapabilities.Actors,
             Camera camera = null)
+        {
+            if (!_plan.Authority.EnableConfirmedAuthorityWorld ||
+                _runtime.Simulation.Confirmed.World == null) return false;
+
+            return ShowConfirmedViewCore(instanceId, worldOffset, capabilities, camera,
+                allowOverlap: false);
+        }
+
+        private bool ShowConfirmedViewCore(string instanceId, Vector3 worldOffset,
+            bool allowOverlap) => ShowConfirmedViewCore(instanceId, worldOffset,
+                BattleProjectionViewCapabilities.Actors, null, allowOverlap);
+
+        private bool ShowConfirmedViewCore(string instanceId, Vector3 worldOffset,
+            BattleProjectionViewCapabilities capabilities, Camera camera, bool allowOverlap)
         {
             if (!_plan.Authority.EnableConfirmedAuthorityWorld ||
                 _runtime.Simulation.Confirmed.World == null) return false;
@@ -26,7 +96,7 @@ namespace AbilityKit.Game.Flow
                     worldId, () => _runtime.Simulation.Confirmed.World,
                     () => _runtime.Simulation.ConfirmedLastTickedFrame);
             return ShowWorldView(instanceId, BattleProjectionViewRole.Confirmed,
-                _confirmedProjectionSource, worldOffset, capabilities, camera);
+                _confirmedProjectionSource, worldOffset, capabilities, camera, allowOverlap);
         }
 
         public bool ShowSpectatorView(string instanceId, Vector3 worldOffset,
@@ -91,9 +161,10 @@ namespace AbilityKit.Game.Flow
 
         private bool ShowWorldView(string instanceId, BattleProjectionViewRole role,
             IBattleProjectionViewSource source, Vector3 worldOffset,
-            BattleProjectionViewCapabilities capabilities, Camera camera)
+            BattleProjectionViewCapabilities capabilities, Camera camera,
+            bool allowOverlap = false)
         {
-            if ((HasActiveBattleView() || _runtime.Presentation.ProjectionViewCount > 0) &&
+            if (!allowOverlap && (HasActiveBattleView() || _runtime.Presentation.ProjectionViewCount > 0) &&
                 worldOffset == Vector3.zero)
                 return false;
 

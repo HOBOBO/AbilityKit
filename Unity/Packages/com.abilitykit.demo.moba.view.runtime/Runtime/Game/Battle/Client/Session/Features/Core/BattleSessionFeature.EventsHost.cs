@@ -20,6 +20,8 @@ namespace AbilityKit.Game.Flow
             {
                 NotifyWorldReadyOnce();
             }
+
+            ShowFrameSyncComparisonViews();
         }
 
         void ISessionEventsHost.RaiseWorldReady()

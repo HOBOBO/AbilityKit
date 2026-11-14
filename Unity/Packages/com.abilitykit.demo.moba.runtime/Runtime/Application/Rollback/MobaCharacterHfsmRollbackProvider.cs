@@ -117,8 +117,10 @@ namespace AbilityKit.Demo.Moba.Rollback
                 };
                 using (var candidate = new MobaCharacterHfsmRuntime(entry.ActorId,
                            ResolveDefinition(entry.ActorId), 0, Fixed64.Zero, registerForInspection: false,
-                           parameters: _parameters, executeLogicTrigger: ExecuteHfsmLogicTrigger))
+                           parameters: _parameters))
                 {
+                    // Validation is detached from gameplay. Disposing the restored candidate
+                    // shuts down its active states; it must not run live exit effects.
                     if (_actors.TryGet(entry.ActorId, out var existing) && existing.hasCharacterHfsm &&
                         (existing.characterHfsm.Runtime == null ||
                          existing.characterHfsm.Runtime.DefinitionHash != candidate.DefinitionHash))

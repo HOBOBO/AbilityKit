@@ -65,6 +65,9 @@ namespace AbilityKit.Game.Test.UnitTest
             public PresentationTemplateDTO[] Items;
         }
 
+        [Serializable] private sealed class ModelAnimationRoot { public ModelAnimationRow[] Items; }
+        [Serializable] private sealed class ModelAnimationRow { public int ModelId; public string AnimatorState; }
+
         [Serializable]
         private sealed class BuffHudConfigRoot
         {
@@ -273,6 +276,21 @@ namespace AbilityKit.Game.Test.UnitTest
                 };
             }
 
+            // New catalog-backed models declare their required states in the
+            // published model-animation authority. Keep the established full
+            // requirements above and the legacy fallback below.
+            var animations = LoadArray<ModelAnimationRoot, ModelAnimationRow>(
+                "luban/moba/model_animations", root => root.Items);
+            var authoredStates = new HashSet<string>();
+            foreach (var animation in animations)
+                if (animation.ModelId == modelId && !string.IsNullOrEmpty(animation.AnimatorState))
+                    authoredStates.Add(animation.AnimatorState.Substring(animation.AnimatorState.LastIndexOf('.') + 1));
+            if (authoredStates.Count > 0)
+            {
+                var result = new string[authoredStates.Count];
+                authoredStates.CopyTo(result);
+                return result;
+            }
             return new[] { "Idle", "Run", "Attack", "Stun", "Die" };
         }
 
@@ -297,7 +315,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 if ((characters[i].Id < 1001 || characters[i].Id > 1008) &&
                     characters[i].Id != 3001 && characters[i].Id != 3002 &&
                     characters[i].Id != 3003 && characters[i].Id != 3004 &&
-                    characters[i].Id != 3005) continue;
+                    characters[i].Id != 3005 && characters[i].Id != 3006 &&
+                    characters[i].Id != 3007) continue;
                 var modelId = characters[i].ModelId;
                 Assert.IsTrue(configuredById.TryGetValue(modelId, out var configured),
                     "Character " + characters[i].Id + " references a missing Luban model: " + modelId);

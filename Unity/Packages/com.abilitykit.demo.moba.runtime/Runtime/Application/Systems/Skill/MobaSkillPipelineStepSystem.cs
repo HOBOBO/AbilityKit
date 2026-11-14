@@ -21,6 +21,8 @@ namespace AbilityKit.Demo.Moba.Systems
         private MobaSkillCastRuntimeService _casts;
         private IProjectileService _projectiles;
         private MobaAreaRuntimeService _areas;
+        private readonly System.Collections.Generic.List<SkillPipelineRunner.RunningSnapshot> _running =
+            new System.Collections.Generic.List<SkillPipelineRunner.RunningSnapshot>();
 
         private MobaWorldSystemServices _systemServices;
         private global::Entitas.IGroup<global::ActorEntity> _group;
@@ -83,15 +85,26 @@ namespace AbilityKit.Demo.Moba.Systems
                 {
                     if (_combatRules != null)
                     {
+                        var alive = _combatRules.IsAlive(actorId);
                         var actorResult = _combatRules.CanCastSkill(actorId, 0UL);
-                        if (!actorResult.Passed)
+                        if (!actorResult.Passed && actorResult.Failure != MobaCombatRuleFailure.Dead)
                         {
                             _skills.CancelAll(actorId);
-                            if (actorResult.Failure == MobaCombatRuleFailure.Dead)
-                            {
-                                _casts?.EndOwnerChildChannels(actorId, DespawnOwnedChild);
-                                _buffs?.EndAllForActor(actorId, MobaExecutionEndReason.Dead);
-                            }
+                        }
+                        _running.Clear();
+                        _skills.FillRunningSnapshots(actorId, _running);
+                        foreach (var running in _running)
+                            // Continuous ages later in this frame. Its deadline must win
+                            // before a same-frame Timeline submission, without a second clock.
+                            if (!_skills.CheckCombatRules(actorId, running.SkillId, admission: false,
+                                permissionAdvanceSeconds: _clock.DeltaTime).Passed)
+                                _skills.CancelBySkillId(actorId, running.SkillId);
+                        if (!alive)
+                        {
+                            _casts?.EndOwnerChildChannels(actorId, DespawnOwnedChild);
+                            var permission = e.hasCharacterHfsm ? e.characterHfsm.Runtime?.DeathCasting : null;
+                            _buffs?.EndAllForActor(actorId, MobaExecutionEndReason.Dead,
+                                permission == null ? null : buff => permission.PreserveOnDeath(e, buff));
                         }
                     }
                     _skills.Step(actorId);

@@ -70,6 +70,20 @@
       "heroName": "Luban",
       "fixture": "AbilityKit.Game.Test.UnitTest.LubanSkillAcceptanceTests",
       "fixturePath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/Luban/LubanSkillAcceptanceTests.cs"
+    },
+    {
+      "characterId": 3006,
+      "acceptanceHeroId": 3006,
+      "heroName": "Karthus",
+      "fixture": "AbilityKit.Game.Test.UnitTest.KarthusSkillAcceptanceTests",
+      "fixturePath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/Karthus/KarthusSkillAcceptanceTests.cs"
+    },
+    {
+      "characterId": 3007,
+      "acceptanceHeroId": 3007,
+      "heroName": "Lux",
+      "fixture": "AbilityKit.Game.Test.UnitTest.LuxSkillAcceptanceTests",
+      "fixturePath": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/Lux/LuxSkillAcceptanceTests.cs"
     }
   ]
 }

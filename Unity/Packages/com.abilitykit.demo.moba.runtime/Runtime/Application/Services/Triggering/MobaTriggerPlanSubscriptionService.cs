@@ -148,9 +148,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
             if (_db == null || _runner == null) return;
 
-            var ownerBlackboards = _ownerBlackboards.GetOrCreate(ownerKey);
+            var hasOwnerLease = _regsByOwnerKey.TryGetValue(ownerKey, out var regs) && regs != null;
+            var ownerBlackboards = hasOwnerLease
+                ? _ownerBlackboards.GetOrCreate(ownerKey)
+                : _ownerBlackboards.Acquire(ownerKey);
 
-            if (!_regsByOwnerKey.TryGetValue(ownerKey, out var regs) || regs == null)
+            if (!hasOwnerLease)
             {
                 regs = new Dictionary<int, IDisposable>(triggerIds.Count);
                 _regsByOwnerKey[ownerKey] = regs;
@@ -310,11 +313,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
         public void Stop(long ownerKey)
         {
             if (ownerKey == 0) return;
-            _regsByOwnerKey.TryGetValue(ownerKey, out var regs);
+            var hasOwnerLease = _regsByOwnerKey.TryGetValue(ownerKey, out var regs);
             _regsByOwnerKey.Remove(ownerKey);
             _evaluationsByOwnerKey.Remove(ownerKey);
             if (regs != null) DisposeRegistrations(ownerKey, regs);
-            _ownerBlackboards?.Release(ownerKey);
+            if (hasOwnerLease) _ownerBlackboards?.Release(ownerKey);
         }
 
         private void RecordEvaluation(long ownerKey, int triggerId, bool gatePassed, bool sourceResolved, bool planPassed)

@@ -548,6 +548,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         }
 
         public long DefinitionHash => _machine.DefinitionHash;
+        public MobaDeathCastBinding DeathCasting => _bindings.DeathCasting;
         public string InspectionName => "MobaHero/Actor_" + _actorId;
         public int Frame => _machine.CurrentFrame;
         public Fixed64 Time => _machine.CurrentTime;

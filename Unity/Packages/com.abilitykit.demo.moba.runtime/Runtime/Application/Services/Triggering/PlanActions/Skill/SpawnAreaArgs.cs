@@ -16,6 +16,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly float OffsetZ;
         public readonly float DirectionOffset;
         public readonly float LateralOffset;
+        public readonly float ForwardYawDeg;
+        public readonly bool CaptureCastFrame;
         public readonly int ShapeKind;
         public readonly float HalfAngleDeg;
         public readonly float Width;
@@ -57,7 +59,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             BlackboardWriteTarget resultCountTarget = default,
             float directionOffset = 0f,
             float lateralOffset = 0f,
-            float innerRadius = 0f)
+            float innerRadius = 0f,
+            float forwardYawDeg = 0f,
+            bool captureCastFrame = false)
         {
             AreaId = areaId;
             PositionMode = positionMode;
@@ -71,6 +75,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             OffsetZ = offsetZ;
             DirectionOffset = directionOffset;
             LateralOffset = lateralOffset;
+            ForwardYawDeg = forwardYawDeg;
+            CaptureCastFrame = captureCastFrame;
             ShapeKind = shapeKind;
             HalfAngleDeg = halfAngleDeg;
             Width = width;

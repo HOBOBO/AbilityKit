@@ -1,0 +1,59 @@
+{
+  "groups": [
+    {
+      "name": "Logic",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "Submit",
+          "active": true,
+          "actionClips": [
+            {
+              "effectId": 30060100,
+              "eventTag": "karthus_30060101_submit",
+              "abortOnFailure": true,
+              "startTime": 0.3,
+              "name": "ExecuteEffect",
+              "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        }
+      ]
+    },
+    {
+      "name": "Model",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "CompleteCastClip",
+          "active": true,
+          "actionClips": [
+            {
+              "clipKey": "Karthus_Model_AutoAttack",
+              "resPath": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ChampionVfx/11.Karthus_Project/Animations/Karthus_Model_AutoAttack.anim",
+              "startTime": 0.0,
+              "length": 1.6,
+              "playbackSpeed": 1.875,
+              "clipOffset": 0.0,
+              "blendIn": 0.0,
+              "blendOut": 0.0,
+              "name": "PlayAnimation",
+              "$type": "AbilityKit.ActionEditorImpl.PlayAnimation"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.AnimationTrack"
+        }
+      ]
+    }
+  ],
+  "exportMobaRuntime": true,
+  "length": 1.6,
+  "viewTimeMin": 0.0,
+  "viewTimeMax": 1.6,
+  "rangeMin": 0.0,
+  "rangeMax": 1.6,
+  "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
+}

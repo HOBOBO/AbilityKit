@@ -14,6 +14,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -31,6 +32,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -48,6 +50,7 @@
     "Tags": [],
     "PreviewVfxId": 90001002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -65,6 +68,7 @@
     "Tags": [],
     "PreviewVfxId": 90001001,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -82,6 +86,7 @@
     "Tags": [],
     "PreviewVfxId": 90001003,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -99,6 +104,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -116,6 +122,7 @@
     "Tags": [],
     "PreviewVfxId": 90002001,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -133,6 +140,7 @@
     "Tags": [],
     "PreviewVfxId": 90002002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -150,6 +158,7 @@
     "Tags": [],
     "PreviewVfxId": 90002003,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -167,6 +176,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -184,6 +194,7 @@
     "Tags": [],
     "PreviewVfxId": 90003001,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -201,6 +212,7 @@
     "Tags": [],
     "PreviewVfxId": 90003002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -218,6 +230,7 @@
     "Tags": [],
     "PreviewVfxId": 90003003,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -235,6 +248,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -252,6 +266,7 @@
     "Tags": [],
     "PreviewVfxId": 90004001,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -269,6 +284,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -286,6 +302,7 @@
     "Tags": [],
     "PreviewVfxId": 90004002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -303,6 +320,7 @@
     "Tags": [],
     "PreviewVfxId": 90004003,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -320,6 +338,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -337,6 +356,7 @@
     "Tags": [],
     "PreviewVfxId": 90005001,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -355,6 +375,7 @@
     "Tags": [],
     "PreviewVfxId": 90005002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -372,6 +393,7 @@
     "Tags": [],
     "PreviewVfxId": 90005003,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -389,6 +411,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -406,6 +429,7 @@
     "Tags": [],
     "PreviewVfxId": 90006001,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -423,6 +447,7 @@
     "Tags": [],
     "PreviewVfxId": 90006002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -440,6 +465,7 @@
     "Tags": [],
     "PreviewVfxId": 90006003,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -457,6 +483,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -474,6 +501,7 @@
     "Tags": [],
     "PreviewVfxId": 90007001,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -491,6 +519,7 @@
     "Tags": [],
     "PreviewVfxId": 90007002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -508,6 +537,7 @@
     "Tags": [],
     "PreviewVfxId": 90007004,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -525,6 +555,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -543,6 +574,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -560,6 +592,7 @@
     "Tags": [],
     "PreviewVfxId": 90008002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -577,6 +610,7 @@
     "Tags": [],
     "PreviewVfxId": 90008004,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -594,6 +628,7 @@
     "Tags": [],
     "PreviewVfxId": 90008006,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -611,6 +646,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -620,7 +656,7 @@
     "CooldownMs": 5000,
     "IconId": 901,
     "LevelTableId": 30010101,
-    "Name": "Jhin - Dancing Grenade",
+    "Name": "曼舞手雷",
     "PreCastFlowId": 0,
     "Range": 12,
     "RequiredTargetQueryId": 52010102,
@@ -629,6 +665,7 @@
     "Tags": [],
     "PreviewVfxId": 200001,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -638,7 +675,7 @@
     "CooldownMs": 14000,
     "IconId": 902,
     "LevelTableId": 30010201,
-    "Name": "Jhin - Deadly Flourish",
+    "Name": "致命华彩",
     "PreCastFlowId": 0,
     "Range": 25,
     "SkillButtonTemplateId": 25,
@@ -646,6 +683,7 @@
     "Tags": [],
     "PreviewVfxId": 200001,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -655,7 +693,7 @@
     "CooldownMs": 18000,
     "IconId": 903,
     "LevelTableId": 30010301,
-    "Name": "Jhin - Captive Audience",
+    "Name": "万众倾倒",
     "PreCastFlowId": 0,
     "Range": 4,
     "SkillButtonTemplateId": 26,
@@ -663,6 +701,7 @@
     "Tags": [],
     "PreviewVfxId": 200001,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -672,7 +711,7 @@
     "CooldownMs": 120000,
     "IconId": 904,
     "LevelTableId": 30010401,
-    "Name": "Jhin - Curtain Call",
+    "Name": "完美谢幕",
     "PreCastFlowId": 0,
     "Range": 30,
     "RequiredTargetQueryId": 52010401,
@@ -681,6 +720,7 @@
     "Tags": [],
     "PreviewVfxId": 200001,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -690,7 +730,7 @@
     "CooldownMs": 0,
     "IconId": 901,
     "LevelTableId": 30010501,
-    "Name": "Jhin - Curtain Call Regular Shot",
+    "Name": "完美谢幕·普通弹",
     "PreCastFlowId": 0,
     "Range": 30,
     "RequiredTargetQueryId": 52010401,
@@ -699,6 +739,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -708,7 +749,7 @@
     "CooldownMs": 0,
     "IconId": 904,
     "LevelTableId": 30010502,
-    "Name": "Jhin - Curtain Call Final Shot",
+    "Name": "完美谢幕·终极弹",
     "PreCastFlowId": 0,
     "Range": 30,
     "RequiredTargetQueryId": 52010401,
@@ -717,6 +758,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -726,7 +768,7 @@
     "CooldownMs": 0,
     "IconId": 0,
     "LevelTableId": 0,
-    "Name": "Jhin - Basic Attack 1",
+    "Name": "普通攻击（第1击）",
     "PreCastFlowId": 0,
     "Range": 550,
     "SkillButtonTemplateId": 1,
@@ -734,6 +776,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -743,7 +786,7 @@
     "CooldownMs": 0,
     "IconId": 0,
     "LevelTableId": 0,
-    "Name": "Jhin - Basic Attack 2",
+    "Name": "普通攻击（第2击）",
     "PreCastFlowId": 0,
     "Range": 550,
     "SkillButtonTemplateId": 1,
@@ -751,6 +794,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -760,7 +804,7 @@
     "CooldownMs": 0,
     "IconId": 0,
     "LevelTableId": 0,
-    "Name": "Jhin - Basic Attack 3",
+    "Name": "普通攻击（第3击）",
     "PreCastFlowId": 0,
     "Range": 550,
     "SkillButtonTemplateId": 1,
@@ -768,6 +812,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -777,7 +822,7 @@
     "CooldownMs": 0,
     "IconId": 0,
     "LevelTableId": 0,
-    "Name": "Jhin - Basic Attack 4",
+    "Name": "普通攻击（第4击）",
     "PreCastFlowId": 0,
     "Range": 550,
     "SkillButtonTemplateId": 1,
@@ -785,6 +830,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -794,7 +840,7 @@
     "CooldownMs": 800,
     "IconId": 1001,
     "LevelTableId": 0,
-    "Name": "安妮-普通攻击",
+    "Name": "普通攻击",
     "PreCastFlowId": 0,
     "Range": 8,
     "SkillButtonTemplateId": 1,
@@ -802,6 +848,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -811,7 +858,7 @@
     "CooldownMs": 4000,
     "IconId": 1002,
     "LevelTableId": 30030201,
-    "Name": "安妮-碎裂之火",
+    "Name": "碎裂之火",
     "PreCastFlowId": 0,
     "Range": 6,
     "RequiredTargetQueryId": 52030101,
@@ -820,6 +867,7 @@
     "Tags": [],
     "PreviewVfxId": 90033001,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -829,7 +877,7 @@
     "CooldownMs": 7000,
     "IconId": 1003,
     "LevelTableId": 30030301,
-    "Name": "安妮-焚烧",
+    "Name": "焚烧",
     "PreCastFlowId": 0,
     "Range": 6,
     "SkillButtonTemplateId": 30,
@@ -837,6 +885,7 @@
     "Tags": [],
     "PreviewVfxId": 90033002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -846,7 +895,7 @@
     "CooldownMs": 10000,
     "IconId": 1004,
     "LevelTableId": 30030401,
-    "Name": "Annie - Molten Shield",
+    "Name": "熔岩护盾",
     "PreCastFlowId": 0,
     "Range": 8,
     "RequiredTargetQueryId": 0,
@@ -855,6 +904,7 @@
     "Tags": [],
     "PreviewVfxId": 90033004,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -864,7 +914,7 @@
     "CooldownMs": 120000,
     "IconId": 1005,
     "LevelTableId": 30030501,
-    "Name": "??-?????",
+    "Name": "提伯斯之怒",
     "PreCastFlowId": 0,
     "Range": 6,
     "RequiredTargetQueryId": 52030301,
@@ -873,6 +923,7 @@
     "Tags": [],
     "PreviewVfxId": 90033005,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -882,7 +933,7 @@
     "CooldownMs": 800,
     "IconId": 0,
     "LevelTableId": 0,
-    "Name": "Jinx - Basic Attack",
+    "Name": "普通攻击",
     "PreCastFlowId": 0,
     "Range": 6,
     "SkillButtonTemplateId": 1,
@@ -890,6 +941,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -899,7 +951,7 @@
     "CooldownMs": 800,
     "IconId": 0,
     "LevelTableId": 0,
-    "Name": "Jinx - Pow-Pow Basic Attack",
+    "Name": "砰砰枪·普通攻击",
     "PreCastFlowId": 0,
     "Range": 6,
     "SkillButtonTemplateId": 1,
@@ -907,6 +959,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -916,7 +969,7 @@
     "CooldownMs": 800,
     "IconId": 0,
     "LevelTableId": 0,
-    "Name": "Jinx - Fishbones Basic Attack",
+    "Name": "鱼骨头·普通攻击",
     "PreCastFlowId": 0,
     "Range": 6,
     "SkillButtonTemplateId": 1,
@@ -924,6 +977,7 @@
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -933,7 +987,7 @@
     "CooldownMs": 900,
     "IconId": 0,
     "LevelTableId": 0,
-    "Name": "Jinx - Switcheroo!",
+    "Name": "枪炮交响曲！",
     "PreCastFlowId": 0,
     "Range": 0,
     "SkillButtonTemplateId": 1,
@@ -941,6 +995,7 @@
     "Tags": [],
     "PreviewVfxId": 90023001,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -950,7 +1005,7 @@
     "CooldownMs": 8000,
     "IconId": 0,
     "LevelTableId": 30020201,
-    "Name": "Jinx - Zap!",
+    "Name": "震荡电磁波！",
     "PreCastFlowId": 0,
     "Range": 15,
     "SkillButtonTemplateId": 2,
@@ -958,6 +1013,7 @@
     "Tags": [],
     "PreviewVfxId": 90032023,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -967,7 +1023,7 @@
     "CooldownMs": 24000,
     "IconId": 0,
     "LevelTableId": 30020301,
-    "Name": "Jinx - Flame Chompers!",
+    "Name": "嚼火者手雷！",
     "PreCastFlowId": 0,
     "Range": 9,
     "SkillButtonTemplateId": 3,
@@ -975,6 +1031,7 @@
     "Tags": [],
     "PreviewVfxId": 90032006,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -984,7 +1041,7 @@
     "CooldownMs": 80000,
     "IconId": 0,
     "LevelTableId": 30020401,
-    "Name": "Jinx - Super Mega Death Rocket!",
+    "Name": "超究极死神飞弹！",
     "PreCastFlowId": 0,
     "Range": 250,
     "SkillButtonTemplateId": 2,
@@ -992,6 +1049,7 @@
     "Tags": [],
     "PreviewVfxId": 90032025,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -1001,7 +1059,7 @@
     "CooldownMs": 800,
     "IconId": 401,
     "LevelTableId": 30040101,
-    "Name": "Veigar Basic Attack",
+    "Name": "普通攻击",
     "PreCastFlowId": 0,
     "Range": 6,
     "SkillButtonTemplateId": 1,
@@ -1009,6 +1067,7 @@
     "Tags": [],
     "PreviewVfxId": 90034001,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -1018,7 +1077,7 @@
     "CooldownMs": 6000,
     "IconId": 402,
     "LevelTableId": 30040201,
-    "Name": "Veigar Q - Baleful Strike",
+    "Name": "黑暗祭祀",
     "PreCastFlowId": 0,
     "Range": 6,
     "RequiredTargetQueryId": 0,
@@ -1027,6 +1086,7 @@
     "Tags": [],
     "PreviewVfxId": 90034008,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -1036,7 +1096,7 @@
     "CooldownMs": 10000,
     "IconId": 403,
     "LevelTableId": 30040301,
-    "Name": "Veigar W - Dark Matter",
+    "Name": "黑暗物质",
     "PreCastFlowId": 0,
     "Range": 7,
     "SkillButtonTemplateId": 3,
@@ -1044,6 +1104,7 @@
     "Tags": [],
     "PreviewVfxId": 90034013,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -1053,7 +1114,7 @@
     "CooldownMs": 18000,
     "IconId": 404,
     "LevelTableId": 30040401,
-    "Name": "Veigar E - Event Horizon",
+    "Name": "扭曲空间",
     "PreCastFlowId": 0,
     "Range": 7,
     "SkillButtonTemplateId": 3,
@@ -1061,6 +1122,7 @@
     "Tags": [],
     "PreviewVfxId": 90034004,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -1070,7 +1132,7 @@
     "CooldownMs": 120000,
     "IconId": 405,
     "LevelTableId": 30040501,
-    "Name": "Veigar R - Primordial Burst",
+    "Name": "能量爆裂",
     "PreCastFlowId": 0,
     "Range": 25,
     "RequiredTargetQueryId": 52040501,
@@ -1079,6 +1141,7 @@
     "Tags": [],
     "PreviewVfxId": 90034011,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
   },
   {
@@ -1088,7 +1151,7 @@
     "CooldownMs": 1481,
     "IconId": 501,
     "LevelTableId": 30050101,
-    "Name": "Gragas Basic Attack",
+    "Name": "普通攻击",
     "PreCastFlowId": 0,
     "Range": 2,
     "RequiredTargetQueryId": 0,
@@ -1097,6 +1160,7 @@
     "Tags": [],
     "PreviewVfxId": 90035001,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -1106,7 +1170,7 @@
     "CooldownMs": 10000,
     "IconId": 502,
     "LevelTableId": 30050201,
-    "Name": "Gragas Q Barrel Roll",
+    "Name": "滚动酒桶",
     "PreCastFlowId": 0,
     "Range": 9,
     "RequiredTargetQueryId": 0,
@@ -1115,6 +1179,7 @@
     "Tags": [],
     "PreviewVfxId": 90035009,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -1124,7 +1189,7 @@
     "CooldownMs": 5000,
     "IconId": 503,
     "LevelTableId": 30050301,
-    "Name": "Gragas W Drunken Rage",
+    "Name": "醉酒狂暴",
     "PreCastFlowId": 0,
     "Range": 0,
     "RequiredTargetQueryId": 0,
@@ -1133,6 +1198,7 @@
     "Tags": [],
     "PreviewVfxId": 90035016,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -1142,7 +1208,7 @@
     "CooldownMs": 14000,
     "IconId": 504,
     "LevelTableId": 30050401,
-    "Name": "Gragas E Body Slam",
+    "Name": "肉弹冲击",
     "PreCastFlowId": 0,
     "Range": 6,
     "RequiredTargetQueryId": 0,
@@ -1151,6 +1217,7 @@
     "Tags": [],
     "PreviewVfxId": 90035003,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -1160,7 +1227,7 @@
     "CooldownMs": 100000,
     "IconId": 505,
     "LevelTableId": 30050501,
-    "Name": "Gragas R Explosive Cask",
+    "Name": "爆破酒桶",
     "PreCastFlowId": 0,
     "Range": 10,
     "RequiredTargetQueryId": 0,
@@ -1169,6 +1236,7 @@
     "Tags": [],
     "PreviewVfxId": 90035013,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -1178,7 +1246,7 @@
     "CooldownMs": 0,
     "IconId": 506,
     "LevelTableId": 30050601,
-    "Name": "Gragas Q Detonate",
+    "Name": "滚动酒桶·引爆",
     "PreCastFlowId": 0,
     "Range": 0,
     "RequiredTargetQueryId": 0,
@@ -1187,6 +1255,7 @@
     "Tags": [],
     "PreviewVfxId": 90035007,
     "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 4
   },
   {
@@ -1196,7 +1265,7 @@
     "CooldownMs": 1481,
     "IconId": 507,
     "LevelTableId": 30050701,
-    "Name": "Gragas W Empowered Attack rank 1",
+    "Name": "醉酒狂暴·强化普攻（1级）",
     "PreCastFlowId": 0,
     "Range": 2,
     "RequiredTargetQueryId": 0,
@@ -1205,6 +1274,7 @@
     "Tags": [],
     "PreviewVfxId": 90035002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -1214,7 +1284,7 @@
     "CooldownMs": 1481,
     "IconId": 507,
     "LevelTableId": 30050702,
-    "Name": "Gragas W Empowered Attack rank 2",
+    "Name": "醉酒狂暴·强化普攻（2级）",
     "PreCastFlowId": 0,
     "Range": 2,
     "RequiredTargetQueryId": 0,
@@ -1223,6 +1293,7 @@
     "Tags": [],
     "PreviewVfxId": 90035002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -1232,7 +1303,7 @@
     "CooldownMs": 1481,
     "IconId": 507,
     "LevelTableId": 30050703,
-    "Name": "Gragas W Empowered Attack rank 3",
+    "Name": "醉酒狂暴·强化普攻（3级）",
     "PreCastFlowId": 0,
     "Range": 2,
     "RequiredTargetQueryId": 0,
@@ -1241,6 +1312,7 @@
     "Tags": [],
     "PreviewVfxId": 90035002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -1250,7 +1322,7 @@
     "CooldownMs": 1481,
     "IconId": 507,
     "LevelTableId": 30050704,
-    "Name": "Gragas W Empowered Attack rank 4",
+    "Name": "醉酒狂暴·强化普攻（4级）",
     "PreCastFlowId": 0,
     "Range": 2,
     "RequiredTargetQueryId": 0,
@@ -1259,6 +1331,7 @@
     "Tags": [],
     "PreviewVfxId": 90035002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
   },
   {
@@ -1268,7 +1341,7 @@
     "CooldownMs": 1481,
     "IconId": 507,
     "LevelTableId": 30050705,
-    "Name": "Gragas W Empowered Attack rank 5",
+    "Name": "醉酒狂暴·强化普攻（5级）",
     "PreCastFlowId": 0,
     "Range": 2,
     "RequiredTargetQueryId": 0,
@@ -1277,6 +1350,292 @@
     "Tags": [],
     "PreviewVfxId": 90035002,
     "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
     "ExecutionBlockedResultMask": 128
+  },
+  {
+    "Id": 30060101,
+    "CastFlowId": 30060101,
+    "Category": 10,
+    "CooldownMs": 1600,
+    "IconId": 501,
+    "LevelTableId": 30060101,
+    "Name": "普通攻击",
+    "PreCastFlowId": 0,
+    "Range": 5,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 1,
+    "Tags": [],
+    "PreviewVfxId": 90036002,
+    "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 128
+  },
+  {
+    "Id": 30060201,
+    "CastFlowId": 30060201,
+    "Category": 10,
+    "CooldownMs": 1000,
+    "IconId": 501,
+    "LevelTableId": 30060201,
+    "Name": "荒芜",
+    "PreCastFlowId": 0,
+    "Range": 9,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30060201,
+    "SkillType": 2,
+    "Tags": [],
+    "PreviewVfxId": 90036006,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30060602,
+    "CastFlowId": 30060602,
+    "Category": 10,
+    "CooldownMs": 1000,
+    "IconId": 501,
+    "LevelTableId": 30060201,
+    "Name": "荒芜（死亡状态）",
+    "PreCastFlowId": 0,
+    "Range": 9,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30060201,
+    "SkillType": 2,
+    "Tags": [],
+    "PreviewVfxId": 90036006,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30060301,
+    "CastFlowId": 30060301,
+    "Category": 10,
+    "CooldownMs": 15000,
+    "IconId": 501,
+    "LevelTableId": 30060301,
+    "Name": "痛苦之墙",
+    "PreCastFlowId": 0,
+    "Range": 10,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30060301,
+    "SkillType": 2,
+    "Tags": [],
+    "PreviewVfxId": 90036016,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30060603,
+    "CastFlowId": 30060603,
+    "Category": 10,
+    "CooldownMs": 15000,
+    "IconId": 501,
+    "LevelTableId": 30060301,
+    "Name": "痛苦之墙（死亡状态）",
+    "PreCastFlowId": 0,
+    "Range": 10,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30060301,
+    "SkillType": 2,
+    "Tags": [],
+    "PreviewVfxId": 90036016,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30060401,
+    "CastFlowId": 30060401,
+    "Category": 10,
+    "CooldownMs": 500,
+    "IconId": 501,
+    "LevelTableId": 30060401,
+    "Name": "污染",
+    "PreCastFlowId": 0,
+    "Range": 0,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30060401,
+    "SkillType": 2,
+    "Tags": [],
+    "PreviewVfxId": 90036005,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30060604,
+    "CastFlowId": 30060604,
+    "Category": 10,
+    "CooldownMs": 500,
+    "IconId": 501,
+    "LevelTableId": 30060401,
+    "Name": "污染（死亡状态）",
+    "PreCastFlowId": 0,
+    "Range": 0,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30060401,
+    "SkillType": 2,
+    "Tags": [],
+    "PreviewVfxId": 90036005,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30060501,
+    "CastFlowId": 30060501,
+    "Category": 10,
+    "CooldownMs": 200000,
+    "IconId": 501,
+    "LevelTableId": 30060501,
+    "Name": "安魂曲",
+    "PreCastFlowId": 0,
+    "Range": 0,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30060501,
+    "SkillType": 4,
+    "Tags": [],
+    "PreviewVfxId": 90036010,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30060605,
+    "CastFlowId": 30060605,
+    "Category": 10,
+    "CooldownMs": 200000,
+    "IconId": 501,
+    "LevelTableId": 30060501,
+    "Name": "安魂曲（死亡状态）",
+    "PreCastFlowId": 0,
+    "Range": 0,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30060501,
+    "SkillType": 4,
+    "Tags": [],
+    "PreviewVfxId": 90036010,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30070101,
+    "CastFlowId": 30070101,
+    "Category": 10,
+    "CooldownMs": 1500,
+    "IconId": 501,
+    "LevelTableId": 30070101,
+    "Name": "Lux AA",
+    "PreCastFlowId": 0,
+    "Range": 6,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 1,
+    "SkillType": 1,
+    "Tags": [],
+    "PreviewVfxId": 90037002,
+    "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 128
+  },
+  {
+    "Id": 30070201,
+    "CastFlowId": 30070201,
+    "Category": 10,
+    "CooldownMs": 10000,
+    "IconId": 501,
+    "LevelTableId": 30070201,
+    "Name": "Lux Q Light Binding",
+    "PreCastFlowId": 0,
+    "Range": 12,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30070201,
+    "SkillType": 2,
+    "Tags": [],
+    "PreviewVfxId": 90037012,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30070301,
+    "CastFlowId": 30070301,
+    "Category": 10,
+    "CooldownMs": 12000,
+    "IconId": 501,
+    "LevelTableId": 30070301,
+    "Name": "Lux W Prismatic Barrier",
+    "PreCastFlowId": 0,
+    "Range": 12,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30070301,
+    "SkillType": 2,
+    "Tags": [],
+    "PreviewVfxId": 90037017,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30070401,
+    "CastFlowId": 30070401,
+    "Category": 10,
+    "CooldownMs": 10000,
+    "IconId": 501,
+    "LevelTableId": 30070401,
+    "Name": "Lux E Lucent Singularity",
+    "PreCastFlowId": 0,
+    "Range": 11,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30070401,
+    "SkillType": 2,
+    "Tags": [],
+    "PreviewVfxId": 90037004,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30070402,
+    "CastFlowId": 30070402,
+    "Category": 10,
+    "CooldownMs": 0,
+    "IconId": 501,
+    "LevelTableId": 30070402,
+    "Name": "Lux E Detonate",
+    "PreCastFlowId": 0,
+    "Range": 0,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30070402,
+    "SkillType": 5,
+    "Tags": [],
+    "PreviewVfxId": 90037005,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30070501,
+    "CastFlowId": 30070501,
+    "Category": 10,
+    "CooldownMs": 60000,
+    "IconId": 501,
+    "LevelTableId": 30070501,
+    "Name": "Lux R Final Spark",
+    "PreCastFlowId": 0,
+    "Range": 34,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 30070501,
+    "SkillType": 4,
+    "Tags": [],
+    "PreviewVfxId": 90037014,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": true,
+    "ExecutionBlockedResultMask": 4
   }
 ]

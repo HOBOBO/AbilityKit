@@ -15,6 +15,7 @@ namespace AbilityKit.Demo.Moba.Share
         public readonly long ModeInstanceId;
         public readonly int ModeStartFrame;
         public readonly int ModeLocalFrame;
+        public readonly CastPresentationFrame CastFrame;
 
         public CharacterActionData(int actorId, int entityVersion, int snapshotFrame,
             string path, long instanceId, int startFrame, int localFrame,
@@ -25,7 +26,7 @@ namespace AbilityKit.Demo.Moba.Share
         public CharacterActionData(int actorId, int entityVersion, int snapshotFrame,
             string path, long instanceId, int startFrame, int localFrame,
             long castInstanceId, int skillId, string modeId, long modeInstanceId,
-            int modeStartFrame, int modeLocalFrame)
+            int modeStartFrame, int modeLocalFrame, CastPresentationFrame castFrame = default)
         {
             ActorId = actorId;
             EntityVersion = entityVersion;
@@ -40,6 +41,7 @@ namespace AbilityKit.Demo.Moba.Share
             ModeInstanceId = modeInstanceId;
             ModeStartFrame = modeStartFrame;
             ModeLocalFrame = modeLocalFrame;
+            CastFrame = castFrame;
         }
     }
 }

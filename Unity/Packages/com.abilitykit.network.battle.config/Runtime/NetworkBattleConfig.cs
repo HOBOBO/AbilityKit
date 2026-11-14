@@ -53,6 +53,13 @@ namespace AbilityKit.Network.Battle.Config
             return this;
         }
 
+        /// <summary>Sets the response envelope used by the underlying network SDK client.</summary>
+        public NetworkBattleConfig WithResponseEnvelopeCodec(IRequestResponseEnvelopeCodec codec)
+        {
+            _o.ResponseEnvelopeCodec = codec ?? throw new ArgumentNullException(nameof(codec));
+            return this;
+        }
+
         /// <summary>Uses a fresh TcpTransport as the transport factory.</summary>
         public NetworkBattleConfig WithTcpTransport()
         {

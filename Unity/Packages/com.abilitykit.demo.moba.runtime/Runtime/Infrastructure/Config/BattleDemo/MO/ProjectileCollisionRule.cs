@@ -33,8 +33,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
                 !Enum.IsDefined(typeof(ProjectileCollisionResponse), Response))
                 error = "Collision rule contains an unknown role, classification, relation or response.";
             else if (Role == ProjectileCollisionRole.StaticWorld &&
-                     (Response == ProjectileCollisionResponse.Hit || MainType != 0 || UnitSubType != 0 || Relation != 0))
+                     ((Response == ProjectileCollisionResponse.Hit || Response == ProjectileCollisionResponse.SupportContact) || MainType != 0 || UnitSubType != 0 || Relation != 0))
                 error = "StaticWorld rules only support Ignore/Block without Actor classification or relation.";
+            else if (Response == ProjectileCollisionResponse.SupportContact && Relation != ProjectileCollisionRelation.Ally)
+                error = "SupportContact requires an explicit Ally relation.";
             else if (MainType != 0 && MainType != EntityMainType.Unit && UnitSubType != 0)
                 error = "UnitSubType cannot be combined with a non-Unit MainType.";
             return error == null;

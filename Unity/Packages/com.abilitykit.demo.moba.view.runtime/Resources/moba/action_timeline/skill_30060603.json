@@ -1,0 +1,59 @@
+{
+  "groups": [
+    {
+      "name": "Logic",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "Submit",
+          "active": true,
+          "actionClips": [
+            {
+              "effectId": 30060301,
+              "eventTag": "karthus_30060603_submit",
+              "abortOnFailure": true,
+              "startTime": 0.25,
+              "name": "ExecuteEffect",
+              "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        }
+      ]
+    },
+    {
+      "name": "Model",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "CompleteCastClip",
+          "active": true,
+          "actionClips": [
+            {
+              "clipKey": "Karthus_Model_SpellW",
+              "resPath": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ChampionVfx/11.Karthus_Project/Animations/Karthus_Model_SpellW.anim",
+              "startTime": 0.0,
+              "length": 0.5,
+              "playbackSpeed": 4.16666698,
+              "clipOffset": 0.0,
+              "blendIn": 0.0,
+              "blendOut": 0.0,
+              "name": "PlayAnimation",
+              "$type": "AbilityKit.ActionEditorImpl.PlayAnimation"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.AnimationTrack"
+        }
+      ]
+    }
+  ],
+  "exportMobaRuntime": true,
+  "length": 0.5,
+  "viewTimeMin": 0.0,
+  "viewTimeMax": 0.5,
+  "rangeMin": 0.0,
+  "rangeMax": 0.5,
+  "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
+}

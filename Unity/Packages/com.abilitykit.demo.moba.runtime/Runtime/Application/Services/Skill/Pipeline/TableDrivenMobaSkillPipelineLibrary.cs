@@ -186,7 +186,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var inner = new AbilityKit.Ability.Share.Impl.Pipeline.Skill.SkillPipelineConfig(configId, configName);
             return new MobaSkillPipelineConfig(inner, flow?.PipelineContinuousTagTemplateId ?? 0,
-                executionBlockedResultMask);
+                flow?.ContinueThroughControl == true ? 0UL : executionBlockedResultMask);
         }
 
         private static IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> BuildPhases(IReadOnlyList<PhaseDefinition> definitions)

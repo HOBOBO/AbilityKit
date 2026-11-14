@@ -1,0 +1,73 @@
+{
+  "Id": 30070101,
+  "Name": "Lux 30070101",
+  "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": false,
+  "RequiredBuffQualificationId": 0,
+  "Phases": [
+    {
+      "Type": 19,
+      "PhaseId": "lux_30070101_economy",
+      "Economy": {
+        "Operation": 0,
+        "ResourceType": 0,
+        "ResourceAmount": 0.0,
+        "UseResolvedResourceCost": true,
+        "ChargeCost": 1,
+        "MaxCharges": 1,
+        "ChargeRecoveryMs": 0,
+        "StartSkillCooldown": true,
+        "SkillCooldownMs": 0,
+        "UseResolvedSkillCooldown": true,
+        "CooldownGroup": "",
+        "SharedCooldownMs": 0,
+        "GlobalCooldownMs": 0,
+        "IgnoreGlobalCooldown": false,
+        "IgnoreResourceCostCheck": false,
+        "IgnoreResourceConsumption": false,
+        "RefundBeforeCommit": true,
+        "RequireExplicitCommit": true,
+        "FailReason": ""
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "lux_30070101_release",
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      }
+    },
+    {
+      "Type": 18,
+      "PhaseId": "lux_30070101_commit",
+      "CommitPoint": {
+        "CommitId": "attack",
+        "RequireEconomyReservation": true
+      }
+    },
+    {
+      "Type": 2,
+      "PhaseId": "lux_30070101_timeline",
+      "Timeline": {
+        "DurationMs": 1250,
+        "Events": [
+          {
+            "AtMs": 250,
+            "EffectId": 30070101,
+            "ExecuteMode": 0,
+            "AbortOnFailure": true,
+            "EventTag": "lux_30070101_30070101"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -509,6 +509,10 @@ namespace AbilityKit.Network.Battle
             }
 
             var builder = new NetworkSdkBuilder();
+            if (options.ResponseEnvelopeCodec != null)
+            {
+                builder.UseResponseEnvelopeCodec(options.ResponseEnvelopeCodec);
+            }
             if (options.ConnectionFactory != null)
             {
                 builder.UseConnectionFactory(options.ConnectionFactory);

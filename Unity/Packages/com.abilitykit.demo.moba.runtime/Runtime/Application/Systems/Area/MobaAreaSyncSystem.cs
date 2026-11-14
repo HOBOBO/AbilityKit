@@ -224,6 +224,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 Frame = frame,
                 ExecutionKind = executionKind != MobaExecutionKind.None ? executionKind : MobaExecutionKind.AreaSpawn,
                 Center = center,
+                Forward = info.Forward,
                 Radius = radius,
                 Collider = collider,
                 CrossingDirection = raw is AreaEnterEvent enter ? enter.CrossingDirection : 0,

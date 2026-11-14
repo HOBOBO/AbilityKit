@@ -46,6 +46,8 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int MaxActive;
 
         public int AttachMode;
+        // 0 = existing Actor/World attachment, 1 = immutable original Cast frame.
+        public int PlacementSpace;
         public string Socket;
         public bool Follow;
 

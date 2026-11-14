@@ -298,7 +298,7 @@ namespace AbilityKit.Demo.Moba.Services
                     return SkillCastPreparationResult.Failed("skill.cast.childChannelOccupied", "An active child already occupies this channel.");
                 }
                 if (authoredFlow != null && authoredFlow.RecastChannelId > 0 &&
-                    !runtimes.TrySelectRecastArea(actorId, authoredFlow.RecastChannelId, out childBinding, out var recastError, slot, baseSkillId))
+                    !runtimes.TrySelectRecastArea(actorId, authoredFlow.RecastChannelId, out childBinding, out var recastError, slot, baseSkillId, authoredFlow.QueueRecastInFlight))
                 {
                     executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
                     return SkillCastPreparationResult.Failed("skill.cast.childRecastUnavailable", recastError);

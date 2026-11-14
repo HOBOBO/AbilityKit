@@ -7,6 +7,8 @@ namespace AbilityKit.Combat.Projectile
         Ignore = 0,
         Hit = 1,
         Block = 2,
+        /// <summary>Emit a contact for a supporting effect; does not grant damage eligibility.</summary>
+        SupportContact = 3,
     }
 
     public interface IProjectileHitFilter

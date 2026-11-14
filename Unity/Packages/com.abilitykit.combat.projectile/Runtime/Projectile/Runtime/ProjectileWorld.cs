@@ -96,9 +96,9 @@ namespace AbilityKit.Combat.Projectile
 
         private void ValidateHitIdentity(ProjectileHitIdentityPolicy policy)
         {
-            if (policy != ProjectileHitIdentityPolicy.Collider && policy != ProjectileHitIdentityPolicy.OncePerActor)
+            if (policy != ProjectileHitIdentityPolicy.Collider && policy != ProjectileHitIdentityPolicy.OncePerActor && policy != ProjectileHitIdentityPolicy.OncePerActorPerLeg)
                 throw new ArgumentOutOfRangeException(nameof(policy));
-            if (policy == ProjectileHitIdentityPolicy.OncePerActor && _actorIdentityProvider == null)
+            if (policy != ProjectileHitIdentityPolicy.Collider && _actorIdentityProvider == null)
                 throw new InvalidOperationException("OncePerActor requires an actor identity provider.");
         }
 
@@ -118,11 +118,14 @@ namespace AbilityKit.Combat.Projectile
         {
             ValidateHitIdentity(p.HitIdentityPolicy);
             if (p.MaxDistanceResponse != ProjectileMaxDistanceResponse.Exit &&
-                p.MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination)
+                p.MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination &&
+                p.MaxDistanceResponse != ProjectileMaxDistanceResponse.ReturnToSource)
                 throw new ArgumentOutOfRangeException(nameof(p.MaxDistanceResponse));
-            if (p.MaxDistanceResponse == ProjectileMaxDistanceResponse.SuspendAtDestination &&
+            if (p.MaxDistanceResponse != ProjectileMaxDistanceResponse.Exit &&
                 (!(p.MaxDistance > 0) || float.IsInfinity(p.MaxDistance)))
                 throw new ArgumentOutOfRangeException(nameof(p.MaxDistance));
+            if (p.MaxDistanceResponse == ProjectileMaxDistanceResponse.ReturnToSource && p.ReturnAfterFrames > 0)
+                throw new ArgumentException("Timed and distance return are mutually exclusive.");
             // Validate/resolve behavior before acquiring a pooled instance so invalid config
             // cannot leak a projectile when the policy factory rejects it.
             var hitPolicy = p.HitPolicy ?? ProjectileHitPolicyFactory.Create(p.HitPolicyKind, p.HitPolicyParam);
@@ -318,13 +321,13 @@ namespace AbilityKit.Combat.Projectile
                     lastHitCollider: p.LastHitCollider.Value,
                     lastHitAllowedFrame: p.LastHitAllowedFrame,
                     hitIdentityPolicy: p.HitIdentityPolicy,
-                    maxDistanceResponse: p.MaxDistanceResponse, arrivedFrame: p.ArrivedFrame,
+                    maxDistanceResponse: p.MaxDistanceResponse, arrivedFrame: p.ArrivedFrame, returnHitActorIds: p.ReturnHitActorIds.ToArray(),
                     hitFilterSnapshot: (p.HitFilter as IProjectileHitFilterSnapshotSource)?.CaptureSnapshot()
                 );
             }
 
             return MemoryPackSerializer.Serialize(new ProjectileWorldSnapshotPayload(
-                version: 17,
+                version: 18,
                 frame: frame,
                 nextId: _nextId,
                 items: items,
@@ -336,13 +339,15 @@ namespace AbilityKit.Combat.Projectile
         {
             if (payload == null || payload.Length == 0) { Clear(); return; }
             var snap = MemoryPackSerializer.Deserialize<ProjectileWorldSnapshotPayload>(payload);
-            if (snap.Version != 17) throw new InvalidOperationException("Unsupported projectile rollback version.");
+            if (snap.Version != 18) throw new InvalidOperationException("Unsupported projectile rollback version.");
             foreach (var item in snap.Items ?? Array.Empty<ProjectileWorldSnapshotItem>())
             {
                 if ((item.MaxDistanceResponse != ProjectileMaxDistanceResponse.Exit &&
-                     item.MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination) ||
+                     item.MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination &&
+                     item.MaxDistanceResponse != ProjectileMaxDistanceResponse.ReturnToSource) ||
                     item.ArrivedFrame < -1 || (item.ArrivedFrame >= 0 &&
-                    (item.MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination || item.IsSuspended == 0)))
+                    !((item.MaxDistanceResponse == ProjectileMaxDistanceResponse.SuspendAtDestination && item.IsSuspended != 0) ||
+                      (item.MaxDistanceResponse == ProjectileMaxDistanceResponse.ReturnToSource && item.IsReturning != 0))))
                     throw new InvalidOperationException("Invalid projectile destination snapshot.");
             }
             Clear();
@@ -392,6 +397,7 @@ namespace AbilityKit.Combat.Projectile
                 p.TrackingArcEndY = Fixed64.FromRaw(it.TrackingArcEndYRaw);
                 p.BounceSearchRadius = Fixed64.FromRaw(it.BounceSearchRadiusRaw);
                 if (it.HitActorIds != null) p.HitActorIds.AddRange(it.HitActorIds);
+                if (it.ReturnHitActorIds != null) p.ReturnHitActorIds.AddRange(it.ReturnHitActorIds);
                 p.ReturnAfterFrames = it.ReturnAfterFrames;
                 p.ReturnSpeed = Fixed64.FromRaw(it.ReturnSpeedRaw);
                 p.ReturnStopDistance = Fixed64.FromRaw(it.ReturnStopDistanceRaw);
@@ -580,6 +586,7 @@ namespace AbilityKit.Combat.Projectile
                     p.DistanceLeft = Fixed64.Zero;
                 }
 
+                var returnDistance = Fixed64.Zero;
                 var hasTrackingTarget = false;
                 if (p.IsReturning)
                 {
@@ -594,7 +601,7 @@ namespace AbilityKit.Combat.Projectile
 
                     var returnTarget = targetPos.ToFixed();
 
-                    if (p.ReturnStopDistance > Fixed64.Zero)
+                    if (p.ReturnStopDistance >= Fixed64.Zero)
                     {
                         var delta = returnTarget - p.Position;
                         var sqr = delta.SqrMagnitude;
@@ -609,6 +616,7 @@ namespace AbilityKit.Combat.Projectile
                     }
 
                     var to = returnTarget - p.Position;
+                    returnDistance = to.Magnitude;
                     if (to.SqrMagnitude > Fixed64.Zero)
                     {
                         p.Direction = to.Normalized;
@@ -678,6 +686,7 @@ namespace AbilityKit.Combat.Projectile
                         dir = horizontalDirection.Normalized;
                 }
 
+                if (p.IsReturning && returnDistance > Fixed64.Zero && move > returnDistance) move = returnDistance;
                 if (p.DistanceLeft > Fixed64.Zero && move > p.DistanceLeft)
                 {
                     move = p.DistanceLeft;
@@ -828,11 +837,13 @@ namespace AbilityKit.Combat.Projectile
                     // the previous hit point, so suppress every collider that resolves to an
                     // actor already in the bounce history before applying hit policy again.
                     var candidateActorId = 0;
-                    var identityProvider = p.HitIdentityPolicy == ProjectileHitIdentityPolicy.OncePerActor
+                    var identityProvider = p.HitIdentityPolicy != ProjectileHitIdentityPolicy.Collider
                         ? _actorIdentityProvider : p.HitPolicyKind == ProjectileHitPolicyKind.Bounce ? _bounceTargetProvider : null;
                     var hasActorIdentity = identityProvider != null &&
                         identityProvider.TryResolveActorId(hit.Collider, out candidateActorId) && candidateActorId > 0;
-                    if (hasActorIdentity && p.HitActorIds.Contains(candidateActorId))
+                    var acceptedActors = p.HitIdentityPolicy == ProjectileHitIdentityPolicy.OncePerActorPerLeg && p.IsReturning
+                        ? p.ReturnHitActorIds : p.HitActorIds;
+                    if (hasActorIdentity && acceptedActors.Contains(candidateActorId))
                     {
                         skippedDistanceThisTick += sweptDistance + EpsilonAdvance;
                         if (hitColliderCount < hitColliderIdsThisTick.Length)
@@ -880,7 +891,7 @@ namespace AbilityKit.Combat.Projectile
                         hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
                     }
 
-                    if (hasActorIdentity) p.HitActorIds.Add(candidateActorId);
+                    if (hasActorIdentity) acceptedActors.Add(candidateActorId);
                     p.TotalHitCount++;
                     var hitDistance = p.DistanceTravelled + skippedDistanceThisTick + sweptDistance;
                     var elapsedAtAcceptedHit = p.ElapsedSeconds + EstimateElapsedWithinTick(
@@ -998,6 +1009,13 @@ namespace AbilityKit.Combat.Projectile
                     p.DistanceLeft -= travelled;
                     if (p.DistanceLeft <= EpsilonAdvance)
                     {
+                        if (p.MaxDistanceResponse == ProjectileMaxDistanceResponse.ReturnToSource)
+                        {
+                            p.DistanceLeft = Fixed64.Zero;
+                            p.ArrivedFrame = frame;
+                            p.IsReturning = true;
+                            continue;
+                        }
                         if (p.MaxDistanceResponse == ProjectileMaxDistanceResponse.SuspendAtDestination)
                         {
                             p.DistanceLeft = Fixed64.Zero;
@@ -1326,6 +1344,7 @@ namespace AbilityKit.Combat.Projectile
         [MemoryPackOrder(54)] public readonly byte[] HitFilterSnapshot;
         [MemoryPackOrder(55)] public readonly ProjectileMaxDistanceResponse MaxDistanceResponse;
         [MemoryPackOrder(56)] public readonly int ArrivedFrame;
+        [MemoryPackOrder(57)] public readonly int[] ReturnHitActorIds;
 
         public ProjectileWorldSnapshotItem(
             int id,
@@ -1383,7 +1402,7 @@ namespace AbilityKit.Combat.Projectile
             long elapsedSecondsRaw = 0,
             ProjectileHitIdentityPolicy hitIdentityPolicy = ProjectileHitIdentityPolicy.Collider,
             byte[] hitFilterSnapshot = null,
-            ProjectileMaxDistanceResponse maxDistanceResponse = ProjectileMaxDistanceResponse.Exit, int arrivedFrame = -1)
+            ProjectileMaxDistanceResponse maxDistanceResponse = ProjectileMaxDistanceResponse.Exit, int arrivedFrame = -1, int[] returnHitActorIds = null)
         {
             Id = id;
             OwnerId = ownerId;
@@ -1440,7 +1459,7 @@ namespace AbilityKit.Combat.Projectile
             ElapsedSecondsRaw = elapsedSecondsRaw;
             HitIdentityPolicy = hitIdentityPolicy;
             HitFilterSnapshot = hitFilterSnapshot;
-            MaxDistanceResponse = maxDistanceResponse; ArrivedFrame = arrivedFrame;
+            MaxDistanceResponse = maxDistanceResponse; ArrivedFrame = arrivedFrame; ReturnHitActorIds = returnHitActorIds;
         }
     }
 

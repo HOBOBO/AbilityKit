@@ -93,6 +93,11 @@ namespace AbilityKit.Game.Flow
             _models.SetHierarchyManager(hierarchy);
         }
 
+        internal void SetAuthorityDebugTint(bool enabled)
+        {
+            _models.SetAuthorityDebugTint(enabled);
+        }
+
         public MobaConfigDatabase Configs
         {
             get => _configs;

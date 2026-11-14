@@ -121,7 +121,7 @@ namespace AbilityKit.Game.Flow
 
             var context = ConfirmedViewContextFactory.Create(sourceContext, source.WorldId);
             var feature = new ProjectedBattleViewFeature(context, role + ":" + instanceId,
-                capabilities, camera);
+                capabilities, camera, darkenActors: role == BattleProjectionViewRole.Confirmed);
             var instance = new ProjectionViewInstance
             {
                 Info = new BattleProjectionViewInfo(instanceId, role, source.WorldId,

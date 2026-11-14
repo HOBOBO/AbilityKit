@@ -1,0 +1,67 @@
+{
+    "schemaVersion": 1,
+    "runtimeType": "presentation",
+    "length": 3.25,
+    "groups": [
+        {
+            "name": "Model",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.AnimationTrack",
+                    "name": "CompleteCastClip",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.PlayAnimation",
+                            "runtimeType": "presentation",
+                            "start": 0.0,
+                            "length": 3.25,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "clipKey": "Karthus_Model_SpellR",
+                                "clipLength": "4.791667",
+                                "playbackSpeed": "1.474359",
+                                "clipOffset": "0"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CastParticle",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.EffectTrack",
+                    "name": "CastParticle",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.PlayParticle",
+                            "runtimeType": "presentation",
+                            "start": 0.0,
+                            "length": 3.25,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "presentationTemplateId": "90036010"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "$type": "AbilityKit.ActionSchema.SkillAssetDto"
+}

@@ -16,7 +16,8 @@ param(
     [int]$ClientStartupTimeoutSeconds = 180,
     [string]$OutputRoot,
     [switch]$SkipCompileWarmup,
-    [switch]$ColdRestart
+    [switch]$ColdRestart,
+    [switch]$EnableConfirmedAuthorityWorld
 )
 
 $ErrorActionPreference = 'Stop'
@@ -107,6 +108,7 @@ function New-ClientArguments {
         '-mobaHeadlessTimeoutSeconds', $TimeoutSeconds,
         '-mobaHeadlessSyncTemplate', $SyncTemplateId,
         '-mobaHeadlessSyncModel', $SyncModel,
+        '-mobaHeadlessEnableConfirmedAuthorityWorld', $(if ($EnableConfirmedAuthorityWorld) { '1' } else { '0' }),
         '-gatewayHost', $GatewayHost,
         '-gatewayPort', $GatewayPort,
         '-gatewayRegion', $GatewayRegion,

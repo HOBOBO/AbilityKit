@@ -851,5 +851,150 @@
     "Selector": {
       "Kind": 4097
     }
+  },
+  {
+    "Id": 52060201,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 2147483647,
+    "Name": "Karthus Q batch",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 1,
+        "Radius": 1.6
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8193
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52060401,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 2147483647,
+    "Name": "Karthus E tick",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 0,
+        "Radius": 5.5
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8193
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52060501,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 2147483647,
+    "Name": "Karthus R global",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 518,
+        "UnitSubType": 1
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8193
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52060502,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 2147483647,
+    "Name": "Karthus R warning cleanup",
+    "Provider": {
+      "Kind": 1
+    },
+    "Rules": [
+      {
+        "Kind": 518,
+        "UnitSubType": 1
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8193
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52070401,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 2147483647,
+    "Name": "Lux E explosion",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 1,
+        "Forward": 1,
+        "Radius": 3.1
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8193
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52070501,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 2147483647,
+    "Name": "Lux R beam",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 771,
+        "Center": 1,
+        "Forward": 1,
+        "Width": 2,
+        "Length": 33.4
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8193
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
   }
 ]

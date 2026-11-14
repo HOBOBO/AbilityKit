@@ -48,7 +48,7 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
             bool enabled = true,
             string baseSkillLevelParameter = null,
             string secondarySkillLevelParameter = null,
-            string secondaryCoefficientSkillLevelParameter = null)
+            string secondaryCoefficientSkillLevelParameter = null, bool useCurrentHeroLevel = false)
         {
             BaseSource = baseSource;
             SecondarySource = secondarySource;
@@ -60,6 +60,7 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
             BaseSkillLevelParameter = baseSkillLevelParameter;
             SecondarySkillLevelParameter = secondarySkillLevelParameter;
             SecondaryCoefficientSkillLevelParameter = secondaryCoefficientSkillLevelParameter;
+            UseCurrentHeroLevel = useCurrentHeroLevel;
         }
 
         public MagnitudeSource BaseSource { get; }
@@ -69,6 +70,7 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
         public MobaEffectEvaluationPolicy EvaluationPolicy { get; }
         public BlackboardWriteTarget CaptureTarget { get; }
         public bool Enabled { get; }
+        public bool UseCurrentHeroLevel { get; }
         public string BaseSkillLevelParameter { get; }
         public string SecondarySkillLevelParameter { get; }
         public string SecondaryCoefficientSkillLevelParameter { get; }
@@ -164,7 +166,7 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
                 return false;
             }
 
-            var modifierContext = new MobaMagnitudeModifierContext(sourceActor, in executionContext, in execCtx);
+            var modifierContext = new MobaMagnitudeModifierContext(sourceActor, in executionContext, in execCtx, spec.UseCurrentHeroLevel);
             if (!TryCalculateSource(spec.BaseSource, spec.BaseSkillLevelParameter, in executionContext, in execCtx, modifierContext, out var primary, out failure) ||
                 !TryCalculateSource(spec.SecondarySource, spec.SecondarySkillLevelParameter, in executionContext, in execCtx, modifierContext, out var secondary, out failure))
                 return false;
@@ -380,12 +382,14 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
         private sealed class MobaMagnitudeModifierContext : IModifierContext
         {
             private readonly global::ActorEntity _actor;
+            private readonly bool _useCurrentHeroLevel;
             private readonly MobaCombatExecutionContext _executionContext;
             private readonly ExecCtx<IWorldResolver> _execCtx;
 
-            public MobaMagnitudeModifierContext(global::ActorEntity actor, in MobaCombatExecutionContext executionContext, in ExecCtx<IWorldResolver> execCtx)
+            public MobaMagnitudeModifierContext(global::ActorEntity actor, in MobaCombatExecutionContext executionContext, in ExecCtx<IWorldResolver> execCtx, bool useCurrentHeroLevel = false)
             {
                 _actor = actor;
+                _useCurrentHeroLevel = useCurrentHeroLevel;
                 _executionContext = executionContext;
                 _execCtx = execCtx;
             }
@@ -394,6 +398,7 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
             {
                 get
                 {
+                    if (_useCurrentHeroLevel) return _actor != null && _actor.hasChampionLevel ? Math.Max(1, _actor.championLevel.Value) : 1;
                     var runtimeHandle = _executionContext.SkillRuntimeHandle;
                     if (runtimeHandle.IsValid && _execCtx.Context != null &&
                         _execCtx.Context.TryResolve<MobaSkillCastRuntimeService>(out var runtimes) &&

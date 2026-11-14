@@ -1,0 +1,38 @@
+{
+    "schemaVersion": 1,
+    "runtimeType": "logic",
+    "length": 1.0,
+    "groups": [
+        {
+            "name": "Logic",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.SignalTrack",
+                    "name": "Submit",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.ExecuteEffect",
+                            "runtimeType": "logic",
+                            "start": 0.25,
+                            "length": 0.0,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "effectId": "30060201",
+                                "eventTag": "karthus_30060602_submit",
+                                "abortOnFailure": "true"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "$type": "AbilityKit.ActionSchema.SkillAssetDto"
+}

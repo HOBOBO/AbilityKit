@@ -287,24 +287,60 @@ namespace AbilityKit.Game
         {
             if (!DemoMultiplayerLaunchIntent.TryConsume(
                     DemoMultiplayerGameplay.Moba,
-                    out _multiplayerLaunchRequest))
+                    out var launchRequest))
             {
                 return;
             }
 
+            _multiplayerLaunchRequest = launchRequest;
+
             BattleStartPresetSO remotePreset = null;
+            var requestedSyncTemplate = DemoMultiplayerSyncTemplates.Normalize(
+                launchRequest != null ? launchRequest.SyncTemplateId : null);
             if (_battleStartPresets != null)
             {
                 for (var i = 0; i < _battleStartPresets.Length; i++)
                 {
                     var candidate = _battleStartPresets[i];
-                    if (candidate != null && candidate.HostMode == BattleHostMode.GatewayRemote)
+                    if (candidate != null &&
+                        candidate.HostMode == BattleHostMode.GatewayRemote &&
+                        IsSyncTemplate(candidate, requestedSyncTemplate))
                     {
                         remotePreset = candidate;
                         break;
                     }
                 }
+
+                // Keep old starter configurations working when they only contain
+                // one remote preset; the request still defaults to frame sync.
+                if (remotePreset == null &&
+                    string.Equals(
+                        requestedSyncTemplate,
+                        DemoMultiplayerSyncTemplates.FrameSyncAuthority,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    for (var i = 0; i < _battleStartPresets.Length; i++)
+                    {
+                        var candidate = _battleStartPresets[i];
+                        if (candidate != null && candidate.HostMode == BattleHostMode.GatewayRemote)
+                        {
+                            remotePreset = candidate;
+                            break;
+                        }
+                    }
+                }
             }
+
+#if UNITY_EDITOR
+            if (remotePreset != null &&
+                HasCommandLineFlag("-mobaHeadlessEnableConfirmedAuthorityWorld", "1"))
+            {
+                remotePreset = Instantiate(remotePreset);
+                remotePreset.name += "_HeadlessComparison";
+                remotePreset.EnableConfirmedAuthorityWorld = true;
+                Debug.Log("[GameEntry] Enabled confirmed authority world on an in-memory headless preset clone.");
+            }
+#endif
 
             if (_battleStartConfig == null || remotePreset == null)
             {
@@ -314,6 +350,31 @@ namespace AbilityKit.Game
 
             selection.SelectRemote(_battleStartConfig, remotePreset);
         }
+
+        private static bool IsSyncTemplate(BattleStartPresetSO preset, string syncTemplateId)
+        {
+            if (preset == null) return false;
+
+            return string.Equals(
+                syncTemplateId,
+                preset.SyncMode == BattleSyncMode.SnapshotAuthority
+                    ? DemoMultiplayerSyncTemplates.MobaStateSyncAuthority
+                    : DemoMultiplayerSyncTemplates.FrameSyncAuthority,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+#if UNITY_EDITOR
+        private static bool HasCommandLineFlag(string name, string expectedValue)
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (var index = 0; index + 1 < args.Length; index++)
+            {
+                if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase))
+                    return string.Equals(args[index + 1], expectedValue, StringComparison.Ordinal);
+            }
+            return false;
+        }
+#endif
 
         public T Get<T>() where T : class
         {
@@ -502,6 +563,15 @@ namespace AbilityKit.Game
             var previousEnabled = GUI.enabled;
             GUI.enabled = _localDebug != null && debugSnapshot.IsAvailable;
             GUILayout.Label("完整替换当前英雄");
+            var includePlaceholders = GUILayout.Toggle(
+                debugSnapshot.IncludePlaceholderHeroes,
+                "启用占位英雄");
+            if (includePlaceholders != debugSnapshot.IncludePlaceholderHeroes)
+            {
+                _localDebug.SetIncludePlaceholderHeroes(includePlaceholders);
+                debugSnapshot = _localDebug.CaptureSnapshot();
+            }
+
             var heroOptions = debugSnapshot.HeroOptions ?? Array.Empty<BattleDebugHeroOption>();
             if (heroOptions.Length == 0)
             {

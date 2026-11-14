@@ -11,6 +11,29 @@ namespace AbilityKit.Demo.Moba.Tests.Skill;
 
 public sealed class MobaProjectileCollisionRuleTests
 {
+    [Fact]
+    public void Support_contact_accepts_only_explicit_friendly_heroes_and_keeps_normal_Hit_protected()
+    {
+        using var registry = new MobaActorRegistry();
+        var contexts = new Contexts();
+        Actor(contexts, registry, 1, 1, Team.Team1, EntityMainType.Unit, UnitSubType.Hero);
+        Actor(contexts, registry, 2, 2, Team.Team1, EntityMainType.Unit, UnitSubType.Hero);
+        Actor(contexts, registry, 3, 3, Team.Team2, EntityMainType.Unit, UnitSubType.Hero);
+        Actor(contexts, registry, 4, 4, Team.Team1, EntityMainType.Unit, UnitSubType.Minion);
+        var filter = new MobaProjectileCollisionFilter(registry, rules: new[] {
+            Rule(ProjectileCollisionRole.OtherActor, ProjectileCollisionResponse.SupportContact,
+                subtype: UnitSubType.Hero, relation: ProjectileCollisionRelation.Ally),
+            Rule(ProjectileCollisionRole.OtherActor, ProjectileCollisionResponse.Ignore),
+        });
+        Assert.Equal(ProjectileCollisionResponse.Ignore, filter.ResolveCollision(1, new ColliderId(1), 1));
+        Assert.Equal(ProjectileCollisionResponse.SupportContact, filter.ResolveCollision(1, new ColliderId(2), 1));
+        Assert.True(filter.ShouldHit(1, new ColliderId(2), 1));
+        Assert.Equal(ProjectileCollisionResponse.Ignore, filter.ResolveCollision(1, new ColliderId(3), 1));
+        Assert.Equal(ProjectileCollisionResponse.Ignore, filter.ResolveCollision(1, new ColliderId(4), 1));
+        Assert.False(Rule(ProjectileCollisionRole.StaticWorld, ProjectileCollisionResponse.SupportContact).TryValidate(out _));
+        Assert.False(Rule(ProjectileCollisionRole.OtherActor, ProjectileCollisionResponse.SupportContact).TryValidate(out _));
+    }
+
     [Theory]
     [InlineData(UnitSubType.Hero, ProjectileCollisionResponse.Block)]
     [InlineData(UnitSubType.Minion, ProjectileCollisionResponse.Ignore)]

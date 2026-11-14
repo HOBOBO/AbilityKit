@@ -2,13 +2,15 @@ using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Combat.Projectile
 {
-    public enum ProjectileMaxDistanceResponse { Exit = 0, SuspendAtDestination = 1 }
+    public enum ProjectileMaxDistanceResponse { Exit = 0, SuspendAtDestination = 1, ReturnToSource = 2 }
 
     public enum ProjectileHitIdentityPolicy
     {
         Collider = 0,
         /// <summary>Accept each resolved actor at most once during this projectile's lifetime.</summary>
         OncePerActor = 1,
+        /// <summary>Each resolved actor can be contacted once outbound and once returning.</summary>
+        OncePerActorPerLeg = 2,
     }
 
     public enum ProjectileHitPolicyKind

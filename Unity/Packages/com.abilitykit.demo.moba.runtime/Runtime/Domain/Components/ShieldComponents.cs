@@ -291,6 +291,7 @@ namespace AbilityKit.Demo.Moba.Components
         MergeSameShieldAndSource = 1,
         RefreshSameShieldAndSource = 2,
         ReplaceLowerPriority = 3,
+        MergeSameShieldAndCast = 4,
     }
 
     public enum ShieldConsumePolicy

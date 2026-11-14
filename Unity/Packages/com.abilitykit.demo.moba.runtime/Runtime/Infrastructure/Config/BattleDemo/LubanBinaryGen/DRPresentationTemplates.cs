@@ -42,6 +42,7 @@ public sealed partial class DRPresentationTemplates : Luban.BeanBase
         TargetLossPolicy = _buf.ReadInt();
         CompletionPolicy = _buf.ReadInt();
         StopGraceMs = _buf.ReadInt();
+        PlacementSpace = _buf.ReadInt();
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
     }
@@ -156,6 +157,10 @@ public sealed partial class DRPresentationTemplates : Luban.BeanBase
     /// </summary>
     public readonly int StopGraceMs;
     /// <summary>
+    /// 放置空间：0=现有 Actor/World，1=原 Cast 权威空间帧（局部偏移、固定世界放置；缺帧拒绝）。
+    /// </summary>
+    public readonly int PlacementSpace;
+    /// <summary>
     /// 迁移兼容字段：逗号分隔的原 JSON 缺失字段名；新数据通常留空。
     /// </summary>
     public readonly string OmittedFields;
@@ -200,6 +205,7 @@ public sealed partial class DRPresentationTemplates : Luban.BeanBase
         + "TargetLossPolicy:" + TargetLossPolicy + ","
         + "CompletionPolicy:" + CompletionPolicy + ","
         + "StopGraceMs:" + StopGraceMs + ","
+        + "PlacementSpace:" + PlacementSpace + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
         + "}";

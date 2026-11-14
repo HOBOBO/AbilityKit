@@ -22,6 +22,8 @@ namespace AbilityKit.Game.Flow
             new Dictionary<string, BattleViewFeature>(StringComparer.Ordinal);
         private static readonly Dictionary<string, ConfirmedBattleViewFeature> ConfirmedViewsByScope =
             new Dictionary<string, ConfirmedBattleViewFeature>(StringComparer.Ordinal);
+        private static readonly Dictionary<string, bool> FrameSyncComparisonViewsByScope =
+            new Dictionary<string, bool>(StringComparer.Ordinal);
 
         /// <summary>仅用于 development single-active 兼容；正式调用方应按 scope 查询。</summary>
         public static BattleContext Current { get; set; }
@@ -34,6 +36,26 @@ namespace AbilityKit.Game.Flow
 
         /// <summary>仅用于 development single-active 兼容；正式调用方应按 scope 查询。</summary>
         public static ConfirmedBattleViewFeature CurrentConfirmedView { get; set; }
+
+        public static bool CurrentFrameSyncComparisonViewsCreated { get; internal set; }
+
+        public static bool TryGetFrameSyncComparisonViewsCreated(string scope, out bool created)
+        {
+            lock (ScopeGate)
+            {
+                return FrameSyncComparisonViewsByScope.TryGetValue(scope ?? string.Empty, out created);
+            }
+        }
+
+        internal static void PublishFrameSyncComparisonViews(string scope, bool created)
+        {
+            if (string.IsNullOrWhiteSpace(scope)) return;
+            lock (ScopeGate)
+            {
+                FrameSyncComparisonViewsByScope[scope] = created;
+            }
+            CurrentFrameSyncComparisonViewsCreated = created;
+        }
 
         public static bool TryGetContext(string scope, out BattleContext context) =>
             TryGetScoped(ContextsByScope, scope, out context);

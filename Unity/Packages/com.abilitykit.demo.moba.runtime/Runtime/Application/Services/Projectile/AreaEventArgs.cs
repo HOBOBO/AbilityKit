@@ -18,6 +18,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public MobaExecutionKind ExecutionKind;
 
         public Vec3 Center;
+        public Vec3 Forward;
         public float Radius;
         public ColliderId Collider;
         public int CrossingDirection;

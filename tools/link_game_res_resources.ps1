@@ -37,7 +37,8 @@ $heroes = @(
 # complete set here so linking one hero never produces a partial Unity import.
 $dependencies = @(
     '01.KarmaQ_StarGuardian', '02.BraumR_Arcade', '03.BardW_Project',
-    '05.BrandW_Void', '07.AsheR_Arclight', '08.Jinx_Arcanist',
+    '04.DariusR_Reaper', '05.BrandW_Void', '06.GarenR_Arcade',
+    '07.AsheR_Arclight', '08.Jinx_Arcanist',
     '09.Veigar_Hextech', '10.Gragas_StarGuardian', '11.Karthus_Project',
     '12.Lux_DarkStar', '13.Jhin_Battlecast', '14.Void_Annie',
     # Hero materials reference the shared Puppet shaders by GUID. Mount the

@@ -142,6 +142,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (payload is AreaEventArgs areaEvent)
             {
                 aimPosition = areaEvent.Center;
+                aimDirection = areaEvent.Forward;
                 return true;
             }
 

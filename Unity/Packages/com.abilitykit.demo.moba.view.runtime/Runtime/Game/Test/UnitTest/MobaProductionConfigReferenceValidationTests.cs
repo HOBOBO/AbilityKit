@@ -129,15 +129,15 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(gateway.RoomListLimit, Is.EqualTo(10));
             Assert.That(gateway.RestoreRoomOnEntry, Is.True);
             Assert.That(gateway.AutoReadyDefaultLoadout, Is.True);
-            Assert.That(gateway.DefaultHeroId, Is.EqualTo(1001));
-            Assert.That(gateway.DefaultAttributeTemplateId, Is.EqualTo(1001));
-            Assert.That(gateway.DefaultBasicAttackSkillId, Is.EqualTo(10010001));
-            Assert.That(gateway.DefaultSkillIds, Is.EqualTo(new[] { 10010101, 10010201, 10010301 }));
-            Assert.That(gateway.SecondPlayerHeroId, Is.EqualTo(1002));
+            Assert.That(gateway.DefaultHeroId, Is.EqualTo(3001));
+            Assert.That(gateway.DefaultAttributeTemplateId, Is.EqualTo(3001));
+            Assert.That(gateway.DefaultBasicAttackSkillId, Is.EqualTo(30010601));
+            Assert.That(gateway.DefaultSkillIds, Is.EqualTo(new[] { 30010101, 30010201, 30010301, 30010401 }));
+            Assert.That(gateway.SecondPlayerHeroId, Is.EqualTo(3005));
             Assert.That(gateway.SecondPlayerTeamId, Is.EqualTo(2));
-            Assert.That(gateway.SecondPlayerAttributeTemplateId, Is.EqualTo(1002));
-            Assert.That(gateway.SecondPlayerBasicAttackSkillId, Is.EqualTo(10020001));
-            Assert.That(gateway.SecondPlayerSkillIds, Is.EqualTo(new[] { 10020101, 10020201, 10020301 }));
+            Assert.That(gateway.SecondPlayerAttributeTemplateId, Is.EqualTo(3005));
+            Assert.That(gateway.SecondPlayerBasicAttackSkillId, Is.EqualTo(30050101));
+            Assert.That(gateway.SecondPlayerSkillIds, Is.EqualTo(new[] { 30050201, 30050301, 30050401, 30050501 }));
             Assert.That(gateway.StarterSceneName, Is.EqualTo("StarterScene"));
             Assert.That(preset.HostMode, Is.EqualTo(BattleHostMode.GatewayRemote));
             Assert.That(preset.GatewaySO, Is.SameAs(gateway));
@@ -153,22 +153,22 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(launchSpec.MinPlayers, Is.EqualTo(2));
 
             var loadout = gateway.BuildDefaultLoadout();
-            Assert.That(loadout.HeroId, Is.EqualTo(1001));
+            Assert.That(loadout.HeroId, Is.EqualTo(3001));
             Assert.That(loadout.TeamId, Is.EqualTo(1));
             Assert.That(loadout.SpawnPointId, Is.EqualTo(0));
             Assert.That(loadout.Level, Is.EqualTo(1));
-            Assert.That(loadout.AttributeTemplateId, Is.EqualTo(1001));
-            Assert.That(loadout.BasicAttackSkillId, Is.EqualTo(10010001));
-            Assert.That(loadout.SkillIds, Is.EqualTo(new[] { 10010101, 10010201, 10010301 }));
+            Assert.That(loadout.AttributeTemplateId, Is.EqualTo(3001));
+            Assert.That(loadout.BasicAttackSkillId, Is.EqualTo(30010601));
+            Assert.That(loadout.SkillIds, Is.EqualTo(new[] { 30010101, 30010201, 30010301, 30010401 }));
 
             var secondPlayerLoadout = gateway.BuildSecondPlayerLoadout();
-            Assert.That(secondPlayerLoadout.HeroId, Is.EqualTo(1002));
+            Assert.That(secondPlayerLoadout.HeroId, Is.EqualTo(3005));
             Assert.That(secondPlayerLoadout.TeamId, Is.EqualTo(2));
             Assert.That(secondPlayerLoadout.SpawnPointId, Is.EqualTo(0));
             Assert.That(secondPlayerLoadout.Level, Is.EqualTo(1));
-            Assert.That(secondPlayerLoadout.AttributeTemplateId, Is.EqualTo(1002));
-            Assert.That(secondPlayerLoadout.BasicAttackSkillId, Is.EqualTo(10020001));
-            Assert.That(secondPlayerLoadout.SkillIds, Is.EqualTo(new[] { 10020101, 10020201, 10020301 }));
+            Assert.That(secondPlayerLoadout.AttributeTemplateId, Is.EqualTo(3005));
+            Assert.That(secondPlayerLoadout.BasicAttackSkillId, Is.EqualTo(30050101));
+            Assert.That(secondPlayerLoadout.SkillIds, Is.EqualTo(new[] { 30050201, 30050301, 30050401, 30050501 }));
         }
 
         [Test]
@@ -190,10 +190,11 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(jhin.SkillIds, Is.EqualTo(new[] { 30010101, 30010201, 30010301, 30010401 }));
 
             Assert.That(preset.PlayersSO.Team2Players, Is.Not.Empty);
-            Assert.That(preset.PlayersSO.Team2Players[0].HeroId, Is.EqualTo(1002),
-                "Keep a separate opponent available for local skill acceptance.");
-            Assert.That(preset.PlayersSO.Team2Players[0].BasicAttackSkillId, Is.EqualTo(10020001),
-                "The local opponent should also use a published basic attack skill.");
+            var gragas = preset.PlayersSO.Team2Players[0];
+            Assert.That(gragas.HeroId, Is.EqualTo(3005));
+            Assert.That(gragas.AttributeTemplateId, Is.EqualTo(3005));
+            Assert.That(gragas.BasicAttackSkillId, Is.EqualTo(30050101));
+            Assert.That(gragas.SkillIds, Is.EqualTo(new[] { 30050201, 30050301, 30050401, 30050501 }));
         }
 
         [Test]

@@ -5,6 +5,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -22,6 +25,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -47,6 +53,9 @@
     "PipelineContinuousTagTemplateId": 10010001,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -101,6 +110,9 @@
     "PipelineContinuousTagTemplateId": 10010001,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -155,6 +167,9 @@
     "PipelineContinuousTagTemplateId": 10010001,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -274,6 +289,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -299,6 +317,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -346,6 +367,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -393,6 +417,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -440,6 +467,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -465,6 +495,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -512,6 +545,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -559,6 +595,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -606,6 +645,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -631,6 +673,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -678,6 +723,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -703,6 +751,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -750,6 +801,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -797,6 +851,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -822,6 +879,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -869,6 +929,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -916,6 +979,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -963,6 +1029,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -988,6 +1057,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1035,6 +1107,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1082,6 +1157,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1129,6 +1207,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1154,6 +1235,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1201,6 +1285,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1227,6 +1314,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1274,6 +1364,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1321,6 +1414,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1346,6 +1442,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1393,6 +1492,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1419,6 +1521,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1466,6 +1571,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1513,6 +1621,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1560,6 +1671,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1608,6 +1722,9 @@
     "PipelineContinuousTagTemplateId": 3015,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1656,6 +1773,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1704,6 +1824,9 @@
     "PipelineContinuousTagTemplateId": 3015,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1736,6 +1859,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1784,6 +1910,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1832,6 +1961,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1866,6 +1998,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1900,6 +2035,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1934,6 +2072,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1968,6 +2109,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1994,6 +2138,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2020,6 +2167,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2061,6 +2211,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2109,6 +2262,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2157,6 +2313,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2205,6 +2364,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2264,6 +2426,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2337,6 +2502,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2410,6 +2578,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2483,6 +2654,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2531,6 +2705,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2590,6 +2767,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2663,6 +2843,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2736,6 +2919,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2809,6 +2995,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2857,6 +3046,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2927,6 +3119,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 1,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3004,6 +3199,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3081,6 +3279,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3158,6 +3359,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3235,6 +3439,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 1,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3305,6 +3512,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 30050391,
     "Phases": [
       {
@@ -3375,6 +3585,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 30050392,
     "Phases": [
       {
@@ -3445,6 +3658,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 30050393,
     "Phases": [
       {
@@ -3515,6 +3731,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 30050394,
     "Phases": [
       {
@@ -3585,6 +3804,9 @@
     "PipelineContinuousTagTemplateId": 0,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
     "RequiredBuffQualificationId": 30050395,
     "Phases": [
       {
@@ -3643,6 +3865,1113 @@
               "ExecuteMode": 0,
               "AbortOnFailure": false,
               "EventTag": "gragas_30050705_30050705"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060101,
+    "Name": "Karthus 30060101",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060101_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060101_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060101_commit",
+        "CommitPoint": {
+          "CommitId": "attack",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060101_timeline",
+        "Timeline": {
+          "DurationMs": 1600,
+          "Events": [
+            {
+              "AtMs": 300,
+              "EffectId": 30060100,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060101_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060201,
+    "Name": "Karthus 30060201",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060201_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060201_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060201_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060201_timeline",
+        "Timeline": {
+          "DurationMs": 1000,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30060201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060201_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060301,
+    "Name": "Karthus 30060301",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060301_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060301_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060301_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060301_timeline",
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30060301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060301_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060401,
+    "Name": "Karthus 30060401",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060401_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060401_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060401_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060401_timeline",
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30060401,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060401_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060501,
+    "Name": "Karthus 30060501",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060501_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060501_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060501_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060501_timeline",
+        "Timeline": {
+          "DurationMs": 3250,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30060511,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060501_warning"
+            },
+            {
+              "AtMs": 3250,
+              "EffectId": 30060501,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060501_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060602,
+    "Name": "Karthus 30060602",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060602_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060602_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060602_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060602_timeline",
+        "Timeline": {
+          "DurationMs": 1000,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30060201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060602_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060603,
+    "Name": "Karthus 30060603",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060603_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060603_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060603_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060603_timeline",
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30060301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060603_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060604,
+    "Name": "Karthus 30060604",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060604_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060604_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060604_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060604_timeline",
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30060604,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060604_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060605,
+    "Name": "Karthus 30060605",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060605_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060605_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060605_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060605_timeline",
+        "Timeline": {
+          "DurationMs": 3250,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30060511,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060605_warning"
+            },
+            {
+              "AtMs": 3250,
+              "EffectId": 30060501,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060605_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30070101,
+    "Name": "Lux 30070101",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "lux_30070101_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "lux_30070101_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "lux_30070101_commit",
+        "CommitPoint": {
+          "CommitId": "attack",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "lux_30070101_timeline",
+        "Timeline": {
+          "DurationMs": 1250,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30070101,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "lux_30070101_30070101"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30070201,
+    "Name": "Lux 30070201",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "lux_30070201_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "lux_30070201_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "lux_30070201_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "lux_30070201_timeline",
+        "Timeline": {
+          "DurationMs": 1250,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30070201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "lux_30070201_30070201"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30070301,
+    "Name": "Lux 30070301",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 3,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "lux_30070301_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "lux_30070301_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "lux_30070301_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "lux_30070301_timeline",
+        "Timeline": {
+          "DurationMs": 5042,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30070301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "lux_30070301_30070301"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30070401,
+    "Name": "Lux 30070401",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 2,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "lux_30070401_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "lux_30070401_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "lux_30070401_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "lux_30070401_timeline",
+        "Timeline": {
+          "DurationMs": 1250,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30070401,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "lux_30070401_30070401"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30070402,
+    "Name": "Lux 30070402",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 0,
+    "RecastChannelId": 2,
+    "QueueRecastInFlight": true,
+    "ContinueThroughControl": false,
+    "PreserveCharacterCastContext": true,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "lux_30070402_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": false,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": false,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "lux_30070402_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "lux_30070402_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "lux_30070402_timeline",
+        "Timeline": {
+          "DurationMs": 100,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30070402,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "lux_30070402_30070402"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30070501,
+    "Name": "Lux 30070501",
+    "PipelineContinuousTagTemplateId": 0,
+    "ChildChannelId": 4,
+    "RecastChannelId": 0,
+    "QueueRecastInFlight": false,
+    "ContinueThroughControl": true,
+    "PreserveCharacterCastContext": false,
+    "RequiredBuffQualificationId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "lux_30070501_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 1,
+          "ChargeRecoveryMs": 0,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": ""
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "lux_30070501_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "lux_30070501_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "lux_30070501_timeline",
+        "Timeline": {
+          "DurationMs": 2500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30070500,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "lux_30070501_30070500"
+            },
+            {
+              "AtMs": 1000,
+              "EffectId": 30070501,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "lux_30070501_30070501"
             }
           ]
         }

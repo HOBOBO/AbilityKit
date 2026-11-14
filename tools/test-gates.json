@@ -1164,6 +1164,58 @@
       ]
     },
     {
+      "name": "moba-karthus-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Verify Karthus published skills, death casting and actual Unity animation and VFX consumption.",
+      "scope": ["unity-editmode", "moba-hero-acceptance", "moba-karthus", "authoritative-artifacts"],
+      "requiredBefore": ["release-candidate", "batch-merge"],
+      "failurePolicy": "Block Karthus acceptance on runtime or Unity failures; retain TRX, NUnit XML and logs.",
+      "ciPolicy": {"runOnPullRequest": false, "runOnPush": false, "runOnSchedule": true, "artifactRequired": true},
+      "steps": [
+        {
+          "name": "Karthus published skill runtime",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
+          "filter": "FullyQualifiedName~KarthusRuntimeTests|FullyQualifiedName~MobaEffectSessionScratchTests"
+        },
+        {
+          "name": "Karthus Unity model and VFX consumption",
+          "kind": "unity-editmode-test",
+          "noGraphics": false,
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.KarthusSkillAcceptanceTests"
+        }
+      ]
+    },
+    {
+      "name": "moba-lux-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Verify Lux published gameplay, real model animation, projectile and area VFX, and HUD input.",
+      "scope": ["unity-editmode", "moba-hero-acceptance", "moba-lux", "authoritative-artifacts"],
+      "requiredBefore": ["release-candidate", "batch-merge"],
+      "failurePolicy": "Block Lux acceptance on runtime or Unity failures; retain TRX, NUnit XML, rendered frames and logs.",
+      "ciPolicy": {"runOnPullRequest": false, "runOnPush": false, "runOnSchedule": true, "artifactRequired": true},
+      "steps": [
+        {
+          "name": "Lux published skill runtime",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
+          "filter": "FullyQualifiedName~LuxRuntimeTests"
+        },
+        {
+          "name": "Lux Unity model, VFX and HUD consumption",
+          "kind": "unity-editmode-test",
+          "noGraphics": false,
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.LuxSkillAcceptanceTests"
+        }
+      ]
+    },
+    {
       "name": "moba-gragas-unity",
       "level": "P2",
       "owner": "MOBA Runtime/Unity Test",

@@ -1,0 +1,33 @@
+{
+  "groups": [
+    {
+      "name": "Logic",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "Submit",
+          "active": true,
+          "actionClips": [
+            {
+              "effectId": 30070301,
+              "eventTag": "lux_30070301_30070301",
+              "abortOnFailure": true,
+              "startTime": 0.25,
+              "name": "ExecuteEffect",
+              "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        }
+      ]
+    }
+  ],
+  "exportMobaRuntime": true,
+  "length": 5.041667,
+  "viewTimeMin": 0.0,
+  "viewTimeMax": 5.041667,
+  "rangeMin": 0.0,
+  "rangeMax": 5.041667,
+  "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
+}

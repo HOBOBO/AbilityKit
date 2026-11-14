@@ -73,14 +73,16 @@ namespace AbilityKit.Game.Flow
         }
 
         protected void AttachViewResources(string role, string instanceKey,
-            BattleProjectionViewCapabilities capabilities)
+            BattleProjectionViewCapabilities capabilities, bool darkenActors = false)
         {
             if (_instanceResourcesOwner != null)
                 throw new InvalidOperationException("View resources are already attached.");
             var worldId = RuntimeContext != null ? RuntimeContext.RuntimeWorldId.ToString() : "unknown";
             var name = "[Battle:" + worldId + ":" + role + ":" + instanceKey + "]";
+            var resources = PresentationResources;
+            resources.SetAuthorityDebugTint(darkenActors);
             _instanceResourcesOwner = ViewInstanceResources.Create(
-                name, PresentationResources, capabilities,
+                name, resources, capabilities,
                 allowMainCameraFallback: role == "Primary");
             ShellPool = _instanceResourcesOwner.ShellPool;
             AreaVfxPool = _instanceResourcesOwner.AreaVfxPool;

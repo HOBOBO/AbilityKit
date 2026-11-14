@@ -34,6 +34,7 @@ namespace AbilityKit.Demo.Moba.Systems
             public const string DebugLog = "debug_log";
             public const string ShootProjectile = "shoot_projectile";
             public const string AddBuff = "add_buff";
+            public const string SourceBuff = "source_buff";
             public const string RemoveBuff = "remove_buff";
             public const string CancelSkill = "cancel_skill";
             public const string AddShield = "add_shield";

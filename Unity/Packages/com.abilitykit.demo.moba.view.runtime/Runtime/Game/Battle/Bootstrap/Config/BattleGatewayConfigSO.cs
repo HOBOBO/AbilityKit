@@ -72,7 +72,7 @@ namespace AbilityKit.Game.Flow
         public bool AutoCreateWhenEmpty = true;
 
         [LabelText("Default Hero Id")]
-        public int DefaultHeroId = 1001;
+        public int DefaultHeroId = 3001;
 
         [LabelText("Default Team Id")]
         public int DefaultTeamId = 1;
@@ -84,16 +84,16 @@ namespace AbilityKit.Game.Flow
         public int DefaultHeroLevel = 1;
 
         [LabelText("Default Attribute Template Id")]
-        public int DefaultAttributeTemplateId = 1001;
+        public int DefaultAttributeTemplateId = 3001;
 
         [LabelText("Default Basic Attack Skill Id")]
-        public int DefaultBasicAttackSkillId = 10010001;
+        public int DefaultBasicAttackSkillId = 30010601;
 
         [LabelText("Default Skill Ids")]
-        public int[] DefaultSkillIds = { 10010101, 10010201, 10010301 };
+        public int[] DefaultSkillIds = { 30010101, 30010201, 30010301, 30010401 };
 
         [LabelText("Second Player Hero Id")]
-        public int SecondPlayerHeroId = 1002;
+        public int SecondPlayerHeroId = 3005;
 
         [LabelText("Second Player Team Id")]
         public int SecondPlayerTeamId = 2;
@@ -105,13 +105,13 @@ namespace AbilityKit.Game.Flow
         public int SecondPlayerHeroLevel = 1;
 
         [LabelText("Second Player Attribute Template Id")]
-        public int SecondPlayerAttributeTemplateId = 1002;
+        public int SecondPlayerAttributeTemplateId = 3005;
 
         [LabelText("Second Player Basic Attack Skill Id")]
-        public int SecondPlayerBasicAttackSkillId = 10020001;
+        public int SecondPlayerBasicAttackSkillId = 30050101;
 
         [LabelText("Second Player Skill Ids")]
-        public int[] SecondPlayerSkillIds = { 10020101, 10020201, 10020301 };
+        public int[] SecondPlayerSkillIds = { 30050201, 30050301, 30050401, 30050501 };
 
         [LabelText("Starter Scene")]
         public string StarterSceneName = "StarterScene";

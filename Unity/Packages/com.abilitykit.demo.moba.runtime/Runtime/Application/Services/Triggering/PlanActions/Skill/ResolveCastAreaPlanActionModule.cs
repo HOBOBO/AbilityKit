@@ -15,10 +15,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     {
         public readonly int TerminalTriggerId;
         public readonly int MaturationMs;
-        public ResolveCastAreaArgs(int triggerId, int maturationMs)
+        public readonly bool PendingOnly, OwnedArea;
+        public ResolveCastAreaArgs(int triggerId, int maturationMs, bool pendingOnly = false, bool ownedArea = false)
         {
             if (triggerId <= 0 || maturationMs < 0) throw new ArgumentOutOfRangeException(nameof(triggerId));
-            TerminalTriggerId = triggerId; MaturationMs = maturationMs;
+            TerminalTriggerId = triggerId; MaturationMs = maturationMs; PendingOnly = pendingOnly; OwnedArea = ownedArea;
         }
     }
 
@@ -27,7 +28,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public static readonly ResolveCastAreaSchema Instance = new ResolveCastAreaSchema();
         protected override string ActionName => "resolve_cast_area";
         public override ResolveCastAreaArgs ParseArgs(Dictionary<string, ActionArgValue> args, ExecCtx<IWorldResolver> ctx) =>
-            new ResolveCastAreaArgs(ReadInt(args, ctx, 0, "terminal_trigger_id"), ReadInt(args, ctx, 0, "maturation_ms"));
+            new ResolveCastAreaArgs(ReadInt(args, ctx, 0, "terminal_trigger_id"), ReadInt(args, ctx, 0, "maturation_ms"), ReadBool(args, ctx, false, "pending_only"), ReadBool(args, ctx, false, "owned_area"));
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error) =>
             RequireAny(args, "terminal trigger", out error, "terminal_trigger_id");
     }
@@ -55,7 +56,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             else
             {
                 var handle = input.ExecutionContext.SkillRuntimeHandle;
-                if (!casts.TryGetRecastArea(in handle, out binding) || !areas.TryGetArea((int)binding.Child.ChildId, out area) ||
+                var selected = args.PendingOnly ? casts.TryGetPendingRecastArea(in handle, out binding) :
+                    args.OwnedArea ? casts.TryGetOwnedArea(in handle, out binding) : casts.TryGetRecastArea(in handle, out binding);
+                if (!selected) return;
+                if (binding.Child.Kind == MobaSkillRuntimeChildKind.Projectile)
+                { casts.TryQueueChildTerminal(in binding); return; }
+                if (!areas.TryGetArea((int)binding.Child.ChildId, out area) ||
                     !area.SkillRuntimeHandle.Equals(binding.Original) || area.SourceContextId != binding.Child.ContextId) return;
             }
             if (!casts.TryClaimChildTerminal(in binding)) return;
@@ -64,7 +70,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var terminal = new AreaEventArgs
             {
                 EventId = "area.terminal", AreaId = area.AreaId, TemplateId = area.TemplateId,
-                OwnerActorId = area.OwnerActorId, Frame = time.Frame.Value, Center = area.Center, Radius = area.Radius,
+                OwnerActorId = area.OwnerActorId, Frame = time.Frame.Value, Center = area.Center, Forward = area.Forward, Radius = area.Radius,
                 CollisionLayerMask = area.CollisionLayerMask, MaxTargets = area.MaxTargets,
                 SourceContextId = area.SourceContextId, RootContextId = area.RootContextId,
                 OwnerContextId = area.OwnerContextId, SkillRuntimeHandle = binding.Original,

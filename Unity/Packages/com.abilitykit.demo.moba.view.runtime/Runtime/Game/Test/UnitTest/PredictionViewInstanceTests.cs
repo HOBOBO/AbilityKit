@@ -61,6 +61,40 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void AuthorityDebugTint_UsesRendererPropertyBlockWithoutChangingMaterial()
+        {
+            var shader = Shader.Find("Standard");
+            Assert.That(shader, Is.Not.Null);
+            var material = new Material(shader);
+            var originalColor = new Color(0.8f, 0.6f, 0.4f, 1f);
+            material.SetColor("_Color", originalColor);
+            var model = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            try
+            {
+                model.GetComponent<Renderer>().sharedMaterial = material;
+
+                BattleViewModelFactory.ApplyVisibilityTint(model);
+
+                var renderer = model.GetComponent<Renderer>();
+                var block = new MaterialPropertyBlock();
+                renderer.GetPropertyBlock(block);
+                var tintedColor = block.GetColor("_Color");
+                Assert.That(tintedColor.r, Is.EqualTo(0.32f).Within(0.001f));
+                Assert.That(tintedColor.g, Is.EqualTo(0.36f).Within(0.001f));
+                Assert.That(tintedColor.b, Is.EqualTo(0.39f).Within(0.001f));
+                var materialColor = material.GetColor("_Color");
+                Assert.That(materialColor.r, Is.EqualTo(originalColor.r).Within(0.001f));
+                Assert.That(materialColor.g, Is.EqualTo(originalColor.g).Within(0.001f));
+                Assert.That(materialColor.b, Is.EqualTo(originalColor.b).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(model);
+                Object.DestroyImmediate(material);
+            }
+        }
+
+        [Test]
         public void ViewSessionCreatesIndependentResourceProviders()
         {
             var session = BattlePresentationSessionContext.CreateDefault();

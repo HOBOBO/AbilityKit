@@ -23,6 +23,12 @@ public sealed class BattleScenarioRealSkillTests
     [InlineData(1006, 10060101)]
     [InlineData(1007, 10070101)]
     [InlineData(3004, 30040201)]
+    [InlineData(3001, 30010101)]
+    [InlineData(3002, 30020101)]
+    [InlineData(3003, 30030201)]
+    [InlineData(3005, 30050201)]
+    [InlineData(3006, 30060201)]
+    [InlineData(3007, 30070201)]
     public void Luban_seven_heroes_spawn_and_cast_first_skill(int heroId, int skillId)
     {
         var scenario = BattleScenarioCompiler.Compile($"luban-hero-{heroId}", new BattleBlock[]

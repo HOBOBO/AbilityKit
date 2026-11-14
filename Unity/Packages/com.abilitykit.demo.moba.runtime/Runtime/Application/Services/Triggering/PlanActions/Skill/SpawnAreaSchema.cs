@@ -28,6 +28,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var offsetZ = ReadFloat(namedArgs, ctx, 0f, "offset_z", "offsetz", "z");
             var directionOffset = ReadFloat(namedArgs, ctx, 0f, "direction_offset", "directionoffset", "forward_offset", "forwardoffset");
             var lateralOffset = ReadFloat(namedArgs, ctx, 0f, "lateral_offset", "lateraloffset");
+            var forwardYawDeg = ReadFloat(namedArgs, ctx, 0f, "forward_yaw_deg");
+            if (float.IsNaN(forwardYawDeg) || float.IsInfinity(forwardYawDeg))
+                throw new ArgumentException("forward_yaw_deg must be finite.");
             var shapeKind = ReadInt(namedArgs, ctx, 0, "shape_kind", "shapekind", "shape");
             var halfAngleDeg = ReadFloat(namedArgs, ctx, 0f, "half_angle_deg", "halfangledeg", "sector_half_angle");
             var width = ReadFloat(namedArgs, ctx, 0f, "width", "shape_width");
@@ -39,13 +42,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var groupKey = ReadInt(namedArgs, ctx, 0, "area_group_key", "areagroupkey", "group_key", "groupkey");
             var claimTargetsWithinGroup = ReadBoolNonZero(namedArgs, ctx, false, "claim_targets_within_group", "claimtargetswithingroup", "group_target_claim");
             var hasTargetRequest = HasExplicitTargetRequest(namedArgs);
+            var captureCastFrame = ReadBoolNonZero(namedArgs, ctx, false, "capture_cast_frame");
+            if (captureCastFrame && hasTargetRequest)
+                throw new ArgumentException("capture_cast_frame requires a single position, without a target request.");
             var targetRequest = hasTargetRequest ? MobaActionTargetSchemaReader.Read(namedArgs, ctx) : default;
             TryReadBlackboardTarget(namedArgs, out var resultTarget, "result", "result_id", "area_result");
             TryReadBlackboardTarget(namedArgs, out var resultCountTarget, "result_count", "spawn_count");
             return new SpawnAreaArgs(areaId, positionMode, radiusOverride, durationFrames, durationMs, stayIntervalFrames, collisionLayerMaskOverride, offsetX, offsetY, offsetZ,
                 shapeKind, halfAngleDeg, width, length, initialRadius, radiusGrowthPerFrame, anchorAtOrigin,
                 groupKey, claimTargetsWithinGroup,
-                hasTargetRequest, targetRequest, resultTarget, resultCountTarget, directionOffset, lateralOffset, innerRadius);
+                hasTargetRequest, targetRequest, resultTarget, resultCountTarget, directionOffset, lateralOffset, innerRadius, forwardYawDeg, captureCastFrame);
         }
 
         private static bool HasExplicitTargetRequest(Dictionary<string, ActionArgValue> namedArgs)

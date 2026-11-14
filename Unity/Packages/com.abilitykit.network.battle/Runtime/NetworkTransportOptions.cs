@@ -30,6 +30,9 @@ namespace AbilityKit.Network.Battle
 
         public Func<ITransport> TransportFactory;
 
+        /// <summary>Optional response envelope used by the connected gateway transport.</summary>
+        public IRequestResponseEnvelopeCodec ResponseEnvelopeCodec;
+
         /// <summary>
         /// Optional: inject an existing <c>IConnection</c> (e.g. shared room+battle single-socket topology).
         /// If set, <see cref="TransportFactory"/> is ignored and <see cref="Host"/>/<see cref="Port"/> need not be set.

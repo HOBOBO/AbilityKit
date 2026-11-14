@@ -20,6 +20,8 @@ namespace AbilityKit.Demo.Moba.Predicates
         public static readonly FunctionId OwnerMatchesPayloadTargetFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.OwnerMatchesPayloadTarget));
         public static readonly FunctionId OwnerSameTeamAsPayloadSourceFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.OwnerSameTeamAsPayloadSource));
         public static readonly FunctionId OwnerEnemyToPayloadTargetFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.OwnerEnemyToPayloadTarget));
+        public static readonly FunctionId PayloadActorTypeFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.PayloadActorType));
+        public static readonly FunctionId PayloadSourceActorTypeFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.PayloadSourceActorType));
         public static readonly FunctionId TargetIsFlyingProjectileFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.TargetIsFlyingProjectile));
         public static readonly FunctionId SourceTargetTagRulesFunctionId = new FunctionId(StableStringId.Get(CombatPredicateContracts.Function.SourceTargetTagRules));
 
@@ -34,6 +36,10 @@ namespace AbilityKit.Demo.Moba.Predicates
             functions.Register<Predicate2<object, IWorldResolver>>(OwnerMatchesPayloadTargetFunctionId, OwnerMatchesPayloadTarget, isDeterministic: true);
             functions.Register<Predicate2<object, IWorldResolver>>(OwnerSameTeamAsPayloadSourceFunctionId, OwnerSameTeamAsPayloadSource, isDeterministic: true);
             functions.Register<Predicate2<object, IWorldResolver>>(OwnerEnemyToPayloadTargetFunctionId, OwnerEnemyToPayloadTarget, isDeterministic: true);
+            functions.Register<Predicate2<object, IWorldResolver>>(PayloadActorTypeFunctionId,
+                (payload, args, ctx) => PayloadActorType(payload, args, ctx, false), isDeterministic: true);
+            functions.Register<Predicate2<object, IWorldResolver>>(PayloadSourceActorTypeFunctionId,
+                (payload, args, ctx) => PayloadActorType(payload, args, ctx, true), isDeterministic: true);
             functions.Register<Predicate2<object, IWorldResolver>>(TargetIsFlyingProjectileFunctionId, TargetIsFlyingProjectile, isDeterministic: true);
             functions.Register<Predicate2<object, IWorldResolver>>(SourceTargetTagRulesFunctionId, SourceTargetTagRules, isDeterministic: true);
         }
@@ -238,6 +244,23 @@ namespace AbilityKit.Demo.Moba.Predicates
         {
             if (args == null || !args.TryGetValue(key, out var value)) return 0;
             return (int)Math.Round(value.Ref.ConstValue);
+        }
+
+        private static bool PayloadActorType(object triggerArgs, NamedArgsDict args, ExecCtx<IWorldResolver> ctx, bool source)
+        {
+            if (triggerArgs is MobaTriggerConditionContext conditionContext) triggerArgs = conditionContext.Payload;
+            if (triggerArgs is MobaCombatExecutionContext executionContext) triggerArgs = executionContext.Payload;
+            var mainType = ReadInt(args, "0");
+            var subType = ReadInt(args, "1");
+            if (!Enum.IsDefined(typeof(EntityMainType), mainType) || mainType <= 0 ||
+                !Enum.IsDefined(typeof(UnitSubType), subType)) return false;
+            var resolved = source
+                ? CombatPredicateRuntime.TryResolveSourceActorId(triggerArgs, ctx.Context, out var actorId)
+                : CombatPredicateRuntime.TryResolveTargetActorId(triggerArgs, ctx.Context, out actorId);
+            MobaActorLookupService actors = null;
+            return resolved && CombatPredicateRuntime.TryGetActor(ctx.Context, ref actors, actorId, out var actor) &&
+                actor.hasEntityMainType && (int)actor.entityMainType.Value == mainType &&
+                (subType == 0 || actor.hasUnitSubType && (int)actor.unitSubType.Value == subType);
         }
     }
 }

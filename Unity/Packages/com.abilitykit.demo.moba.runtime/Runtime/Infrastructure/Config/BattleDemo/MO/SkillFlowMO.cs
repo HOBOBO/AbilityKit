@@ -11,6 +11,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int PipelineContinuousTagTemplateId { get; }
         public int ChildChannelId { get; }
         public int RecastChannelId { get; }
+        public bool QueueRecastInFlight { get; }
+        public bool ContinueThroughControl { get; }
+        public bool PreserveCharacterCastContext { get; }
+
         public int RequiredBuffQualificationId { get; }
         public IReadOnlyList<SkillPhaseDTO> Phases { get; }
 
@@ -24,6 +28,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
                 throw new ArgumentException("Flow child channel and recast channel must be nonnegative and mutually exclusive.", nameof(dto));
             ChildChannelId = dto.ChildChannelId;
             RecastChannelId = dto.RecastChannelId;
+            QueueRecastInFlight = dto.QueueRecastInFlight;
+            ContinueThroughControl = dto.ContinueThroughControl;
+            PreserveCharacterCastContext = dto.PreserveCharacterCastContext;
+
             if (dto.RequiredBuffQualificationId < 0) throw new ArgumentException("Required buff qualification must be nonnegative.", nameof(dto));
             RequiredBuffQualificationId = dto.RequiredBuffQualificationId;
             Phases = dto.Phases ?? Array.Empty<SkillPhaseDTO>();

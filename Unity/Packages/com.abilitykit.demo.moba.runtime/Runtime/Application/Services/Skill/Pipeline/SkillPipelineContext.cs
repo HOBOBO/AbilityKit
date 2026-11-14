@@ -158,8 +158,13 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
+        internal bool PreservesCharacterCastContext => WorldServices != null &&
+            WorldServices.TryResolve<AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase>(out var configs) &&
+            configs.TryGetSkillFlow(CastFlowId, out var flow) && flow.PreserveCharacterCastContext;
+
         internal void SynchronizeCharacterHfsm()
         {
+            if (PreservesCharacterCastContext) return;
             if (TryGetCharacterHfsm(out var hfsm))
             {
                 var basicSlot = 0;

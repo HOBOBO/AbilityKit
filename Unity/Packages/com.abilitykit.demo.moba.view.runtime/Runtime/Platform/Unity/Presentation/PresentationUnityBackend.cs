@@ -476,10 +476,14 @@ namespace AbilityKit.Game.Platform.Unity.Presentation
             }
 
             // Explicit loss policies survive target destruction by following from the persistent root.
+            // A placement-only request must remain in world space even when the
+            // backend's default parent is the moving actor that created it.
             var desiredParent = request.FollowAttachment && request.Attachment.IsAttached &&
                 request.Lifecycle.TargetLoss == PresentationTargetLossPolicy.BackendDefault
-                ? target
-                : _defaultParent;
+                ? target : _defaultParent;
+            if (!request.FollowAttachment && target != null &&
+                desiredParent != null && desiredParent.IsChildOf(target))
+                desiredParent = null;
             if (desiredParent != null && instance.transform.parent != desiredParent)
                 instance.transform.SetParent(desiredParent, true);
             else if (desiredParent == null && instance.transform.parent != null)

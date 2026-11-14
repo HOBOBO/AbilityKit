@@ -12,6 +12,8 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaCharacterActionSnapshotService : IService, IMobaSnapshotEmitter
     {
         private readonly MobaActorRegistry _actors;
+        [WorldInject(required: false)]
+        private MobaSkillCastRuntimeService _casts = null;
         private CharacterActionData[] _lastPublished = Array.Empty<CharacterActionData>();
         private int _lastFrame = -1;
         private int _lastPublishedFrame = -1;
@@ -36,10 +38,12 @@ namespace AbilityKit.Demo.Moba.Services
                     actor.characterHfsm.Runtime == null) continue;
                 var runtime = actor.characterHfsm.Runtime;
                 var action = runtime.Action;
+                var castFrame = default(CastPresentationFrame);
+                _casts?.TryGetPresentationFrame(action.CastInstanceId, id, out castFrame);
                 current.Add(new CharacterActionData(id, _actors.GetEntityVersion(id), runtime.Frame,
                     action.Path, action.InstanceId, action.StartFrame, action.LocalFrame,
                     action.CastInstanceId, action.SkillId, action.ModeId, action.ModeInstanceId,
-                    action.ModeStartFrame, action.ModeLocalFrame));
+                    action.ModeStartFrame, action.ModeLocalFrame, castFrame));
             }
 
             var entries = current.ToArray();
@@ -67,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services
                     a.SkillId != b.SkillId || a.ModeId != b.ModeId ||
                     a.ModeInstanceId != b.ModeInstanceId ||
                     a.ModeStartFrame != b.ModeStartFrame ||
-                    a.ModeLocalFrame != b.ModeLocalFrame) return false;
+                    a.ModeLocalFrame != b.ModeLocalFrame || !a.CastFrame.Equals(b.CastFrame)) return false;
             }
             return true;
         }

@@ -46,6 +46,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int RemoveSkillParamModifiers = 10;
         public const int ShootProjectile = 10;
         public const int GiveDamage = 11;
+        public const int SourceBuff = 11;
         public const int AdjustDamageNumber = 11;
         public const int TakeDamage = 12;
         public const int Heal = 12;

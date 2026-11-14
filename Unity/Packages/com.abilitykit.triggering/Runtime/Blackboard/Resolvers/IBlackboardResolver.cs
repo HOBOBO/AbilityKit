@@ -17,6 +17,7 @@ namespace AbilityKit.Triggering.Blackboard
     public interface IOwnerBlackboardStore
     {
         IBlackboardResolver GetOrCreate(long ownerKey);
+        IBlackboardResolver Acquire(long ownerKey);
         bool TryGet(long ownerKey, out IBlackboardResolver resolver);
         bool Release(long ownerKey);
         void Configure(IEnumerable<BlackboardInitializationPlan> plans, bool releaseExisting = true);
@@ -92,6 +93,7 @@ namespace AbilityKit.Triggering.Blackboard
         private readonly IBlackboardResolver _fallback;
         private readonly Dictionary<long, IBlackboardResolver> _owners =
             new Dictionary<long, IBlackboardResolver>();
+        private readonly Dictionary<long, int> _retainCounts = new Dictionary<long, int>();
         private List<BlackboardInitializationPlan> _plans =
             new List<BlackboardInitializationPlan>();
 
@@ -116,6 +118,14 @@ namespace AbilityKit.Triggering.Blackboard
             return resolver;
         }
 
+        public IBlackboardResolver Acquire(long ownerKey)
+        {
+            var resolver = GetOrCreate(ownerKey);
+            _retainCounts.TryGetValue(ownerKey, out var retainCount);
+            _retainCounts[ownerKey] = checked(retainCount + 1);
+            return resolver;
+        }
+
         public bool TryGet(long ownerKey, out IBlackboardResolver resolver)
         {
             if (ownerKey == 0)
@@ -129,7 +139,18 @@ namespace AbilityKit.Triggering.Blackboard
 
         public bool Release(long ownerKey)
         {
-            return ownerKey != 0 && _owners.Remove(ownerKey);
+            if (ownerKey == 0 || !_owners.ContainsKey(ownerKey)) return false;
+            if (_retainCounts.TryGetValue(ownerKey, out var retainCount))
+            {
+                if (retainCount > 1)
+                {
+                    _retainCounts[ownerKey] = retainCount - 1;
+                    return true;
+                }
+
+                _retainCounts.Remove(ownerKey);
+            }
+            return _owners.Remove(ownerKey);
         }
 
         public void Configure(IEnumerable<BlackboardInitializationPlan> plans, bool releaseExisting = true)
@@ -145,7 +166,11 @@ namespace AbilityKit.Triggering.Blackboard
             }
 
             _plans = next;
-            if (releaseExisting) _owners.Clear();
+            if (releaseExisting)
+            {
+                _owners.Clear();
+                _retainCounts.Clear();
+            }
         }
 
         public bool TryCaptureSnapshot(long ownerKey, out BlackboardSnapshot snapshot, out string error)

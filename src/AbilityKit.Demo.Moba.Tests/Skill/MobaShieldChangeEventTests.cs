@@ -9,6 +9,31 @@ namespace AbilityKit.Demo.Moba.Tests.Skill;
 public sealed class MobaShieldChangeEventTests
 {
     [Fact]
+    public void Cast_group_merge_isolates_casts_and_sources_and_survives_restore()
+    {
+        var actors = new MobaActorRegistry();
+        var actor = new ActorContext().CreateEntity(); actor.AddActorId(41); actors.Register(41, actor);
+        var service = new MobaShieldService();
+        ShieldLayer Layer(long cast, int source = 12)
+        {
+            var layer = CreateLayer(40, ShieldStackingPolicy.MergeSameShieldAndCast);
+            layer.RootContextId = cast; layer.SourceActorId = source; return layer;
+        }
+        var first = service.AddShield(41, Layer(100));
+        Assert.Equal(first, service.AddShield(41, Layer(100)));
+        Assert.NotEqual(first, service.AddShield(41, Layer(200)));
+        Assert.NotEqual(first, service.AddShield(41, Layer(100, 13)));
+        Assert.Equal(160, service.GetTotalRemaining(41));
+        var provider = new MobaShieldRollbackProvider(actors, service);
+        var payload = provider.Export(new FrameIndex(10));
+        service.AddShield(41, Layer(100));
+        provider.Import(new FrameIndex(10), payload);
+        Assert.Equal(160, service.GetTotalRemaining(41));
+        Assert.Equal(first, service.AddShield(41, Layer(100)));
+        Assert.Equal(200, service.GetTotalRemaining(41));
+    }
+
+    [Fact]
     public void Personal_shield_add_and_refresh_publish_committed_value_changes()
     {
         var service = new MobaShieldService();

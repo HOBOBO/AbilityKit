@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
@@ -615,6 +615,10 @@ namespace AbilityKit.Demo.Moba.Config.Core
                     ?? 0,
                 ChildChannelId = obj["ChildChannelId"]?.Value<int>() ?? 0,
                 RecastChannelId = obj["RecastChannelId"]?.Value<int>() ?? 0,
+                QueueRecastInFlight = obj["QueueRecastInFlight"]?.Value<bool>() ?? false,
+                ContinueThroughControl = obj["ContinueThroughControl"]?.Value<bool>() ?? false,
+                PreserveCharacterCastContext = obj["PreserveCharacterCastContext"]?.Value<bool>() ?? false,
+
                 RequiredBuffQualificationId = obj["RequiredBuffQualificationId"]?.Value<int>() ?? 0,
                 Phases = DeserializeSkillPhases(obj["Phases"])
             };
@@ -1178,6 +1182,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 OffsetZ = obj["OffsetZ"]?.Value<float>() ?? 0,
                 OffsetSpace = obj["OffsetSpace"]?.Value<int>() ?? 0,
                 ParentScaleMode = obj["ParentScaleMode"]?.Value<int>() ?? 0,
+                PlacementSpace = obj["PlacementSpace"]?.Value<int>() ?? 0,
                 OrderingMode = obj["OrderingMode"]?.Value<int>() ?? 0,
                 OrderingPriority = obj["OrderingPriority"]?.Value<int>() ?? 0
             };

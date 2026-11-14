@@ -92,6 +92,10 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int PipelineContinuousTagTemplateId;
         public int ChildChannelId;
         public int RecastChannelId;
+        public bool QueueRecastInFlight;
+        public bool ContinueThroughControl;
+        public bool PreserveCharacterCastContext;
+
         public int RequiredBuffQualificationId;
         public SkillPhaseDTO[] Phases;
     }

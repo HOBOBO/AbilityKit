@@ -29,6 +29,7 @@ namespace AbilityKit.Game.Battle.Component
         }
 
         public MobaCharacterActionState Action { get; private set; }
+        public CastPresentationFrame CastFrame { get; private set; }
         public int SnapshotFrame => _snapshotFrame;
         public long DefinitionHash => _machine.DefinitionHash;
         public int EntityCode { get; private set; }
@@ -55,12 +56,14 @@ namespace AbilityKit.Game.Battle.Component
             _machine.RestoreSnapshot(snapshot.Machine);
             _snapshotFrame = snapshot.Machine.Frame;
             Action = snapshot.Action;
+            CastFrame = default;
         }
 
         public void ApplyPresentation(in CharacterActionData data)
         {
             if (data.SnapshotFrame < _snapshotFrame) return;
             _snapshotFrame = data.SnapshotFrame;
+            CastFrame = data.CastFrame;
             Action = new MobaCharacterActionState(data.Path, data.InstanceId,
                 data.StartFrame, data.LocalFrame, data.CastInstanceId, data.SkillId,
                 data.ModeId, data.ModeInstanceId, data.ModeStartFrame, data.ModeLocalFrame);

@@ -241,7 +241,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             // A tracked projectile follows a 3D path, so the planar cast distance is
             // not a valid travel-distance budget for it. The projectile template's
             // MaxDistance remains the authoritative safety limit in TryLaunch.
-            if (input.HasAimPosition && !args.TrackTarget)
+            if (input.HasAimPosition && !args.TrackTarget && args.UseAimDistance)
             {
                 var aimDelta = new Vec3(aimPos.X - casterPos.X, 0f, aimPos.Z - casterPos.Z);
                 maxDistance = DeterministicMathBridge.Magnitude(in aimDelta);

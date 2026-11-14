@@ -234,6 +234,8 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaSkillInputHandleResult HandlePressInput(int actorId, in SkillInputEvent evt,
             long diagnosticCommandId)
         {
+            if (IsIndependentRecastInput(actorId, evt.Slot))
+                return TryStartCastFromInput(actorId, in evt, diagnosticCommandId);
             if (_runnerRegistry.TrySignalRecast(actorId, evt.Slot))
             {
                 _runnerRegistry.TryUpdateRunningInput(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId);
@@ -261,6 +263,8 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaSkillInputHandleResult HandleReleaseInput(int actorId, in SkillInputEvent evt,
             long diagnosticCommandId)
         {
+            if (IsIndependentRecastInput(actorId, evt.Slot))
+                return TryStartCastFromInput(actorId, in evt, diagnosticCommandId);
             if (_runnerRegistry.TryUpdateRunningInputAndRelease(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId))
             {
                 return MobaSkillInputHandleResult.Accepted("skill.input.running.released");
@@ -268,6 +272,10 @@ namespace AbilityKit.Demo.Moba.Services
 
             return TryStartCastFromInput(actorId, in evt, diagnosticCommandId);
         }
+
+        private bool IsIndependentRecastInput(int actorId, int slot) =>
+            _loadout.TryGetSkillId(actorId, slot, out var skillId) &&
+            _loadout.IsIndependentRecastReady(actorId, slot, skillId);
 
         private MobaSkillInputHandleResult HandleCancelInput(int actorId, int slot)
         {
@@ -628,7 +636,7 @@ namespace AbilityKit.Demo.Moba.Services
             return false;
         }
 
-        public MobaCombatRuleResult CheckCombatRules(int actorId, int skillId)
+        public MobaCombatRuleResult CheckCombatRules(int actorId, int skillId, bool admission = true, float permissionAdvanceSeconds = 0f)
         {
             if (_services == null ||
                 !_services.TryResolve<MobaCombatRulesService>(out var combatRules) ||
@@ -641,7 +649,10 @@ namespace AbilityKit.Demo.Moba.Services
                 !configs.TryGetSkill(skillId, out var skill) || skill == null)
                 return combatRules.CanCastSkill(actorId, 0UL);
 
-            return combatRules.CanCastSkill(actorId, skill.ExecutionBlockedResultMask);
+            var mask = skill.ExecutionBlockedResultMask;
+            if (!admission && configs.TryGetSkillFlow(skill.CastFlowId, out var flow) && flow.ContinueThroughControl)
+                mask = 0UL;
+            return combatRules.CanCastSkill(actorId, mask, skillId, admission, permissionAdvanceSeconds);
         }
 
         public bool TryGetRunningBySlot(int actorId, int slot, out SkillPipelineRunner.RunningSnapshot snapshot)
@@ -656,7 +667,27 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryGetLatestRunning(int actorId, out SkillPipelineRunner.RunningSnapshot snapshot)
         {
-            return _runnerRegistry.TryGetLatestRunning(actorId, out snapshot);
+            // Preserve the runner's starting-cast visibility during synchronous
+            // callbacks. Only auxiliary casts need the filtered fallback.
+            if (!_runnerRegistry.TryGetLatestRunning(actorId, out snapshot)) return false;
+            MobaConfigDatabase configs = null;
+            _services?.TryResolve<MobaConfigDatabase>(out configs);
+            if (configs == null || !configs.TryGetSkill(snapshot.SkillId, out var latestSkill) ||
+                !configs.TryGetSkillFlow(latestSkill.CastFlowId, out var latestFlow) ||
+                !latestFlow.PreserveCharacterCastContext) return true;
+            var candidates = new System.Collections.Generic.List<SkillPipelineRunner.RunningSnapshot>();
+            _runnerRegistry.FillRunningSnapshots(actorId, candidates);
+            snapshot = default;
+            var found = false;
+            foreach (var candidate in candidates)
+            {
+                if (configs != null && configs.TryGetSkill(candidate.SkillId, out var skill) &&
+                    configs.TryGetSkillFlow(skill.CastFlowId, out var flow) && flow.PreserveCharacterCastContext) continue;
+                if (found && (candidate.StartFrame < snapshot.StartFrame ||
+                    candidate.StartFrame == snapshot.StartFrame && candidate.InstanceId <= snapshot.InstanceId)) continue;
+                found = true; snapshot = candidate;
+            }
+            return found;
         }
 
         public void CancelAll(int actorId)
@@ -717,4 +748,3 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 }
-

@@ -496,5 +496,141 @@
         "CastContext": "Current"
       }
     ]
+  },
+  {
+    "DefinitionId": "moba.character.3006",
+    "Conditions": [
+      {
+        "Key": "spirit.expired",
+        "Expression": {
+          "ParameterId": 4,
+          "Comparison": "eq",
+          "Value": 0
+        }
+      },
+      {
+        "Key": "spirit.cast",
+        "Expression": {
+          "All": [
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 1
+            },
+            {
+              "Fact": "casting"
+            }
+          ]
+        }
+      },
+      {
+        "Key": "spirit.rest",
+        "Expression": {
+          "All": [
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 1
+            },
+            {
+              "Not": {
+                "Fact": "casting"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "States": [
+      {
+        "Path": "life/alive/action/casting",
+        "CastContext": "Current"
+      },
+      {
+        "Path": "life/dead/death/spirit.casting",
+        "CastContext": "Current",
+        "CastKind": "Active"
+      }
+    ],
+    "DeathCasting": {
+      "PermissionBuffId": 30060090,
+      "RetainedBuffIds": [
+        30060490
+      ],
+      "Skills": [
+        {
+          "SkillId": 30060602,
+          "MinimumCompletionMs": 0
+        },
+        {
+          "SkillId": 30060603,
+          "MinimumCompletionMs": 0
+        },
+        {
+          "SkillId": 30060604,
+          "MinimumCompletionMs": 0
+        },
+        {
+          "SkillId": 30060605,
+          "MinimumCompletionMs": 3250
+        }
+      ]
+    }
+  },
+  {
+    "DefinitionId": "moba.character.3007",
+    "Conditions": [
+      {
+        "Key": "orb.flight.rest",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "idle"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 1
+            }
+          ]
+        }
+      },
+      {
+        "Key": "orb.deployed.rest",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "idle"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 2
+            }
+          ]
+        }
+      },
+      {
+        "Key": "normal.rest",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "idle"
+            },
+            {
+              "ParameterId": 4,
+              "Comparison": "eq",
+              "Value": 0
+            }
+          ]
+        }
+      }
+    ],
+    "States": [
+      {
+        "Path": "life/alive/action/casting",
+        "CastContext": "Current"
+      }
+    ]
   }
 ]

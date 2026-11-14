@@ -196,6 +196,25 @@ namespace AbilityKit.Game.Tests
         }
 
         [Test]
+        public void OwnerBlackboardStore_RetainsOwnerUntilPassiveAndTriggerLeasesAreReleased()
+        {
+            var ownerStore = new OwnerBlackboardStore();
+            const long ownerKey = 8201;
+
+            ownerStore.Acquire(ownerKey);
+            ownerStore.Acquire(ownerKey);
+            Assert.That(ownerStore.TryGet(ownerKey, out _), Is.True);
+
+            Assert.That(ownerStore.Release(ownerKey), Is.True);
+            Assert.That(ownerStore.TryGet(ownerKey, out _), Is.True,
+                "Releasing a trigger subscription must preserve the passive context's owner Blackboard.");
+
+            Assert.That(ownerStore.Release(ownerKey), Is.True);
+            Assert.That(ownerStore.TryGet(ownerKey, out _), Is.False,
+                "The owner Blackboard is removed after the last lifecycle releases its lease.");
+        }
+
+        [Test]
         public void RollbackCoordinator_PreflightRunsBeforeAnyProviderImport()
         {
             var mutating = new TrackingRollbackProvider(1);

@@ -22,6 +22,10 @@ namespace AbilityKit.Demo.Moba.Services
         private static readonly MobaSkillRuntimeBlackboardKey BoundChildId = RecastKey(125, "id", MobaSkillRuntimeValueKind.Long);
         private static readonly MobaSkillRuntimeBlackboardKey BoundChildContext = RecastKey(126, "context", MobaSkillRuntimeValueKind.Long);
         private static readonly MobaSkillRuntimeBlackboardKey BoundChildConfig = RecastKey(127, "config", MobaSkillRuntimeValueKind.Int);
+        private static readonly MobaSkillRuntimeBlackboardKey BoundChildKind = RecastKey(128, "kind", MobaSkillRuntimeValueKind.Int);
+        private static readonly MobaSkillRuntimeBlackboardKey PendingTerminal = RecastKey(129, "pendingTerminal", MobaSkillRuntimeValueKind.Bool);
+        private static readonly MobaSkillRuntimeBlackboardKey PendingProjectile = RecastKey(130, "pendingProjectile", MobaSkillRuntimeValueKind.Long);
+        private static readonly MobaSkillRuntimeBlackboardKey PendingContext = RecastKey(131, "pendingContext", MobaSkillRuntimeValueKind.Long);
 
         public bool HasChildChannel(int ownerActorId, int channelId)
         {
@@ -67,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public bool TrySelectRecastArea(int ownerActorId, int channelId, out MobaSkillChildRecastBinding binding, out string error,
-            int skillSlot = 0, int baseSkillId = 0)
+            int skillSlot = 0, int baseSkillId = 0, bool allowFlight = false)
         {
             binding = default;
             error = "No deployed child in channel.";
@@ -85,6 +89,9 @@ namespace AbilityKit.Demo.Moba.Services
             var child = default(MobaSkillRuntimeChildRef);
             foreach (var candidate in original.Children)
                 if (candidate.Kind == MobaSkillRuntimeChildKind.Area) { count++; child = candidate; }
+            if (count == 0 && allowFlight)
+                foreach (var candidate in original.Children)
+                    if (candidate.Kind == MobaSkillRuntimeChildKind.Projectile) { count++; child = candidate; }
             if (count != 1) { error = count == 0 ? "Child is in flight or not deployed." : "Ambiguous deployed child."; return false; }
             binding = new MobaSkillChildRecastBinding(original.Handle, child);
             error = null;
@@ -100,7 +107,7 @@ namespace AbilityKit.Demo.Moba.Services
                 recast.CasterActorId != original.CasterActorId || recast.SkillSlot != original.SkillSlot ||
                 recast.BaseSkillId != original.BaseSkillId || original.IsEnding || original.IsEnded ||
                 original.Blackboard.TryGetBool(in ChildTerminal, out var terminal) && terminal ||
-                binding.Child.Kind != MobaSkillRuntimeChildKind.Area || !ContainsChild(original, binding.Child)) return false;
+                (binding.Child.Kind != MobaSkillRuntimeChildKind.Area && binding.Child.Kind != MobaSkillRuntimeChildKind.Projectile) || !ContainsChild(original, binding.Child)) return false;
             var board = recast.Blackboard;
             board.SetLong(in OriginalRuntime, binding.Original.RuntimeId);
             board.SetInt(in OriginalGeneration, binding.Original.Generation);
@@ -108,6 +115,7 @@ namespace AbilityKit.Demo.Moba.Services
             board.SetLong(in BoundChildId, binding.Child.ChildId);
             board.SetLong(in BoundChildContext, binding.Child.ContextId);
             board.SetInt(in BoundChildConfig, binding.Child.ConfigId);
+            board.SetInt(in BoundChildKind, (int)binding.Child.Kind);
             return true;
         }
 
@@ -120,13 +128,64 @@ namespace AbilityKit.Demo.Moba.Services
                 !board.TryGetLong(in OriginalRoot, out var root) || !board.TryGetLong(in BoundChildId, out var childId) ||
                 !board.TryGetLong(in BoundChildContext, out var context) || !board.TryGetInt(in BoundChildConfig, out var config)) return false;
             var originalHandle = new MobaSkillCastRuntimeHandle(runtimeId, generation, root);
-            var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Area, childId, context, config);
+            var kind = board.TryGetInt(in BoundChildKind, out var storedKind) ? (MobaSkillRuntimeChildKind)storedKind : MobaSkillRuntimeChildKind.Area;
+            var child = new MobaSkillRuntimeChildRef(kind, childId, context, config);
             if (!TryGet(in originalHandle, out var original) || !original.Handle.Equals(originalHandle) || original.RootContextId != originalHandle.RootContextId ||
                 original.CasterActorId != recast.CasterActorId || original.SkillSlot != recast.SkillSlot ||
                 original.BaseSkillId != recast.BaseSkillId || original.IsEnding || original.IsEnded ||
                 original.Blackboard.TryGetBool(in ChildTerminal, out var terminal) && terminal ||
                 !ContainsChild(original, in child)) return false;
             binding = new MobaSkillChildRecastBinding(originalHandle, child);
+            return true;
+        }
+
+        /// <summary>Queue once on the original cast, bound to the exact flying child.</summary>
+        public bool TryQueueChildTerminal(in MobaSkillChildRecastBinding binding)
+        {
+            var handle = binding.Original;
+            if (binding.Child.Kind != MobaSkillRuntimeChildKind.Projectile || !TryGet(in handle, out var original) ||
+                !original.Handle.Equals(handle) || original.RootContextId != handle.RootContextId ||
+                !ContainsChild(original, binding.Child) || original.IsEnding || original.IsEnded ||
+                original.Blackboard.TryGetBool(in ChildTerminal, out var terminal) && terminal) return false;
+            var board = original.Blackboard;
+            if (board.TryGetBool(in PendingTerminal, out var pending) && pending)
+                return board.TryGetLong(in PendingProjectile, out var id) && id == binding.Child.ChildId &&
+                    board.TryGetLong(in PendingContext, out var context) && context == binding.Child.ContextId;
+            board.SetLong(in PendingProjectile, binding.Child.ChildId);
+            board.SetLong(in PendingContext, binding.Child.ContextId);
+            board.SetBool(in PendingTerminal, true);
+            return true;
+        }
+
+        /// <summary>Arrival handover runs while the retained flying child still belongs to this cast.</summary>
+        public bool TryGetOwnedArea(in MobaSkillCastRuntimeHandle handle, out MobaSkillChildRecastBinding binding)
+        {
+            binding = default;
+            if (!TryGet(in handle, out var original) || !original.Handle.Equals(handle) || original.RootContextId != handle.RootContextId ||
+                original.IsEnding || original.IsEnded || original.Blackboard.TryGetBool(in ChildTerminal, out var terminal) && terminal) return false;
+            var count = 0; var area = default(MobaSkillRuntimeChildRef);
+            foreach (var child in original.Children)
+                if (child.Kind == MobaSkillRuntimeChildKind.Area) { count++; area = child; }
+            if (count != 1) return false;
+            binding = new MobaSkillChildRecastBinding(handle, area); return true;
+        }
+
+        public bool TryGetPendingRecastArea(in MobaSkillCastRuntimeHandle handle, out MobaSkillChildRecastBinding binding)
+        {
+            binding = default;
+            if (!TryGet(in handle, out var original) || !original.Handle.Equals(handle) || original.RootContextId != handle.RootContextId ||
+                original.IsEnding || original.IsEnded || original.Blackboard.TryGetBool(in ChildTerminal, out var terminal) && terminal ||
+                !original.Blackboard.TryGetBool(in PendingTerminal, out var pending) || !pending ||
+                !original.Blackboard.TryGetLong(in PendingProjectile, out var projectile) ||
+                !original.Blackboard.TryGetLong(in PendingContext, out var context)) return false;
+            var hasProjectile = false; var count = 0; var area = default(MobaSkillRuntimeChildRef);
+            foreach (var child in original.Children)
+            {
+                if (child.Kind == MobaSkillRuntimeChildKind.Projectile && child.ChildId == projectile && child.ContextId == context) hasProjectile = true;
+                if (child.Kind == MobaSkillRuntimeChildKind.Area) { count++; area = child; }
+            }
+            if (!hasProjectile || count != 1) return false;
+            binding = new MobaSkillChildRecastBinding(handle, area);
             return true;
         }
 

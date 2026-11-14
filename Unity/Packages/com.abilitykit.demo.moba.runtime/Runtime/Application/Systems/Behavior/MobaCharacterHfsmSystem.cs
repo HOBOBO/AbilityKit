@@ -17,6 +17,7 @@ namespace AbilityKit.Demo.Moba.Systems
         private IFrameTime _frameTime;
         private IWorldClock _clock;
         private MobaCombatRulesService _rules;
+        private AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase _configs;
         private StateMachineDefinition _definition;
         private MobaCharacterHfsmProfileCatalog _profiles;
         private MobaCharacterHfsmParameterService _parameters;
@@ -32,6 +33,7 @@ namespace AbilityKit.Demo.Moba.Systems
             Services.TryResolve(out _frameTime);
             Services.TryResolve(out _clock);
             Services.TryResolve(out _rules);
+            Services.TryResolve(out _configs);
             Services.TryResolve(out _definition);
             Services.TryResolve(out _profiles);
             Services.TryResolve(out _parameters);
@@ -70,6 +72,8 @@ namespace AbilityKit.Demo.Moba.Systems
                 {
                     var cast = casts[j];
                     if (cast.skillCastOwnerActorId.Value != actor.actorId.Value) continue;
+                    if (_configs != null && cast.hasSkillCastSkillId && _configs.TryGetSkill(cast.skillCastSkillId.Value, out var castSkill) &&
+                        _configs.TryGetSkillFlow(castSkill.CastFlowId, out var castFlow) && castFlow.PreserveCharacterCastContext) continue;
                     var start = cast.hasSkillCastStartFrame ? cast.skillCastStartFrame.Value : int.MinValue;
                     if (start < castStartFrame ||
                         (start == castStartFrame && cast.skillCastInstanceId.Value <= castInstanceId)) continue;
@@ -86,6 +90,8 @@ namespace AbilityKit.Demo.Moba.Systems
 
                 var alive = _rules == null || _rules.IsAlive(actor);
                 var controlled = alive && _rules != null && _rules.IsStunned(actor.actorId.Value);
+                if (castInstanceId != 0 && _configs != null && _configs.TryGetSkill(skillId, out var selectedSkill) &&
+                    _configs.TryGetSkillFlow(selectedSkill.CastFlowId, out var selectedFlow) && selectedFlow.ContinueThroughControl) controlled = false;
                 var moving = alive && actor.hasMoveInput &&
                     (actor.moveInput.Dx != 0f || actor.moveInput.Dz != 0f) &&
                     (_rules == null || _rules.CanMove(actor.actorId.Value));

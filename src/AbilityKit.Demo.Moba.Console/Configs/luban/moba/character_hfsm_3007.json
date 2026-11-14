@@ -1,0 +1,563 @@
+{
+  "formatVersion": 2,
+  "definitionId": "moba.character.3007",
+  "rootMachineId": "life",
+  "parameters": [
+    {
+      "id": 1,
+      "name": "Controlled",
+      "defaultValue": 0,
+      "supportedOperations": [
+        2
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Casting",
+      "defaultValue": 0,
+      "supportedOperations": [
+        2
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Moving",
+      "defaultValue": 0,
+      "supportedOperations": [
+        2
+      ]
+    },
+    {
+      "id": 4,
+      "name": "OrbStage",
+      "defaultValue": 0,
+      "supportedOperations": [
+        2
+      ]
+    }
+  ],
+  "machines": [
+    {
+      "id": "action",
+      "initialStateId": "idle",
+      "rememberLastState": false,
+      "states": [
+        {
+          "id": "casting",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        },
+        {
+          "id": "controlled",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        },
+        {
+          "id": "idle",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        },
+        {
+          "id": "moving",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        },
+        {
+          "id": "orb.flight",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        },
+        {
+          "id": "orb.deployed",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        }
+      ],
+      "transitions": [
+        {
+          "id": "casting.to.controlled",
+          "fromAnyState": false,
+          "fromStateId": "casting",
+          "toStateId": "controlled",
+          "triggerId": "",
+          "conditionKey": "controlled",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "casting.to.moving",
+          "fromAnyState": false,
+          "fromStateId": "casting",
+          "toStateId": "moving",
+          "triggerId": "",
+          "conditionKey": "free.move",
+          "actionKey": "",
+          "priority": 40,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "casting.to.orb.flight",
+          "fromAnyState": false,
+          "fromStateId": "casting",
+          "toStateId": "orb.flight",
+          "triggerId": "",
+          "conditionKey": "orb.flight.rest",
+          "actionKey": "",
+          "priority": 30,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "casting.to.orb.deployed",
+          "fromAnyState": false,
+          "fromStateId": "casting",
+          "toStateId": "orb.deployed",
+          "triggerId": "",
+          "conditionKey": "orb.deployed.rest",
+          "actionKey": "",
+          "priority": 30,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "casting.to.idle",
+          "fromAnyState": false,
+          "fromStateId": "casting",
+          "toStateId": "idle",
+          "triggerId": "",
+          "conditionKey": "normal.rest",
+          "actionKey": "",
+          "priority": 10,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "controlled.to.casting",
+          "fromAnyState": false,
+          "fromStateId": "controlled",
+          "toStateId": "casting",
+          "triggerId": "",
+          "conditionKey": "casting",
+          "actionKey": "",
+          "priority": 70,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "controlled.to.moving",
+          "fromAnyState": false,
+          "fromStateId": "controlled",
+          "toStateId": "moving",
+          "triggerId": "",
+          "conditionKey": "free.move",
+          "actionKey": "",
+          "priority": 40,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "controlled.to.orb.flight",
+          "fromAnyState": false,
+          "fromStateId": "controlled",
+          "toStateId": "orb.flight",
+          "triggerId": "",
+          "conditionKey": "orb.flight.rest",
+          "actionKey": "",
+          "priority": 30,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "controlled.to.orb.deployed",
+          "fromAnyState": false,
+          "fromStateId": "controlled",
+          "toStateId": "orb.deployed",
+          "triggerId": "",
+          "conditionKey": "orb.deployed.rest",
+          "actionKey": "",
+          "priority": 30,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "controlled.to.idle",
+          "fromAnyState": false,
+          "fromStateId": "controlled",
+          "toStateId": "idle",
+          "triggerId": "",
+          "conditionKey": "normal.rest",
+          "actionKey": "",
+          "priority": 10,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "idle.to.controlled",
+          "fromAnyState": false,
+          "fromStateId": "idle",
+          "toStateId": "controlled",
+          "triggerId": "",
+          "conditionKey": "controlled",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "idle.to.casting",
+          "fromAnyState": false,
+          "fromStateId": "idle",
+          "toStateId": "casting",
+          "triggerId": "",
+          "conditionKey": "casting",
+          "actionKey": "",
+          "priority": 70,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "idle.to.moving",
+          "fromAnyState": false,
+          "fromStateId": "idle",
+          "toStateId": "moving",
+          "triggerId": "",
+          "conditionKey": "free.move",
+          "actionKey": "",
+          "priority": 40,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "idle.to.orb.flight",
+          "fromAnyState": false,
+          "fromStateId": "idle",
+          "toStateId": "orb.flight",
+          "triggerId": "",
+          "conditionKey": "orb.flight.rest",
+          "actionKey": "",
+          "priority": 30,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "idle.to.orb.deployed",
+          "fromAnyState": false,
+          "fromStateId": "idle",
+          "toStateId": "orb.deployed",
+          "triggerId": "",
+          "conditionKey": "orb.deployed.rest",
+          "actionKey": "",
+          "priority": 30,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "moving.to.controlled",
+          "fromAnyState": false,
+          "fromStateId": "moving",
+          "toStateId": "controlled",
+          "triggerId": "",
+          "conditionKey": "controlled",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "moving.to.casting",
+          "fromAnyState": false,
+          "fromStateId": "moving",
+          "toStateId": "casting",
+          "triggerId": "",
+          "conditionKey": "casting",
+          "actionKey": "",
+          "priority": 70,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "moving.to.orb.flight",
+          "fromAnyState": false,
+          "fromStateId": "moving",
+          "toStateId": "orb.flight",
+          "triggerId": "",
+          "conditionKey": "orb.flight.rest",
+          "actionKey": "",
+          "priority": 30,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "moving.to.orb.deployed",
+          "fromAnyState": false,
+          "fromStateId": "moving",
+          "toStateId": "orb.deployed",
+          "triggerId": "",
+          "conditionKey": "orb.deployed.rest",
+          "actionKey": "",
+          "priority": 30,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "moving.to.idle",
+          "fromAnyState": false,
+          "fromStateId": "moving",
+          "toStateId": "idle",
+          "triggerId": "",
+          "conditionKey": "normal.rest",
+          "actionKey": "",
+          "priority": 10,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "orb.flight.to.controlled",
+          "fromAnyState": false,
+          "fromStateId": "orb.flight",
+          "toStateId": "controlled",
+          "triggerId": "",
+          "conditionKey": "controlled",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "orb.flight.to.casting",
+          "fromAnyState": false,
+          "fromStateId": "orb.flight",
+          "toStateId": "casting",
+          "triggerId": "",
+          "conditionKey": "casting",
+          "actionKey": "",
+          "priority": 70,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "orb.flight.to.moving",
+          "fromAnyState": false,
+          "fromStateId": "orb.flight",
+          "toStateId": "moving",
+          "triggerId": "",
+          "conditionKey": "free.move",
+          "actionKey": "",
+          "priority": 40,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "orb.flight.to.orb.deployed",
+          "fromAnyState": false,
+          "fromStateId": "orb.flight",
+          "toStateId": "orb.deployed",
+          "triggerId": "",
+          "conditionKey": "orb.deployed.rest",
+          "actionKey": "",
+          "priority": 30,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "orb.flight.to.idle",
+          "fromAnyState": false,
+          "fromStateId": "orb.flight",
+          "toStateId": "idle",
+          "triggerId": "",
+          "conditionKey": "normal.rest",
+          "actionKey": "",
+          "priority": 10,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "orb.deployed.to.controlled",
+          "fromAnyState": false,
+          "fromStateId": "orb.deployed",
+          "toStateId": "controlled",
+          "triggerId": "",
+          "conditionKey": "controlled",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "orb.deployed.to.casting",
+          "fromAnyState": false,
+          "fromStateId": "orb.deployed",
+          "toStateId": "casting",
+          "triggerId": "",
+          "conditionKey": "casting",
+          "actionKey": "",
+          "priority": 70,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "orb.deployed.to.moving",
+          "fromAnyState": false,
+          "fromStateId": "orb.deployed",
+          "toStateId": "moving",
+          "triggerId": "",
+          "conditionKey": "free.move",
+          "actionKey": "",
+          "priority": 40,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "orb.deployed.to.orb.flight",
+          "fromAnyState": false,
+          "fromStateId": "orb.deployed",
+          "toStateId": "orb.flight",
+          "triggerId": "",
+          "conditionKey": "orb.flight.rest",
+          "actionKey": "",
+          "priority": 30,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "orb.deployed.to.idle",
+          "fromAnyState": false,
+          "fromStateId": "orb.deployed",
+          "toStateId": "idle",
+          "triggerId": "",
+          "conditionKey": "normal.rest",
+          "actionKey": "",
+          "priority": 10,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        }
+      ]
+    },
+    {
+      "id": "life",
+      "initialStateId": "alive",
+      "rememberLastState": false,
+      "states": [
+        {
+          "id": "alive",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "action",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        },
+        {
+          "id": "dead",
+          "behaviorKey": "",
+          "logicEntryActionKeys": [],
+          "logicExitActionKeys": [],
+          "childMachineId": "",
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
+        }
+      ],
+      "transitions": [
+        {
+          "id": "die",
+          "fromAnyState": false,
+          "fromStateId": "alive",
+          "toStateId": "dead",
+          "triggerId": "",
+          "conditionKey": "dead",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "respawn",
+          "fromAnyState": false,
+          "fromStateId": "dead",
+          "toStateId": "alive",
+          "triggerId": "",
+          "conditionKey": "alive",
+          "actionKey": "",
+          "priority": 100,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        }
+      ]
+    }
+  ]
+}

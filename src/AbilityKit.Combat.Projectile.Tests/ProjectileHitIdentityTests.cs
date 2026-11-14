@@ -9,6 +9,55 @@ namespace AbilityKit.Combat.Projectile.Tests;
 public sealed class ProjectileHitIdentityTests
 {
     [Theory]
+    [InlineData(ProjectileHitIdentityPolicy.OncePerActorPerLeg, 2)]
+    [InlineData(ProjectileHitIdentityPolicy.OncePerActor, 1)]
+    public void Distance_return_tracks_a_moving_owner_and_restores_both_leg_histories(ProjectileHitIdentityPolicy policy, int expected)
+    {
+        var collision = new NaiveCollisionWorld();
+        var identities = new IdentityProvider();
+        Add(collision, identities, 2, 101);
+        Add(collision, identities, 2.1f, 101);
+        var owner = new ReturnProvider();
+        var world = new ProjectileWorld(collision);
+        world.SetActorIdentityProvider(identities);
+        world.SetReturnTargetProvider(owner);
+        world.Spawn(new ProjectileSpawnParams(1, 100, 1, 1, 0, Vec3.Zero, new Vec3(1, 0, 0), 10,
+            0, 10, .01f, 90, 4, 1 << 1, ColliderId.Invalid,
+            hitPolicyKind: ProjectileHitPolicyKind.Pierce, hitPolicyParam: -1, hitsRemaining: 0,
+            hitIdentityPolicy: policy,
+            maxDistanceResponse: ProjectileMaxDistanceResponse.ReturnToSource));
+        var hits = new List<ProjectileHitEvent>();
+        world.Tick(1, .4f, hits, null, null);
+        Assert.Single(hits);
+        owner.Position = new Vec3(-1, 0, 0);
+        world.Tick(2, .3f, hits, null, null);
+        Assert.Equal(expected, hits.Count);
+        var checkpoint = world.ExportRollback(default);
+        var exits = new List<ProjectileExitEvent>();
+        world.Tick(3, 1f, hits, exits, null); // Clamped to the moving owner; cannot overshoot it.
+        world.Tick(4, .1f, hits, exits, null);
+        Assert.Equal(ProjectileExitReason.ReturnArrived, Assert.Single(exits).Reason);
+        Assert.Equal(expected, hits.Count);
+        var restored = new ProjectileWorld(collision);
+        restored.SetActorIdentityProvider(identities);
+        restored.SetReturnTargetProvider(owner);
+        restored.ImportRollback(default, checkpoint);
+        hits.Clear(); exits.Clear();
+        restored.Tick(3, 1f, hits, exits, null);
+        restored.Tick(4, .1f, hits, exits, null);
+        Assert.Empty(hits);
+        Assert.Equal(ProjectileExitReason.ReturnArrived, Assert.Single(exits).Reason);
+        Assert.Equal(world.ExportRollback(default), restored.ExportRollback(default));
+    }
+
+    private sealed class ReturnProvider : IProjectileReturnTargetProvider
+    {
+        public Vec3 Position;
+        public bool TryGetReturnTargetPosition(int id, out Vec3 position) { position = Position; return true; }
+        public void Dispose() { }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void Pierce_counts_distinct_actors_in_distance_order_and_restores_history(bool grid)

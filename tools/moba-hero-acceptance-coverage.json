@@ -361,6 +361,81 @@
         "hudInput": "not-covered",
         "rollback": "not-covered"
       }
+    },
+    {
+      "heroId": 3007,
+      "heroName": "Lux",
+      "fixture": "AbilityKit.Game.Test.UnitTest.LuxSkillAcceptanceTests",
+      "gate": "moba-lux-unity",
+      "sceneContract": "published-lux-runtime-and-unity-consumption",
+      "coverage": {
+        "repeatedRelease": "not-covered",
+        "buff": "covered",
+        "projectile": "covered",
+        "area": "covered",
+        "presentation": "covered",
+        "hudInput": "covered",
+        "rollback": "not-covered"
+      },
+      "coverageEvidence": {
+        "buff": ["Buff_owned_cues_instantiate_once_and_release_with_their_source"],
+        "projectile": [
+          "Q_projectile_snapshot_creates_follows_and_releases_vfx",
+          "W_projectile_snapshot_creates_follows_and_releases_vfx",
+          "E_projectile_snapshot_creates_follows_and_releases_vfx"
+        ],
+        "area": ["Real_area_cues_create_and_release_the_owned_vfx"],
+        "presentation": [
+          "Published_vfx_instantiate_and_derived_particles_have_their_authored_lifetimes",
+          "Hfsm_substates_drive_the_actual_animator",
+          "Q_actual_timeline_plays_complete_clip_and_restores_idle",
+          "W_actual_timeline_plays_complete_clip_and_restores_idle",
+          "E_actual_timeline_plays_complete_clip_and_restores_idle",
+          "R_actual_timeline_plays_complete_clip_and_restores_idle",
+          "AA_actual_timeline_plays_complete_clip_and_restores_idle"
+        ],
+        "hudInput": ["PlayMode_real_HUD_releases_QWER_and_free_E_recast"]
+      }
+    },
+    {
+      "heroId": 3006,
+      "heroName": "Karthus",
+      "fixture": "AbilityKit.Game.Test.UnitTest.KarthusSkillAcceptanceTests",
+      "gate": "moba-karthus-unity",
+      "sceneContract": "published-karthus-runtime-and-unity-consumption",
+      "coverage": {
+        "repeatedRelease": "not-covered",
+        "buff": "covered",
+        "projectile": "not-covered",
+        "area": "covered",
+        "presentation": "covered",
+        "hudInput": "covered",
+        "rollback": "not-covered"
+      },
+      "coverageEvidence": {
+        "hudInput": [
+          "PlayMode_real_HUD_releases_QWER_and_death_Q_with_owned_warning"
+        ],
+        "buff": [
+          "Buff_owned_cues_instantiate_once_and_release_with_their_source"
+        ],
+        "area": [
+          "Real_area_cues_create_and_release_the_owned_vfx"
+        ],
+        "presentation": [
+          "Published_vfx_instantiate_and_derived_particles_have_their_authored_lifetimes",
+          "Hfsm_substates_drive_the_actual_animator",
+          "Q_actual_timeline_plays_complete_clip_and_restores_idle",
+          "W_actual_timeline_plays_complete_clip_and_restores_idle",
+          "E_actual_timeline_plays_complete_clip_and_restores_idle",
+          "R_actual_timeline_plays_complete_clip_and_restores_idle",
+          "AA_actual_timeline_plays_complete_clip_and_restores_idle",
+          "Dead_Q_uses_actual_timeline",
+          "Dead_W_uses_actual_timeline",
+          "Dead_E_uses_actual_timeline",
+          "Dead_R_uses_actual_timeline"
+        ]
+      }
     }
   ]
 }

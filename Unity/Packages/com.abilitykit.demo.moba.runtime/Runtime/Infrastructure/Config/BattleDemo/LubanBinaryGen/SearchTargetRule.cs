@@ -22,6 +22,10 @@ public partial struct SearchTargetRule
         if(_buf.ReadBool()){ Radius = _buf.ReadFloat(); } else { Radius = null; }
         if(_buf.ReadBool()){ HalfAngleDeg = _buf.ReadFloat(); } else { HalfAngleDeg = null; }
         if(_buf.ReadBool()){ UnitSubType = _buf.ReadInt(); } else { UnitSubType = null; }
+        if(_buf.ReadBool()){ LocalOffsetForward = _buf.ReadFloat(); } else { LocalOffsetForward = null; }
+        if(_buf.ReadBool()){ LocalOffsetRight = _buf.ReadFloat(); } else { LocalOffsetRight = null; }
+        if(_buf.ReadBool()){ Width = _buf.ReadFloat(); } else { Width = null; }
+        if(_buf.ReadBool()){ Length = _buf.ReadFloat(); } else { Length = null; }
     }
 
     public static SearchTargetRule DeserializeSearchTargetRule(ByteBuf _buf)
@@ -35,6 +39,10 @@ public partial struct SearchTargetRule
     public readonly float? Radius;
     public readonly float? HalfAngleDeg;
     public readonly int? UnitSubType;
+    public readonly float? LocalOffsetForward;
+    public readonly float? LocalOffsetRight;
+    public readonly float? Width;
+    public readonly float? Length;
    
 
     public  void ResolveRef(Tables tables)
@@ -50,6 +58,10 @@ public partial struct SearchTargetRule
         + "Radius:" + Radius + ","
         + "HalfAngleDeg:" + HalfAngleDeg + ","
         + "UnitSubType:" + UnitSubType + ","
+        + "LocalOffsetForward:" + LocalOffsetForward + ","
+        + "LocalOffsetRight:" + LocalOffsetRight + ","
+        + "Width:" + Width + ","
+        + "Length:" + Length + ","
         + "}";
     }
 }

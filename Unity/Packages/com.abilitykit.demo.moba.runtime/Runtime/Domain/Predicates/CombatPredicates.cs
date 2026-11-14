@@ -54,6 +54,8 @@ namespace AbilityKit.Demo.Moba.Predicates
             public const string OwnerMatchesPayloadTarget = "predicate:owner_matches_payload_target";
             public const string OwnerSameTeamAsPayloadSource = "predicate:owner_same_team_as_payload_source";
             public const string OwnerEnemyToPayloadTarget = "predicate:owner_enemy_to_payload_target";
+            public const string PayloadActorType = "predicate:payload_target_actor_type";
+            public const string PayloadSourceActorType = "predicate:payload_source_actor_type";
             public const string TargetIsFlyingProjectile = "predicate:target_is_flying_projectile";
             public const string SourceTargetTagRules = "predicate:source_target_tag_rules";
         }
@@ -216,6 +218,18 @@ namespace AbilityKit.Demo.Moba.Predicates
             actorId = 0;
             if (args == null) return false;
 
+            if (args is IEffectContext effectContext && effectContext.SourceActorId > 0)
+            {
+                actorId = effectContext.SourceActorId;
+                return true;
+            }
+
+            if (args is MobaCombatExecutionContext executionContext)
+            {
+                actorId = executionContext.SourceActorId;
+                return actorId > 0 || TryResolveSourceActorId(executionContext.Payload, services, out actorId);
+            }
+
             if (args is MobaTriggerConditionContext conditionContext)
             {
                 actorId = conditionContext.SourceActorId;
@@ -254,6 +268,18 @@ namespace AbilityKit.Demo.Moba.Predicates
         {
             actorId = 0;
             if (args == null) return false;
+
+            if (args is IEffectContext effectContext && effectContext.TargetActorId > 0)
+            {
+                actorId = effectContext.TargetActorId;
+                return true;
+            }
+
+            if (args is MobaCombatExecutionContext executionContext)
+            {
+                actorId = executionContext.TargetActorId;
+                return actorId > 0 || TryResolveTargetActorId(executionContext.Payload, services, out actorId);
+            }
 
             if (args is MobaTriggerConditionContext conditionContext)
             {

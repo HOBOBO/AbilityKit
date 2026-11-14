@@ -96,7 +96,11 @@ namespace AbilityKit.Starter
             GUI.enabled = GUI.enabled && IsAuthenticated;
             if (GUILayout.Button("MOBA（帧同步示例）", GUILayout.Height(48f)))
             {
-                LaunchMoba();
+                LaunchMoba(DemoMultiplayerSyncTemplates.FrameSyncAuthority);
+            }
+            if (GUILayout.Button("MOBA State Sync", GUILayout.Height(42f)))
+            {
+                LaunchMoba(DemoMultiplayerSyncTemplates.MobaStateSyncAuthority);
             }
 
             if (GUILayout.Button("Shooter（状态同步示例）", GUILayout.Height(48f)))
@@ -185,7 +189,8 @@ namespace AbilityKit.Starter
             string region,
             string serverId,
             TimeSpan requestTimeout,
-            bool suppressAutomaticLobbyActions = false)
+            bool suppressAutomaticLobbyActions = false,
+            string syncTemplateId = null)
         {
             var selectedConfig = RequireConfig();
             _accountId = string.IsNullOrWhiteSpace(accountId)
@@ -200,7 +205,8 @@ namespace AbilityKit.Starter
                 _accountId,
                 _sessionToken,
                 requestTimeout,
-                suppressAutomaticLobbyActions));
+                suppressAutomaticLobbyActions,
+                syncTemplateId));
             DemoLaunchIntent.Request(new DemoLaunchRequest(
                 DemoGameplayId.Moba,
                 DemoLaunchMode.Multiplayer,
@@ -250,7 +256,7 @@ namespace AbilityKit.Starter
             LoadGame(sceneName, $"正在打开 {gameplay} 本地模式{statusSuffix}");
         }
 
-        private void LaunchMoba()
+        private void LaunchMoba(string syncTemplateId)
         {
             var selectedConfig = RequireAuthenticatedConfig();
             DemoMultiplayerLaunchIntent.Request(DemoMultiplayerGameplay.Moba, new DemoMultiplayerLaunchRequest(
@@ -260,7 +266,8 @@ namespace AbilityKit.Starter
                 selectedConfig.ServerId,
                 _accountId,
                 _sessionToken,
-                selectedConfig.RequestTimeout));
+                selectedConfig.RequestTimeout,
+                syncTemplateId: syncTemplateId));
             DemoLaunchIntent.Request(new DemoLaunchRequest(
                 DemoGameplayId.Moba,
                 DemoLaunchMode.Multiplayer,

@@ -1,0 +1,515 @@
+[
+  {
+    "Id": 30060101,
+    "Name": "Karthus 30060101",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060101_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 0,
+          "UseResolvedResourceCost": true,
+          "StartSkillCooldown": true,
+          "UseResolvedSkillCooldown": true,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060101_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060101_commit",
+        "CommitPoint": {
+          "CommitId": "attack",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060101_timeline",
+        "Timeline": {
+          "DurationMs": 1600,
+          "Events": [
+            {
+              "AtMs": 300,
+              "EffectId": 30060100,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060101_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060201,
+    "Name": "Karthus 30060201",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060201_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "UseResolvedResourceCost": true,
+          "StartSkillCooldown": true,
+          "UseResolvedSkillCooldown": true,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060201_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060201_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060201_timeline",
+        "Timeline": {
+          "DurationMs": 1000,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30060201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060201_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060602,
+    "Name": "Karthus 30060602",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060602_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "UseResolvedResourceCost": true,
+          "StartSkillCooldown": true,
+          "UseResolvedSkillCooldown": true,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060602_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060602_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060602_timeline",
+        "Timeline": {
+          "DurationMs": 1000,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30060201,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060602_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060301,
+    "Name": "Karthus 30060301",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060301_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "UseResolvedResourceCost": true,
+          "StartSkillCooldown": true,
+          "UseResolvedSkillCooldown": true,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060301_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060301_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060301_timeline",
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30060301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060301_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060603,
+    "Name": "Karthus 30060603",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060603_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "UseResolvedResourceCost": true,
+          "StartSkillCooldown": true,
+          "UseResolvedSkillCooldown": true,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060603_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060603_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060603_timeline",
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 250,
+              "EffectId": 30060301,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060603_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060401,
+    "Name": "Karthus 30060401",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060401_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "UseResolvedResourceCost": true,
+          "StartSkillCooldown": true,
+          "UseResolvedSkillCooldown": true,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060401_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060401_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060401_timeline",
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30060401,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060401_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060604,
+    "Name": "Karthus 30060604",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060604_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "UseResolvedResourceCost": true,
+          "StartSkillCooldown": true,
+          "UseResolvedSkillCooldown": true,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060604_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060604_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060604_timeline",
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            {
+              "AtMs": 0,
+              "EffectId": 30060604,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060604_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060501,
+    "Name": "Karthus 30060501",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060501_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "UseResolvedResourceCost": true,
+          "StartSkillCooldown": true,
+          "UseResolvedSkillCooldown": true,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060501_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060501_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060501_timeline",
+        "Timeline": {
+          "DurationMs": 3250,
+          "Events": [
+            {
+              "AtMs": 3250,
+              "EffectId": 30060501,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060501_submit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 30060605,
+    "Name": "Karthus 30060605",
+    "PipelineContinuousTagTemplateId": 0,
+    "Phases": [
+      {
+        "Type": 19,
+        "PhaseId": "karthus_30060605_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "UseResolvedResourceCost": true,
+          "StartSkillCooldown": true,
+          "UseResolvedSkillCooldown": true,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true
+        }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "karthus_30060605_release",
+        "RulePlan": {
+          "TriggerIds": [
+            900101011
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 18,
+        "PhaseId": "karthus_30060605_commit",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
+        }
+      },
+      {
+        "Type": 2,
+        "PhaseId": "karthus_30060605_timeline",
+        "Timeline": {
+          "DurationMs": 3250,
+          "Events": [
+            {
+              "AtMs": 3250,
+              "EffectId": 30060501,
+              "ExecuteMode": 0,
+              "AbortOnFailure": true,
+              "EventTag": "karthus_30060605_submit"
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

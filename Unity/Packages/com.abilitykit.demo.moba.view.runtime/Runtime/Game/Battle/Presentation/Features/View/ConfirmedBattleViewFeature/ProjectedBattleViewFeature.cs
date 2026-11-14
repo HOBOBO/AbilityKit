@@ -4,9 +4,9 @@ namespace AbilityKit.Game.Flow
     {
         internal ProjectedBattleViewFeature(BattleContext context, string viewRole,
             BattleProjectionViewCapabilities capabilities = BattleProjectionViewCapabilities.Actors,
-            UnityEngine.Camera camera = null)
+            UnityEngine.Camera camera = null, bool darkenActors = false)
             : base(context, viewRole, isPredictionView: true,
-                capabilities: capabilities, camera: camera)
+                capabilities: capabilities, camera: camera, darkenActors: darkenActors)
         {
         }
 

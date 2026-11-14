@@ -20,6 +20,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         public List<MobaConditionBinding> Conditions { get; set; } = new List<MobaConditionBinding>();
         public List<MobaStateBinding> States { get; set; } = new List<MobaStateBinding>();
         public List<MobaCastBinding> Casts { get; set; } = new List<MobaCastBinding>();
+        public MobaDeathCastBinding DeathCasting { get; set; }
         [JsonIgnore]
         public string Fingerprint
         {
@@ -67,6 +68,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
                 DefinitionId != definition.DefinitionId)
                 throw new InvalidOperationException("Character binding definition mismatch.");
             var ids = new HashSet<int>(definition.Parameters.Select(x => x.Id));
+            DeathCasting?.Validate();
             var keys = new HashSet<string>(StringComparer.Ordinal);
             foreach (var condition in Conditions)
             {

@@ -1,0 +1,89 @@
+{
+  "groups": [
+    {
+      "name": "Logic",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "Submit",
+          "active": true,
+          "actionClips": [
+            {
+              "effectId": 30060511,
+              "eventTag": "karthus_30060501_warning",
+              "abortOnFailure": true,
+              "startTime": 0.25,
+              "name": "ExecuteEffect",
+              "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
+            },
+            {
+              "effectId": 30060501,
+              "eventTag": "karthus_30060501_submit",
+              "abortOnFailure": true,
+              "startTime": 3.25,
+              "name": "ExecuteEffect",
+              "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        }
+      ]
+    },
+    {
+      "name": "Model",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "CompleteCastClip",
+          "active": true,
+          "actionClips": [
+            {
+              "clipKey": "Karthus_Model_SpellR",
+              "resPath": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ChampionVfx/11.Karthus_Project/Animations/Karthus_Model_SpellR.anim",
+              "startTime": 0.0,
+              "length": 3.25,
+              "playbackSpeed": 1.474359076923077,
+              "clipOffset": 0.0,
+              "blendIn": 0.0,
+              "blendOut": 0.0,
+              "name": "PlayAnimation",
+              "$type": "AbilityKit.ActionEditorImpl.PlayAnimation"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.AnimationTrack"
+        }
+      ]
+    },
+    {
+      "name": "CastParticle",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "CastParticle",
+          "active": true,
+          "actionClips": [
+            {
+              "resourceKey": "ChampionVfx/11.Karthus_Project/Karthus_Project_R_Cast",
+              "presentationTemplateId": 90036010,
+              "startTime": 0.0,
+              "length": 3.25,
+              "name": "PlayParticle",
+              "$type": "AbilityKit.ActionEditorImpl.PlayParticle"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.EffectTrack"
+        }
+      ]
+    }
+  ],
+  "exportMobaRuntime": true,
+  "length": 3.25,
+  "viewTimeMin": 0.0,
+  "viewTimeMax": 3.25,
+  "rangeMin": 0.0,
+  "rangeMax": 3.25,
+  "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
+}

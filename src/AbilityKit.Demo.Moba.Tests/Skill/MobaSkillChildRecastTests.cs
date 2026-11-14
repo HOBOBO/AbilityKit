@@ -7,6 +7,37 @@ namespace AbilityKit.Demo.Moba.Tests.Skill;
 public sealed class MobaSkillChildRecastTests
 {
     [Fact]
+    public void Opt_in_flight_request_restores_and_only_claims_its_exact_arrival_handover_once()
+    {
+        var casts = new MobaSkillCastRuntimeService();
+        var original = Create(casts, 7, 101);
+        casts.TryBindChildChannel(original.Handle, 99);
+        var flight = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Projectile, 11, 1001, 201);
+        casts.RetainChild(original.Handle, flight, out var flightRetain);
+        Assert.False(casts.TrySelectRecastArea(7, 99, out _, out _));
+        Assert.False(casts.TrySelectRecastArea(8, 99, out _, out _, allowFlight: true));
+        Assert.True(casts.TrySelectRecastArea(7, 99, out var binding, out _, allowFlight: true));
+        var recast = Create(casts, 7, 102);
+        Assert.True(casts.BindRecastArea(recast.Handle, binding));
+        Assert.True(casts.TryQueueChildTerminal(binding));
+        Assert.True(casts.TryQueueChildTerminal(binding));
+        Assert.False(casts.TryGetPendingRecastArea(original.Handle, out _));
+        var checkpoint = casts.CaptureRollbackSnapshot();
+        casts.RestoreRollbackSnapshot(checkpoint);
+        Assert.True(casts.TryGetRecastArea(recast.Handle, out var restored));
+        Assert.Equal(binding.Child, restored.Child);
+        var area = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Area, 12, 1002, 202);
+        casts.RetainChild(original.Handle, area, out _);
+        Assert.True(casts.TryGetPendingRecastArea(original.Handle, out var pending));
+        Assert.Equal(area, pending.Child);
+        Assert.True(casts.TryClaimChildTerminal(pending));
+        Assert.False(casts.TryClaimChildTerminal(pending));
+        casts.ReleaseChild(flightRetain);
+        Assert.False(casts.TryGetPendingRecastArea(original.Handle, out _));
+        Assert.False(casts.TryQueueChildTerminal(binding));
+    }
+
+    [Fact]
     public void Independent_recast_keeps_original_cast_and_rejects_flight_duplicate_and_stale_child()
     {
         var casts = new MobaSkillCastRuntimeService();

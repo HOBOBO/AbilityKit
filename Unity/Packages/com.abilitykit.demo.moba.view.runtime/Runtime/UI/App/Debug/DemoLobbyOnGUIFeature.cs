@@ -180,8 +180,7 @@ namespace AbilityKit.Game.Flow
                 for (var i = 0; i < presets.Count; i++)
                 {
                     var preset = presets[i];
-                    if (preset != null && preset.HostMode == BattleHostMode.Local &&
-                        preset.SyncMode == syncMode)
+                    if (preset != null && preset.HostMode == BattleHostMode.Local && preset.SyncMode == syncMode)
                         return preset;
                 }
             }
@@ -191,19 +190,6 @@ namespace AbilityKit.Game.Flow
                 config.Preset.HostMode == BattleHostMode.Local &&
                 config.Preset.SyncMode == syncMode)
                 return config.Preset;
-
-            // Route StateSync through a configured GatewayRemote preset. Local
-            // StateSync remains disabled until a local authority transport exists.
-            if (presets != null)
-            {
-                for (var i = 0; i < presets.Count; i++)
-                {
-                    var preset = presets[i];
-                    if (preset != null && preset.HostMode == BattleHostMode.GatewayRemote &&
-                        preset.SyncMode == syncMode)
-                        return preset;
-                }
-            }
 
             return null;
         }

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Vfx;
@@ -15,6 +16,31 @@ namespace AbilityKit.Game.Tests
     public sealed class PresentationSpatialUnityTests
     {
         private const string Resource = "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q";
+
+        [TestCase(1f,0f)]
+        [TestCase(0f,1f)]
+        [TestCase(0f,-1f)]
+        public void ExplicitCastFrameUsesValueOriginForwardAndLocalOffsets(float dx,float dz)
+        {
+            var template=new PresentationTemplateDTO{Id=77,AssetId=88,PlacementSpace=1,OffsetX=2,OffsetZ=4,Scale=1};
+            var resolver=new MobaPresentationTemplateResolver(new[]{template},new[]{new VfxDTO{Id=88,Resource=Resource}});
+            Assert.IsFalse(resolver.TryCreateRequest(77,"timeline:42:0",0,2500,0,out _));
+            var frame=new CastPresentationFrame(9,2,5,dx,0,dz);
+            resolver.SetCastFrame(42,in frame);
+            Assert.IsFalse(resolver.TryCreateRequest(77,"timeline:43:0",0,2500,0,out _));
+            Assert.IsTrue(resolver.TryCreateRequest(77,"timeline:42:0",0,2500,0,out var request));
+            // right = (forward.z, 0, -forward.x)
+            Equal(new Vector3(9+dx*4+dz*2,2,5+dz*4-dx*2),new Vector3(request.Position.X,request.Position.Y,request.Position.Z));
+            var rotation=new Quaternion(request.Rotation.X,request.Rotation.Y,request.Rotation.Z,request.Rotation.W);
+            Equal(new Vector3(dx,0,dz),rotation*Vector3.forward);
+            Assert.AreEqual(PresentationAttachmentKind.World,request.Attachment.Kind);
+            Assert.IsFalse(request.FollowAttachment);
+            resolver.SetCastFrame(43,default);
+            Equal(new Vector3(dx,0,dz),rotation*Vector3.forward);
+            template.PlacementSpace=0;template.AttachMode=1;template.Follow=true;
+            Assert.IsTrue(resolver.TryCreateRequest(77,"timeline:43:0",0,2500,0,out var legacy));
+            Assert.AreEqual(PresentationAttachmentKind.Actor,legacy.Attachment.Kind);Assert.IsTrue(legacy.FollowAttachment);
+        }
 
         private static void Equal(Vector3 expected, Vector3 actual) => Assert.That(Vector3.Distance(expected, actual), Is.LessThan(0.001f));
 

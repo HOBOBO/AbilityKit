@@ -122,5 +122,24 @@
     "Id": 30050000,
     "CooldownMs": 0,
     "Name": "Gragas Happy Hour (explicit successful commit)"
+  },
+  {
+    "Id": 30060000,
+    "ContinuousProcessIds": [
+      30060010
+    ],
+    "CooldownMs": 0,
+    "Name": "Karthus Death Defied / Defile kill mana",
+    "TriggerIds": [
+      30060421
+    ]
+  },
+  {
+    "Id": 30070000,
+    "ContinuousProcessIds": [
+      30070010
+    ],
+    "CooldownMs": 0,
+    "Name": "Lux Illumination / exact cast ranges"
   }
 ]

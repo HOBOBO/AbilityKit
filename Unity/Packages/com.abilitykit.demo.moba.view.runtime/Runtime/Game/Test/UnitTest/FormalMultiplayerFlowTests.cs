@@ -480,6 +480,26 @@ namespace AbilityKit.Game.Test.UnitTest
                     "release",
                     "server-a",
                     "account-a",
+                    "session-a",
+                    TimeSpan.FromSeconds(8),
+                    syncTemplateId: DemoMultiplayerSyncTemplates.MobaStateSyncAuthority);
+                built = FormalLobbyFeature.TryBuildLaunchSpec(
+                    config,
+                    request,
+                    activeSessionToken: string.Empty,
+                    out spec,
+                    out error);
+
+                Assert.That(built, Is.True, error);
+                Assert.That(spec!.SyncTemplateId,
+                    Is.EqualTo(DemoMultiplayerSyncTemplates.MobaStateSyncAuthority));
+
+                request = new DemoMultiplayerLaunchRequest(
+                    "gateway.example",
+                    4200,
+                    "release",
+                    "server-a",
+                    "account-a",
                     string.Empty,
                     TimeSpan.FromSeconds(8));
                 built = FormalLobbyFeature.TryBuildLaunchSpec(

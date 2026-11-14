@@ -1,4 +1,4 @@
-﻿using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 {
@@ -32,6 +32,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public float OffsetZ { get; }
         public int OffsetSpace { get; }
         public int ParentScaleMode { get; }
+        public int PlacementSpace { get; }
         public int OrderingMode { get; }
         public int OrderingPriority { get; }
 
@@ -65,6 +66,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             OffsetZ = dto != null ? dto.OffsetZ : 0f;
             OffsetSpace = dto != null ? dto.OffsetSpace : 0;
             ParentScaleMode = dto != null ? dto.ParentScaleMode : 0;
+            PlacementSpace = dto != null ? dto.PlacementSpace : 0;
             OrderingMode = dto != null ? dto.OrderingMode : 0;
             OrderingPriority = dto != null ? dto.OrderingPriority : 0;
         }

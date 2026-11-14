@@ -342,6 +342,85 @@
             }
           ]
         }
+      },
+      {
+        "path": "life/dead/death/spirit.ready",
+        "action": {
+          "id": "spirit.ready",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": true
+            }
+          ]
+        }
+      },
+      {
+        "path": "life/dead/death/corpse",
+        "action": {
+          "id": "corpse",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": true
+            }
+          ]
+        }
+      },
+      {
+        "path": "life/dead/death/spirit.casting",
+        "action": {
+          "id": "casting",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "casting.log",
+              "type": "log",
+              "message": "casting"
+            },
+            {
+              "id": "attack.phase",
+              "type": "wait",
+              "seconds": 0.5
+            }
+          ]
+        }
+      },
+      {
+        "path": "life/alive/action/orb.flight",
+        "action": {
+          "id": "orb.flight",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": true
+            }
+          ]
+        }
+      },
+      {
+        "path": "life/alive/action/orb.deployed",
+        "action": {
+          "id": "orb.deployed",
+          "type": "sequence",
+          "actions": [
+            {
+              "id": "pose.play",
+              "type": "play",
+              "animatorState": "Idle",
+              "loop": true
+            }
+          ]
+        }
       }
     ],
     "variants": [
@@ -1359,30 +1438,6 @@
         }
       },
       {
-        "entityCode": 3006,
-        "path": "life/alive/action/moving",
-        "actionId": "moving.play",
-        "action": {
-          "id": "moving.play",
-          "type": "play",
-          "modelId": 3006,
-          "animationKey": "Base Layer.Walk",
-          "loop": true
-        }
-      },
-      {
-        "entityCode": 3007,
-        "path": "life/alive/action/moving",
-        "actionId": "moving.play",
-        "action": {
-          "id": "moving.play",
-          "type": "play",
-          "modelId": 3007,
-          "animationKey": "Base Layer.Walk",
-          "loop": true
-        }
-      },
-      {
         "entityCode": 3005,
         "path": "life/alive/action/idle",
         "actionId": "idle.play",
@@ -1391,30 +1446,6 @@
           "type": "play",
           "modelId": 3005,
           "animationKey": "Base Layer.Gragas_Model_Idle",
-          "loop": true
-        }
-      },
-      {
-        "entityCode": 3006,
-        "path": "life/alive/action/idle",
-        "actionId": "idle.play",
-        "action": {
-          "id": "idle.play",
-          "type": "play",
-          "modelId": 3006,
-          "animationKey": "Base Layer.Karthus_Model_Idle",
-          "loop": true
-        }
-      },
-      {
-        "entityCode": 3007,
-        "path": "life/alive/action/idle",
-        "actionId": "idle.play",
-        "action": {
-          "id": "idle.play",
-          "type": "play",
-          "modelId": 3007,
-          "animationKey": "Base Layer.Lux_Model_Idle",
           "loop": true
         }
       },
@@ -1604,6 +1635,346 @@
           "type": "play",
           "modelId": 3005,
           "animationKey": "Base Layer.Gragas_Model_AutoAttack_2",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3006,
+        "path": "life/alive/action/idle",
+        "actionId": "idle.play",
+        "action": {
+          "id": "idle.play",
+          "type": "play",
+          "modelId": 3006,
+          "animationKey": "Base Layer.Karthus_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3006,
+        "path": "life/alive/action/moving",
+        "actionId": "moving.play",
+        "action": {
+          "id": "moving.play",
+          "type": "play",
+          "modelId": 3006,
+          "animationKey": "Base Layer.Walk",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3006,
+        "path": "life/alive/action/controlled",
+        "actionId": "controlled.play",
+        "action": {
+          "id": "controlled.play",
+          "type": "play",
+          "modelId": 3006,
+          "animationKey": "Base Layer.Karthus_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060101,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 1.6
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060201,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 1.0
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060602,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 1.0
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060602,
+        "path": "life/dead/death/spirit.casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 1.0
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060301,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 0.5
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060603,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 0.5
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060603,
+        "path": "life/dead/death/spirit.casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 0.5
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060401,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 0.5
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060604,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 0.5
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060604,
+        "path": "life/dead/death/spirit.casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 0.5
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060501,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 3.25
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060605,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 3.25
+        }
+      },
+      {
+        "entityCode": 3006,
+        "skillId": 30060605,
+        "path": "life/dead/death/spirit.casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.phase",
+          "type": "wait",
+          "seconds": 3.25
+        }
+      },
+      {
+        "entityCode": 3006,
+        "path": "life/dead/death/spirit.ready",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "modelId": 3006,
+          "animationKey": "Base Layer.Karthus_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3006,
+        "path": "life/dead/death/corpse",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "modelId": 3006,
+          "animationKey": "Base Layer.Karthus_Model_Death",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3007,
+        "path": "life/alive/action/idle",
+        "actionId": "idle.play",
+        "action": {
+          "id": "idle.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Lux_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3007,
+        "path": "life/alive/action/moving",
+        "actionId": "moving.play",
+        "action": {
+          "id": "moving.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Walk",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3007,
+        "path": "life/alive/action/controlled",
+        "actionId": "controlled.play",
+        "action": {
+          "id": "controlled.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Lux_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3007,
+        "path": "life/alive/action/orb.flight",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Lux_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3007,
+        "path": "life/alive/action/orb.deployed",
+        "actionId": "pose.play",
+        "action": {
+          "id": "pose.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Lux_Model_Idle",
+          "loop": true
+        }
+      },
+      {
+        "entityCode": 3007,
+        "skillId": 30070101,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Lux_Model_AutoAttack",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3007,
+        "skillId": 30070201,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Lux_Model_SpellQ",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3007,
+        "skillId": 30070301,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Lux_Model_SpellW",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3007,
+        "skillId": 30070401,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Lux_Model_SpellE",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3007,
+        "skillId": 30070501,
+        "path": "life/alive/action/casting",
+        "actionId": "attack.phase",
+        "action": {
+          "id": "attack.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Lux_Model_SpellR",
+          "loop": false
+        }
+      },
+      {
+        "entityCode": 3007,
+        "path": "life/dead",
+        "actionId": "dead.play",
+        "action": {
+          "id": "dead.play",
+          "type": "play",
+          "modelId": 3007,
+          "animationKey": "Base Layer.Lux_Model_Death",
           "loop": false
         }
       }

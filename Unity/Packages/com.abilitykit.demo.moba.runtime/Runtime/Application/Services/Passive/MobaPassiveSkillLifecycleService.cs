@@ -11,6 +11,7 @@ using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Rollback;
+using AbilityKit.Triggering.Blackboard;
 
 namespace AbilityKit.Demo.Moba.Services.Passive
 {
@@ -45,6 +46,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
         private readonly MobaExecutionContextRegistry _executionContexts;
         private readonly IFrameTime _frameTime;
         private readonly MobaTriggerIntervalContinuousService _continuousProcesses;
+        [WorldInject] private IOwnerBlackboardStore _ownerBlackboards = null;
         private readonly Dictionary<int, HashSet<long>> _ownerKeysByActor = new Dictionary<int, HashSet<long>>();
         private readonly Dictionary<long, PassiveOwnerBinding> _passiveByOwnerKey = new Dictionary<long, PassiveOwnerBinding>();
 
@@ -348,6 +350,15 @@ namespace AbilityKit.Demo.Moba.Services.Passive
                 {
                     Log.Exception(ex, $"[MobaPassiveSkillLifecycleService] ExecutionContexts.End failed. ownedContextId={ownedContextId} frame={frame}");
                 }
+
+                try
+                {
+                    _ownerBlackboards?.Release(ownedContextId);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, $"[MobaPassiveSkillLifecycleService] Owner Blackboard release failed. ownerKey={ownedContextId}");
+                }
             }
         }
 
@@ -366,6 +377,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
                     actorId,
                     actorId,
                     frame: frame)).ContextId;
+                _ownerBlackboards?.Acquire(listener.SourceContextId);
             }
             catch (Exception ex)
             {

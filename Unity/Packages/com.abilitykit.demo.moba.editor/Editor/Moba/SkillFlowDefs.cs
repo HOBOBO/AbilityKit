@@ -22,6 +22,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         public int PipelineContinuousTagTemplateId;
         [MinValue(0)] public int ChildChannelId;
         [MinValue(0)] public int RecastChannelId;
+        public bool QueueRecastInFlight;
+        public bool ContinueThroughControl;
+        public bool PreserveCharacterCastContext;
+
         [MinValue(0)] public int RequiredBuffQualificationId;
 
         [SerializeReference]
@@ -47,6 +51,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 PipelineContinuousTagTemplateId = PipelineContinuousTagTemplateId,
                 ChildChannelId = ChildChannelId,
                 RecastChannelId = RecastChannelId,
+                QueueRecastInFlight = QueueRecastInFlight,
+                ContinueThroughControl = ContinueThroughControl,
+                PreserveCharacterCastContext = PreserveCharacterCastContext,
+
                 RequiredBuffQualificationId = RequiredBuffQualificationId,
                 Phases = ConvertPhases(Phases),
             };
@@ -66,6 +74,10 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 PipelineContinuousTagTemplateId = dto.PipelineContinuousTagTemplateId,
                 ChildChannelId = dto.ChildChannelId,
                 RecastChannelId = dto.RecastChannelId,
+                QueueRecastInFlight = dto.QueueRecastInFlight,
+                ContinueThroughControl = dto.ContinueThroughControl,
+                PreserveCharacterCastContext = dto.PreserveCharacterCastContext,
+
                 RequiredBuffQualificationId = dto.RequiredBuffQualificationId,
                 Phases = SkillPhaseDef.ConvertPhasesFromDto(dto.Phases),
             };

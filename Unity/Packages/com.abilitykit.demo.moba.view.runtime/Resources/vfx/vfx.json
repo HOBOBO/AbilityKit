@@ -528,5 +528,180 @@
     "Id": 90035016,
     "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_W_Cast",
     "DurationMs": 1000
+  },
+  {
+    "Id": 90036001,
+    "Resource": "ChampionVfx/11.Karthus_Project/Karthus_Project_AA_Hit",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90036002,
+    "Resource": "ChampionVfx/11.Karthus_Project/Karthus_Project_AA_Projectile",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90036003,
+    "Resource": "ChampionVfx/11.Karthus_Project/Karthus_Project_Death",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90036004,
+    "Resource": "ChampionVfx/11.Karthus_Project/Karthus_Project_E",
+    "DurationMs": 4000
+  },
+  {
+    "Id": 90036005,
+    "Resource": "moba/presentation/karthus/E_Aura",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90036006,
+    "Resource": "moba/presentation/karthus/Q_Warning",
+    "DurationMs": 750
+  },
+  {
+    "Id": 90036007,
+    "Resource": "ChampionVfx/11.Karthus_Project/Karthus_Project_Q_Cast",
+    "DurationMs": 500
+  },
+  {
+    "Id": 90036008,
+    "Resource": "moba/presentation/karthus/Q_Explosion",
+    "DurationMs": 1500
+  },
+  {
+    "Id": 90036009,
+    "Resource": "ChampionVfx/11.Karthus_Project/Karthus_Project_R",
+    "DurationMs": 6000
+  },
+  {
+    "Id": 90036010,
+    "Resource": "ChampionVfx/11.Karthus_Project/Karthus_Project_R_Cast",
+    "DurationMs": 3250
+  },
+  {
+    "Id": 90036011,
+    "Resource": "ChampionVfx/11.Karthus_Project/Karthus_Project_R_Channel",
+    "DurationMs": 3000
+  },
+  {
+    "Id": 90036012,
+    "Resource": "moba/presentation/karthus/R_Hit",
+    "DurationMs": 3500
+  },
+  {
+    "Id": 90036013,
+    "Resource": "moba/presentation/karthus/R_Warning",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90036014,
+    "Resource": "ChampionVfx/11.Karthus_Project/Karthus_Project_W",
+    "DurationMs": 5000
+  },
+  {
+    "Id": 90036015,
+    "Resource": "moba/presentation/karthus/W_Area",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90037001,
+    "Resource": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_AA_Hit",
+    "DurationMs": 1500
+  },
+  {
+    "Id": 90037002,
+    "Resource": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_AA_Projectile",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90037003,
+    "Resource": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_E",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90037004,
+    "Resource": "moba/presentation/lux/E_Charge",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90037005,
+    "Resource": "moba/presentation/lux/E_Explosion",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90037006,
+    "Resource": "moba/presentation/lux/E_Projectile",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90037007,
+    "Resource": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_Passive_Hit",
+    "DurationMs": 1600
+  },
+  {
+    "Id": 90037008,
+    "Resource": "moba/presentation/lux/Passive_Mark",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90037009,
+    "Resource": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_Q",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90037010,
+    "Resource": "moba/presentation/lux/Q_Cage",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90037011,
+    "Resource": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_Q_Hit",
+    "DurationMs": 1800
+  },
+  {
+    "Id": 90037012,
+    "Resource": "moba/presentation/lux/Q_Projectile",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90037013,
+    "Resource": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_R",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90037014,
+    "Resource": "moba/presentation/lux/R_Channel",
+    "DurationMs": 2500
+  },
+  {
+    "Id": 90037015,
+    "Resource": "moba/presentation/lux/R_Hit",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90037016,
+    "Resource": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_W",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90037017,
+    "Resource": "moba/presentation/lux/W_Projectile",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90037018,
+    "Resource": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_W_ShieldReturn",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90037019,
+    "Resource": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_W_ShieldUp",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90036016,
+    "Resource": "moba/presentation/karthus/W_Preview",
+    "DurationMs": 0
   }
 ]

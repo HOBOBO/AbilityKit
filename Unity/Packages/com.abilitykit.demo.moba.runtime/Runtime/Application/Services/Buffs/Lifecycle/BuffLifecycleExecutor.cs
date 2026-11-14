@@ -119,6 +119,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             {
                 var runtime = list[i];
                 if (!key.Matches(runtime)) continue;
+                if (request.ExpectedRuntimeContextId != 0 &&
+                    (runtime.RuntimeContextId != request.ExpectedRuntimeContextId ||
+                     runtime.RuntimeContextVersion != request.ExpectedRuntimeContextVersion)) continue;
 
                 removed |= EndRuntime(target, list, i, runtime, request.SourceActorId > 0 ? request.SourceActorId : runtime.SourceId, normalizedReason);
             }
