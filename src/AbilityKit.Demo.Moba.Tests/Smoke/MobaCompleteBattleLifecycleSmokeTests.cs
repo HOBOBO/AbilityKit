@@ -18,7 +18,9 @@ using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Events.Unit;
 using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Config;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Console.Bootstrap;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
@@ -139,6 +141,64 @@ public sealed class MobaCompleteBattleLifecycleSmokeTests
         Assert.True(waves.ActiveCount > 0);
         Assert.True(observedRangedAttack, "Ranged minions should enter range and emit their attack event.");
         Assert.True(observedProjectile, "Ranged attacks should use the authoritative projectile actor/link lifecycle.");
+    }
+
+    [Fact]
+    public void Battle_rollback_restores_projectile_link_for_next_tick_consumer()
+    {
+        using var bootstrapper = CreateLaneBattle();
+        bootstrapper.Initialize();
+        bootstrapper.Start();
+        for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();
+        bootstrapper.SetupBattle();
+
+        var services = bootstrapper.RuntimeServices!;
+        var links = services.Resolve<AbilityKit.Demo.Moba.Services.Projectile.MobaProjectileLinkService>();
+        var projectiles = services.Resolve<IProjectileService>();
+        var actors = services.Resolve<MobaActorRegistry>();
+        var diagnostics = new List<AbilityKit.Demo.Moba.Services.Projectile.MobaProjectileLinkDiagnostics>();
+        var projectileId = default(ProjectileId);
+        var projectileActorId = 0;
+
+        for (var frame = 0; frame < 1200 && projectileActorId == 0; frame++)
+        {
+            bootstrapper.Tick();
+            diagnostics.Clear();
+            links.CopyDiagnosticsTo(diagnostics);
+            foreach (var entry in diagnostics)
+            {
+                if (!projectiles.TryGetRuntimeState(entry.ProjectileId, out var state)) continue;
+                if (state.SpawnFrame != bootstrapper.Context.LastFrame) continue;
+                if (!actors.TryGet(entry.ActorId, out var actor) || actor == null || !actor.isFlyingProjectileTag) continue;
+                projectileId = entry.ProjectileId;
+                projectileActorId = entry.ActorId;
+                break;
+            }
+        }
+
+        Assert.True(projectileActorId > 0, "A production ranged minion projectile was not observed.");
+        Assert.True(projectileId.Value > 0);
+
+        var runtimeWorld = (AbilityKit.Ability.World.Abstractions.IWorld)typeof(ConsoleBattleBootstrapper)
+            .GetField("_runtimeWorld", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(bootstrapper)!;
+        var registry = MobaRollbackRegistryBuilder.Create(runtimeWorld);
+        var coordinator = new RollbackCoordinator(registry, new RollbackSnapshotRingBuffer(4));
+        var checkpoint = new FrameIndex(bootstrapper.Context.LastFrame);
+        Assert.True(coordinator.CaptureAndStore(checkpoint));
+
+        links.UnlinkByProjectileId(projectileId);
+        Assert.False(links.TryGetActorId(projectileId, out _));
+
+        Assert.True(bootstrapper.TryRestoreSimulationFrame(coordinator, checkpoint, out var restoreResult), restoreResult.ToString());
+        Assert.True(links.TryGetActorId(projectileId, out var restoredActorId));
+        Assert.Equal(projectileActorId, restoredActorId);
+
+        bootstrapper.Tick(0.0001f);
+
+        Assert.True(projectiles.TryGetRuntimeState(projectileId, out _), "The target-frame physical projectile was consumed before the next tick.");
+        Assert.True(links.TryGetActorId(projectileId, out restoredActorId));
+        Assert.Equal(projectileActorId, restoredActorId);
     }
 
     [Theory]

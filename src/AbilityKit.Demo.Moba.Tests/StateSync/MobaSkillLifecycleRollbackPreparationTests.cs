@@ -3,6 +3,7 @@ using System.Text;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Continuous;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.Core;
@@ -14,6 +15,8 @@ using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.Demo.Moba.Services.Buffs.Tagging;
+using AbilityKit.Demo.Moba.Services.Area;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.GameplayTags;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Modifiers;
@@ -147,6 +150,72 @@ public sealed class MobaSkillLifecycleRollbackPreparationTests : IDisposable
         _preparation.Commit(_preparation.Prepare(_frame, baseline));
         Assert.Equal(baseline, _preparation.Capture(_frame));
         Assert.Empty(events);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(15)]
+    public void Area_expire_rollback_restores_metadata_delay_state_and_discards_pending_events(int claimMask)
+    {
+        var baseline = _preparation.Capture(_frame);
+        var spawned = SpawnTestArea(76001, claimMask);
+        var area = spawned.Service;
+        var due = new List<MobaAreaRuntimeInfo>();
+        Assert.Equal(1, area.CollectDueDelayAreas(_frame.Value, due));
+        var checkpoint = _preparation.Capture(_frame);
+
+        Assert.True(area.Unregister(new AreaId(76001)));
+        Assert.Equal(0, area.ActiveCount);
+        _preparation.Commit(_preparation.Prepare(_frame, checkpoint));
+
+        Assert.True(area.TryGetArea(76001, out var restored));
+        Assert.Equal(76001, restored.AreaId);
+        Assert.Equal(4001, restored.TemplateId);
+        Assert.Equal(1, restored.OwnerActorId);
+        Assert.Equal(claimMask, restored.ClaimUnitSubTypeMask);
+        var ownerAreas = new List<MobaAreaRuntimeInfo>();
+        Assert.True(area.TryGetAreas(ownerAreas, ownerActorId: 1));
+        Assert.Single(ownerAreas);
+        var templateAreas = new List<MobaAreaRuntimeInfo>();
+        Assert.True(area.TryGetAreas(templateAreas, templateId: 4001));
+        Assert.Single(templateAreas);
+        var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Area, 76001,
+            restored.SourceContextId, restored.TemplateId);
+        Assert.True(Get<MobaSkillCastRuntimeService>().TryFindRetain(spawned.SkillHandle, in child, out var restoredRetain));
+        Assert.Equal(spawned.RetainId, restoredRetain.RetainId);
+        Assert.True(Get<MobaSkillCastRuntimeService>().TryGet(in spawned.SkillHandle, out _));
+        due.Clear();
+        Assert.Equal(0, area.CollectDueDelayAreas(_frame.Value, due));
+        Assert.Empty(due);
+        var events = new List<MobaAreaEventSnapshotEntry>();
+        Assert.Equal(0, area.DrainPresentationEvents(events));
+        Assert.Equal(checkpoint, _preparation.Capture(_frame));
+
+        _preparation.Commit(_preparation.Prepare(_frame, baseline));
+        Assert.False(area.TryGetArea(76001, out _));
+        Assert.False(area.TryGetAreas(ownerAreas, ownerActorId: 1));
+        Assert.Equal(baseline, _preparation.Capture(_frame));
+    }
+
+    [Fact]
+    public void Area_restore_failure_compensates_the_previous_area_state()
+    {
+        var spawned = SpawnTestArea(76002);
+        var area = spawned.Service;
+        var target = _preparation.Capture(_frame);
+        Assert.True(area.Unregister(new AreaId(76002)));
+        var current = _preparation.Capture(_frame);
+        _preparation.RestoreStageCompleted = (stage, compensating) =>
+        {
+            if (!compensating && stage == MobaLifecycleRestoreStage.AreaRestored)
+                throw new InvalidOperationException("injected Area restore failure");
+        };
+
+        Assert.Throws<InvalidOperationException>(() => _preparation.Commit(_preparation.Prepare(_frame, target)));
+
+        Assert.False(area.TryGetArea(76002, out _));
+        Assert.Equal(current, _preparation.Capture(_frame));
+        _preparation.RestoreStageCompleted = null;
     }
 
     [Theory]
@@ -428,6 +497,46 @@ public sealed class MobaSkillLifecycleRollbackPreparationTests : IDisposable
     }
 
     [Theory]
+    [InlineData("duplicate-area")]
+    [InlineData("missing-area-source")]
+    [InlineData("missing-area-retain")]
+    [InlineData("duplicate-delay")]
+    [InlineData("invalid-claim-mask")]
+    public void Corrupt_area_checkpoint_is_rejected_before_world_import(string change)
+    {
+        var spawned = SpawnTestArea(76003);
+        var snapshot = _preparation.Capture(_frame);
+        var envelope = Decode(snapshot);
+        var areaSection = Find(envelope, "areas");
+        var areas = MobaSkillLifecycleCheckpointCodec.Decode<MobaAreaRuntimeRollbackCheckpoint>(areaSection.Payload);
+        switch (change)
+        {
+            case "invalid-claim-mask":
+                areas.Areas[0].ClaimUnitSubTypeMask = 128;
+                break;
+            case "duplicate-area":
+                areas.Areas = areas.Areas.Concat(new[] { areas.Areas[0] }).ToArray();
+                break;
+            case "missing-area-source":
+                areas.Areas[0].SourceContextId = long.MaxValue;
+                break;
+            case "missing-area-retain":
+                areas.Areas[0].SkillRuntimeId = long.MaxValue;
+                break;
+            case "duplicate-delay":
+                areas.DelayedAreaIds = new[] { areas.Areas[0].AreaId, areas.Areas[0].AreaId };
+                break;
+        }
+        areaSection.Payload = MobaSkillLifecycleCheckpointCodec.Encode(areas);
+        var current = _preparation.Capture(_frame);
+
+        Assert.ThrowsAny<Exception>(() => _preparation.Prepare(_frame, MobaSkillLifecycleCheckpointCodec.Encode(envelope)));
+
+        Assert.Equal(current, _preparation.Capture(_frame));
+        Assert.True(spawned.Service.TryGetArea(76003, out _));
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void Ordinary_continuous_membership_stays_strict(bool remove)
@@ -521,6 +630,48 @@ public sealed class MobaSkillLifecycleRollbackPreparationTests : IDisposable
         Assert.True(new BuffContinuousBindingService(Get<MobaContinuousManager>(), Get<IMobaEffectiveTagQueryService>())
             .EnsureActive(buff, config, sourceId, targetId, 10, requirements));
         return buff;
+    }
+
+    [Fact]
+    public void Legacy_area_checkpoint_without_claim_mask_restores_hero_only_default()
+    {
+        var spawned = SpawnTestArea(76004);
+        var snapshot = _preparation.Capture(_frame);
+        var envelope = Decode(snapshot);
+        var section = Find(envelope, "areas");
+        var json = JObject.Parse(Encoding.UTF8.GetString(section.Payload));
+        foreach (var area in (JArray)json["Areas"]!) ((JObject)area).Remove("ClaimUnitSubTypeMask");
+        section.Payload = Encoding.UTF8.GetBytes(json.ToString(Newtonsoft.Json.Formatting.None));
+        Assert.True(spawned.Service.Unregister(new AreaId(76004)));
+        _preparation.Commit(_preparation.Prepare(_frame, MobaSkillLifecycleCheckpointCodec.Encode(envelope)));
+        Assert.True(spawned.Service.TryGetArea(76004, out var restored));
+        Assert.Equal(0, restored.ClaimUnitSubTypeMask);
+        Assert.True(MobaAreaClaimQualification.Allows(restored.ClaimUnitSubTypeMask, UnitSubType.Hero));
+        Assert.False(MobaAreaClaimQualification.Allows(restored.ClaimUnitSubTypeMask, UnitSubType.Minion));
+        Assert.Equal(snapshot, _preparation.Capture(_frame));
+    }
+
+    private (MobaAreaRuntimeService Service, MobaSkillCastRuntimeHandle SkillHandle, long RetainId) SpawnTestArea(int areaId, int claimMask = 0)
+    {
+        var contexts = Get<MobaExecutionContextRegistry>();
+        const int skillId = 10010101;
+        var skillRoot = contexts.Create(new MobaExecutionContextCreateRequest(
+            MobaExecutionKind.SkillCast, skillId, 1, 0, frame: _frame.Value));
+        var skills = Get<MobaSkillCastRuntimeService>();
+        var skill = skills.Create(new MobaSkillCastRuntimeCreateRequest(skillId, 1, 1, 1,
+            1, 0, Vec3.Zero, Vec3.Forward, skillRoot.ContextId));
+        var source = contexts.Create(new MobaExecutionContextCreateRequest(
+            MobaExecutionKind.AreaSpawn, 4001, 1, 0, parentContextId: skillRoot.ContextId,
+            rootContextId: skillRoot.ContextId, ownerContextId: skillRoot.ContextId, frame: _frame.Value));
+        var area = Get<MobaAreaRuntimeService>();
+        area.RegisterSpawn(new AreaId(areaId), 4001, 1, Vec3.Zero, 3f, -1, 0,
+            _frame.Value, 0, source.ContextId, source.RootContextId, source.OwnerContextId, skill.Handle,
+            groupKey: 1, claimTargetsWithinGroup: true, claimUnitSubTypeMask: claimMask);
+        var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Area,
+            areaId, source.ContextId, 4001);
+        Assert.True(skills.TryFindRetain(skill.Handle, in child, out var retain));
+        Assert.True(skills.MarkPipelineEnded(skill.RuntimeId, MobaSkillRuntimeEndReason.PipelineCompleted));
+        return (area, skill.Handle, retain.RetainId);
     }
 
     private void RemoveBuff(int targetId, BuffRuntime buff)

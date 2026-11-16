@@ -404,7 +404,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (request.Launcher == null) { result = MobaProjectileLaunchResult.Failed("Launcher config is null"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
             if (request.Projectile == null) { result = MobaProjectileLaunchResult.Failed("Projectile config is null"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
             if (!request.Projectile.TryResolveRuntimeSettings(out var hitPolicyKind,
-                    out var hitPolicyParam, out var hitsRemaining, out var hitPolicyError))
+                    out var hitPolicyParam, out var hitsRemaining, out var hitPolicyError, request.TrackTarget))
             {
                 result = MobaProjectileLaunchResult.Failed($"Projectile hit policy configuration is invalid. projectileId={request.Projectile.Id} error={hitPolicyError}");
                 Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}");

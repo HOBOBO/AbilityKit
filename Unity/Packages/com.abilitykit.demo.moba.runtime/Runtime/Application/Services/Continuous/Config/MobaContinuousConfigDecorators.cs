@@ -135,6 +135,13 @@ namespace AbilityKit.Demo.Moba.Services
         int CandidateReferenceId { get; }
     }
 
+    public interface IMobaContinuousStackStepSpec
+    {
+        int StackStepSize { get; }
+        float StackStepDelta { get; }
+        float StackValueMin { get; }
+    }
+
     public interface IMobaContinuousFormulaSpec
     {
         bool HasFormula { get; }
@@ -165,6 +172,20 @@ namespace AbilityKit.Demo.Moba.Services
                 throw new System.InvalidOperationException($"Modifier {spec.TargetKind}:{spec.TargetId} has an unknown evaluation policy {spec.EvaluationPolicy}.");
 
             var magnitude = spec.Magnitude;
+            if (spec is IMobaContinuousStackStepSpec step)
+            {
+                if (step.StackStepSize < 0 || float.IsNaN(step.StackStepDelta) || float.IsInfinity(step.StackStepDelta) ||
+                    float.IsNaN(step.StackValueMin) || float.IsInfinity(step.StackValueMin))
+                    throw new System.InvalidOperationException("Stack step values must be finite with a nonnegative step size.");
+                if (step.StackStepSize > 0 &&
+                    (spec.TargetKind != MobaContinuousModifierTargetKind.SkillParameter ||
+                     magnitude.Type != MagnitudeSourceType.Fixed || spec.Op != 1 ||
+                     spec.EvaluationPolicy != MobaContinuousModifierEvaluationPolicy.Realtime ||
+                     step.StackValueMin < 0 || magnitude.BaseValue < step.StackValueMin))
+                    throw new System.InvalidOperationException("Stack step mapping requires a realtime fixed SkillParameter multiplier and a valid lower bound.");
+                if (step.StackStepSize == 0 && (step.StackStepDelta != 0 || step.StackValueMin != 0))
+                    throw new System.InvalidOperationException("Disabled stack mapping cannot carry step values.");
+            }
             MobaContinuousCastMagnitude.Validate(spec);
             if (magnitude.Type == MagnitudeSourceType.Attribute)
             {

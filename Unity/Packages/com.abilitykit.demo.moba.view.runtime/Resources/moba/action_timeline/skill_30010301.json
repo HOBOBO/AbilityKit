@@ -1,29 +1,6 @@
 {
   "groups": [
     {
-      "name": "JhinCaptiveAudience",
-      "ActorId": 0,
-      "active": true,
-      "tracks": [
-        {
-          "name": "CastPresentation",
-          "active": true,
-          "actionClips": [
-            {
-              "resourceKey": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E",
-              "resPath": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E.prefab",
-              "startTime": 0.0,
-              "length": 1.6,
-              "name": "PlayParticle",
-              "presentationTemplateId": 90013003,
-              "$type": "AbilityKit.ActionEditorImpl.PlayParticle"
-            }
-          ],
-          "$type": "AbilityKit.ActionEditorImpl.EffectTrack"
-        }
-      ]
-    },
-    {
       "name": "Logic_30010301",
       "ActorId": 0,
       "active": true,

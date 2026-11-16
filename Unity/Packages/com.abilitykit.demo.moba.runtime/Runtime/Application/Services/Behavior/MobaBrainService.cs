@@ -35,6 +35,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private IMobaTagResultQueryService _tagResults;
         [WorldInject(required: false)] private IMobaTagBehaviorGateQueryService _tagGates;
         [WorldInject(required: false)] private IMobaEffectiveTagQueryService _effectiveTags;
+        [WorldInject(required: false)] private MobaCombatRulesService _combatRules;
         [WorldInject(required: false)] private MobaSkillLoadoutService _skillLoadout;
         [WorldInject(required: false)] private IWorldRandom _worldRandom;
 
@@ -70,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services
             _decisionDrivers = decisionDrivers ?? MobaBrainDecisionDriverRegistry.CreateDefault();
             _stateMachineProfiles = stateMachineProfiles;
             _worldQuery = new MobaWorldQuery(
-                new MobaBrainEntityManager(registry),
+                new MobaBrainEntityManager(registry, actorId => _combatRules == null || _combatRules.CanTurn(actorId)),
                 new MobaBrainBuffManager(registry, () => _effectiveTags),
                 new MobaBrainAttributeSystem(registry),
                 allowMutations: false,

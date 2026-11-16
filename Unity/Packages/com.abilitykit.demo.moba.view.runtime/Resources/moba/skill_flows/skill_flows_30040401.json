@@ -2,6 +2,12 @@
   "Id": 30040401,
   "Name": "Veigar - Event Horizon",
   "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": false,
+  "RequiredBuffQualificationId": 0,
   "Phases": [
     {
       "Type": 19,
@@ -55,6 +61,7 @@
       "PhaseId": "veigar_e_cast",
       "Timeline": {
         "DurationMs": 2084,
+        "RecoveryStartMs": 250,
         "Events": [
           {
             "AtMs": 0,

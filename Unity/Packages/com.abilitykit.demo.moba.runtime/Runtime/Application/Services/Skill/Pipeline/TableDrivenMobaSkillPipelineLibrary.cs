@@ -271,7 +271,7 @@ namespace AbilityKit.Demo.Moba.Services
                         throw new InvalidOperationException($"Timeline skill phase requires timeline config. phaseId={MakePhaseId(phase, timelinePhaseId.Value).Value}");
                     }
                     var events = ToArray(phase.Timeline.Events);
-                    return new TimelinePhaseDefinition(MakePhaseId(phase, timelinePhaseId.Value), phase.Timeline.DurationMs, events, _effects);
+                    return new TimelinePhaseDefinition(MakePhaseId(phase, timelinePhaseId.Value), phase.Timeline.DurationMs, events, _effects, phase.Timeline.RecoveryStartMs);
                 case SkillPhaseType.Handlers:
                     throw new InvalidOperationException($"Skill Handlers phase is deprecated. Use RulePlan trigger actions instead. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
                 case SkillPhaseType.RulePlan:
@@ -481,17 +481,20 @@ namespace AbilityKit.Demo.Moba.Services
             private readonly SkillTimelineEventDTO[] _events;
             private readonly MobaEffectInvokerService _effects;
 
-            public TimelinePhaseDefinition(AbilityPipelinePhaseId phaseId, int durationMs, SkillTimelineEventDTO[] events, MobaEffectInvokerService effects)
+            private readonly int _recoveryStartMs;
+
+            public TimelinePhaseDefinition(AbilityPipelinePhaseId phaseId, int durationMs, SkillTimelineEventDTO[] events, MobaEffectInvokerService effects, int recoveryStartMs)
                 : base(phaseId)
             {
                 _durationMs = durationMs;
                 _events = events;
                 _effects = effects;
+                _recoveryStartMs = recoveryStartMs;
             }
 
             public override IAbilityPipelinePhase<SkillPipelineContext> CreatePhase()
             {
-                return new SkillTimelinePhase(PhaseId, _durationMs, _events, _effects);
+                return new SkillTimelinePhase(PhaseId, _durationMs, _events, _effects, _recoveryStartMs);
             }
         }
 

@@ -140,6 +140,13 @@ namespace AbilityKit.Combat.Navigation
                 waypoints = Simplify(grid, waypoints, cells);
             }
 
+            // A replanned path starts at the actor, not at the center of its current cell.
+            // Returning that center can send a moving actor backwards on every replan.
+            grid.WorldToCell(in startWorld, out var actualStartX, out var actualStartZ);
+            if (waypoints.Length > 1 && grid.IsInBounds(actualStartX, actualStartZ) &&
+                !grid.IsBlocked(actualStartX, actualStartZ))
+                waypoints[0] = startWorld;
+
             // Found 时把末点替换为精确目标，使 actor 正好停在请求点。
             if (status == PathStatus.Found && waypoints.Length > 0)
             {

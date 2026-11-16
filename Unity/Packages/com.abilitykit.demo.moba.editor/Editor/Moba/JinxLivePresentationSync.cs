@@ -20,7 +20,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Adapt("AA_Rocket_Projectile", "AA_Rocket_Projectile");
             Adapt("E_Activation_center", "E_Trap");
             Adapt("W", "W_Projectile", true);
-            Adapt("R_Projectile", "R_Projectile");
+            Adapt("R_Projectile", "R_Projectile", particleSizeScale: 3f);
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
             foreach (var id in new[] { 30020201, 30020301, 30020401 })
             {
@@ -44,6 +44,14 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Debug.Log("[JinxLivePresentationSync] Minigun projectile resource published.");
         }
 
+        public static void PublishRProjectileResource()
+        {
+            Directory.CreateDirectory(Destination);
+            Adapt("R_Projectile", "R_Projectile", particleSizeScale: 3f);
+            AssetDatabase.SaveAssets();
+            Debug.Log("[JinxLivePresentationSync] R projectile resource published.");
+        }
+
         private static void Adapt(string source, string destination, bool bolt = false, float particleSizeScale = 1f)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Source + source + ".prefab")
@@ -58,6 +66,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 // or flight anchor. The source showcase uses a much closer camera.
                 foreach (var system in instance.GetComponentsInChildren<ParticleSystem>(true))
                 {
+                    // Keep the ground footprint at its authored size while making
+                    // the moving core/trail readable above the gameplay floor.
+                    if (system.name == "PS_Missile_GlowGround") continue;
                     var main = system.main;
                     if (main.startSize3D)
                     {
@@ -96,7 +107,26 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     // projectile/area now supplies that position, so apply it once.
                     branch.localPosition = new Vector3(0f, branch.localPosition.y, 0f);
                     if (destination == "R_Projectile")
+                    {
                         branch.localPosition = Vector3.up * 0.8f;
+                        // The extracted showcase uses a 0.2 m emitter anchor.
+                        // Match the missile's readability to the gameplay camera
+                        // without scaling its flight height or gameplay collider.
+                        branch.localScale *= 3f;
+                        // This source's MeshRenderer is an untextured built-in
+                        // sphere used as an emitter carrier, not the missile art.
+                        foreach (var renderer in branch.GetComponentsInChildren<MeshRenderer>(true))
+                            renderer.enabled = false;
+                        foreach (var system in branch.GetComponentsInChildren<ParticleSystem>(true))
+                        {
+                            if (system.name != "PS_Missile_GlowGround") continue;
+                            var main = system.main;
+                            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+                            var ground = system.transform.position;
+                            ground.y = instance.transform.position.y + 0.05f;
+                            system.transform.position = ground;
+                        }
+                    }
                     if (bolt)
                     {
                         branch.localPosition = new Vector3(0f, 0.8f, 0f);

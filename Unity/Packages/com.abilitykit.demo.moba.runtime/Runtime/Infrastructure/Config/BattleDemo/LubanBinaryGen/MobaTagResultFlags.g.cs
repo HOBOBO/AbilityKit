@@ -15,5 +15,6 @@ namespace AbilityKit.Demo.Moba.Services
         ControlImmune = 1UL << 5,
         CannotBeControlled = 1UL << 6,
         CannotAttack = 1UL << 7,
+        CannotTurn = 1UL << 8,
     }
 }

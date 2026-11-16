@@ -30,7 +30,8 @@
         "IgnoreResourceCostCheck": false,
         "IgnoreResourceConsumption": false,
         "RefundBeforeCommit": true,
-        "RequireExplicitCommit": true
+        "RequireExplicitCommit": true,
+        "FailReason": ""
       }
     },
     {

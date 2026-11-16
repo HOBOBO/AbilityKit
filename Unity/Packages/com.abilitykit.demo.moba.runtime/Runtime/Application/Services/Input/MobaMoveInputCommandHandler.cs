@@ -64,6 +64,8 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
+            if (intent.MoveX != 0f || intent.MoveZ != 0f)
+                context.Skills?.TryFinishRecoveryForMovement(actorId);
             if (!entity.hasMoveInput) entity.AddMoveInput(intent.MoveX, intent.MoveZ);
             else entity.ReplaceMoveInput(intent.MoveX, intent.MoveZ);
 

@@ -172,6 +172,42 @@ public sealed class MobaShieldChangeEventTests
     }
 
     [Fact]
+    public void Shared_pool_rollback_restores_members_balance_and_actor_bindings()
+    {
+        var actors = new MobaActorRegistry();
+        var actor41 = new ActorContext().CreateEntity(); actor41.AddActorId(41); actors.Register(41, actor41);
+        var actor42 = new ActorContext().CreateEntity(); actor42.AddActorId(42); actors.Register(42, actor42);
+        var service = new MobaShieldService();
+        var template = CreateLayer(40, ShieldStackingPolicy.Independent);
+        template.SharePolicy = ShieldSharePolicy.SharedTotalPool;
+        var firstBinding = service.AddSharedShield(new[] { 41, 42 }, template);
+        var poolId = service.GetSharedPoolIdForActor(41);
+        var provider = new MobaShieldRollbackProvider(actors, service);
+        var checkpoint = provider.Export(new FrameIndex(10));
+
+        var attack = new AttackInfo { TargetActorId = 41, DamageType = DamageType.True };
+        Assert.Equal(12, service.Absorb(attack, 12));
+        Assert.True(service.LeaveSharedPool(poolId, 42, 11));
+        Assert.Equal(28, service.GetPresentationSnapshot(41).TotalVisibleValue);
+        Assert.Equal(0, service.GetPresentationSnapshot(42).TotalVisibleValue);
+
+        provider.Import(new FrameIndex(10), checkpoint);
+
+        Assert.True(firstBinding > 0);
+        Assert.True(service.TryGetSharedPool(poolId, out var restoredPool));
+        Assert.Equal(40, restoredPool.CurrentValue);
+        Assert.Equal(2, restoredPool.ActiveMemberCount);
+        Assert.Equal(poolId, service.GetSharedPoolIdForActor(41));
+        Assert.Equal(poolId, service.GetSharedPoolIdForActor(42));
+        Assert.Equal(40, service.GetPresentationSnapshot(41).TotalVisibleValue);
+        Assert.Equal(40, service.GetPresentationSnapshot(42).TotalVisibleValue);
+
+        Assert.Equal(10, service.Absorb(new AttackInfo { TargetActorId = 42, DamageType = DamageType.True }, 10));
+        Assert.Equal(30, service.GetPresentationSnapshot(41).TotalVisibleValue);
+        Assert.Equal(30, service.GetPresentationSnapshot(42).TotalVisibleValue);
+    }
+
+    [Fact]
     public void Rollback_correction_reports_visible_state_difference_after_restore()
     {
         var service = new MobaShieldService();

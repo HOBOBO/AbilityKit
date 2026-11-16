@@ -21,6 +21,16 @@ namespace AbilityKit.Ability.FrameSync.Rollback
     }
 
     /// <summary>
+    /// Optional read-only validation hook for invariants spanning multiple provider payloads.
+    /// The coordinator invokes this hook for every provider before the first provider import.
+    /// Implementations must not mutate runtime state or retain the context after the call.
+    /// </summary>
+    public interface IRollbackSnapshotPreflightProvider
+    {
+        void ValidateSnapshot(RollbackSnapshotPreflightContext context);
+    }
+
+    /// <summary>
     /// Marker for providers that restore object existence and structural relationships. After all
     /// providers pass preflight, the coordinator imports these providers before field-state providers.
     /// </summary>

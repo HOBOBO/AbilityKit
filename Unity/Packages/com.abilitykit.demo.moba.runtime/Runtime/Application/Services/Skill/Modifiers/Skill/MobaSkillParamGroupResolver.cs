@@ -32,6 +32,14 @@ namespace AbilityKit.Demo.Moba.Services
                 MobaSkillParamModifierKeys.Skill.CastRange, range, in record);
         }
 
+        public float ResolveCooldownCommitFactor(int actorId, in MobaParameterRecord record)
+        {
+            if (record.Stage != MobaParameterStage.CastCommit)
+                throw new System.ArgumentException("Commit cooldown factor requires CastCommit stage.", nameof(record));
+            return _service.ResolveFloat(MobaModifierOwnerRef.Actor(actorId),
+                MobaSkillParamModifierKeys.Skill.CooldownCommitFactor, 1f, in record);
+        }
+
         private static void RequireCastPrepare(in MobaParameterRecord record)
         {
             if (record.Stage != MobaParameterStage.CastPrepare)

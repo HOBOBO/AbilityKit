@@ -30,6 +30,8 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public ulong ExecutionBlockedResultMask;
     }
 
+    public enum PointRangePolicy { Legacy = 0, ClampToResolvedRange = 1 }
+
     [Serializable]
     public sealed class SkillButtonTemplateDTO
     {
@@ -47,6 +49,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
 
         public int UsePointMode;
         public float SelectRange;
+        public PointRangePolicy PointRangePolicy;
         public bool FaceToAim;
 
         // ---- Extended geometry fields (Sector / Dash / LockProjectile / Fan / SelfCircle) ----
@@ -95,6 +98,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public bool QueueRecastInFlight;
         public bool ContinueThroughControl;
         public bool PreserveCharacterCastContext;
+        public bool UseCommitCooldownFactor;
 
         public int RequiredBuffQualificationId;
         public SkillPhaseDTO[] Phases;
@@ -312,6 +316,8 @@ namespace AbilityKit.Demo.Moba.Share.Config
     public sealed class SkillTimelinePhaseDTO
     {
         public int DurationMs;
+        // -1 disables handoff. Measured from this terminal timeline's own start.
+        public int RecoveryStartMs = -1;
         public SkillTimelineEventDTO[] Events;
     }
 
@@ -323,5 +329,38 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int ExecuteMode;
         public bool AbortOnFailure;
         public string EventTag;
+    }
+
+    public static class SkillRecoveryContract
+    {
+        // Initial scope deliberately allows only a terminal top-level Timeline.
+        // This proves that a handoff cannot skip later gameplay phases.
+        public static void Validate(SkillFlowDTO flow)
+        {
+            var phases = flow?.Phases;
+            if (phases == null) return;
+            for (var i = 0; i < phases.Length; i++)
+                ValidatePhase(phases[i], i == phases.Length - 1);
+        }
+
+        private static void ValidatePhase(SkillPhaseDTO phase, bool terminal)
+        {
+            if (phase == null) return;
+            var timeline = phase.Timeline;
+            if (timeline != null)
+            {
+                if (timeline.RecoveryStartMs < -1 || timeline.RecoveryStartMs >= 0 &&
+                    (!terminal || phase.Type != (int)SkillPhaseType.Timeline ||
+                     timeline.RecoveryStartMs >= timeline.DurationMs))
+                    throw new ArgumentException("Recovery requires a terminal top-level Timeline and an entry before its full end.");
+                if (timeline.RecoveryStartMs >= 0 && timeline.Events != null)
+                    foreach (var effect in timeline.Events)
+                        if (effect != null && effect.AtMs > timeline.RecoveryStartMs)
+                            throw new ArgumentException("Recovery cannot precede an unsubmitted Timeline effect.");
+            }
+            if (phase.Children != null)
+                foreach (var child in phase.Children) ValidatePhase(child, false);
+            if (phase.Repeat?.Phase != null) ValidatePhase(phase.Repeat.Phase, false);
+        }
     }
 }

@@ -58,7 +58,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 scale: 1f)) return false;
             if (!_presentation.TryPlay(in request, spec.FollowTarget, out var handle)) return false;
             if (retainLifecycle && spec.FollowTargetActorId > 0) _phaseHandles[spec.FollowTargetActorId] = handle;
-            if (spec.PlayProjectileSpawn) PlayProjectileSpawn(spec.VfxId, in handle);
+            if (spec.PlayProjectileSpawn) PlayProjectileSpawn(in handle);
             return true;
         }
 
@@ -106,7 +106,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _phaseHandles.Clear();
         }
 
-        private void PlayProjectileSpawn(int vfxId, in EC.IEntityId handle)
+        private void PlayProjectileSpawn(in EC.IEntityId handle)
         {
             if (!_world.IsAlive(handle)) return;
             var entity = _world.Wrap(handle);
@@ -121,36 +121,16 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 for (var parameterIndex = 0; parameterIndex < parameters.Length; parameterIndex++)
                 {
                     var parameter = parameters[parameterIndex];
-                    // W's character cast uses Spell_W, while its moving projectile prefab
-                    // owns a separate presentation controller with W_Shot/W_Beam triggers.
-                    // Trigger the projectile controller here so the authored shot particles
-                    // are enabled when the authoritative spawn snapshot is consumed.
-                    if (parameter.type != AnimatorControllerParameterType.Trigger ||
-                        (parameter.name != "ProjectileSpawn" && parameter.name != "Q_Shot" &&
-                         parameter.name != "W_Shot" && parameter.name != "W_Beam" &&
-                         parameter.name != "Spell_E")) continue;
+                    if (!IsProjectileSpawnTrigger(parameter.type, parameter.name)) continue;
                     animator.SetTrigger(parameter.nameHash);
                     break;
                 }
             }
-
-            if (vfxId == 90013001)
-            {
-                var missile = FindChild(view.GameObject.transform, "Grenade_Missile");
-                if (missile != null) missile.gameObject.SetActive(true);
-            }
         }
 
-        private static Transform FindChild(Transform root, string name)
+        internal static bool IsProjectileSpawnTrigger(AnimatorControllerParameterType type, string name)
         {
-            if (root == null) return null;
-            if (root.name == name) return root;
-            for (var i = 0; i < root.childCount; i++)
-            {
-                var found = FindChild(root.GetChild(i), name);
-                if (found != null) return found;
-            }
-            return null;
+            return type == AnimatorControllerParameterType.Trigger && name == "ProjectileSpawn";
         }
 
         public int StopFollowingActor(int projectileActorId)

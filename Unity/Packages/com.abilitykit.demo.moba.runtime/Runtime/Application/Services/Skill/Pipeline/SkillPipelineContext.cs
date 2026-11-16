@@ -510,7 +510,7 @@ namespace AbilityKit.Demo.Moba.Services
             return new SkillPipelineContextRollbackState(
                 _elapsedRaw, Frame, TargetActorId, AimPos, AimDir, CastSequence,
                 TimelineNextEventIndex, InputReleased, SkillCooldownMs, FailReason,
-                SourceContextId, DiagnosticCommandId, CastFlowId, ResolvedConfiguration,
+                SourceContextId, 0L, CastFlowId, ResolvedConfiguration,
                 IsAborted, StartTime, _characterModeId, _characterModePriority,
                 _characterModeOwnerId, _characterModeInstanceId, _hfsmParameterOwnerId, shared);
         }
@@ -528,7 +528,7 @@ namespace AbilityKit.Demo.Moba.Services
             SkillCooldownMs = state.SkillCooldownMs;
             FailReason = state.FailReason;
             SourceContextId = state.SourceContextId;
-            DiagnosticCommandId = state.DiagnosticCommandId;
+            DiagnosticCommandId = 0L; // Restored authority has no local diagnostic command association.
             CastFlowId = state.CastFlowId;
             ResolvedConfiguration = state.ResolvedConfiguration;
             var aimPos = state.AimPos;

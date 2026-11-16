@@ -62,11 +62,19 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 HasAny(namedArgs, "damage_min", "damagemin"),
                 HasAny(namedArgs, "damage_max", "damagemax"),
                 ReadFloat(namedArgs, ctx, 0f, "target_max_hp_ratio_coefficient"),
-                MobaEffectMagnitudeSchemaReader.ReadString(namedArgs, in ctx, "target_max_hp_ratio_skill_level_parameter"));
+                MobaEffectMagnitudeSchemaReader.ReadString(namedArgs, in ctx, "target_max_hp_ratio_skill_level_parameter"),
+                ReadFloat(namedArgs, ctx, 0f, "target_missing_hp_damage_scale_coefficient"),
+                ReadFloat(namedArgs, ctx, 0f, "target_missing_hp_damage_scale_max_bonus"));
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            foreach (var key in new[] { "target_missing_hp_damage_scale_coefficient", "target_missing_hp_damage_scale_max_bonus" })
+                if (HasAny(args, key) && (!TryReadConstantNumber(args, out var value, key) ||
+                    double.IsNaN(value) || double.IsInfinity(value) || value < 0))
+                { error = key + " must be a finite non-negative constant"; return false; }
+            if (HasAny(args, "target_missing_hp_damage_scale_coefficient") != HasAny(args, "target_missing_hp_damage_scale_max_bonus"))
+            { error = "missing HP damage scale requires both coefficient and max bonus"; return false; }
             if (!ValidateOptionalString(args, "target_max_hp_ratio_skill_level_parameter", out error, "target_max_hp_ratio_skill_level_parameter")) return false;
             if (HasAny(args, "target_max_hp_ratio_coefficient"))
             {

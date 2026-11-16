@@ -12,6 +12,7 @@ using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.Navigation;
+using AbilityKit.Demo.Moba.Input;
 
 namespace AbilityKit.Demo.Moba.Systems.Motion
 {
@@ -20,7 +21,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
     ///
     /// 执行顺序：BrainTick(决策) → BrainOutputApply → MotionLocomotionInput → <b>本系统</b> → MotionTick。
     ///
-    /// 直接读取脑决策输出 <c>behavior.Output.Movement.TargetPosition</c>，按 actor 持有
+    /// 通过 <c>MobaBrainIntentReader</c> 读取当前目标位置与停止距离，按 actor 持有
     /// <see cref="PathFollowerMotionSource"/>（group=Path、stacking=OverrideLowerPriority），
     /// 通过 <see cref="INavigationService"/> 规划路径并喂入移动管线，由 policy（Path 抑制 Locomotion）接管移动。
     ///
@@ -105,23 +106,31 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                     continue;
                 }
 
-                if (!_brains.TryGetBehavior(e.actorBrain.BehaviorInstanceId, out var behavior) || behavior == null) continue;
-                if (behavior.Phase != BehaviorPhase.Running) continue;
-
-                var movement = behavior.Output.Movement;
-                if (!movement.HasValue || !movement.Value.TargetPosition.HasValue)
+                if (!_brains.TryGetBehavior(e.actorBrain.BehaviorInstanceId, out var behavior) || behavior == null ||
+                    behavior.Phase != BehaviorPhase.Running)
                 {
                     CancelPath(actorId, motion.Pipeline);
                     continue;
                 }
 
-                // 无导航世界时让 BrainOutputApply 的直线 MoveInput 兜底。
-                if (navWorld == null) continue;
+                // Consume the same canonical intent as BrainOutputApply, including its stopping
+                // distance. A hold/cast/direction intent revokes the previous position path.
+                var intent = MobaBrainIntentReader.Read(behavior);
+                if (!intent.IsValid() || intent.MovementKind != MobaActorMovementIntentKind.TargetPosition ||
+                    navWorld == null)
+                {
+                    CancelPath(actorId, motion.Pipeline);
+                    continue;
+                }
 
-                var target = movement.Value.TargetPosition.Value;
+                var target = intent.MoveTarget;
                 var ownerPos = e.transform.Value.Position;
                 var speed = new MobaAttrs(e).MoveSpeed;
-                if (speed <= 0f) continue;
+                if (speed <= 0f || DistanceXZSquared(in ownerPos, in target) <= intent.MoveStopRange * intent.MoveStopRange)
+                {
+                    CancelPath(actorId, motion.Pipeline);
+                    continue;
+                }
 
                 var state = EnsureState(actorId);
 
@@ -208,6 +217,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
             pipeline?.RemoveSource(state.Source);
             PathFollowerMotionSource.Release(state.Source);
             state.Source = null;
+            state.Waypoints = null;
         }
 
         private void SweepStale()

@@ -7,6 +7,31 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class JinxVfxVisibilityTests
     {
+        [Test]
+        public void R_FlyingCoreRendersWithoutGroundGlowOrShowcaseCarrier()
+        {
+            var prefab = Resources.Load<GameObject>("MobaVfx/Jinx/R_Projectile");
+            Assert.IsNotNull(prefab);
+            var instance = Object.Instantiate(prefab);
+            try
+            {
+                foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
+                    Assert.IsFalse(renderer.enabled, "The extracted untextured sphere is not missile art.");
+                foreach (var system in instance.GetComponentsInChildren<ParticleSystem>(true))
+                {
+                    if (system.name != "PS_Missile_GlowGround") continue;
+                    Assert.AreEqual(ParticleSystemSimulationSpace.Local, system.main.simulationSpace,
+                        "Ground glow must travel with the missile instead of lingering at the muzzle.");
+                    Assert.AreEqual(0.05f, system.transform.position.y, 0.001f);
+                    system.gameObject.SetActive(false);
+                }
+                if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+                    Assert.Ignore("Flying-core visibility requires a graphics device.");
+                CaptureVisibleResource(instance, "R_FlightCore_Projectile");
+            }
+            finally { Object.DestroyImmediate(instance); }
+        }
+
         [TestCase("AA_Minigun_Projectile")]
         [TestCase("AA_Rocket_Projectile")]
         [TestCase("E_Trap")]
@@ -78,7 +103,13 @@ namespace AbilityKit.Game.Test.UnitTest
                     texture.Apply();
                     var visible = texture.GetPixels32();
                     var contribution = 0;
-                    for (var i = 0; i < visible.Length; i++) if (!visible[i].Equals(hidden[i])) contribution++;
+                    for (var i = 0; i < visible.Length; i++)
+                    {
+                        var delta = System.Math.Abs(visible[i].r - hidden[i].r) +
+                            System.Math.Abs(visible[i].g - hidden[i].g) +
+                            System.Math.Abs(visible[i].b - hidden[i].b);
+                        if (delta > 24) contribution++;
+                    }
                     TestContext.WriteLine($"{suffix}: time={time}, rendered pixels={contribution}");
                     if (suffix.EndsWith("_Projectile") && time >= 1f)
                         Assert.Greater(contribution, 20,

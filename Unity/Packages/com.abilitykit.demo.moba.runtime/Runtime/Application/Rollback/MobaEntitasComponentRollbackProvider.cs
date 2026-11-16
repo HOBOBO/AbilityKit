@@ -12,6 +12,10 @@ namespace AbilityKit.Demo.Moba.Rollback
     public sealed class MobaEntitasComponentRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider
     {
         public const int DefaultKey = 10018;
+        private const int ComponentMetadataMagic = 0x4D434D31;
+        private const byte FlyingProjectileFlag = 1;
+        private const byte ProjectileLauncherFlag = 2;
+        private const byte SummonMetaFlag = 4;
         private readonly global::ActorContext _context;
         private readonly bool _allowMissingActorsRestoredByCommands;
 
@@ -65,6 +69,46 @@ namespace AbilityKit.Demo.Moba.Rollback
             }
         }
 
+        internal static MobaEntitasComponentSnapshotSummary[] ReadSnapshotSummaries(byte[] payload)
+        {
+            var snapshot = Read(payload);
+            var entries = snapshot.Entries ?? Array.Empty<MobaEntitasComponentRollbackEntry>();
+            var summaries = new MobaEntitasComponentSnapshotSummary[entries.Length];
+            var actorIds = new HashSet<int>();
+            var castIds = new HashSet<long>();
+            var temporaryContext = new global::ActorContext();
+            for (var i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                if (entry.ActorId <= 0 && entry.CastId <= 0 || entry.Data == null || entry.Data.Length == 0 ||
+                    entry.ActorId > 0 && !actorIds.Add(entry.ActorId) ||
+                    entry.ActorId == 0 && !castIds.Add(entry.CastId))
+                    throw new InvalidOperationException("Entitas component rollback payload contains a duplicate or invalid identity.");
+
+                var temporary = temporaryContext.CreateEntity();
+                try
+                {
+                    var metadata = Restore(temporary, entry.Data);
+                    if (temporary.hasActorId || temporary.hasSkillCastInstanceId)
+                        throw new InvalidOperationException("Entitas component data must not redefine rollback identity.");
+                    summaries[i] = new MobaEntitasComponentSnapshotSummary(
+                        entry.ActorId,
+                        entry.CastId,
+                        metadata.HasMetadata,
+                        metadata.HasMetadata ? (metadata.Flags & FlyingProjectileFlag) != 0 : temporary.isFlyingProjectileTag,
+                        metadata.HasMetadata ? (metadata.Flags & ProjectileLauncherFlag) != 0 : temporary.hasProjectileLauncher,
+                        metadata.HasMetadata ? metadata.LauncherProjectileId : temporary.hasProjectileLauncher ? temporary.projectileLauncher.ProjectileId : 0,
+                        metadata.HasMetadata ? (metadata.Flags & SummonMetaFlag) != 0 : temporary.hasSummonMeta,
+                        metadata.HasMetadata ? metadata.SummonId : temporary.hasSummonMeta ? temporary.summonMeta.SummonId : 0);
+                }
+                finally
+                {
+                    temporary.Destroy();
+                }
+            }
+            return summaries;
+        }
+
         public void Import(FrameIndex frame, byte[] payload)
         {
             var snapshot = Read(payload);
@@ -81,24 +125,55 @@ namespace AbilityKit.Demo.Moba.Rollback
                     }
                 }
                 if (target == null) throw new InvalidOperationException($"Entitas actor {entry.ActorId}, cast {entry.CastId} is missing.");
-                using (var stream = new MemoryStream(entry.Data, false))
-                using (var reader = new BinaryReader(stream))
-                    Restore(target, reader);
+                Restore(target, entry.Data);
             }
         }
 
         private static void Write(global::ActorEntity e, BinaryWriter w)
         {
-            // 2026-10-12 起逐字段序列化由生成器产出（Generated/Actor/ActorComponentSerialization.cs，
-            // 覆盖集 = tools/entitas-codegen.moba.pin.json 里 serialize:true 的组件）。
+            // 逐字段序列化由生成器产出，覆盖 pin 配置中标记 serialize:true 的组件。
             global::ActorComponentSerialization.Write(e, w);
+            var flags = (byte)0;
+            if (e.isFlyingProjectileTag) flags |= FlyingProjectileFlag;
+            var launcherProjectileId = e.hasProjectileLauncher ? e.projectileLauncher.ProjectileId : 0;
+            if (e.hasProjectileLauncher) flags |= ProjectileLauncherFlag;
+            var summonId = e.hasSummonMeta ? e.summonMeta.SummonId : 0;
+            if (e.hasSummonMeta) flags |= SummonMetaFlag;
+            w.Write(ComponentMetadataMagic);
+            w.Write(flags);
+            w.Write(launcherProjectileId);
+            w.Write(summonId);
         }
 
-        private static void Restore(global::ActorEntity e, BinaryReader r)
+        private static ComponentMetadata Restore(global::ActorEntity e, byte[] data)
         {
-            global::ActorComponentSerialization.Restore(e, r);
-            if (r.BaseStream.Position != r.BaseStream.Length)
-                throw new InvalidOperationException("Unexpected Entitas component snapshot trailing data.");
+            if (data == null || data.Length == 0)
+                throw new InvalidOperationException("Missing Entitas component snapshot data.");
+            using (var stream = new MemoryStream(data, false))
+            using (var r = new BinaryReader(stream))
+            {
+                global::ActorComponentSerialization.Restore(e, r);
+                var remaining = r.BaseStream.Length - r.BaseStream.Position;
+                if (remaining == 0) return default;
+                if (remaining != sizeof(int) + sizeof(byte) + sizeof(int) + sizeof(int))
+                    throw new InvalidOperationException("Unexpected Entitas component snapshot trailing data.");
+                if (r.ReadInt32() != ComponentMetadataMagic)
+                    throw new InvalidOperationException("Unsupported Entitas component metadata.");
+                var flags = r.ReadByte();
+                if ((flags & ~(FlyingProjectileFlag | ProjectileLauncherFlag | SummonMetaFlag)) != 0)
+                    throw new InvalidOperationException("Invalid Entitas component metadata flags.");
+                return new ComponentMetadata(true, flags, r.ReadInt32(), r.ReadInt32());
+            }
+        }
+
+        private readonly struct ComponentMetadata
+        {
+            public ComponentMetadata(bool hasMetadata, byte flags, int launcherProjectileId, int summonId)
+            { HasMetadata = hasMetadata; Flags = flags; LauncherProjectileId = launcherProjectileId; SummonId = summonId; }
+            public bool HasMetadata { get; }
+            public byte Flags { get; }
+            public int LauncherProjectileId { get; }
+            public int SummonId { get; }
         }
 
         private static MobaEntitasComponentRollbackPayload Read(byte[] payload)
@@ -108,6 +183,31 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (snapshot.Version != 1) throw new InvalidOperationException("Unsupported Entitas component snapshot version.");
             return snapshot;
         }
+    }
+
+    internal readonly struct MobaEntitasComponentSnapshotSummary
+    {
+        internal MobaEntitasComponentSnapshotSummary(int actorId, long castId, bool hasMetadata, bool flyingProjectile,
+            bool projectileLauncher, int launcherProjectileId, bool summonMeta, int summonId)
+        {
+            ActorId = actorId;
+            CastId = castId;
+            HasMetadata = hasMetadata;
+            HasFlyingProjectile = flyingProjectile;
+            HasProjectileLauncher = projectileLauncher;
+            LauncherProjectileId = launcherProjectileId;
+            HasSummonMeta = summonMeta;
+            SummonId = summonId;
+        }
+
+        internal int ActorId { get; }
+        internal long CastId { get; }
+        internal bool HasMetadata { get; }
+        internal bool HasFlyingProjectile { get; }
+        internal bool HasProjectileLauncher { get; }
+        internal int LauncherProjectileId { get; }
+        internal bool HasSummonMeta { get; }
+        internal int SummonId { get; }
     }
 
     [MemoryPackable]

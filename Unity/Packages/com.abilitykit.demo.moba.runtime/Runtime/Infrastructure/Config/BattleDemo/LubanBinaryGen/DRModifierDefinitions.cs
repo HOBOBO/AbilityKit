@@ -34,6 +34,9 @@ public sealed partial class DRModifierDefinitions : Luban.BeanBase
         ConflictGroup = (ModifierConflictGroup)_buf.ReadInt();
         ConditionSetId = _buf.ReadInt();
         Deprecated = _buf.ReadBool();
+        StackStepSize = _buf.ReadInt();
+        StackStepDelta = _buf.ReadFloat();
+        StackValueMin = _buf.ReadFloat();
     }
 
     public static DRModifierDefinitions DeserializeDRModifierDefinitions(ByteBuf _buf)
@@ -113,6 +116,18 @@ public sealed partial class DRModifierDefinitions : Luban.BeanBase
     /// 已废弃的效果定义不可发布
     /// </summary>
     public readonly bool Deprecated;
+    /// <summary>
+    /// Optional fixed multiplier stack-step mapping; zero step keeps legacy stacking.
+    /// </summary>
+    public readonly int StackStepSize;
+    /// <summary>
+    /// Optional fixed multiplier stack-step mapping; zero step keeps legacy stacking.
+    /// </summary>
+    public readonly float StackStepDelta;
+    /// <summary>
+    /// Optional fixed multiplier stack-step mapping; zero step keeps legacy stacking.
+    /// </summary>
+    public readonly float StackValueMin;
    
     public const int __ID__ = -1302370629;
     public override int GetTypeId() => __ID__;
@@ -142,6 +157,9 @@ public sealed partial class DRModifierDefinitions : Luban.BeanBase
         + "ConflictGroup:" + ConflictGroup + ","
         + "ConditionSetId:" + ConditionSetId + ","
         + "Deprecated:" + Deprecated + ","
+        + "StackStepSize:" + StackStepSize + ","
+        + "StackStepDelta:" + StackStepDelta + ","
+        + "StackValueMin:" + StackValueMin + ","
         + "}";
     }
 }

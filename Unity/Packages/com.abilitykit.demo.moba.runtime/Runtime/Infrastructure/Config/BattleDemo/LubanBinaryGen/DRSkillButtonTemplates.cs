@@ -37,6 +37,7 @@ public sealed partial class DRSkillButtonTemplates : Luban.BeanBase
         SectorAngleDegrees = _buf.ReadFloat();
         OmittedFields = _buf.ReadString();
         NullFields = _buf.ReadString();
+        PointRangePolicy = (PointRangePolicy)_buf.ReadInt();
     }
 
     public static DRSkillButtonTemplates DeserializeDRSkillButtonTemplates(ByteBuf _buf)
@@ -128,6 +129,10 @@ public sealed partial class DRSkillButtonTemplates : Luban.BeanBase
     /// 迁移兼容字段：逗号分隔的原 JSON 显式 null 字段名；新数据通常留空。
     /// </summary>
     public readonly string NullFields;
+    /// <summary>
+    /// Explicit Point/TargetPoint range policy; Legacy preserves existing casts.
+    /// </summary>
+    public readonly PointRangePolicy PointRangePolicy;
    
     public const int __ID__ = 240254788;
     public override int GetTypeId() => __ID__;
@@ -160,6 +165,7 @@ public sealed partial class DRSkillButtonTemplates : Luban.BeanBase
         + "SectorAngleDegrees:" + SectorAngleDegrees + ","
         + "OmittedFields:" + OmittedFields + ","
         + "NullFields:" + NullFields + ","
+        + "PointRangePolicy:" + PointRangePolicy + ","
         + "}";
     }
 }

@@ -52,7 +52,8 @@ namespace AbilityKit.Game.Flow
                 .InstallAll(runtime, options);
 
             var worldId = CreateWorldId(plan);
-            var worldOptions = SessionMobaWorldBootstrapFactory.CreateWorldOptions(plan, worldId);
+            var authorityWorldPlan = plan.WithConfirmedAuthorityWorld(false);
+            var worldOptions = SessionMobaWorldBootstrapFactory.CreateWorldOptions(authorityWorldPlan, worldId);
             IWorld world = null;
             try
             {

@@ -1,12 +1,13 @@
 {
   "Id": 30060501,
   "Name": "Karthus 30060501",
-  "PipelineContinuousTagTemplateId": 0,
+  "PipelineContinuousTagTemplateId": 3018,
   "ChildChannelId": 0,
   "RecastChannelId": 0,
   "QueueRecastInFlight": false,
   "ContinueThroughControl": false,
   "PreserveCharacterCastContext": false,
+  "UseCommitCooldownFactor": false,
   "RequiredBuffQualificationId": 0,
   "Phases": [
     {
@@ -30,7 +31,8 @@
         "IgnoreResourceCostCheck": false,
         "IgnoreResourceConsumption": false,
         "RefundBeforeCommit": true,
-        "RequireExplicitCommit": true
+        "RequireExplicitCommit": true,
+        "FailReason": ""
       }
     },
     {
@@ -57,6 +59,7 @@
       "PhaseId": "karthus_30060501_timeline",
       "Timeline": {
         "DurationMs": 3250,
+        "RecoveryStartMs": -1,
         "Events": [
           {
             "AtMs": 250,

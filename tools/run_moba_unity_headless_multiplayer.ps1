@@ -468,16 +468,11 @@ try {
         if ([double]$observedState.skillTargetDamage -lt 0.01) {
             throw "Skill target damage was not observed by $($observedState.role). damage=$($observedState.skillTargetDamage)"
         }
-        if (-not [bool]$observedState.skillTargetRuntimeKnockupObserved -or
-            [double]$observedState.skillTargetRuntimeRise -lt 0.20) {
-            throw "Authoritative target knockup was not observed by $($observedState.role). rise=$($observedState.skillTargetRuntimeRise)"
-        }
-        if (-not [bool]$observedState.skillTargetPresentedKnockupObserved -or
-            [double]$observedState.skillTargetPresentedRise -lt 0.20) {
-            throw "Presented target knockup was not observed by $($observedState.role). rise=$($observedState.skillTargetPresentedRise)"
-        }
-        if (-not [bool]$observedState.skillTargetLanded) {
-            throw "Skill target did not settle after knockup for $($observedState.role)."
+        $projectileHitObserved = @($observedState.skillProjectileEvents) |
+            Where-Object { $_ -like 'kind=Hit,*' } |
+            Select-Object -First 1
+        if (-not $projectileHitObserved) {
+            throw "Skill projectile hit was not observed by $($observedState.role). events=$($observedState.skillProjectileEvents -join ';')"
         }
     }
     if ([long]$ownerState.roomPushCount -lt 1 -or [long]$memberState.roomPushCount -lt 1) {

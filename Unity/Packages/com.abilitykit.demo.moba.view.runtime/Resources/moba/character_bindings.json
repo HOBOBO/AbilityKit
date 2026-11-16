@@ -290,14 +290,16 @@
       },
       {
         "SkillId": 30010501,
-        "AimSource": "StateAimSnapshot",
+        "AimSource": "InputWithinStateCone",
         "AimScope": "curtain_call",
+        "AimConeHalfAngleDegrees": 30,
         "CastKind": "Active"
       },
       {
         "SkillId": 30010502,
-        "AimSource": "StateAimSnapshot",
+        "AimSource": "InputWithinStateCone",
         "AimScope": "curtain_call",
+        "AimConeHalfAngleDegrees": 30,
         "CastKind": "Active"
       }
     ]

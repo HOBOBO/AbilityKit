@@ -4,7 +4,7 @@
 def validate_collision_rules(rows):
     fields = {"Role", "MainType", "UnitSubType", "Relation", "Response"}
     ranges = {"Role": (1, 3), "MainType": (0, 5), "UnitSubType": (0, 7),
-              "Relation": (0, 3), "Response": (0, 2)}
+              "Relation": (0, 3), "Response": (0, 5)}
     for row in rows:
         rules = row.get("CollisionRules")
         if rules is None:
@@ -20,11 +20,18 @@ def validate_collision_rules(rows):
                 value = rule.get(name, 0)
                 if type(value) is not int or not low <= value <= high:
                     raise ValueError(f"{path}/{name}: invalid enum value {value!r}")
-            if rule["Role"] == 3 and (rule["Response"] == 1 or
+            if rule["Role"] == 3 and (rule["Response"] not in (0, 2) or
                     any(rule.get(name, 0) for name in ("MainType", "UnitSubType", "Relation"))):
                 raise ValueError(f"{path}: StaticWorld only supports Ignore/Block without Actor classification")
+            if rule["Response"] == 3 and rule.get("Relation") != 2:
+                raise ValueError(f"{path}: SupportContact requires explicit Ally relation")
             if rule.get("MainType", 0) not in (0, 1) and rule.get("UnitSubType", 0):
                 raise ValueError(f"{path}: UnitSubType requires Unit or any MainType")
+            if rule["Response"] in (4, 5) and (
+                    row.get("HitPolicyKind", 0) not in (0, 1) or
+                    any(row.get(name, 0) for name in ("TrackingArcHeight", "TrackingArcHeightPerUnit",
+                        "TrackingArcDurationSeconds", "ReturnAfterMs", "MaxDistanceResponse"))):
+                raise ValueError(f"{path}: explicit hit continuation/termination requires a non-returning linear ExitOnHit/Pierce projectile")
 
 
 class Rule:
@@ -32,8 +39,10 @@ class Rule:
         validate_collision_rules(context.tables["projectiles"])
         for row in context.tables["projectiles"]:
             response = row.get("MaxDistanceResponse", 0)
-            if type(response) is not int or response not in (0, 1):
+            if type(response) is not int or response not in (0, 1, 2):
                 raise ValueError(f"projectiles/{row['Id']}: invalid MaxDistanceResponse")
+            if response == 2 and row.get("ReturnAfterMs", 0) > 0:
+                raise ValueError(f"projectiles/{row['Id']}: distance and timed return cannot be combined")
             if row.get("OnArrivalTriggerIds") and response != 1:
                 raise ValueError(f"projectiles/{row['Id']}: arrival triggers require SuspendAtDestination")
 

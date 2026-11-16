@@ -27,6 +27,7 @@ namespace AbilityKit.Demo.Moba.Services
         AreaSpawn = 6,
         SummonCreate = 7,
         BuffApply = 8,
+        CastCommit = 9,
     }
 
     // Zero means that a field is unavailable. Selectors cannot match unavailable fields.
@@ -109,6 +110,7 @@ namespace AbilityKit.Demo.Moba.Services
             switch (stage)
             {
                 case MobaParameterStage.CastPrepare:
+                case MobaParameterStage.CastCommit:
                     return LauncherTemplateId == 0 && ProjectileTemplateId == 0 &&
                            AreaTemplateId == 0 && SummonTemplateId == 0 && BuffTemplateId == 0;
                 case MobaParameterStage.LauncherCreate:

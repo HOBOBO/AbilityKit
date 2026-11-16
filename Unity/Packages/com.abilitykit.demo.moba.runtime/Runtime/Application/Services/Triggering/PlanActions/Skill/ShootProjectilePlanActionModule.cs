@@ -158,8 +158,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             // projectile: `track_target` controls whether the projectile follows the
             // target after launch, while target resolution controls its initial aim
             // and source context.  Previously the context target was only resolved
-            // when tracking was enabled, so targeted projectiles such as Jhin Q were
-            // launched with targetActorId=0 and could not hit the locked target.
+            // when tracking was enabled, so targeted projectiles were launched with
+            // targetActorId=0 and could not hit the locked target.
             var requiresTargetResolution = hasTargetRequest || lockedTargetActorId > 0;
             if (requiresTargetResolution)
             {

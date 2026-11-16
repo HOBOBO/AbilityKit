@@ -67,5 +67,22 @@
     "RequireOutOfCombat": false,
     "TriggerIds": [],
     "Tags": []
+  },
+  {
+    "Id": 30040010,
+    "ContinuousTagTemplateId": 0,
+    "DurationMs": 0,
+    "IntervalMs": 0,
+    "IntervalTriggerIds": [],
+    "ModifierIds": [
+      300092,
+      300093,
+      300094
+    ],
+    "Name": "Veigar exact cast ranges",
+    "OutOfCombatSeconds": 0,
+    "RequireOutOfCombat": false,
+    "TriggerIds": [],
+    "Tags": []
   }
 ]

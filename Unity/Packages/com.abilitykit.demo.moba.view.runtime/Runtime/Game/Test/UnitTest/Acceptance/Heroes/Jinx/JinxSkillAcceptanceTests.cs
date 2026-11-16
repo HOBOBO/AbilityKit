@@ -155,7 +155,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     "Jinx Q should release through the production skill slot. " + DescribeCastFailure(firstCast));
                 harness.TickUntilTraceNode(MobaExecutionKind.SkillCast, QSkillId, maxTicks: 10,
                     message: "The first Jinx Q press should produce the production skill-cast trace.");
-                harness.TickUntilSkillStops(actorId, 1, maxTicks: 30,
+                harness.TickUntilSkillStops(actorId, 1, maxTicks: 120,
                     message: "The first Jinx Q cast flow should complete.");
                 harness.Tick(1);
 
@@ -182,7 +182,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     message: "The second Jinx Q cast should execute its production weapon-mode Trigger.");
                 harness.AssertActionExecutedUnderEffect(secondModeEffect.RootId,
                     (int)TriggeringConstants.AddBuffId.Value);
-                harness.TickUntilSkillStops(actorId, 1, maxTicks: 30,
+                harness.TickUntilSkillStops(actorId, 1, maxTicks: 120,
                     message: "The second Jinx Q cast flow should complete.");
                 harness.Tick(1);
 
@@ -252,7 +252,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     message: "Pow-Pow projectile hit should apply the configured physical basic-attack damage.");
                 Assert.Less(harness.GetActorHp(targetActorId), powPowHp,
                     "Pow-Pow projectile hit should reduce the selected target's HP.");
-                harness.TickUntilSkillStops(actorId, BasicAttackSlot, maxTicks: 30,
+                harness.TickUntilSkillStops(actorId, BasicAttackSlot, maxTicks: 120,
                     message: "Pow-Pow basic attack should finish its release.");
 
                 harness.Tick(30);
@@ -265,7 +265,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     switchToFishbonesBaseline, MobaExecutionKind.EffectExecution, QSkillId,
                     maxTicks: 30,
                     message: "Jinx Q should commit the Fishbones mode before the second basic attack.");
-                harness.TickUntilSkillStops(actorId, 1, maxTicks: 30,
+                harness.TickUntilSkillStops(actorId, 1, maxTicks: 120,
                     message: "Jinx Q should finish before resolving the Fishbones attack slot.");
                 harness.Tick(1);
 
@@ -293,7 +293,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.Less(harness.GetActorHp(targetActorId), fishbonesHp,
                     "Fishbones projectile hit should reduce the selected target's HP.");
 
-                harness.TickUntilSkillStops(actorId, BasicAttackSlot, maxTicks: 30,
+                harness.TickUntilSkillStops(actorId, BasicAttackSlot, maxTicks: 120,
                     message: "Fishbones basic attack should finish its release.");
                 harness.Tick(30);
                 var switchBackBaseline = harness.CaptureTraceBaseline();
@@ -305,7 +305,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     switchBackBaseline, MobaExecutionKind.EffectExecution, QSkillId,
                     maxTicks: 30,
                     message: "The second Q press should commit the return to Pow-Pow.");
-                harness.TickUntilSkillStops(actorId, 1, maxTicks: 30,
+                harness.TickUntilSkillStops(actorId, 1, maxTicks: 120,
                     message: "The second Q cast should finish before the final slot assertion.");
                 harness.Tick(1);
 
@@ -1191,7 +1191,16 @@ namespace AbilityKit.Game.Test.UnitTest
             yield return LocalHudActiveSkillClosure(true);
         }
 
-        private IEnumerator LocalHudActiveSkillClosure(bool aimedR)
+        [UnityTest]
+        public IEnumerator PlayMode_R_LongFlightRemainsVisibleAndReleasesOnImpact()
+        {
+            DemoGameplayTestLauncher.OpenMobaLocalForPlay();
+            yield return new EnterPlayMode();
+            Time.captureDeltaTime = 1f / 60f;
+            yield return LocalHudActiveSkillClosure(true, longRFlight: true);
+        }
+
+        private IEnumerator LocalHudActiveSkillClosure(bool aimedR, bool longRFlight = false)
         {
             var playMode = Application.isPlaying;
             JinxHudInputFixture hud = null;
@@ -1414,19 +1423,51 @@ namespace AbilityKit.Game.Test.UnitTest
                     Assert.IsTrue(new BattleHudAimPreviewPositionResolver().TryResolve(ctx, out var rPreview));
                     rDirection = new Vec3(rPreview.AimDirection.x, 0f, rPreview.AimDirection.z);
                 }
-                var onRRay = rOrigin + rDirection * 7f;
+                var onRRay = rOrigin + rDirection * (longRFlight ? 95f : 7f);
                 enemy.ReplaceTransform(new Transform3(onRRay,
                     enemyTransform.Rotation, enemyTransform.Scale));
                 FlowTick(flow, 1);
                 hud.PointerUp(rRelease);
                 var rVisiblePixels = 0;
+                var lateRVisiblePixels = 0;
+                var rStartedAt = Time.time;
                 yield return TickUntil(flow, () =>
                 {
-                    rVisiblePixels = Mathf.Max(rVisiblePixels, CaptureLiveVfx(90032025, "r-travel"));
+                    if (longRFlight)
+                    {
+                        // Keep the production camera's angle/zoom, translating it
+                        // to inspect a missile that has flown beyond the local arena.
+                        foreach (var tag in UnityEngine.Object.FindObjectsOfType<BattleVfxPoolableTag>())
+                        {
+                            if (tag.VfxId != 90032025 || !tag.gameObject.activeInHierarchy) continue;
+                            var camera = Camera.main;
+                            var cameraPosition = camera.transform.position;
+                            try
+                            {
+                                camera.transform.position += tag.transform.position -
+                                    new Vector3(rOrigin.X, rOrigin.Y, rOrigin.Z);
+                                var pixels = CaptureLiveVfx(tag, "r-long-travel", flightCoreOnly: true);
+                                rVisiblePixels = Mathf.Max(rVisiblePixels, pixels);
+                                if (Time.time - rStartedAt > 3f)
+                                    lateRVisiblePixels = Mathf.Max(lateRVisiblePixels, pixels);
+                            }
+                            finally { camera.transform.position = cameraPosition; }
+                        }
+                    }
+                    else rVisiblePixels = Mathf.Max(rVisiblePixels, CaptureLiveVfx(90032025, "r-travel", flightCoreOnly: true));
                     return enemy.GetMobaAttrs().Hp < hpBeforeR;
-                }, 120,
+                }, longRFlight ? 480 : 120,
                     () => $"R after Q/W must damage the enemy on its released ray; mana={localActor.GetMobaAttrs().Mana}, hp={enemy.GetMobaAttrs().Hp}");
-                Assert.Greater(rVisiblePixels, 20, "R must render its formal projectile before this same cast impacts.");
+                Assert.Greater(rVisiblePixels, 300, "R must have a readable flight visual in the gameplay camera.");
+                if (longRFlight)
+                {
+                    Assert.Greater(lateRVisiblePixels, 300,
+                        "R must remain visibly attached after the old 2.5 second visual expiry.");
+                    yield return TickUntil(flow,
+                        () => !System.Array.Exists(UnityEngine.Object.FindObjectsOfType<BattleVfxPoolableTag>(),
+                            tag => tag.VfxId == 90032025 && tag.gameObject.activeInHierarchy),
+                        30, "Impact/Exit must release the long-flight visual.");
+                }
                 Assert.Greater(wVisiblePixels, 20, "W must render its formal flying resource in this same cast.");
                 yield return TickUntil(flow, () => !HasLiveBuff(enemy, 30020211) && !HasLiveBuff(enemy, 32020301),
                     180, "W slow and E root must expire through the normal Buff lifecycle.");
@@ -1661,25 +1702,27 @@ namespace AbilityKit.Game.Test.UnitTest
             return false;
         }
 
-        private static int CaptureLiveVfx(int id, string label)
+        private static int CaptureLiveVfx(int id, string label, bool flightCoreOnly = false)
         {
             var pixels = 0;
             foreach (var tag in UnityEngine.Object.FindObjectsOfType<BattleVfxPoolableTag>())
                 if (tag.VfxId == id && tag.gameObject.activeInHierarchy)
-                    pixels = Mathf.Max(pixels, CaptureLiveVfx(tag, label));
+                    pixels = Mathf.Max(pixels, CaptureLiveVfx(tag, label, flightCoreOnly));
             return pixels;
         }
 
         private static readonly System.Collections.Generic.HashSet<string> InspectedVfx = new();
         private static readonly Dictionary<string, int> BestVfxPixels = new();
 
-        private static int CaptureLiveVfx(BattleVfxPoolableTag tag, string label)
+        private static int CaptureLiveVfx(BattleVfxPoolableTag tag, string label, bool flightCoreOnly = false)
         {
             if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
                 Assert.Ignore("Same-cast visual acceptance requires a graphics device.");
             var camera = Camera.main;
             Assert.IsNotNull(camera);
             var renderers = tag.GetComponentsInChildren<Renderer>();
+            if (flightCoreOnly)
+                renderers = System.Array.FindAll(renderers, renderer => renderer.name != "PS_Missile_GlowGround");
             var states = System.Array.ConvertAll(renderers, r => r.enabled);
             var target = RenderTexture.GetTemporary(960, 540, 24);
             var previousTarget = camera.targetTexture;

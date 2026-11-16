@@ -358,6 +358,8 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("target_missing_hp_ratio_skill_level_parameter", TriggerValueType.String),
                 Optional("target_missing_hp_bonus_min", TriggerValueType.Number),
                 Optional("target_missing_hp_bonus_max", TriggerValueType.Number),
+                Optional("target_missing_hp_damage_scale_coefficient", TriggerValueType.Number),
+                Optional("target_missing_hp_damage_scale_max_bonus", TriggerValueType.Number),
                 Optional("damage_scale", TriggerValueType.Number),
                 Optional("damage_scale_skill_level_parameter", TriggerValueType.String),
                 Optional("damage_min", TriggerValueType.Number),
@@ -386,7 +388,9 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 DamageReason("reason_kind"), Optional("reason_param", TriggerValueType.Integer)))));
 
             context.RegisterAction(Action("add_buff", "添加增益效果", "Action/Buff", WithTargets(
-                ReferenceList("buff_ids", BuffSemanticId))));
+                ReferenceList("buff_ids", BuffSemanticId),
+                Optional("duration_ms", TriggerValueType.Integer),
+                Optional("duration_skill_level_parameter", TriggerValueType.String))));
             context.RegisterAction(Action("remove_buff", "移除增益效果", "Action/Buff", WithTargets(
                 Reference("buff_id", BuffSemanticId, false),
                 Optional("source_actor_id", TriggerValueType.Integer),
@@ -487,6 +491,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("anchor_at_origin", TriggerValueType.Boolean),
                 Optional("area_group_key", TriggerValueType.Integer),
                 Optional("claim_targets_within_group", TriggerValueType.Boolean),
+                Optional("claim_unit_sub_type_mask", TriggerValueType.Integer),
                 OptionalOutput("result", TriggerValueType.Integer),
                 OptionalOutput("result_count", TriggerValueType.Integer))));
             context.RegisterAction(Action("spawn_area_batch", "批量生成区域", "Action/Area", WithTargets(
@@ -506,6 +511,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("anchor_at_origin", TriggerValueType.Boolean),
                 Optional("area_group_key", TriggerValueType.Integer),
                 Optional("claim_targets_within_group", TriggerValueType.Boolean),
+                Optional("claim_unit_sub_type_mask", TriggerValueType.Integer),
                 Optional("pattern_kind", TriggerValueType.Integer),
                 Required("pattern_count", TriggerValueType.Integer),
                 Required("pattern_apothem", TriggerValueType.Number),
@@ -532,6 +538,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("anchor_at_origin", TriggerValueType.Boolean),
                 Optional("area_group_key", TriggerValueType.Integer),
                 Optional("claim_targets_within_group", TriggerValueType.Boolean),
+                Optional("claim_unit_sub_type_mask", TriggerValueType.Integer),
                 Required("pattern_kind", TriggerValueType.Integer),
                 Required("pattern_count", TriggerValueType.Integer),
                 Required("pattern_apothem", TriggerValueType.Number),

@@ -11,6 +11,43 @@ namespace AbilityKit.Demo.Moba.Tests.Triggering;
 public sealed class GiveDamageValueRefTests
 {
     [Fact]
+    public void Missing_health_multiplier_preserves_existing_unbounded_additive_terms()
+    {
+        var args = new GiveDamageArgs(100, 0, targetMissingHpDamageScaleCoefficient: .8f,
+            targetMissingHpDamageScaleMaxBonus: .4f);
+        var result = GiveDamagePlanActionModule.ApplyDamageFormula(Fixed64.FromInt32(100), Fixed64.Zero,
+            Fixed64.FromSingle(.5f), Fixed64.FromInt32(1000), Fixed64.FromSingle(-.1f), Fixed64.One, args);
+        Assert.InRange(result.ToSingle(), 69.999f, 70.001f);
+    }
+
+    [Theory]
+    [InlineData(0, 75)]
+    [InlineData(.25f,90)]
+    [InlineData(.5f,105)]
+    [InlineData(1,105)]
+    public void Missing_health_multiplier_applies_after_additive_and_fixed_scale_before_final_limits(float missingRatio,float expected)
+    {
+        var args = new GiveDamageArgs(100,0,targetMissingHpDamageScaleCoefficient:.8f,
+            targetMissingHpDamageScaleMaxBonus:.4f,damageMax:110,hasDamageMax:true);
+        var result = GiveDamagePlanActionModule.ApplyDamageFormula(Fixed64.FromInt32(100),Fixed64.FromInt32(20),
+            Fixed64.FromSingle(missingRatio),Fixed64.FromInt32(1000),Fixed64.Zero,Fixed64.FromSingle(.625f),args);
+        Assert.InRange(result.ToSingle(),expected-.001f,expected+.001f);
+    }
+
+    [Theory]
+    [InlineData(-1,1)]
+    [InlineData(1,-1)]
+    [InlineData(double.NaN,1)]
+    [InlineData(1,double.PositiveInfinity)]
+    public void Missing_health_multiplier_rejects_nonfinite_or_negative_constants(double coefficient,double max)
+    {
+        var args = new[] { new KeyValuePair<string,ActionArgValue>("damage_value",ActionArgValue.OfConst(100,"damage_value")),
+            new KeyValuePair<string,ActionArgValue>("target_missing_hp_damage_scale_coefficient",ActionArgValue.OfConst(coefficient,"target_missing_hp_damage_scale_coefficient")),
+            new KeyValuePair<string,ActionArgValue>("target_missing_hp_damage_scale_max_bonus",ActionArgValue.OfConst(max,"target_missing_hp_damage_scale_max_bonus")) };
+        Assert.False(GiveDamageSchema.Instance.TryValidateArgs(args,out _));
+    }
+
+    [Fact]
     public void Schema_accepts_numeric_ref_and_rejects_invalid_or_conflicting_arguments()
     {
         var payloadRef = new KeyValuePair<string, ActionArgValue>(

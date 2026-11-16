@@ -6,6 +6,24 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private static readonly MobaSkillRuntimeBlackboardKey FrozenCooldown =
             new MobaSkillRuntimeBlackboardKey(128, "skill.cooldown.effectiveTotalMs", MobaSkillRuntimeValueKind.Int, ownerModuleId: 1002);
+        private static readonly MobaSkillRuntimeBlackboardKey PreparedCommitCooldown =
+            new MobaSkillRuntimeBlackboardKey(129, "skill.cooldown.preparedCommitBaseMs", MobaSkillRuntimeValueKind.Int, ownerModuleId: 1002);
+
+        public void PrepareCooldownForCommit(in MobaSkillCastRuntimeHandle handle, int cooldownMs)
+        {
+            if (cooldownMs < 0 || !TryGet(in handle, out var cast) || cast.RootContextId != handle.RootContextId ||
+                cast.Blackboard.TryGetInt(in FrozenCooldown, out _) ||
+                cast.Blackboard.TryGetInt(in PreparedCommitCooldown, out _))
+                throw new InvalidOperationException("Commit cooldown base must be prepared exactly once on a live cast.");
+            cast.Blackboard.SetInt(in PreparedCommitCooldown, cooldownMs);
+        }
+
+        public bool TryGetPreparedCommitCooldown(in MobaSkillCastRuntimeHandle handle, out int cooldownMs)
+        {
+            cooldownMs = 0;
+            return TryGet(in handle, out var cast) && cast.RootContextId == handle.RootContextId &&
+                cast.Blackboard.TryGetInt(in PreparedCommitCooldown, out cooldownMs);
+        }
 
         public void FreezeEffectiveCooldown(in MobaSkillCastRuntimeHandle handle, int cooldownMs)
         {

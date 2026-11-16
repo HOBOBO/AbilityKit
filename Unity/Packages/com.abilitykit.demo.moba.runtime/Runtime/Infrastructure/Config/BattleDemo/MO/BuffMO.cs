@@ -12,7 +12,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
     public sealed class ContinuousModifierMO : IMobaContinuousModifierSpec,
         IMobaContinuousParameterSelectorSpec, IMobaContinuousSkillCandidateSpec,
         IMobaContinuousReferenceCandidateSpec, IMobaContinuousHfsmParameterConditionSpec,
-        IMobaContinuousFormulaSpec
+        IMobaContinuousFormulaSpec, IMobaContinuousStackStepSpec
     {
         public ContinuousModifierMO(ContinuousModifierDTO dto)
         {
@@ -35,6 +35,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             FormulaConstant = dto.FormulaConstant;
             FormulaLevelCoefficient = dto.FormulaLevelCoefficient;
             FormulaTerms = dto.FormulaTerms ?? Array.Empty<ModifierFormulaTermDTO>();
+            StackStepSize = dto.StackStepSize;
+            StackStepDelta = dto.StackStepDelta;
+            StackValueMin = dto.StackValueMin;
             Selector = new MobaParameterSelector(dto.SelectorSlot, dto.SelectorBaseSkillId,
                 dto.SelectorEffectiveSkillId, dto.SelectorLauncherTemplateId,
                 dto.SelectorProjectileTemplateId, dto.SelectorAreaTemplateId,
@@ -60,6 +63,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public float FormulaLevelCoefficient { get; }
         public IReadOnlyList<ModifierFormulaTermDTO> FormulaTerms { get; }
         public MobaParameterSelector Selector { get; }
+        public int StackStepSize { get; }
+        public float StackStepDelta { get; }
+        public float StackValueMin { get; }
 
         private static MagnitudeSource CreateMagnitude(ContinuousModifierDTO dto)
         {

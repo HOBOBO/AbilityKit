@@ -740,7 +740,7 @@
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0.1,
     "HitUnitSubType": 0,
-    "CollisionLayerMask": 0,
+    "CollisionLayerMask": 1,
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
@@ -771,15 +771,49 @@
     "Speed": 25,
     "StateMachineProfileId": "",
     "TickIntervalMs": 33,
-    "VfxId": 90013002,
+    "VfxId": 90013020,
     "BounceSearchRadius": 0,
     "TrackingArcHeight": 0,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
     "HitUnitSubType": 0,
-    "CollisionLayerMask": 0,
-    "HitIdentityPolicy": 0,
-    "CollisionRules": [],
+    "CollisionLayerMask": 1,
+    "HitIdentityPolicy": 1,
+    "CollisionRules": [
+      {
+        "Role": 2,
+        "MainType": 1,
+        "UnitSubType": 1,
+        "Relation": 1,
+        "Response": 5
+      },
+      {
+        "Role": 2,
+        "MainType": 1,
+        "UnitSubType": 2,
+        "Response": 4
+      },
+      {
+        "Role": 2,
+        "MainType": 1,
+        "UnitSubType": 3,
+        "Response": 4
+      },
+      {
+        "Role": 2,
+        "MainType": 1,
+        "UnitSubType": 4,
+        "Response": 4
+      },
+      {
+        "Role": 2,
+        "Response": 0
+      },
+      {
+        "Role": 3,
+        "Response": 0
+      }
+    ],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": []
   },
@@ -789,8 +823,8 @@
     "CollisionLength": 0.8,
     "CollisionWidth": 1,
     "HitCooldownMs": 0,
-    "HitPolicyKind": 1,
-    "HitsRemaining": 4,
+    "HitPolicyKind": 0,
+    "HitsRemaining": 1,
     "LifetimeMs": 2500,
     "MaxDistance": 30,
     "Name": "Jhin R curtain call projectile",
@@ -814,9 +848,43 @@
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
     "HitUnitSubType": 0,
-    "CollisionLayerMask": 0,
-    "HitIdentityPolicy": 0,
-    "CollisionRules": [],
+    "CollisionLayerMask": 1,
+    "HitIdentityPolicy": 1,
+    "CollisionRules": [
+      {
+        "Role": 2,
+        "MainType": 1,
+        "UnitSubType": 1,
+        "Relation": 1,
+        "Response": 5
+      },
+      {
+        "Role": 2,
+        "MainType": 1,
+        "UnitSubType": 2,
+        "Response": 4
+      },
+      {
+        "Role": 2,
+        "MainType": 1,
+        "UnitSubType": 3,
+        "Response": 4
+      },
+      {
+        "Role": 2,
+        "MainType": 1,
+        "UnitSubType": 4,
+        "Response": 4
+      },
+      {
+        "Role": 2,
+        "Response": 0
+      },
+      {
+        "Role": 3,
+        "Response": 0
+      }
+    ],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": []
   },
@@ -826,8 +894,8 @@
     "CollisionLength": 0.8,
     "CollisionWidth": 1,
     "HitCooldownMs": 0,
-    "HitPolicyKind": 1,
-    "HitsRemaining": 4,
+    "HitPolicyKind": 0,
+    "HitsRemaining": 1,
     "LifetimeMs": 2500,
     "MaxDistance": 30,
     "Name": "Jhin R final curtain call projectile",
@@ -853,9 +921,43 @@
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
     "HitUnitSubType": 0,
-    "CollisionLayerMask": 0,
-    "HitIdentityPolicy": 0,
-    "CollisionRules": [],
+    "CollisionLayerMask": 1,
+    "HitIdentityPolicy": 1,
+    "CollisionRules": [
+      {
+        "Role": 2,
+        "MainType": 1,
+        "UnitSubType": 1,
+        "Relation": 1,
+        "Response": 5
+      },
+      {
+        "Role": 2,
+        "MainType": 1,
+        "UnitSubType": 2,
+        "Response": 4
+      },
+      {
+        "Role": 2,
+        "MainType": 1,
+        "UnitSubType": 3,
+        "Response": 4
+      },
+      {
+        "Role": 2,
+        "MainType": 1,
+        "UnitSubType": 4,
+        "Response": 4
+      },
+      {
+        "Role": 2,
+        "Response": 0
+      },
+      {
+        "Role": 3,
+        "Response": 0
+      }
+    ],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": []
   },
@@ -890,7 +992,7 @@
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
     "HitUnitSubType": 0,
-    "CollisionLayerMask": 0,
+    "CollisionLayerMask": 1,
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
@@ -927,7 +1029,7 @@
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
     "HitUnitSubType": 0,
-    "CollisionLayerMask": 0,
+    "CollisionLayerMask": 1,
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
@@ -966,7 +1068,7 @@
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
     "HitUnitSubType": 0,
-    "CollisionLayerMask": 0,
+    "CollisionLayerMask": 1,
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
@@ -1149,12 +1251,12 @@
     "Id": 32040101,
     "CollisionHeight": 1,
     "CollisionLength": 0.8,
-    "CollisionWidth": 0.8,
+    "CollisionWidth": 1.4,
     "HitCooldownMs": 1000,
     "HitPolicyKind": 1,
     "HitsRemaining": 2,
     "LifetimeMs": 1000,
-    "MaxDistance": 6.25,
+    "MaxDistance": 10,
     "Name": "Veigar Q projectile",
     "OnExpireVfxId": 0,
     "OnHitEffectId": 30040211,
@@ -1203,7 +1305,7 @@
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0,
     "HitUnitSubType": 1,
-    "CollisionLayerMask": 5,
+    "CollisionLayerMask": 1,
     "HitIdentityPolicy": 0,
     "CollisionRules": [
       {
@@ -1212,7 +1314,7 @@
       },
       {
         "Role": 3,
-        "Response": 2
+        "Response": 0
       }
     ],
     "MaxDistanceResponse": 0,
@@ -1532,6 +1634,47 @@
       },
       {
         "Role": 2,
+        "Response": 0
+      }
+    ],
+    "MaxDistanceResponse": 0,
+    "OnArrivalTriggerIds": []
+  },
+  {
+    "Id": 32040011,
+    "CollisionHeight": 0.2,
+    "CollisionLength": 0.2,
+    "CollisionWidth": 0.2,
+    "HitCooldownMs": 0,
+    "HitPolicyKind": 0,
+    "HitsRemaining": 1,
+    "LifetimeMs": 15000,
+    "MaxDistance": 25,
+    "Name": "Veigar basic attack missile",
+    "OnExpireVfxId": 0,
+    "OnHitEffectId": 30040111,
+    "OnHitVfxId": 90034002,
+    "OnSpawnVfxId": 0,
+    "ReturnAfterMs": 0,
+    "ReturnSpeed": 0,
+    "ReturnStopDistance": 0,
+    "Speed": 20,
+    "TickIntervalMs": 33,
+    "VfxId": 90034001,
+    "BounceSearchRadius": 0,
+    "TrackingArcHeight": 0,
+    "TrackingArcDurationSeconds": 0,
+    "TrackingArcHeightPerUnit": 0,
+    "HitUnitSubType": 0,
+    "CollisionLayerMask": 1,
+    "HitIdentityPolicy": 0,
+    "CollisionRules": [
+      {
+        "Role": 2,
+        "Response": 0
+      },
+      {
+        "Role": 3,
         "Response": 0
       }
     ],

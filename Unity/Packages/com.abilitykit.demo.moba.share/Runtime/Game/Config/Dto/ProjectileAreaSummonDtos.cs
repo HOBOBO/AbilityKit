@@ -75,7 +75,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int MainType;
         public int UnitSubType;
         public ProjectileCollisionRelation Relation;
-        // ProjectileCollisionResponse: 0 Ignore, 1 Hit, 2 Block, 3 SupportContact (explicit friendly heroes only).
+        // ProjectileCollisionResponse: 0 Ignore, 1 Hit, 2 Block, 3 SupportContact, 4 HitAndContinue, 5 HitAndStop.
         public int Response;
     }
 

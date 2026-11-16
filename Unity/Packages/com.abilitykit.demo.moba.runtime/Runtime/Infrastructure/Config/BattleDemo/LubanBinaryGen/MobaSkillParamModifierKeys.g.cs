@@ -34,6 +34,7 @@ namespace AbilityKit.Demo.Moba.Services
             public static readonly ModifierKey ResourceCost = ModifierKey.Create(40, 3);
             public static readonly ModifierKey CooldownMs = ModifierKey.Create(40, 4);
             public static readonly ModifierKey CastRange = ModifierKey.Create(40, 5);
+            public static readonly ModifierKey CooldownCommitFactor = ModifierKey.Create(40, 8);
 
             public static class Ids
             {
@@ -41,6 +42,7 @@ namespace AbilityKit.Demo.Moba.Services
                 public const int ResourceCost = 10002;
                 public const int CooldownMs = 10003;
                 public const int CastRange = 10004;
+                public const int CooldownCommitFactor = 10005;
             }
         }
         public static class Projectile
@@ -128,6 +130,7 @@ namespace AbilityKit.Demo.Moba.Services
                 case 10002: key = Skill.ResourceCost; return true;
                 case 10003: key = Skill.CooldownMs; return true;
                 case 10004: key = Skill.CastRange; return true;
+                case 10005: key = Skill.CooldownCommitFactor; return true;
                 case 20001: key = Buff.DurationMs; return true;
                 case 30001: key = Emitter.LauncherId; return true;
                 case 30002: key = Emitter.CountPerShot; return true;
@@ -155,6 +158,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (key.Equals(Skill.ResourceCost)) { parameterId = 10002; return true; }
             if (key.Equals(Skill.CooldownMs)) { parameterId = 10003; return true; }
             if (key.Equals(Skill.CastRange)) { parameterId = 10004; return true; }
+            if (key.Equals(Skill.CooldownCommitFactor)) { parameterId = 10005; return true; }
             if (key.Equals(Buff.DurationMs)) { parameterId = 20001; return true; }
             if (key.Equals(Emitter.LauncherId)) { parameterId = 30001; return true; }
             if (key.Equals(Emitter.CountPerShot)) { parameterId = 30002; return true; }
@@ -181,6 +185,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (key.Equals(Skill.ResourceCost)) { stage = MobaParameterStage.CastPrepare; return true; }
             if (key.Equals(Skill.CooldownMs)) { stage = MobaParameterStage.CastPrepare; return true; }
             if (key.Equals(Skill.CastRange)) { stage = MobaParameterStage.CastPrepare; return true; }
+            if (key.Equals(Skill.CooldownCommitFactor)) { stage = MobaParameterStage.CastCommit; return true; }
             if (key.Equals(Buff.DurationMs)) { stage = MobaParameterStage.BuffApply; return true; }
             if (key.Equals(Emitter.LauncherId)) { stage = MobaParameterStage.LauncherCreate; return true; }
             if (key.Equals(Emitter.CountPerShot)) { stage = MobaParameterStage.Emit; return true; }
@@ -209,6 +214,7 @@ namespace AbilityKit.Demo.Moba.Services
                 case 10002: typeName = "SkillCastPreparationService"; return true;
                 case 10003: typeName = "SkillCastPreparationService"; return true;
                 case 10004: typeName = "SkillCastPreparationService"; return true;
+                case 10005: typeName = "MobaSkillEconomyService"; return true;
                 case 20001: typeName = "BuffApplyFlow"; return true;
                 case 30001: typeName = "ShootProjectilePlanActionModule"; return true;
                 case 30002: typeName = "MobaModifierProjectileSpawnPatternProvider"; return true;
@@ -238,6 +244,7 @@ namespace AbilityKit.Demo.Moba.Services
                 case 10002: timing = MobaModifierSampleTiming.CreateSnapshot; return true;
                 case 10003: timing = MobaModifierSampleTiming.CreateSnapshot; return true;
                 case 10004: timing = MobaModifierSampleTiming.CreateSnapshot; return true;
+                case 10005: timing = MobaModifierSampleTiming.EventSample; return true;
                 case 20001: timing = MobaModifierSampleTiming.CreateSnapshot; return true;
                 case 30001: timing = MobaModifierSampleTiming.CreateSnapshot; return true;
                 case 30002: timing = MobaModifierSampleTiming.EventSample; return true;
@@ -267,6 +274,7 @@ namespace AbilityKit.Demo.Moba.Services
                 case 10002: schema = new ModifierFieldSchema(ModifierFieldUnit.Point, 0f, 0f, ModifierParameterCapturePolicy.CreateSnapshot, 15, "Skill", "资源消耗"); return true;
                 case 10003: schema = new ModifierFieldSchema(ModifierFieldUnit.Ms, 0f, 0f, ModifierParameterCapturePolicy.CreateSnapshot, 15, "Skill", "冷却毫秒"); return true;
                 case 10004: schema = new ModifierFieldSchema(ModifierFieldUnit.Distance, 0f, 0f, ModifierParameterCapturePolicy.CreateSnapshot, 15, "Skill", "施法距离"); return true;
+                case 10005: schema = new ModifierFieldSchema(ModifierFieldUnit.Ratio, 0f, 0f, ModifierParameterCapturePolicy.EventSample, 2, "Skill", "Cooldown multiplier sampled at economy commit"); return true;
                 case 20001: schema = new ModifierFieldSchema(ModifierFieldUnit.Ms, 0f, 0f, ModifierParameterCapturePolicy.CreateSnapshot, 15, "Buff", "Buff 持续时间"); return true;
                 case 30001: schema = new ModifierFieldSchema(ModifierFieldUnit.Id, 0f, 0f, ModifierParameterCapturePolicy.CreateSnapshot, 4, "Emitter", "发射器引用 ID"); return true;
                 case 30002: schema = new ModifierFieldSchema(ModifierFieldUnit.Count, 1f, 0f, ModifierParameterCapturePolicy.EventSample, 15, "Emitter", "每轮发射数"); return true;
@@ -326,6 +334,7 @@ namespace AbilityKit.Demo.Moba.Services
                 case 10002: return (15 & (1 << op)) != 0;
                 case 10003: return (15 & (1 << op)) != 0;
                 case 10004: return (15 & (1 << op)) != 0;
+                case 10005: return (2 & (1 << op)) != 0;
                 case 20001: return (15 & (1 << op)) != 0;
                 case 30001: return (4 & (1 << op)) != 0;
                 case 30002: return (15 & (1 << op)) != 0;

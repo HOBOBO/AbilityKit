@@ -4,6 +4,9 @@ using System.IO;
 using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Area;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
@@ -28,6 +31,73 @@ namespace AbilityKit.Demo.Moba.Rollback
         [JsonProperty(Required = Required.Always)] public int Version;
         [JsonProperty(Required = Required.Always)] public long NextContextId;
         [JsonProperty(Required = Required.Always)] public byte[] Nodes;
+    }
+
+    internal sealed class MobaAreaRuntimeRollbackCheckpoint
+    {
+        [JsonProperty(Required = Required.Always)] public int Version;
+        [JsonProperty(Required = Required.Always)] public MobaAreaRuntimeRollbackEntry[] Areas;
+        [JsonProperty(Required = Required.Always)] public int[] DelayedAreaIds;
+    }
+
+    internal sealed class MobaAreaRuntimeRollbackEntry
+    {
+        [JsonProperty(Required = Required.Always)] public int AreaId;
+        [JsonProperty(Required = Required.Always)] public int TemplateId;
+        [JsonProperty(Required = Required.Always)] public int OwnerActorId;
+        [JsonProperty(Required = Required.Always)] public float CenterX;
+        [JsonProperty(Required = Required.Always)] public float CenterY;
+        [JsonProperty(Required = Required.Always)] public float CenterZ;
+        [JsonProperty(Required = Required.Always)] public float Radius;
+        [JsonProperty(Required = Required.Always)] public float InnerRadius;
+        [JsonProperty(Required = Required.Always)] public int ShapeKind;
+        [JsonProperty(Required = Required.Always)] public float ForwardX;
+        [JsonProperty(Required = Required.Always)] public float ForwardY;
+        [JsonProperty(Required = Required.Always)] public float ForwardZ;
+        [JsonProperty(Required = Required.Always)] public float HalfAngleDeg;
+        [JsonProperty(Required = Required.Always)] public float Width;
+        [JsonProperty(Required = Required.Always)] public float Length;
+        [JsonProperty(Required = Required.Always)] public int CollisionLayerMask;
+        [JsonProperty(Required = Required.Always)] public int MaxTargets;
+        [JsonProperty(Required = Required.Always)] public int SpawnFrame;
+        [JsonProperty(Required = Required.Always)] public int DelayTriggerFrame;
+        [JsonProperty(Required = Required.Always)] public long SourceContextId;
+        [JsonProperty(Required = Required.Always)] public long RootContextId;
+        [JsonProperty(Required = Required.Always)] public long OwnerContextId;
+        [JsonProperty(Required = Required.Always)] public long SkillRuntimeId;
+        [JsonProperty(Required = Required.Always)] public int SkillRuntimeGeneration;
+        [JsonProperty(Required = Required.Always)] public long SkillRuntimeRootContextId;
+        [JsonProperty(Required = Required.Always)] public int GroupKey;
+        [JsonProperty(Required = Required.Always)] public bool ClaimTargetsWithinGroup;
+        [JsonProperty] public int ClaimUnitSubTypeMask;
+
+        internal static MobaAreaRuntimeRollbackEntry From(in MobaAreaRuntimeInfo info) => new MobaAreaRuntimeRollbackEntry
+        {
+            AreaId = info.AreaId, TemplateId = info.TemplateId, OwnerActorId = info.OwnerActorId,
+            CenterX = info.Center.X, CenterY = info.Center.Y, CenterZ = info.Center.Z,
+            Radius = info.Radius, InnerRadius = info.InnerRadius, ShapeKind = info.ShapeKind,
+            ForwardX = info.Forward.X, ForwardY = info.Forward.Y, ForwardZ = info.Forward.Z,
+            HalfAngleDeg = info.HalfAngleDeg, Width = info.Width, Length = info.Length,
+            CollisionLayerMask = info.CollisionLayerMask, MaxTargets = info.MaxTargets,
+            SpawnFrame = info.SpawnFrame, DelayTriggerFrame = info.DelayTriggerFrame,
+            SourceContextId = info.SourceContextId, RootContextId = info.RootContextId, OwnerContextId = info.OwnerContextId,
+            SkillRuntimeId = info.SkillRuntimeHandle.RuntimeId,
+            SkillRuntimeGeneration = info.SkillRuntimeHandle.Generation,
+            SkillRuntimeRootContextId = info.SkillRuntimeHandle.RootContextId,
+            GroupKey = info.GroupKey, ClaimTargetsWithinGroup = info.ClaimTargetsWithinGroup,
+            ClaimUnitSubTypeMask = info.ClaimUnitSubTypeMask,
+        };
+
+        internal MobaAreaRuntimeInfo ToInfo()
+        {
+            var center = new Vec3(CenterX, CenterY, CenterZ);
+            var forward = new Vec3(ForwardX, ForwardY, ForwardZ);
+            var runtime = new MobaSkillCastRuntimeHandle(SkillRuntimeId, SkillRuntimeGeneration, SkillRuntimeRootContextId);
+            return new MobaAreaRuntimeInfo(AreaId, TemplateId, OwnerActorId, in center, Radius,
+                CollisionLayerMask, MaxTargets, SpawnFrame, DelayTriggerFrame, SourceContextId, RootContextId,
+                OwnerContextId, ShapeKind, in forward, HalfAngleDeg, Width, Length, runtime,
+                GroupKey, ClaimTargetsWithinGroup, InnerRadius, ClaimUnitSubTypeMask);
+        }
     }
 
     internal sealed class MobaContinuousLocalCheckpoint
@@ -57,7 +127,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         internal const int MaxBytes = 16 * 1024 * 1024;
         internal static readonly string[] SectionNames =
         {
-            "context-entities", "execution-contexts", "skill-runtime", "buffs", "buff-local",
+            "context-entities", "execution-contexts", "skill-runtime", "areas", "buffs", "buff-local",
             "continuous", "trigger-modifiers", "pipelines", "owner-blackboards", "continuous-local",
         };
 
@@ -93,7 +163,7 @@ namespace AbilityKit.Demo.Moba.Rollback
 
         internal static Dictionary<string, byte[]> ReadSections(MobaSkillLifecycleCheckpoint checkpoint)
         {
-            if (checkpoint.Format != MobaSkillLifecycleCheckpoint.FormatName || checkpoint.Version != 2 ||
+            if (checkpoint.Format != MobaSkillLifecycleCheckpoint.FormatName || checkpoint.Version != 3 ||
                 checkpoint.Frame < 0 || checkpoint.ActorIds == null || checkpoint.Sections == null ||
                 checkpoint.Sections.Length != SectionNames.Length)
                 throw new InvalidDataException("Unsupported or incomplete lifecycle checkpoint.");

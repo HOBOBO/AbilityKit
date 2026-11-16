@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
     {
         private IWorldClock _clock;
         private MobaMotionHitTriggerService _hitTriggers;
+        private MobaCombatRulesService _combatRules;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
         public MobaMotionTickSystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -27,6 +28,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
         {
             Services.TryResolve(out _clock);
             Services.TryResolve(out _hitTriggers);
+            Services.TryResolve(out _combatRules);
             _group = Contexts.Actor().GetGroup(global::ActorMatcher.AllOf(
                 global::ActorComponentsLookup.ActorId,
                 global::ActorComponentsLookup.Transform,
@@ -75,7 +77,10 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                 var hitTriggerRuntime = m.HitTriggerRuntime;
 
                 var desiredForward = output.NewForward.SqrMagnitude > 0f ? output.NewForward : state.Forward;
-                var newRot = desiredForward.SqrMagnitude > 0f ? Quat.LookRotation(desiredForward, Vec3.Up) : t.Rotation;
+                var newRot = desiredForward.SqrMagnitude > 0f &&
+                             (_combatRules == null || _combatRules.CanTurn(e.actorId.Value))
+                    ? Quat.LookRotation(desiredForward, Vec3.Up)
+                    : t.Rotation;
 
                 var newT = new Transform3(state.Position, newRot, t.Scale);
                 e.ReplaceTransform(newT);

@@ -52,6 +52,10 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public float FormulaConstant;
         public float FormulaLevelCoefficient;
         public ModifierFormulaTermDTO[] FormulaTerms;
+        // Optional per-source stack mapping; zero step keeps legacy stacking.
+        public int StackStepSize;
+        public float StackStepDelta;
+        public float StackValueMin;
     }
 
     [Serializable]

@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Variables.Numeric;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
@@ -41,6 +43,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var anchorAtOrigin = ReadBoolNonZero(namedArgs, ctx, true, "anchor_at_origin", "anchoratorigin", "front_anchor");
             var groupKey = ReadInt(namedArgs, ctx, 0, "area_group_key", "areagroupkey", "group_key", "groupkey");
             var claimTargetsWithinGroup = ReadBoolNonZero(namedArgs, ctx, false, "claim_targets_within_group", "claimtargetswithingroup", "group_target_claim");
+            var claimMask = 0d;
+            if (namedArgs.ContainsKey("claim_unit_sub_type_mask") &&
+                (!TryReadNumber(namedArgs, ctx, out claimMask, "claim_unit_sub_type_mask") ||
+                 !MobaAreaClaimQualification.IsValidMask(claimMask)))
+                throw new ArgumentException("claim_unit_sub_type_mask must be an integer selecting only defined UnitSubType bits.");
             var hasTargetRequest = HasExplicitTargetRequest(namedArgs);
             var captureCastFrame = ReadBoolNonZero(namedArgs, ctx, false, "capture_cast_frame");
             if (captureCastFrame && hasTargetRequest)
@@ -51,7 +58,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return new SpawnAreaArgs(areaId, positionMode, radiusOverride, durationFrames, durationMs, stayIntervalFrames, collisionLayerMaskOverride, offsetX, offsetY, offsetZ,
                 shapeKind, halfAngleDeg, width, length, initialRadius, radiusGrowthPerFrame, anchorAtOrigin,
                 groupKey, claimTargetsWithinGroup,
-                hasTargetRequest, targetRequest, resultTarget, resultCountTarget, directionOffset, lateralOffset, innerRadius, forwardYawDeg, captureCastFrame);
+                hasTargetRequest, targetRequest, resultTarget, resultCountTarget, directionOffset, lateralOffset, innerRadius, forwardYawDeg, captureCastFrame, (int)claimMask);
         }
 
         private static bool HasExplicitTargetRequest(Dictionary<string, ActionArgValue> namedArgs)
@@ -94,7 +101,23 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            if (!ValidateClaimMask(args, out error)) return false;
             return RequireAny(args, "area_id", out error, "area_id", "areaid", "aoe_id", "aoeid", "id");
+        }
+
+        internal static bool ValidateClaimMask(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
+        {
+            foreach (var pair in args)
+                if (pair.Key == "claim_unit_sub_type_mask" &&
+                    (pair.Value.Kind != ActionArgKind.NumericValue ||
+                     pair.Value.Ref.Kind == ENumericValueRefKind.Const &&
+                     !MobaAreaClaimQualification.IsValidMask(pair.Value.Ref.ConstValue)))
+                {
+                    error = "claim_unit_sub_type_mask must be an integer selecting only defined UnitSubType bits.";
+                    return false;
+                }
+            error = null;
+            return true;
         }
     }
 }

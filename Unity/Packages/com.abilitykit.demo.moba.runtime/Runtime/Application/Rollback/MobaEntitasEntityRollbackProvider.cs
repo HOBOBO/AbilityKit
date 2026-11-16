@@ -47,8 +47,10 @@ namespace AbilityKit.Demo.Moba.Rollback
             }
             actorIds.Sort();
             castIds.Sort();
-            return MemoryPackSerializer.Serialize(new MobaEntitasEntityRollbackPayload(1, _ids.NextId,
-                actorIds.ToArray(), castIds.ToArray()));
+            var actorEntityVersions = new int[actorIds.Count];
+            for (var i = 0; i < actorIds.Count; i++) actorEntityVersions[i] = _actors.GetEntityVersion(actorIds[i]);
+            return MemoryPackSerializer.Serialize(new MobaEntitasEntityRollbackPayload(2, _ids.NextId,
+                actorIds.ToArray(), castIds.ToArray(), actorEntityVersions));
         }
 
         public void ValidateImport(FrameIndex frame, byte[] payload)
@@ -66,6 +68,32 @@ namespace AbilityKit.Demo.Moba.Rollback
                     throw new InvalidOperationException($"Confirmed actor {id} was destroyed before rollback.");
             foreach (var id in snapshot.CastIds ?? Array.Empty<long>())
                 if (!casts.Contains(id)) throw new InvalidOperationException($"Confirmed skill cast {id} was destroyed before rollback.");
+        }
+
+        internal static HashSet<int> ReadSnapshotActorIds(byte[] payload)
+        {
+            var snapshot = Read(payload);
+            var ids = new HashSet<int>();
+            foreach (var id in snapshot.ActorIds ?? Array.Empty<int>())
+                if (id <= 0 || !ids.Add(id))
+                    throw new InvalidOperationException("Entitas entity rollback payload contains a duplicate or invalid actor identity.");
+            return ids;
+        }
+
+        internal static Dictionary<int, int> ReadSnapshotActorEntityVersions(byte[] payload)
+        {
+            var snapshot = Read(payload);
+            var versions = new Dictionary<int, int>();
+            var actorIds = snapshot.ActorIds ?? Array.Empty<int>();
+            var actorVersions = snapshot.ActorEntityVersions;
+            if (actorVersions == null || actorVersions.Length != actorIds.Length)
+                throw new InvalidOperationException("Entitas entity rollback payload omits actor entity versions.");
+            for (var i = 0; i < actorIds.Length; i++)
+            {
+                if (actorVersions[i] <= 0 || !versions.TryAdd(actorIds[i], actorVersions[i]))
+                    throw new InvalidOperationException("Entitas entity rollback payload contains invalid actor entity versions.");
+            }
+            return versions;
         }
 
         public void Import(FrameIndex frame, byte[] payload)
@@ -106,7 +134,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         {
             if (payload == null || payload.Length == 0) throw new InvalidOperationException("Missing Entitas entity rollback payload.");
             var snapshot = MemoryPackSerializer.Deserialize<MobaEntitasEntityRollbackPayload>(payload);
-            if (snapshot.Version != 1 || snapshot.NextActorId < 1)
+            if ((snapshot.Version != 1 && snapshot.Version != 2) || snapshot.NextActorId < 1)
                 throw new InvalidOperationException("Unsupported Entitas entity rollback payload.");
             return snapshot;
         }
@@ -119,14 +147,20 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(1)] public readonly int NextActorId;
         [MemoryPackOrder(2)] public readonly int[] ActorIds;
         [MemoryPackOrder(3)] public readonly long[] CastIds;
+        [MemoryPackOrder(4)] public readonly int[] ActorEntityVersions;
 
         [MemoryPackConstructor]
-        public MobaEntitasEntityRollbackPayload(int version, int nextActorId, int[] actorIds, long[] castIds)
+        public MobaEntitasEntityRollbackPayload(int version, int nextActorId, int[] actorIds, long[] castIds,
+            int[] actorEntityVersions)
         {
             Version = version;
             NextActorId = nextActorId;
             ActorIds = actorIds;
             CastIds = castIds;
+            ActorEntityVersions = actorEntityVersions;
         }
+
+        public MobaEntitasEntityRollbackPayload(int version, int nextActorId, int[] actorIds, long[] castIds)
+            : this(version, nextActorId, actorIds, castIds, null) { }
     }
 }

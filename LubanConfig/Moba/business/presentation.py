@@ -40,6 +40,7 @@ def validate_presentation_templates(rows):
         row_id = row.get("Id", "?")
         for field, allowed in (
             ("OffsetSpace", {0, 1}),
+            ("PlacementSpace", {0, 1}),
             ("ParentScaleMode", {0, 1}),
             ("OrderingMode", {0, 1, 2}),
             ("StackPolicy", {0, 1, 2}),

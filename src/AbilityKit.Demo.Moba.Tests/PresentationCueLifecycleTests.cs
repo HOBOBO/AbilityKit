@@ -1,3 +1,5 @@
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Triggering;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -194,6 +196,41 @@ public sealed class PresentationCueLifecycleTests
         Assert.Equal(new[] { 1f, 2f, 3f }, active.Entry.Positions);
         Assert.Equal(MobaPresentationCueObserveResult.Stopped, store.Observe(in stop));
         Assert.False(store.Contains("area:42"));
+    }
+
+    [Fact]
+    public void Area_reconciliation_updates_only_aoe_active_state_without_emitting_cue_events()
+    {
+        var phase = new MobaLogicWorldRunGateService();
+        phase.SetInGame("area cue rollback reconciliation");
+        var service = new MobaPresentationCueSnapshotService(phase);
+        var area = new MobaPresentationCueSnapshotEntry
+        {
+            Stage = (int)MobaPresentationCueStage.Started,
+            Domain = (int)PresentationCueDomain.Aoe,
+            Lifetime = (int)PresentationCueLifetime.PersistentState,
+            InstanceKey = "area:42",
+            RequestKey = "area:42",
+            VfxId = 9001,
+            Positions = new[] { 1f, 2f, 3f },
+        };
+        var buff = Entry((int)MobaPresentationCueStage.Started, "buff:7:200:9001");
+        buff.Domain = (int)PresentationCueDomain.Buff;
+        service.Report(in area);
+        service.Report(in buff);
+        Assert.True(service.TryGetSnapshot(new FrameIndex(1), out _));
+
+        area.Positions = new[] { 4f, 5f, 6f };
+        service.ReconcileDesiredCueDomain(PresentationCueDomain.Aoe, new[] { area });
+
+        Assert.True(service.TryGetActiveCue("area:42", out var activeArea));
+        Assert.Equal(new[] { 4f, 5f, 6f }, activeArea.Entry.Positions);
+        Assert.True(service.TryGetActiveCue("buff:7:200:9001", out _));
+        Assert.False(service.TryGetSnapshot(new FrameIndex(2), out _));
+
+        service.ReconcileDesiredCueDomain(PresentationCueDomain.Aoe, Array.Empty<MobaPresentationCueSnapshotEntry>());
+        Assert.False(service.TryGetActiveCue("area:42", out _));
+        Assert.True(service.TryGetActiveCue("buff:7:200:9001", out _));
     }
 
     [Fact]

@@ -20,6 +20,7 @@ namespace moba_luban
         Move = 5,
         Attack = 6,
         Controlled = 7,
+        Turn = 8,
     }
 
 } 

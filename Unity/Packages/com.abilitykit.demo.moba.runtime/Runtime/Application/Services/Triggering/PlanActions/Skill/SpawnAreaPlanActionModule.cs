@@ -328,7 +328,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     skillRuntimeHandle,
                     args.GroupKey,
                     args.ClaimTargetsWithinGroup,
-                    innerRadius);
+                    innerRadius,
+                    args.ClaimUnitSubTypeMask);
             }
             catch (Exception ex)
             {

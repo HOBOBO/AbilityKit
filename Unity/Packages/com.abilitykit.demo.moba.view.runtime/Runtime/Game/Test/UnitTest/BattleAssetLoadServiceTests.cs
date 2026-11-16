@@ -161,6 +161,28 @@ namespace AbilityKit.Game.Test.UnitTest
 
     public sealed class BattleAssetLoadServiceTests
     {
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator ResourcesLease_PrefersPrefabOverSamePathAnimation()
+        {
+            foreach (var path in new[] { "MobaVfx/Veigar/E_Area", "MobaVfx/Veigar/W_Area" })
+            {
+            var prefab = UnityEngine.Resources.Load<UnityEngine.GameObject>(path);
+            Assert.IsNotNull(prefab);
+            Assert.IsNotNull(UnityEngine.Resources.Load<UnityEngine.AnimationClip>(path),
+                "Fixture must contain a same-path animation, reproducing untyped-load ambiguity.");
+            var source = new ResourcesBattleAssetSource(ResourcesAssetProvider.Shared);
+            Assert.IsTrue(source.TryLoad(path, out var loaded));
+            Assert.AreSame(prefab, loaded, "Lease must retain the prefab rather than a clip/controller.");
+            var task = new BattleAssetLoadService(source).LoadAsync(NewManifest(Entry("prefab", path)));
+            while (!task.IsCompleted) yield return null;
+            var result = task.GetAwaiter().GetResult();
+            Assert.IsTrue(result.Success);
+            using var lease = result.Lease;
+            Assert.IsTrue(((IBattleAssetLookup)lease).TryGetAsset(path, out var leased));
+            Assert.AreSame(prefab, leased);
+            }
+        }
+
         private sealed class MockAssetSource : IBattleAssetSource, IBattleAssetReleaseSource
         {
             private readonly HashSet<string> _existing;

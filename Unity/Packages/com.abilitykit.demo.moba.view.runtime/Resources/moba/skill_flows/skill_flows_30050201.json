@@ -1,9 +1,13 @@
 {
   "Id": 30050201,
   "Name": "Gragas 30050201",
-  "PipelineContinuousTagTemplateId": 0,
+  "PipelineContinuousTagTemplateId": 3018,
   "ChildChannelId": 1,
   "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": false,
+  "UseCommitCooldownFactor": false,
   "RequiredBuffQualificationId": 0,
   "Phases": [
     {
@@ -55,6 +59,7 @@
       "PhaseId": "gragas_30050201_cast",
       "Timeline": {
         "DurationMs": 1250,
+        "RecoveryStartMs": -1,
         "Events": [
           {
             "AtMs": 0,

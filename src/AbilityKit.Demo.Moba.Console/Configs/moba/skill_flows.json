@@ -8,12 +8,14 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
+          "RecoveryStartMs": -1,
           "Events": []
         }
       }
@@ -28,12 +30,14 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -56,6 +60,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -84,6 +89,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 650,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -113,6 +119,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -141,6 +148,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 700,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -170,6 +178,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -201,6 +210,7 @@
             "PhaseId": "lp_skill_3_stage_1",
             "Timeline": {
               "DurationMs": 650,
+              "RecoveryStartMs": -1,
               "Events": [
                 {
                   "AtMs": 0,
@@ -238,6 +248,7 @@
             "PhaseId": "lp_skill_3_stage_2",
             "Timeline": {
               "DurationMs": 650,
+              "RecoveryStartMs": -1,
               "Events": [
                 {
                   "AtMs": 0,
@@ -268,6 +279,7 @@
             "PhaseId": "lp_skill_3_stage_3",
             "Timeline": {
               "DurationMs": 300,
+              "RecoveryStartMs": -1,
               "Events": [
                 {
                   "AtMs": 0,
@@ -292,12 +304,14 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -320,6 +334,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -348,6 +363,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 600,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -370,6 +386,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -398,6 +415,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 700,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -420,6 +438,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -448,6 +467,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -470,12 +490,14 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -498,6 +520,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -526,6 +549,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -548,6 +572,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -576,6 +601,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 600,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -598,6 +624,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -626,6 +653,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 800,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -648,12 +676,14 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -676,6 +706,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -704,6 +735,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 600,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -726,12 +758,14 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -754,6 +788,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -782,6 +817,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -804,6 +840,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -832,6 +869,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 3500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -854,12 +892,14 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -882,6 +922,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -910,6 +951,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -932,6 +974,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -960,6 +1003,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -982,6 +1026,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1010,6 +1055,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 1600,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1032,12 +1078,14 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1060,6 +1108,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1088,6 +1137,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 800,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1110,6 +1160,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1138,6 +1189,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1160,6 +1212,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1188,6 +1241,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 2500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1210,12 +1264,14 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1238,6 +1294,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1266,6 +1323,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 800,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1288,6 +1346,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1295,6 +1354,7 @@
         "PhaseId": "ssx_skill_1_enhanced_basic",
         "Timeline": {
           "DurationMs": 250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1317,6 +1377,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1345,6 +1406,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1367,6 +1429,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1395,6 +1458,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 2500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1417,12 +1481,14 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
           "DurationMs": 250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1445,6 +1511,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1473,6 +1540,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 800,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1495,6 +1563,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1502,6 +1571,7 @@
         "PhaseId": "luban_skill_1_enhanced_basic",
         "Timeline": {
           "DurationMs": 250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1524,6 +1594,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1552,6 +1623,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1574,6 +1646,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1602,6 +1675,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 2500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1624,6 +1698,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1652,6 +1727,7 @@
         "Type": 2,
         "Timeline": {
           "DurationMs": 2500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1674,6 +1750,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1703,6 +1780,7 @@
         "PhaseId": "skill_30010101_action",
         "Timeline": {
           "DurationMs": 700,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1725,6 +1803,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1754,6 +1833,7 @@
         "PhaseId": "skill_30010201_action",
         "Timeline": {
           "DurationMs": 3208,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1776,6 +1856,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1805,6 +1886,7 @@
         "PhaseId": "skill_30010301_action",
         "Timeline": {
           "DurationMs": 1600,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1821,12 +1903,13 @@
   {
     "Id": 30010401,
     "Name": "Jhin - Curtain Call",
-    "PipelineContinuousTagTemplateId": 3015,
+    "PipelineContinuousTagTemplateId": 3019,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1834,7 +1917,7 @@
         "PhaseId": "skill_30010401_release",
         "RulePlan": {
           "TriggerIds": [
-            30010400
+            900101011
           ],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
@@ -1850,6 +1933,17 @@
           "AbortOnFailure": true,
           "FailReason": "skill_commit_failed"
         }
+      },
+      {
+        "Type": 4,
+        "PhaseId": "skill_30010401_enter_mode",
+        "RulePlan": {
+          "TriggerIds": [
+            30010400
+          ],
+          "AbortOnFailure": true,
+          "FailReason": "skill_mode_entry_failed"
+        }
       }
     ]
   },
@@ -1862,6 +1956,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1891,6 +1986,7 @@
         "PhaseId": "skill_30010501_shot",
         "Timeline": {
           "DurationMs": 2000,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1913,6 +2009,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1942,6 +2039,7 @@
         "PhaseId": "skill_30010502_shot",
         "Timeline": {
           "DurationMs": 2583,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -1964,6 +2062,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -1979,6 +2078,7 @@
         "PhaseId": "skill_30010601_shot",
         "Timeline": {
           "DurationMs": 3250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -2001,6 +2101,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2016,6 +2117,7 @@
         "PhaseId": "skill_30010602_shot",
         "Timeline": {
           "DurationMs": 3250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -2038,6 +2140,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2053,6 +2156,7 @@
         "PhaseId": "skill_30010603_shot",
         "Timeline": {
           "DurationMs": 3625,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -2075,6 +2179,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2090,6 +2195,7 @@
         "PhaseId": "skill_30010604_shot",
         "Timeline": {
           "DurationMs": 3625,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -2112,6 +2218,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2119,6 +2226,7 @@
         "PhaseId": "skill_30020002_attack",
         "Timeline": {
           "DurationMs": 1567,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 100,
@@ -2141,6 +2249,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2148,6 +2257,7 @@
         "PhaseId": "skill_30020003_attack",
         "Timeline": {
           "DurationMs": 1567,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 100,
@@ -2170,6 +2280,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2200,6 +2311,7 @@
         "PhaseId": "jinx_q_switch_presentation_window",
         "Timeline": {
           "DurationMs": 1000,
+          "RecoveryStartMs": -1,
           "Events": []
         }
       }
@@ -2214,6 +2326,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2243,6 +2356,7 @@
         "PhaseId": "skill_30020201_action",
         "Timeline": {
           "DurationMs": 1550,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -2265,6 +2379,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2294,6 +2409,7 @@
         "PhaseId": "skill_30020301_action",
         "Timeline": {
           "DurationMs": 1367,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -2316,6 +2432,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2345,6 +2462,7 @@
         "PhaseId": "skill_30020401_action",
         "Timeline": {
           "DurationMs": 1800,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -2367,6 +2485,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2407,6 +2526,7 @@
         "PhaseId": "annie_basic_attack",
         "Timeline": {
           "DurationMs": 1875,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -2429,6 +2549,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2483,6 +2604,7 @@
         "PhaseId": "annie_q_cast",
         "Timeline": {
           "DurationMs": 2208,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -2505,6 +2627,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2559,6 +2682,7 @@
         "PhaseId": "annie_w_cast",
         "Timeline": {
           "DurationMs": 3000,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -2581,6 +2705,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2635,6 +2760,7 @@
         "PhaseId": "annie_e_cast",
         "Timeline": {
           "DurationMs": 4167,
+          "RecoveryStartMs": 0,
           "Events": [
             {
               "AtMs": 0,
@@ -2657,6 +2783,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2686,6 +2813,7 @@
         "PhaseId": "annie_r_cast",
         "Timeline": {
           "DurationMs": 1250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -2708,6 +2836,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2748,6 +2877,7 @@
         "PhaseId": "veigar_basic_attack",
         "Timeline": {
           "DurationMs": 2000,
+          "RecoveryStartMs": 250,
           "Events": [
             {
               "AtMs": 0,
@@ -2770,6 +2900,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2824,6 +2955,7 @@
         "PhaseId": "veigar_q_cast",
         "Timeline": {
           "DurationMs": 1583,
+          "RecoveryStartMs": 250,
           "Events": [
             {
               "AtMs": 0,
@@ -2846,6 +2978,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": true,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2869,7 +3002,7 @@
           "IgnoreResourceCostCheck": true,
           "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
-          "RequireExplicitCommit": false,
+          "RequireExplicitCommit": true,
           "FailReason": "skill_economy_reserve_failed"
         }
       },
@@ -2885,14 +3018,11 @@
         }
       },
       {
-        "Type": 4,
-        "PhaseId": "veigar_w_commit",
-        "RulePlan": {
-          "TriggerIds": [
-            900101012
-          ],
-          "AbortOnFailure": true,
-          "FailReason": "skill_commit_failed"
+        "Type": 18,
+        "PhaseId": "veigar_w_commit_point",
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
         }
       },
       {
@@ -2900,6 +3030,7 @@
         "PhaseId": "veigar_w_cast",
         "Timeline": {
           "DurationMs": 3333,
+          "RecoveryStartMs": 250,
           "Events": [
             {
               "AtMs": 0,
@@ -2922,6 +3053,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -2976,6 +3108,7 @@
         "PhaseId": "veigar_e_cast",
         "Timeline": {
           "DurationMs": 2084,
+          "RecoveryStartMs": 250,
           "Events": [
             {
               "AtMs": 0,
@@ -2998,6 +3131,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3027,6 +3161,7 @@
         "PhaseId": "veigar_r_cast",
         "Timeline": {
           "DurationMs": 1583,
+          "RecoveryStartMs": 250,
           "Events": [
             {
               "AtMs": 0,
@@ -3049,6 +3184,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3100,6 +3236,7 @@
         "PhaseId": "gragas_30050101_cast",
         "Timeline": {
           "DurationMs": 1333,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 300,
@@ -3116,12 +3253,13 @@
   {
     "Id": 30050201,
     "Name": "Gragas 30050201",
-    "PipelineContinuousTagTemplateId": 0,
+    "PipelineContinuousTagTemplateId": 3018,
     "ChildChannelId": 1,
     "RecastChannelId": 0,
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3173,6 +3311,7 @@
         "PhaseId": "gragas_30050201_cast",
         "Timeline": {
           "DurationMs": 1250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -3202,6 +3341,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3253,6 +3393,7 @@
         "PhaseId": "gragas_30050301_cast",
         "Timeline": {
           "DurationMs": 1167,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -3282,6 +3423,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3333,6 +3475,7 @@
         "PhaseId": "gragas_30050401_cast",
         "Timeline": {
           "DurationMs": 1333,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -3362,6 +3505,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3413,6 +3557,7 @@
         "PhaseId": "gragas_30050501_cast",
         "Timeline": {
           "DurationMs": 1333,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -3442,6 +3587,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3493,6 +3639,7 @@
         "PhaseId": "gragas_30050601_cast",
         "Timeline": {
           "DurationMs": 1250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -3515,6 +3662,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 30050391,
     "Phases": [
       {
@@ -3566,6 +3714,7 @@
         "PhaseId": "gragas_30050701_cast",
         "Timeline": {
           "DurationMs": 1667,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 300,
@@ -3588,6 +3737,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 30050392,
     "Phases": [
       {
@@ -3639,6 +3789,7 @@
         "PhaseId": "gragas_30050702_cast",
         "Timeline": {
           "DurationMs": 1667,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 300,
@@ -3661,6 +3812,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 30050393,
     "Phases": [
       {
@@ -3712,6 +3864,7 @@
         "PhaseId": "gragas_30050703_cast",
         "Timeline": {
           "DurationMs": 1667,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 300,
@@ -3734,6 +3887,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 30050394,
     "Phases": [
       {
@@ -3785,6 +3939,7 @@
         "PhaseId": "gragas_30050704_cast",
         "Timeline": {
           "DurationMs": 1667,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 300,
@@ -3807,6 +3962,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 30050395,
     "Phases": [
       {
@@ -3858,6 +4014,7 @@
         "PhaseId": "gragas_30050705_cast",
         "Timeline": {
           "DurationMs": 1667,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 300,
@@ -3880,6 +4037,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3903,7 +4061,8 @@
           "IgnoreResourceCostCheck": false,
           "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
-          "RequireExplicitCommit": true
+          "RequireExplicitCommit": true,
+          "FailReason": ""
         }
       },
       {
@@ -3930,6 +4089,7 @@
         "PhaseId": "karthus_30060101_timeline",
         "Timeline": {
           "DurationMs": 1600,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 300,
@@ -3952,6 +4112,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -3975,7 +4136,8 @@
           "IgnoreResourceCostCheck": false,
           "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
-          "RequireExplicitCommit": true
+          "RequireExplicitCommit": true,
+          "FailReason": ""
         }
       },
       {
@@ -4002,6 +4164,7 @@
         "PhaseId": "karthus_30060201_timeline",
         "Timeline": {
           "DurationMs": 1000,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 250,
@@ -4024,6 +4187,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4047,7 +4211,8 @@
           "IgnoreResourceCostCheck": false,
           "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
-          "RequireExplicitCommit": true
+          "RequireExplicitCommit": true,
+          "FailReason": ""
         }
       },
       {
@@ -4074,6 +4239,7 @@
         "PhaseId": "karthus_30060301_timeline",
         "Timeline": {
           "DurationMs": 500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 250,
@@ -4096,6 +4262,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4119,7 +4286,8 @@
           "IgnoreResourceCostCheck": false,
           "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
-          "RequireExplicitCommit": true
+          "RequireExplicitCommit": true,
+          "FailReason": ""
         }
       },
       {
@@ -4146,6 +4314,7 @@
         "PhaseId": "karthus_30060401_timeline",
         "Timeline": {
           "DurationMs": 500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -4162,12 +4331,13 @@
   {
     "Id": 30060501,
     "Name": "Karthus 30060501",
-    "PipelineContinuousTagTemplateId": 0,
+    "PipelineContinuousTagTemplateId": 3018,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4191,7 +4361,8 @@
           "IgnoreResourceCostCheck": false,
           "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
-          "RequireExplicitCommit": true
+          "RequireExplicitCommit": true,
+          "FailReason": ""
         }
       },
       {
@@ -4218,6 +4389,7 @@
         "PhaseId": "karthus_30060501_timeline",
         "Timeline": {
           "DurationMs": 3250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 250,
@@ -4247,6 +4419,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4270,7 +4443,8 @@
           "IgnoreResourceCostCheck": false,
           "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
-          "RequireExplicitCommit": true
+          "RequireExplicitCommit": true,
+          "FailReason": ""
         }
       },
       {
@@ -4297,6 +4471,7 @@
         "PhaseId": "karthus_30060602_timeline",
         "Timeline": {
           "DurationMs": 1000,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 250,
@@ -4319,6 +4494,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4342,7 +4518,8 @@
           "IgnoreResourceCostCheck": false,
           "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
-          "RequireExplicitCommit": true
+          "RequireExplicitCommit": true,
+          "FailReason": ""
         }
       },
       {
@@ -4369,6 +4546,7 @@
         "PhaseId": "karthus_30060603_timeline",
         "Timeline": {
           "DurationMs": 500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 250,
@@ -4391,6 +4569,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4414,7 +4593,8 @@
           "IgnoreResourceCostCheck": false,
           "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
-          "RequireExplicitCommit": true
+          "RequireExplicitCommit": true,
+          "FailReason": ""
         }
       },
       {
@@ -4441,6 +4621,7 @@
         "PhaseId": "karthus_30060604_timeline",
         "Timeline": {
           "DurationMs": 500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -4457,12 +4638,13 @@
   {
     "Id": 30060605,
     "Name": "Karthus 30060605",
-    "PipelineContinuousTagTemplateId": 0,
+    "PipelineContinuousTagTemplateId": 3018,
     "ChildChannelId": 0,
     "RecastChannelId": 0,
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4486,7 +4668,8 @@
           "IgnoreResourceCostCheck": false,
           "IgnoreResourceConsumption": false,
           "RefundBeforeCommit": true,
-          "RequireExplicitCommit": true
+          "RequireExplicitCommit": true,
+          "FailReason": ""
         }
       },
       {
@@ -4513,6 +4696,7 @@
         "PhaseId": "karthus_30060605_timeline",
         "Timeline": {
           "DurationMs": 3250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 250,
@@ -4542,6 +4726,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4593,6 +4778,7 @@
         "PhaseId": "lux_30070101_timeline",
         "Timeline": {
           "DurationMs": 1250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 250,
@@ -4615,6 +4801,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4666,6 +4853,7 @@
         "PhaseId": "lux_30070201_timeline",
         "Timeline": {
           "DurationMs": 1250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 250,
@@ -4688,6 +4876,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4739,6 +4928,7 @@
         "PhaseId": "lux_30070301_timeline",
         "Timeline": {
           "DurationMs": 5042,
+          "RecoveryStartMs": 250,
           "Events": [
             {
               "AtMs": 250,
@@ -4761,6 +4951,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4812,6 +5003,7 @@
         "PhaseId": "lux_30070401_timeline",
         "Timeline": {
           "DurationMs": 1250,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 250,
@@ -4834,6 +5026,7 @@
     "QueueRecastInFlight": true,
     "ContinueThroughControl": false,
     "PreserveCharacterCastContext": true,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4885,6 +5078,7 @@
         "PhaseId": "lux_30070402_timeline",
         "Timeline": {
           "DurationMs": 100,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,
@@ -4907,6 +5101,7 @@
     "QueueRecastInFlight": false,
     "ContinueThroughControl": true,
     "PreserveCharacterCastContext": false,
+    "UseCommitCooldownFactor": false,
     "RequiredBuffQualificationId": 0,
     "Phases": [
       {
@@ -4958,6 +5153,7 @@
         "PhaseId": "lux_30070501_timeline",
         "Timeline": {
           "DurationMs": 2500,
+          "RecoveryStartMs": -1,
           "Events": [
             {
               "AtMs": 0,

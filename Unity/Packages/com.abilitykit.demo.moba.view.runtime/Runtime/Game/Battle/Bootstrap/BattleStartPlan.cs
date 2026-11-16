@@ -99,6 +99,14 @@ namespace AbilityKit.Game.Flow
             return Rebuild(World, gateway, sync, authority, runMode);
         }
 
+        internal BattleStartPlan WithConfirmedAuthorityWorld(bool enabled)
+        {
+            var authority = new BattleStartPlanAuthorityOptions(
+                Authority.EnableClientPrediction,
+                enabled);
+            return Rebuild(World, Gateway, Sync, authority, RunModeOptions);
+        }
+
         private BattleStartPlan Rebuild(
             in BattleStartPlanWorldOptions world,
             in BattleStartPlanGatewayOptions gateway,

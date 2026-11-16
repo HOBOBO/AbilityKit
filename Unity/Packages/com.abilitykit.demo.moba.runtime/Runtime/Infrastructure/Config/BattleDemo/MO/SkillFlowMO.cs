@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public bool QueueRecastInFlight { get; }
         public bool ContinueThroughControl { get; }
         public bool PreserveCharacterCastContext { get; }
+        public bool UseCommitCooldownFactor { get; }
 
         public int RequiredBuffQualificationId { get; }
         public IReadOnlyList<SkillPhaseDTO> Phases { get; }
@@ -21,6 +22,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public SkillFlowMO(SkillFlowDTO dto)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
+            SkillRecoveryContract.Validate(dto);
+            SkillCommitCooldownContract.Validate(dto);
             Id = dto.Id;
             Name = dto.Name;
             PipelineContinuousTagTemplateId = dto.PipelineContinuousTagTemplateId;
@@ -31,6 +34,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             QueueRecastInFlight = dto.QueueRecastInFlight;
             ContinueThroughControl = dto.ContinueThroughControl;
             PreserveCharacterCastContext = dto.PreserveCharacterCastContext;
+            UseCommitCooldownFactor = dto.UseCommitCooldownFactor;
 
             if (dto.RequiredBuffQualificationId < 0) throw new ArgumentException("Required buff qualification must be nonnegative.", nameof(dto));
             RequiredBuffQualificationId = dto.RequiredBuffQualificationId;

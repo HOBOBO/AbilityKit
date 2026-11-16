@@ -7381,14 +7381,14 @@
           "stopPropagationOnFailure": false
         },
         "condition": {
-          "nodeId": "node_8e4c91b913ee4d04a6b7e8f0a9c2d1e3",
+          "nodeId": "node_1df1944a0b37f2efe09fe7d834f5f417",
           "enabled": true,
           "kind": "Condition",
           "type": "all",
           "arguments": [],
           "children": [
             {
-              "nodeId": "node_1e73a90c4f8d4b62a5e9c7d1f0b3a826",
+              "nodeId": "node_5e5ed39266ec4d6c1cd7a0ae54f0b0ad",
               "enabled": true,
               "kind": "Condition",
               "type": "owner_matches_payload_source",
@@ -7397,7 +7397,7 @@
               "elseChildren": []
             },
             {
-              "nodeId": "node_7c2d4e8f1a6b49c0b5e3d9f702a8c164",
+              "nodeId": "node_cf1df795b741d2adfd31d509c49b9555",
               "enabled": true,
               "kind": "Condition",
               "type": "arg_gt",
@@ -7444,7 +7444,7 @@
               "elseChildren": []
             },
             {
-              "nodeId": "node_4a9f0c2e7b1d4638a5e6c9f102d7b845",
+              "nodeId": "node_d92c7063bffcce6e1a3e3eb7a604db4e",
               "enabled": true,
               "kind": "Condition",
               "type": "arg_eq",
@@ -7489,12 +7489,55 @@
               ],
               "children": [],
               "elseChildren": []
+            },
+            {
+              "nodeId": "node_69d47f3d325e5f1c0af0a69dea0a0908",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "owner_enemy_to_payload_target",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_54e88fb6fb3eb3f8c52fd3ec4d1aa100",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "payload_actor_type",
+              "arguments": [
+                {
+                  "name": "participant",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0
+                  }
+                },
+                {
+                  "name": "main_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                },
+                {
+                  "name": "unit_sub_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             }
           ],
           "elseChildren": []
         },
         "actions": {
-          "nodeId": "node_3f8a1c5e7b2d4906a4c9e0f173b6d825",
+          "nodeId": "node_6a37fc153d5f529b90dd844d11603ace",
           "enabled": true,
           "kind": "Action",
           "type": "add_buff",
@@ -7542,7 +7585,7 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Each positive skill damage result grants one permanent growth stack to its owner."
+        "note": "Positive skill damage to an enemy Hero grants one permanent AP stack."
       },
       {
         "id": 30040002,
@@ -7576,18 +7619,61 @@
           "stopPropagationOnFailure": false
         },
         "condition": {
-          "nodeId": "node_3a6f4c1d8e2b4a709c5d7f0e1b6a2c83",
+          "nodeId": "node_eddcbb0136a61cb739db4e23bd74fa29",
           "enabled": true,
           "kind": "Condition",
           "type": "all",
           "arguments": [],
           "children": [
             {
-              "nodeId": "node_6b2e9d4f1a7c4385b0e6d2f9a1c7e854",
+              "nodeId": "node_ad3593d95e1b41681bccc660070f7914",
               "enabled": true,
               "kind": "Condition",
               "type": "owner_matches_payload_source",
               "arguments": [],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_a6b24c2584cbde844f31f911c1d3b007",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "owner_enemy_to_payload_target",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_b0ea77e8044aaffcc2e44f0ea642dd32",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "payload_actor_type",
+              "arguments": [
+                {
+                  "name": "participant",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0
+                  }
+                },
+                {
+                  "name": "main_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                },
+                {
+                  "name": "unit_sub_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                }
+              ],
               "children": [],
               "elseChildren": []
             }
@@ -7595,7 +7681,297 @@
           "elseChildren": []
         },
         "actions": {
-          "nodeId": "node_8c1f5a7e3d2b4960b4e9f6a1c7d0e285",
+          "nodeId": "node_92c7b25cb4c5b883e52805b5bbf8b246",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_9c71c9d0b06c4ecfd4cd8a9b46c8d2c3",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerListValue": [
+                      30040000
+                    ]
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "booleanValue": true
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_d046b26bafd8a014b80a2ab96630ddf9",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerListValue": [
+                      30040000
+                    ]
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "booleanValue": true
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_2226ad55a34357e122088155e4b49e50",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerListValue": [
+                      30040000
+                    ]
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "booleanValue": true
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_88e45298a117049b5893cbdb3a2a660f",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerListValue": [
+                      30040000
+                    ]
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "booleanValue": true
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_25ff40db24f6e5d1ef95bd23b10cb1df",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerListValue": [
+                      30040000
+                    ]
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "booleanValue": true
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Owner final kill of an enemy Hero grants five stacks; assists are outside this batch."
+      },
+      {
+        "id": 30040003,
+        "name": "Veigar Q direct Unit kill bonus",
+        "groupPath": "trigger_30040003",
+        "tags": [
+          "moba",
+          "veigar",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "unit.die",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_2a2fcc2d2d8549ab834156a625dc7ae9",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_55f16c31a25222140b55778011327cf4",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "owner_matches_payload_source",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_2f1e05717fe7ff69107747e6fbc40ba5",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "owner_enemy_to_payload_target",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_e06ff2a549c4435ed7183d71de7dcbf5",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "payload_actor_type",
+              "arguments": [
+                {
+                  "name": "participant",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0
+                  }
+                },
+                {
+                  "name": "main_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_24862a38ed70179704aba1262bc5ba44",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "path": "reason_param"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30040201
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_3cccf451a1b5c80a57eecf3495417b68",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "path": "reason_kind"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_b12f3557659ea095839f22c3294cc388",
           "enabled": true,
           "kind": "Action",
           "type": "add_buff",
@@ -7605,19 +7981,9 @@
               "value": {
                 "source": "Constant",
                 "type": "IntegerList",
-                "integerValue": 0,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "stringValue": "",
                 "integerListValue": [
                   30040000
-                ],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                ]
               }
             },
             {
@@ -7625,17 +7991,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Boolean",
-                "integerValue": 0,
-                "numberValue": 0.0,
-                "booleanValue": true,
-                "stringValue": "",
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "booleanValue": true
               }
             }
           ],
@@ -7643,7 +7999,7 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Each final unit kill grants one permanent growth stack to its owner."
+        "note": "One additional stack for a direct Q enemy Unit kill; no coarse large-unit bonus."
       }
     ]
   }

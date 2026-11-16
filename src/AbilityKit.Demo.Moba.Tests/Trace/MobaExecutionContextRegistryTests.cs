@@ -1,6 +1,8 @@
 using System.Reflection;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Context;
 using AbilityKit.Core.Mathematics;
@@ -454,6 +456,45 @@ public sealed class MobaExecutionContextRegistryTests
         Assert.True(contexts.TryGet(replacement.ContextId, out var rolledBack));
         Assert.True(rolledBack.IsEnded);
         Assert.Equal((int)MobaExecutionEndReason.Failed, rolledBack.EndReason);
+    }
+
+    [Fact]
+    public void Area_claim_rollback_keeps_confirmed_application_metadata_resolvable()
+    {
+        using var contexts = new MobaExecutionContextRegistry();
+        using var collision = new CollisionService();
+        using var projectiles = new ProjectileService(collision);
+        using var areaRuntime = new MobaAreaRuntimeService();
+        SetField(areaRuntime, "_executionContexts", contexts);
+
+        var source = contexts.Create(new MobaExecutionContextCreateRequest(
+            MobaExecutionKind.AreaSpawn, 4001, 11, 0, frame: 0));
+        var center = Vec3.Zero;
+        var areaParams = new AreaSpawnParams(
+            1, in center, 3, 10, -1, 0,
+            rootContextId: source.RootContextId,
+            groupKey: 12,
+            claimTargetsWithinGroup: true);
+        var areaId = projectiles.SpawnArea(in areaParams, 0);
+        areaRuntime.RegisterSpawn(
+            areaId, 4001, 11, in center, 3, -1, 0, 0, 0,
+            source.ContextId, source.RootContextId, source.OwnerContextId,
+            groupKey: 12,
+            claimTargetsWithinGroup: true);
+
+        var providers = new RollbackRegistry();
+        providers.Register(new ProjectileRollbackProvider(projectiles));
+        var coordinator = new RollbackCoordinator(providers, new RollbackSnapshotRingBuffer(2));
+        var checkpoint = coordinator.Capture(new FrameIndex(0));
+
+        Assert.True(projectiles.TryAcceptAreaEnter(areaId, 42));
+        coordinator.Restore(checkpoint);
+
+        Assert.True(projectiles.TryAcceptAreaEnter(areaId, 42));
+        Assert.True(areaRuntime.TryGetArea(areaId.Value, out var restoredInfo));
+        Assert.Equal(4001, restoredInfo.TemplateId);
+        Assert.Equal(source.ContextId, restoredInfo.SourceContextId);
+        Assert.Equal(source.RootContextId, restoredInfo.RootContextId);
     }
 
     [Fact]

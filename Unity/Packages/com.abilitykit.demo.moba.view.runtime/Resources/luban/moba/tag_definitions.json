@@ -150,7 +150,7 @@
     "DisplayName": "施法过程",
     "ParentId": 1000,
     "Kind": 0,
-    "Status": 1
+    "Status": 0
   },
   {
     "Id": 1101,
@@ -583,5 +583,23 @@
     "ParentId": 1600,
     "Kind": 1,
     "Status": 1
+  },
+  {
+    "Id": 1103,
+    "Name": "State.Casting.CannotMove",
+    "Namespace": 1,
+    "DisplayName": "施法中不可移动",
+    "ParentId": 1100,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1104,
+    "Name": "State.Casting.CannotTurn",
+    "Namespace": 1,
+    "DisplayName": "施法中不可转向",
+    "ParentId": 1100,
+    "Kind": 1,
+    "Status": 0
   }
 ]

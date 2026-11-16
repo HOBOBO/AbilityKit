@@ -46,5 +46,11 @@
     "Key": "CannotAttack",
     "BitIndex": 7,
     "Name": "不能攻击"
+  },
+  {
+    "Id": 9,
+    "Key": "CannotTurn",
+    "BitIndex": 8,
+    "Name": "不能转向"
   }
 ]

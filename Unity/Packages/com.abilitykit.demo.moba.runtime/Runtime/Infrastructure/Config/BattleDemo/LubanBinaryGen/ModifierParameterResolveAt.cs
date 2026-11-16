@@ -21,6 +21,7 @@ namespace moba_luban
         ProjectileSpawn = 6,
         Hit = 7,
         SummonCreate = 8,
+        CastCommit = 9,
     }
 
 } 

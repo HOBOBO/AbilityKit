@@ -545,10 +545,10 @@
     "Id": 42040301,
     "AttachMode": 0,
     "CollisionLayerMask": 1,
-    "DelayMs": 450,
-    "DurationMs": 700,
+    "DelayMs": 1221,
+    "DurationMs": 2471,
     "MaxTargets": 10,
-    "ModelId": 90000102,
+    "ModelId": 0,
     "Name": "Veigar W Dark Matter impact area",
     "OffsetX": 0,
     "OffsetY": 0,
@@ -556,7 +556,7 @@
     "OnDelayTriggerIds": [
       30040311
     ],
-    "Radius": 4.5,
+    "Radius": 2.4,
     "VfxId": 90034016,
     "OnCrossTriggerIds": []
   },
@@ -564,7 +564,7 @@
     "Id": 42040401,
     "AttachMode": 0,
     "CollisionLayerMask": 1,
-    "DelayMs": 450,
+    "DelayMs": 500,
     "DurationMs": 3500,
     "MaxTargets": 10,
     "ModelId": 0,
@@ -575,7 +575,7 @@
     "OnEnterTriggerIds": [
       30040413
     ],
-    "Radius": 0.875,
+    "Radius": 3.25,
     "VfxId": 0,
     "OnCrossTriggerIds": [
       30040413
@@ -585,7 +585,7 @@
     "Id": 42040402,
     "AttachMode": 0,
     "CollisionLayerMask": 1,
-    "DelayMs": 450,
+    "DelayMs": 500,
     "DurationMs": 3500,
     "MaxTargets": 10,
     "ModelId": 0,
@@ -593,7 +593,7 @@
     "OffsetX": 0,
     "OffsetY": 0,
     "OffsetZ": 0,
-    "Radius": 0.875,
+    "Radius": 3.25,
     "VfxId": 90034017
   },
   {

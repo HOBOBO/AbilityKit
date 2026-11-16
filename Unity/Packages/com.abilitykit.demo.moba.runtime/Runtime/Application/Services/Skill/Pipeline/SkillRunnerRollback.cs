@@ -118,7 +118,7 @@ namespace AbilityKit.Demo.Moba.Services
             writer.Write(entry.RuntimeGeneration);
             writer.Write(entry.RootContextId);
             writer.Write(entry.SourceContextId);
-            writer.Write(entry.DiagnosticCommandId);
+            writer.Write(0L); // Compatibility slot: local diagnostics are not authoritative state.
             writer.Write(entry.CastFlowId);
             writer.Write(entry.TriggerFailReason ?? string.Empty);
             writer.Write(entry.Stage);
@@ -165,6 +165,7 @@ namespace AbilityKit.Demo.Moba.Services
                 throw new InvalidDataException("Invalid skill pipeline run length.");
             entry.Run = reader.ReadBytes(length);
             PipelineRollbackStateCodec.Deserialize(entry.Run);
+            entry.DiagnosticCommandId = 0L;
             return entry;
         }
 
@@ -181,7 +182,7 @@ namespace AbilityKit.Demo.Moba.Services
             writer.Write(state.SkillCooldownMs);
             writer.Write(state.FailReason ?? string.Empty);
             writer.Write(state.SourceContextId);
-            writer.Write(state.DiagnosticCommandId);
+            writer.Write(0L); // Keep the v1/v2/v3 wire layout, discard local trace association.
             writer.Write(state.CastFlowId);
             var config = state.ResolvedConfiguration;
             writer.Write(config.SkillId);
@@ -304,7 +305,7 @@ namespace AbilityKit.Demo.Moba.Services
             var config = new ResolvedSkillCastConfiguration(skillId, skillLevel,
                 (ResourceType)resourceType, cost, configCooldown, hasLevel);
             return new SkillPipelineContextRollbackState(elapsed, frame, target, aimPos, aimDir,
-                sequence, nextEvent, released, cooldown, failReason, sourceId, diagnosticId,
+                sequence, nextEvent, released, cooldown, failReason, sourceId, 0L,
                 flowId, config, aborted, startTime, characterModeId, characterModePriority,
                 characterModeOwnerId, characterModeInstanceId, hfsmParameterOwnerId, shared);
         }
@@ -358,7 +359,7 @@ namespace AbilityKit.Demo.Moba.Services
                     RuntimeGeneration = trigger.RuntimeHandle.Generation,
                     RootContextId = trigger.RuntimeHandle.RootContextId,
                     SourceContextId = trigger.SourceContextId,
-                    DiagnosticCommandId = trigger.DiagnosticCommandId,
+                    DiagnosticCommandId = 0L,
                     CastFlowId = trigger.CastFlowId, TriggerFailReason = trigger.FailReason,
                     Stage = (int)entry.Stage, StartFrame = entry.StartFrame,
                     PhaseContextId = entry.PhaseContextId, Policy = entry.Policy,
@@ -552,7 +553,7 @@ namespace AbilityKit.Demo.Moba.Services
                 }
                 trigger.RuntimeId = state.RuntimeId;
                 trigger.SourceContextId = state.SourceContextId;
-                trigger.DiagnosticCommandId = state.DiagnosticCommandId;
+                trigger.DiagnosticCommandId = 0L;
                 trigger.FailReason = state.TriggerFailReason;
                 _runnerRegistry.GetOrCreate(state.ActorId).RestoreRollbackEntry(state,
                     preConfig, prePhases, castConfig, castPhases, this, in request, trigger, localRollback);

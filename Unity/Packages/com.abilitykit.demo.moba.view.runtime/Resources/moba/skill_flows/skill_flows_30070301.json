@@ -58,6 +58,7 @@
       "PhaseId": "lux_30070301_timeline",
       "Timeline": {
         "DurationMs": 5042,
+        "RecoveryStartMs": 250,
         "Events": [
           {
             "AtMs": 250,

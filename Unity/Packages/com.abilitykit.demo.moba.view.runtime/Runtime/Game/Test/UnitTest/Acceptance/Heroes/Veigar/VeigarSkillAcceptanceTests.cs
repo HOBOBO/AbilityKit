@@ -90,12 +90,15 @@ namespace AbilityKit.Game.Test.UnitTest
                 foreach (var skillId in new[] { WSkillId, ESkillId })
                 {
                     Assert.IsTrue(harness.Config.TryGetSkill(skillId, out var skill));
-                    Assert.AreEqual(3, skill.SkillButtonTemplateId,
-                        "Veigar ground skill must use the shared target-point button template.");
+                    Assert.AreEqual(skillId, skill.SkillButtonTemplateId,
+                        "Each opted ground skill declares its exact range and footprint.");
                     Assert.IsTrue(skill.AllowCastWithoutTarget);
                     Assert.IsTrue(harness.Config.TryGetSkillButtonTemplate(
                         skill.SkillButtonTemplateId, out var button));
                     Assert.IsTrue(button.EnableAim);
+                    Assert.AreEqual(AbilityKit.Demo.Moba.Share.Config.PointRangePolicy.ClampToResolvedRange,
+                        button.PointRangePolicy);
+                    Assert.AreEqual(skillId == WSkillId ? 9.5f : 7.25f, button.SelectRange);
                     Assert.AreEqual(1, button.AimMode,
                         "Veigar ground skill must expose point aiming.");
                     Assert.AreEqual(2, button.IndicatorShape);
@@ -112,14 +115,14 @@ namespace AbilityKit.Game.Test.UnitTest
                        "veigar_area_passive_contract_world"))
             {
                 Assert.IsTrue(harness.Config.TryGetAoe(WAreaId, out var wArea));
-                Assert.AreEqual(450, wArea.DelayMs);
-                Assert.AreEqual(700, wArea.DurationMs);
-                Assert.AreEqual(4.5f, wArea.Radius, 0.001f);
+                Assert.AreEqual(1221, wArea.DelayMs);
+                Assert.AreEqual(2471, wArea.DurationMs);
+                Assert.AreEqual(2.4f, wArea.Radius, 0.001f);
                 CollectionAssert.Contains(wArea.OnDelayTriggerIds, WDelayedTriggerId);
 
                 Assert.IsTrue(harness.Config.TryGetAoe(EAreaId, out var eArea));
-                Assert.AreEqual(450, eArea.DelayMs);
-                Assert.AreEqual(0.875f, eArea.Radius, 0.001f);
+                Assert.AreEqual(500, eArea.DelayMs);
+                Assert.AreEqual(3.25f, eArea.Radius, 0.001f);
                 Assert.AreEqual(0f, eArea.InnerRadius, 0.001f);
                 Assert.AreEqual(3500, eArea.DurationMs);
                 CollectionAssert.Contains(eArea.OnEnterTriggerIds, EEnterTriggerId);
@@ -137,7 +140,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     "E must use the shared per-target group claim lifecycle.");
 
                 Assert.IsTrue(harness.Config.TryGetBuff(EBuffId, out var eBuff));
-                Assert.AreEqual(1000, eBuff.DurationMs);
+                Assert.AreEqual(1500, eBuff.DurationMs);
                 Assert.AreEqual(BuffStackingPolicy.None, eBuff.StackingPolicy);
 
                 Assert.IsTrue(harness.Config.TryGetPassiveSkill(PassiveId, out var passive));
@@ -218,8 +221,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     "The configured low-health target must be killed by Veigar Q.");
                 Assert.IsTrue(harness.TryGetActorBuffStackCount(actorId, GrowthBuffId, out var stacks),
                     "Veigar passive growth Buff must be applied after the owned final kill.");
-                Assert.AreEqual(2, stacks,
-                    "The kill's positive skill damage and final unit.die awards must each add one stack.");
+                Assert.AreEqual(7, stacks,
+                    "Enemy Hero Q kill grants hit +1, Hero kill +5 and direct Q kill +1.");
             }
         }
 
@@ -236,16 +239,24 @@ namespace AbilityKit.Game.Test.UnitTest
                 var active = new List<MobaAreaRuntimeInfo>();
                 var aimPosition = new Vec3(0f, 0f, 6f);
 
+                var buffs = harness.World.Services.Resolve<AbilityKit.Demo.Moba.Services.Buffs.MobaBuffService>();
+                for (var i = 0; i < 50; i++)
+                    Assert.IsTrue(buffs.ApplyBuffImmediate(actorId, GrowthBuffId, actorId, 0));
+
                 var wBaseline = harness.CaptureTraceBaseline();
                 Assert.IsTrue(skills.TryCastBySlot(actorId, 2, aimPosition, Vec3.Forward, 0).Success);
                 harness.TickUntilTraceNodeAfter(wBaseline, MobaExecutionKind.EffectExecution,
                     WSkillId, 40, "Veigar W area trigger did not execute.");
-                // W's area becomes active after its authored 450 ms delay and
-                // remains queryable for the configured 700 ms lifetime.
+                var w = harness.AssertActorEntity(actorId).skillLoadout.ActiveSkills[1];
+                Assert.AreEqual(7200, w.CooldownDurationMs);
+                var cooldownEnd = w.CooldownEndTimeMs;
+                Assert.IsTrue(buffs.RemoveBuffImmediate(actorId, GrowthBuffId, actorId, MobaExecutionEndReason.Cancelled));
+                // The telegraph/fall/impact cue shares the complete Area lifetime.
                 harness.Tick(15);
+                Assert.AreEqual(cooldownEnd, w.CooldownEndTimeMs);
                 Assert.IsTrue(areas.TryGetAreas(active, actorId, WAreaId));
-                Assert.AreEqual(4.5f, active[0].Radius, 0.001f);
-                harness.Tick(25);
+                Assert.AreEqual(2.4f, active[0].Radius, 0.001f);
+                harness.Tick(70);
                 Assert.IsFalse(areas.TryGetAreas(active, actorId, WAreaId),
                     "The delayed W impact area must expire through the configured lifecycle.");
 
@@ -268,19 +279,19 @@ namespace AbilityKit.Game.Test.UnitTest
                     ESkillId, 40, "Veigar E batch trigger did not execute.");
                 Assert.IsTrue(areas.TryGetAreas(active, actorId, EAreaId));
                 Assert.AreEqual(6, active.Count);
-                var expectedEdgeLength = 2f * 0.75f * (float)System.Math.Tan(System.Math.PI / 6d);
+                var expectedEdgeLength = 2f * 3f * (float)System.Math.Tan(System.Math.PI / 6d);
                 for (var i = 0; i < 6; i++)
                 {
                     var angle = i * (float)(System.Math.PI / 3d);
                     var normal = new Vec3((float)System.Math.Cos(angle), 0f, (float)System.Math.Sin(angle));
                     var tangent = new Vec3(-normal.Z, 0f, normal.X);
-                        var expectedCenter = aimPosition + normal * 0.75f;
+                        var expectedCenter = aimPosition + normal * 3f;
                     var found = false;
                     for (var j = 0; j < active.Count; j++)
                     {
                         if ((active[j].Center - expectedCenter).SqrMagnitude > 0.0025f) continue;
                         Assert.AreEqual(2, active[j].ShapeKind);
-                        Assert.AreEqual(0.25f, active[j].Width, 0.001f);
+                        Assert.AreEqual(0.5f, active[j].Width, 0.001f);
                         Assert.AreEqual(expectedEdgeLength, active[j].Length, 0.001f);
                         Assert.Greater(Vec3.Dot(active[j].Forward, tangent), 0.999f);
                         Assert.AreEqual(40401, active[j].GroupKey);
@@ -303,7 +314,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.EnterGameAndWarmup(reason: "Veigar E delayed hex boundary");
                 var actorId = harness.AssertPlayerActorBound();
                 var targetId = HeroSkillHeadlessContract.SpawnEnemyHero(
-                    harness, "veigar_e_boundary_target", 9404, x: 0.75f, z: 6f);
+                    harness, "veigar_e_boundary_target", 9404, x: 3f, z: 6f);
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var areas = harness.World.Services.Resolve<MobaAreaRuntimeService>();
                 var active = new List<MobaAreaRuntimeInfo>();
@@ -378,9 +389,10 @@ namespace AbilityKit.Game.Test.UnitTest
                     Assert.GreaterOrEqual(index, 0);
                     var end = json.IndexOf("\"id\":", index + 10, System.StringComparison.Ordinal);
                     var block = end > index ? json.Substring(index, end - index) : json.Substring(index);
-                    StringAssert.Contains("target_missing_hp_ratio_coefficient", block);
-                    StringAssert.Contains("target_missing_hp_bonus_max", block);
-                    StringAssert.Contains("damage_max", block);
+                    StringAssert.Contains("target_missing_hp_damage_scale_coefficient", block);
+                    StringAssert.Contains("target_missing_hp_damage_scale_max_bonus", block);
+                    StringAssert.DoesNotContain("target_missing_hp_ratio_coefficient", block);
+                    StringAssert.DoesNotContain("damage_max", block);
                 }
             }
         }

@@ -104,17 +104,75 @@ public sealed class KarthusRuntimeTests
         b.Setup.TickMilliseconds(1200); b.Cast(1,new Vec3(100,0,106));
     }
 
-    [Fact]
-    public void W_applies_real_slow_and_magic_resistance_reduction_then_restores_them()
+    [Theory]
+    [InlineData(UnitSubType.Hero, 2, true)]
+    [InlineData(UnitSubType.Minion, 2, true)]
+    [InlineData(UnitSubType.Neutral, 2, true)]
+    [InlineData(UnitSubType.Boss, 2, true)]
+    [InlineData(UnitSubType.Tower, 2, false)]
+    [InlineData(UnitSubType.Base, 2, false)]
+    [InlineData(UnitSubType.Bullet, 2, false)]
+    [InlineData(UnitSubType.None, 2, false)]
+    [InlineData(UnitSubType.Hero, 1, false)]
+    public void W_applies_real_slow_and_magic_resistance_reduction_then_restores_them(UnitSubType subType, int team, bool eligible)
     {
-        using var b=new Battle(); var enemy=b.Spawn("enemy",1001,2,102,106);
+        using var b=new Battle(); var enemy=b.Spawn("enemy",1001,team,102,106);
+        if (subType == UnitSubType.None) b.Actor(enemy).RemoveUnitSubType();
+        else b.Actor(enemy).ReplaceUnitSubType(subType);
         b.Set(enemy,"MOVE_SPEED",100); b.Set(enemy,"MAGIC_DEFENSE",100); b.Setup.Tick(2);
         b.Cast(2,new Vec3(100,0,106)); b.Setup.TickMilliseconds(700);
+        if (!eligible)
+        {
+            Assert.Equal(100,new MobaAttrs(b.Actor(enemy)).MoveSpeed,3);
+            Assert.Equal(100,new MobaAttrs(b.Actor(enemy)).MagicDefense,3);
+            return;
+        }
         Assert.InRange(new MobaAttrs(b.Actor(enemy)).MagicDefense,74.99f,75.01f);
         Assert.InRange(new MobaAttrs(b.Actor(enemy)).MoveSpeed,59.99f,70f);
         b.Setup.TickMilliseconds(6000);
         Assert.Equal(100,new MobaAttrs(b.Actor(enemy)).MoveSpeed,3);
         Assert.Equal(100,new MobaAttrs(b.Actor(enemy)).MagicDefense,3);
+    }
+
+    [Fact]
+    public void W_group_claim_survives_crossings_and_world_restore_but_another_cast_is_independent()
+    {
+        using var b = new Battle();
+        var target = b.Spawn("minion",1001,2,102,106);
+        b.Actor(target).ReplaceUnitSubType(UnitSubType.Minion);
+        b.Set(target,"MAGIC_DEFENSE",100);
+        b.Setup.Tick(2);
+        b.Cast(2,new Vec3(100,0,106));
+        b.Setup.TickMilliseconds(700);
+        Assert.Equal(1,b.Setup.CountActorBuffs(target,30060391));
+        Assert.Equal(75,new MobaAttrs(b.Actor(target)).MagicDefense,3);
+        var restore = b.Checkpoint();
+        void CrossAgain()
+        {
+            b.Setup.MoveScenarioActor(target,new MobaAcceptanceVector3Expectation{x=102,z=110});
+            b.Setup.Tick(2);
+            b.Setup.MoveScenarioActor(target,new MobaAcceptanceVector3Expectation{x=102,z=102});
+            b.Setup.Tick(2);
+            Assert.Equal(1,b.Setup.CountActorBuffs(target,30060391));
+            Assert.Equal(75,new MobaAttrs(b.Actor(target)).MagicDefense,3);
+        }
+        var applications=b.Services.Resolve<MobaTraceRegistry>().GetNodesByKind((int)MobaExecutionKind.BuffApply)
+            .Count(n=>n.Metadata?.ConfigId==30060391);
+        CrossAgain();
+        Assert.Equal(applications,b.Services.Resolve<MobaTraceRegistry>().GetNodesByKind((int)MobaExecutionKind.BuffApply)
+            .Count(n=>n.Metadata?.ConfigId==30060391));
+        restore();
+        var areas=new List<AbilityKit.Demo.Moba.Services.Area.MobaAreaRuntimeInfo>();
+        Assert.True(b.Services.Resolve<AbilityKit.Demo.Moba.Services.Area.MobaAreaRuntimeService>().TryGetAreas(areas,b.Caster));
+        Assert.All(areas,a=>Assert.Equal(15,a.ClaimUnitSubTypeMask));
+        CrossAgain();
+        Assert.Equal(applications,b.Services.Resolve<MobaTraceRegistry>().GetNodesByKind((int)MobaExecutionKind.BuffApply)
+            .Count(n=>n.Metadata?.ConfigId==30060391));
+        var other=b.Spawn("second_caster",3006,1,100,100);
+        var cast=b.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(other,2,new Vec3(100,0,102),Vec3.Forward);
+        Assert.True(cast.Success,cast.FailReason);
+        b.Setup.TickMilliseconds(700);
+        Assert.Equal(2,b.Setup.CountActorBuffs(target,30060391));
     }
 
     [Fact]

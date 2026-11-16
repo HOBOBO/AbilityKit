@@ -173,11 +173,11 @@ namespace AbilityKit.Game.Tests
                                     Assert.IsNotNull(animator, "Q projectile VFX must expose its authored spawn animation.");
                                     Assert.IsTrue(HasTrigger(animator, "Q_Shot"),
                                         "Projectile spawn must activate the authored Q shot animation.");
-                                    animator.SetTrigger("Q_Shot");
                                     animator.Update(1f / 24f);
                                     Assert.AreEqual(Animator.StringToHash("Shot"),
                                         animator.GetCurrentAnimatorStateInfo(0).shortNameHash,
                                         "Projectile spawn snapshot must enter the authored Q shot state.");
+                                    animator.Update(1f / 24f);
                                     var missile = FindChild(viewComponent.GameObject.transform, "Grenade_Missile");
                                     Assert.IsNotNull(missile, "Q projectile VFX must contain its authored grenade mesh.");
                                     Assert.IsTrue(missile.gameObject.activeSelf,
@@ -223,7 +223,7 @@ namespace AbilityKit.Game.Tests
 
         [UnityTest]
         public IEnumerator W_RealCastSnapshotPlaysModelAndTimelineVfx() =>
-            VerifyRealCastPresentation(30010201, 2, "Spell_W", "Jhin_Battlecast_W");
+            VerifyRealCastPresentation(30010201, 2, "Spell_W", "Jhin_Battlecast_W_Cast");
 
         [UnityTest]
         public IEnumerator W_RealProjectileSnapshotsPlayAndReleaseConfiguredProjectileVfx()
@@ -287,19 +287,27 @@ namespace AbilityKit.Game.Tests
                                     var vfxEntity = vfxRoot.GetChild(0);
                                     projectileVfxEntityId = vfxEntity.Id;
                                     Assert.IsTrue(vfxEntity.TryGetRef(out BattleVfxComponent vfxComponent));
-                                    Assert.AreEqual(90013002, vfxComponent.VfxId,
+                                    Assert.AreEqual(90013020, vfxComponent.VfxId,
                                         "W's projectile template must resolve its configured Battlecast projectile VFX.");
                                     Assert.IsTrue(vfxEntity.TryGetRef(out BattleViewGameObjectComponent viewComponent));
                                     Assert.IsNotNull(viewComponent.GameObject);
                                     Assert.IsNotNull(viewComponent.GameObject.GetComponent<BattleVfxPoolableTag>());
                                     Assert.IsNotNull(viewComponent.GameObject.GetComponentInChildren<ParticleSystem>(true),
                                         "The W snapshot path must instantiate the authored particle prefab.");
-                                    var animator = FindAnimatorWithTrigger(viewComponent.GameObject, "W_Shot");
-                                    Assert.IsNotNull(animator,
-                                        "W projectile prefab must expose its authored shot animation trigger.");
-                                    Assert.AreEqual(Animator.StringToHash("Shot"),
-                                        animator.GetCurrentAnimatorStateInfo(0).shortNameHash,
-                                        "W projectile spawn must activate the authored shot animation.");
+                                    var missile = FindChild(viewComponent.GameObject.transform, "W_Missile");
+                                    Assert.IsNotNull(missile);
+                                    Assert.IsTrue(missile.gameObject.activeInHierarchy,
+                                        "W must be visible on Spawn, including before an Animator could be culled.");
+                                    Assert.IsNull(viewComponent.GameObject.GetComponentInChildren<Animator>(true));
+                                    Assert.AreEqual(0f, missile.localPosition.z, 0.001f,
+                                        "The projectile must not carry the showcase muzzle's forward offset.");
+                                    var visibleParticles = 0;
+                                    foreach (var particle in missile.GetComponentsInChildren<ParticleSystem>())
+                                    {
+                                        particle.Simulate(0.1f, false, true, true);
+                                        visibleParticles += particle.particleCount;
+                                    }
+                                    Assert.Greater(visibleParticles, 0, "An Animator state alone does not prove a visible W.");
                                     Assert.IsTrue(vfxEntity.TryGetRef(out BattleViewFollowComponent follow));
                                     Assert.AreEqual(projectileActorId, follow.TargetActorId,
                                         "W projectile VFX must follow the authoritative projectile actor.");
@@ -350,8 +358,8 @@ namespace AbilityKit.Game.Tests
         }
 
         [UnityTest]
-        public IEnumerator E_RealCastSnapshotPlaysModelAndTimelineVfx() =>
-            VerifyRealCastPresentation(30010301, 3, "Spell_E", "Jhin_Battlecast_E");
+        public IEnumerator E_RealCastSnapshotPlaysModelWithoutDuplicateTrap() =>
+            VerifyRealCastPresentation(30010301, 3, "Spell_E", null);
 
         [UnityTest]
         public IEnumerator E_RealProjectileSnapshotsPlayAndReleaseConfiguredTrapVfx()
@@ -418,15 +426,15 @@ namespace AbilityKit.Game.Tests
                                     Assert.IsNotNull(viewComponent.GameObject.GetComponent<BattleVfxPoolableTag>());
                                     Assert.IsNotNull(viewComponent.GameObject.GetComponentInChildren<ParticleSystem>(true),
                                         "The E snapshot path must instantiate the authored trap particle prefab.");
-                                    var animator = FindAnimatorWithTrigger(viewComponent.GameObject, "Spell_E");
-                                    Assert.IsNotNull(animator,
-                                        "E trap projectile prefab must expose its authored deployment animation trigger.");
-                                    Assert.AreEqual(Animator.StringToHash("Deploy"),
-                                        animator.GetCurrentAnimatorStateInfo(0).shortNameHash,
-                                        "Projectile spawn must activate the authored E trap deployment animation.");
-
-                                    animator.Play("Deploy", 0, 0.8f);
-                                    animator.Update(0f);
+                                    Assert.IsNull(viewComponent.GameObject.GetComponentInChildren<Animator>(true),
+                                        "Flight must not run the landing deployment animation.");
+                                    Assert.IsNull(FindChild(viewComponent.GameObject.transform, "Trap_1"),
+                                        "Flight must not show a second trap at a showcase landing offset.");
+                                    var missile = FindChild(viewComponent.GameObject.transform, "Trap_Missile");
+                                    Assert.IsNotNull(missile);
+                                    Assert.IsTrue(missile.gameObject.activeInHierarchy);
+                                    Assert.AreEqual(0f, missile.localPosition.z, 0.001f);
+                                    Assert.AreEqual(5, missile.GetComponentsInChildren<MeshRenderer>().Length);
                                     handler.Clear();
                                     manager.Clear(vfxRoot);
                                     Assert.AreEqual(0, vfxRoot.ChildCount,
@@ -435,11 +443,10 @@ namespace AbilityKit.Game.Tests
                                     vfxEntity = vfxRoot.GetChild(0);
                                     projectileVfxEntityId = vfxEntity.Id;
                                     Assert.IsTrue(vfxEntity.TryGetRef(out BattleViewGameObjectComponent replayedView));
-                                    animator = FindAnimatorWithTrigger(replayedView.GameObject, "Spell_E");
-                                    Assert.IsNotNull(animator);
-                                    animator.Update(1f / 60f);
-                                    Assert.Less(animator.GetCurrentAnimatorStateInfo(0).normalizedTime, 0.1f,
-                                        "The projectile spawn consumer must restart E deployment from the authored trigger.");
+                                    missile = FindChild(replayedView.GameObject.transform, "Trap_Missile");
+                                    Assert.IsNotNull(missile);
+                                    Assert.IsTrue(missile.gameObject.activeInHierarchy,
+                                        "Replayed flight must be immediately visible without deployment timing.");
                                     Assert.IsTrue(vfxEntity.TryGetRef(out BattleViewFollowComponent follow));
                                     Assert.AreEqual(projectileActorId, follow.TargetActorId,
                                         "E trap VFX must follow the authoritative flying projectile actor.");
@@ -611,7 +618,7 @@ namespace AbilityKit.Game.Tests
                     actorId, 5, aimPos: default, aimDir: Vec3.Forward, targetActorId: 0);
                 Assert.IsTrue(basicAttack.Success,
                     "Jhin first basic attack failed: " + basicAttack.FailReason);
-                harness.TickUntilSkillStops(actorId, 5, maxTicks: 30,
+                harness.TickUntilSkillStops(actorId, 5, maxTicks: BasicAttackTimeoutTicks(harness, 30010601),
                     message: "The first basic attack must finish before the active-skill interruption.");
 
                 CharacterActionData attackSlotTwo = default;
@@ -711,7 +718,7 @@ namespace AbilityKit.Game.Tests
 
                 var firstAttack = skills.TryCastBySlot(actorId, 5, default, Vec3.Forward, 0);
                 Assert.IsTrue(firstAttack.Success, "Jhin first basic attack failed: " + firstAttack.FailReason);
-                harness.TickUntilSkillStops(actorId, 5, maxTicks: 30,
+                harness.TickUntilSkillStops(actorId, 5, maxTicks: BasicAttackTimeoutTicks(harness, 30010601),
                     message: "The first basic attack must advance the retained attack slot.");
                 CharacterActionData selectedSlot = default;
                 for (var tick = 0; tick < 30; tick++)
@@ -866,7 +873,7 @@ namespace AbilityKit.Game.Tests
                         Assert.AreSame(currentVfx, FindTimelineVfx(instance, particle),
                             "Repeated snapshots must not duplicate basic attack VFX.");
 
-                        harness.TickUntilSkillStops(actorId, 5, maxTicks: 30,
+                        harness.TickUntilSkillStops(actorId, 5, maxTicks: BasicAttackTimeoutTicks(harness, expectedSkills[shotIndex]),
                             message: "Jhin basic attack flow should finish before the next slot is submitted.");
                         if (previousVfx != null)
                             Assert.IsTrue(previousVfx == null,
@@ -1151,6 +1158,21 @@ namespace AbilityKit.Game.Tests
             }
         }
 
+        private static int BasicAttackTimeoutTicks(MobaSkillConfigTestHarness harness, int skillId)
+        {
+            var flow = harness.Config.GetSkillFlow(skillId);
+            Assert.IsNotNull(flow);
+            var durationMs = 0;
+            foreach (var phase in flow.Phases)
+            {
+                Assert.IsTrue(phase.Type == 18 || phase.Type == 2,
+                    "Review the timeout if the basic attack gains a different phase topology.");
+                if (phase.Type == 2) durationMs += phase.Timeline.DurationMs;
+            }
+            Assert.Greater(durationMs, 0);
+            return Mathf.CeilToInt(durationMs / 1000f / harness.FixedDelta) + 8;
+        }
+
         private static IEnumerator VerifyRealCastPresentation(
             int skillId, int slot, string animatorState, string particleName)
         {
@@ -1204,25 +1226,35 @@ namespace AbilityKit.Game.Tests
                     var animator = instance.GetComponentInChildren<Animator>(true);
                     Assert.AreEqual(Animator.StringToHash(animatorState),
                         animator.GetCurrentAnimatorStateInfo(0).shortNameHash);
-                    for (var frame = 0; frame < 600 && FindTimelineVfx(instance, particleName) == null; frame++)
+                    if (particleName != null)
+                    {
+                        for (var frame = 0; frame < 600 && FindTimelineVfx(instance, particleName) == null; frame++)
+                            yield return null;
+                        var first = FindTimelineVfx(instance, particleName);
+                        Assert.IsNotNull(first, "The exported timeline/template must instantiate the real VFX.");
+                        Assert.That(first.localPosition, Is.EqualTo(new Vector3(0f, 0.15f, 0f)));
+                        view.SeekToFrame(casting.SnapshotFrame, harness.FixedDelta);
                         yield return null;
-                    var first = FindTimelineVfx(instance, particleName);
-                    Assert.IsNotNull(first, "The exported timeline/template must instantiate the real VFX.");
-                    Assert.That(first.localPosition, Is.EqualTo(new Vector3(0f, 0.15f, 0f)));
-                    view.SeekToFrame(casting.SnapshotFrame, harness.FixedDelta);
-                    yield return null;
-                    Assert.AreSame(first, FindTimelineVfx(instance, particleName),
-                        "Repeated snapshot consumption must not duplicate the cast VFX.");
+                        Assert.AreSame(first, FindTimelineVfx(instance, particleName),
+                            "Repeated snapshot consumption must not duplicate the cast VFX.");
 
-                    // Rewind before the installed snapshot: cancel its resources,
-                    // then seek the authoritative cast again to rebuild presentation.
-                    view.SeekToFrame(casting.SnapshotFrame - 1, harness.FixedDelta);
-                    Assert.IsTrue(first == null, "Rewind must release the old timeline visual.");
-                    view.SeekToFrame(casting.SnapshotFrame, harness.FixedDelta);
-                    for (var frame = 0; frame < 600 && FindTimelineVfx(instance, particleName) == null; frame++)
+                        // Rewind before the installed snapshot: cancel its resources,
+                        // then seek the authoritative cast again to rebuild presentation.
+                        view.SeekToFrame(casting.SnapshotFrame - 1, harness.FixedDelta);
+                        Assert.IsTrue(first == null, "Rewind must release the old timeline visual.");
+                        view.SeekToFrame(casting.SnapshotFrame, harness.FixedDelta);
+                        for (var frame = 0; frame < 600 && FindTimelineVfx(instance, particleName) == null; frame++)
+                            yield return null;
+                        Assert.IsNotNull(FindTimelineVfx(instance, particleName),
+                            "Seeking the cast after rewind must rebuild its timeline visual.");
+                    }
+                    else
+                    {
                         yield return null;
-                    Assert.IsNotNull(FindTimelineVfx(instance, particleName),
-                        "Seeking the cast after rewind must rebuild its timeline visual.");
+                        Assert.IsNull(FindTimelineVfx(instance, "Jhin_Battlecast_E"));
+                        Assert.IsNull(FindTimelineVfx(instance, "Jhin_Battlecast_E_Projectile"),
+                            "E flight and landing belong to their authoritative actors, not the caster timeline.");
+                    }
 
                     CharacterActionData afterCast = default;
                     for (var tick = 0; tick < 120; tick++)
@@ -1234,8 +1266,9 @@ namespace AbilityKit.Game.Tests
                     Assert.AreEqual(0, afterCast.CastInstanceId, "The individual skill pipeline must end.");
                     component.ApplyPresentation(afterCast);
                     view.SeekToFrame(afterCast.SnapshotFrame, harness.FixedDelta);
-                    Assert.IsNull(FindTimelineVfx(instance, particleName),
-                        "Leaving the cast must release all timeline-owned VFX.");
+                    if (particleName != null)
+                        Assert.IsNull(FindTimelineVfx(instance, particleName),
+                            "Leaving the cast must release all timeline-owned VFX.");
                     Assert.AreEqual(Animator.StringToHash("Idle"),
                         animator.GetCurrentAnimatorStateInfo(0).shortNameHash);
                 }

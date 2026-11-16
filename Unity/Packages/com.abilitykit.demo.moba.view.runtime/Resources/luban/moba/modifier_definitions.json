@@ -36,7 +36,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000002,
@@ -75,7 +78,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000003,
@@ -114,7 +120,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000004,
@@ -153,7 +162,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000005,
@@ -192,7 +204,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000006,
@@ -231,7 +246,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000007,
@@ -270,7 +288,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000008,
@@ -309,7 +330,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000009,
@@ -348,7 +372,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000010,
@@ -387,7 +414,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000011,
@@ -426,7 +456,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000012,
@@ -465,7 +498,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000013,
@@ -504,7 +540,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000014,
@@ -543,7 +582,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000015,
@@ -582,7 +624,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000016,
@@ -621,7 +666,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000017,
@@ -660,7 +708,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000018,
@@ -699,7 +750,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000019,
@@ -738,7 +792,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000020,
@@ -777,7 +834,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000021,
@@ -816,7 +876,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000022,
@@ -855,7 +918,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000023,
@@ -898,7 +964,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000024,
@@ -937,7 +1006,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8000001,
@@ -976,7 +1048,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2000001,
@@ -1015,7 +1090,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 3000001,
@@ -1054,7 +1132,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 3,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 3000002,
@@ -1093,7 +1174,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 3,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 4000001,
@@ -1132,7 +1216,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 3,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 4000002,
@@ -1171,7 +1258,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 3,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 5000001,
@@ -1210,7 +1300,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 3,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 6000001,
@@ -1249,7 +1342,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 3,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 7000001,
@@ -1288,7 +1384,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 3,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000025,
@@ -1331,7 +1430,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2000002,
@@ -1370,7 +1472,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000026,
@@ -1409,7 +1514,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000027,
@@ -1448,7 +1556,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8000002,
@@ -1487,7 +1598,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8000005,
@@ -1526,7 +1640,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8000006,
@@ -1565,7 +1682,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2000003,
@@ -1604,7 +1724,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2000004,
@@ -1643,7 +1766,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2000005,
@@ -1682,7 +1808,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2000006,
@@ -1721,7 +1850,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2000007,
@@ -1760,7 +1892,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2000008,
@@ -1799,7 +1934,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2000009,
@@ -1838,7 +1976,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8002001,
@@ -1877,7 +2018,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8002002,
@@ -1916,7 +2060,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1000028,
@@ -1955,7 +2102,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8005001,
@@ -1994,7 +2144,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8005002,
@@ -2033,7 +2186,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2005001,
@@ -2072,7 +2228,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1005001,
@@ -2111,7 +2270,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8005011,
@@ -2150,7 +2312,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2005011,
@@ -2189,7 +2354,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8005012,
@@ -2228,7 +2396,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2005012,
@@ -2267,7 +2438,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8005013,
@@ -2306,7 +2480,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2005013,
@@ -2345,7 +2522,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8005014,
@@ -2384,7 +2564,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2005014,
@@ -2423,7 +2606,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8005015,
@@ -2462,7 +2648,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2005015,
@@ -2501,7 +2690,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2006001,
@@ -2540,7 +2732,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8006001,
@@ -2579,7 +2774,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8006002,
@@ -2618,7 +2816,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2006002,
@@ -2657,7 +2858,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2006011,
@@ -2696,7 +2900,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2006012,
@@ -2735,7 +2942,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2006013,
@@ -2774,7 +2984,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2006014,
@@ -2813,7 +3026,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1006001,
@@ -2852,7 +3068,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1006011,
@@ -2894,7 +3113,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1006012,
@@ -2936,7 +3158,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1006013,
@@ -2978,7 +3203,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1006014,
@@ -3020,7 +3248,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1006015,
@@ -3062,7 +3293,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2007001,
@@ -3101,7 +3335,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2007002,
@@ -3140,7 +3377,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2007003,
@@ -3179,7 +3419,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2007004,
@@ -3218,7 +3461,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2007005,
@@ -3257,7 +3503,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1007011,
@@ -3296,7 +3545,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1007012,
@@ -3335,7 +3587,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1007013,
@@ -3374,7 +3629,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1007014,
@@ -3413,7 +3671,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 1007015,
@@ -3452,7 +3713,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 1,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8007001,
@@ -3491,7 +3755,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 8007002,
@@ -3530,7 +3797,10 @@
     "MaxStacks": 0,
     "ConflictGroup": 0,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   },
   {
     "Id": 2007010,
@@ -3569,6 +3839,177 @@
     "MaxStacks": 0,
     "ConflictGroup": 2,
     "ConditionSetId": 0,
-    "Deprecated": false
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
+  },
+  {
+    "Id": 2000091,
+    "Key": "StackStepCooldownFactor",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 4,
+      "Id": 10005
+    },
+    "Value": {
+      "Op": 1,
+      "Value": 1
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 1,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false,
+    "StackStepSize": 50,
+    "StackStepDelta": -0.1,
+    "StackValueMin": 0.1
+  },
+  {
+    "Id": 2000092,
+    "Key": "ExactCastRange30040301",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 4,
+      "Id": 10004
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 9.5
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
+  },
+  {
+    "Id": 2000093,
+    "Key": "ExactCastRange30040401",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 4,
+      "Id": 10004
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 7.25
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
+  },
+  {
+    "Id": 2000094,
+    "Key": "ExactCastRange30040501",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 4,
+      "Id": 10004
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 6.5
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 0,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   }
 ]

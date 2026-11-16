@@ -37,6 +37,9 @@ namespace AbilityKit.Demo.Moba.Services
             return runner;
         }
 
+        public bool FinishRecoveryForMovement(int actorId)
+            => _runners.TryGetValue(actorId, out var runner) && runner.FinishRecoveryForMovement();
+
         public bool TryGetLatestRunningBySlot(int actorId, int slot, out SkillPipelineRunner.RunningSnapshot snapshot)
         {
             snapshot = default;

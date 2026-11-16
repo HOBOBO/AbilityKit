@@ -78,6 +78,7 @@ MODIFIER_FIELDS = (
     "SelectorSummonTemplateId", "SelectorBuffTemplateId", "CandidateSkillId",
     "CandidateReferenceId", "CandidateHfsmParameterId", "CandidateHfsmParameterComparison",
     "CandidateHfsmParameterExpectedValue", "FormulaConstant", "FormulaLevelCoefficient", "FormulaTerms",
+    "StackStepSize", "StackStepDelta", "StackValueMin",
 )
 PROCESS_MODIFIER_FIELDS = MODIFIER_FIELDS
 
@@ -156,6 +157,17 @@ def validate_evaluation_contract(modifier, owner):
         raise ValueError(f"{owner}: AttributeSourceRole requires Attribute magnitude source")
     if source == 6 and policy == 0:
         raise ValueError(f"{owner}: LinearFormula magnitude requires OnApplySnapshot")
+    step = modifier.get("StackStepSize", 0)
+    delta = modifier.get("StackStepDelta", 0)
+    minimum = modifier.get("StackValueMin", 0)
+    if type(step) is not int or step < 0 or not all(math.isfinite(v) for v in (delta, minimum)):
+        raise ValueError(f"{owner}: invalid stack step mapping")
+    if not step and (delta != 0 or minimum != 0):
+        raise ValueError(f"{owner}: disabled stack mapping carries step values")
+    if step and (modifier.get("TargetKind") != 4 or source != 0 or modifier.get("Op") != 1 or
+                 policy != 0 or minimum < 0 or
+                 (modifier.get("MagnitudeBaseValue") or modifier.get("Value", 0)) < minimum):
+        raise ValueError(f"{owner}: stack mapping requires a fixed SkillParameter multiplier and valid lower bound")
 
 
 def flatten_definition(definition):
@@ -171,6 +183,9 @@ def flatten_definition(definition):
         "FormulaConstant": definition.get("FormulaConstant", 0),
         "FormulaLevelCoefficient": definition.get("FormulaLevelCoefficient", 0),
         "FormulaTerms": definition.get("FormulaTerms"),
+        "StackStepSize": definition.get("StackStepSize", 0),
+        "StackStepDelta": definition.get("StackStepDelta", 0),
+        "StackValueMin": definition.get("StackValueMin", 0),
         "Selectors": None,
     })
     return flat
@@ -357,6 +372,9 @@ def flatten_modifier(modifier):
         "FormulaConstant": modifier.get("FormulaConstant", 0),
         "FormulaLevelCoefficient": modifier.get("FormulaLevelCoefficient", 0),
         "FormulaTerms": modifier.get("FormulaTerms") or [],
+        "StackStepSize": modifier.get("StackStepSize", 0),
+        "StackStepDelta": modifier.get("StackStepDelta", 0),
+        "StackValueMin": modifier.get("StackValueMin", 0),
     }
     for column in SELECTOR_COLUMNS:
         flat[column] = 0
@@ -527,6 +545,7 @@ class Rule:
                     raise ValueError(f"{owner}: reference IDs must use a typed candidate")
                 stage_fields = {
                     1: {"SelectorSlot", "SelectorBaseSkillId", "SelectorEffectiveSkillId"},
+                    9: {"SelectorSlot", "SelectorBaseSkillId", "SelectorEffectiveSkillId"},
                     2: {"SelectorSlot", "SelectorBaseSkillId", "SelectorEffectiveSkillId", "SelectorLauncherTemplateId", "SelectorProjectileTemplateId"},
                     5: {"SelectorSlot", "SelectorBaseSkillId", "SelectorEffectiveSkillId", "SelectorLauncherTemplateId", "SelectorProjectileTemplateId"},
                     6: {"SelectorSlot", "SelectorBaseSkillId", "SelectorEffectiveSkillId", "SelectorLauncherTemplateId", "SelectorProjectileTemplateId"},

@@ -28,6 +28,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly bool AnchorAtOrigin;
         public readonly int GroupKey;
         public readonly bool ClaimTargetsWithinGroup;
+        public readonly int ClaimUnitSubTypeMask;
         public readonly bool HasTargetRequest;
         public readonly MobaActionTargetRequest TargetRequest;
         public readonly BlackboardWriteTarget ResultTarget;
@@ -61,7 +62,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             float lateralOffset = 0f,
             float innerRadius = 0f,
             float forwardYawDeg = 0f,
-            bool captureCastFrame = false)
+            bool captureCastFrame = false,
+            int claimUnitSubTypeMask = 0)
         {
             AreaId = areaId;
             PositionMode = positionMode;
@@ -87,6 +89,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             AnchorAtOrigin = anchorAtOrigin;
             GroupKey = groupKey;
             ClaimTargetsWithinGroup = claimTargetsWithinGroup;
+            ClaimUnitSubTypeMask = claimUnitSubTypeMask;
             HasTargetRequest = hasTargetRequest;
             TargetRequest = targetRequest;
             ResultTarget = resultTarget;

@@ -55,6 +55,10 @@ def validate_character_skill_preview_vfx(characters, skills, vfx_entries):
 
 class Rule:
     def project(self, context):
+        for row in context.tables["skill_button_templates"]:
+            policy = row.get("PointRangePolicy", 0)
+            if policy not in (0, 1) or (policy == 1 and (row.get("AimMode") != 1 or row.get("UsePointMode") != 2)):
+                raise ValueError(f"skill_button_templates/{row['Id']}: clamp requires Point/TargetPoint")
         validate_skill_level_tables(context.tables["skill_level_tables"])
         validate_hero_level_skill_growth_parameters(context.tables["hero_level_skill_growth_parameters"])
         validate_character_skill_preview_vfx(

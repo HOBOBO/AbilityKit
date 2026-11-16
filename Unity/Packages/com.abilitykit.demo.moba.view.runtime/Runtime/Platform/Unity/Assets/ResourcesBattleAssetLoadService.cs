@@ -215,11 +215,20 @@ namespace AbilityKit.Game.Battle.Shared.Assets
                 return false;
             }
 
-            // 优先按 TextAsset 加载（配置表 / JSON 资源），失败则尝试通用 Object。
+            // Resolve known resource types before Object: a prefab may share its
+            // extensionless path with its animation/controller. Untyped loading
+            // can otherwise lease the clip and force the VFX consumer to fall back.
             var text = _provider.Load<TextAsset>(path);
             if (text != null)
             {
                 asset = text;
+                return true;
+            }
+
+            var prefab = _provider.Load<GameObject>(path);
+            if (prefab != null)
+            {
+                asset = prefab;
                 return true;
             }
 

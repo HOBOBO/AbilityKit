@@ -8,17 +8,7 @@
         {
           "name": "CastPresentation",
           "active": true,
-          "actionClips": [
-            {
-              "resourceKey": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_AA_Projectile",
-              "resPath": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_AA_Projectile.prefab",
-              "startTime": 0.0,
-              "length": 2.0,
-              "name": "PlayParticle",
-              "presentationTemplateId": 90034001,
-              "$type": "AbilityKit.ActionEditorImpl.PlayParticle"
-            }
-          ],
+          "actionClips": [],
           "$type": "AbilityKit.ActionEditorImpl.EffectTrack"
         }
       ]

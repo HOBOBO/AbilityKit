@@ -268,7 +268,21 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.Cue
         protected void Emit(ref CueDraft draft)
         {
             if (_snapshots == null) return;
-            if (PresentationCueSemantics.Classify((int)draft.Stage) == PresentationCueTransition.None) return;
+            if (!TryBuildEntry(ref draft, out var entry)) return;
+            _snapshots.Report(in entry);
+        }
+
+        protected void ReconcileDesiredCueDomain(
+            PresentationCueDomain domain,
+            IReadOnlyCollection<MobaPresentationCueSnapshotEntry> desired)
+        {
+            _snapshots?.ReconcileDesiredCueDomain(domain, desired);
+        }
+
+        protected bool TryBuildEntry(ref CueDraft draft, out MobaPresentationCueSnapshotEntry entry)
+        {
+            entry = default;
+            if (PresentationCueSemantics.Classify((int)draft.Stage) == PresentationCueTransition.None) return false;
             if (draft.Domain == PresentationCueDomain.None) draft.Domain = Domain;
             if (draft.Lifetime == PresentationCueLifetime.Unknown)
             {
@@ -296,7 +310,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.Cue
 
             // 保留一个版本的 legacy 字段，让仍在读 CueKind/OwnerKind 的旧消费方（含 console/HUD）不掉线。
             var legacy = PresentationCueSemantics.ToLegacyDomainName(draft.Domain);
-            var entry = new MobaPresentationCueSnapshotEntry
+            entry = new MobaPresentationCueSnapshotEntry
             {
                 Stage = (int)draft.Stage,
                 CueKind = legacy,
@@ -344,7 +358,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.Cue
                 Parameters = draft.Parameters,
             };
 
-            _snapshots.Report(in entry);
+            return true;
         }
 
         /// <summary>把域特有的字段写进草稿。这是子类唯一的必填实现。</summary>

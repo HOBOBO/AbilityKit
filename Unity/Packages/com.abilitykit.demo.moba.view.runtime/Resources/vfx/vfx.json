@@ -191,13 +191,13 @@
   },
   {
     "Id": 90013002,
-    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W",
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W_Cast",
     "DurationMs": 700
   },
   {
     "Id": 90013003,
-    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E",
-    "DurationMs": 1600
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E_Projectile",
+    "DurationMs": 0
   },
   {
     "Id": 90013004,
@@ -327,7 +327,7 @@
   {
     "Id": 90032025,
     "Resource": "MobaVfx/Jinx/R_Projectile",
-    "DurationMs": 2500
+    "DurationMs": 15000
   },
   {
     "Id": 90032026,
@@ -361,7 +361,7 @@
   },
   {
     "Id": 90034001,
-    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_AA_Projectile",
+    "Resource": "MobaVfx/Veigar/AA_Projectile",
     "DurationMs": 2000
   },
   {
@@ -391,12 +391,12 @@
   },
   {
     "Id": 90034007,
-    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Q_Hit",
+    "Resource": "MobaVfx/Veigar/Q_Hit",
     "DurationMs": 900
   },
   {
     "Id": 90034008,
-    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Q_Projectile",
+    "Resource": "MobaVfx/Veigar/Q_Projectile",
     "DurationMs": 2000
   },
   {
@@ -406,12 +406,12 @@
   },
   {
     "Id": 90034010,
-    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_R_Hit",
+    "Resource": "MobaVfx/Veigar/R_Hit",
     "DurationMs": 900
   },
   {
     "Id": 90034011,
-    "Resource": "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_R_Projectile",
+    "Resource": "MobaVfx/Veigar/R_Projectile",
     "DurationMs": 1500
   },
   {
@@ -436,13 +436,13 @@
   },
   {
     "Id": 90013019,
-    "Resource": "MobaVfx/Jhin/E_Trap",
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E_Trap",
     "DurationMs": 5000
   },
   {
     "Id": 90034016,
     "Resource": "MobaVfx/Veigar/W_Area",
-    "DurationMs": 700
+    "DurationMs": 2471
   },
   {
     "Id": 90034017,
@@ -702,6 +702,16 @@
   {
     "Id": 90036016,
     "Resource": "moba/presentation/karthus/W_Preview",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90013020,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W_Projectile",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90013021,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Ground",
     "DurationMs": 0
   }
 ]

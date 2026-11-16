@@ -8,6 +8,7 @@ using AbilityKit.Demo.Moba.View.Config;
 using UnityEditor.SceneManagement;
 using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Demo.Moba.Events.Unit;
 using AbilityKit.Demo.Moba.Events.Summon;
@@ -142,6 +143,11 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsTrue(TryGetPlayerActor(ctx, "p2", out _, out var localEnemy),
                     "The production local scenario must provide an enemy for target-selection and hit checks.");
                 world.Services.Resolve<MobaBrainService>().DeactivateBrain(localEnemy);
+                // Keep this target alive through Q/W/R and the later real summon attack.
+                var enemyAttrs = localEnemy.GetMobaAttrs();
+                enemyAttrs.SetBase(BattleAttributeType.MAX_HP, 10000f);
+                enemyAttrs.SetBase(BattleAttributeType.PER_SECOND_BLOOD_R, 0f);
+                enemyAttrs.Hp = 10000f;
                 var cameraForward = Camera.main != null ? Camera.main.transform.forward : Vector3.forward;
                 cameraForward.y = 0f;
                 cameraForward.Normalize();
@@ -332,7 +338,12 @@ namespace AbilityKit.Game.Test.UnitTest
                                 .IsName("Void_Annie_Tibbers_Attack1");
                             return localEnemy.GetMobaAttrs().Hp < attackHpBefore;
                         },
-                            100, "The local summon must acquire and attack an enemy entering its perception radius.");
+                            100, () => "The local summon must acquire and attack an enemy entering its perception radius. " +
+                                "Summon=" + localSummon.transform.Value.Position +
+                                " Enemy=" + localEnemy.transform.Value.Position +
+                                " HP=" + attackHpBefore + "->" + localEnemy.GetMobaAttrs().Hp +
+                                " Brain=" + localSummon.actorBrain.BehaviorInstanceId +
+                                " Cast=" + world.Services.Resolve<SkillCastCoordinator>().TryGetRunningBySlot(summonId, 1, out _));
                         Assert.IsTrue(sawAttackAnimation,
                             "Tibbers must play its configured attack animation when the real HUD battle attack deals damage.");
                     }
@@ -660,15 +671,16 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 harness.EnterGameAndWarmup(reason: "Annie E shield and movement Buff contract");
                 var actorId = harness.AssertPlayerActorBound();
+                harness.SetScenarioActorAttribute(actorId, "MAGIC_ATTACK", 100f);
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
                 var cast = skills.TryCastBySlot(actorId, 3, aimPos: default, aimDir: Vec3.Right);
                 Assert.IsTrue(cast.Success, "Annie E should release successfully: " + cast.FailReason);
-                harness.TickUntilSkillStops(actorId, 3, maxTicks: 50,
-                    message: "Annie E should finish its shield release.");
+                harness.TickUntilTraceNode(MobaExecutionKind.EffectExecution, ESkillId, maxTicks: 30,
+                    message: "Annie E should grant its shield at the configured effect event.");
 
                 var shields = harness.World.Services.Resolve<MobaShieldService>();
-                Assert.AreEqual(100f, shields.GetTotalRemaining(actorId), 0.01f,
-                    "Annie E rank one should grant the configured 100 point shield.");
+                Assert.AreEqual(140f, shields.GetTotalRemaining(actorId), 0.01f,
+                    "Annie E rank one should grant 100 + 0.4 AP shield.");
                 Assert.IsTrue(harness.HasActorBuff(actorId, EMoveSpeedBuffId),
                     "Annie E should apply its configured timed movement Buff to self.");
                 AssertBuffPresentationCue(harness, actorId, EMoveSpeedBuffId,
@@ -702,6 +714,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     "Annie E shield should expire with its configured duration.");
                 Assert.IsFalse(harness.HasActorBuff(actorId, EMoveSpeedBuffId),
                     "Annie E movement Buff should expire with the shield duration.");
+                harness.TickUntilSkillStops(actorId, 3, maxTicks: 160,
+                    message: "Annie E must also finish its full authored animation.");
             }
         }
 
@@ -729,7 +743,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var qCast = skills.TryCastBySlot(actorId, 1, aimPos: default, aimDir: Vec3.Right,
                     targetActorId: target);
                 Assert.IsTrue(qCast.Success, "Annie Q should release successfully.");
-                harness.TickUntilSkillStops(actorId, 1, maxTicks: 50,
+                harness.TickUntilSkillStops(actorId, 1, maxTicks: 120,
                     message: "Annie Q should finish its release before counting the cast.");
                 harness.Tick(1);
                 var subscriptions = harness.World.Services.Resolve<MobaTriggerPlanSubscriptionService>();
@@ -749,7 +763,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var wCast = skills.TryCastBySlot(actorId, 2, aimPos: default, aimDir: Vec3.Right,
                     targetActorId: target);
                 Assert.IsTrue(wCast.Success, "Annie W should release successfully.");
-                harness.TickUntilSkillStops(actorId, 2, maxTicks: 50,
+                harness.TickUntilSkillStops(actorId, 2, maxTicks: 120,
                     message: "Annie W should finish its release before counting the cast.");
                 harness.Tick(1);
                 Assert.AreEqual(2d, variables.Get(counterKey),
@@ -769,7 +783,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var basicCast = skills.TryCastBySlot(actorId, basicAttackSlot, aimPos: default, aimDir: Vec3.Right,
                     targetActorId: target);
                 Assert.IsTrue(basicCast.Success, "Annie's basic attack should release successfully: " + basicCast.FailReason);
-                harness.TickUntilSkillStops(actorId, basicAttackSlot, maxTicks: 30,
+                harness.TickUntilSkillStops(actorId, basicAttackSlot, maxTicks: 120,
                     message: "Annie's basic attack should finish its release.");
                 harness.Tick(1);
                 Assert.AreEqual(2d, variables.Get(counterKey),
@@ -791,7 +805,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 var eCast = skills.TryCastBySlot(actorId, 3, aimPos: default, aimDir: Vec3.Right);
                 Assert.IsTrue(eCast.Success, "Annie E should release successfully: " + eCast.FailReason);
-                harness.TickUntilSkillStops(actorId, 3, maxTicks: 50,
+                harness.TickUntilSkillStops(actorId, 3, maxTicks: 160,
                     message: "Annie E should finish before checking its passive charge.");
                 harness.Tick(1);
                 Assert.AreEqual(1d, variables.Get(counterKey),
@@ -806,7 +820,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     aimPos: new Vec3(3f, 0f, 0f), aimDir: Vec3.Right,
                     targetActorId: target);
                 Assert.IsTrue(rCast.Success, "Annie R should release successfully: " + rCast.FailReason);
-                harness.TickUntilSkillStops(actorId, 4, maxTicks: 70,
+                harness.TickUntilSkillStops(actorId, 4, maxTicks: 120,
                     message: "Annie R should finish before checking its passive charge.");
                 harness.Tick(1);
                 Assert.AreEqual(2d, variables.Get(counterKey),

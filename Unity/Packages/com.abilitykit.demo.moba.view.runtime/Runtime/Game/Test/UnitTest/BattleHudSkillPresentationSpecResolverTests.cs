@@ -17,6 +17,26 @@ namespace AbilityKit.Game.Test.UnitTest
         private const int TestSkillId = 900101;
         private const int TestRange = 8;
 
+        [TestCase(900101, 9.5f, 2.4f)]
+        [TestCase(900208, 7.25f, 3.4641016f)]
+        public void OptedPointPolicy_UsesExplicitStaticRangeAndRadius(int id, float range, float radius)
+        {
+            var skill = new SkillMO(new SkillDTO { Id=id, Name="ground", Range=7 });
+            var template = new SkillButtonTemplateMO(new SkillButtonTemplateDTO { Id=id, AimMode=1,
+                UsePointMode=2, IndicatorShape=2, EnableAim=true, SelectRange=range, IndicatorWorldWidth=radius,
+                PointRangePolicy=PointRangePolicy.ClampToResolvedRange });
+            var spec = new BattleHudSkillPresentationSpecResolver().Resolve(skill,template);
+            Assert.AreEqual(range,spec.Range,.0001f);
+            Assert.AreEqual(radius,spec.Radius,.0001f);
+            var fallback = new SkillButtonTemplateMO(new SkillButtonTemplateDTO { Id=id, AimMode=1,
+                UsePointMode=2, IndicatorShape=2, EnableAim=true, SelectRange=0,
+                PointRangePolicy=PointRangePolicy.ClampToResolvedRange });
+            Assert.AreEqual(7,new BattleHudSkillPresentationSpecResolver().Resolve(skill,fallback).Range);
+            var legacy = new SkillButtonTemplateMO(new SkillButtonTemplateDTO { Id=id, AimMode=1,
+                UsePointMode=2, IndicatorShape=2, EnableAim=true, SelectRange=range });
+            Assert.AreEqual(7,new BattleHudSkillPresentationSpecResolver().Resolve(skill,legacy).Range);
+        }
+
         [Test]
         public void Hidden_IndicatorShape_ReturnsHiddenSpec()
         {

@@ -1,6 +1,7 @@
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Services;
+using System;
 using AbilityKit.Moba.Behavior;
 
 namespace AbilityKit.Demo.Moba.Services.Behavior
@@ -13,10 +14,12 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     internal sealed class MobaBrainEntityManager : MobaWorldQuery.IEntityManager
     {
         private readonly MobaActorRegistry _registry;
+        private readonly Func<int, bool> _canTurn;
 
-        public MobaBrainEntityManager(MobaActorRegistry registry)
+        public MobaBrainEntityManager(MobaActorRegistry registry, Func<int, bool> canTurn = null)
         {
             _registry = registry;
+            _canTurn = canTurn;
         }
 
         public bool Exists(long entityId)
@@ -47,6 +50,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         public void SetForward(long entityId, global::AbilityKit.Core.Mathematics.Vec3 forward)
         {
             if (!TryGetEntity(entityId, out var e) || !e.hasTransform) return;
+            if (_canTurn != null && !_canTurn((int)entityId)) return;
             var t = e.transform.Value;
             var rotation = global::AbilityKit.Core.Mathematics.Quat.LookRotation(DeterministicMathBridge.Normalize(in forward), global::AbilityKit.Core.Mathematics.Vec3.Up);
             e.ReplaceTransform(new global::AbilityKit.Core.Mathematics.Transform3(t.Position, rotation, t.Scale));

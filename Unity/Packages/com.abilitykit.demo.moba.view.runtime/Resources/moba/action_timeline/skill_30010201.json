@@ -10,8 +10,8 @@
           "active": true,
           "actionClips": [
             {
-              "resourceKey": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W",
-              "resPath": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W.prefab",
+              "resourceKey": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W_Cast",
+              "resPath": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W_Cast.prefab",
               "startTime": 0.0,
               "length": 0.7,
               "name": "PlayParticle",

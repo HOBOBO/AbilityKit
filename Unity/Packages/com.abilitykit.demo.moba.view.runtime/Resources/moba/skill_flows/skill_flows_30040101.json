@@ -2,6 +2,12 @@
   "Id": 30040101,
   "Name": "Veigar - Basic Attack",
   "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": false,
+  "RequiredBuffQualificationId": 0,
   "Phases": [
     {
       "Type": 19,
@@ -41,6 +47,7 @@
       "PhaseId": "veigar_basic_attack",
       "Timeline": {
         "DurationMs": 2000,
+        "RecoveryStartMs": 250,
         "Events": [
           {
             "AtMs": 0,

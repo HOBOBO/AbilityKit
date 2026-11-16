@@ -28,6 +28,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly bool AnchorAtOrigin;
         public readonly int GroupKey;
         public readonly bool ClaimTargetsWithinGroup;
+        public readonly int ClaimUnitSubTypeMask;
         public readonly int PatternKind;
         public readonly int PatternCount;
         public readonly float PatternApothem;
@@ -71,7 +72,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             MobaActionTargetRequest targetRequest,
             BlackboardWriteTarget resultTarget,
             BlackboardWriteTarget resultCountTarget,
-            int patternKind = 0)
+            int patternKind = 0,
+            int claimUnitSubTypeMask = 0)
         {
             AreaId = areaId;
             PositionMode = positionMode;
@@ -93,6 +95,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             AnchorAtOrigin = anchorAtOrigin;
             GroupKey = groupKey;
             ClaimTargetsWithinGroup = claimTargetsWithinGroup;
+            ClaimUnitSubTypeMask = claimUnitSubTypeMask;
             PatternKind = patternKind;
             PatternCount = patternCount;
             PatternApothem = patternApothem;
@@ -114,7 +117,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 ShapeKind, 0f, width, length, InitialRadius, RadiusGrowthPerFrame,
                 anchorAtOrigin, GroupKey, ClaimTargetsWithinGroup,
                 HasTargetRequest, TargetRequest, ResultTarget, ResultCountTarget,
-                DirectionOffset, LateralOffset);
+                DirectionOffset, LateralOffset, claimUnitSubTypeMask: ClaimUnitSubTypeMask);
         }
     }
 }

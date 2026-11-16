@@ -277,7 +277,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (!string.IsNullOrWhiteSpace(args.TargetMissingHpRatioSkillLevelParameter)
                 || args.TargetMissingHpRatioCoefficient != 0f
                 || args.HasTargetMissingHpBonusMin
-                || args.HasTargetMissingHpBonusMax)
+                || args.HasTargetMissingHpBonusMax
+                || args.TargetMissingHpDamageScaleCoefficient != 0f)
             {
                 if (!TryResolveTargetMissingHealthRatio(targetActorId, ctx, out missingHealthRatio, out targetMaxHealth, out failure))
                     return false;
@@ -336,6 +337,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var damage = (baseDamage + flightBonus + missingHpBonus) * damageScale;
+            if (args.TargetMissingHpDamageScaleCoefficient != 0f)
+            {
+                var bonus = DeterministicMath.Clamp(targetMissingHealthRatio, Fixed64.Zero, Fixed64.One)
+                    * MobaResourceFixedConvert.ToFixed(args.TargetMissingHpDamageScaleCoefficient);
+                bonus = DeterministicMath.Clamp(bonus, Fixed64.Zero,
+                    MobaResourceFixedConvert.ToFixed(args.TargetMissingHpDamageScaleMaxBonus));
+                damage *= Fixed64.One + bonus;
+            }
             if (args.HasDamageMin || args.HasDamageMax)
             {
                 var min = args.HasDamageMin ? MobaResourceFixedConvert.ToFixed(args.DamageMin) : Fixed64.Zero;

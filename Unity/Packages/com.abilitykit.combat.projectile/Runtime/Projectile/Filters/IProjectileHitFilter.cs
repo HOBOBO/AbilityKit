@@ -9,6 +9,10 @@ namespace AbilityKit.Combat.Projectile
         Block = 2,
         /// <summary>Emit a contact for a supporting effect; does not grant damage eligibility.</summary>
         SupportContact = 3,
+        /// <summary>Accept a damaging contact and continue without consuming the hit-policy budget.</summary>
+        HitAndContinue = 4,
+        /// <summary>Accept a damaging contact, then exit at this contact regardless of hit-policy budget.</summary>
+        HitAndStop = 5,
     }
 
     public interface IProjectileHitFilter

@@ -40,7 +40,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         }
 
         public bool ShouldHit(int ownerId, ColliderId collider, int frame) =>
-            ResolveCollision(ownerId, collider, frame) is ProjectileCollisionResponse.Hit or ProjectileCollisionResponse.SupportContact;
+            ResolveCollision(ownerId, collider, frame) is ProjectileCollisionResponse.Hit or ProjectileCollisionResponse.SupportContact
+                or ProjectileCollisionResponse.HitAndContinue or ProjectileCollisionResponse.HitAndStop;
 
         public ProjectileCollisionResponse ResolveCollision(int ownerId, ColliderId collider, int frame)
         {
@@ -84,11 +85,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (response == ProjectileCollisionResponse.SupportContact)
                 return relation == ProjectileCollisionRelation.Ally && (!target.hasAttributeGroup || target.GetMobaAttrs().Hp > 0f)
                     ? response : ProjectileCollisionResponse.Ignore;
-            if (response != ProjectileCollisionResponse.Hit) return response;
+            if (response != ProjectileCollisionResponse.Hit && response != ProjectileCollisionResponse.HitAndContinue &&
+                response != ProjectileCollisionResponse.HitAndStop) return response;
             if (relation == ProjectileCollisionRelation.Ally) return ProjectileCollisionResponse.Ignore;
             if (_hitUnitSubType > 0 && (!target.hasEntityMainType || target.entityMainType.Value != EntityMainType.Unit ||
                 !target.hasUnitSubType || (int)target.unitSubType.Value != _hitUnitSubType)) return ProjectileCollisionResponse.Ignore;
-            return ProjectileCollisionResponse.Hit;
+            return response;
         }
 
         public byte[] CaptureSnapshot()

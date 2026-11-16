@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "5ca05c08e5699e73c7780330507e31dfee986d3c7010056c1c32ee892dbe31a5",
+  "bundleVersion": "8b8bf70f01857f888eafe89e90233a2f476b97ce6c75b59b6836465d4f4ce5bd",
   "tables": {
-    "buffs": "eb9c6e1708089c222ebf6f0678cd439459c300335805cbb991cdbd0973cbdfe0",
-    "continuous_processes": "b2f3e6f863d7b12c55cc9e8213254a9a144bec089c5adb7cb08a4a78679330f2",
-    "continuous_tag_templates": "29562ac73bc253f031b9fdfba28cf6f8ece39abe7eab482bc1aef7858a365b1c",
-    "skills": "872077dafbebbe24edc47fcda1fee9b69ceb0f62e93f4959769b6fe386b5faa8",
-    "tag_behavior_gates": "7dc5ada326ed74f4449d7f3cda6d21979ce4413fd7aa5341758e2b8eb5c53773",
-    "tag_definitions": "71cfb9a1c76589fdbd46f7e61f5de308a067c29b222d762f81726ea87ab77467",
-    "tag_result_flags": "00748238ce85f6775ead2027e52341b24331dfb46c6aca106767dd37d108f277",
-    "tag_result_mappings": "23f45a6a7ae471f5ccf6db668844b5c9117035b7d6b961d0fca90fcff8add2d7",
-    "tag_rule_groups": "89f68ce651abd96828cd1a2ea840ea8bed2c2856565a98de69d93b1415ece83d",
-    "tag_rule_nodes": "62561326c3bb8d3197b10f50f9e9053fde9f944a36af3df8604639f951dbd554"
+    "buffs": "ee2eb5b2b6e17977849b7b2272ec4d20e22ad836db9c81c79cdce218ff4f08d8",
+    "continuous_processes": "5370e9d29e5f457de64a399ebab325d3dba7c25efe04afa9390dad8cc160608e",
+    "continuous_tag_templates": "56a23bd0db1d7e957813bbc446036b870cb78dc09b56aafcb67d66971071291e",
+    "skills": "a8bda20f2cf93414424af4fde75ea40d6c4b36ed1b26875bf1bcc72995e6ea60",
+    "tag_behavior_gates": "0a78eccfc7ac0336e3ca2b75029b5cceca1b691dd377b68f9e32cd3a5a6dd4f3",
+    "tag_definitions": "dc9fe4818bde8b8620a8a3bb7c60883d2f3d18809ad33d62f72c05aa893cbe7a",
+    "tag_result_flags": "0ec07c600a1557ab186e72d0a9f4ea821c44da915d82d008cb92b27b0e789845",
+    "tag_result_mappings": "c2f1399e4e08be480b93d6adb2743bbb7d9559ab19c7b64f8fe52c8e6413eb31",
+    "tag_rule_groups": "d820f3c026123d84426fea46fce180050b97b9b76df8efa07242f312cf7f01b1",
+    "tag_rule_nodes": "bcd984d1785ff4171a584d999ef40ff6ddc062bbc9428c525a862ca6b03dffed"
   }
 }

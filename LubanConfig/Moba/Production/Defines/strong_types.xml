@@ -58,6 +58,7 @@
         <var name="ProjectileSpawn" value="6"/>
         <var name="Hit" value="7"/>
         <var name="SummonCreate" value="8"/>
+        <var name="CastCommit" value="9"/>
     </enum>
     <enum name="ModifierFieldUnit">
         <var name="None" value="0"/>
@@ -174,6 +175,7 @@
         <var name="Move" value="5"/>
         <var name="Attack" value="6"/>
         <var name="Controlled" value="7"/>
+        <var name="Turn" value="8"/>
     </enum>
     <enum name="TagRuleOperator">
         <var name="Tag" value="1"/>
@@ -272,6 +274,10 @@
         <var name="LockProjectile" value="7"/>
         <var name="FanArea" value="8"/>
     </enum>
+    <enum name="PointRangePolicy">
+        <var name="Legacy" value="0"/>
+        <var name="ClampToResolvedRange" value="1"/>
+    </enum>
     <enum name="SkillUsePointMode">
         <var name="None" value="0"/>
         <var name="Aim" value="1"/>
@@ -335,7 +341,7 @@
          DefinitionId so equivalent effects are authored once. EvaluationPolicy and Priority
          are deliberately absent: the exporter derives timing from the target parameter's
          CapturePolicy and takes ordering from the mount row. -->
-    <bean name="ModifierDefinition" valueType="1" sep="|">
+      <bean name="ModifierDefinition" valueType="1" sep="|">
         <var name="Id" type="int"/>
         <var name="Key" type="string"/>
         <var name="MountPoint" type="ModifierMountPoint"/>
@@ -353,7 +359,10 @@
         <var name="MaxStacks" type="int"/>
         <var name="ConflictGroup" type="ModifierConflictGroup"/>
         <var name="ConditionSetId" type="int"/>
-        <var name="Deprecated" type="bool"/>
+          <var name="Deprecated" type="bool"/>
+          <var name="StackStepSize" type="int"/>
+          <var name="StackStepDelta" type="float"/>
+          <var name="StackValueMin" type="float"/>
     </bean>
     <bean name="SearchTargetProvider" valueType="1" sep="|">
         <var name="Kind" type="SearchTargetProviderKind"/>
@@ -368,6 +377,11 @@
         <var name="Radius" type="float?"/>
         <var name="HalfAngleDeg" type="float?"/>
         <var name="UnitSubType" type="int?"/>
+        <var name="LocalOffsetForward" type="float?"/>
+        <var name="LocalOffsetRight" type="float?"/>
+        <var name="Width" type="float?"/>
+        <var name="Length" type="float?"/>
+
     </bean>
     <bean name="SearchTargetScorer" valueType="1" sep="|">
         <var name="Kind" type="SearchTargetScorerKind"/>

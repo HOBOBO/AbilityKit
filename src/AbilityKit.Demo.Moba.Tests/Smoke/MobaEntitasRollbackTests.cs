@@ -347,6 +347,44 @@ public sealed class MobaEntitasRollbackTests
     }
 
     [Fact]
+    public void Coordinator_rollback_prunes_predicted_summon_index_and_keeps_confirmed_actor()
+    {
+        var context = new ActorContext();
+        var ids = new ActorIdAllocator();
+        var actors = new MobaActorRegistry();
+        var owner = context.CreateEntity();
+        owner.AddActorId(ids.Next());
+        actors.Register(owner.actorId.Value, owner);
+        var confirmedSummon = context.CreateEntity();
+        confirmedSummon.AddActorId(ids.Next());
+        actors.Register(confirmedSummon.actorId.Value, confirmedSummon);
+        var summons = new MobaSummonService();
+        var tracked = Assert.IsType<Dictionary<int, List<int>>>(
+            typeof(MobaSummonService)
+                .GetField("_summonsByRootOwner", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(summons));
+        tracked[owner.actorId.Value] = new List<int> { confirmedSummon.actorId.Value };
+
+        var providers = new RollbackRegistry();
+        providers.Register(new MobaEntitasEntityRollbackProvider(
+            context, ids, actors, entities: null, summons: summons));
+        var coordinator = new RollbackCoordinator(providers, new RollbackSnapshotRingBuffer(2));
+        var checkpoint = coordinator.Capture(new FrameIndex(0));
+
+        var predictedSummon = context.CreateEntity();
+        predictedSummon.AddActorId(ids.Next());
+        actors.Register(predictedSummon.actorId.Value, predictedSummon);
+        tracked[owner.actorId.Value].Add(predictedSummon.actorId.Value);
+
+        coordinator.Restore(checkpoint);
+
+        Assert.True(owner.isEnabled);
+        Assert.True(confirmedSummon.isEnabled);
+        Assert.False(predictedSummon.isEnabled);
+        Assert.Equal(new[] { confirmedSummon.actorId.Value }, tracked[owner.actorId.Value]);
+    }
+
+    [Fact]
     public void Context_registry_rollback_removes_predicted_context_and_reuses_generated_id()
     {
         var contexts = new MobaRuntimeContextService();

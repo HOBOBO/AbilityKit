@@ -2,6 +2,13 @@
   "Id": 30040301,
   "Name": "Veigar - Dark Matter",
   "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": false,
+  "UseCommitCooldownFactor": true,
+  "RequiredBuffQualificationId": 0,
   "Phases": [
     {
       "Type": 19,
@@ -24,7 +31,7 @@
         "IgnoreResourceCostCheck": true,
         "IgnoreResourceConsumption": false,
         "RefundBeforeCommit": true,
-        "RequireExplicitCommit": false,
+        "RequireExplicitCommit": true,
         "FailReason": "skill_economy_reserve_failed"
       }
     },
@@ -40,14 +47,11 @@
       }
     },
     {
-      "Type": 4,
-      "PhaseId": "veigar_w_commit",
-      "RulePlan": {
-        "TriggerIds": [
-          900101012
-        ],
-        "AbortOnFailure": true,
-        "FailReason": "skill_commit_failed"
+      "Type": 18,
+      "PhaseId": "veigar_w_commit_point",
+      "CommitPoint": {
+        "CommitId": "cast",
+        "RequireEconomyReservation": true
       }
     },
     {
@@ -55,6 +59,7 @@
       "PhaseId": "veigar_w_cast",
       "Timeline": {
         "DurationMs": 3333,
+        "RecoveryStartMs": 250,
         "Events": [
           {
             "AtMs": 0,

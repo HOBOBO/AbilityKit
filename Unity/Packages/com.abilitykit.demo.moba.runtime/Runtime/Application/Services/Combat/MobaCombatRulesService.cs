@@ -149,6 +149,11 @@ namespace AbilityKit.Demo.Moba.Services
             return IsAlive(actorId) && !IsBlocked(actorId, MobaTagBehaviorGate.Move);
         }
 
+        public bool CanTurn(int actorId)
+        {
+            return IsAlive(actorId) && !IsBlocked(actorId, MobaTagBehaviorGate.Turn);
+        }
+
         public bool CanAttack(int actorId)
         {
             return IsAlive(actorId) && !IsBlocked(actorId, MobaTagBehaviorGate.Attack);

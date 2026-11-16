@@ -22579,7 +22579,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 2,
+                    "integerValue": 1,
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "integerListValue": [],
@@ -22784,6 +22784,14 @@
                       "z": 0.0
                     },
                     "fields": []
+                  }
+                },
+                {
+                  "name": "use_aim_distance",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "booleanValue": false
                   }
                 }
               ],
@@ -24698,6 +24706,14 @@
                     },
                     "fields": []
                   }
+                },
+                {
+                  "name": "use_aim_distance",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "booleanValue": false
+                  }
                 }
               ],
               "children": [],
@@ -24802,40 +24818,6 @@
                     "integerValue": 30010413,
                     "numberValue": 0.0,
                     "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
-                  "name": "hfsm_parameter_id",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Integer",
-                    "integerValue": 11,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
-                  "name": "clear_hfsm_source_on_threshold",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Boolean",
-                    "integerValue": 0,
-                    "numberValue": 0.0,
-                    "booleanValue": true,
                     "integerListValue": [],
                     "vector3Value": {
                       "x": 0.0,
@@ -24982,7 +24964,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 2,
+                    "integerValue": 1,
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "integerListValue": [],
@@ -25216,6 +25198,14 @@
                       "z": 0.0
                     },
                     "fields": []
+                  }
+                },
+                {
+                  "name": "use_aim_distance",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "booleanValue": false
                   }
                 }
               ],
@@ -25725,6 +25715,273 @@
         },
         "blackboard": [],
         "note": "Jhin authoritative trigger 30010414."
+      },
+      {
+        "id": 30010420,
+        "name": "Jhin R mode removed cleanup",
+        "groupPath": "trigger_30010420",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_e4ba983fe3de562e93416657233b34b2",
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_c29fecc478e25ca48834729a6b7aba19",
+              "enabled": true,
+              "kind": "Action",
+              "type": "remove_buff",
+              "arguments": [
+                {
+                  "name": "buff_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 32010405,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_3001042000504f93af35f201b4198d34",
+              "enabled": true,
+              "kind": "Action",
+              "type": "remove_buff",
+              "arguments": [
+                {
+                  "name": "buff_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 32010406,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_30010420999f4b5a9c3514434c1b4d60",
+              "enabled": true,
+              "kind": "Action",
+              "type": "remove_buff",
+              "arguments": [
+                {
+                  "name": "buff_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 32010407,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_39800b729cab5e76a5b889bbe051e0f3",
+              "enabled": true,
+              "kind": "Action",
+              "type": "set_gameplay_var",
+              "arguments": [
+                {
+                  "name": "key_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30010401
+                  }
+                },
+                {
+                  "name": "scope_payload_field_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 247416154
+                  }
+                },
+                {
+                  "name": "value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_1c0c0e63539d57b385b531d1a6f717b7",
+              "enabled": true,
+              "kind": "Action",
+              "type": "advance_gameplay_counter",
+              "arguments": [
+                {
+                  "name": "key_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30010401
+                  }
+                },
+                {
+                  "name": "scope_payload_field_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 247416154
+                  }
+                },
+                {
+                  "name": "threshold",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 3
+                  }
+                },
+                {
+                  "name": "delta",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0
+                  }
+                },
+                {
+                  "name": "reset_value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0
+                  }
+                },
+                {
+                  "name": "trigger_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Mode removal (expiry, interruption or final projectile exit) revokes dependent phase and final-candidate sources without recursively removing the mode."
       },
       {
         "id": 30010601,
@@ -27565,7 +27822,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 6,
+                    "integerValue": 5,
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "stringValue": "",
@@ -27948,7 +28205,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 6,
+                    "integerValue": 5,
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "stringValue": "",
@@ -28265,6 +28522,46 @@
                     },
                     "fields": []
                   }
+                },
+                {
+                  "name": "magnitude_secondary_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_attribute",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 5
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 1
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "magicAttackRatio"
+                  }
+                },
+                {
+                  "name": "magnitude_combine",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0
+                  }
                 }
               ],
               "children": [],
@@ -28456,34 +28753,86 @@
           "elseChildren": []
         },
         "actions": {
-          "nodeId": "node_a1e7c4b2d9f0386e5b3a8c1d0f2e4b76",
+          "nodeId": "node_e89472af60454f69a1fd50f51c9b23b7",
           "enabled": true,
           "kind": "Action",
-          "type": "refund_skill_cost_on_kill",
-          "arguments": [
+          "type": "seq",
+          "arguments": [],
+          "children": [
             {
-              "name": "skill_id",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 30030201,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
+              "nodeId": "node_a1e7c4b2d9f0386e5b3a8c1d0f2e4b76",
+              "enabled": true,
+              "kind": "Action",
+              "type": "refund_skill_cost_on_kill",
+              "arguments": [
+                {
+                  "name": "skill_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30030201,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_07e24b440b724a558b92d4e63fd2f177",
+              "enabled": true,
+              "kind": "Action",
+              "type": "reset_cooldown",
+              "arguments": [
+                {
+                  "name": "skill_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30030201
+                  }
                 },
-                "fields": []
-              }
+                {
+                  "name": "skill_slot",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                },
+                {
+                  "name": "reduction_ratio",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.5
+                  }
+                },
+                {
+                  "name": "target_self",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "booleanValue": true
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             }
           ],
-          "children": [],
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Annie Q refunds the actual resource cost retained for the killing cast, once per cast handle."
+        "note": "A qualifying Q kill refunds the original paid mana once, then refunds 50% of that cast's frozen effective cooldown."
       },
       {
         "id": 30020101,
@@ -28808,7 +29157,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 6,
+                    "integerValue": 5,
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "stringValue": "",
@@ -29538,7 +29887,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 6,
+                    "integerValue": 4,
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "stringValue": "",
@@ -30783,128 +31132,33 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_818e64078a1c1cbc4670e19fbbef5de5",
+          "nodeId": "node_83c42e561bdc3e168ec1d5f198a70cb4",
           "enabled": true,
           "kind": "Action",
-          "type": "give_damage",
+          "type": "shoot_projectile",
           "arguments": [
             {
-              "name": "damage_value",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "integerValue": 0,
-                "numberValue": 60.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "source_attack_ratio",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "integerValue": 0,
-                "numberValue": 1.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "damage_type",
+              "name": "launcher_id",
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 1,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "integerValue": 33040011
               }
             },
             {
-              "name": "reason_kind",
+              "name": "projectile_id",
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 2,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "integerValue": 32040011
               }
             },
             {
-              "name": "reason_param",
+              "name": "track_target",
               "value": {
                 "source": "Constant",
-                "type": "Integer",
-                "integerValue": 30040101,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "target_mode",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 2,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "target_max_count",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 1,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "type": "Boolean",
+                "booleanValue": true
               }
             }
           ],
@@ -31038,40 +31292,6 @@
           "type": "give_damage",
           "arguments": [
             {
-              "name": "damage_value",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "integerValue": 0,
-                "numberValue": 80.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "source_attack_ratio",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "integerValue": 0,
-                "numberValue": 1.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
               "name": "damage_type",
               "value": {
                 "source": "Constant",
@@ -31154,6 +31374,62 @@
                   "z": 0.0
                 },
                 "fields": []
+              }
+            },
+            {
+              "name": "magnitude_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 6
+              }
+            },
+            {
+              "name": "magnitude_parameter",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "stringValue": "damage"
+              }
+            },
+            {
+              "name": "magnitude_secondary_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2
+              }
+            },
+            {
+              "name": "magnitude_secondary_attribute",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 5
+              }
+            },
+            {
+              "name": "magnitude_secondary_coefficient",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "numberValue": 1.0
+              }
+            },
+            {
+              "name": "magnitude_secondary_coefficient_parameter",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "stringValue": "magicAttackRatio"
+              }
+            },
+            {
+              "name": "damage_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "numberValue": 0.0
               }
             }
           ],
@@ -31258,6 +31534,14 @@
                       "z": 0.0
                     },
                     "fields": []
+                  }
+                },
+                {
+                  "name": "radius",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 2.4
                   }
                 }
               ],
@@ -31389,7 +31673,7 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_4bea962c1f87c50ca1fa041d11e0d006",
+          "nodeId": "node_0fddba52beea8d03d9c7c05a4415453e",
           "enabled": true,
           "kind": "Action",
           "type": "give_damage",
@@ -31399,33 +31683,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Number",
-                "integerValue": 0,
-                "numberValue": 150.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "source_attack_ratio",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "integerValue": 0,
-                "numberValue": 0.5,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "numberValue": 0.0
               }
             },
             {
@@ -31433,16 +31691,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 2,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "integerValue": 2
               }
             },
             {
@@ -31450,16 +31699,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 1,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "integerValue": 1
               }
             },
             {
@@ -31467,67 +31707,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 30040501,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "target_missing_hp_ratio_coefficient",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "integerValue": 0,
-                "numberValue": 0.5,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "target_missing_hp_bonus_max",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "integerValue": 0,
-                "numberValue": 300.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "damage_max",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "integerValue": 0,
-                "numberValue": 600.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "integerValue": 30040501
               }
             },
             {
@@ -31535,16 +31715,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 2,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "integerValue": 2
               }
             },
             {
@@ -31552,16 +31723,71 @@
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 1,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "integerValue": 1
+              }
+            },
+            {
+              "name": "magnitude_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 6
+              }
+            },
+            {
+              "name": "magnitude_parameter",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "stringValue": "damage"
+              }
+            },
+            {
+              "name": "magnitude_secondary_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2
+              }
+            },
+            {
+              "name": "magnitude_secondary_attribute",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 5
+              }
+            },
+            {
+              "name": "magnitude_secondary_coefficient",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "numberValue": 1.0
+              }
+            },
+            {
+              "name": "magnitude_secondary_coefficient_parameter",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "stringValue": "magicAttackRatio"
+              }
+            },
+            {
+              "name": "target_missing_hp_damage_scale_coefficient",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "numberValue": 1.5
+              }
+            },
+            {
+              "name": "target_missing_hp_damage_scale_max_bonus",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "numberValue": 1.0
               }
             }
           ],
@@ -31569,7 +31795,7 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Veigar R resolves the projectile's frozen target at hit time, adds a configured missing-health bonus, and clamps the bonus and final damage."
+        "note": "Original Cast rank/AP base, multiplied by target missing-health ratio at impact; capped at double base."
       },
       {
         "id": 30040311,
@@ -31607,40 +31833,6 @@
           "kind": "Action",
           "type": "give_damage",
           "arguments": [
-            {
-              "name": "damage_value",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "integerValue": 0,
-                "numberValue": 70.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "source_attack_ratio",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "integerValue": 0,
-                "numberValue": 1.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
             {
               "name": "damage_type",
               "value": {
@@ -31715,6 +31907,62 @@
                 "source": "Constant",
                 "type": "Integer",
                 "integerValue": 52040201
+              }
+            },
+            {
+              "name": "magnitude_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 6
+              }
+            },
+            {
+              "name": "magnitude_parameter",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "stringValue": "damage"
+              }
+            },
+            {
+              "name": "magnitude_secondary_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2
+              }
+            },
+            {
+              "name": "magnitude_secondary_attribute",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 5
+              }
+            },
+            {
+              "name": "magnitude_secondary_coefficient",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "numberValue": 1.0
+              }
+            },
+            {
+              "name": "magnitude_secondary_coefficient_parameter",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "stringValue": "magicAttackRatio"
+              }
+            },
+            {
+              "name": "damage_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "numberValue": 0.0
               }
             }
           ],
@@ -31860,16 +32108,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 0.75,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "numberValue": 3.0
                   }
                 },
                 {
@@ -31911,16 +32150,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 0.25,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "numberValue": 0.5
                   }
                 },
                 {
@@ -31928,16 +32158,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 0.8660254,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "numberValue": 3.4641016
                   }
                 },
                 {
@@ -32061,35 +32282,116 @@
         },
         "blackboard": [],
         "actions": {
-          "nodeId": "node_bc2f217dcf20e6b1b08706b25c5bd9d8",
+          "nodeId": "node_8ea1a01829d8b8d5fb8cc6a680316cc2",
           "enabled": true,
           "kind": "Action",
-          "type": "add_buff",
-          "arguments": [
+          "type": "seq",
+          "arguments": [],
+          "children": [
             {
-              "name": "buff_ids",
-              "value": {
-                "source": "Constant",
-                "type": "IntegerList",
-                "integerValue": 0,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [
-                  32040401
-                ],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
+              "nodeId": "node_81b6a6b1f6434f6d016d438a9f460632",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerListValue": [
+                      32040401
+                    ]
+                  }
                 },
-                "fields": []
+                {
+                  "name": "duration_skill_level_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "stunDurationMs"
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_c843842c521036744bc4a57ffab0005f",
+              "enabled": true,
+              "kind": "Action",
+              "type": "conditional",
+              "arguments": [],
+              "children": [
+                {
+                  "nodeId": "node_e277b1f070ec96d4f27986f72dc347d9",
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "add_buff",
+                  "arguments": [
+                    {
+                      "name": "buff_ids",
+                      "value": {
+                        "source": "Constant",
+                        "type": "IntegerList",
+                        "integerListValue": [
+                          30040000
+                        ]
+                      }
+                    },
+                    {
+                      "name": "target_self",
+                      "value": {
+                        "source": "Constant",
+                        "type": "Boolean",
+                        "booleanValue": true
+                      }
+                    }
+                  ],
+                  "children": [],
+                  "elseChildren": []
+                }
+              ],
+              "elseChildren": [],
+              "condition": {
+                "nodeId": "node_943789e620063ed851b5a1b05dd467e4",
+                "enabled": true,
+                "kind": "Condition",
+                "type": "payload_actor_type",
+                "arguments": [
+                  {
+                    "name": "participant",
+                    "value": {
+                      "source": "Constant",
+                      "type": "Integer",
+                      "integerValue": 0
+                    }
+                  },
+                  {
+                    "name": "main_type",
+                    "value": {
+                      "source": "Constant",
+                      "type": "Integer",
+                      "integerValue": 1
+                    }
+                  },
+                  {
+                    "name": "unit_sub_type",
+                    "value": {
+                      "source": "Constant",
+                      "type": "Integer",
+                      "integerValue": 1
+                    }
+                  }
+                ],
+                "children": [],
+                "elseChildren": []
               }
             }
           ],
-          "children": [],
           "elseChildren": []
         },
-        "note": "Rectangle boundary enter applies the configured stun Buff to the event target."
+        "note": "Original Cast rank stun; once-per-Cast target claim also qualifies one enemy Hero growth reward."
       },
       {
         "id": 30040414,
@@ -38793,6 +39095,14 @@
                     "type": "Boolean",
                     "booleanValue": true
                   }
+                },
+                {
+                  "name": "claim_unit_sub_type_mask",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 15
+                  }
                 }
               ],
               "children": [],
@@ -43904,6 +44214,105 @@
         },
         "blackboard": [],
         "note": "Approved mixed-source Lux example baseline. Generic runtime consumers only."
+      },
+      {
+        "id": 30040111,
+        "name": "Veigar basic attack missile hit",
+        "groupPath": "trigger_30040101",
+        "tags": [
+          "moba",
+          "veigar"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_79af719761303a8bf704da063b9c3c0d",
+          "enabled": true,
+          "kind": "Action",
+          "type": "give_damage",
+          "arguments": [
+            {
+              "name": "damage_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "numberValue": 0.0
+              }
+            },
+            {
+              "name": "source_attack_ratio",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "numberValue": 1.0
+              }
+            },
+            {
+              "name": "damage_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1
+              }
+            },
+            {
+              "name": "reason_kind",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30040101
+              }
+            },
+            {
+              "name": "target_mode",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2
+              }
+            },
+            {
+              "name": "target_max_count",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Veigar production Battle Scenario trigger using shared runtime contracts."
       }
     ]
   }

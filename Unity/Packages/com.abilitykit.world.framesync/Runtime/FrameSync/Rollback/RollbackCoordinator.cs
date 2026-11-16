@@ -245,6 +245,7 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             var providers = System.Buffers.ArrayPool<IRollbackStateProvider>.Shared.Rent(entries.Length);
             try
             {
+                var providerMap = new Dictionary<int, IRollbackStateProvider>(entries.Length);
                 for (int i = 0; i < entries.Length; i++)
                 {
                     var key = entries[i].Key;
@@ -260,6 +261,51 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                     }
 
                     providers[i] = provider;
+                    providerMap[key] = provider;
+                }
+
+                RollbackSnapshotPreflightContext snapshotContext;
+                try
+                {
+                    snapshotContext = new RollbackSnapshotPreflightContext(
+                        snapshot.Frame, entries, providerMap);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, $"Rollback snapshot preflight context failed. frame={snapshot.Frame.Value}");
+                    result = new RollbackOperationResult(
+                        RollbackOperationKind.Restore,
+                        RollbackOperationStatus.ProviderFailed,
+                        snapshot.Frame,
+                        providerCount: 0,
+                        payloadBytes: CountPayloadBytes(entries),
+                        message: $"Rollback snapshot preflight failed before any provider import. {ex.Message}",
+                        exception: ex);
+                    return false;
+                }
+
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    if (!(providers[i] is IRollbackSnapshotPreflightProvider snapshotPreflight)) continue;
+
+                    try
+                    {
+                        snapshotPreflight.ValidateSnapshot(snapshotContext);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, $"Rollback snapshot preflight failed. key={entries[i].Key} frame={snapshot.Frame.Value}");
+                        result = new RollbackOperationResult(
+                            RollbackOperationKind.Restore,
+                            RollbackOperationStatus.ProviderFailed,
+                            snapshot.Frame,
+                            providerKey: entries[i].Key,
+                            providerCount: 0,
+                            payloadBytes: CountPayloadBytes(entries),
+                            message: $"Rollback snapshot preflight failed before any provider import. {ex.Message}",
+                            exception: ex);
+                        return false;
+                    }
                 }
 
                 for (int i = 0; i < entries.Length; i++)

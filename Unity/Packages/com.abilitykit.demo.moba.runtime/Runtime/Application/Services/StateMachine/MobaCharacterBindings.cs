@@ -5,6 +5,8 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using AbilityKit.Ability.Config;
+using AbilityKit.Core.Mathematics;
+using AbilityKit.Deterministic;
 using AbilityKit.HFSM.Definition;
 using Newtonsoft.Json;
 
@@ -93,8 +95,12 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             {
                 if (cast == null || cast.ParameterSnapshots == null || cast.SkillId <= 0 || !keys.Add(cast.SkillId.ToString()) ||
                     (cast.CastKind != "LoadoutSlot" && cast.CastKind != "BasicAttack" && cast.CastKind != "Active") ||
-                    (cast.AimSource != "Input" && cast.AimSource != "StateAimSnapshot") ||
-                    (cast.AimSource == "StateAimSnapshot" && !States.Exists(x => x.AimScope == cast.AimScope && x.CaptureAim)))
+                    (cast.AimSource != "Input" && cast.AimSource != "StateAimSnapshot" && cast.AimSource != "InputWithinStateCone") ||
+                    (cast.AimSource != "Input" && (string.IsNullOrWhiteSpace(cast.AimScope) ||
+                        !States.Exists(x => x.AimScope == cast.AimScope && x.CaptureAim))) ||
+                    float.IsNaN(cast.AimConeHalfAngleDegrees) || float.IsInfinity(cast.AimConeHalfAngleDegrees) ||
+                    (cast.AimSource == "InputWithinStateCone" ?
+                        cast.AimConeHalfAngleDegrees <= 0 || cast.AimConeHalfAngleDegrees > 90 : cast.AimConeHalfAngleDegrees != 0))
                     throw new InvalidOperationException("Invalid character cast binding.");
                 var targets = new HashSet<int>();
                 foreach (var sample in cast.ParameterSnapshots)
@@ -201,6 +207,30 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         public string CastKind { get; set; } = "LoadoutSlot";
         public string AimSource { get; set; } = "Input";
         public string AimScope { get; set; }
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public float AimConeHalfAngleDegrees { get; set; }
+
+        /// <summary>Validate the horizontal input against a frozen scope axis without mutating either source.</summary>
+        public bool TryConstrainInputAim(in Vec3 input, in Vec3 axis, out Vec3 direction)
+        {
+            direction = Vec3.Zero;
+            if (AimSource != "InputWithinStateCone" || !Finite(input.X) || !Finite(input.Y) || !Finite(input.Z) ||
+                !Finite(axis.X) || !Finite(axis.Y) || !Finite(axis.Z) || !Finite(AimConeHalfAngleDegrees) ||
+                AimConeHalfAngleDegrees <= 0 || AimConeHalfAngleDegrees > 90) return false;
+            var ray = DeterministicMathBridge.ToFixed(new Vec3(input.X, 0, input.Z));
+            var basis = DeterministicMathBridge.ToFixed(new Vec3(axis.X, 0, axis.Z));
+            if (ray.SqrMagnitude <= Fixed64.Zero || basis.SqrMagnitude <= Fixed64.Zero) return false;
+            ray = ray.Normalized;
+            basis = basis.Normalized;
+            var cosine = DeterministicMath.Cos(Fixed64.FromSingle(AimConeHalfAngleDegrees) *
+                DeterministicMath.Pi / Fixed64.FromInt32(180));
+            // Include an authored boundary despite float input quantization, using the common math epsilon.
+            if (ray.X * basis.X + ray.Z * basis.Z + DeterministicMathBridge.Epsilon < cosine) return false;
+            direction = DeterministicMathBridge.ToVec3(ray);
+            return true;
+        }
+
+        private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
         public List<MobaParameterSnapshotBinding> ParameterSnapshots { get; set; } = new List<MobaParameterSnapshotBinding>();
     }
 

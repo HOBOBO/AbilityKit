@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Diagnostics;
@@ -125,7 +126,7 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     [WorldService(typeof(MobaSkillEconomyService))]
-    public sealed class MobaSkillEconomyService : IService, IMobaSkillRuntimeLifecycleHook
+    public sealed class MobaSkillEconomyService : IService, IWorldInitializable, IMobaSkillRuntimeLifecycleHook
     {
         private readonly struct ActorGroupKey : IEquatable<ActorGroupKey>
         {
@@ -180,6 +181,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaActorLookupService _actors;
         private readonly IFrameTime _time;
         private readonly IMobaBattleDiagnosticEventSink _diagnosticEvents;
+        private MobaSkillParamModifierService _parameters;
         private readonly Dictionary<long, Transaction> _transactions = new Dictionary<long, Transaction>();
         private readonly Dictionary<long, KillRefund> _killRefunds = new Dictionary<long, KillRefund>();
         private readonly Dictionary<ActorGroupKey, long> _cooldownGroups = new Dictionary<ActorGroupKey, long>();
@@ -207,6 +209,11 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public int PendingTransactionCount => _transactions.Count;
+
+        public void OnInit(IWorldResolver services)
+        {
+            services?.TryResolve(out _parameters);
+        }
 
         /// <summary>
         /// Returns true when the cast already has an economy transaction. Generic
@@ -301,6 +308,13 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 if (existing.Handle.Equals(handle)) return true;
                 failure = "Skill economy reservation rejected a stale runtime handle.";
+                return false;
+            }
+
+            if (_runtimes.TryGetPreparedCommitCooldown(in handle, out _) &&
+                (!specification.StartSkillCooldown || !specification.UseResolvedSkillCooldown))
+            {
+                failure = "Commit cooldown factor requires a resolved skill cooldown reservation.";
                 return false;
             }
 
@@ -471,13 +485,29 @@ namespace AbilityKit.Demo.Moba.Services
             return succeeded;
         }
 
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Skill.Ids.CooldownCommitFactor,
+            MobaParameterStage.CastCommit, MobaModifierSampleTiming.EventSample)]
         public bool Commit(in MobaSkillCastRuntimeHandle handle, string commitId = null)
         {
             if (!TryGetTransaction(in handle, out var transaction)) return false;
             if (transaction.State == MobaSkillEconomyTransactionState.Committed) return true;
 
+            var commitCooldown = _runtimes.TryGetPreparedCommitCooldown(in handle, out var preparedCooldown);
+            if (commitCooldown)
+            {
+                if (_parameters == null)
+                    throw new InvalidOperationException("Commit cooldown factor requires skill parameter modifiers.");
+                var record = MobaParameterRecord.FromSkillRuntime(MobaParameterStage.CastCommit, _runtimes, in handle);
+                var factor = _parameters.Skill.ResolveCooldownCommitFactor(transaction.ActorId, in record);
+                var total = preparedCooldown * (double)factor;
+                if (double.IsNaN(total) || double.IsInfinity(total) || total < 0 || total > int.MaxValue)
+                    throw new InvalidOperationException("Committed cooldown must be a finite nonnegative millisecond value.");
+                transaction.CooldownMs = (int)Math.Round(total, MidpointRounding.AwayFromZero);
+                _runtimes.FreezeEffectiveCooldown(in handle, transaction.CooldownMs);
+            }
+
             var nowMs = NowMs;
-            if (transaction.CooldownMs > 0 && MobaSkillRuntimeAccess.TryGetActiveSkill(
+            if ((transaction.CooldownMs > 0 || commitCooldown) && MobaSkillRuntimeAccess.TryGetActiveSkill(
                     _actors, transaction.ActorId, transaction.SkillSlot, transaction.SkillId, out var skill))
             {
                 skill.CooldownDurationMs = transaction.CooldownMs;

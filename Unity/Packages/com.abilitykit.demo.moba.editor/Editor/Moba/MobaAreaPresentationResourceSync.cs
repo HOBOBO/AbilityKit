@@ -12,8 +12,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         public static void Publish()
         {
             Adapt("ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E", "MobaVfx/Jhin/E_Trap", "Trap_1");
-            Adapt("ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_W_Explosion", "MobaVfx/Veigar/W_Area");
-            Adapt("ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_E_Cage", "MobaVfx/Veigar/E_Area");
+            VeigarLivePresentationSync.PublishAreaResources();
             AssetDatabase.SaveAssets();
             Debug.Log("[MobaAreaPresentationResourceSync] Area anchor resources published.");
         }

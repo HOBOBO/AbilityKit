@@ -929,7 +929,7 @@
     "ContinuousTagTemplateId": 3015,
     "DispelCategory": 0,
     "DispelPolicy": 0,
-    "DurationMs": 0,
+    "DurationMs": 10000,
     "IntervalMs": 0,
     "MaxStacks": 1,
     "ModifierIds": [
@@ -939,8 +939,10 @@
     "Name": "Jhin - Curtain Call R mode",
     "OnAddEffects": [],
     "OnIntervalEffects": [],
-    "OnRemoveEffects": [],
-    "PresentationTemplateId": 0,
+    "OnRemoveEffects": [
+      30010420
+    ],
+    "PresentationTemplateId": 90013021,
     "RefreshPolicy": 1,
     "StackingPolicy": 0,
     "TriggerIds": [],
@@ -1224,9 +1226,10 @@
     "IntervalMs": 0,
     "MaxStacks": 9999,
     "ModifierIds": [
-      100028
+      100028,
+      300091
     ],
-    "Name": "Veigar Phenomenal Evil Power",
+    "Name": "Veigar permanent AP growth",
     "OnAddEffects": [],
     "OnIntervalEffects": [],
     "OnRemoveEffects": [],
@@ -1242,7 +1245,7 @@
     "ContinuousTagTemplateId": 3005,
     "DispelCategory": 0,
     "DispelPolicy": 0,
-    "DurationMs": 1000,
+    "DurationMs": 1500,
     "IntervalMs": 0,
     "MaxStacks": 1,
     "ModifierIds": [

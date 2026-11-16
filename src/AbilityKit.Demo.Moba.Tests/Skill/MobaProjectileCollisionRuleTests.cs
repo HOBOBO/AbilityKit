@@ -90,6 +90,8 @@ public sealed class MobaProjectileCollisionRuleTests
     [InlineData(ProjectileCollisionResponse.Ignore, 1, 0)]
     [InlineData(ProjectileCollisionResponse.Block, 0, 0)]
     [InlineData(ProjectileCollisionResponse.Hit, 0, 1)]
+    [InlineData(ProjectileCollisionResponse.HitAndContinue, 1, 1)]
+    [InlineData(ProjectileCollisionResponse.HitAndStop, 0, 1)]
     public void Responses_drive_real_projectile_lifecycle_and_restore_in_a_new_world(
         ProjectileCollisionResponse response, int active, int damageHits)
     {
@@ -149,6 +151,104 @@ public sealed class MobaProjectileCollisionRuleTests
             new ProjectileCollisionRuleDTO { Role = (ProjectileCollisionRole)99 },
         }});
         Assert.False(invalid.TryResolveRuntimeSettings(out _, out _, out _, out _));
+    }
+
+    [Fact]
+    public void Continue_hits_more_than_four_units_without_spending_budget_then_stops_on_first_hero_and_replays()
+    {
+        var collision = new NaiveCollisionWorld();
+        using var registry = new MobaActorRegistry();
+        var contexts = new Contexts();
+        Actor(contexts, registry, 71, 90, Team.Team1, EntityMainType.Unit, UnitSubType.Hero);
+        var colliders = new List<ColliderId>();
+        for (var i = 1; i <= 9; i++)
+        {
+            var collider = collision.Add(new Transform3(new Vec3(i, 0, 0), Quat.Identity, Vec3.One),
+                ColliderShape.CreateSphere(Vec3.Zero, .1f), 1);
+            colliders.Add(collider);
+            Actor(contexts, registry, 100 + i, collider.Value, i == 3 ? Team.None : Team.Team2,
+                EntityMainType.Unit, i >= 8 ? UnitSubType.Hero : i == 3 ? UnitSubType.Neutral : UnitSubType.Minion);
+        }
+        var filter = new MobaProjectileCollisionFilter(registry, rules: new[] {
+            Rule(ProjectileCollisionRole.OtherActor, ProjectileCollisionResponse.HitAndStop, subtype: UnitSubType.Hero),
+            Rule(ProjectileCollisionRole.OtherActor, ProjectileCollisionResponse.HitAndContinue),
+        });
+        var world = new ProjectileWorld(collision);
+        world.SetHitFilterResolver(new MobaProjectileCollisionFilterResolver(registry));
+        world.SetActorIdentityProvider(new RegistryIdentity(registry));
+        world.Spawn(new ProjectileSpawnParams(71, 987, 0, 71, 0, Vec3.Zero, Vec3.Right,
+            10, 0, 0, 0, 90, 100, 1 << 1, ColliderId.Invalid, hitFilter: filter,
+            hitIdentityPolicy: ProjectileHitIdentityPolicy.OncePerActor));
+        var hits = new List<ProjectileHitEvent>();
+        var exits = new List<ProjectileExitEvent>();
+        world.Tick(1, .6f, hits, exits, null);
+        Assert.Equal(6, hits.Count);
+        Assert.Empty(exits);
+        Assert.Equal(1, world.ActiveCount);
+        var snapshot = world.ExportRollback(default);
+        var restored = new ProjectileWorld(collision);
+        restored.SetHitFilterResolver(new MobaProjectileCollisionFilterResolver(registry));
+        restored.SetActorIdentityProvider(new RegistryIdentity(registry));
+        restored.ImportRollback(default, snapshot);
+        hits.Clear();
+        world.Tick(2, .4f, hits, exits, null);
+        Assert.Equal(new[] { colliders[6], colliders[7] }, hits.Select(x => x.HitCollider));
+        Assert.Single(exits);
+        Assert.Equal(ProjectileExitReason.Hit, exits[0].Reason);
+        Assert.Equal(0, world.ActiveCount);
+        hits.Clear(); exits.Clear();
+        restored.Tick(2, .4f, hits, exits, null);
+        Assert.Equal(new[] { colliders[6], colliders[7] }, hits.Select(x => x.HitCollider));
+        Assert.Single(exits);
+        Assert.Equal(world.ExportRollback(default), restored.ExportRollback(default));
+    }
+
+    [Theory]
+    [InlineData(ProjectileCollisionResponse.HitAndContinue)]
+    [InlineData(ProjectileCollisionResponse.HitAndStop)]
+    public void Explicit_damage_responses_keep_self_ally_subtype_and_world_guards(ProjectileCollisionResponse response)
+    {
+        using var registry = new MobaActorRegistry();
+        var contexts = new Contexts();
+        Actor(contexts, registry, 1, 1, Team.Team1, EntityMainType.Unit, UnitSubType.Hero);
+        Actor(contexts, registry, 2, 2, Team.Team1, EntityMainType.Unit, UnitSubType.Hero);
+        Actor(contexts, registry, 3, 3, Team.None, EntityMainType.Unit, UnitSubType.Neutral);
+        var rules = new[] { Rule(ProjectileCollisionRole.OtherActor, response) };
+        var filter = new MobaProjectileCollisionFilter(registry, rules: rules);
+        Assert.Equal(ProjectileCollisionResponse.Ignore, filter.ResolveCollision(1, new ColliderId(1), 1));
+        Assert.Equal(ProjectileCollisionResponse.Ignore, filter.ResolveCollision(1, new ColliderId(2), 1));
+        Assert.Equal(response, filter.ResolveCollision(1, new ColliderId(3), 1));
+        Assert.True(filter.ShouldHit(1, new ColliderId(3), 1));
+        var heroesOnly = new MobaProjectileCollisionFilter(registry, (int)UnitSubType.Hero, rules: rules);
+        Assert.Equal(ProjectileCollisionResponse.Ignore, heroesOnly.ResolveCollision(1, new ColliderId(3), 1));
+        Assert.False(Rule(ProjectileCollisionRole.StaticWorld, response).TryValidate(out _));
+        var linear = new ProjectileMO(new ProjectileDTO { CollisionRules = new[] {
+            new ProjectileCollisionRuleDTO { Role = ProjectileCollisionRole.OtherActor, Response = (int)response }
+        }});
+        Assert.True(linear.TryResolveRuntimeSettings(out _, out _, out _, out _));
+        Assert.False(linear.TryResolveRuntimeSettings(out _, out _, out _, out _, trackTarget: true));
+        foreach (var dto in new[] {
+            new ProjectileDTO { HitPolicyKind = (int)ProjectileHitPolicyKind.Bounce },
+            new ProjectileDTO { ReturnAfterMs = 100 }, new ProjectileDTO { TrackingArcHeight = 1 },
+            new ProjectileDTO { MaxDistanceResponse = 2 },
+        })
+        {
+            dto.CollisionRules = new[] { new ProjectileCollisionRuleDTO { Role = ProjectileCollisionRole.OtherActor, Response = (int)response } };
+            Assert.False(new ProjectileMO(dto).TryResolveRuntimeSettings(out _, out _, out _, out _));
+        }
+    }
+
+    private sealed class RegistryIdentity(MobaActorRegistry registry) : IProjectileActorIdentityProvider
+    {
+        public bool TryResolveActorId(ColliderId collider, out int actorId)
+        {
+            foreach (var entry in registry.Entries)
+                if (entry.Value.hasCollisionId && entry.Value.collisionId.Value.Equals(collider))
+                { actorId = entry.Key; return true; }
+            actorId = 0;
+            return false;
+        }
+        public void Dispose() { }
     }
 
     private static ProjectileCollisionRule Rule(ProjectileCollisionRole role, ProjectileCollisionResponse response,

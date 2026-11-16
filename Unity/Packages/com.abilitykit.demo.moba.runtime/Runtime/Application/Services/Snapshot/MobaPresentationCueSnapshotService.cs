@@ -189,6 +189,39 @@ namespace AbilityKit.Demo.Moba.Services
             foreach (var key in removals) _active.Remove(key);
         }
 
+        public void ReconcileDesiredCueDomain(
+            PresentationCueDomain domain,
+            IReadOnlyCollection<MobaPresentationCueSnapshotEntry> desired)
+        {
+            if (domain == PresentationCueDomain.None) return;
+            var incoming = new HashSet<string>(StringComparer.Ordinal);
+            if (desired != null)
+            {
+                foreach (var item in desired)
+                {
+                    var entry = item;
+                    NormalizeMetadata(ref entry);
+                    if (entry.Domain != (int)domain) continue;
+                    var key = MobaPresentationCueKeys.GetStableKey(in entry);
+                    if (string.IsNullOrWhiteSpace(key)) continue;
+                    incoming.Add(key);
+                    _active.Observe(in entry);
+                }
+            }
+
+            var removals = new List<string>();
+            foreach (var pair in _active.Active)
+            {
+                var entry = pair.Value.Entry;
+                var activeDomain = entry.Domain != 0
+                    ? (PresentationCueDomain)entry.Domain
+                    : PresentationCueSemantics.ResolveDomain(entry.OwnerKind ?? entry.CueKind);
+                if (activeDomain == domain && !incoming.Contains(pair.Key)) removals.Add(pair.Key);
+            }
+
+            foreach (var key in removals) _active.Remove(key);
+        }
+
         public void Execute(in MobaPresentationCueSnapshotEntry entry)
         {
             var normalized = entry;

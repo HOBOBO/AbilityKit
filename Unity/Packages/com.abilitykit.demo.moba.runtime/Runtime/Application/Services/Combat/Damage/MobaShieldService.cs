@@ -749,6 +749,10 @@ namespace AbilityKit.Demo.Moba.Services
                     var member = pool.Members[i];
                     if (member != null && member.Active) TrackPoolActor(member.ActorId, pool.PoolId);
                 }
+                // Containers are restored before pools. Rebind the cached layer
+                // values from the authoritative pool before any presentation or
+                // damage query observes the restored state.
+                RefreshPoolBindings(pool);
             }
         }
 

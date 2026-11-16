@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
@@ -129,14 +130,13 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void BasicSpellsPresentation_ResolvePublishedTemplatesFromExportedTimelines()
         {
-            var skillIds = new[] { 30010101, 30010201, 30010301 };
-            var templateIds = new[] { 90013001, 90013002, 90013003 };
-            var durations = new[] { 700, 700, 1600 };
+            var skillIds = new[] { 30010101, 30010201 };
+            var templateIds = new[] { 90013001, 90013002 };
+            var durations = new[] { 700, 700 };
             var resources = new[]
             {
                 "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q",
-                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W",
-                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E"
+                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_W_Cast"
             };
 
             for (var i = 0; i < skillIds.Length; i++)
@@ -161,6 +161,10 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.AreEqual(PresentationAttachmentKind.Actor, sink.Request.Attachment.Kind);
                 Assert.AreEqual(0.15f, sink.Request.Attachment.Offset.Y, 0.0001f);
             }
+            var ePresentation = Resources.Load<TextAsset>("moba/action_timeline/skill_30010301.moba.presentation");
+            Assert.IsNotNull(ePresentation);
+            Assert.IsFalse(ePresentation.text.Contains("presentationTemplateId"),
+                "E must not duplicate its flight or landing VFX at the caster.");
         }
 
         [Test]
@@ -172,7 +176,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 AssertIndicator(harness, SkillId, 24, 3, 0f, 0f);
                 AssertIndicator(harness, WSkillId, 25, 1, 0.8f, 0f);
                 AssertIndicator(harness, ESkillId, 26, 2, 2.5f, 0f);
-                AssertIndicator(harness, RSkillId, 27, 4, 30f, 10f);
+                AssertIndicator(harness, RSkillId, 27, 4, 30f, 60f);
             }
         }
 
@@ -256,7 +260,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(template.EnableAim, "Jhin aimed skills should expose an input indicator.");
             Assert.AreEqual(expectedShape, template.IndicatorShape, "Indicator shape should match the skill's targeting geometry.");
             Assert.AreEqual(expectedWidth, template.IndicatorWorldWidth, 0.001f, "Indicator width/radius should match the skill geometry.");
-            Assert.AreEqual(expectedSectorAngle, template.SectorAngleDegrees, 0.001f, "Sector angle should match the released R query.");
+            Assert.AreEqual(expectedSectorAngle, template.SectorAngleDegrees, 0.001f, "Sector angle should match the authored mode input cone.");
             if (skillId == SkillId)
             {
                 Assert.AreEqual(12f, template.SelfRadius, 0.001f,
@@ -533,7 +537,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     // the current attack state remains active until its short
                     // authored pipeline completes. Wait for that boundary
                     // before asserting which skill the next input resolves to.
-                    harness.TickUntilSkillStops(actorId, 5, maxTicks: 30,
+                    harness.TickUntilSkillStops(actorId, 5, maxTicks: 120,
                         message: $"Jhin basic attack {i + 1} should finish its independent short flow before the next slot is selected.");
                     // The runtime advances the character HFSM on the next
                     // world tick after the cast runner retires.
@@ -949,9 +953,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 {
                     flow.EnterBattle(new TestBattleBootstrapper());
                 }
-                yield return TickUntil(flow,
+                yield return WaitForBattleAssets(flow, entry,
                     () => flow.CurrentBattlePhase == MobaBattleState.InMatch,
-                    6000,
+                    60f,
                     () => $"The local demo flow did not reach InMatch. root={flow.CurrentPhase}, battle={flow.CurrentBattlePhase}, " +
                           $"entry={flow.BattleEntryState}, rejection={flow.BattleEntryRejection}.{DescribeAssetLoadState(entry)}");
 
@@ -1225,6 +1229,22 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             const float fixedDeltaTime = 1f / 30f;
             for (var i = 0; i < ticks; i++) flow.Tick(fixedDeltaTime);
+        }
+
+        private static IEnumerator WaitForBattleAssets(GameFlowDomain flow, GameEntry entry,
+            System.Func<bool> predicate, float timeoutSeconds, System.Func<string> failureMessage)
+        {
+            var deadline = Time.realtimeSinceStartup + timeoutSeconds;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                FlowTick(flow, 1);
+                if (predicate()) yield break;
+                if (entry.TryGet(out BattleLoadingScreenFeature loading) && loading != null &&
+                    loading.CurrentSnapshot.Completed && !loading.CurrentSnapshot.Success)
+                    Assert.Fail(failureMessage());
+                yield return null;
+            }
+            Assert.Fail(failureMessage());
         }
 
         private static string DescribeAssetLoadState(GameEntry entry)
@@ -1726,6 +1746,118 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        [TestCase(2, false)]
+        [TestCase(5, false)]
+        [TestCase(5, true)]
+        public void WAndR_DamageMoreThanFourNonHeroesThenStopAtFirstHero(int slot, bool finalShot)
+        {
+            var hero = new HeroSkillContract("Jhin", HeroId, HeroId, new[] { WSkillId, RSkillId });
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(hero, "jhin_classified_contacts_world"))
+            {
+                harness.EnterGameAndWarmup(reason: "classified projectile contacts");
+                var caster = harness.AssertPlayerActorBound();
+                var targets = new List<int>();
+                for (var i = 0; i < 8; i++)
+                {
+                    var id = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "line_" + i, 9500 + i,
+                        x: 0, z: 2 + i * 1.4f);
+                    harness.SetScenarioActorAttribute(id, "max_hp", 100000);
+                    harness.SetScenarioActorAttribute(id, "hp", 100000);
+                    Assert.IsTrue(harness.TryGetActorEntity(id, out var entity));
+                    if (i < 6) entity.ReplaceUnitSubType(i == 2 ? UnitSubType.Neutral : UnitSubType.Minion);
+                    if (i == 2) entity.ReplaceTeam(Team.None);
+                    targets.Add(id);
+                }
+                harness.Tick(2);
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                if (slot == 5)
+                {
+                    Assert.IsTrue(skills.TryCastBySlot(caster, 4, new Vec3(0, 0, 18), Vec3.Forward).Success);
+                    harness.TickMilliseconds(700);
+                    for (var i = 0; finalShot && i < 3; i++)
+                    {
+                        Assert.IsTrue(skills.TryCastBySlot(caster, 5, new Vec3(0, 0, 18), Vec3.Forward).Success);
+                        harness.TickMilliseconds(1100);
+                    }
+                }
+                var hp = targets.Select(id => harness.GetActorHp(id)).ToArray();
+                var cast = skills.TryCastBySlot(caster, slot, new Vec3(0, 0, 18), Vec3.Forward);
+                Assert.IsTrue(cast.Success, cast.FailReason);
+                harness.TickMilliseconds(1800);
+                for (var i = 0; i < 7; i++) Assert.Less(harness.GetActorHp(targets[i]), hp[i], "missed line contact " + i);
+                Assert.AreEqual(hp[7], harness.GetActorHp(targets[7]), .001f, "The second hero must remain unharmed.");
+                if (finalShot) Assert.IsFalse(harness.HasActorBuff(caster, RModeBuffId));
+            }
+        }
+
+        [TestCase(0)]
+        [TestCase(3)]
+        public void R_ExpiryClearsAimCandidateAndMovementGate(int shots)
+        {
+            var hero = new HeroSkillContract("Jhin", HeroId, HeroId, new[] { RSkillId });
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(hero, "jhin_r_expiry_world"))
+            {
+                harness.EnterGameAndWarmup(reason: "R expiry");
+                var caster = harness.AssertPlayerActorBound();
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                Assert.IsTrue(skills.TryCastBySlot(caster, 4, default, Vec3.Forward).Success);
+                harness.TickMilliseconds(700);
+                for (var i = 0; i < shots; i++)
+                {
+                    var cast = skills.TryCastBySlot(caster, 5, default, Vec3.Forward);
+                    Assert.IsTrue(cast.Success, cast.FailReason);
+                    harness.TickMilliseconds(1100);
+                }
+                if (shots == 3) harness.AssertSlotSkill(5, 30010502);
+                harness.TickMilliseconds(10500 - 700 - shots * 1100);
+                foreach (var id in new[] { RModeBuffId, RFinalCandidateBuffId, RShootingPhaseBuffId, RFinalPhaseBuffId })
+                    Assert.IsFalse(harness.HasActorBuff(caster, id), "Expiry left Buff " + id);
+                harness.AssertSlotSkill(5, BasicAttack1SkillId);
+                Assert.IsTrue(harness.World.Services.Resolve<MobaCombatRulesService>().CanMove(caster));
+                Assert.IsTrue(harness.TryGetActorEntity(caster, out var actor));
+                Assert.IsFalse(actor.characterHfsm.Runtime.TryGetAimSnapshot("curtain_call", out _, out _));
+                AssertStatePath(harness, caster, "action/idle", 30, "R expiry must return to idle.");
+            }
+        }
+
+        [Test]
+        public void R_EachShotUsesInputInsideFrozenConeAndRejectsInvalidInputWithoutHandoff()
+        {
+            var hero = new HeroSkillContract("Jhin", HeroId, HeroId, new[] { RSkillId });
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(hero, "jhin_r_input_cone_world"))
+            {
+                harness.EnterGameAndWarmup(reason: "R independent cone input");
+                var caster = harness.AssertPlayerActorBound();
+                var left = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "left", 9521, x: -4, z: 8);
+                var right = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "right", 9522, x: 4, z: 8);
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                Assert.IsTrue(skills.TryCastBySlot(caster, 4, default, Vec3.Forward).Success);
+                harness.TickMilliseconds(700);
+                Assert.IsTrue(harness.TryGetActorEntity(caster, out var actor));
+                var hfsm = actor.characterHfsm.Runtime;
+                Assert.IsTrue(hfsm.TryGetAimSnapshot("curtain_call", out _, out var axis));
+                var action = hfsm.Action;
+                foreach (var direction in new[] { Vec3.Right, Vec3.Zero, Vec3.Up })
+                {
+                    Assert.IsFalse(skills.TryCastBySlot(caster, 5, default, direction).Success);
+                    Assert.AreEqual(action, hfsm.Action);
+                }
+                var hpLeft = harness.GetActorHp(left);
+                var hpRight = harness.GetActorHp(right);
+                Assert.IsTrue(skills.TryCastBySlot(caster, 5, new Vec3(-4, 0, 8),
+                    DeterministicMathBridge.Normalize(new Vec3(-4, 0, 8))).Success);
+                harness.TickMilliseconds(1100);
+                Assert.Less(harness.GetActorHp(left), hpLeft);
+                Assert.AreEqual(hpRight, harness.GetActorHp(right), .001f);
+                Assert.IsTrue(skills.TryCastBySlot(caster, 5, new Vec3(4, 0, 8),
+                    DeterministicMathBridge.Normalize(new Vec3(4, 0, 8))).Success);
+                harness.TickMilliseconds(1100);
+                Assert.Less(harness.GetActorHp(right), hpRight);
+                Assert.IsTrue(hfsm.TryGetAimSnapshot("curtain_call", out _, out var retained));
+                Assert.AreEqual(axis, retained);
+            }
+        }
+
         private static void AssertStatePath(
             MobaSkillConfigTestHarness harness,
             int actorId,
@@ -1785,10 +1917,17 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.AreEqual(1, launcher.CountPerShot, "Each Jhin R trigger should emit one projectile.");
                 Assert.IsTrue(harness.Config.TryGetProjectile(RProjectileId, out var regularProjectile));
                 Assert.IsTrue(harness.Config.TryGetProjectile(RFinalProjectileId, out var finalProjectile));
-                Assert.AreEqual(ProjectileHitPolicyKind.Pierce, regularProjectile.HitPolicyKind);
-                Assert.AreEqual(ProjectileHitPolicyKind.Pierce, finalProjectile.HitPolicyKind);
-                Assert.AreEqual(4, regularProjectile.HitsRemaining, "R regular projectile should retain the configured finite pierce budget.");
-                Assert.AreEqual(4, finalProjectile.HitsRemaining, "R final projectile should retain the configured finite pierce budget.");
+                Assert.AreEqual(ProjectileHitPolicyKind.ExitOnHit, regularProjectile.HitPolicyKind);
+                Assert.AreEqual(ProjectileHitPolicyKind.ExitOnHit, finalProjectile.HitPolicyKind);
+                Assert.AreEqual(1, regularProjectile.HitsRemaining);
+                Assert.AreEqual(1, finalProjectile.HitsRemaining);
+                foreach (var projectile in new[] { regularProjectile, finalProjectile })
+                {
+                    Assert.IsTrue(projectile.CollisionRules.Any(rule => rule.UnitSubType == UnitSubType.Hero &&
+                        rule.Response == ProjectileCollisionResponse.HitAndStop));
+                    Assert.IsTrue(projectile.CollisionRules.Any(rule => rule.UnitSubType == UnitSubType.Minion &&
+                        rule.Response == ProjectileCollisionResponse.HitAndContinue));
+                }
                 Assert.AreEqual(RRegularHitEffectId, regularProjectile.OnHitEffectId);
                 Assert.AreEqual(RFinalHitEffectId, finalProjectile.OnHitEffectId);
                 HeroSkillHeadlessContract.AssertTriggerActions(harness, RRegularLaunchTriggerId, (int)TriggeringConstants.ShootProjectileId.Value);
@@ -1797,7 +1936,10 @@ namespace AbilityKit.Game.Test.UnitTest
                 HeroSkillHeadlessContract.AssertTriggerActions(harness, RFinalHitEffectId, (int)TriggeringConstants.GiveDamageId.Value);
 
                 Assert.IsTrue(harness.Config.TryGetSkillFlow(RSkillId, out var flow), "Jhin R aiming flow should be published.");
-                Assert.AreEqual(2, flow.Phases.Count, "The R cast flow only enters the mode; it must not own repeated shots.");
+                Assert.AreEqual(3, flow.Phases.Count, "R validates release, commits once, then enters its mode.");
+                CollectionAssert.AreEqual(new[] { 900101011, 900101012, 30010400 },
+                    flow.Phases.Select(phase => phase.RulePlan.TriggerIds.Single()).ToArray(),
+                    "R mode must only start after successful release validation and payment.");
                 Assert.IsFalse(TryFindRepeatPhase(flow.Phases, out _), "R shot repetition must be driven by the HFSM and slot candidate, not by a Repeat phase.");
                 Assert.IsTrue(harness.Config.TryGetSkillFlow(30010501, out var regularFlow), "Jhin regular R single-shot flow should be published.");
                 Assert.IsTrue(ContainsTimelineEffect(regularFlow.Phases, RRegularLaunchTriggerId));
@@ -1914,8 +2056,6 @@ namespace AbilityKit.Game.Test.UnitTest
                         $"finalPhase={harness.HasActorBuff(casterActorId, RFinalPhaseBuffId)}, recentTrace={recentTrace}");
                 }
 
-                Assert.IsTrue(harness.HasActorBuff(casterActorId, RModeBuffId),
-                    "Jhin R mode must remain active after the final hit while its piercing projectile is still in flight.");
                 for (var tick = 0; tick < 80 && harness.HasActorBuff(casterActorId, RModeBuffId); tick++)
                 {
                     harness.Tick(1);
@@ -1925,8 +2065,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 }
                 Assert.IsFalse(harness.HasActorBuff(casterActorId, RModeBuffId),
                     "Jhin R mode should end when the final projectile exits.");
-                StringAssert.Contains("Exit:exit=1", finalProjectileEvents,
-                    "The R cleanup must be driven by the final projectile exit event.");
+                StringAssert.Contains($"Exit:exit={(int)ProjectileExitReason.Hit}", finalProjectileEvents,
+                    "The final projectile must damage the first enemy hero and exit at that contact before cleanup.");
 
                 var finalDamage = lineHp - harness.GetActorHp(lineTarget);
                 Assert.Greater(finalDamage, regularDamage[0], "Jhin R final shot must use the distinct finalDamage parameter.");
@@ -1938,6 +2078,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var finalHits = 0;
                 var regularLaunches = 0;
                 var finalLaunches = 0;
+                var finalCleanups = 0;
                 var damageEvents = 0;
                 for (var i = 0; i < records.Length; i++)
                 {
@@ -1946,6 +2087,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     if (record.kind == "ProjectileHit" && record.configId == RFinalProjectileId) finalHits++;
                     if (record.kind == "EffectExecution" && record.configId == RRegularLaunchTriggerId) regularLaunches++;
                     if (record.kind == "EffectExecution" && record.configId == RFinalLaunchTriggerId) finalLaunches++;
+                    if (record.kind == "EffectExecution" && record.configId == 30010414) finalCleanups++;
                     if (record.kind == "DamageApply" && record.configId == RSkillId) damageEvents++;
                 }
 
@@ -1953,8 +2095,9 @@ namespace AbilityKit.Game.Test.UnitTest
                     Assert.AreEqual(1, finalHits, "Jhin R should fire exactly one final projectile.");
                 Assert.AreEqual(3, regularLaunches, "The first three independent R shot flows should execute the regular launch trigger.");
                 Assert.AreEqual(1, finalLaunches, "The fourth R shot should execute the final launch trigger.");
+                Assert.AreEqual(1, finalCleanups, "The final projectile exit must invoke the configured R cleanup exactly once.");
                 Assert.AreEqual(4, damageEvents, "Each R projectile hit should resolve one skill damage event.");
-                harness.TickUntilSkillStops(casterActorId, 5, maxTicks: 30,
+                harness.TickUntilSkillStops(casterActorId, 5, maxTicks: 120,
                     message: "Jhin R final single-shot flow should complete independently.");
                 for (var i = 0; i < 30 && harness.HasActorBuff(casterActorId, RModeBuffId); i++) harness.Tick(1);
                 Assert.IsFalse(harness.HasActorBuff(casterActorId, RModeBuffId),

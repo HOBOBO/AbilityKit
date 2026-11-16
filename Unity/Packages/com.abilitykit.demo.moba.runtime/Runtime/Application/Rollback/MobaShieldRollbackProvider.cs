@@ -57,6 +57,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 pools.Add(MobaSharedShieldPoolRollbackEntry.FromPool(pair.Value));
             }
             pools.Sort((a, b) => a.PoolId.CompareTo(b.PoolId));
+            ValidatePools(entries, pools);
             return MemoryPackSerializer.Serialize(new MobaShieldRollbackPayload(
                 CurrentPayloadVersion,
                 entries.Count == 0 ? Array.Empty<MobaShieldRollbackEntry>() : entries.ToArray(),
@@ -80,6 +81,8 @@ namespace AbilityKit.Demo.Moba.Rollback
             var entries = snapshot.Entries ?? Array.Empty<MobaShieldRollbackEntry>();
             ValidateEntries(entries);
             ValidateActorSet(entries);
+            var pools = snapshot.Pools ?? Array.Empty<MobaSharedShieldPoolRollbackEntry>();
+            ValidatePools(entries, pools);
 
             var previousValues = new Dictionary<int, Fixed64>();
             foreach (var actor in _actors.Entries)
@@ -87,8 +90,8 @@ namespace AbilityKit.Demo.Moba.Rollback
 
             var restored = BuildContainers(entries);
             _shields.RestoreContainers(restored);
-            var pools = BuildPools(snapshot.Pools ?? Array.Empty<MobaSharedShieldPoolRollbackEntry>(), out var nextPoolId);
-            _shields.RestoreSharedPools(pools, nextPoolId);
+            var restoredPools = BuildPools(pools, out var nextPoolId);
+            _shields.RestoreSharedPools(restoredPools, nextPoolId);
             _shields.PublishRollbackCorrections(previousValues, frame.Value);
         }
 
@@ -164,6 +167,113 @@ namespace AbilityKit.Demo.Moba.Rollback
                 if (entry.PoolId > nextPoolId) nextPoolId = entry.PoolId;
             }
             return restored;
+        }
+
+        private static void ValidatePools(
+            IReadOnlyList<MobaShieldRollbackEntry> actorEntries,
+            IReadOnlyList<MobaSharedShieldPoolRollbackEntry> poolEntries)
+        {
+            var actors = new Dictionary<int, MobaShieldRollbackEntry>();
+            for (var i = 0; i < actorEntries.Count; i++)
+                actors.Add(actorEntries[i].ActorId, actorEntries[i]);
+
+            var pools = new Dictionary<int, MobaSharedShieldPoolRollbackEntry>();
+            var previousPoolId = 0;
+            for (var i = 0; i < poolEntries.Count; i++)
+            {
+                var pool = poolEntries[i];
+                if (pool.PoolId <= 0 || pool.PoolId <= previousPoolId || !pools.TryAdd(pool.PoolId, pool))
+                    throw new InvalidOperationException(
+                        $"Shared shield pool entries must be unique and ordered. poolId={pool.PoolId} index={i}.");
+                previousPoolId = pool.PoolId;
+
+                var members = pool.Members ?? System.Array.Empty<MobaSharedShieldMemberRollbackEntry>();
+                var memberIds = new HashSet<int>();
+                var memberActors = new HashSet<int>();
+                for (var memberIndex = 0; memberIndex < members.Length; memberIndex++)
+                {
+                    var member = members[memberIndex];
+                    if (member.MemberId <= 0 || !memberIds.Add(member.MemberId) ||
+                        member.ActorId <= 0 || !memberActors.Add(member.ActorId))
+                    {
+                        throw new InvalidOperationException(
+                            $"Shared shield pool members must have unique positive identities. poolId={pool.PoolId} " +
+                            $"memberId={member.MemberId} actorId={member.ActorId} index={memberIndex}.");
+                    }
+
+                    if (!actors.ContainsKey(member.ActorId))
+                        throw new InvalidOperationException(
+                            $"Shared shield pool member references an actor outside the snapshot. poolId={pool.PoolId} " +
+                            $"actorId={member.ActorId}.");
+                }
+            }
+
+            var bindings = new HashSet<long>();
+            foreach (var actorPair in actors)
+            {
+                var layers = actorPair.Value.Layers ?? System.Array.Empty<MobaShieldLayerRollbackEntry>();
+                for (var layerIndex = 0; layerIndex < layers.Length; layerIndex++)
+                {
+                    var layer = layers[layerIndex];
+                    if (!layer.UsesSharedPoolValue) continue;
+                    var bindingKey = ((long)layer.SharedPoolId << 32) | (uint)layer.SharedPoolMemberId;
+                    if (!bindings.Add(bindingKey))
+                        throw new InvalidOperationException(
+                            $"Shared shield member is bound more than once. poolId={layer.SharedPoolId} " +
+                            $"memberId={layer.SharedPoolMemberId}.");
+                    if (!pools.TryGetValue(layer.SharedPoolId, out var pool))
+                        throw new InvalidOperationException(
+                            $"Shared shield layer references a missing pool. actor={actorPair.Key} " +
+                            $"poolId={layer.SharedPoolId} memberId={layer.SharedPoolMemberId}.");
+
+                    var members = pool.Members ?? System.Array.Empty<MobaSharedShieldMemberRollbackEntry>();
+                    var found = false;
+                    for (var memberIndex = 0; memberIndex < members.Length; memberIndex++)
+                    {
+                        var member = members[memberIndex];
+                        if (member.MemberId != layer.SharedPoolMemberId) continue;
+                        if (member.ActorId != actorPair.Key || !member.Active)
+                            throw new InvalidOperationException(
+                                $"Shared shield layer/member binding is inconsistent. actor={actorPair.Key} " +
+                                $"poolId={layer.SharedPoolId} memberId={layer.SharedPoolMemberId}.");
+                        found = true;
+                        break;
+                    }
+
+                    if (!found)
+                        throw new InvalidOperationException(
+                            $"Shared shield layer references a missing member. actor={actorPair.Key} " +
+                            $"poolId={layer.SharedPoolId} memberId={layer.SharedPoolMemberId}.");
+                }
+            }
+
+            foreach (var poolPair in pools)
+            {
+                var members = poolPair.Value.Members ?? System.Array.Empty<MobaSharedShieldMemberRollbackEntry>();
+                for (var memberIndex = 0; memberIndex < members.Length; memberIndex++)
+                {
+                    var member = members[memberIndex];
+                    if (!member.Active) continue;
+                    var actorEntry = actors[member.ActorId];
+                    var layers = actorEntry.Layers ?? System.Array.Empty<MobaShieldLayerRollbackEntry>();
+                    var found = false;
+                    for (var layerIndex = 0; layerIndex < layers.Length; layerIndex++)
+                    {
+                        var layer = layers[layerIndex];
+                        if (layer.UsesSharedPoolValue && layer.SharedPoolId == poolPair.Key &&
+                            layer.SharedPoolMemberId == member.MemberId)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found)
+                        throw new InvalidOperationException(
+                            $"Active shared shield member has no actor binding. poolId={poolPair.Key} " +
+                            $"memberId={member.MemberId} actorId={member.ActorId}.");
+                }
+            }
         }
 
         private static void ValidateEntries(IReadOnlyList<MobaShieldRollbackEntry> entries)

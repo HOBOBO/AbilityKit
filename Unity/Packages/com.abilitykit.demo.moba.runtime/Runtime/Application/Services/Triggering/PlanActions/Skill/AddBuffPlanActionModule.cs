@@ -40,6 +40,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var effectInput = new MobaEffectActionInput(in coreInput);
             var sourceActorId = effectInput.CasterActorId;
+            var durationMs = args.DurationMs;
+            if (!string.IsNullOrWhiteSpace(args.DurationSkillLevelParameter))
+            {
+                var handle = coreInput.ExecutionContext.SkillRuntimeHandle;
+                if (!handle.IsValid || !ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var runtimes) ||
+                    runtimes == null || !runtimes.TryGetLevelParameter(in handle, args.DurationSkillLevelParameter, out var value) ||
+                    float.IsNaN(value) || float.IsInfinity(value) || value < 0 || (double)value > int.MaxValue)
+                { LogRejected(ctx, "duration requires a valid original Cast level parameter."); return; }
+                durationMs = (int)System.Math.Round(value, System.MidpointRounding.AwayFromZero);
+            }
 
             var targets = PooledMobaPlanActionLists.GetIntList();
             try
@@ -74,7 +84,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 for (int i = 0; i < targets.Count; i++)
                 {
                     ApplyBuffs(buffSvc, args, effectInput, sourceActorId, targets[i],
-                        coreInput.ExecutionContext.ProjectileTemplateId);
+                        coreInput.ExecutionContext.ProjectileTemplateId, durationMs);
                 }
             }
             finally
@@ -84,7 +94,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
 
         private static void ApplyBuffs(MobaBuffService buffSvc, AddBuffArgs args, MobaEffectActionInput input,
-            int sourceActorId, int targetActorId, int projectileTemplateId)
+            int sourceActorId, int targetActorId, int projectileTemplateId, int durationMs)
         {
             if (targetActorId <= 0) return;
 
@@ -94,7 +104,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 var buffId = args.BuffIds[i];
                 if (buffId <= 0) continue;
                 var buffOrigin = BuffOriginContext.FromOrigin(in origin, projectileTemplateId);
-                buffSvc.ApplyBuffImmediate(targetActorId, buffId, sourceActorId, durationOverrideMs: 0, buffOrigin);
+                buffSvc.ApplyBuffImmediate(targetActorId, buffId, sourceActorId, durationOverrideMs: durationMs, buffOrigin);
             }
         }
     }

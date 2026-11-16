@@ -358,5 +358,45 @@
     "TagId": 1013,
     "Exact": false,
     "RefGroupId": 0
+  },
+  {
+    "Id": 200901,
+    "GroupId": 2009,
+    "ParentId": 0,
+    "Order": 0,
+    "Operator": 3,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 200902,
+    "GroupId": 2009,
+    "ParentId": 200901,
+    "Order": 1,
+    "Operator": 1,
+    "TagId": 1103,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 201001,
+    "GroupId": 2010,
+    "ParentId": 0,
+    "Order": 0,
+    "Operator": 3,
+    "TagId": 0,
+    "Exact": false,
+    "RefGroupId": 0
+  },
+  {
+    "Id": 201002,
+    "GroupId": 2010,
+    "ParentId": 201001,
+    "Order": 1,
+    "Operator": 1,
+    "TagId": 1104,
+    "Exact": false,
+    "RefGroupId": 0
   }
 ]

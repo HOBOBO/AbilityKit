@@ -169,5 +169,39 @@
     "Id": 3015,
     "Name": "通用-自主移动执行门禁",
     "ExecutionBlockedResultMask": 16
+  },
+  {
+    "Id": 3016,
+    "Name": "通用-施法期间禁止移动",
+    "ApplicationTags": [
+      "State.Casting.CannotMove"
+    ],
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3017,
+    "Name": "通用-施法期间禁止转向",
+    "ApplicationTags": [
+      "State.Casting.CannotTurn"
+    ],
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3018,
+    "Name": "通用-施法期间禁止移动和转向",
+    "ApplicationTags": [
+      "State.Casting.CannotMove",
+      "State.Casting.CannotTurn"
+    ],
+    "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 3019,
+    "Name": "通用-施法期间禁止移动和转向（保留移动阻断）",
+    "ApplicationTags": [
+      "State.Casting.CannotMove",
+      "State.Casting.CannotTurn"
+    ],
+    "ExecutionBlockedResultMask": 16
   }
 ]

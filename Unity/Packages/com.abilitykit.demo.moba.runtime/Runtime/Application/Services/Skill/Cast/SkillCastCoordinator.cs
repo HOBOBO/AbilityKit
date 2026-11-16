@@ -153,6 +153,13 @@ namespace AbilityKit.Demo.Moba.Services
             return TryHandleInputResult(actorId, in evt).Success;
         }
 
+        public bool TryFinishRecoveryForMovement(int actorId)
+        {
+            if (_services == null || !_services.TryResolve<MobaCombatRulesService>(out var rules) ||
+                rules == null || !rules.CanMove(actorId)) return false;
+            return _runnerRegistry.FinishRecoveryForMovement(actorId);
+        }
+
         public bool TryUpdateRunningInput(int actorId, int slot, in Vec3 aimPos, in Vec3 aimDir,
             int targetActorId, bool hasAimPos, bool hasAimDir, bool hasTarget)
         {
@@ -649,9 +656,10 @@ namespace AbilityKit.Demo.Moba.Services
                 !configs.TryGetSkill(skillId, out var skill) || skill == null)
                 return combatRules.CanCastSkill(actorId, 0UL);
 
-            var mask = skill.ExecutionBlockedResultMask;
-            if (!admission && configs.TryGetSkillFlow(skill.CastFlowId, out var flow) && flow.ContinueThroughControl)
-                mask = 0UL;
+            // Admission rejects a blocked cast. An existing cast is paused by
+            // its Continuous execution gate, not terminated by this lifetime
+            // check. Keep death-casting permission/deadline checks below active.
+            var mask = admission ? skill.ExecutionBlockedResultMask : 0UL;
             return combatRules.CanCastSkill(actorId, mask, skillId, admission, permissionAdvanceSeconds);
         }
 

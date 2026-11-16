@@ -20,6 +20,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         private IFrameTime _time;
         private MobaActorRegistry _registry;
         private MobaEntityManager _entities;
+        private MobaActorSpawnSnapshotService _spawnSnapshots;
         private MobaActorDespawnSnapshotService _despawnSnapshots;
         private MobaProjectileLinkService _projectileLinks;
         private IProjectileService _projectiles;
@@ -52,6 +53,7 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             Services.TryResolve(out _time);
             Services.TryResolve(out _registry);
             Services.TryResolve(out _entities);
+            Services.TryResolve(out _spawnSnapshots);
             Services.TryResolve(out _despawnSnapshots);
             Services.TryResolve(out _projectileLinks);
             Services.TryResolve(out _projectiles);
@@ -201,6 +203,10 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
 
             if (_projectileLinks.TryGetProjectileId(actorId, out var projectileId))
             {
+                // A projectile can exit before the pending actor-spawn snapshot is
+                // emitted. Remove that unsent entry so rollback cannot restore a
+                // publication for an actor that no longer exists.
+                _spawnSnapshots?.CancelPendingActorSpawn(actorId);
                 EndProjectileContext(projectileId, request.Reason);
                 ReleaseSkillRuntime(projectileId);
                 _projectileLinks.UnlinkByActorId(actorId);

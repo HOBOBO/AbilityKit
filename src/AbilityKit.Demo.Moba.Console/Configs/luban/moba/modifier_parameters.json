@@ -427,5 +427,23 @@
     "ValueMax": 0,
     "CapturePolicy": 2,
     "Deprecated": false
+  },
+  {
+    "Id": 10005,
+    "Key": "CooldownCommitFactor",
+    "Category": 40,
+    "SubCategory": 8,
+    "ValueKind": 3,
+    "Ops": [
+      1
+    ],
+    "TriggerWritable": false,
+    "ResolveAt": 9,
+    "DisplayName": "Cooldown multiplier sampled at economy commit",
+    "Unit": 5,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "CapturePolicy": 2,
+    "Deprecated": false
   }
 ]

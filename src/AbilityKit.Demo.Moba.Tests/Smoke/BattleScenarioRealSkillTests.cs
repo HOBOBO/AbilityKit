@@ -311,10 +311,10 @@ public sealed class BattleScenarioRealSkillTests
             VeigarWExecution(tickRate),
             VeigarCaster(),
             VeigarWTarget("center", 2, 0, 5),
-            VeigarWTarget("inside_edge", 2, 4.4f, 5),
-            VeigarWTarget("outside_edge", 2, 4.6f, 5),
+            VeigarWTarget("inside_edge", 2, 2.3f, 5),
+            VeigarWTarget("outside_edge", 2, 2.5f, 5),
             // Both axes are inside the bounding square; the point is outside the circle.
-            VeigarWTarget("outside_diagonal", 2, 4, 9),
+            VeigarWTarget("outside_diagonal", 2, 2, 7),
             VeigarWTarget("ally", 1, -2, 5),
             new AimTimelineStepBlock("caster", 2, new TestVector3(0, 0, 5)),
             new AssertionsBlock(new MobaBattleScenarioAssertions
@@ -359,7 +359,7 @@ public sealed class BattleScenarioRealSkillTests
             VeigarWTarget("entering", 2, 10, 5),
             VeigarWTarget("near_moved_caster", 2, 15, 1),
             new AimTimelineStepBlock("caster", 2, new TestVector3(0, 0, 5)),
-            // W is committed, but its 450ms area delay has not elapsed.
+            // W is committed, but its 1221ms fall delay has not elapsed.
             new MoveToBlock { AtMs = 500, ActorAlias = "leaving", Position = new TestVector3(10, 0, 5) },
             new MoveToBlock { AtMs = 500, ActorAlias = "entering", Position = new TestVector3(0, 0, 5) },
             new MoveToBlock { AtMs = 500, ActorAlias = "caster", Position = new TestVector3(15, 0, 0) },
@@ -434,10 +434,10 @@ public sealed class BattleScenarioRealSkillTests
 
     // The live-sim bootstrap currently owns a 30Hz IFrameTime service; keep these
     // scenarios at that rate until the harness exposes an authoritative rate switch.
-    private static ExecutionSettingsBlock VeigarWExecution(int tickRate, int durationMs = 1800) => new()
+    private static ExecutionSettingsBlock VeigarWExecution(int tickRate, int durationMs = 3000) => new()
     {
         TickRate = tickRate,
-        MaxDurationMs = 2500,
+        MaxDurationMs = 3500,
         SettleDurationMs = 0,
         EndCondition = TestEndConditionKinds.Duration,
         DurationMs = durationMs,

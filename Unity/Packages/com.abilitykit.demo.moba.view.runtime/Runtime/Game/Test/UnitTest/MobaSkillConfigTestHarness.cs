@@ -376,6 +376,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 Tick(1);
             }
 
+            // A cast may finish on the final permitted tick.
+            if (!TryGetRunningSkillSnapshot(actorId, slot, out _)) return;
+
             Assert.Fail((message ?? "Skill pipeline did not stop within the expected test window.") + " " + DescribeSkillRuntimeState(actorId, slot));
         }
 

@@ -40,7 +40,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 if (flow == null || flow.Id <= 0 || !ids.Add(flow.Id))
                     throw new InvalidDataException("Null, invalid or duplicate SkillFlow ID: " + flow?.Id);
                 ValidatePhases(flow);
-                rows.Add(flow.ToDto());
+                var dto = flow.ToDto();
+                SkillRecoveryContract.Validate(dto);
+                rows.Add(dto);
             }
             rows.Sort((a, b) => a.Id.CompareTo(b.Id));
             ValidateSkillReferences(ids);

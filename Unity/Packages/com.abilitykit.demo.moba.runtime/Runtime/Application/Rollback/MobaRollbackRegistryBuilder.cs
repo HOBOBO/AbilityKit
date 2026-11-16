@@ -4,9 +4,11 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Demo.Moba.Services.Passive;
+using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.HFSM.Definition;
@@ -134,7 +136,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                 world.Services.TryResolve<MobaBuffStateRecoveryProvider>(out _) &&
                 world.Services.TryResolve<MobaContinuousManager>(out _) &&
                 world.Services.TryResolve<MobaTriggerIntervalContinuousService>(out _) &&
-                world.Services.TryResolve<MobaTriggerModifierContinuousService>(out _);
+                world.Services.TryResolve<MobaTriggerModifierContinuousService>(out _) &&
+                world.Services.TryResolve<MobaAreaRuntimeService>(out _);
             if (jointLifecycle) registry.Register(new MobaSkillLifecycleRollbackProvider(world, ownerProvider));
             else if (ownerProvider != null) registry.Register(ownerProvider);
 
@@ -220,6 +223,21 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (projectileRollbackEnabled)
                 registry.Register(new ProjectileRollbackProvider(projectiles));
 
+            if (projectileRollbackEnabled &&
+                world.Services.TryResolve<MobaProjectileLinkService>(out var projectileLinks) && projectileLinks != null &&
+                world.Services.TryResolve<MobaSkillCastRuntimeService>(out var projectileSkills) && projectileSkills != null &&
+                world.Services.TryResolve<MobaActorRegistry>(out var projectileActors) && projectileActors != null)
+                registry.Register(new MobaProjectileLinkRollbackProvider(projectileLinks, projectileSkills, projectiles, projectileActors));
+
+            if (world.Services.TryResolve<MobaSummonService>(out var summonService) && summonService != null &&
+                world.Services.TryResolve<MobaActorRegistry>(out var summonActors) && summonActors != null &&
+                world.Services.TryResolve<MobaSkillCastRuntimeService>(out var summonSkills) && summonSkills != null)
+                registry.Register(new MobaSummonRollbackProvider(summonService, summonActors, summonSkills));
+
+            if (world.Services.TryResolve<MobaActorSpawnSnapshotService>(out var actorSpawnSnapshots) &&
+                actorSpawnSnapshots != null)
+                registry.Register(new MobaPendingActorSpawnRollbackProvider(actorSpawnSnapshots));
+
             if (!jointLifecycle && world.Services.TryResolve<MobaRuntimeContextService>(out var runtimeContexts) && runtimeContexts != null)
                 registry.Register(new MobaContextEntityRollbackProvider(runtimeContexts));
 
@@ -302,13 +320,17 @@ namespace AbilityKit.Demo.Moba.Rollback
                 CommandRollbackStateProvider.DefaultKey,
                 FrameTimeRollbackStateProvider.DefaultKey,
                 RollbackWorldRandom.DefaultKey,
-                MobaCombatActivityRollbackProvider.DefaultKey,
-                MobaWorldClockRollbackProvider.DefaultKey,
+            MobaCombatActivityRollbackProvider.DefaultKey,
+            MobaSummonRollbackProvider.DefaultKey,
+            MobaPendingActorSpawnRollbackProvider.DefaultKey,
+            MobaWorldClockRollbackProvider.DefaultKey,
             };
             if (minionWavesEnabled)
                 requiredKeys.Insert(9, MobaMinionRollbackProvider.DefaultKey);
             if (projectileRollbackEnabled)
                 requiredKeys.Add(ProjectileRollbackProvider.DefaultKey);
+            if (projectileRollbackEnabled)
+                requiredKeys.Add(MobaProjectileLinkRollbackProvider.DefaultKey);
             var missing = new List<int>();
             foreach (var key in requiredKeys)
             {

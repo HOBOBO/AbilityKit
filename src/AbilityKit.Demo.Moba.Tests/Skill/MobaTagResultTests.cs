@@ -40,6 +40,12 @@ public sealed class MobaTagResultTests
         Assert.False(runtime.GetRule(10000001).Matches(armor));
         Assert.True(runtime.TryGetBehaviorGateMask(MobaTagBehaviorGate.Controlled, out var controlMask));
         Assert.Equal(MobaTagResultFlags.ControlImmune | MobaTagResultFlags.CannotBeControlled, controlMask);
+        var castingCannotMove = MobaGameplayTagCatalog.ToContainer(new[] { "State.Casting.CannotMove" });
+        Assert.Equal(MobaTagResultFlags.CannotMove, runtime.Evaluate(castingCannotMove));
+        var castingCannotTurn = MobaGameplayTagCatalog.ToContainer(new[] { "State.Casting.CannotTurn" });
+        Assert.Equal(MobaTagResultFlags.CannotTurn, runtime.Evaluate(castingCannotTurn));
+        Assert.True(runtime.TryGetBehaviorGateMask(MobaTagBehaviorGate.Turn, out var turnMask));
+        Assert.Equal(MobaTagResultFlags.CannotTurn, turnMask);
         Assert.False(runtime.TryGetBehaviorGateMask((MobaTagBehaviorGate)999999, out _));
     }
 
@@ -792,6 +798,7 @@ public sealed class MobaTagResultTests
             Assert.False(combat.CanCastSkill(1, (ulong)MobaTagResultFlags.CannotCast).Passed);
             Assert.True(combat.CanCastSkill(1, (ulong)MobaTagResultFlags.CannotAttack).Passed);
             Assert.True(combat.CanMove(1));
+            Assert.True(combat.CanTurn(1));
             Assert.True(manager.TryEnd(silence));
 
             var stunned = new TaggedContinuous(1, "State.Stunned");
@@ -800,6 +807,19 @@ public sealed class MobaTagResultTests
             Assert.False(combat.CanCastSkill(1, (ulong)MobaTagResultFlags.CannotAttack).Passed);
             Assert.False(combat.CanMove(1));
             Assert.True(manager.TryEnd(stunned));
+
+            var cannotTurn = new TaggedContinuous(1, "State.Casting.CannotTurn");
+            Assert.True(manager.TryActivate(cannotTurn));
+            Assert.True(combat.CanMove(1));
+            Assert.False(combat.CanTurn(1));
+            Assert.True(manager.TryEnd(cannotTurn));
+            Assert.True(combat.CanTurn(1));
+
+            var cannotMove = new TaggedContinuous(1, "State.Casting.CannotMove");
+            Assert.True(manager.TryActivate(cannotMove));
+            Assert.False(combat.CanMove(1));
+            Assert.True(combat.CanTurn(1));
+            Assert.True(manager.TryEnd(cannotMove));
 
             var armor = new TaggedContinuous(1, "State.SuperArmor");
             Assert.True(manager.TryActivate(armor));

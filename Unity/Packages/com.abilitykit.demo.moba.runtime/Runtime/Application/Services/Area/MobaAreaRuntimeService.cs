@@ -13,6 +13,7 @@ using AbilityKit.Demo.Moba.Services.Triggering.Cue;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Triggering;
+using AbilityKit.Demo.Moba.Rollback;
 
 namespace AbilityKit.Demo.Moba.Services.Area
 {
@@ -42,6 +43,96 @@ namespace AbilityKit.Demo.Moba.Services.Area
 
         public int ActiveCount => _areas.Count;
 
+        internal MobaAreaRuntimeRollbackCheckpoint CaptureRollbackCheckpoint()
+        {
+            var infos = new List<MobaAreaRuntimeInfo>(_areas.Values);
+            infos.Sort((left, right) => left.AreaId.CompareTo(right.AreaId));
+            var entries = new MobaAreaRuntimeRollbackEntry[infos.Count];
+            for (var i = 0; i < infos.Count; i++)
+            {
+                var info = infos[i];
+                entries[i] = MobaAreaRuntimeRollbackEntry.From(in info);
+            }
+            var delayed = new List<int>(_delayTriggeredAreas);
+            delayed.Sort();
+            return new MobaAreaRuntimeRollbackCheckpoint
+            {
+                Version = 1,
+                Areas = entries,
+                DelayedAreaIds = delayed.ToArray(),
+            };
+        }
+
+        internal MobaAreaRuntimeLocalRollbackState CaptureLocalRollbackState()
+        {
+            var events = new List<MobaAreaEventSnapshotEntry>(_presentationEvents.Count);
+            _presentationEvents.CopyTo(events);
+            return new MobaAreaRuntimeLocalRollbackState(CaptureRollbackCheckpoint(), events.ToArray());
+        }
+
+        internal void RestoreRollbackCheckpoint(MobaAreaRuntimeRollbackCheckpoint checkpoint)
+        {
+            ApplyRollbackCheckpoint(checkpoint, clearPendingEvents: true);
+        }
+
+        internal void RestoreLocalRollbackState(MobaAreaRuntimeLocalRollbackState state)
+        {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            ApplyRollbackCheckpoint(state.Checkpoint, clearPendingEvents: true);
+            _presentationEvents.AddRange(new List<MobaAreaEventSnapshotEntry>(state.PendingEvents));
+        }
+
+        private void ApplyRollbackCheckpoint(MobaAreaRuntimeRollbackCheckpoint checkpoint, bool clearPendingEvents)
+        {
+            if (checkpoint == null || checkpoint.Version != 1 || checkpoint.Areas == null || checkpoint.DelayedAreaIds == null)
+                throw new InvalidOperationException("Invalid Area runtime rollback checkpoint.");
+
+            var areas = new Dictionary<int, MobaAreaRuntimeInfo>(checkpoint.Areas.Length);
+            var retains = new Dictionary<int, MobaSkillRuntimeRetainHandle>(checkpoint.Areas.Length);
+            var byOwner = new Dictionary<int, List<int>>();
+            var byTemplate = new Dictionary<int, List<int>>();
+            for (var i = 0; i < checkpoint.Areas.Length; i++)
+            {
+                var info = checkpoint.Areas[i].ToInfo();
+                if (!areas.TryAdd(info.AreaId, info))
+                    throw new InvalidOperationException($"Duplicate Area id in rollback checkpoint: {info.AreaId}.");
+                if (info.SkillRuntimeHandle.IsValid)
+                {
+                    if (_skillRuntimes == null)
+                        throw new InvalidOperationException($"SkillRuntime service is unavailable for Area retain restore: {info.AreaId}.");
+                    var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Area,
+                        info.AreaId, info.SourceContextId, info.TemplateId);
+                    var runtime = info.SkillRuntimeHandle;
+                    if (!_skillRuntimes.TryFindRetain(runtime, child, out var retain))
+                        throw new InvalidOperationException($"Target SkillRuntime Area retain is missing: areaId={info.AreaId}.");
+                    retains.Add(info.AreaId, retain);
+                }
+                Index(byOwner, info.OwnerActorId, info.AreaId);
+                Index(byTemplate, info.TemplateId, info.AreaId);
+            }
+
+            var delayed = new HashSet<int>();
+            for (var i = 0; i < checkpoint.DelayedAreaIds.Length; i++)
+                if (!areas.ContainsKey(checkpoint.DelayedAreaIds[i]) || !delayed.Add(checkpoint.DelayedAreaIds[i]))
+                    throw new InvalidOperationException("Area delay-trigger checkpoint references a missing or duplicate Area.");
+
+            var desiredCueInfos = new List<MobaAreaRuntimeInfo>(areas.Values);
+            desiredCueInfos.Sort((left, right) => left.AreaId.CompareTo(right.AreaId));
+            _areas.Clear();
+            foreach (var pair in areas) _areas.Add(pair.Key, pair.Value);
+            _skillRuntimeRetainsByAreaId.Clear();
+            foreach (var pair in retains) _skillRuntimeRetainsByAreaId.Add(pair.Key, pair.Value);
+            _areasByOwner.Clear();
+            foreach (var pair in byOwner) _areasByOwner.Add(pair.Key, pair.Value);
+            _areasByTemplate.Clear();
+            foreach (var pair in byTemplate) _areasByTemplate.Add(pair.Key, pair.Value);
+            _delayTriggeredAreas.Clear();
+            foreach (var areaId in delayed) _delayTriggeredAreas.Add(areaId);
+            if (clearPendingEvents) _presentationEvents.Clear();
+            _lifecycle?.SetActive(MobaTemporaryEntityKind.Area, ActiveCount, CurrentFrame);
+            _presentationCues?.ReconcileActiveAreas(desiredCueInfos);
+        }
+
         public void RegisterSpawn(
             AreaId areaId,
             int templateId,
@@ -57,7 +148,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
             long ownerContextId,
             MobaSkillCastRuntimeHandle skillRuntimeHandle = default,
             int groupKey = 0,
-            bool claimTargetsWithinGroup = false)
+            bool claimTargetsWithinGroup = false,
+            int claimUnitSubTypeMask = 0)
         {
             RegisterSpawn(
                 areaId,
@@ -79,7 +171,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
                 radius * 2f,
                 skillRuntimeHandle,
                 groupKey,
-                claimTargetsWithinGroup);
+                claimTargetsWithinGroup,
+                claimUnitSubTypeMask: claimUnitSubTypeMask);
         }
 
         public void RegisterSpawn(
@@ -103,7 +196,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
             MobaSkillCastRuntimeHandle skillRuntimeHandle = default,
             int groupKey = 0,
             bool claimTargetsWithinGroup = false,
-            float innerRadius = 0f)
+            float innerRadius = 0f,
+            int claimUnitSubTypeMask = 0)
         {
             if (areaId.Value <= 0) return;
             EnsureObjectBootstrapRegistered();
@@ -134,7 +228,8 @@ namespace AbilityKit.Demo.Moba.Services.Area
                 skillRuntimeHandle,
                 groupKey,
                 claimTargetsWithinGroup,
-                innerRadius);
+                innerRadius,
+                claimUnitSubTypeMask);
 
             if (_areas.TryGetValue(areaId.Value, out var oldInfo))
             {
@@ -570,6 +665,30 @@ namespace AbilityKit.Demo.Moba.Services.Area
             Report(MobaPresentationCueStage.Completed, in info, reason);
         }
 
+        internal void ReconcileActiveAreas(IReadOnlyCollection<MobaAreaRuntimeInfo> areas)
+        {
+            var entries = new List<MobaPresentationCueSnapshotEntry>();
+            if (areas != null)
+                foreach (var info in areas)
+                    if (TryBuildActiveEntry(in info, out var entry)) entries.Add(entry);
+            ReconcileDesiredCueDomain(PresentationCueDomain.Aoe, entries);
+        }
+
+        private bool TryBuildActiveEntry(in MobaAreaRuntimeInfo info, out MobaPresentationCueSnapshotEntry entry)
+        {
+            entry = default;
+            if (_configs == null || info.TemplateId <= 0 ||
+                !_configs.TryGetAoe(info.TemplateId, out var aoe) || aoe == null || aoe.VfxId <= 0)
+                return false;
+
+            _info = info;
+            _reason = MobaExecutionEndReason.None;
+            _aoe = aoe;
+            var draft = CueDraft.Create(PresentationCueDomain.Aoe, MobaPresentationCueStage.Started);
+            draft.Class = PresentationCueClass.Lifecycle | PresentationCueClass.Placement | PresentationCueClass.Visual;
+            return TryBuildEntry(ref draft, out entry);
+        }
+
         private void Report(MobaPresentationCueStage stage, in MobaAreaRuntimeInfo info, MobaExecutionEndReason reason)
         {
             if (_configs == null || info.TemplateId <= 0) return;
@@ -642,6 +761,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
         public readonly MobaSkillCastRuntimeHandle SkillRuntimeHandle;
         public readonly int GroupKey;
         public readonly bool ClaimTargetsWithinGroup;
+        public readonly int ClaimUnitSubTypeMask;
 
         public MobaAreaRuntimeInfo(
             int areaId,
@@ -700,8 +820,11 @@ namespace AbilityKit.Demo.Moba.Services.Area
             MobaSkillCastRuntimeHandle skillRuntimeHandle = default,
             int groupKey = 0,
             bool claimTargetsWithinGroup = false,
-            float innerRadius = 0f)
+            float innerRadius = 0f,
+            int claimUnitSubTypeMask = 0)
         {
+            if (!MobaAreaClaimQualification.IsValidMask(claimUnitSubTypeMask))
+                throw new ArgumentOutOfRangeException(nameof(claimUnitSubTypeMask));
             AreaId = areaId;
             TemplateId = templateId;
             OwnerActorId = ownerActorId;
@@ -723,7 +846,39 @@ namespace AbilityKit.Demo.Moba.Services.Area
             SkillRuntimeHandle = skillRuntimeHandle;
             GroupKey = groupKey;
             ClaimTargetsWithinGroup = claimTargetsWithinGroup;
+            ClaimUnitSubTypeMask = claimUnitSubTypeMask;
         }
+    }
+
+    public static class MobaAreaClaimQualification
+    {
+        private const int DefinedMask = (1 << (int)UnitSubType.Bullet) - 1;
+
+        public static bool IsValidMask(double mask) =>
+            !double.IsNaN(mask) && !double.IsInfinity(mask) &&
+            mask >= 0 && mask <= DefinedMask && mask == Math.Truncate(mask);
+
+        public static bool Allows(int mask, UnitSubType subType)
+        {
+            var value = (int)subType;
+            if (!IsValidMask(mask) || value <= 0 || value > (int)UnitSubType.Bullet) return false;
+            var effectiveMask = mask == 0 ? 1 << ((int)UnitSubType.Hero - 1) : mask;
+            return (effectiveMask & (1 << (value - 1))) != 0;
+        }
+    }
+
+    internal sealed class MobaAreaRuntimeLocalRollbackState
+    {
+        internal MobaAreaRuntimeLocalRollbackState(
+            MobaAreaRuntimeRollbackCheckpoint checkpoint,
+            MobaAreaEventSnapshotEntry[] pendingEvents)
+        {
+            Checkpoint = checkpoint;
+            PendingEvents = pendingEvents ?? Array.Empty<MobaAreaEventSnapshotEntry>();
+        }
+
+        internal MobaAreaRuntimeRollbackCheckpoint Checkpoint { get; }
+        internal MobaAreaEventSnapshotEntry[] PendingEvents { get; }
     }
 
     internal static class MobaAreaShapeDefaults

@@ -46,11 +46,11 @@ namespace AbilityKit.Game.Test.UnitTest
             buffer.Add(time: 0.0d, pos: new Vector3(0f, 0f, 0f));
             buffer.Add(time: 1.0d, pos: new Vector3(10f, 0f, 0f));
 
-            // 0.25s past the latest sample at velocity 10/s => +2.5 on X.
-            var resolved = buffer.TryEvaluate(1.25d, out var pos);
+            // Stay inside the separately tested 1/15s lead cap: 0.025s at 10/s => +0.25 on X.
+            var resolved = buffer.TryEvaluate(1.025d, out var pos);
 
             Assert.IsTrue(resolved);
-            Assert.AreEqual(12.5f, pos.x, 0.0001f);
+            Assert.AreEqual(10.25f, pos.x, 0.0001f);
             Assert.AreEqual(0f, pos.y, 0.0001f);
             Assert.AreEqual(0f, pos.z, 0.0001f);
         }

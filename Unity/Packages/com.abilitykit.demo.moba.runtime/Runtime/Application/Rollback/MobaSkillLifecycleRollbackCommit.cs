@@ -11,7 +11,7 @@ using MemoryPack;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
-    internal enum MobaLifecycleRestoreStage { Detached, Built, Registered, Bound, Projected, Reconciled }
+    internal enum MobaLifecycleRestoreStage { Detached, Built, Registered, Bound, Projected, Reconciled, AreaRestored }
 
     public sealed partial class MobaSkillLifecycleRollbackPreparation
     {
@@ -186,6 +186,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             var execution = MobaSkillLifecycleCheckpointCodec.Decode<MobaExecutionRegistryCheckpoint>(sections["execution-contexts"]);
             var localSkills = MemoryPackSerializer.Deserialize<MobaSkillRuntimeLocalRollbackPayload>(sections["skill-runtime"]);
             var skills = MemoryPackSerializer.Deserialize<MobaSkillRuntimeRollbackPayload>(localSkills.RuntimeState);
+            var targetAreas = MobaSkillLifecycleCheckpointCodec.Decode<MobaAreaRuntimeRollbackCheckpoint>(sections["areas"]);
             var contexts = MemoryPackSerializer.Deserialize<MobaContextEntityRollbackPayload>(sections["context-entities"]);
             var metadata = MobaSkillLifecycleCheckpointCodec.Decode<MobaBuffLocalRollbackEntry[]>(sections["buff-local"]);
             var nodes = ValidateExecutionContexts(execution, frame);
@@ -214,6 +215,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             var oldRunners = _pipelines.ExportRunnerRollbackState();
             var oldBlackboards = _owners.Export(frame);
             var oldRepositories = CaptureRepositories();
+            var oldAreas = _areas.CaptureLocalRollbackState();
             try
             {
                 _pipelines.DetachForLocalRollback();
@@ -226,6 +228,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                 BindRetains(target.Buffs, metadata);
                 ApplyRepositories(target.Buffs);
                 _contexts.RestoreLocalBuffBindings(contexts.NextEntityId, contexts.EntityIds, target.Buffs, frame.Value);
+                _areas.RestoreRollbackCheckpoint(targetAreas);
+                RestoreStageCompleted?.Invoke(MobaLifecycleRestoreStage.AreaRestored, false);
                 _intervals.RestoreLocalIndex(target.Intervals);
                 _triggerModifiers.RestoreLocalIndex(target.Modifiers, target.NextProjectionId);
                 RestoreStageCompleted?.Invoke(MobaLifecycleRestoreStage.Built, false);
@@ -252,6 +256,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     _continuous.ClearLocalProjections();
                     restoreSkills();
                     _skills.ExecutionContextRegistry.RestoreLocalRegistry(oldNodes, oldNextContextId);
+                    _areas.RestoreLocalRollbackState(oldAreas);
                     RestoreRepositories(oldRepositories);
                     restoreContexts();
                     foreach (var pair in oldCaptures) pair.Key.RestoreStableModifierCaptures(pair.Value);

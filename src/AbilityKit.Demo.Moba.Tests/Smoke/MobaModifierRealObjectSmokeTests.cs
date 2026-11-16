@@ -17,6 +17,7 @@ using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Buffs;
+using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Rollback;
@@ -32,6 +33,34 @@ public sealed class MobaModifierRealObjectSmokeTests
     private readonly ITestOutputHelper _output;
 
     public MobaModifierRealObjectSmokeTests(ITestOutputHelper output) => _output = output;
+
+    [Fact]
+    public void Stack_step_projection_uses_configured_steps_selector_and_source_lifetime()
+    {
+        using var battle = StartBattle();
+        var services = battle.RuntimeServices!;
+        var actor = services.Resolve<MobaActorRegistry>().Entries.First().Key;
+        var continuous = services.Resolve<MobaContinuousManager>();
+        var parameters = services.Resolve<MobaSkillParamModifierService>();
+        var spec = new ContinuousModifierDTO { TargetKind = MobaContinuousModifierTargetKind.SkillParameter,
+            TargetId = MobaSkillParamModifierKeys.Skill.Ids.CooldownCommitFactor,
+            Op = (int)ModifierOp.Mul, Value = 1, StackStepSize = 3, StackStepDelta = -.2f,
+            StackValueMin = .3f, SelectorEffectiveSkillId = 8411 };
+        var runtime = new BuffRuntime { BuffId = 719, SourceId = actor, StackCount = 8 };
+        var source = new BuffContinuousRuntime(new BuffMO(new BuffDTO { Id = 719,
+            DurationMs = 10000, Modifiers = new[] { spec } }), actor, actor, 719L, null);
+        source.BindRuntime(runtime);
+        Assert.True(continuous.TryActivate(source));
+        var selected = new MobaParameterRecord(MobaParameterStage.CastCommit, effectiveSkillId: 8411);
+        var other = new MobaParameterRecord(MobaParameterStage.CastCommit, effectiveSkillId: 8412);
+        Assert.Equal(.6f, parameters.Skill.ResolveCooldownCommitFactor(actor, in selected), 4);
+        Assert.Equal(1f, parameters.Skill.ResolveCooldownCommitFactor(actor, in other));
+        runtime.StackCount = 12;
+        continuous.Reproject(source);
+        Assert.Equal(.3f, parameters.Skill.ResolveCooldownCommitFactor(actor, in selected), 4);
+        Assert.True(continuous.TryEnd(source));
+        Assert.Equal(1f, parameters.Skill.ResolveCooldownCommitFactor(actor, in selected));
+    }
 
     [Fact]
     public void Mixed_projectile_load_reports_battle_cost_and_modifier_snapshot_size()

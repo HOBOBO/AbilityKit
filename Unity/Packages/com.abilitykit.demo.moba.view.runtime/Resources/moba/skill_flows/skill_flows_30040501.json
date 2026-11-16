@@ -2,6 +2,12 @@
   "Id": 30040501,
   "Name": "Veigar - Primordial Burst",
   "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": false,
+  "RequiredBuffQualificationId": 0,
   "Phases": [
     {
       "Type": 4,
@@ -30,6 +36,7 @@
       "PhaseId": "veigar_r_cast",
       "Timeline": {
         "DurationMs": 1583,
+        "RecoveryStartMs": 250,
         "Events": [
           {
             "AtMs": 0,

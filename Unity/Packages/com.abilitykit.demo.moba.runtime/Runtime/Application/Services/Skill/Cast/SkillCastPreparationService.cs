@@ -37,6 +37,30 @@ namespace AbilityKit.Demo.Moba.Services
             _library = library ?? throw new ArgumentNullException(nameof(library));
         }
 
+        internal static bool TryClampGroundPoint(in Vec3 origin, in Vec3 point, float range, out Vec3 result)
+        {
+            result = point;
+            if (!Finite(origin.X) || !Finite(origin.Y) || !Finite(origin.Z) ||
+                !Finite(point.X) || !Finite(point.Y) || !Finite(point.Z) || !Finite(range) || range < 0f)
+                return false;
+            // Double intermediates avoid overflow for finite, very distant input.
+            var dx = (double)point.X - origin.X;
+            var dz = (double)point.Z - origin.Z;
+            if (dx * dx + dz * dz > (double)range * range)
+            {
+                var scale = Math.Max(Math.Abs(dx), Math.Abs(dz));
+                var nx = AbilityKit.Deterministic.Fixed64.FromSingle((float)(dx / scale));
+                var nz = AbilityKit.Deterministic.Fixed64.FromSingle((float)(dz / scale));
+                var length = AbilityKit.Deterministic.DeterministicMath.Sqrt(nx * nx + nz * nz).ToSingle();
+                var factor = range / (double)length;
+                result = new Vec3((float)(origin.X + nx.ToSingle() * factor), point.Y,
+                    (float)(origin.Z + nz.ToSingle() * factor));
+            }
+            return true;
+        }
+
+        private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
         [MobaModifierConsumes(MobaSkillParamModifierKeys.Skill.Ids.ResourceCost,
             MobaParameterStage.CastPrepare, MobaModifierSampleTiming.CreateSnapshot)]
         [MobaModifierConsumes(MobaSkillParamModifierKeys.Skill.Ids.CooldownMs,
@@ -92,6 +116,13 @@ namespace AbilityKit.Demo.Moba.Services
                     if (binding.AimSource == "StateAimSnapshot" &&
                         !hfsm.TryGetAimSnapshot(binding.AimScope, out finalAimPos, out finalAimDir))
                         return SkillCastPreparationResult.Failed("skill.cast.aimSnapshotMissing", "Required state aim snapshot is not active.");
+                    if (binding.AimSource == "InputWithinStateCone")
+                    {
+                        if (!hfsm.TryGetAimSnapshot(binding.AimScope, out _, out var axis))
+                            return SkillCastPreparationResult.Failed("skill.cast.aimSnapshotMissing", "Required state aim snapshot is not active.");
+                        if (!input.HasAim || !binding.TryConstrainInputAim(input.AimDir, axis, out finalAimDir))
+                            return SkillCastPreparationResult.Failed("skill.cast.aimOutsideStateCone", "A valid input direction inside the active state cone is required.");
+                    }
                     if (binding.ParameterSnapshots.Count > 0)
                     {
                         if (!_services.TryResolve<AbilityKit.Demo.Moba.Services.StateMachine.MobaCharacterHfsmParameterService>(out var parameters) || parameters == null)
@@ -120,8 +151,17 @@ namespace AbilityKit.Demo.Moba.Services
             if (_services.TryResolve<MobaSkillParamModifierService>(out var resolvedModifiers) && resolvedModifiers != null)
             {
                 paramModifiers = resolvedModifiers;
-                castRange = Math.Max(0f, paramModifiers.Skill.ResolveCastRange(actorId, castRange, in parameterRecord));
+                castRange = paramModifiers.Skill.ResolveCastRange(actorId, castRange, in parameterRecord);
             }
+
+            if (configs.TryGetSkillButtonTemplate(skill.SkillButtonTemplateId, out var button) &&
+                button.PointRangePolicy == PointRangePolicy.ClampToResolvedRange)
+            {
+                if (!TryClampGroundPoint(in casterPos, in finalAimPos, castRange, out finalAimPos))
+                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.ConfigurationInvalid,
+                        "Point cast requires finite coordinates and a non-negative resolved range.");
+            }
+            castRange = Math.Max(0f, castRange);
 
             if (RequiresTargetSearch(skill))
             {
@@ -311,7 +351,10 @@ namespace AbilityKit.Demo.Moba.Services
                 var runtime = runtimes.Create(in createRequest);
                 context.RuntimeHandle = runtime.Handle;
                 context.RuntimeId = runtime.RuntimeId;
-                runtimes.FreezeEffectiveCooldown(context.RuntimeHandle, resolvedConfiguration.CooldownMs);
+                if (authoredFlow != null && authoredFlow.UseCommitCooldownFactor)
+                    runtimes.PrepareCooldownForCommit(context.RuntimeHandle, resolvedConfiguration.CooldownMs);
+                else
+                    runtimes.FreezeEffectiveCooldown(context.RuntimeHandle, resolvedConfiguration.CooldownMs);
                 if (authoredFlow != null && authoredFlow.RequiredBuffQualificationId > 0 &&
                     (!_actors.TryGetActorEntity(actorId, out var qualificationOwner) ||
                      !runtimes.TryReserveBuffQualification(context.RuntimeHandle, authoredFlow.RequiredBuffQualificationId, qualificationOwner)))

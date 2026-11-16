@@ -226,6 +226,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 IndicatorWorldWidth = obj["IndicatorWorldWidth"]?.Value<float>() ?? 0,
                 UsePointMode = obj["UsePointMode"]?.Value<int>() ?? 0,
                 SelectRange = obj["SelectRange"]?.Value<float>() ?? 0,
+                PointRangePolicy = (AbilityKit.Demo.Moba.Share.Config.PointRangePolicy)(obj["PointRangePolicy"]?.Value<int>() ?? 0),
                 FaceToAim = obj["FaceToAim"]?.Value<bool>() ?? false
             };
             return dto;
@@ -620,6 +621,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 PreserveCharacterCastContext = obj["PreserveCharacterCastContext"]?.Value<bool>() ?? false,
 
                 RequiredBuffQualificationId = obj["RequiredBuffQualificationId"]?.Value<int>() ?? 0,
+                UseCommitCooldownFactor = obj["UseCommitCooldownFactor"]?.Value<bool>() ?? false,
                 Phases = DeserializeSkillPhases(obj["Phases"])
             };
             return dto;
@@ -1061,6 +1063,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             return new SkillTimelinePhaseDTO
             {
                 DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
+                RecoveryStartMs = obj["RecoveryStartMs"]?.Value<int>() ?? -1,
                 Events = DeserializeSkillTimelineEvents(obj["Events"])
             };
         }

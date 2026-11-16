@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Console;
@@ -62,10 +63,19 @@ public sealed class MobaSummonRollbackTests
             SetPrivateField(summons, "_eventBus", new ThrowingEventBus());
 
             var spawnPosition = caster.transform.Value.Position + Vec3.Forward;
-            Assert.False(summons.TrySummon(casterActorId, summonId: 1, in spawnPosition));
+            var forward = Vec3.Forward;
+            var sourceContext = default(SummonSourceContext);
+            Assert.False(summons.TrySummon(casterActorId, summonId: 1, in spawnPosition, in forward,
+                in sourceContext, out var failedSummonActorId));
             Assert.Equal(0, summons.ActiveCount);
             Assert.Empty(FindSummonActorIds(registry));
             Assert.Empty(FindSummonActorIds(entities));
+            Assert.True(services.TryResolve<MobaActorSpawnSnapshotService>(out var spawnSnapshots) && spawnSnapshots != null);
+            if (spawnSnapshots.TryGetSnapshot(new FrameIndex(100000), out var snapshot))
+            {
+                var entries = MobaActorSpawnSnapshotCodec.Deserialize(snapshot.Payload);
+                Assert.DoesNotContain(entries, entry => entry.NetId == failedSummonActorId);
+            }
         }
         finally
         {

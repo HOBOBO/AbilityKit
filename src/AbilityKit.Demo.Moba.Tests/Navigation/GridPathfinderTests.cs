@@ -7,7 +7,42 @@ namespace AbilityKit.Demo.Moba.Tests.Navigation;
 
 public sealed class GridPathfinderTests
 {
+    [Fact]
+    public void Repath_from_inside_a_cell_does_not_walk_back_to_the_cell_center()
+    {
+        var world = MakeWorld(12, 4, simplify: true);
+        var start = new Vec3(.9f, 0f, 1.5f);
+        var target = new Vec3(10.5f, 0f, 1.5f);
+        world.FindPath(in start, in target, .1f, out var path);
+        Assert.True(path.HasPath);
+        var motion = new AbilityKit.Combat.MotionSystem.Generic.PathFollowerMotionSource(path.Waypoints, 4f);
+        var state = new AbilityKit.Combat.MotionSystem.Core.MotionState { Position = start, Forward = Vec3.Right };
+        var delta = Vec3.Zero;
+        motion.Tick(42, ref state, 1f / 30f, ref delta);
+        Assert.True(delta.X > 0f, $"Repath sent the moving actor backwards: {delta}");
+    }
+
     private const float Cell = 1f;
+
+    [Fact]
+    public void Off_center_repath_keeps_a_safe_anchor_when_the_shortcut_crosses_a_wall()
+    {
+        var world = MakeWorld(6, 4, simplify: true, (2, 0));
+        var start = new Vec3(.99f, 0f, .01f);
+        var target = new Vec3(4.5f, 0f, 2.5f);
+        world.FindPath(in start, in target, .1f, out var path);
+        Assert.True(path.HasPath);
+        var previous = start;
+        foreach (var waypoint in path.Waypoints)
+        {
+            for (var i = 0; i <= 100; i++)
+            {
+                var sample = previous + (waypoint - previous) * (i / 100f);
+                Assert.True(world.IsWalkable(in sample, 0f), $"Path crossed a blocked cell at {sample}");
+            }
+            previous = waypoint;
+        }
+    }
 
     private static NavigationWorld MakeWorld(int width, int height, bool simplify, params (int cx, int cz)[] blocked)
     {

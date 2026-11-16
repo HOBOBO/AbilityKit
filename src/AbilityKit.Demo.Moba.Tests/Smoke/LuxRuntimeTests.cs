@@ -182,6 +182,11 @@ public sealed class LuxRuntimeTests
         b.Setup.TickMilliseconds(600);
         Assert.Equal(80,b.Shield(b.Caster),2); Assert.Equal(80,b.Shield(ally),2);
         Assert.Equal(0,b.Shield(enemy));
+        var skills=b.Services.Resolve<SkillCastCoordinator>();
+        Assert.True(skills.TryGetRunningBySlot(b.Caster,2,out _));
+        var next=skills.TryCastBySlot(b.Caster,1,new Vec3(106,0,100),Vec3.Right);
+        Assert.True(next.Success,next.FailReason);
+        Assert.False(skills.TryGetRunningBySlot(b.Caster,2,out _));
         b.Setup.TickMilliseconds(800);
         Assert.Equal(160,b.Shield(b.Caster),2);Assert.Equal(160,b.Shield(ally),2);
         b.Setup.TickMilliseconds(2600);Assert.Equal(0,b.Shield(b.Caster));Assert.Equal(0,b.Shield(ally));

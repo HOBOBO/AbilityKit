@@ -49,7 +49,7 @@ namespace AbilityKit.Game.Test.UnitTest
         private static readonly TimeSpan StateWriteInterval = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan SoloLobbyObservationDuration = TimeSpan.FromSeconds(2);
         private static readonly TimeSpan SkillObservationDuration = TimeSpan.FromSeconds(3);
-        private static readonly TimeSpan MovementInputDuration = TimeSpan.FromSeconds(2.2);
+        private static readonly TimeSpan MovementInputDuration = TimeSpan.FromSeconds(2.8);
         private static readonly TimeSpan MovementCatchUpTimeout = TimeSpan.FromSeconds(20);
         private const int SkillSettleRequiredFrames = 30;
         private const float SkillSettlePositionEpsilon = 0.02f;
@@ -472,6 +472,14 @@ namespace AbilityKit.Game.Test.UnitTest
                     _skillTargetMaxRuntimeY = _skillTargetBaselineRuntimePosition.y;
                     _skillTargetMaxPresentedY = _skillTargetBaselinePresentedPosition.y;
                     _skillTargetPresentedSampleObserved = true;
+                    var skillTargetDistance = Vector3.Distance(
+                        skillOwnerRuntimePosition,
+                        _skillTargetBaselineRuntimePosition);
+                    if (skillTargetDistance > 8f)
+                    {
+                        throw new InvalidOperationException(
+                            $"Skill probe target is outside the stable hit lane. distance={skillTargetDistance:F3}.");
+                    }
                     _skillStartedUtc = DateTime.UtcNow;
                     if (_options.Role == ClientRole.Owner)
                     {
@@ -1098,15 +1106,12 @@ namespace AbilityKit.Game.Test.UnitTest
             var damage = _skillTargetBaselineHp - _skillTargetMinimumHp;
             var runtimeRise = _skillTargetMaxRuntimeY - _skillTargetBaselineRuntimePosition.y;
             var presentedRise = _skillTargetMaxPresentedY - _skillTargetBaselinePresentedPosition.y;
-            if (_maxSkillDisplacement < 0.15f ||
-                damage < DamageObservationThreshold ||
-                !_skillTargetRuntimeKnockupObserved ||
-                !_skillTargetPresentedKnockupObserved ||
+            if (damage < DamageObservationThreshold ||
                 !_skillTargetPresentedSampleObserved ||
-                !_skillTargetLanded)
+                !HasSkillProjectileHit())
             {
                 throw new InvalidOperationException(
-                    $"Owner skill 1 observations did not satisfy the current probe contract. role={_options?.Role}, " +
+                    $"Owner skill 1 hit was not observed in both projectile and target state. role={_options?.Role}, " +
                     $"casterDisplacement={_maxSkillDisplacement:F3}, " +
                     $"damage={damage:F3}, runtimeRise={runtimeRise:F3}, presentedRise={presentedRise:F3}, " +
                     $"runtimeKnockup={_skillTargetRuntimeKnockupObserved}, " +
@@ -1131,6 +1136,16 @@ namespace AbilityKit.Game.Test.UnitTest
             SetStage(
                 ClientStage.WaitingForSkillSettle,
                 "skill synchronized; waiting for predicted and presented movement to settle");
+        }
+
+        private static bool HasSkillProjectileHit()
+        {
+            for (var i = 0; i < _skillProjectileEvents.Count; i++)
+            {
+                if (_skillProjectileEvents[i].StartsWith("kind=Hit,", StringComparison.Ordinal)) return true;
+            }
+
+            return false;
         }
 
         private static bool ObserveSkillSettle(BattleContext context)

@@ -623,6 +623,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Optional("anchor_at_origin", TriggerValueType.Boolean),
                 Optional("area_group_key", TriggerValueType.Integer),
                 Optional("claim_targets_within_group", TriggerValueType.Boolean),
+                Optional("claim_unit_sub_type_mask", TriggerValueType.Integer),
                 Optional("result", TriggerValueType.Integer),
                 Optional("result_count", TriggerValueType.Integer))));
             catalog.Register(Action("spawn_area_batch", "批量生成区域", "Action/Area", WithTargets(
@@ -646,6 +647,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Optional("anchor_at_origin", TriggerValueType.Boolean),
                 Optional("area_group_key", TriggerValueType.Integer),
                 Optional("claim_targets_within_group", TriggerValueType.Boolean),
+                Optional("claim_unit_sub_type_mask", TriggerValueType.Integer),
                 Required("pattern_count", TriggerValueType.Integer),
                 Required("pattern_apothem", TriggerValueType.Number),
                 Optional("pattern_start_angle_deg", TriggerValueType.Number),

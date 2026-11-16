@@ -905,7 +905,9 @@ namespace AbilityKit.Combat.Projectile
                     }
 
                     var hitsRemaining = p.HitsRemaining;
-                    var shouldExit = (p.HitPolicy ?? ExitOnHitPolicy.Instance).ShouldExitOnHit(in hitEvt, ref hitsRemaining);
+                    var shouldExit = collisionResponse == ProjectileCollisionResponse.HitAndStop ||
+                        collisionResponse != ProjectileCollisionResponse.HitAndContinue &&
+                        (p.HitPolicy ?? ExitOnHitPolicy.Instance).ShouldExitOnHit(in hitEvt, ref hitsRemaining);
                     p.HitsRemaining = hitsRemaining;
 
                     if (shouldExit)

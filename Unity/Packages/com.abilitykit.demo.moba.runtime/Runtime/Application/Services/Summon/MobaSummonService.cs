@@ -21,6 +21,24 @@ using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    internal sealed class MobaSummonRollbackState
+    {
+        public MobaSummonRollbackState(MobaSummonRollbackEntry[] entries) => Entries = entries;
+        public MobaSummonRollbackEntry[] Entries { get; }
+    }
+
+    internal readonly struct MobaSummonRollbackEntry
+    {
+        public MobaSummonRollbackEntry(int rootOwnerActorId, int ownerActorId, int actorId, in SummonSourceContext source,
+            in MobaSkillRuntimeRetainHandle retain)
+        { RootOwnerActorId = rootOwnerActorId; OwnerActorId = ownerActorId; ActorId = actorId; Source = source; Retain = retain; }
+        public int RootOwnerActorId { get; }
+        public int OwnerActorId { get; }
+        public int ActorId { get; }
+        public SummonSourceContext Source { get; }
+        public MobaSkillRuntimeRetainHandle Retain { get; }
+    }
+
     [WorldService(typeof(MobaSummonService))]
     public sealed class MobaSummonService :
         IMobaRuntimeObjectBootstrapContributor,
@@ -64,6 +82,51 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly List<int> _queryBuffer = new List<int>(16);
 
         public int ActiveCount => CountAllTrackedSummons();
+
+        internal MobaSummonRollbackState CaptureRollbackState()
+        {
+            var entries = new List<MobaSummonRollbackEntry>();
+            foreach (var owner in _summonsByRootOwner)
+            {
+                if (owner.Value == null) continue;
+                foreach (var actorId in owner.Value)
+                {
+                    var ownerActorId = owner.Key;
+                    if (_registry != null && _registry.TryGet(actorId, out var entity) && entity != null &&
+                        entity.hasOwnerLink && entity.ownerLink != null)
+                        ownerActorId = entity.ownerLink.OwnerActorId;
+                    _sourceBySummonActorId.TryGetValue(actorId, out var source);
+                    _skillRuntimeRetainsBySummonActorId.TryGetValue(actorId, out var retain);
+                    entries.Add(new MobaSummonRollbackEntry(owner.Key, ownerActorId, actorId, in source, in retain));
+                }
+            }
+            entries.Sort((left, right) => left.ActorId.CompareTo(right.ActorId));
+            return new MobaSummonRollbackState(entries.ToArray());
+        }
+
+        internal void RestoreRollbackState(MobaSummonRollbackState state)
+        {
+            _summonsByRootOwner.Clear();
+            _sourceBySummonActorId.Clear();
+            _skillRuntimeRetainsBySummonActorId.Clear();
+            foreach (var entry in state.Entries)
+            {
+                if (_registry != null && _registry.TryGet(entry.ActorId, out var entity) && entity != null)
+                {
+                    if (entry.OwnerActorId > 0)
+                        entity.ReplaceOwnerLink(entry.OwnerActorId, entry.RootOwnerActorId);
+                    else if (entity.hasOwnerLink)
+                        entity.RemoveOwnerLink();
+                }
+                if (!_summonsByRootOwner.TryGetValue(entry.RootOwnerActorId, out var list))
+                    _summonsByRootOwner.Add(entry.RootOwnerActorId, list = new List<int>());
+                list.Add(entry.ActorId);
+                if (entry.Source.IsValid) _sourceBySummonActorId.Add(entry.ActorId, entry.Source);
+                if (entry.Retain.IsValid) _skillRuntimeRetainsBySummonActorId.Add(entry.ActorId, entry.Retain);
+            }
+            _queryBuffer.Clear();
+            _lifecycle?.SetActive(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
+        }
 
         public bool TrySummon(int casterActorId, int summonId, in Vec3 pos)
         {
@@ -792,6 +855,11 @@ namespace AbilityKit.Demo.Moba.Services
             transaction.Enlist("summon-owner-tracking", () => UntrackSummon(rootOwnerActorId, summonActorId));
             transaction.Enlist("summon-source-context", () => trackedSourceContext = ConsumeSourceContext(summonActorId));
             transaction.Enlist("summon-skill-retain", () => ReleaseSkillRuntime(summonActorId, summonId));
+            // A presentation spawn can already be queued when a later event or
+            // lifecycle observer fails. Remove that unpublished entry together
+            // with the authoritative actor so rollback cannot resurrect a dead
+            // summon on the next snapshot flush.
+            transaction.Enlist("summon-pending-spawn", () => _spawnSnapshots?.CancelPendingActorSpawn(summonActorId));
             transaction.Rollback();
         }
 

@@ -511,7 +511,7 @@ MonoBehaviour:
     - rid: 277261807049244774
   - Id: 30010401
     Name: Jhin - Curtain Call
-    PipelineContinuousTagTemplateId: 3015
+    PipelineContinuousTagTemplateId: 3019
     ChildChannelId: 0
     RecastChannelId: 0
     QueueRecastInFlight: 0
@@ -521,6 +521,7 @@ MonoBehaviour:
     Phases:
     - rid: 277261807049244775
     - rid: 277261807049244776
+    - rid: 914110140001
   - Id: 30010501
     Name: Jhin - Curtain Call Regular Shot
     PipelineContinuousTagTemplateId: 0
@@ -772,11 +773,12 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 1
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261898929931260
     - rid: 277261898929931261
-    - rid: 277261898929931262
+    - rid: 914110140002
     - rid: 277261898929931263
   - Id: 30040401
     Name: Veigar - Event Horizon
@@ -821,7 +823,7 @@ MonoBehaviour:
     - rid: 277261942003597315
   - Id: 30050201
     Name: Gragas 30050201
-    PipelineContinuousTagTemplateId: 0
+    PipelineContinuousTagTemplateId: 3018
     ChildChannelId: 1
     RecastChannelId: 0
     QueueRecastInFlight: 0
@@ -1059,7 +1061,7 @@ MonoBehaviour:
     - rid: 277261958716588059
   - Id: 30060501
     Name: Karthus 30060501
-    PipelineContinuousTagTemplateId: 0
+    PipelineContinuousTagTemplateId: 3018
     ChildChannelId: 0
     RecastChannelId: 0
     QueueRecastInFlight: 0
@@ -1073,7 +1075,7 @@ MonoBehaviour:
     - rid: 277261958716588063
   - Id: 30060605
     Name: Karthus 30060605
-    PipelineContinuousTagTemplateId: 0
+    PipelineContinuousTagTemplateId: 3018
     ChildChannelId: 0
     RecastChannelId: 0
     QueueRecastInFlight: 0
@@ -1173,12 +1175,20 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 914110140001
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010401_enter_mode
+        TriggerIds: 20ecc901
+        AbortOnFailure: 1
+        FailReason: skill_mode_entry_failed
     - rid: 277261807049244672
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
         Timeline:
           DurationMs: 250
+          RecoveryStartMs: -1
           Events: []
         MobaLogicTimeline: {fileID: 0}
     - rid: 277261807049244673
@@ -1187,6 +1197,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10010001
@@ -1214,6 +1225,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 650
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10010901
@@ -1246,6 +1258,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 700
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10010901
@@ -1288,6 +1301,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10020001
@@ -1315,6 +1329,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 600
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10020101
@@ -1342,6 +1357,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 700
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10020201
@@ -1369,6 +1385,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10020301
@@ -1382,6 +1399,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10030001
@@ -1409,6 +1427,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10030101
@@ -1436,6 +1455,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 600
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10030201
@@ -1463,6 +1483,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 800
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10030301
@@ -1476,6 +1497,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10040011
@@ -1503,6 +1525,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 600
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10040101
@@ -1516,6 +1539,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10040112
@@ -1543,6 +1567,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10040201
@@ -1570,6 +1595,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 3500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10040301
@@ -1583,6 +1609,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10050001
@@ -1610,6 +1637,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10050101
@@ -1637,6 +1665,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10050201
@@ -1664,6 +1693,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 1600
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10050301
@@ -1677,6 +1707,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10060001
@@ -1704,6 +1735,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 800
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10060101
@@ -1731,6 +1763,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10060201
@@ -1758,6 +1791,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 2500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10060301
@@ -1771,6 +1805,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10070001
@@ -1798,6 +1833,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 800
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10070101
@@ -1811,6 +1847,7 @@ MonoBehaviour:
         PhaseId: ssx_skill_1_enhanced_basic
         Timeline:
           DurationMs: 250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10070112
@@ -1838,6 +1875,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10070201
@@ -1865,6 +1903,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 2500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10070301
@@ -1878,6 +1917,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10080001
@@ -1905,6 +1945,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 800
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10080101
@@ -1918,6 +1959,7 @@ MonoBehaviour:
         PhaseId: luban_skill_1_enhanced_basic
         Timeline:
           DurationMs: 250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10080112
@@ -1945,6 +1987,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10080201
@@ -1972,6 +2015,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 2500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10080301
@@ -1999,6 +2043,7 @@ MonoBehaviour:
         PhaseId: 
         Timeline:
           DurationMs: 2500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10080401
@@ -2026,6 +2071,7 @@ MonoBehaviour:
         PhaseId: skill_30010101_action
         Timeline:
           DurationMs: 700
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30010101
@@ -2053,6 +2099,7 @@ MonoBehaviour:
         PhaseId: skill_30010201_action
         Timeline:
           DurationMs: 3208
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30010201
@@ -2080,6 +2127,7 @@ MonoBehaviour:
         PhaseId: skill_30010301_action
         Timeline:
           DurationMs: 1600
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30010301
@@ -2091,7 +2139,7 @@ MonoBehaviour:
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30010401_release
-        TriggerIds: 20ecc901
+        TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
     - rid: 277261807049244776
@@ -2121,6 +2169,7 @@ MonoBehaviour:
         PhaseId: skill_30010501_shot
         Timeline:
           DurationMs: 2000
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30010401
@@ -2148,6 +2197,7 @@ MonoBehaviour:
         PhaseId: skill_30010502_shot
         Timeline:
           DurationMs: 2583
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30010411
@@ -2167,6 +2217,7 @@ MonoBehaviour:
         PhaseId: skill_30010601_shot
         Timeline:
           DurationMs: 3250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30010601
@@ -2186,6 +2237,7 @@ MonoBehaviour:
         PhaseId: skill_30010602_shot
         Timeline:
           DurationMs: 3250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30010602
@@ -2205,6 +2257,7 @@ MonoBehaviour:
         PhaseId: skill_30010603_shot
         Timeline:
           DurationMs: 3625
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30010603
@@ -2224,6 +2277,7 @@ MonoBehaviour:
         PhaseId: skill_30010604_shot
         Timeline:
           DurationMs: 3625
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30010604
@@ -2237,6 +2291,7 @@ MonoBehaviour:
         PhaseId: annie_basic_attack
         Timeline:
           DurationMs: 1875
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30030101
@@ -2264,6 +2319,7 @@ MonoBehaviour:
         PhaseId: annie_q_cast
         Timeline:
           DurationMs: 2208
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30030201
@@ -2291,6 +2347,7 @@ MonoBehaviour:
         PhaseId: annie_w_cast
         Timeline:
           DurationMs: 3000
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30030301
@@ -2318,6 +2375,7 @@ MonoBehaviour:
         PhaseId: annie_e_cast
         Timeline:
           DurationMs: 4167
+          RecoveryStartMs: 0
           Events:
           - AtMs: 0
             EffectId: 30030401
@@ -2331,6 +2389,7 @@ MonoBehaviour:
         PhaseId: lp_skill_3_stage_1
         Timeline:
           DurationMs: 650
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10010901
@@ -2358,6 +2417,7 @@ MonoBehaviour:
         PhaseId: lp_skill_3_stage_2
         Timeline:
           DurationMs: 650
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10010311
@@ -2380,6 +2440,7 @@ MonoBehaviour:
         PhaseId: lp_skill_3_stage_3
         Timeline:
           DurationMs: 300
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 10010321
@@ -2505,6 +2566,7 @@ MonoBehaviour:
         PhaseId: annie_r_cast
         Timeline:
           DurationMs: 1250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30030501
@@ -2532,6 +2594,7 @@ MonoBehaviour:
         PhaseId: jinx_q_switch_presentation_window
         Timeline:
           DurationMs: 1000
+          RecoveryStartMs: -1
           Events: []
         MobaLogicTimeline: {fileID: 4900000, guid: b1191a2a347b1a9498f09767adf8d7e3, type: 3}
     - rid: 277261898929930243
@@ -2540,6 +2603,7 @@ MonoBehaviour:
         PhaseId: skill_30020002_attack
         Timeline:
           DurationMs: 1567
+          RecoveryStartMs: -1
           Events:
           - AtMs: 100
             EffectId: 30020201
@@ -2553,6 +2617,7 @@ MonoBehaviour:
         PhaseId: skill_30020003_attack
         Timeline:
           DurationMs: 1567
+          RecoveryStartMs: -1
           Events:
           - AtMs: 100
             EffectId: 30020202
@@ -2580,6 +2645,7 @@ MonoBehaviour:
         PhaseId: skill_30020201_action
         Timeline:
           DurationMs: 1550
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30020203
@@ -2607,6 +2673,7 @@ MonoBehaviour:
         PhaseId: skill_30020301_action
         Timeline:
           DurationMs: 1367
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30020303
@@ -2634,6 +2701,7 @@ MonoBehaviour:
         PhaseId: skill_30020401_action
         Timeline:
           DurationMs: 1800
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30020403
@@ -2676,6 +2744,7 @@ MonoBehaviour:
         PhaseId: veigar_basic_attack
         Timeline:
           DurationMs: 2000
+          RecoveryStartMs: 250
           Events:
           - AtMs: 0
             EffectId: 30040101
@@ -2726,6 +2795,7 @@ MonoBehaviour:
         PhaseId: veigar_q_cast
         Timeline:
           DurationMs: 1583
+          RecoveryStartMs: 250
           Events:
           - AtMs: 0
             EffectId: 30040201
@@ -2754,7 +2824,7 @@ MonoBehaviour:
         IgnoreResourceCostCheck: 1
         IgnoreResourceConsumption: 0
         RefundBeforeCommit: 1
-        RequireExplicitCommit: 0
+        RequireExplicitCommit: 1
         FailReason: skill_economy_reserve_failed
     - rid: 277261898929931261
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
@@ -2763,19 +2833,19 @@ MonoBehaviour:
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 277261898929931262
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+    - rid: 914110140002
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
-        PhaseId: veigar_w_commit
-        TriggerIds: 9473a635
-        AbortOnFailure: 1
-        FailReason: skill_commit_failed
+        PhaseId: veigar_w_commit_point
+        CommitId: cast
+        RequireEconomyReservation: 1
     - rid: 277261898929931263
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: veigar_w_cast
         Timeline:
           DurationMs: 3333
+          RecoveryStartMs: 250
           Events:
           - AtMs: 0
             EffectId: 30040301
@@ -2826,6 +2896,7 @@ MonoBehaviour:
         PhaseId: veigar_e_cast
         Timeline:
           DurationMs: 2084
+          RecoveryStartMs: 250
           Events:
           - AtMs: 0
             EffectId: 30040401
@@ -2853,6 +2924,7 @@ MonoBehaviour:
         PhaseId: veigar_r_cast
         Timeline:
           DurationMs: 1583
+          RecoveryStartMs: 250
           Events:
           - AtMs: 0
             EffectId: 30040501
@@ -2902,6 +2974,7 @@ MonoBehaviour:
         PhaseId: gragas_30050101_cast
         Timeline:
           DurationMs: 1333
+          RecoveryStartMs: -1
           Events:
           - AtMs: 300
             EffectId: 30050101
@@ -2951,6 +3024,7 @@ MonoBehaviour:
         PhaseId: gragas_30050201_cast
         Timeline:
           DurationMs: 1250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30050001
@@ -3005,6 +3079,7 @@ MonoBehaviour:
         PhaseId: gragas_30050301_cast
         Timeline:
           DurationMs: 1167
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30050301
@@ -3059,6 +3134,7 @@ MonoBehaviour:
         PhaseId: gragas_30050401_cast
         Timeline:
           DurationMs: 1333
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30050001
@@ -3113,6 +3189,7 @@ MonoBehaviour:
         PhaseId: gragas_30050501_cast
         Timeline:
           DurationMs: 1333
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30050001
@@ -3167,6 +3244,7 @@ MonoBehaviour:
         PhaseId: gragas_30050601_cast
         Timeline:
           DurationMs: 1250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30050601
@@ -3216,6 +3294,7 @@ MonoBehaviour:
         PhaseId: gragas_30050701_cast
         Timeline:
           DurationMs: 1667
+          RecoveryStartMs: -1
           Events:
           - AtMs: 300
             EffectId: 30050701
@@ -3265,6 +3344,7 @@ MonoBehaviour:
         PhaseId: gragas_30050702_cast
         Timeline:
           DurationMs: 1667
+          RecoveryStartMs: -1
           Events:
           - AtMs: 300
             EffectId: 30050702
@@ -3314,6 +3394,7 @@ MonoBehaviour:
         PhaseId: gragas_30050703_cast
         Timeline:
           DurationMs: 1667
+          RecoveryStartMs: -1
           Events:
           - AtMs: 300
             EffectId: 30050703
@@ -3363,6 +3444,7 @@ MonoBehaviour:
         PhaseId: gragas_30050704_cast
         Timeline:
           DurationMs: 1667
+          RecoveryStartMs: -1
           Events:
           - AtMs: 300
             EffectId: 30050704
@@ -3412,6 +3494,7 @@ MonoBehaviour:
         PhaseId: gragas_30050705_cast
         Timeline:
           DurationMs: 1667
+          RecoveryStartMs: -1
           Events:
           - AtMs: 300
             EffectId: 30050705
@@ -3461,6 +3544,7 @@ MonoBehaviour:
         PhaseId: lux_30070101_timeline
         Timeline:
           DurationMs: 1250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 250
             EffectId: 30070101
@@ -3510,6 +3594,7 @@ MonoBehaviour:
         PhaseId: lux_30070201_timeline
         Timeline:
           DurationMs: 1250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 250
             EffectId: 30070201
@@ -3559,6 +3644,7 @@ MonoBehaviour:
         PhaseId: lux_30070301_timeline
         Timeline:
           DurationMs: 5042
+          RecoveryStartMs: 250
           Events:
           - AtMs: 250
             EffectId: 30070301
@@ -3608,6 +3694,7 @@ MonoBehaviour:
         PhaseId: lux_30070401_timeline
         Timeline:
           DurationMs: 1250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 250
             EffectId: 30070401
@@ -3657,6 +3744,7 @@ MonoBehaviour:
         PhaseId: lux_30070402_timeline
         Timeline:
           DurationMs: 100
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30070402
@@ -3706,6 +3794,7 @@ MonoBehaviour:
         PhaseId: lux_30070501_timeline
         Timeline:
           DurationMs: 2500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30070500
@@ -3760,6 +3849,7 @@ MonoBehaviour:
         PhaseId: karthus_30060101_timeline
         Timeline:
           DurationMs: 1600
+          RecoveryStartMs: -1
           Events:
           - AtMs: 300
             EffectId: 30060100
@@ -3809,6 +3899,7 @@ MonoBehaviour:
         PhaseId: karthus_30060201_timeline
         Timeline:
           DurationMs: 1000
+          RecoveryStartMs: -1
           Events:
           - AtMs: 250
             EffectId: 30060201
@@ -3858,6 +3949,7 @@ MonoBehaviour:
         PhaseId: karthus_30060602_timeline
         Timeline:
           DurationMs: 1000
+          RecoveryStartMs: -1
           Events:
           - AtMs: 250
             EffectId: 30060201
@@ -3907,6 +3999,7 @@ MonoBehaviour:
         PhaseId: karthus_30060301_timeline
         Timeline:
           DurationMs: 500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 250
             EffectId: 30060301
@@ -3956,6 +4049,7 @@ MonoBehaviour:
         PhaseId: karthus_30060603_timeline
         Timeline:
           DurationMs: 500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 250
             EffectId: 30060301
@@ -4005,6 +4099,7 @@ MonoBehaviour:
         PhaseId: karthus_30060401_timeline
         Timeline:
           DurationMs: 500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30060401
@@ -4054,6 +4149,7 @@ MonoBehaviour:
         PhaseId: karthus_30060604_timeline
         Timeline:
           DurationMs: 500
+          RecoveryStartMs: -1
           Events:
           - AtMs: 0
             EffectId: 30060604
@@ -4103,6 +4199,7 @@ MonoBehaviour:
         PhaseId: karthus_30060501_timeline
         Timeline:
           DurationMs: 3250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 250
             EffectId: 30060511
@@ -4157,6 +4254,7 @@ MonoBehaviour:
         PhaseId: karthus_30060605_timeline
         Timeline:
           DurationMs: 3250
+          RecoveryStartMs: -1
           Events:
           - AtMs: 250
             EffectId: 30060511

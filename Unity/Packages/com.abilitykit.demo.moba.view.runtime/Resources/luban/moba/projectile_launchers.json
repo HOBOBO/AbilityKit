@@ -394,5 +394,14 @@
     "FanAngleDeg": 0,
     "IntervalMs": 0,
     "Name": "Lux E"
+  },
+  {
+    "Id": 33040011,
+    "CountPerShot": 1,
+    "DurationMs": 0,
+    "EmitterType": 1,
+    "FanAngleDeg": 0,
+    "IntervalMs": 0,
+    "Name": "Veigar basic attack launcher"
   }
 ]

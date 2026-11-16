@@ -124,6 +124,8 @@ public sealed class MobaLogicWorldStateImportSmokeTests
             var rollbackRegistry = MobaRollbackRegistryBuilder.Create(runtimeWorld);
             Assert.True(rollbackRegistry.TryGet(MobaSkillLifecycleRollbackProvider.DefaultKey, out var group));
             var lifecycleProvider = Assert.IsType<MobaSkillLifecycleRollbackProvider>(group);
+            Assert.True(rollbackRegistry.TryGet(MobaPendingActorSpawnRollbackProvider.DefaultKey, out var pendingSpawn));
+            Assert.IsType<MobaPendingActorSpawnRollbackProvider>(pendingSpawn);
             Assert.IsAssignableFrom<IRollbackStructureRestoreProvider>(group);
             Assert.False(rollbackRegistry.TryGet(MobaBuffLifecycleRollbackProvider.DefaultKey, out _));
             var coordinator = new RollbackCoordinator(
@@ -181,6 +183,10 @@ public sealed class MobaLogicWorldStateImportSmokeTests
             Assert.True(firstHp < beforeHp, $"Annie Q did not damage its target. hp={beforeHp}->{firstHp}");
             Assert.True(firstMana < beforeMana, $"Annie Q did not consume mana. mana={beforeMana}->{firstMana}");
 
+            // Pyromania now uses a Counter, so Q does not create a modifier Buff.
+            // Apply the authored E movement Buff explicitly to keep exercising
+            // modifier contribution teardown when restoring the precast checkpoint.
+            executor.AddScenarioBuff(annieId, 30030402, annieId, 3000);
             var changedContinuous = continuous.GetAllContinuous().Except(initialContinuous).ToArray();
             foreach (var item in changedContinuous)
             {
@@ -236,6 +242,7 @@ public sealed class MobaLogicWorldStateImportSmokeTests
             Assert.Equal(beforeHp, executor.GetActorHp(targetId));
             Assert.Equal(beforeMana, executor.GetActorMana(annieId));
             Assert.DoesNotContain(continuous.GetAllContinuous(), item => item is SkillPipelineContinuousRuntime pipeline && pipeline.SkillId == 30030201);
+            Assert.Equal(0, executor.CountActorBuffs(annieId, 30030402));
         }
         finally
         {
@@ -271,6 +278,10 @@ public sealed class MobaLogicWorldStateImportSmokeTests
             Assert.NotEmpty(rollbackRegistry.Providers);
             Assert.True(rollbackRegistry.TryGet(ProjectileRollbackProvider.DefaultKey, out _),
                 "Projectile simulation state must participate in the battle rollback registry.");
+            Assert.True(rollbackRegistry.TryGet(MobaProjectileLinkRollbackProvider.DefaultKey, out _),
+                "Projectile relation state must participate in the battle rollback registry.");
+            Assert.True(rollbackRegistry.TryGet(MobaSummonRollbackProvider.DefaultKey, out _),
+                "Summon relation state must participate in the battle rollback registry.");
             Assert.True(services.TryResolve<MobaActorRegistry>(out var registry) && registry != null,
                 "MobaActorRegistry not resolved from world services.");
             Assert.True(services.TryResolve<MobaLogicWorldStateImporter>(out var importer) && importer != null,

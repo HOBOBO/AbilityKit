@@ -15,7 +15,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 2,
@@ -35,7 +36,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 4,
@@ -55,7 +57,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 3,
@@ -75,7 +78,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 5,
@@ -95,7 +99,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 6,
@@ -115,7 +120,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 7,
@@ -135,7 +141,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 8,
@@ -154,7 +161,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 9,
@@ -174,7 +182,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 10,
@@ -194,7 +203,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 11,
@@ -215,7 +225,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 8,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 12,
@@ -236,7 +247,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 13,
@@ -257,7 +269,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 14,
@@ -278,7 +291,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 15,
@@ -299,7 +313,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 16,
@@ -320,7 +335,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 17,
@@ -341,7 +357,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 1500,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 18,
@@ -362,7 +379,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 19,
@@ -383,7 +401,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 20,
@@ -404,7 +423,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 21,
@@ -425,7 +445,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 22,
@@ -446,7 +467,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 8,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 23,
@@ -467,7 +489,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 24,
@@ -488,7 +511,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 25,
@@ -509,7 +533,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 26,
@@ -530,7 +555,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 27,
@@ -551,7 +577,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 10
+    "SectorAngleDegrees": 60,
+    "PointRangePolicy": 0
   },
   {
     "Id": 28,
@@ -572,7 +599,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 29,
@@ -593,7 +621,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30,
@@ -614,7 +643,8 @@
     "FanRadius": 5.5,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30050201,
@@ -634,7 +664,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30050301,
@@ -652,7 +683,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30050401,
@@ -672,7 +704,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 6,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30050501,
@@ -692,7 +725,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30050601,
@@ -710,7 +744,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30060201,
@@ -730,7 +765,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30060301,
@@ -750,7 +786,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30060401,
@@ -768,7 +805,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30060501,
@@ -786,7 +824,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30070201,
@@ -806,7 +845,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30070301,
@@ -826,7 +866,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30070401,
@@ -846,7 +887,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30070402,
@@ -864,7 +906,8 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
   },
   {
     "Id": 30070501,
@@ -884,6 +927,68 @@
     "FanRadius": 0,
     "LockOnDurationMs": 0,
     "DashDistance": 0,
-    "SectorAngleDegrees": 0
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
+  },
+  {
+    "Id": 31,
+    "AimMaxRadius": 0,
+    "AimMode": 0,
+    "DragThreshold": 12,
+    "EnableAim": false,
+    "FaceToAim": true,
+    "LongPressSeconds": 0,
+    "Name": "instant_target_facing",
+    "SelectRange": 0,
+    "UsePointMode": 0,
+    "LockProjectileRadius": 0,
+    "FanAngleDegrees": 0,
+    "FanRadius": 0,
+    "LockOnDurationMs": 0,
+    "DashDistance": 0,
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 0
+  },
+  {
+    "Id": 30040301,
+    "AimMaxRadius": 220,
+    "AimMode": 1,
+    "DragThreshold": 12,
+    "EnableAim": true,
+    "FaceToAim": false,
+    "IndicatorShape": 2,
+    "IndicatorWorldWidth": 2.4,
+    "LongPressSeconds": 0.35,
+    "Name": "Veigar ground selection",
+    "SelectRange": 9.5,
+    "UsePointMode": 2,
+    "LockProjectileRadius": 0,
+    "FanAngleDegrees": 0,
+    "FanRadius": 0,
+    "LockOnDurationMs": 0,
+    "DashDistance": 0,
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 1
+  },
+  {
+    "Id": 30040401,
+    "AimMaxRadius": 220,
+    "AimMode": 1,
+    "DragThreshold": 12,
+    "EnableAim": true,
+    "FaceToAim": false,
+    "IndicatorShape": 2,
+    "IndicatorWorldWidth": 3.4641016,
+    "LongPressSeconds": 0.35,
+    "Name": "Veigar ground selection",
+    "SelectRange": 7.25,
+    "UsePointMode": 2,
+    "LockProjectileRadius": 0,
+    "FanAngleDegrees": 0,
+    "FanRadius": 0,
+    "LockOnDurationMs": 0,
+    "DashDistance": 0,
+    "SectorAngleDegrees": 0,
+    "PointRangePolicy": 1
   }
 ]

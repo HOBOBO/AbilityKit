@@ -1,14 +1,21 @@
 {
   "Id": 30010401,
   "Name": "Jhin - Curtain Call",
-  "PipelineContinuousTagTemplateId": 3015,
+  "PipelineContinuousTagTemplateId": 3019,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": false,
+  "UseCommitCooldownFactor": false,
+  "RequiredBuffQualificationId": 0,
   "Phases": [
     {
       "Type": 4,
       "PhaseId": "skill_30010401_release",
       "RulePlan": {
         "TriggerIds": [
-          30010400
+          900101011
         ],
         "AbortOnFailure": true,
         "FailReason": "skill_release_failed"
@@ -23,6 +30,17 @@
         ],
         "AbortOnFailure": true,
         "FailReason": "skill_commit_failed"
+      }
+    },
+    {
+      "Type": 4,
+      "PhaseId": "skill_30010401_enter_mode",
+      "RulePlan": {
+        "TriggerIds": [
+          30010400
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_mode_entry_failed"
       }
     }
   ]

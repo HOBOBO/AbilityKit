@@ -11,6 +11,47 @@ using AbilityKit.Demo.Moba.Services.Observability;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
+    internal sealed class MobaProjectileLinkRollbackState
+    {
+        public MobaProjectileLinkRollbackState(
+            MobaProjectileLinkRollbackEntry[] projectiles,
+            MobaProjectileRetiredLinkRollbackEntry[] retired,
+            MobaProjectileLauncherLinkRollbackEntry[] launchers)
+        { Projectiles = projectiles; Retired = retired; Launchers = launchers; }
+        public MobaProjectileLinkRollbackEntry[] Projectiles { get; }
+        public MobaProjectileRetiredLinkRollbackEntry[] Retired { get; }
+        public MobaProjectileLauncherLinkRollbackEntry[] Launchers { get; }
+    }
+
+    internal readonly struct MobaProjectileLinkRollbackEntry
+    {
+        public MobaProjectileLinkRollbackEntry(int projectileId, int actorId,
+            in ProjectileSourceContext source, in MobaSkillRuntimeRetainHandle retain)
+        { ProjectileId = projectileId; ActorId = actorId; Source = source; Retain = retain; }
+        public int ProjectileId { get; }
+        public int ActorId { get; }
+        public ProjectileSourceContext Source { get; }
+        public MobaSkillRuntimeRetainHandle Retain { get; }
+    }
+
+    internal readonly struct MobaProjectileRetiredLinkRollbackEntry
+    {
+        public MobaProjectileRetiredLinkRollbackEntry(int projectileId, int actorId)
+        { ProjectileId = projectileId; ActorId = actorId; }
+        public int ProjectileId { get; }
+        public int ActorId { get; }
+    }
+
+    internal readonly struct MobaProjectileLauncherLinkRollbackEntry
+    {
+        public MobaProjectileLauncherLinkRollbackEntry(int actorId, in ProjectileSourceContext source,
+            in MobaSkillRuntimeRetainHandle retain)
+        { ActorId = actorId; Source = source; Retain = retain; }
+        public int ActorId { get; }
+        public ProjectileSourceContext Source { get; }
+        public MobaSkillRuntimeRetainHandle Retain { get; }
+    }
+
     [WorldService(typeof(MobaProjectileLinkService))]
     public sealed class MobaProjectileLinkService :
         IMobaRuntimeObjectBootstrapContributor,
@@ -34,10 +75,88 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public int ActiveCount => _actorIdByProjectile.Count;
 
+        internal MobaProjectileLinkRollbackState CaptureRollbackState()
+        {
+            var projectiles = new List<MobaProjectileLinkRollbackEntry>(_actorIdByProjectile.Count);
+            foreach (var pair in _actorIdByProjectile)
+            {
+                _sourceByProjectile.TryGetValue(pair.Key, out var source);
+                _retainByProjectile.TryGetValue(pair.Key, out var retain);
+                projectiles.Add(new MobaProjectileLinkRollbackEntry(pair.Key.Value, pair.Value, in source, in retain));
+            }
+            projectiles.Sort((left, right) => left.ProjectileId.CompareTo(right.ProjectileId));
+
+            var retired = new List<MobaProjectileRetiredLinkRollbackEntry>(_retiredActorIdByProjectile.Count);
+            foreach (var pair in _retiredActorIdByProjectile)
+                retired.Add(new MobaProjectileRetiredLinkRollbackEntry(pair.Key.Value, pair.Value));
+            retired.Sort((left, right) => left.ProjectileId.CompareTo(right.ProjectileId));
+
+            var launchers = new List<MobaProjectileLauncherLinkRollbackEntry>(_launcherByActorId.Count);
+            foreach (var pair in _launcherByActorId)
+                launchers.Add(new MobaProjectileLauncherLinkRollbackEntry(
+                    pair.Key, in pair.Value.Source, in pair.Value.RetainHandle));
+            launchers.Sort((left, right) => left.ActorId.CompareTo(right.ActorId));
+            return new MobaProjectileLinkRollbackState(projectiles.ToArray(), retired.ToArray(), launchers.ToArray());
+        }
+
+        internal void RestoreRollbackState(MobaProjectileLinkRollbackState state)
+        {
+            _projectileByActorId.Clear();
+            _actorIdByProjectile.Clear();
+            _retiredActorIdByProjectile.Clear();
+            _sourceByProjectile.Clear();
+            _retainByProjectile.Clear();
+            _launcherByActorId.Clear();
+            foreach (var entry in state.Projectiles)
+            {
+                var id = new ProjectileId(entry.ProjectileId);
+                _projectileByActorId.Add(entry.ActorId, id);
+                _actorIdByProjectile.Add(id, entry.ActorId);
+                if (entry.Source.IsValid) _sourceByProjectile.Add(id, entry.Source);
+                if (entry.Retain.IsValid) _retainByProjectile.Add(id, entry.Retain);
+            }
+            foreach (var entry in state.Retired)
+                _retiredActorIdByProjectile.Add(new ProjectileId(entry.ProjectileId), entry.ActorId);
+            foreach (var entry in state.Launchers)
+            {
+                var source = entry.Source;
+                var link = new LauncherLink(in source) { RetainHandle = entry.Retain };
+                _launcherByActorId.Add(entry.ActorId, link);
+            }
+            _lifecycle?.SetActive(MobaTemporaryEntityKind.Projectile, ActiveCount);
+        }
+
         public void Link(ProjectileId projectileId, int actorId)
         {
+            if (projectileId.Value <= 0) throw new ArgumentOutOfRangeException(nameof(projectileId));
             if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));
+
+            // Link is a retryable boundary: the same pair may be submitted more than
+            // once, but a conflicting pair must fail before either index is mutated.
+            var hasExistingActorLink = _projectileByActorId.TryGetValue(actorId, out var existingProjectile);
+            if (hasExistingActorLink &&
+                existingProjectile.Value != projectileId.Value)
+            {
+                throw new InvalidOperationException(
+                    $"Projectile actor {actorId} is already linked to projectile {existingProjectile.Value}.");
+            }
+
+            var hasExistingProjectileLink = _actorIdByProjectile.TryGetValue(projectileId, out var existingActor);
+            if (hasExistingProjectileLink &&
+                existingActor != actorId)
+            {
+                throw new InvalidOperationException(
+                    $"Projectile {projectileId.Value} is already linked to actor {existingActor}.");
+            }
+
             EnsureObjectBootstrapRegistered();
+            if (hasExistingActorLink && hasExistingProjectileLink &&
+                existingProjectile.Value == projectileId.Value && existingActor == actorId)
+            {
+                _retiredActorIdByProjectile.Remove(projectileId);
+                return;
+            }
+
             _projectileByActorId[actorId] = projectileId;
             _actorIdByProjectile[projectileId] = actorId;
             _retiredActorIdByProjectile.Remove(projectileId);

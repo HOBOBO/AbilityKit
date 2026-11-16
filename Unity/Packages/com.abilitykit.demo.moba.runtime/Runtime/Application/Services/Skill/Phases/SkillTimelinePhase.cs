@@ -15,13 +15,31 @@ namespace AbilityKit.Demo.Moba.Services
         // Q32.32 raw 时间累计；elapsedMs 用整数换算 (raw×1000)>>32。
         private long _elapsedRaw;
         private int _nextEventIndex;
+        private readonly int _recoveryStartMs;
 
-        public SkillTimelinePhase(AbilityPipelinePhaseId phaseId, int durationMs, SkillTimelineEventDTO[] events, MobaEffectInvokerService effects)
+        internal bool CanHandoff => !IsComplete && _recoveryStartMs >= 0 &&
+            ((_elapsedRaw * 1000L) >> 32) >= _recoveryStartMs &&
+            _nextEventIndex >= (_events?.Length ?? 0);
+
+        internal void FinishRecovery(SkillPipelineContext context)
+        {
+            if (!CanHandoff) throw new InvalidOperationException("Timeline is not in normal recovery.");
+            Complete(context);
+        }
+
+        public SkillTimelinePhase(AbilityPipelinePhaseId phaseId, int durationMs, SkillTimelineEventDTO[] events, MobaEffectInvokerService effects, int recoveryStartMs = -1)
             : base(phaseId)
         {
             _durationMs = durationMs;
             _events = events;
             _effects = effects;
+            _recoveryStartMs = recoveryStartMs;
+            if (recoveryStartMs < -1 || recoveryStartMs >= 0 && recoveryStartMs >= durationMs)
+                throw new ArgumentException("Recovery entry must be within the full Timeline duration.");
+            if (recoveryStartMs >= 0 && events != null)
+                foreach (var effect in events)
+                    if (effect != null && effect.AtMs > recoveryStartMs)
+                        throw new ArgumentException("Recovery cannot skip unsubmitted effects.");
         }
 
         protected override void OnEnter(SkillPipelineContext context)
@@ -117,7 +135,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public IAbilityPipelinePhase<SkillPipelineContext> CreateRunPhase()
-            => new SkillTimelinePhase(PhaseId, _durationMs, _events, _effects);
+            => new SkillTimelinePhase(PhaseId, _durationMs, _events, _effects, _recoveryStartMs);
 
         public override PipelinePhaseRollbackState CaptureRollbackState()
         {

@@ -72,6 +72,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var animator=instance.GetComponent<Animator>();animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;
                 animator.Rebind();animator.Update(0);
                 var skin=instance.GetComponentsInChildren<SkinnedMeshRenderer>(true).Single();
+                var rigScales=skin.bones.Select(bone=>bone.localScale).ToArray();
                 foreach(var sample in new[]{0f,.25f,.5f,.9f})
                 {
                     animator.Play(Animator.StringToHash(state),0,sample);animator.Update(0);
@@ -80,7 +81,12 @@ namespace AbilityKit.Game.Test.UnitTest
                     var points=mesh.vertices.Select(v=>skin.transform.TransformPoint(v)).ToArray();
                     var min=points.Min(v=>v.y);var max=points.Max(v=>v.y);
                     Assert.Greater(min,-.15f,state+" sample="+sample+" minY="+min);
-                    Assert.Greater(max-min,1.4f,"The rig must retain its real scale.");
+                    // Spell R includes a crouch: vertical bounds measure pose,
+                    // not rig scale. Verify every bone's actual scale instead.
+                    for(var bone=0;bone<skin.bones.Length;bone++)
+                        Assert.Less(Vector3.Distance(rigScales[bone],skin.bones[bone].localScale),.0001f,
+                            state+" must retain bone scale: "+skin.bones[bone].name);
+                    Assert.Greater(max-min,.5f,"The posed body must remain visible.");
                     Assert.Less(max-min,2.8f,"The walk must not overwrite rig scale.");
                 }
             }
@@ -344,9 +350,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
         [UnityTest] public IEnumerator Q_projectile_snapshot_creates_follows_and_releases_vfx()=>Projectile(1,30070201,32070201,90037012);
         [UnityTest] public IEnumerator W_projectile_snapshot_creates_follows_and_releases_vfx()=>Projectile(2,30070301,32070301,90037017);
+        [UnityTest] public IEnumerator W_recovery_handoff_preserves_projectile_vfx_and_selects_new_character_action()=>Projectile(2,30070301,32070301,90037017,true);
         [UnityTest] public IEnumerator E_projectile_snapshot_creates_follows_and_releases_vfx()=>Projectile(3,30070401,32070401,90037006);
 
-        private static IEnumerator Projectile(int slot,int skill,int projectile,int vfxId)
+        private static IEnumerator Projectile(int slot,int skill,int projectile,int vfxId,bool handoff=false)
         {
             using(var h=MobaSkillConfigTestHarness.CreateForSinglePlayer(new[]{30070201,30070301,30070401,30070501},worldId:"lux_projectile_"+skill,heroId:3007,attributeTemplateId:3007))
             {
@@ -355,7 +362,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var db=BattleViewFactory.GetOrLoadVfxDb();var manager=new BattleVfxManager(db);
                 var query=new BattleEntityQuery(world,new BattleEntityLookup());
                 var handler=new BattleProjectileViewEventHandler(world,query,manager,in root,new BattleViewResourceProvider(h.Config,db));
-                var spawned=false;var exited=false;var instance=default(IEntityId);
+                var spawned=false;var exited=false;var instance=default(IEntityId);var handedOff=false;
                 try
                 {
                     Assert.IsTrue(h.World.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(actor,slot,new Vec3(6,0,0),Vec3.Right,0).Success);
@@ -384,8 +391,22 @@ namespace AbilityKit.Game.Test.UnitTest
                                 { exited=true;Assert.IsFalse(world.IsAlive(instance)); }
                             }
                         }
+                        if(handoff && spawned && !handedOff && tick>=12)
+                        {
+                            var casts=h.World.Services.Resolve<SkillCastCoordinator>();
+                            var next=casts.TryCastBySlot(actor,1,new Vec3(0,0,6),Vec3.Forward,0);
+                            Assert.IsTrue(next.Success,next.FailReason);
+                            Assert.IsFalse(casts.TryGetRunningBySlot(actor,slot,out _));
+                            Assert.IsTrue(world.IsAlive(instance),"Recovery handoff must retain the original projectile's view.");
+                            h.Tick(1);
+                            var action=Capture(h,actor);
+                            Assert.AreEqual(30070201,action.SkillId);
+                            Assert.AreEqual(next.RuntimeHandle.RootContextId,action.CastInstanceId);
+                            handedOff=true;
+                        }
                     }
                     Assert.IsTrue(spawned);Assert.IsTrue(exited);Assert.AreEqual(0,root.ChildCount);
+                    if(handoff) Assert.IsTrue(handedOff);
                 }
                 finally {manager.Clear(root);if(root.IsValid)root.Destroy();}
             }

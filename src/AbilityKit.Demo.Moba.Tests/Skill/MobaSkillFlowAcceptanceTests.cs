@@ -20,6 +20,7 @@ using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Pipeline;
+using AbilityKit.Modifiers;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Skill;
@@ -30,6 +31,132 @@ public sealed class MobaSkillFlowAcceptanceTests
     private const int Instant = 8411;
     private const int Charge = 8412;
     private const int Volley = 8413;
+
+    [Fact]
+    public void Recovery_rejects_early_and_failed_input_then_completes_normally_preserving_children()
+    {
+        using var scope = new Scope(recoveryStartMs: 200);
+        Assert.True(scope.Start(Volley, 3, SkillCastPolicy.Default).Success);
+        Assert.False(scope.Start(Instant, 1, SkillCastPolicy.Default).Success);
+        Assert.False(scope.Runner.FinishRecoveryForMovement());
+        scope.Runner.Step(.21f);
+        Assert.True(scope.Runner.TryGetLatestRunningBySlot(3, out var old));
+        Assert.True(scope.Runtimes.TryGetByContext(old.InstanceId, out var original));
+        var handle = original.Handle;
+        Assert.True(scope.Runtimes.RetainChild(handle,
+            new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Projectile, 71, 72, 73), out _));
+        scope.Mana.Current = Fixed64.Zero;
+        Assert.False(scope.Start(Instant, 1, SkillCastPolicy.Default).Success);
+        Assert.True(scope.Runner.TryGetLatestRunningBySlot(3, out _));
+        Assert.False(original.PipelineEnded);
+        scope.Mana.Current = Fixed64.FromInt32(100);
+        Assert.True(scope.Start(Instant, 1, SkillCastPolicy.Default).Success);
+        Assert.Equal(Fixed64.FromInt32(90), scope.Mana.Current);
+        Assert.False(scope.Runner.TryGetLatestRunningBySlot(3, out _));
+        Assert.True(scope.Runtimes.TryGet(handle, out var retained));
+        Assert.True(retained.PipelineEnded);
+        Assert.False(retained.IsEnded);
+        Assert.Equal(MobaSkillRuntimeEndReason.PipelineCompleted, retained.EndReason);
+        Assert.Equal(new[] { 8441, 8442, 8443 }, scope.ExecutedEffects);
+    }
+
+    [Fact]
+    public void Recovery_restores_exact_eligibility_and_no_input_keeps_full_timeline()
+    {
+        using var scope = new Scope(recoveryStartMs: 200);
+        Assert.True(scope.Start(Volley, 3, SkillCastPolicy.Default).Success);
+        scope.Runner.Step(.21f);
+        var entries = new List<SkillRunnerRollbackEntry>();
+        scope.Runner.CaptureRollbackEntries(entries);
+        var runtimeState = scope.Runtimes.CaptureRollbackSnapshot();
+        var contexts = scope.ExecutionContexts.CaptureLifecycleSnapshot();
+        scope.Runner.Step(.05f);
+        Assert.True(scope.Runner.HasRunning); // Recovery alone must not shorten 300ms.
+        scope.Runner.Step(.05f);
+        Assert.False(scope.Runner.HasRunning);
+        scope.Runner.DetachForRollback();
+        scope.Runtimes.RestoreRollbackSnapshot(in runtimeState);
+        scope.ExecutionContexts.RestoreLifecycle(contexts);
+        scope.Restore(entries.Single());
+        scope.ExecutedEffects.Clear();
+        Assert.True(scope.Runner.FinishRecoveryForMovement());
+        Assert.False(scope.Runner.HasRunning);
+        Assert.Empty(scope.ExecutedEffects); // Restore/handoff cannot replay any submitted effect.
+    }
+
+    [Fact]
+    public void Recovery_configuration_cannot_skip_pending_or_nested_gameplay()
+    {
+        var timeline = new SkillPhaseDTO { Type = (int)SkillPhaseType.Timeline,
+            Timeline = new SkillTimelinePhaseDTO { DurationMs = 500, RecoveryStartMs = 200,
+                Events = new[] { new SkillTimelineEventDTO { AtMs = 250, EffectId = 8441 } } } };
+        var flow = new SkillFlowDTO { Phases = new[] { timeline } };
+        Assert.Throws<ArgumentException>(() => SkillRecoveryContract.Validate(flow));
+        timeline.Timeline.Events = Array.Empty<SkillTimelineEventDTO>();
+        flow.Phases = new[] { timeline, new SkillPhaseDTO { Type = (int)SkillPhaseType.RulePlan } };
+        Assert.Throws<ArgumentException>(() => SkillRecoveryContract.Validate(flow));
+        flow.Phases = new[] { new SkillPhaseDTO { Type = (int)SkillPhaseType.Parallel, Children = new[] { timeline } } };
+        Assert.Throws<ArgumentException>(() => SkillRecoveryContract.Validate(flow));
+        flow.Phases = new[] { timeline };
+        SkillRecoveryContract.Validate(flow);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void Diagnostic_ids_are_reserved_zero_and_legacy_context_layouts_remain_readable(int version)
+    {
+        using var scope = new Scope();
+        Assert.True(scope.Start(Volley, 3, SkillCastPolicy.Default).Success);
+        var entries = new List<SkillRunnerRollbackEntry>();
+        scope.Runner.CaptureRollbackEntries(entries);
+        var snapshot = new SkillRunnerRollbackSnapshot { Entries = entries.ToArray() };
+        var canonical = SkillRunnerRollbackCodec.Serialize(snapshot);
+        entries[0].DiagnosticCommandId = 987654321;
+        Assert.Equal(canonical, SkillRunnerRollbackCodec.Serialize(snapshot));
+
+        // Locate compatibility slots with the actual v3 layout, including strings.
+        using var stream = new System.IO.MemoryStream(canonical);
+        using var reader = new System.IO.BinaryReader(stream);
+        reader.ReadInt32(); reader.ReadInt32(); reader.ReadInt32(); // version, sequences, entries
+        for (var i = 0; i < 6; i++) reader.ReadInt32();
+        reader.ReadInt64(); reader.ReadInt32(); reader.ReadInt64(); reader.ReadInt64();
+        var entryDiagnostic = (int)stream.Position;
+        Assert.Equal(0L, reader.ReadInt64());
+        reader.ReadInt32(); reader.ReadString(); reader.ReadInt32(); reader.ReadInt32(); reader.ReadInt64();
+        reader.ReadBoolean(); reader.ReadBoolean(); reader.ReadInt32(); reader.ReadInt32();
+        reader.ReadBoolean(); reader.ReadInt32();
+        reader.ReadInt64(); reader.ReadInt32(); reader.ReadInt32();
+        for (var i = 0; i < 6; i++) reader.ReadSingle();
+        reader.ReadInt32(); reader.ReadInt32(); reader.ReadBoolean(); reader.ReadInt32();
+        reader.ReadString(); reader.ReadInt64();
+        var contextDiagnostic = (int)stream.Position;
+        Assert.Equal(0L, reader.ReadInt64());
+        for (var i = 0; i < 6; i++) reader.ReadInt32();
+        reader.ReadBoolean(); reader.ReadBoolean(); reader.ReadSingle();
+        var modeStart = (int)stream.Position;
+        reader.ReadString(); reader.ReadInt32(); reader.ReadInt64(); reader.ReadInt64();
+        var hfsmStart = (int)stream.Position;
+        reader.ReadInt64();
+        var sharedStart = (int)stream.Position;
+        BitConverter.GetBytes(111L).CopyTo(canonical, entryDiagnostic);
+        BitConverter.GetBytes(222L).CopyTo(canonical, contextDiagnostic);
+        var legacy = canonical.ToList();
+        if (version < 3) legacy.RemoveRange(version == 1 ? modeStart : hfsmStart,
+            sharedStart - (version == 1 ? modeStart : hfsmStart));
+        var payload = legacy.ToArray();
+        BitConverter.GetBytes(version).CopyTo(payload, 0);
+        var restored = SkillRunnerRollbackCodec.Deserialize(payload);
+        Assert.Equal(0L, restored.Entries[0].DiagnosticCommandId);
+        Assert.Equal(0L, restored.Entries[0].Context.DiagnosticCommandId);
+        var fresh = SkillRunnerRollbackCodec.Serialize(restored);
+        Assert.NotEqual(payload, fresh);
+        entries[0].DiagnosticCommandId = 0L;
+        Assert.Equal(SkillRunnerRollbackCodec.Serialize(snapshot), fresh);
+        entries[0].Sequence++;
+        Assert.NotEqual(fresh, SkillRunnerRollbackCodec.Serialize(snapshot));
+    }
 
     [Fact]
     public void Exact_deployed_recast_commits_without_spending_or_overwriting_original_cooldown()
@@ -212,6 +339,97 @@ public sealed class MobaSkillFlowAcceptanceTests
     }
 
     [Theory]
+    [InlineData(0f, 0)]
+    [InlineData(.6f, 4800)]
+    public void Commit_factor_is_generic_and_freezes_once_across_transaction_restore(float factor, int expected)
+    {
+        using var scope = new Scope();
+        using var parameters = new MobaSkillParamModifierService();
+        scope.Services.Add(parameters);
+        scope.Economy.OnInit(scope.Services);
+        var context = scope.NewContext(Instant, 1);
+        var handle = context.RuntimeHandle;
+        scope.Runtimes.PrepareCooldownForCommit(in handle, 8000);
+        var specification = new SkillEconomyPhaseDTO { ChargeCost = 0,
+            ResourceType = (int)ResourceType.Mana, ResourceAmount = 10,
+            UseResolvedResourceCost = false, UseResolvedSkillCooldown = true,
+            StartSkillCooldown = true, RequireExplicitCommit = true };
+        Assert.True(scope.Economy.TryReserve(context, specification, out var failure), failure);
+        var reserved = scope.Economy.CaptureRollbackSnapshot();
+        var prepared = scope.Runtimes.CaptureRollbackSnapshot();
+        parameters.AddModifier(MobaModifierOwnerRef.Actor(ActorId), new ModifierData {
+            Key = MobaSkillParamModifierKeys.Skill.CooldownCommitFactor,
+            Op = ModifierOp.Mul, Magnitude = MagnitudeSource.Fixed(factor), SourceId = 718,
+        }, new MobaParameterSelector(effectiveSkillId: Instant));
+        Assert.True(scope.Economy.Commit(in handle));
+        Assert.Equal(expected, scope.SkillOne.CooldownDurationMs);
+        var end = scope.SkillOne.CooldownEndTimeMs;
+        Assert.True(scope.Runtimes.TryResolveCooldownRefund(in handle, ActorId, Instant, 1, .5, out var refund));
+        Assert.Equal(expected / 2, refund);
+        parameters.ClearSource(MobaModifierOwnerRef.Actor(ActorId), 718);
+        Assert.True(scope.Economy.Commit(in handle));
+        Assert.Equal(end, scope.SkillOne.CooldownEndTimeMs);
+        Assert.Equal(expected, scope.SkillOne.CooldownDurationMs);
+        // Restore before commit: the final total must be sampled again from the
+        // current restored sources, rather than reusing the discarded future.
+        scope.Runtimes.RestoreRollbackSnapshot(in prepared);
+        scope.Economy.RestoreRollbackSnapshot(in reserved);
+        Assert.True(scope.Economy.Commit(in handle));
+        Assert.Equal(8000, scope.SkillOne.CooldownDurationMs);
+        Assert.Equal(Fixed64.FromInt32(90), scope.Mana.Current);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void Commit_factor_flow_requires_a_single_ordered_explicit_economy_pair(int invalidShape)
+    {
+        var reserve = new SkillPhaseDTO { Type = (int)SkillPhaseType.Economy,
+            Economy = new SkillEconomyPhaseDTO { RequireExplicitCommit = true } };
+        var commit = new SkillPhaseDTO { Type = (int)SkillPhaseType.CommitPoint,
+            CommitPoint = new SkillCommitPointPhaseDTO { RequireEconomyReservation = true } };
+        var flow = new SkillFlowDTO { Id = 999, UseCommitCooldownFactor = true,
+            Phases = new[] { reserve, commit } };
+        SkillCommitCooldownContract.Validate(flow);
+        switch (invalidShape)
+        {
+            case 0: flow.Phases = new[] { commit, reserve }; break;
+            case 1: reserve.Economy.RequireExplicitCommit = false; break;
+            case 2: commit.CommitPoint.RequireEconomyReservation = false; break;
+            case 3: flow.Phases = new[] { reserve, commit, commit }; break;
+            case 4: flow.Phases = new[] { new SkillPhaseDTO { Type = (int)SkillPhaseType.Parallel,
+                Children = new[] { reserve, commit } } }; break;
+        }
+        Assert.Throws<ArgumentException>(() => SkillCommitCooldownContract.Validate(flow));
+        flow.UseCommitCooldownFactor = false;
+        SkillCommitCooldownContract.Validate(flow);
+    }
+
+    [Theory]
+    [InlineData(MobaSkillRuntimeEndReason.PipelineCompleted)]
+    [InlineData(MobaSkillRuntimeEndReason.RollbackCleanup)]
+    public void Uncommitted_factor_cast_refunds_without_starting_cooldown(MobaSkillRuntimeEndReason reason)
+    {
+        using var scope = new Scope();
+        var context = scope.NewContext(Instant, 1);
+        var handle = context.RuntimeHandle;
+        scope.Runtimes.PrepareCooldownForCommit(in handle, 8000);
+        var specification = new SkillEconomyPhaseDTO { ChargeCost = 0,
+            ResourceType = (int)ResourceType.Mana, ResourceAmount = 10,
+            UseResolvedResourceCost = false, RequireExplicitCommit = true };
+        Assert.True(scope.Economy.TryReserve(context, specification, out var failure), failure);
+        Assert.Equal(Fixed64.FromInt32(90), scope.Mana.Current);
+        Assert.True(scope.Runtimes.MarkPipelineEnded(in handle, reason));
+        Assert.Equal(Fixed64.FromInt32(100), scope.Mana.Current);
+        Assert.Equal(0, scope.SkillOne.CooldownEndTimeMs);
+        Assert.Equal(0, scope.Economy.PendingTransactionCount);
+        Assert.False(scope.Economy.Commit(in handle));
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void Effect_failure_obeys_timeline_abort_policy(bool abortOnFailure)
@@ -359,7 +577,7 @@ public sealed class MobaSkillFlowAcceptanceTests
         private readonly MobaExecutionContextRegistry _executionContexts = new();
         private int _sequence;
 
-        public Scope()
+        public Scope(int recoveryStartMs = -1)
         {
             var actor = _contexts.actor.CreateEntity();
             actor.AddActorId(ActorId);
@@ -424,6 +642,7 @@ public sealed class MobaSkillFlowAcceptanceTests
                     Timeline = new SkillTimelinePhaseDTO
                     {
                         DurationMs = 300,
+                        RecoveryStartMs = recoveryStartMs,
                         Events = new[]
                         {
                             Shot(0, 8441), Shot(100, 8442), Shot(200, 8443),

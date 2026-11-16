@@ -156,7 +156,8 @@ namespace AbilityKit.Game.Flow
                 return BattleHudSkillPresentationSpec.Hidden(skill.Id, skill.Name);
             }
 
-            var range = Mathf.Max(1f, skill.Range);
+            var range = template.PointRangePolicy == AbilityKit.Demo.Moba.Share.Config.PointRangePolicy.ClampToResolvedRange
+                && template.SelectRange > 0f ? template.SelectRange : Mathf.Max(1f, skill.Range);
             var uiAimRadius = template.AimMaxRadius > 0f ? template.AimMaxRadius : 220f;
             var usePointMode = ResolveUsePointMode(template.UsePointMode);
 

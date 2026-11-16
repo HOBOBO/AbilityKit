@@ -206,8 +206,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 case SkillCastContext skillCast:
                     return ctx.Payloads.TryGetDouble(in skillCast, fieldId, out value);
                 default:
-                    value = default;
-                    return false;
+                    // The authored scope is an existing registered payload field.
+                    // Stage contexts (for example Buff removal) reach the object
+                    // accessor rather than one of the concrete combat cases above.
+                    return ctx.Payloads.TryGetDouble(in triggerArgs, fieldId, out value);
             }
         }
     }

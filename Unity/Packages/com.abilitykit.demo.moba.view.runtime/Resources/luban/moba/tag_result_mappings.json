@@ -38,5 +38,15 @@
     "Id": 8,
     "FlagId": 8,
     "RuleGroupId": 2008
+  },
+  {
+    "Id": 9,
+    "FlagId": 5,
+    "RuleGroupId": 2009
+  },
+  {
+    "Id": 10,
+    "FlagId": 9,
+    "RuleGroupId": 2010
   }
 ]

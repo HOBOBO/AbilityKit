@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
@@ -19,6 +19,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
         public int UsePointMode { get; }
         public float SelectRange { get; }
+        public PointRangePolicy PointRangePolicy { get; }
         public bool FaceToAim { get; }
 
         public float SectorAngleDegrees { get; }
@@ -46,6 +47,11 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
             UsePointMode = dto.UsePointMode;
             SelectRange = dto.SelectRange;
+            PointRangePolicy = dto.PointRangePolicy;
+            if (!Enum.IsDefined(typeof(PointRangePolicy), PointRangePolicy) ||
+                (PointRangePolicy == PointRangePolicy.ClampToResolvedRange &&
+                 (dto.AimMode != 1 || dto.UsePointMode != 2 || float.IsNaN(SelectRange) || float.IsInfinity(SelectRange))))
+                throw new ArgumentException("Point range clamp requires Point/TargetPoint and a finite selection range.");
             FaceToAim = dto.FaceToAim;
 
             SectorAngleDegrees = dto.SectorAngleDegrees;

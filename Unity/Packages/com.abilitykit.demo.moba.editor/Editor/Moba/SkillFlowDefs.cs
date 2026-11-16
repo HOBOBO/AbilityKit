@@ -25,6 +25,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         public bool QueueRecastInFlight;
         public bool ContinueThroughControl;
         public bool PreserveCharacterCastContext;
+        public bool UseCommitCooldownFactor;
 
         [MinValue(0)] public int RequiredBuffQualificationId;
 
@@ -44,7 +45,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 
         public SkillFlowDTO ToDto()
         {
-            return new SkillFlowDTO
+            var dto = new SkillFlowDTO
             {
                 Id = Id,
                 Name = Name,
@@ -54,10 +55,13 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 QueueRecastInFlight = QueueRecastInFlight,
                 ContinueThroughControl = ContinueThroughControl,
                 PreserveCharacterCastContext = PreserveCharacterCastContext,
+                UseCommitCooldownFactor = UseCommitCooldownFactor,
 
                 RequiredBuffQualificationId = RequiredBuffQualificationId,
                 Phases = ConvertPhases(Phases),
             };
+            SkillCommitCooldownContract.Validate(dto);
+            return dto;
         }
 
         /// <summary>
@@ -77,6 +81,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 QueueRecastInFlight = dto.QueueRecastInFlight,
                 ContinueThroughControl = dto.ContinueThroughControl,
                 PreserveCharacterCastContext = dto.PreserveCharacterCastContext,
+                UseCommitCooldownFactor = dto.UseCommitCooldownFactor,
 
                 RequiredBuffQualificationId = dto.RequiredBuffQualificationId,
                 Phases = SkillPhaseDef.ConvertPhasesFromDto(dto.Phases),
@@ -358,6 +363,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             dto.Timeline = MobaLogicTimeline != null
                 ? MobaActionTimelineCompiler.CompileLogicPhase(MobaLogicTimeline.text)
                 : Timeline;
+            if (MobaLogicTimeline != null)
+                dto.Timeline.RecoveryStartMs = Timeline?.RecoveryStartMs ?? -1;
             return dto;
         }
     }

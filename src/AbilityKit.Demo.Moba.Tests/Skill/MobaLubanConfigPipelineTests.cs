@@ -794,9 +794,10 @@ public sealed class MobaLubanConfigPipelineTests
         var vfx = allVfx.Values.Where(row => row.Value<int>("Id") is >= 90034001 and <= 90034015)
             .ToDictionary(row => row.Value<int>("Id"));
         Assert.Equal(15, vfx.Count);
-        Assert.All(vfx.Values, row => Assert.StartsWith("ChampionVfx/09.Veigar_Hextech/",
-            row.Value<string>("Resource")));
-        Assert.Equal("ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Q_Projectile",
+        Assert.All(vfx.Values, row => Assert.True(
+            row.Value<string>("Resource")!.StartsWith("ChampionVfx/09.Veigar_Hextech/") ||
+            row.Value<string>("Resource")!.StartsWith("MobaVfx/Veigar/")));
+        Assert.Equal("MobaVfx/Veigar/Q_Projectile",
             vfx[90034008].Value<string>("Resource"));
         Assert.Equal("ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_W_Explosion",
             vfx[90034014].Value<string>("Resource"));
@@ -821,7 +822,7 @@ public sealed class MobaLubanConfigPipelineTests
 
         var skills = JArray.Parse(File.ReadAllText(Path.Combine(luban, "skills.json")))
             .Cast<JObject>().ToDictionary(row => row.Value<int>("Id"));
-        Assert.Equal(new[] { 90034001, 90034008, 90034013, 90034004, 90034011 },
+        Assert.Equal(new[] { 90034001, 90034008, 90034016, 90034017, 90034011 },
             new[] { 30040101, 30040201, 30040301, 30040401, 30040501 }
                 .Select(id => skills[id].Value<int>("PreviewVfxId")).ToArray());
 
@@ -848,30 +849,35 @@ public sealed class MobaLubanConfigPipelineTests
     }
 
     [Fact]
-    public void Veigar_r_published_configuration_uses_target_missing_health_formula_and_cap()
+    public void Veigar_r_published_configuration_multiplies_rank_base_by_missing_health_ratio()
     {
         var assets = new ConsoleTextAssetLoader();
         Assert.True(assets.TryLoadText("luban/ability/ability_trigger_plans.json", out var text));
-        var triggers = (JArray)JObject.Parse(text)["Triggers"]!;
+        var document = JObject.Parse(text);
+        var triggers = (JArray)document["Triggers"]!;
         var trigger = triggers.Single(row => row!.Value<int>("TriggerId") == 30040511);
         var action = trigger["Actions"]!.Children()
             .Single(row => row.Value<int>("ActionId") == 176148626);
         var args = action["Args"]!;
 
-        Assert.Equal(150f, args["damage_value"]!["ConstValue"]!.Value<float>());
-        Assert.Equal(0.5f, args["source_attack_ratio"]!["ConstValue"]!.Value<float>());
-        Assert.Equal(0.5f, args["target_missing_hp_ratio_coefficient"]!["ConstValue"]!.Value<float>());
-        Assert.Equal(300f, args["target_missing_hp_bonus_max"]!["ConstValue"]!.Value<float>());
-        Assert.Equal(600f, args["damage_max"]!["ConstValue"]!.Value<float>());
+        var baseKey = args["magnitude_parameter"]!["ConstValue"]!.Value<int>().ToString();
+        var ratioKey = args["magnitude_secondary_coefficient_parameter"]!["ConstValue"]!.Value<int>().ToString();
+        Assert.Equal("damage", document["Strings"]![baseKey]!.Value<string>());
+        Assert.Equal("magicAttackRatio", document["Strings"]![ratioKey]!.Value<string>());
+        Assert.Equal(1.5f, args["target_missing_hp_damage_scale_coefficient"]!["ConstValue"]!.Value<float>());
+        Assert.Equal(1f, args["target_missing_hp_damage_scale_max_bonus"]!["ConstValue"]!.Value<float>());
+        Assert.Null(args["target_missing_hp_ratio_coefficient"]);
+        Assert.Null(args["target_missing_hp_bonus_max"]);
+        Assert.Null(args["damage_max"]);
     }
 
     [Theory]
-    [InlineData(30040101, 90034001)]
-    [InlineData(30040201, 90034008)]
-    [InlineData(30040301, 90034013)]
-    [InlineData(30040401, 90034004)]
-    [InlineData(30040501, 90034011)]
-    public void Veigar_action_timeline_presentation_references_published_vfx(int skillId, int vfxId)
+    [InlineData(30040101)]
+    [InlineData(30040201)]
+    [InlineData(30040301)]
+    [InlineData(30040401)]
+    [InlineData(30040501)]
+    public void Veigar_action_timeline_does_not_duplicate_projectile_or_area_vfx(int skillId)
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root != null && !Directory.Exists(Path.Combine(root.FullName, "Unity", "Packages")))
@@ -885,7 +891,7 @@ public sealed class MobaLubanConfigPipelineTests
             .Where(row => row.Value<string>("type") == "AbilityKit.ActionEditorImpl.PlayParticle")
             .Select(row => row["args"]?["presentationTemplateId"]?.Value<int>())
             .Where(id => id.HasValue).Select(id => id!.Value).ToArray();
-        Assert.Contains(vfxId, ids);
+        Assert.Empty(ids);
     }
 
     private static void AssertHeroes(MobaConfigDatabase database)

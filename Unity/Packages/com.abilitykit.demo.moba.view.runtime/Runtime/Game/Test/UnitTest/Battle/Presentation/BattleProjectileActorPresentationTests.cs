@@ -15,6 +15,17 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class BattleProjectileActorPresentationTests
     {
+        [TestCase(AnimatorControllerParameterType.Trigger, "ProjectileSpawn", ExpectedResult = true)]
+        [TestCase(AnimatorControllerParameterType.Trigger, "Q_Shot", ExpectedResult = false)]
+        [TestCase(AnimatorControllerParameterType.Trigger, "W_Shot", ExpectedResult = false)]
+        [TestCase(AnimatorControllerParameterType.Trigger, "W_Beam", ExpectedResult = false)]
+        [TestCase(AnimatorControllerParameterType.Trigger, "Spell_E", ExpectedResult = false)]
+        [TestCase(AnimatorControllerParameterType.Bool, "ProjectileSpawn", ExpectedResult = false)]
+        public bool ProjectileSpawnPresentationAcceptsOnlyTheSharedTrigger(AnimatorControllerParameterType type, string name)
+        {
+            return BattleProjectileVfxSpawner.IsProjectileSpawnTrigger(type, name);
+        }
+
         [Test]
         public void PooledAutoplayParticlesRestartOnEveryLeaseWithoutStartingManualEmitters()
         {

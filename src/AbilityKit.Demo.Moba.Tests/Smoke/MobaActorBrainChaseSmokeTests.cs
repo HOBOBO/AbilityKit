@@ -23,10 +23,14 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 /// </summary>
 public sealed class MobaActorBrainChaseSmokeTests
 {
-    [Fact]
-    public void Summon_with_chase_brain_moves_toward_nearest_enemy()
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(30030502, 30030501)]
+    public void Summon_with_chase_brain_moves_toward_nearest_enemy(int summonId, int brainId)
     {
-        var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        var start = BattleStartConfig.CreateDefault();
+        foreach (var player in start.Players) player.EnableBrainOnSpawn = false;
+        var bootstrapper = new ConsoleBattleBootstrapper(start);
         try
         {
             bootstrapper.Initialize();
@@ -51,7 +55,7 @@ public sealed class MobaActorBrainChaseSmokeTests
                 "IMobaActorBrainCatalog not resolved.");
 
             // BrainId=1 is selected by the summon template and resolved exclusively by the brain catalog.
-            Assert.True(catalog.TryGet(1, out var definition));
+            Assert.True(catalog.TryGet(brainId, out var definition));
             Assert.Equal(MobaBrainDriverKeys.BehaviorTree, definition.DriverKind);
             Assert.Equal("summon_warden_bt", definition.DecisionName);
 
@@ -86,6 +90,11 @@ public sealed class MobaActorBrainChaseSmokeTests
             Assert.True(registry.TryGet(casterId, out var caster) && caster != null);
             Assert.True(registry.TryGet(enemyId, out var enemy) && enemy != null);
 
+            // The authored warden perceives enemies within 12 units. Keep this
+            // chase scenario inside that radius and clear of the arena walls.
+            caster.ReplaceTransform(new Transform3(new Vec3(-10, 0, -10), caster.transform.Value.Rotation, caster.transform.Value.Scale));
+            enemy.ReplaceTransform(new Transform3(new Vec3(-4, 0, -10), enemy.transform.Value.Rotation, enemy.transform.Value.Scale));
+
             // 在 caster 位置附近、远离敌人的一侧召唤（小兵队伍=caster 队伍，chase 应朝敌人移动）
             var casterPos = caster.transform.Value.Position;
             var enemyPos = enemy.transform.Value.Position;
@@ -97,7 +106,7 @@ public sealed class MobaActorBrainChaseSmokeTests
                 casterPos.Y,
                 casterPos.Z + spawnDir.Z * 5f);
 
-            Assert.True(summons.TrySummon(casterId, summonId: 1, in spawnPos),
+            Assert.True(summons.TrySummon(casterId, summonId, in spawnPos),
                 "TrySummon failed");
 
             // 找到刚召唤的 actor（带 ActorBrain 且不是 caster/enemy）
@@ -106,7 +115,7 @@ public sealed class MobaActorBrainChaseSmokeTests
             {
                 if (kv.Key == casterId || kv.Key == enemyId) continue;
                 var e = kv.Value;
-                if (e != null && e.hasActorBrain && e.actorBrain.BrainId == 1)
+                if (e != null && e.hasActorBrain && e.actorBrain.BrainId == brainId)
                 {
                     summonActorId = kv.Key;
                     break;

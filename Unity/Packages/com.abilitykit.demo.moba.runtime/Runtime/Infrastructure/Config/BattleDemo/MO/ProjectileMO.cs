@@ -59,7 +59,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         /// Bounce it means the maximum distinct target hits including the first target.
         /// </summary>
         public bool TryResolveRuntimeSettings(out ProjectileHitPolicyKind kind, out int hitPolicyParam,
-            out int hitsRemaining, out string error)
+            out int hitsRemaining, out string error, bool trackTarget = false)
         {
             kind = HitPolicyKind;
             hitPolicyParam = 0;
@@ -81,7 +81,15 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
                 return false;
             }
             for (var i = 0; i < CollisionRules.Count; i++)
+            {
                 if (!CollisionRules[i].TryValidate(out error)) return false;
+                if ((CollisionRules[i].Response == ProjectileCollisionResponse.HitAndContinue ||
+                     CollisionRules[i].Response == ProjectileCollisionResponse.HitAndStop) &&
+                    ((HitPolicyKind != ProjectileHitPolicyKind.ExitOnHit && HitPolicyKind != ProjectileHitPolicyKind.Pierce) ||
+                     trackTarget || TrackingArcHeight != 0 || TrackingArcHeightPerUnit != 0 || TrackingArcDurationSeconds != 0 ||
+                     ReturnAfterMs != 0 || MaxDistanceResponse != ProjectileMaxDistanceResponse.Exit))
+                { error = "Explicit hit continuation/termination requires a non-returning linear ExitOnHit/Pierce projectile."; return false; }
+            }
 
             if (HitIdentityPolicy != ProjectileHitIdentityPolicy.Collider &&
                 HitIdentityPolicy != ProjectileHitIdentityPolicy.OncePerActor &&

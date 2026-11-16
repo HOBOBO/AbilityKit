@@ -5,6 +5,7 @@ using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs;
+using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Components;
 using MemoryPack;
 
@@ -26,6 +27,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         private readonly MobaContinuousModifierCaptureRollbackProvider _captures;
         private readonly MobaTriggerModifierContinuousRollbackProvider _modifiers;
         private readonly MobaOwnerBlackboardRollbackProvider _owners;
+        private readonly MobaAreaRuntimeService _areas;
         private readonly MobaContinuousManager _continuous;
         private readonly MobaTriggerIntervalContinuousService _intervals;
         private readonly MobaTriggerModifierContinuousService _triggerModifiers;
@@ -35,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (world?.Services == null) throw new ArgumentNullException(nameof(world));
             _owners = owners ?? throw new ArgumentNullException(nameof(owners));
             var services = world.Services;
+            _areas = services.Resolve<MobaAreaRuntimeService>();
             _actors = services.Resolve<MobaActorRegistry>();
             _contexts = services.Resolve<MobaRuntimeContextService>();
             _skills = services.Resolve<MobaSkillCastRuntimeService>();
@@ -60,7 +63,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             for (var i = 0; i < nodes.Count; i++) entries[i] = new MobaSkillExecutionContextRollbackEntry(nodes[i]);
             return MobaSkillLifecycleCheckpointCodec.Encode(new MobaSkillLifecycleCheckpoint
             {
-                Format = MobaSkillLifecycleCheckpoint.FormatName, Version = 2, Frame = frame.Value,
+                Format = MobaSkillLifecycleCheckpoint.FormatName, Version = 3, Frame = frame.Value,
                 ActorIds = new List<int>(_actors.CopyActorIdsInOrder()).ToArray(),
                 Sections = new[]
                 {
@@ -68,6 +71,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     Section("execution-contexts", MobaSkillLifecycleCheckpointCodec.Encode(new MobaExecutionRegistryCheckpoint
                     { Version = 1, NextContextId = registry.NextContextId, Nodes = MemoryPackSerializer.Serialize(entries) })),
                     Section("skill-runtime", _skillProvider.Export(frame)),
+                    Section("areas", MobaSkillLifecycleCheckpointCodec.Encode(_areas.CaptureRollbackCheckpoint())),
                     Section("buffs", _buffs.ExportState(frame)),
                     Section("buff-local", MobaSkillLifecycleCheckpointCodec.Encode(_buffs.CaptureLocalRollbackEntries())),
                     Section("continuous", _captures.Export(frame)),
@@ -106,6 +110,8 @@ namespace AbilityKit.Demo.Moba.Rollback
             var skills = MemoryPackSerializer.Deserialize<MobaSkillRuntimeRollbackPayload>(local.RuntimeState);
             ValidateSkills(skills, nodes, new HashSet<int>(checkpoint.ActorIds));
             ValidateLocalExecutionScope(local.ExecutionContextNodes, skills, nodes);
+            var areas = MobaSkillLifecycleCheckpointCodec.Decode<MobaAreaRuntimeRollbackCheckpoint>(sections["areas"]);
+            ValidateAreas(areas, skills, nodes, new HashSet<int>(checkpoint.ActorIds), frame);
             // Validate Blackboard slots and runtime value representation in isolation.
             new MobaSkillRuntimeRollbackProvider(new MobaSkillCastRuntimeService()).ImportState(frame, local.RuntimeState);
 
@@ -236,6 +242,71 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (expected.Count != 0)
                 throw new InvalidOperationException("Local skill section omits target execution contexts.");
         }
+
+        private static void ValidateAreas(
+            MobaAreaRuntimeRollbackCheckpoint state,
+            in MobaSkillRuntimeRollbackPayload skills,
+            IReadOnlyDictionary<long, MobaExecutionContextNode> nodes,
+            ISet<int> actors,
+            FrameIndex frame)
+        {
+            if (state == null || state.Version != 1 || state.Areas == null || state.DelayedAreaIds == null)
+                throw new InvalidOperationException("Invalid lifecycle Area checkpoint.");
+
+            var areas = new Dictionary<int, MobaAreaRuntimeRollbackEntry>();
+            var matchedAreaRetains = new HashSet<long>();
+            foreach (var area in state.Areas)
+            {
+                if (area == null || area.AreaId <= 0 || area.TemplateId <= 0 || area.OwnerActorId <= 0 ||
+                    !actors.Contains(area.OwnerActorId) || area.SpawnFrame < 0 || area.SpawnFrame > frame.Value ||
+                    area.DelayTriggerFrame < area.SpawnFrame || area.SourceContextId <= 0 || area.RootContextId <= 0 || area.OwnerContextId <= 0 ||
+                    area.ShapeKind < 0 || area.ShapeKind > 3 || area.Radius < 0f || area.InnerRadius < 0f || area.InnerRadius > area.Radius ||
+                    area.HalfAngleDeg < 0f || area.HalfAngleDeg > 180f || area.Width < 0f || area.Length < 0f || area.MaxTargets < 0 ||
+                    !AbilityKit.Demo.Moba.Services.Area.MobaAreaClaimQualification.IsValidMask(area.ClaimUnitSubTypeMask) ||
+                    !IsFinite(area.CenterX) || !IsFinite(area.CenterY) || !IsFinite(area.CenterZ) || !IsFinite(area.Radius) ||
+                    !IsFinite(area.InnerRadius) || !IsFinite(area.ForwardX) || !IsFinite(area.ForwardY) || !IsFinite(area.ForwardZ) ||
+                    !IsFinite(area.HalfAngleDeg) || !IsFinite(area.Width) || !IsFinite(area.Length) ||
+                    !areas.TryAdd(area.AreaId, area))
+                    throw new InvalidOperationException("Invalid or duplicate lifecycle Area identity or geometry.");
+
+                if (!nodes.TryGetValue(area.SourceContextId, out var source) || source.IsEnded ||
+                    source.Kind != MobaExecutionKind.AreaSpawn || source.ConfigId != area.TemplateId ||
+                    source.SourceActorId != area.OwnerActorId || source.RootContextId != area.RootContextId ||
+                    source.OwnerContextId != area.OwnerContextId)
+                    throw new InvalidOperationException("Lifecycle Area source context is missing or mismatched.");
+
+                var hasRuntime = area.SkillRuntimeId != 0 || area.SkillRuntimeGeneration != 0 || area.SkillRuntimeRootContextId != 0;
+                if (!hasRuntime) continue;
+                if (area.SkillRuntimeId <= 0 || area.SkillRuntimeGeneration <= 0 ||
+                    area.SkillRuntimeRootContextId != area.RootContextId)
+                    throw new InvalidOperationException("Lifecycle Area SkillRuntime handle is incomplete or mismatched.");
+
+                var found = false;
+                foreach (var retain in skills.Retains)
+                {
+                    if (retain.RuntimeId != area.SkillRuntimeId || retain.Generation != area.SkillRuntimeGeneration ||
+                        retain.RootContextId != area.SkillRuntimeRootContextId ||
+                        retain.ChildKind != (int)MobaSkillRuntimeChildKind.Area || retain.ChildId != area.AreaId ||
+                        retain.ChildContextId != area.SourceContextId || retain.ChildConfigId != area.TemplateId)
+                        continue;
+                    found = true;
+                    matchedAreaRetains.Add(retain.RetainId);
+                    break;
+                }
+                if (!found) throw new InvalidOperationException("Lifecycle Area has no exact target SkillRuntime retain.");
+            }
+
+            var delayed = new HashSet<int>();
+            foreach (var areaId in state.DelayedAreaIds)
+                if (!areas.ContainsKey(areaId) || !delayed.Add(areaId))
+                    throw new InvalidOperationException("Lifecycle Area delay state references a missing or duplicate Area.");
+
+            foreach (var retain in skills.Retains)
+                if (retain.ChildKind == (int)MobaSkillRuntimeChildKind.Area && !matchedAreaRetains.Contains(retain.RetainId))
+                    throw new InvalidOperationException("Lifecycle SkillRuntime Area retain has no active Area metadata.");
+        }
+
+        private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
         private static void ValidateRunners(byte[] payload, in MobaSkillRuntimeRollbackPayload skills,
             IReadOnlyDictionary<long, MobaExecutionContextNode> nodes)

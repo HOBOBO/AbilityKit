@@ -968,6 +968,19 @@ namespace AbilityKit.Game.Tests
                     binder.Sync(entity, actionContext);
                     AssertAnimatorState(shell, "Void_Annie_Tibbers_Run");
 
+                    // A summon must retain the common visual turn-rate contract across dirty
+                    // snapshot sync, Animator seeks and the transition from following to attacking.
+                    Assert.IsTrue(entity.TryGetRef(out BattleTransformComponent pose));
+                    pose.Position += Vector3.right;
+                    pose.Forward = Vector3.right;
+                    var beforeTurn = shell.transform.rotation;
+                    binder.Sync(entity, actionContext);
+                    Assert.Less(Quaternion.Angle(beforeTurn, shell.transform.rotation), .01f,
+                        "Binding the run animation must not snap the summon root rotation.");
+                    binder.TickInterpolation(context, context, 1f / 60f);
+                    Assert.That(Quaternion.Angle(beforeTurn, shell.transform.rotation),
+                        Is.EqualTo(9f).Within(.1f), "Summons must use the same 540 degrees/second turn as heroes.");
+
                     actionContext.SetAction(new CharacterActionData(
                         tibbersActorId, 1, 48, "life/alive/action/attack.slot.1",
                         ((long)tibbersActorId << 32) | 4u, 4, 0, 901, AnnieBasicAttackSkillId));
@@ -977,6 +990,21 @@ namespace AbilityKit.Game.Tests
                     Assert.IsTrue(attackPlayback.HasValue, "Tibbers attack action catalog did not resolve.");
                     Assert.AreEqual("Void_Annie_Tibbers_Attack1", attackPlayback.Value.AnimatorState);
                     AssertAnimatorState(shell, "Void_Annie_Tibbers_Attack1");
+
+                    pose.Forward = Vector3.back;
+                    beforeTurn = shell.transform.rotation;
+                    binder.Sync(entity, actionContext);
+                    Assert.Less(Quaternion.Angle(beforeTurn, shell.transform.rotation), .01f,
+                        "Binding an attack must not replace the displayed root rotation.");
+                    for (var frame = 0; frame < 30; frame++)
+                    {
+                        beforeTurn = shell.transform.rotation;
+                        binder.Sync(entity, actionContext);
+                        binder.TickInterpolation(context, context, 1f / 60f);
+                        Assert.LessOrEqual(Quaternion.Angle(beforeTurn, shell.transform.rotation), 9.1f);
+                    }
+                    Assert.Greater(Vector3.Dot(shell.transform.forward, Vector3.back), .999f,
+                        "A stationary attacking summon must converge to the authoritative facing.");
 
                     actionContext.SetAction(new CharacterActionData(
                         tibbersActorId, 1, 60, "life/alive/action/attack.slot.2",

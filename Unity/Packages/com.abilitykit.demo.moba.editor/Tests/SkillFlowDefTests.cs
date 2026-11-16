@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         [Test]
         public void CastContracts_SurviveJsonImportAuthoringSaveAndReload()
         {
-            const string json = "[{\"Id\":990092,\"ChildChannelId\":17,\"RecastChannelId\":19,\"RequiredBuffQualificationId\":12345,\"Phases\":[" +
+            const string json = "[{\"Id\":990092,\"ChildChannelId\":17,\"RecastChannelId\":19,\"RequiredBuffQualificationId\":12345,\"UseCommitCooldownFactor\":true,\"Phases\":[" +
                 "{\"Type\":19,\"PhaseId\":\"reserve\",\"Economy\":{\"RequireExplicitCommit\":true,\"FailReason\":\"\"}}," +
                 "{\"Type\":18,\"PhaseId\":\"commit\",\"CommitPoint\":{\"CommitId\":\"attack\",\"RequireEconomyReservation\":true}}]}]";
             if (!AssetDatabase.IsValidFolder(SerializationRegressionFolder))
@@ -38,6 +38,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 Assert.AreEqual(17, restored.ChildChannelId);
                 Assert.AreEqual(19, restored.RecastChannelId);
                 Assert.AreEqual(12345, restored.RequiredBuffQualificationId);
+                Assert.IsTrue(restored.UseCommitCooldownFactor);
                 Assert.IsTrue(restored.Phases[0].Economy.RequireExplicitCommit);
                 Assert.IsTrue(restored.Phases[1].CommitPoint.RequireEconomyReservation);
                 Assert.AreEqual("attack", restored.Phases[1].CommitPoint.CommitId);
@@ -60,7 +61,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     new SkillPhaseDTO { Type = (int)SkillPhaseType.Sequence, PhaseId = "sequence", Children = new[]
                     {
                         new SkillPhaseDTO { Type = (int)SkillPhaseType.Timeline, PhaseId = "new-phase", Timeline = new SkillTimelinePhaseDTO() },
-                        new SkillPhaseDTO { Type = (int)SkillPhaseType.Timeline, PhaseId = "cast", Timeline = new SkillTimelinePhaseDTO { DurationMs = 500 } }
+                        new SkillPhaseDTO { Type = (int)SkillPhaseType.Timeline, PhaseId = "cast", Timeline = new SkillTimelinePhaseDTO { DurationMs = 500, RecoveryStartMs = 250 } }
                     }}
                 }};
                 var restored = SkillFlowDef.FromDto(dto, previous);
@@ -68,6 +69,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 Assert.IsNull(((SkillTimelinePhaseDef)children[0]).MobaLogicTimeline);
                 Assert.AreSame(logic, ((SkillTimelinePhaseDef)children[1]).MobaLogicTimeline);
                 Assert.AreEqual(1200, restored.ToDto().Phases[0].Children[1].Timeline.DurationMs);
+                Assert.AreEqual(250, restored.ToDto().Phases[0].Children[1].Timeline.RecoveryStartMs,
+                    "Explicit recovery timing survives an ActionEditor timeline reference; full length remains authoritative.");
                 dto.Id++;
                 Assert.Throws<InvalidOperationException>(() => SkillFlowDef.FromDto(dto, previous));
             }

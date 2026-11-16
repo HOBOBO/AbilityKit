@@ -112,7 +112,8 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 {
                     if (info.ClaimTargetsWithinGroup &&
                         (!_registry.TryGet(hitActorId, out var targetActor) ||
-                         !targetActor.hasUnitSubType || targetActor.unitSubType.Value != UnitSubType.Hero))
+                         !targetActor.hasUnitSubType ||
+                         !MobaAreaClaimQualification.Allows(info.ClaimUnitSubTypeMask, targetActor.unitSubType.Value)))
                     {
                         continue;
                     }

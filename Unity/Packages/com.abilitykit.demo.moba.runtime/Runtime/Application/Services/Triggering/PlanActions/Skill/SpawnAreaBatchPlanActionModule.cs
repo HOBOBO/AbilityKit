@@ -200,7 +200,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     (int)element.ShapeKind, 0f, element.Width, element.Length,
                     commonArgs.InitialRadius, commonArgs.RadiusGrowthPerFrame, false,
                     commonArgs.GroupKey, commonArgs.ClaimTargetsWithinGroup,
-                    false, default, default, default, 0f, 0f);
+                    false, default, default, default, 0f, 0f,
+                    claimUnitSubTypeMask: commonArgs.ClaimUnitSubTypeMask);
                 if (!SpawnAreaPlanActionModule.SpawnOneArea(new SpawnAreaPlanActionModule(), projectiles, areaRuntime, executionContexts,
                         edgeArgs, aoe, input, ctx, in elementCenter, in element.Forward, targetActorId,
                         radius, lifetimeFrames, 0, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId))

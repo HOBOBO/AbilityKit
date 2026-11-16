@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
@@ -48,6 +49,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var anchor = ReadBoolNonZero(namedArgs, ctx, false, "anchor_at_origin", "anchoratorigin", "front_anchor");
             var groupKey = ReadInt(namedArgs, ctx, 0, "area_group_key", "areagroupkey", "group_key", "groupkey");
             var claim = ReadBoolNonZero(namedArgs, ctx, false, "claim_targets_within_group", "claimtargetswithingroup", "group_target_claim");
+            var claimMask = 0d;
+            if (namedArgs.ContainsKey("claim_unit_sub_type_mask") &&
+                (!TryReadNumber(namedArgs, ctx, out claimMask, "claim_unit_sub_type_mask") ||
+                 !MobaAreaClaimQualification.IsValidMask(claimMask)))
+                throw new ArgumentException("claim_unit_sub_type_mask must be an integer selecting only defined UnitSubType bits.");
             var patternKind = ReadInt(namedArgs, ctx, 0, "pattern_kind", "patternkind", "layout_kind", "layoutkind");
             var count = ReadInt(namedArgs, ctx, 0, "pattern_count", "patterncount", "count");
             var apothem = ReadFloat(namedArgs, ctx, 0f, "pattern_apothem", "patternapothem", "apothem");
@@ -63,11 +69,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 intervalFrames, collisionMask, offsetX, offsetY, offsetZ, directionOffset, lateralOffset,
                 shapeKind, width, length, initialRadius, growth, anchor, groupKey, claim, count, apothem,
                 startAngle, angleStep, edgeWidth, edgeLength, hasTargetRequest, targetRequest,
-                resultTarget, resultCountTarget, patternKind);
+                resultTarget, resultCountTarget, patternKind, (int)claimMask);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            if (!SpawnAreaSchema.ValidateClaimMask(args, out error)) return false;
             return RequireAny(args, "area_id", out error, "area_id", "areaid", "aoe_id", "aoeid", "id");
         }
 

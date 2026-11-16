@@ -449,6 +449,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 var running = _running[i];
                 if (!Conflicts(in policy, in running.Policy)) continue;
+                if (IsNormalRecovery(in running)) continue;
                 if (!policy.InterruptRunning || running.Policy.Uninterruptible ||
                     policy.InterruptPriority < running.Policy.InterruptPriority)
                     return RejectStart(in request, triggerContext, SkillFailureCodes.Start.AlreadyRunning, "Skill is already running.");
@@ -514,11 +515,15 @@ namespace AbilityKit.Demo.Moba.Services
                         "Skill target is no longer valid.");
             }
 
+            var recoveries = new List<SkillPipelineContext>();
             for (var i = _running.Count - 1; i >= 0; i--)
             {
                 var running = _running[i];
                 if (Conflicts(in policy, in running.Policy))
-                    CancelAt(i, in running, "InterruptRunning");
+                {
+                    if (IsNormalRecovery(in running)) recoveries.Add(running.Context);
+                    else CancelAt(i, in running, "InterruptRunning");
+                }
             }
 
             // 如果没有 PreCast，直接进入 Cast。
@@ -529,6 +534,7 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     _running.Add(entry);
                 }
+                if (ok) FinishAcceptedRecoveries(recoveries);
                 LastFailReason = entry.FailReason;
                 LastPipelineFailure = entry.PipelineFailure;
                 return CreateStartResult(ok);
@@ -536,6 +542,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             var started = StartPreCast(ref entry);
             if (started) _running.Add(entry);
+            if (started) FinishAcceptedRecoveries(recoveries);
             LastFailReason = entry.FailReason;
             LastPipelineFailure = entry.PipelineFailure;
             return CreateStartResult(started);
@@ -597,7 +604,10 @@ namespace AbilityKit.Demo.Moba.Services
                 // Drain those passes at start so a zero-duration flow finishes
                 // before its cast boundary is handed back to the caller.
                 entry.Run.Tick(0f);
-                entry.Context.SynchronizeCharacterHfsm();
+                if (!entry.Context.IsAborted &&
+                    (entry.Run.State == EAbilityPipelineState.Executing ||
+                     entry.Run.State == EAbilityPipelineState.Completed))
+                    entry.Context.SynchronizeCharacterHfsm();
             }
             finally
             {
@@ -662,7 +672,12 @@ namespace AbilityKit.Demo.Moba.Services
                 // window those writes are evaluated as an unowned/next-slot cast.
                 MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastStart, entry.TriggerContext);
                 entry.Run.Tick(0f);
-                entry.Context.SynchronizeCharacterHfsm();
+                // A rejected first tick must not replace the action of an older
+                // cast that is still waiting for a successful recovery handoff.
+                if (!entry.Context.IsAborted &&
+                    (entry.Run.State == EAbilityPipelineState.Executing ||
+                     entry.Run.State == EAbilityPipelineState.Completed))
+                    entry.Context.SynchronizeCharacterHfsm();
             }
             finally
             {
@@ -861,6 +876,54 @@ namespace AbilityKit.Demo.Moba.Services
             if (incoming.ConflictGroup > 0 && running.ConflictGroup > 0)
                 return incoming.ConflictGroup == running.ConflictGroup;
             return !incoming.AllowParallel;
+        }
+
+        private static bool IsNormalRecovery(in Entry entry)
+        {
+            var run = entry.Run;
+            return entry.Stage == EntryStage.Cast && entry.Context != null && !entry.Context.IsAborted &&
+                run != null && run.State == EAbilityPipelineState.Executing && !run.IsPaused &&
+                run.HasCurrentPhase && run.CurrentPhaseIndex == run.Phases.Count - 1 &&
+                run.Phases[run.CurrentPhaseIndex] is SkillTimelinePhase timeline && timeline.CanHandoff &&
+                (entry.Continuous == null || !entry.Continuous.IsTerminated) &&
+                (entry.Continuous == null || entry.EffectiveTags == null || entry.EffectiveTags.CanExecute(entry.Continuous));
+        }
+
+        private void FinishAcceptedRecoveries(List<SkillPipelineContext> recoveries)
+        {
+            for (var i = _running.Count - 1; i >= 0; i--)
+                if (recoveries.Contains(_running[i].Context)) FinishRecoveryAt(i);
+        }
+
+        internal bool FinishRecoveryForMovement()
+        {
+            // A parallel non-recovery cast continues to own the actor's action lock.
+            foreach (var entry in _running)
+                if (!IsNormalRecovery(in entry)) return false;
+            var finished = _running.Count > 0;
+            for (var i = _running.Count - 1; i >= 0; i--) FinishRecoveryAt(i);
+            return finished;
+        }
+
+        private void FinishRecoveryAt(int index)
+        {
+            var entry = _running[index];
+            if (!IsNormalRecovery(in entry)) return;
+            var timeline = (SkillTimelinePhase)entry.Run.Phases[entry.Run.CurrentPhaseIndex];
+            timeline.FinishRecovery(entry.Context);
+            entry.Run.Tick(0f);
+            if (entry.Run.State != EAbilityPipelineState.Completed)
+                throw new InvalidOperationException("Normal recovery handoff must complete its terminal Timeline.");
+            _logger.LogSkillComplete(entry.Context.CasterActorId, entry.Context.SkillId,
+                GetInstanceId(in entry), (int)(entry.Context.ElapsedTime * 1000f));
+            MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastComplete, entry.TriggerContext);
+            TryEndPhaseContext(ref entry, MobaExecutionEndReason.Completed);
+            TryEndExecutionContext(entry, MobaExecutionEndReason.Completed);
+            RunCleanups(entry.Context, "cast.recovery.complete");
+            TryAddEndedSnapshot(in entry, SkillCastStage.Completed);
+            _running.RemoveAt(index);
+            // The normal world HFSM projection observes the new running Cast (or
+            // no Cast for movement). Never project the old Cast's aim back here.
         }
 
         private static void TryBeginPhaseContext(ref Entry entry)

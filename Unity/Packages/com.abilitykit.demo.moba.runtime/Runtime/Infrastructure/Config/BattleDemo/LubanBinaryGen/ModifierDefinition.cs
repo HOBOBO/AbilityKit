@@ -34,6 +34,9 @@ public partial struct ModifierDefinition
         ConflictGroup = (ModifierConflictGroup)_buf.ReadInt();
         ConditionSetId = _buf.ReadInt();
         Deprecated = _buf.ReadBool();
+        StackStepSize = _buf.ReadInt();
+        StackStepDelta = _buf.ReadFloat();
+        StackValueMin = _buf.ReadFloat();
     }
 
     public static ModifierDefinition DeserializeModifierDefinition(ByteBuf _buf)
@@ -59,6 +62,9 @@ public partial struct ModifierDefinition
     public readonly ModifierConflictGroup ConflictGroup;
     public readonly int ConditionSetId;
     public readonly bool Deprecated;
+    public readonly int StackStepSize;
+    public readonly float StackStepDelta;
+    public readonly float StackValueMin;
    
 
     public  void ResolveRef(Tables tables)
@@ -86,6 +92,9 @@ public partial struct ModifierDefinition
         + "ConflictGroup:" + ConflictGroup + ","
         + "ConditionSetId:" + ConditionSetId + ","
         + "Deprecated:" + Deprecated + ","
+        + "StackStepSize:" + StackStepSize + ","
+        + "StackStepDelta:" + StackStepDelta + ","
+        + "StackValueMin:" + StackValueMin + ","
         + "}";
     }
 }

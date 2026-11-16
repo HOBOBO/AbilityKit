@@ -2,6 +2,12 @@
   "Id": 30030401,
   "Name": "Annie - Molten Shield",
   "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": false,
+  "RequiredBuffQualificationId": 0,
   "Phases": [
     {
       "Type": 19,
@@ -55,6 +61,7 @@
       "PhaseId": "annie_e_cast",
       "Timeline": {
         "DurationMs": 4167,
+        "RecoveryStartMs": 0,
         "Events": [
           {
             "AtMs": 0,

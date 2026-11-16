@@ -333,6 +333,10 @@ public sealed class MobaCharacterHfsmTests
             ModifierKey.FromPacked(MobaCharacterHfsmTestFixture.AttackSlot), 0f, sourceId: 30010001);
         parameters.Set(17, 30010001, MobaCharacterHfsmTestFixture.AttackSlot, in modifier);
         runtime.Tick(5, Time(5), true, false, false, 0, 0);
+        Assert.Equal("life/alive/action/attack.slot.4", runtime.Action.Path);
+        var resetDelay = definition.Machines.Single(machine => machine.Id == "action")
+            .Transitions.Single(transition => transition.Id == "attack.slot.4.reset").MinimumActiveDurationRaw;
+        runtime.Tick(6, Fixed64.FromRaw(Time(4).RawValue + resetDelay), true, false, false, 0, 0);
         Assert.Equal("life/alive/action/idle", runtime.Action.Path);
     }
 

@@ -121,7 +121,13 @@ namespace AbilityKit.Demo.Moba.Services
             if (stacked.Type == MagnitudeSourceType.TimeDecay &&
                 spec.EvaluationPolicy != MobaContinuousModifierEvaluationPolicy.OnApplySnapshot)
                 stacked = MagnitudeSource.Fixed(stacked.CalculateAtElapsed(continuous.ElapsedSeconds));
-            if (!(spec is IMobaContinuousFormulaSpec evaluatedFormula && evaluatedFormula.HasFormula))
+            if (spec is IMobaContinuousStackStepSpec step && step.StackStepSize > 0)
+            {
+                var value = System.Math.Max(step.StackValueMin,
+                    (double)spec.Magnitude.BaseValue + (stack / step.StackStepSize) * (double)step.StackStepDelta);
+                stacked = MagnitudeSource.Fixed((float)value);
+            }
+            else if (!(spec is IMobaContinuousFormulaSpec evaluatedFormula && evaluatedFormula.HasFormula))
                 stacked = ApplyStack(stacked, stack, spec.Op);
             var magnitude = stacked;
             if (spec.EvaluationPolicy == MobaContinuousModifierEvaluationPolicy.OnApplySnapshot)

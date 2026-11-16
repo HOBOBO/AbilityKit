@@ -116,6 +116,61 @@ public sealed class MobaMechanismConvergenceTests
         Assert.Throws<InvalidOperationException>(() => binding.Validate(definition));
     }
 
+    [Theory]
+    [InlineData(-30f, true)]
+    [InlineData(30f, true)]
+    [InlineData(0f, true)]
+    [InlineData(-30.01f, false)]
+    [InlineData(30.01f, false)]
+    [InlineData(180f, false)]
+    public void State_cone_uses_current_horizontal_input_including_boundary_and_keeps_the_axis(float degrees, bool accepted)
+    {
+        var graph = Graph();
+        var binding = MobaCharacterBindings.For(graph);
+        binding.Casts[0].AimSource = "InputWithinStateCone";
+        binding.Casts[0].AimConeHalfAngleDegrees = 30;
+        binding.Validate(graph);
+        var cast = binding.Casts[0];
+        var radians = degrees * MathF.PI / 180;
+        var input = new Vec3(MathF.Sin(radians), 7, MathF.Cos(radians));
+        var axis = Vec3.Forward;
+        Assert.Equal(accepted, cast.TryConstrainInputAim(input, axis, out var actual));
+        Assert.Equal(Vec3.Forward, axis);
+        if (accepted)
+        {
+            Assert.Equal(0, actual.Y);
+            Assert.Equal(input.X, actual.X, .00001f);
+            Assert.Equal(input.Z, actual.Z, .00001f);
+        }
+        Assert.False(cast.TryConstrainInputAim(Vec3.Zero, axis, out _));
+        Assert.False(cast.TryConstrainInputAim(Vec3.Up, axis, out _));
+        Assert.False(cast.TryConstrainInputAim(new Vec3(float.NaN, 0, 1), axis, out _));
+        Assert.False(cast.TryConstrainInputAim(input, Vec3.Zero, out _));
+    }
+
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(-1f)]
+    [InlineData(90.01f)]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    public void State_cone_rejects_invalid_angle_or_missing_scope_before_cast(float angle)
+    {
+        var graph = Graph();
+        var binding = MobaCharacterBindings.For(graph);
+        var cast = binding.Casts[0];
+        cast.AimSource = "InputWithinStateCone";
+        cast.AimConeHalfAngleDegrees = angle;
+        Assert.Throws<InvalidOperationException>(() => binding.Validate(graph));
+        cast.AimConeHalfAngleDegrees = 30;
+        cast.AimScope = "not-active";
+        Assert.Throws<InvalidOperationException>(() => binding.Validate(graph));
+        cast.AimScope = "aim-cycle";
+        binding.Validate(graph);
+        cast.AimSource = "Input";
+        Assert.Throws<InvalidOperationException>(() => binding.Validate(graph));
+    }
+
     private static StateMachineDefinition Graph()
     {
         var definition = new StateMachineDefinition {DefinitionId = "synthetic.character", RootMachineId = "mode"};

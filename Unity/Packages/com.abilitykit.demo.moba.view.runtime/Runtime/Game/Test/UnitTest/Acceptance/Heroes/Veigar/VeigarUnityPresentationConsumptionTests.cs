@@ -28,17 +28,17 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private static readonly (int Id, string Resource)[] VeigarVfx =
         {
-            (90034001, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_AA_Projectile"),
+            (90034001, "MobaVfx/Veigar/AA_Projectile"),
             (90034002, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_AA_Hit"),
             (90034003, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_E"),
             (90034004, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_E_Activation"),
             (90034005, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_E_Cage"),
             (90034006, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Q"),
-            (90034007, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Q_Hit"),
-            (90034008, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_Q_Projectile"),
+            (90034007, "MobaVfx/Veigar/Q_Hit"),
+            (90034008, "MobaVfx/Veigar/Q_Projectile"),
             (90034009, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_R"),
-            (90034010, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_R_Hit"),
-            (90034011, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_R_Projectile"),
+            (90034010, "MobaVfx/Veigar/R_Hit"),
+            (90034011, "MobaVfx/Veigar/R_Projectile"),
             (90034012, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_W"),
             (90034013, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_W_Cast"),
             (90034014, "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_W_Explosion"),
@@ -309,7 +309,7 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [TestCase("life/alive/action/idle", 0, "Veigar_Model_Idle")]
-        [TestCase("life/alive/action/moving", 0, "Veigar_Model_Idle")]
+        [TestCase("life/alive/action/moving", 0, "Walk")]
         [TestCase("life/alive/action/casting", 30040101, "Veigar_Model_AA")]
         [TestCase("life/alive/action/casting", 30040201, "Veigar_Model_SpellQ")]
         [TestCase("life/alive/action/casting", 30040301, "Veigar_Model_SpellW")]

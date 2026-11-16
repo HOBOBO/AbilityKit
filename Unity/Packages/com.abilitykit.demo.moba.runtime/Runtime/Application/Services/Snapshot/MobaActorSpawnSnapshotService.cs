@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Logging;
 using AbilityKit.Ability.Host;
@@ -8,6 +9,33 @@ using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    internal readonly struct MobaPendingActorSpawnEntry
+    {
+        public MobaPendingActorSpawnEntry(long sequence, in MobaActorSpawnSnapshotEntry entry)
+        {
+            Sequence = sequence;
+            Entry = entry;
+        }
+
+        public long Sequence { get; }
+        public MobaActorSpawnSnapshotEntry Entry { get; }
+    }
+
+    internal sealed class MobaActorSpawnPendingRollbackState
+    {
+        public MobaActorSpawnPendingRollbackState(FrameIndex frame, long nextSequence,
+            MobaPendingActorSpawnEntry[] entries)
+        {
+            Frame = frame;
+            NextSequence = nextSequence;
+            Entries = entries ?? Array.Empty<MobaPendingActorSpawnEntry>();
+        }
+
+        public FrameIndex Frame { get; }
+        public long NextSequence { get; }
+        public MobaPendingActorSpawnEntry[] Entries { get; }
+    }
+
     [MobaSnapshotEmitter(20)]
     [WorldService(typeof(MobaActorSpawnSnapshotService))]
     public sealed class MobaActorSpawnSnapshotService : IWorldStateSnapshotProvider, IMobaSnapshotEmitter
@@ -17,7 +45,8 @@ namespace AbilityKit.Demo.Moba.Services
         private byte[] _snapshotPayload;
 
         private FrameIndex _lastFrame;
-        private readonly MobaSnapshotBuffer<MobaActorSpawnSnapshotEntry> _pending = new MobaSnapshotBuffer<MobaActorSpawnSnapshotEntry>(64, 512);
+        private readonly MobaSnapshotBuffer<MobaPendingActorSpawnEntry> _pending = new MobaSnapshotBuffer<MobaPendingActorSpawnEntry>(64, 512);
+        private long _nextPendingSequence = 1;
 
         public MobaActorSpawnSnapshotService()
         {
@@ -34,7 +63,9 @@ namespace AbilityKit.Demo.Moba.Services
         public void Enqueue(in MobaActorSpawnSnapshotEntry entry)
         {
             if (entry.NetId <= 0) return;
-            _pending.Add(entry);
+            if (_nextPendingSequence <= 0 || _nextPendingSequence == long.MaxValue)
+                throw new InvalidOperationException("Actor spawn pending sequence exhausted.");
+            _pending.Add(new MobaPendingActorSpawnEntry(_nextPendingSequence++, in entry));
         }
 
         public bool CancelPendingActorSpawn(int actorId)
@@ -44,7 +75,7 @@ namespace AbilityKit.Demo.Moba.Services
             var removed = false;
             for (var i = items.Count - 1; i >= 0; i--)
             {
-                if (items[i].NetId != actorId) continue;
+                if (items[i].Entry.NetId != actorId) continue;
                 items.RemoveAt(i);
                 removed = true;
             }
@@ -118,7 +149,9 @@ namespace AbilityKit.Demo.Moba.Services
 
                 try
                 {
-                    var entries = _pending.ToArrayAndTrim();
+                    var pending = _pending.ToArrayAndTrim();
+                    var entries = new MobaActorSpawnSnapshotEntry[pending.Length];
+                    for (var i = 0; i < pending.Length; i++) entries[i] = pending[i].Entry;
                     var payload = MobaActorSpawnSnapshotCodec.Serialize(entries);
                     _pending.Clear();
                     snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ActorSpawn, payload);
@@ -135,12 +168,28 @@ namespace AbilityKit.Demo.Moba.Services
             return false;
         }
 
+        internal MobaActorSpawnPendingRollbackState CapturePendingRollbackState(FrameIndex frame)
+        {
+            return new MobaActorSpawnPendingRollbackState(frame, _nextPendingSequence,
+                _pending.ToArrayAndTrim());
+        }
+
+        internal void RestorePendingRollbackState(MobaActorSpawnPendingRollbackState state)
+        {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            if (state.NextSequence <= 0) throw new InvalidOperationException("Invalid actor spawn pending sequence.");
+            _pending.Clear();
+            _pending.AddRange(new List<MobaPendingActorSpawnEntry>(state.Entries));
+            _nextPendingSequence = state.NextSequence;
+        }
+
         public void Dispose()
         {
             _hasSnapshot = false;
             _sent = false;
             _snapshotPayload = null;
             _pending.Clear();
+            _nextPendingSequence = 1;
             _lastFrame = new FrameIndex(-999999);
         }
     }
