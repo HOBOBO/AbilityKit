@@ -13,6 +13,7 @@ namespace AbilityKit.Demo.Moba.Systems.Summon
         private MobaActorRegistry _registry;
         private AbilityKit.Ability.FrameSync.IFrameTime _frameTime;
         private AbilityKit.Ability.World.Services.IWorldClock _clock;
+        private MobaAuthorityFrameService _authority;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
         public MobaSummonLifecycleSystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -27,6 +28,7 @@ namespace AbilityKit.Demo.Moba.Systems.Summon
             Services.TryResolve(out _registry);
             Services.TryResolve(out _frameTime);
             Services.TryResolve(out _clock);
+            Services.TryResolve(out _authority);
 
             var ctx = (global::Contexts)Contexts;
             _group = ctx.actor.GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.SummonMeta));
@@ -35,6 +37,8 @@ namespace AbilityKit.Demo.Moba.Systems.Summon
         protected override void OnExecute()
         {
             if (_summons == null) return;
+            if (_authority != null && _authority.TryGetFrames(out var confirmed, out _))
+                _summons.PruneConfirmedRequests(confirmed.Value);
             if (_registry == null) return;
 
             var nowMs = NowMs();

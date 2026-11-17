@@ -43,33 +43,6 @@ namespace AbilityKit.Game.Flow
             DrawPauseControlWindow(ctx);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             _publication.Refresh(in ctx);
-            if (!ctx.Entry.DebugEnabled) return;
-
-            var sink = ctx.Entry.Get<IFlowCommandSink>();
-            if (sink == null || sink.CurrentRootPhase != MobaRootState.Battle) return;
-
-            GUILayout.BeginArea(new Rect(10, 10, 170, 110), GUI.skin.window);
-            if (GUILayout.Button("Exit Battle", GUILayout.Height(34)))
-            {
-                sink.RequestReturnLobby();
-            }
-
-            if (GUILayout.Button("Rebind Views", GUILayout.Height(34)))
-            {
-                if (ctx.Features.TryGet(out BattleViewFeature view) && view != null)
-                {
-                    view.RebindAll();
-                }
-                if (ctx.Features.TryGet(out ConfirmedBattleViewFeature confirmed) && confirmed != null)
-                {
-                    confirmed.RebindAll();
-                }
-                if (ctx.Features.TryGet(out BattleSessionFeature session) && session != null)
-                {
-                    session.RebindProjectionViews();
-                }
-            }
-            GUILayout.EndArea();
 #endif
         }
 

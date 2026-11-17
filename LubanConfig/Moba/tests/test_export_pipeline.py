@@ -57,6 +57,9 @@ class ReferenceValidationTests(unittest.TestCase):
     def test_presentation_template_spatial_policies_are_closed_enums(self):
         validate_presentation_templates([{"Id": 10}])  # Missing fields keep legacy defaults.
         validate_presentation_templates([{"Id": 10, "OffsetSpace": 1, "ParentScaleMode": 1}])
+        validate_presentation_templates([{"Id": 10, "PlacementSpace": 1}])
+        with self.assertRaisesRegex(ValueError, "presentation_templates/10: PlacementSpace"):
+            validate_presentation_templates([{"Id": 10, "PlacementSpace": 2}])
         with self.assertRaisesRegex(ValueError, "presentation_templates/10: OffsetSpace"):
             validate_presentation_templates([{"Id": 10, "OffsetSpace": 2}])
         with self.assertRaisesRegex(ValueError, "presentation_templates/10: ParentScaleMode"):

@@ -7,7 +7,10 @@ using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    [MobaSnapshotEmitter(80)]
+    // One-time actor attachments consume the projected pose when their cue arrives.
+    // Publish this frame's transform before presentation cues (priority 65), so a
+    // cast that turns and starts a visual together cannot freeze the previous facing.
+    [MobaSnapshotEmitter(64)]
     [WorldService(typeof(MobaActorTransformSnapshotService))]
     public sealed class MobaActorTransformSnapshotService : LogicWorldSnapshotBufferEmitterBase<MobaActorTransformSnapshotService, MobaActorTransformSnapshotEntry>
     {

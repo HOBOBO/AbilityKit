@@ -60,6 +60,9 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         public int TrackedActorId => _trackedActorId;
 
+        public float MinFieldOfView => _config.MinFieldOfView;
+        public float MaxFieldOfView => _config.MaxFieldOfView;
+
         /// <summary>
         /// Attach a camera. If null, the controller uses <see cref="Camera.main"/>.
         /// </summary>
@@ -194,6 +197,18 @@ namespace AbilityKit.Game.Flow
             _camera = null;
             _currentPosition = Vector3.zero;
             _lookAtTarget = Vector3.zero;
+        }
+
+        public void ApplyScrollZoom(float scrollDelta)
+        {
+            if (_camera == null || _camera.orthographic || Mathf.Approximately(scrollDelta, 0f)) return;
+
+            var min = Mathf.Clamp(_config.MinFieldOfView, 1f, 179f);
+            var max = Mathf.Clamp(_config.MaxFieldOfView, min, 179f);
+            _camera.fieldOfView = Mathf.Clamp(
+                _camera.fieldOfView - scrollDelta * _config.ScrollZoomSpeed,
+                min,
+                max);
         }
 
         private void ReleaseDepthTexture()

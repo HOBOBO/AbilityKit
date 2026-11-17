@@ -245,7 +245,8 @@ namespace AbilityKit.Demo.Moba.Services
                 eventBus: _eventBus,
                 casterUnit: caster,
                 targetUnit: targetUnit,
-                parameterSnapshots: samples);
+                parameterSnapshots: samples,
+                summonInputIdentity: input.SummonInputIdentity);
 
             var skillLevel = ResolveSkillLevel(actorId, skillId, slot);
             var championLevel = ResolveChampionLevel(actorId);

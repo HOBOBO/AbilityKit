@@ -3662,7 +3662,7 @@
     "ColorG": 1,
     "ColorR": 1,
     "DefaultDurationMs": 0,
-    "Follow": true,
+    "Follow": false,
     "Kind": 2,
     "Name": "Jhin R mode ground",
     "OffsetX": 0,

@@ -1,5 +1,6 @@
 using AbilityKit.Game.Battle.Shared.Assets;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace AbilityKit.Game.Flow
 {
@@ -17,16 +18,32 @@ namespace AbilityKit.Game.Flow
             var go = CreateGameObject(cfg, root);
             var rt = go.GetComponent<RectTransform>();
             if (rt == null) rt = go.AddComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(132f, 18f);
 
-            var images = go.GetComponentsInChildren<UnityEngine.UI.Image>(true);
-            UnityEngine.UI.Image hpFill = null;
+            var images = go.GetComponentsInChildren<Image>(true);
+            Image hpFill = null;
+            Image background = null;
             for (var i = 0; i < images.Length; i++)
             {
+                if (images[i] != null &&
+                    (images[i].gameObject.name.IndexOf("Bg", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     images[i].gameObject.name.IndexOf("Background", System.StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    background = images[i];
+                }
                 if (images[i] != null && images[i].gameObject.name.IndexOf("Fill", System.StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     hpFill = images[i];
                     break;
                 }
+            }
+            if (background == null && images.Length > 0) background = images[0];
+            if (background != null)
+            {
+                var outline = background.GetComponent<Outline>() ?? background.gameObject.AddComponent<Outline>();
+                outline.effectColor = new Color(0f, 0f, 0f, 1f);
+                outline.effectDistance = new Vector2(2f, 2f);
+                outline.useGraphicAlpha = false;
             }
             return new BattleHudHpBarHandle
             {

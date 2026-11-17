@@ -8,6 +8,7 @@ namespace AbilityKit.Game.Flow
         public int TargetActorId;
         public RectTransform Root;
         public Text Text;
+        public Outline Outline;
         public float Age;
         public float Lifetime;
         public Vector3 WorldOffset;

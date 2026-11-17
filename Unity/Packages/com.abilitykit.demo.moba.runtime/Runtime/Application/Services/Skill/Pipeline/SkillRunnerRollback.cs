@@ -42,7 +42,7 @@ namespace AbilityKit.Demo.Moba.Services
 
     internal static class SkillRunnerRollbackCodec
     {
-        private const int Version = 3;
+        private const int Version = 4;
         private const int MaxEntries = 1024;
         private const int MaxBytes = 8 * 1024 * 1024;
 
@@ -71,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services
             using var stream = new MemoryStream(payload, writable: false);
             using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
             var version = reader.ReadInt32();
-            if (version < 1 || version > Version)
+            if (version != Version)
                 throw new InvalidDataException("Unsupported skill runner rollback version.");
             var snapshot = new SkillRunnerRollbackSnapshot();
             var sequenceCount = ReadCount(reader);
@@ -198,6 +198,10 @@ namespace AbilityKit.Demo.Moba.Services
             writer.Write(state.CharacterModeOwnerId);
             writer.Write(state.CharacterModeInstanceId);
             writer.Write(state.HfsmParameterOwnerId);
+            writer.Write(state.SummonInputIdentity.ActorId);
+            writer.Write(state.SummonInputIdentity.EntityVersion);
+            writer.Write(state.SummonInputIdentity.InputSequence);
+            writer.Write(state.SummonInputIdentity.Frame);
             if (state.SharedData.Length > 256)
                 throw new InvalidDataException("Too many skill shared-data entries.");
             writer.Write(state.SharedData.Length);
@@ -253,6 +257,8 @@ namespace AbilityKit.Demo.Moba.Services
             var characterModeOwnerId = version >= 2 ? reader.ReadInt64() : 0L;
             var characterModeInstanceId = version >= 2 ? reader.ReadInt64() : 0L;
             var hfsmParameterOwnerId = version >= 3 ? reader.ReadInt64() : 0L;
+            var summonInputIdentity = new MobaSummonInputIdentity(
+                reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt64(), reader.ReadInt32());
             var sharedCount = reader.ReadInt32();
             if (sharedCount < 0 || sharedCount > 256)
                 throw new InvalidDataException("Invalid skill shared-data count.");
@@ -302,12 +308,17 @@ namespace AbilityKit.Demo.Moba.Services
                 characterModeOwnerId < 0 || characterModeInstanceId < 0 ||
                 (string.IsNullOrEmpty(characterModeId) != (characterModeOwnerId == 0)))
                 throw new InvalidDataException("Invalid skill character-mode binding.");
+            if (!summonInputIdentity.IsValid &&
+                (summonInputIdentity.ActorId != 0 || summonInputIdentity.EntityVersion != 0 ||
+                 summonInputIdentity.InputSequence != 0 || summonInputIdentity.Frame != 0))
+                throw new InvalidDataException("Invalid skill summon input identity.");
             var config = new ResolvedSkillCastConfiguration(skillId, skillLevel,
                 (ResourceType)resourceType, cost, configCooldown, hasLevel);
             return new SkillPipelineContextRollbackState(elapsed, frame, target, aimPos, aimDir,
                 sequence, nextEvent, released, cooldown, failReason, sourceId, 0L,
                 flowId, config, aborted, startTime, characterModeId, characterModePriority,
-                characterModeOwnerId, characterModeInstanceId, hfsmParameterOwnerId, shared);
+                characterModeOwnerId, characterModeInstanceId, hfsmParameterOwnerId,
+                summonInputIdentity, shared);
         }
 
         private static void WriteVec(BinaryWriter writer, in Vec3 value)
@@ -532,7 +543,8 @@ namespace AbilityKit.Demo.Moba.Services
                 var aimPos = contextState.AimPos;
                 var aimDir = contextState.AimDir;
                 var request = new SkillCastRequest(state.SkillId, state.SkillSlot, state.ActorId,
-                    contextState.TargetActorId, in aimPos, in aimDir, _services, _eventBus, caster, target);
+                    contextState.TargetActorId, in aimPos, in aimDir, _services, _eventBus, caster, target,
+                    summonInputIdentity: contextState.SummonInputIdentity);
                 var trigger = SkillCastContext.FromRequest(in request, state.SkillLevel);
                 trigger.BaseSkillId = state.BaseSkillId;
                 trigger.Sequence = state.Sequence;

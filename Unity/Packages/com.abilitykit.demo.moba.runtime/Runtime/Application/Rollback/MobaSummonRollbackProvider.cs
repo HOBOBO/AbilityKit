@@ -11,10 +11,20 @@ namespace AbilityKit.Demo.Moba.Rollback
     public sealed class MobaSummonRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider, IRollbackSnapshotPreflightProvider
     {
         public const int DefaultKey = 12003;
-        private const int Version = 1;
+        private const int Version = 2;
         private readonly MobaSummonService _summons;
         private readonly MobaActorRegistry _actors;
         private readonly MobaSkillCastRuntimeService _skills;
+
+        private sealed class SummonRollbackPayload
+        {
+            public SummonRollbackPayload(MobaSummonRollbackEntry[] entries, MobaSummonRequestResult[] requests,
+                KeyValuePair<MobaSummonInputIdentity, int>[] nextOrdinals)
+            { Entries = entries; Requests = requests; NextOrdinals = nextOrdinals; }
+            public MobaSummonRollbackEntry[] Entries { get; }
+            public MobaSummonRequestResult[] Requests { get; }
+            public KeyValuePair<MobaSummonInputIdentity, int>[] NextOrdinals { get; }
+        }
 
         public MobaSummonRollbackProvider(MobaSummonService summons, MobaActorRegistry actors, MobaSkillCastRuntimeService skills)
         { _summons = summons ?? throw new ArgumentNullException(nameof(summons)); _actors = actors ?? throw new ArgumentNullException(nameof(actors)); _skills = skills ?? throw new ArgumentNullException(nameof(skills)); }
@@ -35,6 +45,27 @@ namespace AbilityKit.Demo.Moba.Rollback
                     writer.Write(entry.RootOwnerActorId); writer.Write(entry.OwnerActorId); writer.Write(entry.ActorId);
                     WriteSource(writer, in source); WriteRetain(writer, in retain);
                 }
+                writer.Write(state.Requests.Length);
+                foreach (var request in state.Requests)
+                {
+                    writer.Write(request.Key.ActorId);
+                    writer.Write(request.Key.EntityVersion);
+                    writer.Write(request.Key.InputSequence);
+                    writer.Write(request.Key.Frame);
+                    writer.Write(request.Key.Ordinal);
+                    writer.Write(request.Accepted);
+                    writer.Write(request.SummonActorId);
+                    writer.Write(request.Frame);
+                }
+                writer.Write(state.NextOrdinals.Length);
+                foreach (var ordinal in state.NextOrdinals)
+                {
+                    writer.Write(ordinal.Key.ActorId);
+                    writer.Write(ordinal.Key.EntityVersion);
+                    writer.Write(ordinal.Key.InputSequence);
+                    writer.Write(ordinal.Key.Frame);
+                    writer.Write(ordinal.Value);
+                }
                 return stream.ToArray();
             }
         }
@@ -44,7 +75,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         public void ValidateSnapshot(RollbackSnapshotPreflightContext context)
         {
             context.RequirePayload(Key);
-            var entries = Read(context.RequirePayload(Key).ToArray());
+            var payload = Read(context.RequirePayload(Key).ToArray());
             var actorIds = MobaEntitasEntityRollbackProvider.ReadSnapshotActorIds(
                 context.RequirePayload(MobaEntitasEntityRollbackProvider.DefaultKey).ToArray());
             var components = MobaEntitasComponentRollbackProvider.ReadSnapshotSummaries(
@@ -52,7 +83,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             var lifecycle = MobaSkillLifecycleSnapshotIndex.Read(context.Frame,
                 context.RequirePayload(MobaSkillLifecycleRollbackProvider.DefaultKey).ToArray());
 
-            foreach (var entry in entries)
+            foreach (var entry in payload.Entries)
             {
                 Require(actorIds.Contains(entry.ActorId), "Summon relation actor is missing from the target actor roster.");
                 Require(HasSummonMeta(components, entry.ActorId, entry.Source.IsValid ? entry.Source.SummonConfigId : 0),
@@ -80,7 +111,8 @@ namespace AbilityKit.Demo.Moba.Rollback
 
         public void Import(FrameIndex frame, byte[] payload)
         {
-            var entries = Read(payload);
+            var decoded = Read(payload);
+            var entries = decoded.Entries;
             for (var i = 0; i < entries.Length; i++)
             {
                 var entry = entries[i];
@@ -97,7 +129,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 entries[i] = new MobaSummonRollbackEntry(entry.RootOwnerActorId, entry.OwnerActorId,
                     entry.ActorId, in source, in retain);
             }
-            _summons.RestoreRollbackState(new MobaSummonRollbackState(entries));
+            _summons.RestoreRollbackState(new MobaSummonRollbackState(entries, decoded.Requests, decoded.NextOrdinals));
         }
 
         private MobaSkillRuntimeRetainHandle ResolveRetain(MobaSummonRollbackEntry entry)
@@ -112,7 +144,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             return actual;
         }
 
-        private static MobaSummonRollbackEntry[] Read(byte[] payload)
+        private static SummonRollbackPayload Read(byte[] payload)
         {
             if (payload == null || payload.Length == 0) throw new InvalidOperationException("Missing Summon rollback payload.");
             using (var reader = new BinaryReader(new MemoryStream(payload, false)))
@@ -135,8 +167,49 @@ namespace AbilityKit.Demo.Moba.Rollback
                         throw new InvalidOperationException("Summon retain does not match its target relation.");
                     entries[i] = new MobaSummonRollbackEntry(rootOwner, owner, actor, in source, in retain);
                 }
+                var requestCount = reader.ReadInt32();
+                if (requestCount < 0 || requestCount > 100000) throw new InvalidOperationException("Invalid Summon request result count.");
+                var requests = new MobaSummonRequestResult[requestCount];
+                var requestKeys = new HashSet<MobaSummonRequestKey>();
+                for (var i = 0; i < requestCount; i++)
+                {
+                    var identity = new MobaSummonInputIdentity(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt64(), reader.ReadInt32());
+                    var key = new MobaSummonRequestKey(identity, reader.ReadInt32());
+                    var accepted = reader.ReadBoolean();
+                    var summonActorId = reader.ReadInt32();
+                    var requestFrame = reader.ReadInt32();
+                    if (!identity.IsValid || key.Ordinal <= 0 || requestFrame != identity.Frame ||
+                        accepted && summonActorId <= 0 || !accepted && summonActorId != 0 ||
+                        !requestKeys.Add(key))
+                        throw new InvalidOperationException("Duplicate or invalid Summon request result identity.");
+                    requests[i] = new MobaSummonRequestResult(key, accepted, summonActorId);
+                }
+                var ordinalCount = reader.ReadInt32();
+                if (ordinalCount < 0 || ordinalCount > 100000) throw new InvalidOperationException("Invalid Summon request ordinal count.");
+                var nextOrdinals = new KeyValuePair<MobaSummonInputIdentity, int>[ordinalCount];
+                var identities = new HashSet<MobaSummonInputIdentity>();
+                for (var i = 0; i < ordinalCount; i++)
+                {
+                    var identity = new MobaSummonInputIdentity(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt64(), reader.ReadInt32());
+                    var nextOrdinal = reader.ReadInt32();
+                    if (!identity.IsValid || nextOrdinal <= 0 || !identities.Add(identity))
+                        throw new InvalidOperationException("Duplicate or invalid Summon request ordinal state.");
+                    nextOrdinals[i] = new KeyValuePair<MobaSummonInputIdentity, int>(identity, nextOrdinal);
+                }
+                var maxOrdinalByIdentity = new Dictionary<MobaSummonInputIdentity, int>();
+                foreach (var request in requests)
+                {
+                    if (!identities.Contains(request.Key.Identity))
+                        throw new InvalidOperationException("Summon request result has no ordinal allocator state.");
+                    if (!maxOrdinalByIdentity.TryGetValue(request.Key.Identity, out var current) ||
+                        request.Key.Ordinal > current)
+                        maxOrdinalByIdentity[request.Key.Identity] = request.Key.Ordinal;
+                }
+                foreach (var ordinal in nextOrdinals)
+                    if (maxOrdinalByIdentity.TryGetValue(ordinal.Key, out var maxOrdinal) && ordinal.Value < maxOrdinal)
+                        throw new InvalidOperationException("Summon request ordinal state precedes a recorded request result.");
                 if (reader.BaseStream.Position != reader.BaseStream.Length) throw new InvalidOperationException("Unexpected Summon rollback payload data.");
-                return entries;
+                return new SummonRollbackPayload(entries, requests, nextOrdinals);
             }
         }
 

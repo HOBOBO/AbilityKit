@@ -105,7 +105,7 @@ public sealed class MobaSkillFlowAcceptanceTests
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]
-    public void Diagnostic_ids_are_reserved_zero_and_legacy_context_layouts_remain_readable(int version)
+    public void Diagnostic_ids_are_reserved_zero_and_legacy_skill_runner_payloads_are_rejected(int version)
     {
         using var scope = new Scope();
         Assert.True(scope.Start(Volley, 3, SkillCastPolicy.Default).Success);
@@ -116,44 +116,10 @@ public sealed class MobaSkillFlowAcceptanceTests
         entries[0].DiagnosticCommandId = 987654321;
         Assert.Equal(canonical, SkillRunnerRollbackCodec.Serialize(snapshot));
 
-        // Locate compatibility slots with the actual v3 layout, including strings.
-        using var stream = new System.IO.MemoryStream(canonical);
-        using var reader = new System.IO.BinaryReader(stream);
-        reader.ReadInt32(); reader.ReadInt32(); reader.ReadInt32(); // version, sequences, entries
-        for (var i = 0; i < 6; i++) reader.ReadInt32();
-        reader.ReadInt64(); reader.ReadInt32(); reader.ReadInt64(); reader.ReadInt64();
-        var entryDiagnostic = (int)stream.Position;
-        Assert.Equal(0L, reader.ReadInt64());
-        reader.ReadInt32(); reader.ReadString(); reader.ReadInt32(); reader.ReadInt32(); reader.ReadInt64();
-        reader.ReadBoolean(); reader.ReadBoolean(); reader.ReadInt32(); reader.ReadInt32();
-        reader.ReadBoolean(); reader.ReadInt32();
-        reader.ReadInt64(); reader.ReadInt32(); reader.ReadInt32();
-        for (var i = 0; i < 6; i++) reader.ReadSingle();
-        reader.ReadInt32(); reader.ReadInt32(); reader.ReadBoolean(); reader.ReadInt32();
-        reader.ReadString(); reader.ReadInt64();
-        var contextDiagnostic = (int)stream.Position;
-        Assert.Equal(0L, reader.ReadInt64());
-        for (var i = 0; i < 6; i++) reader.ReadInt32();
-        reader.ReadBoolean(); reader.ReadBoolean(); reader.ReadSingle();
-        var modeStart = (int)stream.Position;
-        reader.ReadString(); reader.ReadInt32(); reader.ReadInt64(); reader.ReadInt64();
-        var hfsmStart = (int)stream.Position;
-        reader.ReadInt64();
-        var sharedStart = (int)stream.Position;
-        BitConverter.GetBytes(111L).CopyTo(canonical, entryDiagnostic);
-        BitConverter.GetBytes(222L).CopyTo(canonical, contextDiagnostic);
-        var legacy = canonical.ToList();
-        if (version < 3) legacy.RemoveRange(version == 1 ? modeStart : hfsmStart,
-            sharedStart - (version == 1 ? modeStart : hfsmStart));
-        var payload = legacy.ToArray();
-        BitConverter.GetBytes(version).CopyTo(payload, 0);
-        var restored = SkillRunnerRollbackCodec.Deserialize(payload);
-        Assert.Equal(0L, restored.Entries[0].DiagnosticCommandId);
-        Assert.Equal(0L, restored.Entries[0].Context.DiagnosticCommandId);
-        var fresh = SkillRunnerRollbackCodec.Serialize(restored);
-        Assert.NotEqual(payload, fresh);
+        BitConverter.GetBytes(version).CopyTo(canonical, 0);
+        Assert.Throws<System.IO.InvalidDataException>(() => SkillRunnerRollbackCodec.Deserialize(canonical));
         entries[0].DiagnosticCommandId = 0L;
-        Assert.Equal(SkillRunnerRollbackCodec.Serialize(snapshot), fresh);
+        var fresh = SkillRunnerRollbackCodec.Serialize(snapshot);
         entries[0].Sequence++;
         Assert.NotEqual(fresh, SkillRunnerRollbackCodec.Serialize(snapshot));
     }

@@ -516,7 +516,7 @@ namespace AbilityKit.Game
                 : default;
 
             if (GUI.Button(
-                    new Rect(Screen.width - 160f, 10f, 150f, 32f),
+                    new Rect(10f, 10f, 150f, 32f),
                     _localDebugPanelVisible ? "隐藏调试面板" : "显示调试面板"))
             {
                 _localDebugPanelVisible = !_localDebugPanelVisible;
@@ -529,8 +529,8 @@ namespace AbilityKit.Game
             var previousMatrix = GUI.matrix;
             GUIUtility.ScaleAroundPivot(
                 new Vector2(_localDebugPanelScale, _localDebugPanelScale),
-                new Vector2(Screen.width - 10f, 50f));
-            GUILayout.BeginArea(new Rect(Screen.width - width - 10f, 50f, width, height), "英雄技能验收", GUI.skin.window);
+                new Vector2(10f, 50f));
+            GUILayout.BeginArea(new Rect(10f, 50f, width, height), "英雄技能验收", GUI.skin.window);
             GUILayout.BeginHorizontal();
             GUILayout.Label("面板缩放", GUILayout.Width(70f));
             _localDebugPanelScale = GUILayout.HorizontalSlider(
@@ -540,28 +540,12 @@ namespace AbilityKit.Game
                 GUILayout.Width(150f));
             GUILayout.Label($"{Mathf.RoundToInt(_localDebugPanelScale * 100f)}%", GUILayout.Width(42f));
             GUILayout.EndHorizontal();
-            GUILayout.Label("版本：hero-replacement-v8");
-            GUILayout.Label($"根阶段：{(sink != null ? sink.CurrentRootPhase.ToString() : "缺失")}");
-
-            if (!inBattle)
-            {
-                GUILayout.Label("状态：等待进入战斗");
-            }
-            else if (_localDebug == null)
-            {
-                GUILayout.Label("状态：调试控制器缺失");
-            }
-            else
-            {
-                GUILayout.Label($"状态：{(debugSnapshot.IsAvailable ? "就绪" : debugSnapshot.UnavailableReason)}");
-                GUILayout.Label($"模式：{debugSnapshot.HostModeName}");
-                GUILayout.Label($"玩家：{debugSnapshot.CurrentPlayerId}");
-                GUILayout.Label($"角色：{debugSnapshot.CurrentActorId}");
-                GUILayout.Label($"当前英雄：{debugSnapshot.CurrentHeroId}");
-            }
-
             var previousEnabled = GUI.enabled;
             GUI.enabled = _localDebug != null && debugSnapshot.IsAvailable;
+            if (GUILayout.Button("切换主控单位（P1/P2）", GUILayout.Height(30f)))
+            {
+                RunLocalDebugAction(_localDebug.TrySwitchControl);
+            }
             GUILayout.Label("完整替换当前英雄");
             var includePlaceholders = GUILayout.Toggle(
                 debugSnapshot.IncludePlaceholderHeroes,

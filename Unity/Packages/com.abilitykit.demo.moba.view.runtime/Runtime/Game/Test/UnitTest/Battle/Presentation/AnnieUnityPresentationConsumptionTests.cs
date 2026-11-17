@@ -991,6 +991,9 @@ namespace AbilityKit.Game.Tests
                     Assert.AreEqual("Void_Annie_Tibbers_Attack1", attackPlayback.Value.AnimatorState);
                     AssertAnimatorState(shell, "Void_Annie_Tibbers_Attack1");
 
+                    // A snapshot can coalesce the last follow displacement and the first attack
+                    // facing. The one-shot authoritative turn must survive repeated sampling.
+                    pose.Position += Vector3.right;
                     pose.Forward = Vector3.back;
                     beforeTurn = shell.transform.rotation;
                     binder.Sync(entity, actionContext);

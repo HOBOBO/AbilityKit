@@ -328,7 +328,21 @@ namespace AbilityKit.Game.Test.UnitTest
                             " Enemy=" + localEnemy.transform.Value.Position + " InitialDistance=" + followDistanceBefore);
                         yield return TickUntil(flow, () => Vector3.Distance(shell.transform.position, shellPositionBefore) > 0.2f,
                             30, "The visible summon must follow the authoritative moving actor.");
+                        // Keep the owner moving through repaths, then keep moving during combat.
+                        // A static owner alone cannot expose follow/combat contention.
+                        var ownerFollowStart = localOwner.transform.Value.Position;
+                        for (var tick = 0; tick < 45; tick++)
+                        {
+                            SetScenarioActorPosition(localOwner,
+                                ownerFollowStart + new Vec3(-tick * .04f, 0f, tick * .005f));
+                            var beforeTurn = shell.transform.rotation;
+                            FlowTick(flow, 1);
+                            Assert.That(Quaternion.Angle(beforeTurn, shell.transform.rotation), Is.LessThanOrEqualTo(18.1f),
+                                "Follow snapshots must respect the shared visual turn rate at 30 Hz.");
+                            yield return null;
+                        }
                         SetScenarioActorPosition(localEnemy, localSummon.transform.Value.Position + Vec3.Right);
+                        var combatPosition = localSummon.transform.Value.Position;
                         var attackHpBefore = localEnemy.GetMobaAttrs().Hp;
                         var summonAnimator = shell.GetComponentInChildren<Animator>(true);
                         var sawAttackAnimation = false;
@@ -346,6 +360,23 @@ namespace AbilityKit.Game.Test.UnitTest
                                 " Cast=" + world.Services.Resolve<SkillCastCoordinator>().TryGetRunningBySlot(summonId, 1, out _));
                         Assert.IsTrue(sawAttackAnimation,
                             "Tibbers must play its configured attack animation when the real HUD battle attack deals damage.");
+                        var combatHp = localEnemy.GetMobaAttrs().Hp;
+                        var movingOwnerStart = localOwner.transform.Value.Position;
+                        for (var tick = 0; tick < 60; tick++)
+                        {
+                            SetScenarioActorPosition(localOwner, movingOwnerStart - Vec3.Right * (tick * .06f));
+                            var beforeTurn = shell.transform.rotation;
+                            FlowTick(flow, 1);
+                            Assert.That(Quaternion.Angle(beforeTurn, shell.transform.rotation), Is.LessThanOrEqualTo(18.1f),
+                                "Switching between attacking and cooldown must not snap the model facing.");
+                            yield return null;
+                            Assert.That((localSummon.transform.Value.Position - combatPosition).Magnitude,
+                                Is.LessThan(.05f), "An in-range enemy must suppress owner following, including attack cooldown.");
+                        }
+                        Assert.Less(localEnemy.GetMobaAttrs().Hp, combatHp,
+                            "The summon must continue attacking while its owner moves away.");
+                        Assert.Greater(Vector3.Dot(shell.transform.forward, Vector3.right), .99f,
+                            "The visible summon must face its enemy instead of its moving owner.");
                     }
                     FlowTick(flow, 30);
                     yield return null;

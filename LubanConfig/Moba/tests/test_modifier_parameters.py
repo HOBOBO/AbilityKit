@@ -255,9 +255,24 @@ class ModifierParameterCatalogTests(unittest.TestCase):
     def test_evaluation_policy_is_derived_from_magnitude_source(self):
         for template in bind_template_definitions(self.templates, self.definitions):
             source = template["MagnitudeSourceType"]
-            expected = 1 if source in (2, 6) else 0
+            # Explicit Cast-context reads capture on apply; ordinary ContextFloat
+            # keeps reading the attribute context under its existing policy.
+            cast_context = source == 5 and (template.get("MagnitudeContextKey") or "").startswith("skill_runtime:")
+            expected = 1 if source in (2, 6) or cast_context else 0
             self.assertEqual(expected, template["EvaluationPolicy"],
                              msg=f"definition {template['DefinitionKey']} source {source}")
+
+    def test_stack_step_mapping_rejects_unsupported_evaluation_and_operations(self):
+        modifier = dict(TargetKind=4, MagnitudeSourceType=0, Op=1,
+                        Value=1, MagnitudeBaseValue=1, EvaluationPolicy=0,
+                        StackStepSize=3, StackStepDelta=-.2, StackValueMin=.3)
+        validate_evaluation_contract(modifier, "test")
+        for field, value in [("TargetKind", 1), ("MagnitudeSourceType", 2),
+                             ("Op", 0),
+                             ("StackStepSize", -1), ("StackStepDelta", float("nan")),
+                             ("StackValueMin", -1), ("StackStepSize", 0)]:
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                validate_evaluation_contract(dict(modifier, **{field: value}), "test")
 
     def test_priority_comes_from_the_mount_row(self):
         bound = {row["Id"]: row for row in bind_template_definitions(self.templates, self.definitions)}

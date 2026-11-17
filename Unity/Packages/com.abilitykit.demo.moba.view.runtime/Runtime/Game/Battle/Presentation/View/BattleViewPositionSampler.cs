@@ -54,7 +54,15 @@ namespace AbilityKit.Game.Flow
                 handle.HasLastSourceForward = true;
             }
 
-            if (horizontalMovement.sqrMagnitude > 0.000001f)
+            if (sourceForwardChanged)
+            {
+                // A snapshot can contain both the final movement and a new cast-facing turn.
+                // Consume that authoritative change before inferring a heading from displacement;
+                // otherwise LastSourceForward acknowledges a turn the view never displayed.
+                handle.PendingForward = horizontalForward;
+                handle.HasPendingForward = true;
+            }
+            else if (horizontalMovement.sqrMagnitude > 0.000001f)
             {
                 // Prefer the actual resolved movement direction. This covers
                 // locomotion sources that only update position/velocity.

@@ -29,9 +29,20 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
+            var requestIdentity = input.ExecutionContext.ExecutionSnapshot.SummonInputIdentity;
+            var requestTicket = summonSvc.ReserveInputRequest(in requestIdentity);
+            if (summonSvc.TryGetInputRequestResult(in requestTicket, out var priorAccepted, out var priorActorId))
+            {
+                if (priorAccepted &&
+                    (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, priorActorId, out var priorError) ||
+                     !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, 1, out priorError)))
+                    LogRejected(ctx, priorError);
+                return;
+            }
+
             if (!input.HasCasterActor)
             {
-                LogRejected(ctx, "requires caster actor.");
+                RejectRequest(summonSvc, in requestTicket, ctx, "requires caster actor.");
                 return;
             }
 
@@ -49,13 +60,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             if (summonId <= 0)
             {
-                LogRejected(ctx, "requires summon_id > 0.");
+                RejectRequest(summonSvc, in requestTicket, ctx, "requires summon_id > 0.");
                 return;
             }
             var positionMode = (SpawnSummonPositionMode)args.PositionMode;
             if (!input.TryResolveSpawnPosition(positionMode, out var spawnPos))
             {
-                LogRejected(ctx, $"cannot resolve spawn position. mode={positionMode}");
+                RejectRequest(summonSvc, in requestTicket, ctx, $"cannot resolve spawn position. mode={positionMode}");
                 return;
             }
 
@@ -63,11 +74,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var sourceContext = input.CreateSourceContext(casterActorId, summonId);
             if (float.IsNaN(args.DurationMs) || float.IsInfinity(args.DurationMs) || args.DurationMs < 0f || args.DurationMs > int.MaxValue)
             {
-                LogRejected(ctx, "invalid summon duration_ms.");
+                RejectRequest(summonSvc, in requestTicket, ctx, "invalid summon duration_ms.");
                 return;
             }
             var durationOverrideMs = (int)System.Math.Round(args.DurationMs);
-            if (summonSvc.TrySummon(casterActorId, summonId, in spawnPos, in forward,
+            if (summonSvc.TrySummon(in requestTicket, casterActorId, summonId, in spawnPos, in forward,
                     in sourceContext, out var summonActorId, durationOverrideMs))
             {
                 if (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, summonActorId, out var outputError) ||
@@ -78,6 +89,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 }
                 LogApplied(ctx, $"caster={casterActorId} summonId={summonId} summonActorId={summonActorId}");
             }
+        }
+
+        private void RejectRequest(MobaSummonService summonService,
+            in MobaSummonRequestTicket ticket, ExecCtx<IWorldResolver> ctx, string reason)
+        {
+            summonService.RejectInputRequest(in ticket);
+            LogRejected(ctx, reason);
         }
     }
 }

@@ -242,6 +242,65 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [UnityTest]
+        public IEnumerator UnifiedGameplayScene_LocalBattle_Player2RemainsAliveWithoutInputForFifteenSeconds()
+        {
+            var scene = DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            Assert.IsTrue(scene.IsValid(), "Unified gameplay scene should load for the local MOBA profile.");
+
+            var entry = Object.FindObjectOfType<GameEntry>();
+            Assert.IsNotNull(entry, "Demo scene must contain a GameEntry.");
+            InvokePrivate(entry, "Awake");
+            var flow = entry.Get<GameFlowDomain>();
+            Assert.IsNotNull(flow, "GameEntry must expose GameFlowDomain after Awake.");
+
+            flow.StartWithPersistentSettingsSync();
+            FlowTick(flow, 2);
+            if (!entry.TryGet(out BattleContext activeContext) || activeContext?.Session == null)
+            {
+                flow.EnterBattle(new TestBattleBootstrapper());
+            }
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 18000, "Battle flow did not reach InMatch.");
+
+            Assert.IsTrue(entry.TryGet(out BattleContext ctx), "BattleContext must be attached after entering battle.");
+            yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
+            Assert.IsTrue(ctx.Session.TryGetWorld(out var world), "Battle world must be available.");
+            Assert.IsTrue(world.Services.TryResolve<MobaPlayerActorMapService>(out var playerActors), "Player actor map must be available.");
+            Assert.IsTrue(playerActors.TryGetActorId(new PlayerId("p2"), out var player2ActorId), "Player p2 must have a spawned actor.");
+            Assert.IsTrue(world.Services.TryResolve<MobaActorLookupService>(out var actors), "Actor lookup must be available.");
+            Assert.IsTrue(actors.TryGetActorEntity(player2ActorId, out var player2) && player2 != null, "Player p2 actor must be registered.");
+
+            var startHp = player2.GetMobaAttrs().Hp;
+            var observedDeath = false;
+            var observedPositionReset = false;
+            var minHp = startHp;
+            var lastHp = startHp;
+            var lastPosition = player2.transform.Value.Position;
+
+            for (var frame = 0; frame < 450; frame++)
+            {
+                FlowTick(flow, 1);
+                if (!actors.TryGetActorEntity(player2ActorId, out player2) || player2 == null || !player2.hasTransform)
+                {
+                    Assert.Fail($"Player p2 actor disappeared during no-input simulation. frame={frame}, actorId={player2ActorId}");
+                }
+
+                var hp = player2.GetMobaAttrs().Hp;
+                var position = player2.transform.Value.Position;
+                minHp = Mathf.Min(minHp, hp);
+                observedDeath |= hp <= 0f;
+                observedPositionReset |= DistanceSquared(position, lastPosition) > 0.25f;
+                lastHp = hp;
+                lastPosition = position;
+                yield return null;
+            }
+
+            Assert.IsFalse(observedDeath || observedPositionReset,
+                $"Player p2 died or respawned without input. actorId={player2ActorId}, startHp={startHp:F3}, minHp={minHp:F3}, endHp={lastHp:F3}, " +
+                $"endPosition={lastPosition}, deathObserved={observedDeath}, positionResetObserved={observedPositionReset}, " +
+                $"frames={ctx.LastFrame}, logicTime={ctx.LogicTimeSeconds:F3}");
+        }
+
+        [UnityTest]
         public IEnumerator UnifiedGameplayScene_LocalBattle_LianPoSkill2RefreshesSkill1CooldownWhenEnemyInRange()
         {
             var scene = DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
@@ -434,6 +493,14 @@ namespace AbilityKit.Game.Test.UnitTest
             var dx = b.x - a.x;
             var dz = b.z - a.z;
             return Mathf.Sqrt(dx * dx + dz * dz);
+        }
+
+        private static float DistanceSquared(Vec3 a, Vec3 b)
+        {
+            var x = a.X - b.X;
+            var y = a.Y - b.Y;
+            var z = a.Z - b.Z;
+            return x * x + y * y + z * z;
         }
 
         private static string DescribeContextWaitFailure(BattleContext ctx)

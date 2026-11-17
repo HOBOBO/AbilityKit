@@ -182,10 +182,16 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillInputHandleResult TryHandleInputResult(int actorId, in SkillInputEvent evt,
             long diagnosticCommandId)
         {
+            return TryHandleInputResult(actorId, in evt, diagnosticCommandId, default);
+        }
+
+        public MobaSkillInputHandleResult TryHandleInputResult(int actorId, in SkillInputEvent evt,
+            long diagnosticCommandId, in MobaSummonInputIdentity summonInputIdentity)
+        {
             var result = ValidateSkillInput(actorId, in evt);
             if (result.Success)
             {
-                result = DispatchSkillInputPhase(actorId, in evt, diagnosticCommandId);
+                result = DispatchSkillInputPhase(actorId, in evt, diagnosticCommandId, in summonInputIdentity);
             }
 
             if (!result.Success &&
@@ -221,16 +227,16 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         private MobaSkillInputHandleResult DispatchSkillInputPhase(int actorId, in SkillInputEvent evt,
-            long diagnosticCommandId)
+            long diagnosticCommandId, in MobaSummonInputIdentity summonInputIdentity)
         {
             switch (evt.Phase)
             {
                 case SkillInputPhase.Press:
-                    return HandlePressInput(actorId, in evt, diagnosticCommandId);
+                    return HandlePressInput(actorId, in evt, diagnosticCommandId, in summonInputIdentity);
                 case SkillInputPhase.Hold:
                     return HandleHoldInput(actorId, in evt);
                 case SkillInputPhase.Release:
-                    return HandleReleaseInput(actorId, in evt, diagnosticCommandId);
+                    return HandleReleaseInput(actorId, in evt, diagnosticCommandId, in summonInputIdentity);
                 case SkillInputPhase.Cancel:
                     return HandleCancelInput(actorId, evt.Slot);
                 default:
@@ -239,10 +245,10 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         private MobaSkillInputHandleResult HandlePressInput(int actorId, in SkillInputEvent evt,
-            long diagnosticCommandId)
+            long diagnosticCommandId, in MobaSummonInputIdentity summonInputIdentity)
         {
             if (IsIndependentRecastInput(actorId, evt.Slot))
-                return TryStartCastFromInput(actorId, in evt, diagnosticCommandId);
+                return TryStartCastFromInput(actorId, in evt, diagnosticCommandId, in summonInputIdentity);
             if (_runnerRegistry.TrySignalRecast(actorId, evt.Slot))
             {
                 _runnerRegistry.TryUpdateRunningInput(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId);
@@ -254,7 +260,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return MobaSkillInputHandleResult.Accepted("skill.input.running.updated");
             }
 
-            return TryStartCastFromInput(actorId, in evt, diagnosticCommandId);
+            return TryStartCastFromInput(actorId, in evt, diagnosticCommandId, in summonInputIdentity);
         }
 
         private MobaSkillInputHandleResult HandleHoldInput(int actorId, in SkillInputEvent evt)
@@ -268,16 +274,16 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         private MobaSkillInputHandleResult HandleReleaseInput(int actorId, in SkillInputEvent evt,
-            long diagnosticCommandId)
+            long diagnosticCommandId, in MobaSummonInputIdentity summonInputIdentity)
         {
             if (IsIndependentRecastInput(actorId, evt.Slot))
-                return TryStartCastFromInput(actorId, in evt, diagnosticCommandId);
+                return TryStartCastFromInput(actorId, in evt, diagnosticCommandId, in summonInputIdentity);
             if (_runnerRegistry.TryUpdateRunningInputAndRelease(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId))
             {
                 return MobaSkillInputHandleResult.Accepted("skill.input.running.released");
             }
 
-            return TryStartCastFromInput(actorId, in evt, diagnosticCommandId);
+            return TryStartCastFromInput(actorId, in evt, diagnosticCommandId, in summonInputIdentity);
         }
 
         private bool IsIndependentRecastInput(int actorId, int slot) =>
@@ -295,15 +301,16 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         private MobaSkillInputHandleResult TryStartCastFromInput(int actorId, in SkillInputEvent evt,
-            long diagnosticCommandId)
+            long diagnosticCommandId, in MobaSummonInputIdentity summonInputIdentity)
         {
             var result = TryCastBySlotFromInput(actorId, evt.Slot, in evt.AimPos, in evt.AimDir,
-                evt.TargetActorId, diagnosticCommandId);
+                evt.TargetActorId, diagnosticCommandId, in summonInputIdentity);
             return MobaSkillInputHandleResult.FromCast(in result, "skill.input.cast.started");
         }
 
         private MobaSkillCastResult TryCastBySlotFromInput(int actorId, int slot, in Vec3 aimPos,
-            in Vec3 aimDir, int targetActorId, long diagnosticCommandId)
+            in Vec3 aimDir, int targetActorId, long diagnosticCommandId,
+            in MobaSummonInputIdentity summonInputIdentity)
         {
             if (!_loadout.TryGetSkillId(actorId, slot, out var skillId))
             {
@@ -315,7 +322,8 @@ namespace AbilityKit.Demo.Moba.Services
                 return result;
             }
             return CastSkillInternal(actorId, skillId, slot, in aimPos, in aimDir, true,
-                targetActorId, diagnosticCommandId: diagnosticCommandId);
+                targetActorId, diagnosticCommandId: diagnosticCommandId,
+                summonInputIdentity: summonInputIdentity);
         }
 
         public bool CastBySlot(int actorId, int slot, in Vec3 aimPos, in Vec3 aimDir, out string failReason)
@@ -412,7 +420,8 @@ namespace AbilityKit.Demo.Moba.Services
             bool hasAim,
             int targetActorId = 0,
             SkillCastPolicy? policyOverride = null,
-            long diagnosticCommandId = 0L)
+            long diagnosticCommandId = 0L,
+            MobaSummonInputIdentity summonInputIdentity = default)
         {
             var resolvedAimPos = aimPos;
             var resolvedAimDir = aimDir;
@@ -443,7 +452,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var input = new SkillCastPreparationInput(actorId, resolvedSkillId, slot, in resolvedAimPos,
-                in resolvedAimDir, hasAim, targetActorId, diagnosticCommandId);
+                in resolvedAimDir, hasAim, targetActorId, diagnosticCommandId, summonInputIdentity);
             var prepared = _preparation.Prepare(in input);
             MobaSkillCastResult result;
             if (!prepared.Success)
@@ -475,12 +484,17 @@ namespace AbilityKit.Demo.Moba.Services
                 return;
 
             var direction = Vec3.Zero;
-            if (request.TargetActorId > 0)
+            configs.TryGetSkillButtonTemplate(skill.SkillButtonTemplateId, out var button);
+            // A directional cast can acquire a target for qualification without
+            // becoming a locked-target cast. Its authored aim remains the facing ray.
+            var usesDirectionalAim = button != null && button.EnableAim &&
+                button.AimMode == (int)moba_luban.SkillAimMode.Direction &&
+                button.UsePointMode == (int)moba_luban.SkillUsePointMode.Aim;
+            if (request.TargetActorId > 0 && !usesDirectionalAim)
             {
                 // Locked-target skills opt in through their authored button template.
                 // This reuses the existing FaceToAim field so moving casts can leave it off.
                 if (skill.SkillButtonTemplateId <= 0 ||
-                    !configs.TryGetSkillButtonTemplate(skill.SkillButtonTemplateId, out var button) ||
                     button == null || !button.FaceToAim)
                     return;
 

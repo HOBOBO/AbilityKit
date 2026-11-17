@@ -31,6 +31,7 @@ namespace AbilityKit.Demo.Moba.Services
         public long RuntimeId { get; set; }
         public long SourceContextId { get; set; }
         public long DiagnosticCommandId { get; private set; }
+        public MobaSummonInputIdentity SummonInputIdentity { get; private set; }
         public string FailReason { get; set; }
 
         public int SkillId { get; private set; }
@@ -402,6 +403,7 @@ namespace AbilityKit.Demo.Moba.Services
             RuntimeId = RuntimeHandle.IsValid ? RuntimeHandle.RuntimeId : triggerContext?.RuntimeId ?? 0L;
             SourceContextId = triggerContext?.SourceContextId ?? 0L;
             DiagnosticCommandId = triggerContext?.DiagnosticCommandId ?? 0L;
+            SummonInputIdentity = request.SummonInputIdentity;
 
             SkillId = request.SkillId;
             CastFlowId = triggerContext?.CastFlowId ?? 0;
@@ -512,7 +514,8 @@ namespace AbilityKit.Demo.Moba.Services
                 TimelineNextEventIndex, InputReleased, SkillCooldownMs, FailReason,
                 SourceContextId, 0L, CastFlowId, ResolvedConfiguration,
                 IsAborted, StartTime, _characterModeId, _characterModePriority,
-                _characterModeOwnerId, _characterModeInstanceId, _hfsmParameterOwnerId, shared);
+                _characterModeOwnerId, _characterModeInstanceId, _hfsmParameterOwnerId,
+                SummonInputIdentity, shared);
         }
 
         internal void RestoreRollbackState(in SkillPipelineContextRollbackState state)
@@ -528,6 +531,7 @@ namespace AbilityKit.Demo.Moba.Services
             SkillCooldownMs = state.SkillCooldownMs;
             FailReason = state.FailReason;
             SourceContextId = state.SourceContextId;
+            SummonInputIdentity = state.SummonInputIdentity;
             DiagnosticCommandId = 0L; // Restored authority has no local diagnostic command association.
             CastFlowId = state.CastFlowId;
             ResolvedConfiguration = state.ResolvedConfiguration;
@@ -586,6 +590,11 @@ namespace AbilityKit.Demo.Moba.Services
             if (!TryGetCombatContextSource(out var source)) return false;
 
             snapshot = source.ToExecutionSnapshot();
+            if (SummonInputIdentity.IsValid)
+            {
+                var inputIdentity = SummonInputIdentity;
+                snapshot = snapshot.WithSummonInputIdentity(in inputIdentity);
+            }
             return snapshot.IsValid;
         }
 
@@ -637,6 +646,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             RuntimeHandle = default;
             RuntimeId = 0L;
+            SummonInputIdentity = default;
             DiagnosticCommandId = 0L;
             this.SetSourceContextId(0L);
             FailReason = null;
@@ -671,6 +681,7 @@ namespace AbilityKit.Demo.Moba.Services
             ResolvedSkillCastConfiguration resolvedConfiguration, bool isAborted, float startTime,
             string characterModeId, int characterModePriority, long characterModeOwnerId,
             long characterModeInstanceId, long hfsmParameterOwnerId,
+            MobaSummonInputIdentity summonInputIdentity,
             SkillSharedDataRollbackEntry[] sharedData)
         {
             ElapsedRaw = elapsedRaw;
@@ -694,6 +705,7 @@ namespace AbilityKit.Demo.Moba.Services
             CharacterModeOwnerId = characterModeOwnerId;
             CharacterModeInstanceId = characterModeInstanceId;
             HfsmParameterOwnerId = hfsmParameterOwnerId;
+            SummonInputIdentity = summonInputIdentity;
             SharedData = sharedData ?? Array.Empty<SkillSharedDataRollbackEntry>();
         }
 
@@ -718,6 +730,7 @@ namespace AbilityKit.Demo.Moba.Services
         public long CharacterModeOwnerId { get; }
         public long CharacterModeInstanceId { get; }
         public long HfsmParameterOwnerId { get; }
+        public MobaSummonInputIdentity SummonInputIdentity { get; }
         public SkillSharedDataRollbackEntry[] SharedData { get; }
     }
 
@@ -793,6 +806,7 @@ namespace AbilityKit.Demo.Moba.Services
         public readonly int TargetActorId;
         public readonly Vec3 AimPos;
         public readonly Vec3 AimDir;
+        public readonly MobaSummonInputIdentity SummonInputIdentity;
 
         public readonly MobaPreparedParameterSnapshot[] ParameterSnapshots;
         public readonly IWorldResolver WorldServices;
@@ -811,7 +825,8 @@ namespace AbilityKit.Demo.Moba.Services
             AbilityKit.Triggering.Eventing.IEventBus eventBus,
             IUnitFacade casterUnit,
             IUnitFacade targetUnit,
-            MobaPreparedParameterSnapshot[] parameterSnapshots = null)
+            MobaPreparedParameterSnapshot[] parameterSnapshots = null,
+            MobaSummonInputIdentity summonInputIdentity = default)
         {
             ParameterSnapshots = parameterSnapshots == null ? Array.Empty<MobaPreparedParameterSnapshot>() :
                 (MobaPreparedParameterSnapshot[])parameterSnapshots.Clone();
@@ -825,6 +840,7 @@ namespace AbilityKit.Demo.Moba.Services
             EventBus = eventBus;
             CasterUnit = casterUnit;
             TargetUnit = targetUnit;
+            SummonInputIdentity = summonInputIdentity;
         }
     }
 }

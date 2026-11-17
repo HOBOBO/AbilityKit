@@ -49,6 +49,10 @@ namespace AbilityKit.Game.Flow
         /// </summary>
         public bool AlwaysLookAtTarget = true;
 
+        public float MinFieldOfView = 28f;
+        public float MaxFieldOfView = 65f;
+        public float ScrollZoomSpeed = 4f;
+
         public static BattleCameraConfig Default => new BattleCameraConfig();
     }
 }

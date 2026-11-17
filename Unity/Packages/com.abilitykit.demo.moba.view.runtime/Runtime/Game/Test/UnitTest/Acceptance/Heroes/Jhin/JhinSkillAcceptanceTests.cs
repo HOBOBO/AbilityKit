@@ -190,7 +190,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 AssertPipelineTag(harness, SkillId, 0);
                 AssertPipelineTag(harness, WSkillId, 3015);
                 AssertPipelineTag(harness, ESkillId, 0);
-                AssertPipelineTag(harness, RSkillId, 3015);
+                AssertPipelineTag(harness, RSkillId, 3019);
                 AssertPipelineTag(harness, 30010501, 0);
                 AssertPipelineTag(harness, 30010502, 0);
 
@@ -200,6 +200,15 @@ namespace AbilityKit.Game.Test.UnitTest
                     "The persistent R mode Buff must own the movement gate between separate shot pipelines.");
 
                 var tagTemplates = new MobaContinuousTagTemplateRegistry(harness.Config);
+                Assert.IsTrue(tagTemplates.TryGet(3019, out var entryGate),
+                    "R entry uses the approved casting movement/turn gate with the legacy movement mask.");
+                Assert.AreEqual((ulong)MobaTagResultFlags.CannotMove, entryGate.ExecutionBlockedResultMask);
+                foreach (var tagName in new[] { "State.Casting.CannotMove", "State.Casting.CannotTurn" })
+                {
+                    Assert.IsTrue(MobaGameplayTagCatalog.TryResolve(tagName, out var tag));
+                    Assert.IsTrue(entryGate.ApplicationTags.HasTag(tag),
+                        "The entry Pipeline must grant " + tagName);
+                }
                 Assert.IsTrue(tagTemplates.TryGet(3015, out var movementGate),
                     "The shared autonomous-movement gate template should be published.");
                 Assert.AreEqual((ulong)MobaTagResultFlags.CannotMove,

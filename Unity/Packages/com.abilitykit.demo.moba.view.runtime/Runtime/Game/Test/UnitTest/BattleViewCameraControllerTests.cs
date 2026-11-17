@@ -47,6 +47,36 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void ScrollZoom_AdjustsFieldOfViewAndClampsToConfiguredRange()
+        {
+            var state = CreateCamera(new BattleCameraConfig
+            {
+                MinFieldOfView = 28f,
+                MaxFieldOfView = 65f,
+                ScrollZoomSpeed = 4f,
+            });
+            try
+            {
+                state.camera.fieldOfView = 50f;
+                state.controller.ApplyScrollZoom(1f);
+                Assert.AreEqual(46f, state.camera.fieldOfView, 0.001f,
+                    "Scrolling forward should zoom in by narrowing the field of view.");
+
+                state.controller.ApplyScrollZoom(-100f);
+                Assert.AreEqual(65f, state.camera.fieldOfView, 0.001f,
+                    "Zooming out should stop at the configured maximum field of view.");
+
+                state.controller.ApplyScrollZoom(100f);
+                Assert.AreEqual(28f, state.camera.fieldOfView, 0.001f,
+                    "Zooming in should stop at the configured minimum field of view.");
+            }
+            finally
+            {
+                DestroyCamera(state.camera != null ? state.camera.gameObject : null);
+            }
+        }
+
+        [Test]
         public void AuxiliaryCamera_DoesNotFallBackToMainCamera()
         {
             var go = new GameObject("main-camera");

@@ -5,7 +5,8 @@ namespace AbilityKit.Demo.Moba.Services
     internal readonly struct SkillCastPreparationInput
     {
         public SkillCastPreparationInput(int actorId, int skillId, int slot, in Vec3 aimPos,
-            in Vec3 aimDir, bool hasAim, int targetActorId, long diagnosticCommandId = 0L)
+            in Vec3 aimDir, bool hasAim, int targetActorId, long diagnosticCommandId = 0L,
+            MobaSummonInputIdentity summonInputIdentity = default)
         {
             ActorId = actorId;
             SkillId = skillId;
@@ -15,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Services
             HasAim = hasAim;
             TargetActorId = targetActorId;
             DiagnosticCommandId = diagnosticCommandId;
+            SummonInputIdentity = summonInputIdentity;
         }
 
         public int ActorId { get; }
@@ -25,5 +27,6 @@ namespace AbilityKit.Demo.Moba.Services
         public bool HasAim { get; }
         public int TargetActorId { get; }
         public long DiagnosticCommandId { get; }
+        public MobaSummonInputIdentity SummonInputIdentity { get; }
     }
 }

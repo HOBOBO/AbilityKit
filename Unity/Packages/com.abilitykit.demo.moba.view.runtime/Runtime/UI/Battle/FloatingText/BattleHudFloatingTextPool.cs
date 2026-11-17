@@ -27,6 +27,7 @@ namespace AbilityKit.Game.Flow
                 {
                     Root = go.GetComponent<RectTransform>(),
                     Text = go.GetComponentInChildren<UnityEngine.UI.Text>(),
+                    Outline = go.GetComponentInChildren<UnityEngine.UI.Outline>(),
                 };
             }
 

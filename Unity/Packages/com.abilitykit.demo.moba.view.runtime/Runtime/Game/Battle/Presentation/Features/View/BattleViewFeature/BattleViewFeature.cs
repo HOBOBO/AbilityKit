@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Game.Flow.Modules;
+using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
@@ -82,6 +83,10 @@ namespace AbilityKit.Game.Flow
             }
 
             CameraController?.Tick(_ctx.EntityQuery, deltaTime);
+            if (_ctx.Plan.HostMode == BattleHostMode.Local && CameraController != null)
+            {
+                CameraController.ApplyScrollZoom(Input.mouseScrollDelta.y);
+            }
         }
 
         public void RebindAll()

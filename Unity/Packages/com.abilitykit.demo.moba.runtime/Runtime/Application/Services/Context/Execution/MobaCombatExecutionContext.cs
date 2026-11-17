@@ -51,6 +51,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaTriggerExecutionSnapshot ExecutionSnapshot { get; }
         /// <summary>与本次执行关联的技能运行时句柄（如有）。</summary>
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
+        public MobaSummonInputIdentity SummonInputIdentity => ExecutionSnapshot.SummonInputIdentity;
         /// <summary>用于溯源与调试关联的帧号。</summary>
         public int Frame { get; }
         /// <summary>Authoritative gameplay facts frozen for this execution boundary.</summary>
@@ -310,7 +311,8 @@ namespace AbilityKit.Demo.Moba.Services
                 TriggerId,
                 configId,
                 Frame,
-                SkillRuntimeHandle);
+                SkillRuntimeHandle,
+                SummonInputIdentity);
             return new MobaCombatExecutionContext(
                 Payload,
                 lineageInput,

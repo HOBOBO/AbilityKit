@@ -1,16 +1,95 @@
 using System.Linq;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Input;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
+using AbilityKit.Demo.Moba.Attributes;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
 public sealed class MobaSummonMovementHandoffTests
 {
+    [Theory]
+    [InlineData(.4f)]
+    [InlineData(7.5f)]
+    public void Moving_owner_does_not_pull_tibbers_out_of_combat_or_reverse_its_clear_follow_path(float enemyDistance)
+    {
+        var start = BattleStartConfig.CreateDefault();
+        foreach (var player in start.Players) player.EnableBrainOnSpawn = false;
+        using var battle = new ConsoleBattleBootstrapper(start);
+        battle.Initialize();
+        battle.Start();
+        for (var i = 0; i < 8 && battle.Context.EcsWorld == null; i++) battle.Tick();
+        battle.SetupBattle();
+        for (var i = 0; i < 10; i++) battle.Tick();
+        var services = battle.RuntimeServices!;
+        var registry = services.Resolve<MobaActorRegistry>();
+        var owner = registry.Entries.First(p => p.Value.hasTeam && p.Value.hasTransform).Value;
+        var enemy = registry.Entries.First(p => p.Value.hasTeam && p.Value.hasTransform &&
+            p.Value.team.Value != owner.team.Value).Value;
+        foreach (var pair in registry.Entries)
+            if (pair.Value.hasTransform) Place(pair.Value, new Vec3(40f + pair.Key, 0f, 40f));
+        Place(owner, new Vec3(4f, 0f, -10f));
+        var spawn = new Vec3(-10f, 0f, -10f);
+        Assert.True(services.Resolve<MobaSummonService>().TrySummon(owner.actorId.Value, 30030502,
+            in spawn, Vec3.Right, default, out var id));
+        Assert.True(registry.TryGet(id, out var summon));
+        battle.Tick();
+        Assert.True(services.Resolve<MobaBrainService>().TryGetBehavior(summon.actorBrain.BehaviorInstanceId, out var behavior));
+        var trace = new System.Text.StringBuilder();
+        for (var i = 0; i < 100; i++)
+        {
+            // Continuous forward travel with a shallow bend, crossing navigation cells/repath thresholds.
+            Place(owner, new Vec3(4f + i * .08f, 0f, -10f + i * .01f));
+            var before = summon.transform.Value.Position;
+            battle.Tick();
+            var after = summon.transform.Value.Position;
+            var intent = MobaBrainIntentReader.Read(behavior);
+            trace.AppendLine($"{i}: {before} -> {after}, forward={summon.transform.Value.Forward}, target={intent.MoveTarget}, kind={intent.MovementKind}");
+            Assert.True(after.X >= before.X - .001f, trace.ToString());
+            if ((after - before).Magnitude > .001f)
+                Assert.True(summon.transform.Value.Forward.X > .8f, trace.ToString());
+        }
+
+        var combatPosition = summon.transform.Value.Position;
+        var enemyPosition = combatPosition + new Vec3(0f, 0f, enemyDistance);
+        Place(enemy, enemyPosition);
+        var enemyAttrs = new MobaAttrs(enemy);
+        enemyAttrs.SetBase(BattleAttributeType.MAX_HP, 10000f);
+        enemyAttrs.SetBase(BattleAttributeType.PER_SECOND_BLOOD_R, 0f);
+        enemyAttrs.Hp = 10000f;
+        var hpBefore = new MobaAttrs(enemy).Hp;
+        for (var i = 0; i < 70; i++)
+        {
+            Place(owner, new Vec3(20f + i * .08f, 0f, -10f));
+            battle.Tick();
+            var intent = MobaBrainIntentReader.Read(behavior);
+            Assert.Equal(MobaActorMovementIntentKind.Hold, intent.MovementKind);
+            Assert.True((summon.transform.Value.Position - combatPosition).Magnitude < .05f,
+                $"Combat was pulled toward the moving owner at {i}: {summon.transform.Value.Position}");
+        }
+        Assert.True(new MobaAttrs(enemy).Hp < hpBefore, "Combat must cause actual attack damage.");
+        Place(enemy, combatPosition + new Vec3(0f, 0f, 10f));
+        var chased = false;
+        trace.Clear();
+        for (var i = 0; i < 45; i++)
+        {
+            battle.Tick();
+            var chase = MobaBrainIntentReader.Read(behavior);
+            trace.AppendLine($"{i}: pos={summon.transform.Value.Position}, kind={chase.MovementKind}, target={chase.MoveTarget}, enemy={enemy.transform.Value.Position}, hp={new MobaAttrs(enemy).Hp}, state={behavior.Decision.CurrentState}");
+            if (chase.MovementKind == MobaActorMovementIntentKind.TargetPosition)
+            {
+                Assert.Equal(enemy.transform.Value.Position, chase.MoveTarget);
+                chased = true;
+            }
+        }
+        Assert.True(chased && summon.transform.Value.Position.Z > combatPosition.Z + .1f, trace.ToString());
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(30030502)]

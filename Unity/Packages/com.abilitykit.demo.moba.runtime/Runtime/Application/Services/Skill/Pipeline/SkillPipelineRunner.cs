@@ -312,7 +312,8 @@ namespace AbilityKit.Demo.Moba.Services
             var aimDir = context.AimDir;
             entry.Request = new SkillCastRequest(context.SkillId, context.SkillSlot, context.CasterActorId,
                 context.TargetActorId, in aimPos, in aimDir, entry.Request.WorldServices,
-                entry.Request.EventBus, context.CasterUnit, context.TargetUnit, context.GetPreparedParameterSnapshots());
+                entry.Request.EventBus, context.CasterUnit, context.TargetUnit,
+                context.GetPreparedParameterSnapshots(), context.SummonInputIdentity);
             if (entry.TriggerContext != null)
             {
                 entry.TriggerContext.AimPos = aimPos;

@@ -124,8 +124,14 @@ namespace AbilityKit.Game.Flow
             if (floating.Text != null)
             {
                 var color = floating.Text.color;
-                color.a = 1f - t;
+                color.a = t < 0.72f ? 1f : 1f - (t - 0.72f) / 0.28f;
                 floating.Text.color = color;
+                if (floating.Outline != null)
+                {
+                    var outlineColor = floating.Outline.effectColor;
+                    outlineColor.a = color.a;
+                    floating.Outline.effectColor = outlineColor;
+                }
             }
             return true;
         }

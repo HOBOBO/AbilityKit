@@ -53,16 +53,39 @@ namespace AbilityKit.Game.Flow.Battle.View
         {
             var go = new GameObject("DamageText");
             var textMesh = go.AddComponent<TextMesh>();
-            textMesh.fontSize = 42;
-            textMesh.characterSize = 0.06f;
+            textMesh.fontSize = 54;
+            textMesh.characterSize = 0.075f;
             textMesh.anchor = TextAnchor.MiddleCenter;
             textMesh.alignment = TextAlignment.Center;
+
+            var outlineTexts = new TextMesh[4];
+            var offsets = new[]
+            {
+                new Vector3(-0.012f, 0f, 0f), new Vector3(0.012f, 0f, 0f),
+                new Vector3(0f, -0.012f, 0f), new Vector3(0f, 0.012f, 0f),
+            };
+            for (var i = 0; i < outlineTexts.Length; i++)
+            {
+                var outline = new GameObject("Outline");
+                outline.transform.SetParent(go.transform, false);
+                outline.transform.localPosition = offsets[i];
+                var outlineText = outline.AddComponent<TextMesh>();
+                outlineText.font = textMesh.font;
+                outlineText.fontSize = textMesh.fontSize;
+                outlineText.characterSize = textMesh.characterSize;
+                outlineText.anchor = textMesh.anchor;
+                outlineText.alignment = textMesh.alignment;
+                outlineText.color = Color.black;
+                outlineText.GetComponent<MeshRenderer>().sortingOrder = -1;
+                outlineTexts[i] = outlineText;
+            }
 
             return new BattleWorldFloatingText
             {
                 GameObject = go,
                 Text = textMesh,
-                Lifetime = 0.9f,
+                OutlineTexts = outlineTexts,
+                Lifetime = 1.1f,
                 Velocity = new Vector3(0f, 1.5f, 0f),
             };
         }

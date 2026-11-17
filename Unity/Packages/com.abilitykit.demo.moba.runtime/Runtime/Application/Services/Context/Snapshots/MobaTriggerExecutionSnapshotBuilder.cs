@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Services
         private int _configId;
         private int _frame;
         private MobaSkillCastRuntimeHandle _skillRuntimeHandle;
+        private MobaSummonInputIdentity _summonInputIdentity;
 
         private MobaTriggerExecutionSnapshotBuilder()
         {
@@ -69,6 +70,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (snapshot.Frame != 0) _frame = snapshot.Frame;
             var skillRuntimeHandle = snapshot.SkillRuntimeHandle;
             if (skillRuntimeHandle.IsValid) MergeSkillRuntimeHandle(in skillRuntimeHandle);
+            if (snapshot.SummonInputIdentity.IsValid) _summonInputIdentity = snapshot.SummonInputIdentity;
             return this;
         }
 
@@ -142,7 +144,8 @@ namespace AbilityKit.Demo.Moba.Services
                 _triggerId,
                 _configId,
                 _frame,
-                _skillRuntimeHandle);
+                _skillRuntimeHandle,
+                _summonInputIdentity);
         }
     }
 }

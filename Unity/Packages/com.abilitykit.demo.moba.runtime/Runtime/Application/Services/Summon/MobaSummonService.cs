@@ -21,10 +21,62 @@ using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    public readonly struct MobaSummonInputIdentity : IEquatable<MobaSummonInputIdentity>
+    {
+        public MobaSummonInputIdentity(int actorId, int entityVersion, long inputSequence, int frame)
+        { ActorId = actorId; EntityVersion = entityVersion; InputSequence = inputSequence; Frame = frame; }
+        public int ActorId { get; }
+        public int EntityVersion { get; }
+        public long InputSequence { get; }
+        public int Frame { get; }
+        public bool IsValid => ActorId > 0 && EntityVersion > 0 && InputSequence > 0 && Frame >= 0;
+        public bool Equals(MobaSummonInputIdentity other) => ActorId == other.ActorId && EntityVersion == other.EntityVersion && InputSequence == other.InputSequence && Frame == other.Frame;
+        public override bool Equals(object obj) => obj is MobaSummonInputIdentity other && Equals(other);
+        public override int GetHashCode() { unchecked { var h = ActorId; h = h * 397 ^ EntityVersion; h = h * 397 ^ InputSequence.GetHashCode(); return h * 397 ^ Frame; } }
+    }
+
+    public readonly struct MobaSummonRequestTicket
+    {
+        internal MobaSummonRequestTicket(MobaSummonInputIdentity identity, int ordinal)
+        { Identity = identity; Ordinal = ordinal; }
+        public MobaSummonInputIdentity Identity { get; }
+        public int Ordinal { get; }
+        public bool IsValid => Identity.IsValid && Ordinal > 0;
+    }
+
     internal sealed class MobaSummonRollbackState
     {
-        public MobaSummonRollbackState(MobaSummonRollbackEntry[] entries) => Entries = entries;
+        public MobaSummonRollbackState(MobaSummonRollbackEntry[] entries, MobaSummonRequestResult[] requests,
+            KeyValuePair<MobaSummonInputIdentity, int>[] nextOrdinals)
+        { Entries = entries; Requests = requests; NextOrdinals = nextOrdinals; }
         public MobaSummonRollbackEntry[] Entries { get; }
+        public MobaSummonRequestResult[] Requests { get; }
+        public KeyValuePair<MobaSummonInputIdentity, int>[] NextOrdinals { get; }
+    }
+
+    internal readonly struct MobaSummonRequestKey : IEquatable<MobaSummonRequestKey>
+    {
+        public MobaSummonRequestKey(MobaSummonInputIdentity identity, int ordinal)
+        { ActorId = identity.ActorId; EntityVersion = identity.EntityVersion; InputSequence = identity.InputSequence; Frame = identity.Frame; Ordinal = ordinal; }
+        public int ActorId { get; }
+        public int EntityVersion { get; }
+        public long InputSequence { get; }
+        public int Frame { get; }
+        public int Ordinal { get; }
+        public MobaSummonInputIdentity Identity => new MobaSummonInputIdentity(ActorId, EntityVersion, InputSequence, Frame);
+        public bool Equals(MobaSummonRequestKey other) => ActorId == other.ActorId && EntityVersion == other.EntityVersion && InputSequence == other.InputSequence && Frame == other.Frame && Ordinal == other.Ordinal;
+        public override bool Equals(object obj) => obj is MobaSummonRequestKey other && Equals(other);
+        public override int GetHashCode() { unchecked { var h = ActorId; h = h * 397 ^ EntityVersion; h = h * 397 ^ InputSequence.GetHashCode(); h = h * 397 ^ Frame; return h * 397 ^ Ordinal; } }
+    }
+
+    internal readonly struct MobaSummonRequestResult
+    {
+        public MobaSummonRequestResult(MobaSummonRequestKey key, bool accepted, int summonActorId)
+        { Key = key; Accepted = accepted; SummonActorId = summonActorId; Frame = key.Frame; }
+        public MobaSummonRequestKey Key { get; }
+        public bool Accepted { get; }
+        public int SummonActorId { get; }
+        public int Frame { get; }
     }
 
     internal readonly struct MobaSummonRollbackEntry
@@ -79,6 +131,8 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly Dictionary<int, List<int>> _summonsByRootOwner = new Dictionary<int, List<int>>();
         private readonly Dictionary<int, SummonSourceContext> _sourceBySummonActorId = new Dictionary<int, SummonSourceContext>();
         private readonly Dictionary<int, MobaSkillRuntimeRetainHandle> _skillRuntimeRetainsBySummonActorId = new Dictionary<int, MobaSkillRuntimeRetainHandle>();
+        private readonly Dictionary<MobaSummonRequestKey, MobaSummonRequestResult> _requestResults = new Dictionary<MobaSummonRequestKey, MobaSummonRequestResult>();
+        private readonly Dictionary<MobaSummonInputIdentity, int> _nextRequestOrdinals = new Dictionary<MobaSummonInputIdentity, int>();
         private readonly List<int> _queryBuffer = new List<int>(16);
 
         public int ActiveCount => CountAllTrackedSummons();
@@ -101,7 +155,11 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
             entries.Sort((left, right) => left.ActorId.CompareTo(right.ActorId));
-            return new MobaSummonRollbackState(entries.ToArray());
+            var requests = new List<MobaSummonRequestResult>(_requestResults.Values);
+            requests.Sort((left, right) => CompareRequestKeys(left.Key, right.Key));
+            var nextOrdinals = new List<KeyValuePair<MobaSummonInputIdentity, int>>(_nextRequestOrdinals);
+            nextOrdinals.Sort((left, right) => CompareInputIdentities(left.Key, right.Key));
+            return new MobaSummonRollbackState(entries.ToArray(), requests.ToArray(), nextOrdinals.ToArray());
         }
 
         internal void RestoreRollbackState(MobaSummonRollbackState state)
@@ -109,6 +167,8 @@ namespace AbilityKit.Demo.Moba.Services
             _summonsByRootOwner.Clear();
             _sourceBySummonActorId.Clear();
             _skillRuntimeRetainsBySummonActorId.Clear();
+            _requestResults.Clear();
+            _nextRequestOrdinals.Clear();
             foreach (var entry in state.Entries)
             {
                 if (_registry != null && _registry.TryGet(entry.ActorId, out var entity) && entity != null)
@@ -124,6 +184,10 @@ namespace AbilityKit.Demo.Moba.Services
                 if (entry.Source.IsValid) _sourceBySummonActorId.Add(entry.ActorId, entry.Source);
                 if (entry.Retain.IsValid) _skillRuntimeRetainsBySummonActorId.Add(entry.ActorId, entry.Retain);
             }
+            foreach (var request in state.Requests ?? Array.Empty<MobaSummonRequestResult>())
+                _requestResults.Add(request.Key, request);
+            foreach (var ordinal in state.NextOrdinals ?? Array.Empty<KeyValuePair<MobaSummonInputIdentity, int>>())
+                _nextRequestOrdinals.Add(ordinal.Key, ordinal.Value);
             _queryBuffer.Clear();
             _lifecycle?.SetActive(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
         }
@@ -158,6 +222,11 @@ namespace AbilityKit.Demo.Moba.Services
         [MobaModifierConsumes(MobaSkillParamModifierKeys.Summon.Ids.InheritRatioScale,
             MobaParameterStage.SummonCreate, MobaModifierSampleTiming.CreateSnapshot)]
         private bool TrySummonInternal(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward, in SummonSourceContext sourceContext, out int summonActorId, int durationOverrideMs = 0)
+        {
+            return TrySummonInternalCore(casterActorId, summonId, in pos, hasForward, in forward, in sourceContext, out summonActorId, durationOverrideMs);
+        }
+
+        private bool TrySummonInternalCore(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward, in SummonSourceContext sourceContext, out int summonActorId, int durationOverrideMs = 0)
         {
             summonActorId = 0;
             if (casterActorId <= 0) return false;
@@ -619,6 +688,93 @@ namespace AbilityKit.Demo.Moba.Services
 
             _queryBuffer.Clear();
             return removed;
+        }
+
+        public MobaSummonRequestTicket ReserveInputRequest(in MobaSummonInputIdentity identity)
+        {
+            if (!identity.IsValid) return default;
+            _nextRequestOrdinals.TryGetValue(identity, out var ordinal);
+            if (ordinal == int.MaxValue) throw new InvalidOperationException("Summon request ordinal overflow.");
+            ordinal++;
+            _nextRequestOrdinals[identity] = ordinal;
+            return new MobaSummonRequestTicket(identity, ordinal);
+        }
+
+        public bool TryGetInputRequestResult(in MobaSummonRequestTicket ticket, out bool accepted, out int summonActorId)
+        {
+            if (ticket.IsValid && _requestResults.TryGetValue(new MobaSummonRequestKey(ticket.Identity, ticket.Ordinal), out var result))
+            {
+                accepted = result.Accepted;
+                summonActorId = result.SummonActorId;
+                return true;
+            }
+            accepted = false;
+            summonActorId = 0;
+            return false;
+        }
+
+        public bool TrySummon(
+            in MobaSummonRequestTicket ticket,
+            int casterActorId,
+            int summonId,
+            in Vec3 pos,
+            in Vec3 forward,
+            in SummonSourceContext sourceContext,
+            out int summonActorId,
+            int durationOverrideMs = 0)
+        {
+            if (!ticket.IsValid)
+                return TrySummonInternal(casterActorId, summonId, in pos, true, in forward, in sourceContext, out summonActorId, durationOverrideMs);
+            var key = new MobaSummonRequestKey(ticket.Identity, ticket.Ordinal);
+            if (_requestResults.TryGetValue(key, out var prior))
+            {
+                summonActorId = prior.SummonActorId;
+                return prior.Accepted;
+            }
+            var accepted = TrySummonInternalCore(casterActorId, summonId, in pos, true, in forward,
+                in sourceContext, out summonActorId, durationOverrideMs);
+            _requestResults.Add(key, new MobaSummonRequestResult(key, accepted, summonActorId));
+            return accepted;
+        }
+
+        public void RejectInputRequest(in MobaSummonRequestTicket ticket)
+        {
+            if (!ticket.IsValid) return;
+            var key = new MobaSummonRequestKey(ticket.Identity, ticket.Ordinal);
+            if (!_requestResults.ContainsKey(key))
+                _requestResults.Add(key, new MobaSummonRequestResult(key, false, 0));
+        }
+
+        public void PruneConfirmedRequests(int confirmedFrame)
+        {
+            if (confirmedFrame < 0 || _requestResults.Count == 0) return;
+            var expired = new List<MobaSummonRequestKey>();
+            foreach (var pair in _requestResults)
+                if (pair.Value.Frame <= confirmedFrame) expired.Add(pair.Key);
+            for (var i = 0; i < expired.Count; i++)
+                _requestResults.Remove(expired[i]);
+        }
+
+        private static int CompareRequestKeys(MobaSummonRequestKey left, MobaSummonRequestKey right)
+        {
+            var value = left.ActorId.CompareTo(right.ActorId);
+            if (value != 0) return value;
+            value = left.EntityVersion.CompareTo(right.EntityVersion);
+            if (value != 0) return value;
+            value = left.InputSequence.CompareTo(right.InputSequence);
+            if (value != 0) return value;
+            value = left.Frame.CompareTo(right.Frame);
+            return value != 0 ? value : left.Ordinal.CompareTo(right.Ordinal);
+        }
+
+        private static int CompareInputIdentities(MobaSummonInputIdentity left, MobaSummonInputIdentity right)
+        {
+            var value = left.ActorId.CompareTo(right.ActorId);
+            if (value != 0) return value;
+            value = left.EntityVersion.CompareTo(right.EntityVersion);
+            if (value != 0) return value;
+            value = left.InputSequence.CompareTo(right.InputSequence);
+            return value != 0 ? value : left.Frame.CompareTo(right.Frame);
         }
 
         /// <summary>
@@ -1250,6 +1406,8 @@ namespace AbilityKit.Demo.Moba.Services
             _queryBuffer.Clear();
             _summonsByRootOwner.Clear();
             _sourceBySummonActorId.Clear();
+            _requestResults.Clear();
+            _nextRequestOrdinals.Clear();
             ReleaseAllSkillRuntimes();
             _lifecycle?.SetActive(MobaTemporaryEntityKind.Summon, 0, CurrentFrame);
         }

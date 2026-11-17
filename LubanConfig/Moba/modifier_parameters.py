@@ -5,11 +5,11 @@ import re
 
 VALUE_KINDS = {1: "ReferenceId", 2: "Integer", 3: "Float"}
 RESOLVE_PHASES = {1: "Action", 2: "Launch", 3: "BuffApply", 4: "AreaSpawn",
-                  5: "Emit", 6: "ProjectileSpawn", 7: "Hit", 8: "SummonCreate"}
+                  5: "Emit", 6: "ProjectileSpawn", 7: "Hit", 8: "SummonCreate", 9: "CastCommit"}
 RUNTIME_STAGES = {"Action": "CastPrepare", "Launch": "LauncherCreate",
                   "BuffApply": "BuffApply", "AreaSpawn": "AreaSpawn",
                   "Emit": "Emit", "ProjectileSpawn": "ProjectileSpawn",
-                  "Hit": "Hit", "SummonCreate": "SummonCreate"}
+                  "Hit": "Hit", "SummonCreate": "SummonCreate", "CastCommit": "CastCommit"}
 LEGACY_KEYS = {
     1: ("Projectile", "LauncherId", 30, 1, 1),
     2: ("Projectile", "ProjectileId", 30, 2, 1),
@@ -240,6 +240,7 @@ CONSUMER_CONTRACTS = {
     10002: ("Skill", "ResourceCost", "Action", "SkillCastPreparationService", "CreateSnapshot"),
     10003: ("Skill", "CooldownMs", "Action", "SkillCastPreparationService", "CreateSnapshot"),
     10004: ("Skill", "CastRange", "Action", "SkillCastPreparationService", "CreateSnapshot"),
+    10005: ("Skill", "CooldownCommitFactor", "CastCommit", "MobaSkillEconomyService", "EventSample"),
     20001: ("Buff", "DurationMs", "BuffApply", "BuffApplyFlow", "CreateSnapshot"),
     30001: ("Emitter", "LauncherId", "Launch", "ShootProjectilePlanActionModule", "CreateSnapshot"),
     30002: ("Emitter", "CountPerShot", "Emit", "MobaModifierProjectileSpawnPatternProvider", "EventSample"),

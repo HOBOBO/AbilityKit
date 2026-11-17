@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Acceptance.LiveSim;
@@ -201,6 +202,30 @@ public sealed class SevenHeroAlignmentRuntimeTests
         if (finalShot) Assert.Equal(0, b.Setup.CountActorBuffs(b.Caster, 32010404));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Jhin_R_ground_entry_receives_the_submitted_facing_before_its_cue(bool targetInSector)
+    {
+        using var b = new Battle(3001);
+        if (targetInSector) b.Spawn("off_axis", 3007, 2, .5f, 10);
+        var snapshots = new List<WorldStateSnapshot>();
+        var provider = b.Services.Resolve<IWorldStateSnapshotBatchProvider>();
+        // Drain startup events, then turn away from the previous +Z pose.
+        provider.CollectSnapshots(new AbilityKit.Ability.FrameSync.FrameIndex(100), snapshots, 32);
+        snapshots.Clear();
+        Assert.True(b.Skills.TryCastBySlot(b.Caster, 4, new Vec3(20, 0, 0), Vec3.Right).Success);
+        provider.CollectSnapshots(new AbilityKit.Ability.FrameSync.FrameIndex(101), snapshots, 32);
+        var transformIndex = snapshots.FindIndex(s => s.OpCode == AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ActorTransform);
+        var cueIndex = snapshots.FindIndex(s => s.OpCode == AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.PresentationCue);
+        Assert.True(transformIndex >= 0 && cueIndex >= 0);
+        var pose = AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotCodec
+            .Deserialize(snapshots[transformIndex].Payload).Single(e => e.ActorId == b.Caster);
+        Assert.True(pose.ForwardX > .999f);
+        Assert.True(transformIndex < cueIndex,
+            "A one-time actor attachment must see this frame's facing before consuming its entry cue.");
+    }
+
     [Fact]
     public void Jhin_R_respects_new_input_rejects_outside_without_consumption_and_expires_into_normal_mode()
     {
@@ -231,6 +256,13 @@ public sealed class SevenHeroAlignmentRuntimeTests
         b.Setup.TickMilliseconds(1100);
         Assert.True(b.Setup.GetActorHp(right) < hpRight);
         Assert.True(hfsm.TryGetAimSnapshot("curtain_call", out _, out var retained));
+        Assert.Equal(axis, retained);
+        // 45 degrees is inside a cone recentered on the previous right shot,
+        // but outside the original 30-degree half cone. It must still fail.
+        var outsideOriginal = b.Skills.TryCastBySlot(b.Caster, 5, new Vec3(8, 0, 8),
+            DeterministicMathBridge.Normalize(new Vec3(8, 0, 8)));
+        Assert.False(outsideOriginal.Success);
+        Assert.True(hfsm.TryGetAimSnapshot("curtain_call", out _, out retained));
         Assert.Equal(axis, retained);
         Assert.True(b.Services.Resolve<MobaSkillLoadoutService>().TryGetSkillId(b.Caster, 5, out var modeAttack));
         Assert.Equal(30010501, modeAttack);
@@ -274,13 +306,16 @@ public sealed class SevenHeroAlignmentRuntimeTests
         Assert.False(cues.TryGetActiveCue($"gameplay-counter:{b.Caster}:30010401", out _));
         b.Actor(b.Caster).skillLoadout.ActiveSkills[3].CooldownEndTimeMs = 0;
         b.Set(b.Caster, "mana", 500);
-        Assert.True(b.Skills.TryCastBySlot(b.Caster, 4, default, Vec3.Forward).Success);
+        Assert.True(b.Skills.TryCastBySlot(b.Caster, 4, default, Vec3.Right).Success);
         b.Setup.TickMilliseconds(700);
+        Assert.True(hfsm.TryGetAimSnapshot("curtain_call", out _, out var newAxis));
+        Assert.Equal(Vec3.Right, newAxis);
+        Assert.False(b.Skills.TryCastBySlot(b.Caster, 5, default, Vec3.Forward).Success);
         for (var i = 0; i < 3; i++)
         {
             Assert.True(b.Services.Resolve<MobaSkillLoadoutService>().TryGetSkillId(b.Caster, 5, out var skill));
             Assert.Equal(30010501, skill);
-            Assert.True(b.Skills.TryCastBySlot(b.Caster, 5, default, Vec3.Forward).Success);
+            Assert.True(b.Skills.TryCastBySlot(b.Caster, 5, default, Vec3.Right).Success);
             b.Setup.TickMilliseconds(1100);
         }
         Assert.True(b.Services.Resolve<MobaSkillLoadoutService>().TryGetSkillId(b.Caster, 5, out var finalSkill));

@@ -231,7 +231,12 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            var skillResult = context.Skills.TryHandleInputResult(actorId, in evt, context.DiagnosticCommandId);
+            var requestEntityVersion = actors != null ? actors.GetEntityVersion(actorId) : evt.EntityVersion;
+            var summonInputIdentity = evt.InputSequence > 0 && requestEntityVersion > 0
+                ? new MobaSummonInputIdentity(actorId, requestEntityVersion, evt.InputSequence, frame.Value)
+                : default;
+            var skillResult = context.Skills.TryHandleInputResult(actorId, in evt,
+                context.DiagnosticCommandId, in summonInputIdentity);
             if (!skillResult.Success)
             {
                 ThrowIfAcceptedReplayFailed(

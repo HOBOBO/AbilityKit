@@ -17,7 +17,8 @@ namespace AbilityKit.Demo.Moba.Services
             int triggerId,
             int configId,
             int frame,
-            MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
+            MobaSkillCastRuntimeHandle skillRuntimeHandle = default,
+            MobaSummonInputIdentity summonInputIdentity = default)
         {
             Kind = kind;
             SourceActorId = sourceActorId;
@@ -29,6 +30,7 @@ namespace AbilityKit.Demo.Moba.Services
             ConfigId = configId;
             Frame = frame;
             SkillRuntimeHandle = skillRuntimeHandle;
+            SummonInputIdentity = summonInputIdentity;
         }
 
         public EffectContextKind Kind { get; }
@@ -41,6 +43,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int ConfigId { get; }
         public int Frame { get; }
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
+        public MobaSummonInputIdentity SummonInputIdentity { get; }
 
         public bool IsValid => Kind != EffectContextKind.Unknown || SourceActorId != 0 || TargetActorId != 0 || SourceContextId != 0 || RootContextId != 0 || OwnerContextId != 0 || TriggerId != 0 || ConfigId != 0 || Frame != 0 || SkillRuntimeHandle.IsValid;
         public bool HasExecutionSource => SourceActorId > 0 && SourceContextId != 0;
@@ -58,7 +61,8 @@ namespace AbilityKit.Demo.Moba.Services
                 triggerId != 0 ? triggerId : TriggerId,
                 configId != 0 ? configId : ConfigId,
                 Frame,
-                SkillRuntimeHandle);
+                SkillRuntimeHandle,
+                SummonInputIdentity);
         }
 
         public MobaTriggerExecutionSnapshot WithFrame(int frame)
@@ -73,7 +77,15 @@ namespace AbilityKit.Demo.Moba.Services
                 TriggerId,
                 ConfigId,
                 frame != 0 ? frame : Frame,
-                SkillRuntimeHandle);
+                SkillRuntimeHandle,
+                SummonInputIdentity);
+        }
+
+        public MobaTriggerExecutionSnapshot WithSummonInputIdentity(in MobaSummonInputIdentity identity)
+        {
+            return new MobaTriggerExecutionSnapshot(
+                Kind, SourceActorId, TargetActorId, SourceContextId, RootContextId,
+                OwnerContextId, TriggerId, ConfigId, Frame, SkillRuntimeHandle, identity);
         }
     }
 

@@ -9,7 +9,7 @@ namespace AbilityKit.Game.Flow
         {
             var root = new GameObject("HpBar");
             var rt = root.AddComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(80, 10);
+            rt.sizeDelta = new Vector2(132, 18);
 
             var bg = new GameObject("Bg");
             bg.transform.SetParent(root.transform, worldPositionStays: false);
@@ -34,15 +34,21 @@ namespace AbilityKit.Game.Flow
         {
             var root = new GameObject("FloatingText");
             var rt = root.AddComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(200, 40);
+            rt.sizeDelta = new Vector2(240, 56);
 
             var tgo = new GameObject("Text");
             tgo.transform.SetParent(root.transform, worldPositionStays: false);
             var text = tgo.AddComponent<Text>();
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.alignment = TextAnchor.MiddleCenter;
+            text.fontSize = 32;
+            text.fontStyle = FontStyle.Bold;
             text.text = "0";
             text.color = Color.white;
+            var outline = text.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0f, 0f, 0f, 1f);
+            outline.effectDistance = new Vector2(2f, 2f);
+            outline.useGraphicAlpha = false;
             BattleHudRectTransformLayout.StretchToParent(tgo.GetComponent<RectTransform>());
 
             return root;
