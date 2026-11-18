@@ -191,12 +191,21 @@ namespace AbilityKit.Demo.Moba.Rollback
             return entries.ToArray();
         }
 
-        private IOwnerBlackboardMembershipRestorePlan PrepareMembershipRestore(MobaOwnerBlackboardMembershipPayload state)
+        internal void ValidateImportForProjectedActors(byte[] payload, int[] projectedActors)
+        {
+            if (!TryReadMembershipPayload(payload, out var membership))
+                throw new InvalidOperationException("Projected actor restore requires a versioned owner membership payload.");
+            PrepareMembershipRestore(membership, projectedActors);
+        }
+
+        private IOwnerBlackboardMembershipRestorePlan PrepareMembershipRestore(
+            MobaOwnerBlackboardMembershipPayload state, int[] projectedActors = null)
         {
             if (_actorSource == null || !(_store is IOwnerBlackboardMembershipSnapshotStore membershipStore))
                 throw new InvalidOperationException("Actor Blackboard membership restore is unavailable.");
             var currentRoster = CaptureActorIds();
-            if (!SameKeys(currentRoster, state.ActorIds))
+            var targetRoster = projectedActors ?? currentRoster;
+            if (!SameKeys(targetRoster, state.ActorIds))
                 throw new InvalidOperationException("Actor roster changed; Blackboard membership restore requires the same roster.");
             if (!_store.TryCaptureSnapshotSet(out var current, out var error) || !ValidateOwnerKeySources(current, out error))
                 throw new InvalidOperationException("Current Blackboard lifecycle is invalid. " + error);
@@ -206,6 +215,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 throw new InvalidOperationException("Blackboard owner source set changed.");
             var allowed = new HashSet<long>();
             foreach (var actorId in currentRoster) allowed.Add(actorId);
+            foreach (var actorId in targetRoster) allowed.Add(actorId);
             var reported = new HashSet<long>();
             long[] capturedActorKeys = null;
             for (var i = 0; i < currentSources.Length; i++)
@@ -231,7 +241,7 @@ namespace AbilityKit.Demo.Moba.Rollback
 
             var snapshotOwners = new HashSet<long>();
             var expectedActorKeys = new List<long>();
-            var rosterKeys = new HashSet<int>(currentRoster);
+            var rosterKeys = new HashSet<int>(targetRoster);
             foreach (var owner in state.Snapshot.Owners ?? new List<BlackboardSnapshot>())
             {
                 if (owner == null || owner.OwnerKey == 0 || !snapshotOwners.Add(owner.OwnerKey))

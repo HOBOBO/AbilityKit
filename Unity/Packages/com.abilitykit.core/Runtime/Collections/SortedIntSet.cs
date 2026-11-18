@@ -4,32 +4,38 @@ using System.Collections.Generic;
 namespace AbilityKit.Core.Collections
 {
     /// <summary>
-    /// Stores unique integers in ascending order with binary-search lookup and insertion.
-    /// Intended for small, frequently trimmed indexes that are read by position.
-    /// The collection is not thread-safe; callers must synchronize compound operations.
+    /// 按升序维护唯一整数，以二分查找定位，插入和删除可能搬移元素。适用于按索引读取的小型集合；非线程安全，复合操作需要外部同步。
     /// </summary>
     public sealed class SortedIntSet
     {
         private readonly List<int> _items;
 
-        /// <summary>Initializes an empty set with the specified capacity.</summary>
-        /// <param name="capacity">The initial number of values the set can hold.</param>
+        /// <summary>
+        /// 创建空的有序整数集合；初始容量允许为零，不得为负数。
+        /// </summary>
+        /// <param name="capacity">初始容量，允许为零，不得为负数。</param>
         public SortedIntSet(int capacity = 0)
         {
             if (capacity < 0) throw new ArgumentOutOfRangeException(nameof(capacity));
             _items = new List<int>(capacity);
         }
 
-        /// <summary>Gets the number of values in the set.</summary>
+        /// <summary>
+        /// 获取当前保留的唯一整数数量。
+        /// </summary>
         public int Count => _items.Count;
 
-        /// <summary>Gets the value at the specified ascending index.</summary>
-        /// <param name="index">The zero-based ordered index.</param>
+        /// <summary>
+        /// 按升序位置读取整数；索引从零开始，越界时抛出异常。
+        /// </summary>
+        /// <param name="index">从零开始的排序索引。</param>
         public int this[int index] => _items[index];
 
-        /// <summary>Adds a value at its ascending position when it is not already present.</summary>
-        /// <param name="value">The value to add.</param>
-        /// <returns><see langword="true"/> when the value was added; otherwise, <see langword="false"/>.</returns>
+        /// <summary>
+        /// 仅在整数不存在时按升序插入；重复添加返回 false，内容和顺序保持不变。
+        /// </summary>
+        /// <param name="value">用于添加、查找、比较或删除的整数值。</param>
+        /// <returns>操作成功返回 true，否则返回 false。</returns>
         public bool Add(int value)
         {
             var index = _items.BinarySearch(value);
@@ -39,13 +45,17 @@ namespace AbilityKit.Core.Collections
             return true;
         }
 
-        /// <summary>Determines whether the set contains a value.</summary>
-        /// <param name="value">The value to locate.</param>
+        /// <summary>
+        /// 通过二分查找判断指定整数是否存在。
+        /// </summary>
+        /// <param name="value">用于添加、查找、比较或删除的整数值。</param>
         public bool Contains(int value) => _items.BinarySearch(value) >= 0;
 
-        /// <summary>Removes a value when present.</summary>
-        /// <param name="value">The value to remove.</param>
-        /// <returns><see langword="true"/> when the value was removed; otherwise, <see langword="false"/>.</returns>
+        /// <summary>
+        /// 删除存在的整数并返回 true；不存在时返回 false。
+        /// </summary>
+        /// <param name="value">用于添加、查找、比较或删除的整数值。</param>
+        /// <returns>操作成功返回 true，否则返回 false。</returns>
         public bool Remove(int value)
         {
             var index = _items.BinarySearch(value);
@@ -55,8 +65,10 @@ namespace AbilityKit.Core.Collections
             return true;
         }
 
-        /// <summary>Gets the first index whose value is greater than or equal to the supplied value.</summary>
-        /// <param name="value">The lower-bound value.</param>
+        /// <summary>
+        /// 获取首个大于或等于指定整数的位置；没有符合项时返回 Count。
+        /// </summary>
+        /// <param name="value">用于添加、查找、比较或删除的整数值。</param>
         public int LowerBound(int value)
         {
             var low = 0;
@@ -73,8 +85,10 @@ namespace AbilityKit.Core.Collections
             return low;
         }
 
-        /// <summary>Gets the first index whose value is greater than the supplied value.</summary>
-        /// <param name="value">The upper-bound value.</param>
+        /// <summary>
+        /// 获取首个严格大于指定整数的位置；没有符合项时返回 Count。
+        /// </summary>
+        /// <param name="value">用于添加、查找、比较或删除的整数值。</param>
         public int UpperBound(int value)
         {
             var low = 0;
@@ -91,12 +105,16 @@ namespace AbilityKit.Core.Collections
             return low;
         }
 
-        /// <summary>Removes a contiguous range of ordered values.</summary>
-        /// <param name="index">The zero-based starting index.</param>
-        /// <param name="count">The number of values to remove.</param>
+        /// <summary>
+        /// 按索引删除连续区间并保持其余整数的升序；沿用底层列表的区间校验与异常。
+        /// </summary>
+        /// <param name="index">从零开始的排序索引。</param>
+        /// <param name="count">需要删除的连续元素数量。</param>
         public void RemoveRange(int index, int count) => _items.RemoveRange(index, count);
 
-        /// <summary>Removes all values while retaining the current capacity.</summary>
+        /// <summary>
+        /// 移除全部整数，保留底层列表容量供后续复用。
+        /// </summary>
         public void Clear() => _items.Clear();
     }
 }

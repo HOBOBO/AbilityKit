@@ -42,6 +42,7 @@ namespace AbilityKit.Demo.Moba.Session
         private HostRuntime _hostRuntime;
         private IMobaBattleRuntimePort _runtime;
         private ILogicWorldDriveGate _driveGate;
+        private IWorldFrameGuard _frameGuard;
         private MobaPlayerInputCommandConverter _inputConverter;
         private MobaTransformSnapshotDispatcher _transformSnapshots;
         private MobaCoordinatorStateAdapter _stateAdapter;
@@ -95,6 +96,7 @@ namespace AbilityKit.Demo.Moba.Session
             _hostRuntime = hostRuntime;
             _runtime = runtime;
             _driveGate = driveGate;
+            world.Services.TryResolve(out _frameGuard);
             _inputConverter = inputConverter;
             _transformSnapshots = transformSnapshots;
             _stateAdapter = stateAdapter;
@@ -312,11 +314,13 @@ namespace AbilityKit.Demo.Moba.Session
                 return;
             }
 
+            /*
+             * 由世界门禁确认执行及清理完成后，才推进宿主已提交帧并派发快照。
+             */
+            _hostRuntime?.Tick(deltaTime);
+            if (_frameGuard != null && !_frameGuard.CanCommit) return;
             _currentFrame = new FrameIndex(_currentFrame.Value + 1);
             _logicTimeSeconds += deltaTime;
-
-            // 驱动 moba.core Tick
-            _hostRuntime?.Tick(deltaTime);
 
             // 从战斗逻辑层统一运行时端口获取位置快照。
             TryGetTransformSnapshot();

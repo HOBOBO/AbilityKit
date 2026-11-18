@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Combat.MotionSystem.Constraints;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Core.Mathematics;
@@ -21,6 +22,7 @@ namespace AbilityKit.Combat.MotionSystem.Generic
         private Vec3 _deltaPerSecond;
         // Q32.32 raw 剩余时间（整数减法无漂移）；float TimeLeft 是边界视图。
         private long _timeLeftRaw;
+        private long _durationRaw;
         private bool _active;
 
         private MotionCollisionConstraints _collisionPolicy;
@@ -100,6 +102,7 @@ namespace AbilityKit.Combat.MotionSystem.Generic
         {
             _deltaPerSecond = deltaPerSecond;
             _timeLeftRaw = DeterministicMathBridge.ToFixed(duration).RawValue;
+            _durationRaw = _timeLeftRaw;
             _priority = priority;
             _groupId = groupId;
             _stacking = stacking;
@@ -117,6 +120,7 @@ namespace AbilityKit.Combat.MotionSystem.Generic
             _priority = 0;
             _deltaPerSecond = Vec3.Zero;
             _timeLeftRaw = 0L;
+            _durationRaw = 0L;
             _active = false;
             _collisionPolicy = default;
             _hasCollisionPolicy = false;
@@ -136,6 +140,34 @@ namespace AbilityKit.Combat.MotionSystem.Generic
         public MotionCollisionConstraints CollisionPolicy => _collisionPolicy;
         public bool HasCompletionCollisionPolicy => _hasCompletionCollisionPolicy;
         public MotionCollisionConstraints CompletionCollisionPolicy => _completionCollisionPolicy;
+
+        public FixedDeltaMotionExactState CaptureExactState() => new FixedDeltaMotionExactState(
+            _timeLeftRaw, _active, _deltaPerSecond, _groupId, _priority, _stacking,
+            _hasCollisionPolicy, _collisionPolicy, _hasCompletionCollisionPolicy, _completionCollisionPolicy);
+
+        public void ValidateExactState(in FixedDeltaMotionExactState state)
+        {
+            if (state.TimeLeftRaw < 0 || state.TimeLeftRaw > _durationRaw ||
+                state.Active != (state.TimeLeftRaw > 0) ||
+                !Finite(state.Velocity.X) || !Finite(state.Velocity.Y) || !Finite(state.Velocity.Z) ||
+                !Enum.IsDefined(typeof(MotionStacking), state.Stacking) ||
+                state.GroupId != _groupId || state.Priority != _priority || state.Stacking != _stacking ||
+                !state.Velocity.Equals(_deltaPerSecond) ||
+                state.HasCollisionPolicy != _hasCollisionPolicy || !state.CollisionPolicy.Equals(_collisionPolicy) ||
+                state.HasCompletionCollisionPolicy != _hasCompletionCollisionPolicy ||
+                !state.CompletionCollisionPolicy.Equals(_completionCollisionPolicy))
+                throw new InvalidOperationException("Invalid FixedDelta exact state or changed frozen source configuration.");
+        }
+
+        /// <summary>Restores values on the same configured source without any lifecycle callback.</summary>
+        public void RestoreExactState(in FixedDeltaMotionExactState state)
+        {
+            ValidateExactState(in state);
+            _timeLeftRaw = state.TimeLeftRaw;
+            _active = state.Active;
+        }
+
+        private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
         public void Tick(int id, ref MotionState state, float dt, ref Vec3 outDesiredDelta)
         {
@@ -193,5 +225,29 @@ namespace AbilityKit.Combat.MotionSystem.Generic
             _deltaPerSecond = snapshot.Vector0;
             return true;
         }
+    }
+
+    /// <summary>Exact in-process value state. Unlike MotionSourceSnapshot, time never crosses float.</summary>
+    public readonly struct FixedDeltaMotionExactState
+    {
+        public FixedDeltaMotionExactState(long timeLeftRaw, bool active, Vec3 velocity, int groupId,
+            int priority, MotionStacking stacking, bool hasCollisionPolicy, MotionCollisionConstraints collisionPolicy,
+            bool hasCompletionCollisionPolicy, MotionCollisionConstraints completionCollisionPolicy)
+        {
+            TimeLeftRaw = timeLeftRaw; Active = active; Velocity = velocity; GroupId = groupId;
+            Priority = priority; Stacking = stacking; HasCollisionPolicy = hasCollisionPolicy;
+            CollisionPolicy = collisionPolicy; HasCompletionCollisionPolicy = hasCompletionCollisionPolicy;
+            CompletionCollisionPolicy = completionCollisionPolicy;
+        }
+        public long TimeLeftRaw { get; }
+        public bool Active { get; }
+        public Vec3 Velocity { get; }
+        public int GroupId { get; }
+        public int Priority { get; }
+        public MotionStacking Stacking { get; }
+        public bool HasCollisionPolicy { get; }
+        public MotionCollisionConstraints CollisionPolicy { get; }
+        public bool HasCompletionCollisionPolicy { get; }
+        public MotionCollisionConstraints CompletionCollisionPolicy { get; }
     }
 }

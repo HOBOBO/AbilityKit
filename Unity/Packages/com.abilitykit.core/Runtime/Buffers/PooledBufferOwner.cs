@@ -7,30 +7,33 @@ using System.Threading;
 namespace AbilityKit.Core.Buffers
 {
     /// <summary>
-    /// Controls when a rented buffer is cleared. Clearing applies to the full
-    /// physical array supplied by the pool, not only to the logical buffer.
+    /// 定义租用数组的清理时机；清理范围覆盖池提供的整个物理数组，不限于逻辑长度，标志可以组合。
     /// </summary>
     [Flags]
     public enum PooledBufferClearMode
     {
-        /// <summary>Does not clear the buffer.</summary>
+        /// <summary>
+        /// 不请求清理数组，租用的内容可能包含先前数据。
+        /// </summary>
         None = 0,
 
-        /// <summary>Clears the buffer immediately after it is rented.</summary>
+        /// <summary>
+        /// 租用成功后立即清理整个物理数组。
+        /// </summary>
         OnRent = 1,
 
-        /// <summary>Requests clearing when the buffer is returned.</summary>
+        /// <summary>
+        /// 归还时向数组池请求清理整个物理数组；实际清理由池实现负责。
+        /// </summary>
         OnReturn = 2
     }
 
     /// <summary>
-    /// Owns a logically sized region of an array rented from an
-    /// <see cref="ArrayPool{T}"/>.
+    /// 持有数组池提供的物理数组，并公开指定逻辑长度的视图。由逻辑所有者负责释放，释放最多尝试归还一次。
     /// </summary>
     /// <remarks>
-    /// Views obtained from this owner are valid only until <see cref="Dispose"/>.
-    /// Access must not race with disposal. Disposal itself is thread-safe and
-    /// returns the array at most once.
+    /// 已取得的视图仅在释放前有效，访问不得与释放并发。
+    /// 释放操作自身支持并发，先撤销访问权再向池归还；池的归还异常不会恢复访问权。
     /// </remarks>
     public sealed class PooledBufferOwner<T> : IMemoryOwner<T>
     {
@@ -57,29 +60,40 @@ namespace AbilityKit.Core.Buffers
             _clearMode = clearMode;
         }
 
-        /// <summary>Gets the logical number of elements owned by this buffer.</summary>
-        /// <remarks>The logical length remains available after disposal.</remarks>
+        /// <summary>
+        /// 获取逻辑元素数量；释放后仍可读取，数值保持不变。
+        /// </summary>
         public int Length => _length;
 
-        /// <summary>Gets whether the rented array has been returned.</summary>
+        /// <summary>
+        /// 获取是否已撤销缓冲区访问权；该状态不代表自定义数组池已成功接收归还的数组。
+        /// </summary>
         public bool IsDisposed => Volatile.Read(ref _array) == null;
 
-        /// <summary>Gets memory limited to the logical buffer length.</summary>
-        /// <exception cref="ObjectDisposedException">The owner has been disposed.</exception>
+        /// <summary>
+        /// 获取限制在逻辑长度内的内存视图；所有者释放后不得继续使用该视图。
+        /// </summary>
+        /// <exception cref="ObjectDisposedException">所有者已释放。</exception>
         public Memory<T> Memory => GetArray().AsMemory(0, _length);
 
-        /// <summary>Gets a span limited to the logical buffer length.</summary>
-        /// <exception cref="ObjectDisposedException">The owner has been disposed.</exception>
+        /// <summary>
+        /// 获取限制在逻辑长度内的跨度视图；所有者释放后不得继续使用该视图。
+        /// </summary>
+        /// <exception cref="ObjectDisposedException">所有者已释放。</exception>
         public Span<T> Span => GetArray().AsSpan(0, _length);
 
-        /// <summary>Gets an array segment limited to the logical buffer length.</summary>
-        /// <exception cref="ObjectDisposedException">The owner has been disposed.</exception>
+        /// <summary>
+        /// 获取逻辑长度对应的数组段；底层数组可能更大，调用方不得越过逻辑范围或在释放后继续使用。
+        /// </summary>
+        /// <exception cref="ObjectDisposedException">所有者已释放。</exception>
         public ArraySegment<T> Segment => new ArraySegment<T>(GetArray(), 0, _length);
 
-        /// <summary>Rents a buffer from <see cref="ArrayPool{T}.Shared"/>.</summary>
-        /// <param name="length">Required logical length.</param>
-        /// <param name="clearMode">Explicit buffer clearing policy.</param>
-        /// <returns>An owner that must be disposed exactly once by its logical owner.</returns>
+        /// <summary>
+        /// 从共享数组池租用缓冲区并创建逻辑长度对应的所有者；零长度不会向池租用数组。
+        /// </summary>
+        /// <param name="length">逻辑元素数量，允许为零，不得为负数。</param>
+        /// <param name="clearMode">显式清理策略，只接受已定义标志的组合。</param>
+        /// <returns>由调用方负责释放的缓冲区所有者；重复释放不会重复归还。</returns>
         public static PooledBufferOwner<T> Rent(
             int length,
             PooledBufferClearMode clearMode = PooledBufferClearMode.None)
@@ -87,11 +101,13 @@ namespace AbilityKit.Core.Buffers
             return Rent(length, ArrayPool<T>.Shared, clearMode);
         }
 
-        /// <summary>Rents a buffer from a caller-provided array pool.</summary>
-        /// <param name="length">Required logical length.</param>
-        /// <param name="pool">Pool that supplies and receives the physical array.</param>
-        /// <param name="clearMode">Explicit buffer clearing policy.</param>
-        /// <returns>An owner that must be disposed exactly once by its logical owner.</returns>
+        /// <summary>
+        /// 从指定数组池租用物理数组，并创建逻辑长度对应的所有者；零长度不会调用池的租用或归还方法。
+        /// </summary>
+        /// <param name="length">逻辑元素数量，允许为零，不得为负数。</param>
+        /// <param name="pool">提供和接收物理数组的池，不得为空。</param>
+        /// <param name="clearMode">显式清理策略，只接受已定义标志的组合。</param>
+        /// <returns>由调用方负责释放的缓冲区所有者；重复释放不会重复归还。</returns>
         public static PooledBufferOwner<T> Rent(
             int length,
             ArrayPool<T> pool,
@@ -135,7 +151,9 @@ namespace AbilityKit.Core.Buffers
             return new PooledBufferOwner<T>(pool, array, length, returnToPool: true, clearMode);
         }
 
-        /// <summary>Returns the rented array to its pool. Repeated calls are ignored.</summary>
+        /// <summary>
+        /// 先撤销所有权，再最多尝试归还数组一次；重复或并发释放不重复归还，数组池抛出的异常直接传播且后续不重试。
+        /// </summary>
         public void Dispose()
         {
             var array = Interlocked.Exchange(ref _array, null);

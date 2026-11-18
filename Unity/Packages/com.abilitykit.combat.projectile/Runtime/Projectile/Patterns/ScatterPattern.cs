@@ -10,6 +10,10 @@ namespace AbilityKit.Combat.Projectile
         private readonly float _maxAngleDeg;
         private readonly uint _seed;
 
+        internal int Count => _count;
+        internal float MaxAngleDeg => _maxAngleDeg;
+        internal uint Seed => _seed;
+
         public ScatterPattern(int count, float maxAngleDeg, int seed)
         {
             _count = MathUtil.Clamp(count, 1, 1024);

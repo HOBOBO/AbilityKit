@@ -22,6 +22,8 @@ description: 开发、修改或审查 AbilityKit MOBA 英雄技能及相关共�
 
 英雄技能 ID 可以出现在内容绑定、查询条件、资源映射、验收和样例装配中；区别在于由通用消费者执行已有语义，而非按身份添加算法。具体边界、机制映射及提案模板统一见上述规范。
 
+涉及模拟调度、状态或对象生命周期的回滚支持时，先读 [帧同步回滚 skill](../framesync-prediction-rollback/SKILL.md) 及其 [业务状态回滚契约](../framesync-prediction-rollback/business-state-rollback.md)。回滚是可选扩展，MOBA 帧同步所用机制须提供支持；仅开启时捕获/记录/恢复。System 统一帧驱动，非 ECS 业务和 Provider 状态恢复均允许，不要求将 Launcher 或服务状态全部迁入组件。
+
 ## 生产配置归属与发布
 
 | 内容 | 可编辑的权威来源 | 发布产物 |
@@ -314,7 +316,7 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 
 | 契约 | 要配什么 | 现状 |
 |---|---|---|
-| 帧回滚 | `IRollbackStateProvider` + 注册进 `MobaRollbackRegistryBuilder` | 15 个 provider |
+| 帧回滚 | 数据 provider + 对应类型化 Command，统一由 `MobaRollbackRegistryBuilder` 装配 | 按运行时能力注册，不以历史固定数量判断完整性 |
 | 快照 / 重连恢复 | snapshot emitter + `MobaStateImport` | 按领域配 |
 | 跨端一致 | 协议 DTO + 状态哈希 | 状态哈希目前只覆盖 transform + HP（`MobaStateHashBuilder.cs`） |
 | 确定性模拟 | `Fixed64`、遍历序稳定、禁止 `new Random()` | — |
@@ -327,18 +329,18 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 
 | 实体的东西 | 怎么回滚 | 不要做什么 |
 |---|---|---|
-| **增删本身** | **销毁预测实体 + 重执行创建**（权威侧维护一份存活实体 id 集合；客户端把"本地有、权威集合没有"的预测实体删掉，再重执行命令帧创建） | **不要写 state provider 去管实体增删**——`MobaShieldRollbackProvider` 头注释已写明 provider *cannot safely create or destroy simulation entities* |
-| **幸存实体的状态** | 正常写 `IRollbackStateProvider`（§5 上表） | — |
-| **跨会话恢复**（重连 / 中途加入） | **暂不承诺**，后置处理 | 不要以为快照会带上——见下 |
+| **Actor 增删本身** | `MobaActorRollbackCommandRuntime` 的创建/销毁逆命令按确定序号回退；Entitas 名单 provider 清理预测对象，字段 provider 随后恢复状态；重演从 N+1 处理输入 | 不让 HP、Shield 等字段 provider 自行补造 Actor，不再保存正常创建/销毁事件来回放 |
+| **实体及其运行中的状态** | 正常写 `IRollbackStateProvider`；关系/领域 runtime 按已批准合同恢复或重绑 | 不通过 Enter/Exit、Added/Removed、Trigger 回调重新结算已经发生的业务 |
+| **跨会话恢复**（重连 / 中途加入） | 使用独立的 state recovery 与协议基线合同，逐项确认支持范围 | 不把同会话 Command journal 当作可独立分发的完整重连快照 |
 
-**这条裁定的前提必须先补：`ActorIdAllocator` 要进回滚。** 它当前是个纯计数器（`MobaActorSpawnService.cs:119` 注入），**15 个 provider 里没有它、`Reset()` 全仓无调用点**；importer 是**绕开**它（`MobaLogicWorldStateImporter.cs:261` `AllocateActorIdIfMissing = false`）而非同步它。计数器不回退 → 重建会拿到**更高的新 id** → 与 owner link / 命令 target / trace / 快照 netId 全部对不上。修复约三十行（单 int provider，抄 `MobaOwnerBlackboardRollbackProvider`）。**在这条补上之前，重执行重建路径是不可靠的。**
+`ActorIdAllocator.NextId` 已由 `MobaEntitasEntityRollbackProvider` 捕获并 Reset；Actor entity version、来源身份及其分配游标沿各自正式 provider 恢复。新增创建路径先核对现有命令记录与状态归属，不能再按旧审计中“分配器未回滚”的结论添加第二套 provider。
 
-**为什么召唤物不进快照**（别误判成 bug）：`MobaActorSpawnSnapshotService.Enqueue` 的调用方只有**英雄生成 / 英雄替换 / 投射物**三处，召唤物在 spawn 与 despawn **两侧都不进快照**——这是一致的取舍，不是半成品。MOBA 默认走 **Lockstep**，正常对局中各端跑同一套定点模拟、召唤物自然重建，快照只在**跨会话恢复**时才需要。
+回滚数据、Command、派生绑定、失败补偿与外部输出的权威边界统一见 `Docs/MobaMechanismGovernance.md` 的“回滚数据、命令与回调边界”。被动事件日志 10020 已清理；不要恢复这条无业务消费者的历史事件路径。Pending Spawn 的输出提交问题另行处理，不能将其与模拟状态或重连快照混同。
 
 ### 5.2 写 Provider 时最容易踩的两件事（都不是代码问题）
 
 1. **先确认哪个字段是权威源。** `MobaActorHpRollbackProvider` 的 v2 注释是现成的教训：初版快照 HP attribute 的 `BaseValue`，后来才发现真实血量落在 `ResourceContainer.Current`（定点）——**provider 跑通了，但回滚的是错的东西**。这类错误不会让测试变红，只在真实回滚时表现成数值抖动。
-2. **回滚的单位是"某一帧的整个世界"，不是"一个组件"。** 真正的工作量在覆盖面有没有缝。已知的缝：投射物运动状态**没有**注册 provider（`ProjectileRollbackProvider` 零注册），但 projectile actor 的 transform 每帧被 `ProjectileWorld` 反写 → 回滚结果下一帧就被盖掉。
+2. **回滚的单位是"某一帧的整个世界"，不是"一个组件"。** `ProjectileRollbackProvider` 已由正式 builder 在 IProjectileService 可用时注册；Actor transform 不能替代其物理状态。MOBA 已按批准方案统一装配，并实施用户确认的 `plans/MobaDerivedCombatSettlementDecision.2026-11-17.md` 第 9 节 L1–L4：共同入口整轮冻结通知、有界同帧结算、来源最后消费后释放，以及失败帧推进／Capture／输出门禁。正式时序见 `Runtime/Docs/SystemOrderGuide.md`。恢复仍只处理数据和类型化 Command，不保存历史通知。活动发射 schedule 进度及有命令证明的额外弹体移除已验收；最后发射前后、完全清理稳定后的检查点也已验证。目标弹体／Launcher 已销毁及 Continuous／Cast 重建仍受原门禁限制；Launcher Actor 清理当帧与其 Continuous 下一帧移除须分别判断。当前边界见 `local/docs/Moba发射结束与来源释放边界验收.2026-11-18.md`，不因 provider 已注册或局部全量字节比较通过就认定全部覆盖。
 
 ### 门禁速查
 
@@ -413,7 +415,7 @@ dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj --f
 - **注释可能是过期或描述另一条数据流**。看到注释说的行为，去调用方验证一遍。
 - **判"不支持"之前先 grep 键控/注册表**。能力常藏在下一层：多来源标记在 `BuffRuntimeKey` 里，扩展点在特性 + 清单里。
 - **结论标"待核"而不是结论**。矩阵初版 8 条 C 里，2 条判错、2 条降级，全是"读一层就下结论"造成的。
-- **改动前先确认前提**：如 §5.1 的 `ActorIdAllocator` 未进回滚时，重执行重建是不可靠的——前提没补，写了也白写。
+- **改动前先确认前提**：如 §5.1 的实体身份、分配游标和运行中状态必须共同恢复，重执行重建才可靠。当前 `ActorIdAllocator` 已由正式 provider 恢复；先查已有归属和契约，避免按旧缺口重复实现。
 
 ## 能力基线（判断"这个技能要新东西吗"）
 

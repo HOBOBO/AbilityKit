@@ -18,7 +18,6 @@ namespace AbilityKit.Demo.Moba.Systems
         private SkillCastCoordinator _skills;
         private IFrameTime _time;
         private MobaAuthorityFrameService _authority;
-        private MobaWorldSystemServices _systemServices;
 
         private global::Entitas.IGroup<global::ActorEntity> _actors;
         private global::ActorContext _actorContext;
@@ -27,7 +26,6 @@ namespace AbilityKit.Demo.Moba.Systems
         private readonly List<SkillPipelineRunner.RunningSnapshot> _endedBuffer = new List<SkillPipelineRunner.RunningSnapshot>(4);
         private readonly HashSet<long> _seenThisFrame = new HashSet<long>();
         private readonly Dictionary<long, global::ActorEntity> _byInstanceId = new Dictionary<long, global::ActorEntity>();
-        private readonly Dictionary<long, int> _lastSeenFrame = new Dictionary<long, int>();
 
         public MobaSkillCastInstanceSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
@@ -39,7 +37,6 @@ namespace AbilityKit.Demo.Moba.Systems
             Services.TryResolve(out _skills);
             Services.TryResolve(out _time);
             Services.TryResolve(out _authority);
-            _systemServices = MobaWorldSystemExecution.Resolve(Services);
 
             if (Services.TryResolve<MobaSkillCastInstanceSyncSettings>(out var settings) && settings != null)
             {
@@ -64,9 +61,15 @@ namespace AbilityKit.Demo.Moba.Systems
             var frame = ResolveFrame("skill.cast.instance.resolveFrame");
 
             var entities = _actors.GetEntities();
-            if (entities == null || entities.Length == 0) return;
-
             _seenThisFrame.Clear();
+            // Derived index only: rollback and Entitas pooling can invalidate every entry.
+            _byInstanceId.Clear();
+            foreach (var cast in _actorContext.GetGroup(ActorMatcher.SkillCastInstanceId).GetEntities())
+            {
+                if (_byInstanceId.ContainsKey(cast.skillCastInstanceId.Value))
+                    throw new InvalidOperationException("Duplicate Cast instance identity.");
+                _byInstanceId.Add(cast.skillCastInstanceId.Value, cast);
+            }
 
             for (int i = 0; i < entities.Length; i++)
             {
@@ -86,7 +89,7 @@ namespace AbilityKit.Demo.Moba.Systems
                 UpsertSkillCastInstances(_endedBuffer, frame, isRunning: false);
             }
 
-            CleanupNotSeenRunningInstances();
+            CleanupNotSeenRunningInstances(frame);
         }
 
         private void UpsertSkillCastInstances(List<SkillPipelineRunner.RunningSnapshot> snapshots, int frame, bool isRunning)
@@ -104,14 +107,13 @@ namespace AbilityKit.Demo.Moba.Systems
             if (snapshot.InstanceId == 0) return;
 
             _seenThisFrame.Add(snapshot.InstanceId);
-            _lastSeenFrame[snapshot.InstanceId] = frame;
-
-            if (!_byInstanceId.TryGetValue(snapshot.InstanceId, out var inst) || inst == null)
+            if (!_byInstanceId.TryGetValue(snapshot.InstanceId, out var inst))
             {
                 inst = _actorContext.CreateEntity();
                 inst.AddSkillCastInstanceId(snapshot.InstanceId);
                 _byInstanceId[snapshot.InstanceId] = inst;
             }
+            inst.ReplaceSkillCastRetention(frame);
 
             if (!inst.hasSkillCastOwnerActorId) inst.AddSkillCastOwnerActorId(snapshot.OwnerActorId);
             else inst.ReplaceSkillCastOwnerActorId(snapshot.OwnerActorId);
@@ -155,27 +157,17 @@ namespace AbilityKit.Demo.Moba.Systems
             {
                 inst.RemoveSkillCastCancelRequest();
             }
+            if (isRunning && inst.hasSkillCastDestroyRequest) inst.RemoveSkillCastDestroyRequest();
         }
 
-        private void CleanupNotSeenRunningInstances()
+        private void CleanupNotSeenRunningInstances(int frame)
         {
             if (_byInstanceId.Count == 0) return;
-
-            var frame = ResolveFrame("skill.cast.instance.cleanup.resolveFrame");
-
-            List<long> stale = null;
 
             foreach (var kv in _byInstanceId)
             {
                 var id = kv.Key;
                 var e = kv.Value;
-                if (e == null || !e.isEnabled)
-                {
-                    stale ??= new List<long>(4);
-                    stale.Add(id);
-                    continue;
-                }
-
                 if (_seenThisFrame.Contains(id)) continue;
 
                 if (e.isSkillCastRunningTag)
@@ -219,32 +211,15 @@ namespace AbilityKit.Demo.Moba.Systems
 
                 if (e.hasSkillCastCancelRequest) e.RemoveSkillCastCancelRequest();
 
-                if (_retainCompletedFrames > 0 && frame > 0 && _lastSeenFrame.TryGetValue(id, out var last))
+                if (_retainCompletedFrames > 0 && !e.hasSkillCastDestroyRequest)
                 {
-                    if (frame - last > _retainCompletedFrames)
-                    {
-                        var requestFrame = frame;
-                        var minConfirmed = requestFrame + _destroyConfirmGateFrames;
-                        if (!e.hasSkillCastDestroyRequest)
-                        {
-                            e.AddSkillCastDestroyRequest(requestFrame, minConfirmed, destroyReason);
-                        }
-                        else
-                        {
-                            e.ReplaceSkillCastDestroyRequest(requestFrame, minConfirmed, destroyReason);
-                        }
-                    }
-                }
-            }
-
-            if (stale != null)
-            {
-                for (int i = 0; i < stale.Count; i++)
-                {
-                    var id = stale[i];
-                    _lastSeenFrame.Remove(id);
-                    _seenThisFrame.Remove(id);
-                    _byInstanceId.Remove(id);
+                    if (!e.hasSkillCastRetention || e.skillCastRetention.LastObservedFrame < 0 ||
+                        e.skillCastRetention.LastObservedFrame > frame)
+                        throw new InvalidOperationException($"Cast {id} has an invalid retention anchor.");
+                    var requestFrame = checked(e.skillCastRetention.LastObservedFrame + _retainCompletedFrames + 1);
+                    var minConfirmed = checked(requestFrame + _destroyConfirmGateFrames);
+                    if (frame >= requestFrame)
+                        e.AddSkillCastDestroyRequest(requestFrame, minConfirmed, destroyReason);
                 }
             }
 
@@ -266,17 +241,6 @@ namespace AbilityKit.Demo.Moba.Systems
             return _time.Frame.Value;
         }
 
-        private void ReportException(Exception ex, string operation, int actorId = 0, int skillId = 0, long runtimeId = 0L)
-        {
-            MobaWorldSystemExecution.HandleException(
-                in _systemServices,
-                ex,
-                nameof(MobaSkillCastInstanceSyncSystem),
-                operation,
-                actorId: actorId,
-                skillId: skillId,
-                runtimeId: runtimeId);
-        }
     }
 }
 

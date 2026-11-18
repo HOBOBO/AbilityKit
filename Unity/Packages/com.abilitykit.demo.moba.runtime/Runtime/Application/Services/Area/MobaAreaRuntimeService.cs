@@ -330,23 +330,52 @@ namespace AbilityKit.Demo.Moba.Services.Area
             return _areas.TryGetValue(areaId, out info);
         }
 
-        public int CollectDueDelayAreas(int frame, List<MobaAreaRuntimeInfo> results)
+        /// <summary>
+        /// 查询本帧是否还有到期但未消费的区域延迟，不修改触发标记。
+        /// </summary>
+        public bool HasDueDelayAreas(int frame)
+        {
+            foreach (var pair in _areas)
+                if (!_delayTriggeredAreas.Contains(pair.Key) && pair.Value.DelayTriggerFrame <= frame) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// 冻结本轮开始时的候选身份，保持领域枚举顺序，不提前标记延迟已触发。
+        /// </summary>
+        public void CollectDelayCandidates(List<int> candidates)
+        {
+            candidates.Clear();
+            foreach (var pair in _areas) candidates.Add(pair.Key);
+        }
+
+        /// <summary>
+        /// Spawn 消费后采集并标记到期延迟；指定候选时排除本轮回调新建的对象。
+        /// </summary>
+        public int CollectDueDelayAreas(int frame, List<MobaAreaRuntimeInfo> results, IReadOnlyList<int> candidates = null)
         {
             if (results == null) return 0;
             results.Clear();
 
-            foreach (var kv in _areas)
+            if (candidates != null)
             {
-                var areaId = kv.Key;
-                var info = kv.Value;
-                if (_delayTriggeredAreas.Contains(areaId)) continue;
-                if (info.DelayTriggerFrame > frame) continue;
+                for (var i = 0; i < candidates.Count; i++)
+                    if (_areas.TryGetValue(candidates[i], out var candidate)) Collect(candidate);
+            }
+            else foreach (var kv in _areas) Collect(kv.Value);
+
+            return results.Count;
+
+            void Collect(MobaAreaRuntimeInfo info)
+            {
+                var areaId = info.AreaId;
+                if (_delayTriggeredAreas.Contains(areaId)) return;
+                if (info.DelayTriggerFrame > frame) return;
 
                 _delayTriggeredAreas.Add(areaId);
                 results.Add(info);
             }
 
-            return results.Count;
         }
 
         public bool TryGetAreas(List<MobaAreaRuntimeInfo> results, int ownerActorId = 0, int templateId = 0)

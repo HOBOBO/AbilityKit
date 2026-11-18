@@ -149,6 +149,44 @@ namespace AbilityKit.Combat.Projectile
             PatternSlotCount = patternSlotCount <= 0 ? 1 : patternSlotCount;
         }
 
+        internal ProjectileSpawnParams(in ProjectileScheduledSpawnSnapshot s, IProjectileHitFilter filter, int filterKey)
+        {
+            OwnerId = s.OwnerId;
+            TemplateId = s.TemplateId;
+            LauncherActorId = s.LauncherActorId;
+            RootActorId = s.RootActorId;
+            SpawnFrame = s.SpawnFrame;
+            Position = new Vec3(s.PositionX, s.PositionY, s.PositionZ);
+            Direction = new Vec3(s.DirectionX, s.DirectionY, s.DirectionZ);
+            Speed = s.Speed;
+            TrackingTargetActorId = s.TrackingTargetActorId;
+            TrackingArcHeight = s.TrackingArcHeight;
+            TrackingArcHeightPerUnit = s.TrackingArcHeightPerUnit;
+            TrackingArcDurationSeconds = s.TrackingArcDurationSeconds;
+            BounceSearchRadius = s.BounceSearchRadius;
+            ReturnAfterFrames = s.ReturnAfterFrames;
+            ReturnSpeed = s.ReturnSpeed;
+            ReturnStopDistance = s.ReturnStopDistance;
+            LifetimeFrames = s.LifetimeFrames;
+            MaxDistance = s.MaxDistance;
+            MaxDistanceResponse = s.MaxDistanceResponse;
+            CollisionLayerMask = s.CollisionLayerMask;
+            IgnoreCollider = new ColliderId(s.IgnoreCollider);
+            CollisionHalfExtents = new Vec3(s.CollisionHalfExtentsX, s.CollisionHalfExtentsY, s.CollisionHalfExtentsZ);
+            HitPolicy = null;
+            HitsRemaining = s.HitsRemaining;
+            HitPolicyKind = s.HitPolicyKind;
+            HitPolicyParam = s.HitPolicyParam;
+            TickIntervalFrames = s.TickIntervalFrames;
+            HitFilter = filter;
+            HitFilterKey = filterKey;
+            HitCooldownFrames = s.HitCooldownFrames;
+            HitIdentityPolicy = s.HitIdentityPolicy;
+            StartSuspended = s.StartSuspended;
+            PatternSlotIndex = s.PatternSlotIndex;
+            PatternSlotCount = s.PatternSlotCount;
+        }
+
         public ProjectileSpawnParams WithDirection(in Vec3 direction)
         {
             return new ProjectileSpawnParams(

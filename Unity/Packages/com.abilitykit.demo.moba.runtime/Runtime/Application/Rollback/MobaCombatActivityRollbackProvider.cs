@@ -7,9 +7,12 @@ using MemoryPack;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
-    /// <summary>Local last-combat facts for an unchanged complete actor roster.</summary>
+    /// <summary>
+    /// 恢复 Actor 的最近战斗时间。完整快照可使用联合生命周期验证的目标名单，
+    /// 单份导入仍要求当前完整名单一致。
+    /// </summary>
     [MobaRollbackProvider(DefaultKey)]
-    public sealed class MobaCombatActivityRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider
+    public sealed class MobaCombatActivityRollbackProvider : IRollbackStateProvider, IRollbackSnapshotPreflightProvider
     {
         public const int DefaultKey = 10045;
         private readonly MobaCombatActivityService _combat;
@@ -36,33 +39,54 @@ namespace AbilityKit.Demo.Moba.Rollback
             return MemoryPackSerializer.Serialize(state);
         }
 
+        /// <summary>
+        /// 独立预检保持严格名单校验，不使用快照预检的历史放行状态。
+        /// </summary>
         public void ValidateImport(FrameIndex frame, byte[] payload) => Read(frame, payload);
         public void Import(FrameIndex frame, byte[] payload) => _combat.RestoreCombatTimes(Read(frame, payload));
 
-        private Dictionary<int, float> Read(FrameIndex frame, byte[] payload)
+        /// <summary>
+        /// 跨名单必须获得同份联合生命周期及其 Command 证明；没有联合所有者时保持原地合同。
+        /// </summary>
+        public void ValidateSnapshot(RollbackSnapshotPreflightContext context)
+        {
+            var payload = context.RequirePayload(Key).ToArray();
+            if (context.Providers.TryGetValue(MobaSkillLifecycleRollbackProvider.DefaultKey, out var provider) &&
+                provider is MobaSkillLifecycleRollbackProvider lifecycle)
+            {
+                var state = MemoryPackSerializer.Deserialize<MobaCombatActivityRollbackPayload>(payload);
+                lifecycle.ValidateProjectedActorRoster(context, state.ActorIds);
+                Read(context.Frame, payload, state.ActorIds);
+            }
+            else Read(context.Frame, payload);
+        }
+
+        private Dictionary<int, float> Read(FrameIndex frame, byte[] payload, int[] projectedActors = null)
         {
             if (payload == null || payload.Length == 0)
                 throw new InvalidOperationException("Missing combat activity rollback payload.");
             var state = MemoryPackSerializer.Deserialize<MobaCombatActivityRollbackPayload>(payload);
-            var prepared = Prepare(frame, state);
+            var prepared = Prepare(frame, state, projectedActors);
             if (!payload.AsSpan().SequenceEqual(MemoryPackSerializer.Serialize(state)))
                 throw new InvalidOperationException("Invalid combat activity rollback encoding.");
             return prepared;
         }
 
-        private Dictionary<int, float> Prepare(FrameIndex frame, MobaCombatActivityRollbackPayload state)
+        private Dictionary<int, float> Prepare(FrameIndex frame, MobaCombatActivityRollbackPayload state,
+            int[] projectedActors = null)
         {
             if (state.Version != 1 || state.Frame != frame.Value || state.Frame < 0 ||
                 !MobaWorldClockRollbackProvider.IsValidTime(state.CapturedTime) ||
                 state.ActorIds == null || state.Entries == null || state.Entries.Length > state.ActorIds.Length)
                 throw new InvalidOperationException("Invalid combat activity rollback state.");
-            var live = _actors.CopyActorIdsInOrder();
+            IReadOnlyList<int> live = projectedActors ?? (IReadOnlyList<int>)_actors.CopyActorIdsInOrder();
             if (live.Count != state.ActorIds.Length)
                 throw new InvalidOperationException("Combat activity rollback requires the same complete actor roster.");
             for (var i = 0; i < live.Count; i++)
                 if (state.ActorIds[i] <= 0 || state.ActorIds[i] != live[i] ||
                     (i > 0 && state.ActorIds[i - 1] >= state.ActorIds[i]) ||
-                    !_actors.TryGet(state.ActorIds[i], out var actor) || !actor.isEnabled)
+                    projectedActors == null &&
+                    (!_actors.TryGet(state.ActorIds[i], out var actor) || !actor.isEnabled))
                     throw new InvalidOperationException("Invalid combat activity rollback actor roster.");
 
             var prepared = new Dictionary<int, float>(state.Entries.Length);

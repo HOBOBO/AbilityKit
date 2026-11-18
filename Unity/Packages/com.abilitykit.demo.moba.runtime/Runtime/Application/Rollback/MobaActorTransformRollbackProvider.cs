@@ -241,6 +241,9 @@ namespace AbilityKit.Demo.Moba.Rollback
             Vec3 motionVelocity,
             float motionTime)
         {
+            // MemoryPack writes this unmanaged value including its alignment padding.
+            // Initialize the complete value so equal fields always produce equal bytes.
+            this = default;
             ActorId = actorId;
             Transform = transform;
             HasMoveInput = hasMoveInput;

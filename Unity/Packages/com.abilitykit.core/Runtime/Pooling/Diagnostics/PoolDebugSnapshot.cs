@@ -2,27 +2,43 @@ using System;
 
 namespace AbilityKit.Core.Pooling
 {
-    /// <summary>Describes one keyed pool for editor diagnostics.</summary>
+    /// <summary>
+    /// 描述一个键对应的池及其编辑器诊断快照，不包含作用域的生命周期控制。
+    /// </summary>
     public readonly struct PoolDebugSnapshot
     {
-        /// <summary>Gets the element type stored by the pool.</summary>
+        /// <summary>
+        /// 获取对象池保存的元素类型。
+        /// </summary>
         public readonly Type ElementType;
-        /// <summary>Gets the key within the element type and scope.</summary>
+        /// <summary>
+        /// 获取元素类型和作用域内的池键。
+        /// </summary>
         public readonly PoolKey Key;
-        /// <summary>Gets the captured counters.</summary>
+        /// <summary>
+        /// 获取捕获的对象池计数值。
+        /// </summary>
         public readonly PoolStats Stats;
-        /// <summary>Gets the maximum retained inactive count.</summary>
+        /// <summary>
+        /// 获取快照记录的最大空闲保留数量。
+        /// </summary>
         public readonly int MaxSize;
-        /// <summary>Gets whether regular trimming is disabled.</summary>
+        /// <summary>
+        /// 获取快照记录的禁止常规裁剪标志。
+        /// </summary>
         public readonly bool NeverTrim;
 
-        /// <summary>Creates a snapshot for a regularly trimmable pool.</summary>
+        /// <summary>
+        /// 创建允许常规裁剪的编辑器池快照。
+        /// </summary>
         public PoolDebugSnapshot(Type elementType, PoolKey key, PoolStats stats, int maxSize)
             : this(elementType, key, stats, maxSize, neverTrim: false)
         {
         }
 
-        /// <summary>Creates a snapshot with explicit trimming behavior.</summary>
+        /// <summary>
+        /// 使用显式裁剪标志创建编辑器池快照，不主动查询或锁定对象池。
+        /// </summary>
         public PoolDebugSnapshot(Type elementType, PoolKey key, PoolStats stats, int maxSize, bool neverTrim)
         {
             ElementType = elementType;

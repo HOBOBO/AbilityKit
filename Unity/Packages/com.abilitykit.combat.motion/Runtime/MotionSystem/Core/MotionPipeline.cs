@@ -38,6 +38,13 @@ namespace AbilityKit.Combat.MotionSystem.Core
 
         public int SourceCount => _sources?.Count ?? 0;
 
+        /// <summary>Reference membership only; does not activate, reorder or replace a source.</summary>
+        public bool ContainsSource(IMotionSource source)
+        {
+            EnsureNotDisposed();
+            return source != null && _sources.Contains(source);
+        }
+
         public void AddSource(IMotionSource source)
         {
             EnsureNotDisposed();

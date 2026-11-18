@@ -12,14 +12,15 @@ using MemoryPack;
 namespace AbilityKit.Demo.Moba.Rollback
 {
     /// <summary>
-    /// Owns the byte-command journal used to reverse actor create/destroy operations.
-    /// Field providers remain responsible for restoring actor state after the skeleton exists.
+    /// 持有 Actor 创建与销毁的类型化逆命令日志，并提供只读结构投影预检。
+    /// 结构恢复后，字段仍由各自 Provider 负责还原。
     /// </summary>
-    public sealed class MobaActorRollbackCommandRuntime
+    public sealed partial class MobaActorRollbackCommandRuntime
     {
         public const int DestroyCreatedActorCommand = 0x4D4F0101;
         public const int RestoreDestroyedActorCommand = 0x4D4F0102;
         public const int PayloadVersion = 2;
+        public const int RollbackProviderKey = 10009;
 
         private readonly global::ActorContext _context;
         private readonly MobaActorRegistry _actors;
@@ -44,7 +45,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             handlers.Register(new DestroyCreatedActorHandler(this));
             handlers.Register(new RestoreDestroyedActorHandler(this));
             handlers.Seal();
-            StateProvider = new CommandRollbackStateProvider(Log, handlers);
+            StateProvider = new CommandRollbackStateProvider(Log, handlers, key: RollbackProviderKey);
 
             foreach (var entry in actors.Entries)
             {

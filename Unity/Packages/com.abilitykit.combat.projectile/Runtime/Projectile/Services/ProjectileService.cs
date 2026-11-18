@@ -1,7 +1,7 @@
-using MemoryPack;
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Pooling;
 using AbilityKit.Core.Mathematics;
@@ -10,7 +10,11 @@ using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Combat.Projectile
 {
-    public sealed class ProjectileService : IProjectileService, IProjectileArrivalEventSource, IAreaRollbackService, IWorldInitializable
+    /// <summary>
+    /// 持有投射物、区域与未来发射任务，由世界 System 使用确定性帧时间统一驱动。
+    /// 回滚扩展按需捕获和恢复服务状态，不引入独立调度时钟。
+    /// </summary>
+    public sealed partial class ProjectileService : IProjectileService, IProjectileArrivalEventSource, IProjectilePendingNotifications, IAreaRollbackService, IWorldInitializable, IRollbackStatePreflightProvider
     {
         private static readonly ObjectPool<List<ProjectileSpawnParams>> s_spawnListPool = Pools.GetPool(
             key: "ProjectileSpawnParamsList",
@@ -45,6 +49,9 @@ namespace AbilityKit.Combat.Projectile
             _areas = new AreaWorld(collisions.World);
         }
 
+        /// <summary>
+        /// 绑定当前世界的目标、身份及可选恢复依赖；普通发射不要求安装调度恢复解析器。
+        /// </summary>
         public void OnInit(IWorldResolver services)
         {
             if (services == null) return;
@@ -68,11 +75,20 @@ namespace AbilityKit.Combat.Projectile
             }
             if (services.TryResolve<IProjectileActorIdentityProvider>(out var identityProvider) && identityProvider != null)
                 _world.SetActorIdentityProvider(identityProvider);
+            if (services.TryResolve<IProjectileSchedulePatternResolver>(out var patternResolver))
+                _schedulePatternResolver = patternResolver;
             if (services.TryResolve<IProjectileHitFilterResolver>(out var filterResolver) && filterResolver != null)
                 _world.SetHitFilterResolver(filterResolver);
         }
 
         public int ActiveCount => _world.ActiveCount;
+
+        /// <summary>
+        /// 返回全部临时通知数，不将尚未到期的发射任务计入帧完成检查。
+        /// </summary>
+        public int PendingNotificationCount => _spawnEvents.Count + _hitEvents.Count +
+            _arrivalEvents.Count + _exitEvents.Count + _tickEvents.Count + _areaSpawnEvents.Count +
+            _areaEnterEvents.Count + _areaStayEvents.Count + _areaExitEvents.Count + _areaExpireEvents.Count;
 
         public ProjectileId Spawn(in ProjectileSpawnParams p)
         {
@@ -383,44 +399,6 @@ namespace AbilityKit.Combat.Projectile
             results.AddRange(_areaExpireEvents);
         }
 
-        public byte[] ExportRollback(FrameIndex frame)
-        {
-            return MemoryPackSerializer.Serialize(new ProjectileServiceRollbackPayload(
-                1, _world.ExportRollback(frame), _areas.ExportRollback(frame.Value)));
-        }
-
-        public void ImportRollback(FrameIndex frame, byte[] payload)
-        {
-            if (payload == null || payload.Length == 0)
-            {
-                _world.ImportRollback(frame, payload);
-                _areas.ImportRollback(payload);
-            }
-            else
-            {
-                var snapshot = MemoryPackSerializer.Deserialize<ProjectileServiceRollbackPayload>(payload);
-                if (snapshot.Version != 1) throw new InvalidOperationException($"Unsupported projectile service snapshot version {snapshot.Version}.");
-                _world.ImportRollback(frame, snapshot.Projectiles);
-                _areas.ImportRollback(snapshot.Areas);
-            }
-
-            // 回滚恢复时也应清理待处理的瞬态事件。
-            _spawnEvents.Clear();
-            _hitEvents.Clear();
-            _exitEvents.Clear();
-            _arrivalEvents.Clear();
-            _tickEvents.Clear();
-
-            _areaSpawnEvents.Clear();
-            _areaEnterEvents.Clear();
-            _areaStayEvents.Clear();
-            _areaExitEvents.Clear();
-            _areaExpireEvents.Clear();
-
-            // 定时发射属于瞬态控制器状态，回滚恢复时清理。
-            _schedules.Clear();
-        }
-
         public void Dispose()
         {
             _spawnEvents.Clear();
@@ -439,13 +417,4 @@ namespace AbilityKit.Combat.Projectile
         }
     }
 
-    [MemoryPackable]
-    internal readonly partial struct ProjectileServiceRollbackPayload
-    {
-        [MemoryPackOrder(0)] public readonly int Version;
-        [MemoryPackOrder(1)] public readonly byte[] Projectiles;
-        [MemoryPackOrder(2)] public readonly byte[] Areas;
-        public ProjectileServiceRollbackPayload(int version, byte[] projectiles, byte[] areas)
-        { Version = version; Projectiles = projectiles; Areas = areas; }
-    }
 }

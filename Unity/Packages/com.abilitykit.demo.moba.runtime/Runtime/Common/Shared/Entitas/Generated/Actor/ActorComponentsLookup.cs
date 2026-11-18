@@ -52,8 +52,9 @@ public static class ActorComponentsLookup {
     public const int ActorStateMachine = 41;
     public const int CharacterHfsm = 42;
     public const int ChampionLevel = 43;
+    public const int SkillCastRetention = 44;
 
-    public const int TotalComponents = 44;
+    public const int TotalComponents = 45;
 
     public static readonly string[] componentNames = {
         "ActorId",
@@ -100,6 +101,7 @@ public static class ActorComponentsLookup {
         "ActorStateMachine",
         "CharacterHfsm",
         "ChampionLevel",
+        "SkillCastRetention",
     };
 
     public static readonly System.Type[] componentTypes = {
@@ -147,5 +149,6 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Demo.Moba.Components.ActorStateMachineComponent),
         typeof(AbilityKit.Demo.Moba.Components.CharacterHfsmComponent),
         typeof(AbilityKit.Demo.Moba.Components.ChampionLevelComponent),
+        typeof(AbilityKit.Demo.Moba.Components.SkillCastRetentionComponent),
     };
 }

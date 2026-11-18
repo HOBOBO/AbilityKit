@@ -554,6 +554,45 @@ public sealed class MobaCharacterHfsmTests
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Recreated_machine_restores_without_initial_entry_then_executes_future_state_actions(bool moving)
+    {
+        var definition = MobaCharacterHfsmProfile.CreateGenericDefinition();
+        var states = definition.Machines.Single(machine => machine.Id == "action").States;
+        var idle = states.Single(state => state.Id == "idle");
+        var move = states.Single(state => state.Id == "moving");
+        idle.LogicEntryActionKeys.Add("trigger.enter.123");
+        idle.LogicExitActionKeys.Add("trigger.exit.124");
+        move.LogicEntryActionKeys.Add("trigger.enter.125");
+        move.LogicExitActionKeys.Add("trigger.exit.126");
+        var calls = new List<(int Actor, int Trigger, int Frame)>();
+        void Record(int actor, int trigger, string state, int frame) => calls.Add((actor, trigger, frame));
+
+        using var source = new MobaCharacterHfsmRuntime(17, definition, 0, Fixed64.Zero,
+            registerForInspection: false, executeLogicTrigger: Record);
+        Assert.Equal(new[] { (17, 123, 0) }, calls);
+        source.Tick(1, Time(1), true, false, moving, 0, 0);
+        var checkpoint = source.CaptureSnapshot();
+        calls.Clear();
+
+        using var restored = MobaCharacterHfsmRuntime.CreateRestored(17, definition, checkpoint,
+            registerForInspection: false, executeLogicTrigger: Record);
+
+        Assert.Empty(calls);
+        Assert.Equal(checkpoint.Action.Path, restored.Action.Path);
+        Assert.Equal(checkpoint.Action.InstanceId, restored.Action.InstanceId);
+        Assert.Equal(checkpoint.Action.LocalFrame, restored.Action.LocalFrame);
+        Assert.Equal(checkpoint.Machine.Frame, restored.Frame);
+        Assert.Equal(checkpoint.Machine.TimeRaw, restored.Time.RawValue);
+
+        restored.Tick(2, Time(2), true, false, !moving, 0, 0);
+
+        Assert.Equal(moving ? new[] { (17, 126, 2), (17, 123, 2) }
+            : new[] { (17, 124, 2), (17, 125, 2) }, calls);
+    }
+
     [Fact]
     public void RecoveryValidationRuntimeDoesNotRegisterWithInspectionHub()
     {

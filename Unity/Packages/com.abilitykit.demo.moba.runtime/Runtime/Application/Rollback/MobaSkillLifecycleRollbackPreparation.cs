@@ -7,13 +7,15 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Combat.Projectile;
+using AbilityKit.Demo.Moba.Services.Projectile;
 using MemoryPack;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
     /// <summary>
-    /// Capture and cross-domain preflight for the approved, bounded lifecycle group.
-    /// Commit revalidates the detached plan and compensates the group's failed restore.
+    /// 捕获并联合预检已批准范围内的技能生命周期状态。完整快照预检只读验证结构投影，
+    /// Commit 在实际结构恢复后重新校验，并保留组内失败补偿。
     /// </summary>
     public sealed partial class MobaSkillLifecycleRollbackPreparation
     {
@@ -31,6 +33,9 @@ namespace AbilityKit.Demo.Moba.Rollback
         private readonly MobaContinuousManager _continuous;
         private readonly MobaTriggerIntervalContinuousService _intervals;
         private readonly MobaTriggerModifierContinuousService _triggerModifiers;
+        private readonly Services.EntityManager.MobaEntityManager _entities;
+        private readonly MobaProjectileLinkService _projectileLinks;
+        private readonly IProjectileService _projectiles;
 
         public MobaSkillLifecycleRollbackPreparation(IWorld world, MobaOwnerBlackboardRollbackProvider owners)
         {
@@ -39,6 +44,9 @@ namespace AbilityKit.Demo.Moba.Rollback
             var services = world.Services;
             _areas = services.Resolve<MobaAreaRuntimeService>();
             _actors = services.Resolve<MobaActorRegistry>();
+            services.TryResolve(out _entities);
+            services.TryResolve(out _projectileLinks);
+            services.TryResolve(out _projectiles);
             _contexts = services.Resolve<MobaRuntimeContextService>();
             _skills = services.Resolve<MobaSkillCastRuntimeService>();
             _pipelines = services.Resolve<SkillCastCoordinator>();
@@ -63,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             for (var i = 0; i < nodes.Count; i++) entries[i] = new MobaSkillExecutionContextRollbackEntry(nodes[i]);
             return MobaSkillLifecycleCheckpointCodec.Encode(new MobaSkillLifecycleCheckpoint
             {
-                Format = MobaSkillLifecycleCheckpoint.FormatName, Version = 3, Frame = frame.Value,
+                Format = MobaSkillLifecycleCheckpoint.FormatName, Version = MobaSkillLifecycleCheckpoint.CurrentVersion, Frame = frame.Value,
                 ActorIds = new List<int>(_actors.CopyActorIdsInOrder()).ToArray(),
                 Sections = new[]
                 {
@@ -83,18 +91,106 @@ namespace AbilityKit.Demo.Moba.Rollback
             });
         }
 
-        public MobaSkillLifecycleRestorePlan Prepare(FrameIndex frame, byte[] payload)
+        /// <summary>
+        /// 单份原地恢复始终要求当前与目标 Actor 名单相同，不借用其它恢复调用的验证结果。
+        /// </summary>
+        public MobaSkillLifecycleRestorePlan Prepare(FrameIndex frame, byte[] payload) => PrepareCore(frame, payload, null);
+
+        internal void PrepareSnapshot(RollbackSnapshotPreflightContext context, byte[] payload)
+        {
+            var checkpoint = MobaSkillLifecycleCheckpointCodec.Decode<MobaSkillLifecycleCheckpoint>(payload);
+            MobaSkillLifecycleCheckpointCodec.ReadSections(checkpoint);
+            if (!context.TryGetPayload(MobaEntitasEntityRollbackProvider.DefaultKey, out var entityPayload))
+            {
+                Prepare(context.Frame, payload);
+                return;
+            }
+
+            var target = MobaEntitasEntityRollbackProvider.ReadSnapshotActorIds(entityPayload.ToArray());
+            var versions = MobaEntitasEntityRollbackProvider.ReadSnapshotActorEntityVersions(entityPayload.ToArray());
+            var summaries = MobaEntitasComponentRollbackProvider.ReadSnapshotSummaries(
+                context.RequirePayload(MobaEntitasComponentRollbackProvider.DefaultKey).ToArray(), context.Frame.Value);
+            if (target.Count != checkpoint.ActorIds.Length)
+                throw new InvalidOperationException("Lifecycle and Entitas target actor rosters differ.");
+            var targetProjectiles = new HashSet<int>();
+            foreach (var summary in summaries)
+                if (summary.ActorId > 0 && summary.HasFlyingProjectile) targetProjectiles.Add(summary.ActorId);
+            for (var i = 0; i < checkpoint.ActorIds.Length; i++)
+            {
+                var id = checkpoint.ActorIds[i];
+                if (!target.Contains(id) || i > 0 && checkpoint.ActorIds[i - 1] >= id ||
+                    !versions.TryGetValue(id, out var version))
+                    throw new InvalidOperationException("Lifecycle target actor roster or entity version differs.");
+                if (_actors.TryGet(id, out _))
+                {
+                    if (!_actors.MatchesEntityVersion(id, version))
+                        throw new InvalidOperationException("Lifecycle surviving target actor entity identity differs.");
+                }
+                else if (!targetProjectiles.Contains(id))
+                    throw new InvalidOperationException("Lifecycle missing target actor is not a flying projectile.");
+            }
+
+            var live = new List<int>(_actors.CopyActorIdsInOrder());
+            var sameRoster = live.Count == checkpoint.ActorIds.Length;
+            for (var i = 0; sameRoster && i < live.Count; i++)
+                sameRoster = live[i] == checkpoint.ActorIds[i];
+            if (sameRoster)
+            {
+                Prepare(context.Frame, payload);
+                return;
+            }
+            if (_entities == null || !_entities.TryGetActorRollbackCommands(out var commands))
+                throw new InvalidOperationException("Lifecycle actor roster projection requires the existing actor command runtime.");
+            if (!context.Providers.TryGetValue(commands.StateProvider.Key, out var provider) ||
+                !ReferenceEquals(provider, commands.StateProvider))
+                throw new InvalidOperationException("Lifecycle projection requires the world's actor command provider.");
+            commands.ValidateProjectileRosterProjection(context.Frame,
+                context.RequirePayload(commands.StateProvider.Key).ToArray(), checkpoint.ActorIds, versions, targetProjectiles);
+            ValidateExtraProjectileRelations(live, target, context.Frame);
+            PrepareCore(context.Frame, payload, checkpoint.ActorIds);
+        }
+
+        private void ValidateExtraProjectileRelations(List<int> live, HashSet<int> target, FrameIndex frame)
+        {
+            foreach (var id in live)
+            {
+                if (target.Contains(id)) continue;
+                if (_projectileLinks == null || _projectiles == null ||
+                    !_projectileLinks.TryGetProjectileId(id, out var projectileId) ||
+                    !_projectileLinks.TryGetActorId(projectileId, out var linkedActor) || linkedActor != id ||
+                    !_projectiles.TryGetRuntimeState(projectileId, out var physical) || physical.SpawnFrame <= frame.Value ||
+                    !_projectileLinks.TryGetSource(projectileId, out var source) ||
+                    !_skills.ExecutionContextRegistry.TryGet(source.SourceContextId, out var node) ||
+                    node.IsEnded || node.Kind != MobaExecutionKind.ProjectileLaunch ||
+                    node.SourceActorId != source.SourceActorId || physical.RootActorId != source.SourceActorId ||
+                    node.ConfigId != source.ProjectileConfigId ||
+                    node.RootContextId != source.RootContextId)
+                    throw new InvalidOperationException("Extra projectile has incomplete physical or execution source relationships.");
+                if (!source.SkillRuntimeHandle.IsValid) continue;
+                if (!_projectileLinks.TryGetRetain(projectileId, out var retain) ||
+                    !retain.Runtime.Equals(source.SkillRuntimeHandle) ||
+                    retain.Child.Kind != MobaSkillRuntimeChildKind.Projectile || retain.Child.ChildId != projectileId.Value ||
+                    retain.Child.ContextId != source.SourceContextId || retain.Child.ConfigId != source.ProjectileConfigId ||
+                    !_skills.TryFindRetain(retain.Runtime, retain.Child, out var actual) || !actual.Equals(retain) ||
+                    actual.Child.ContextId != retain.Child.ContextId || actual.Child.ConfigId != retain.Child.ConfigId)
+                    throw new InvalidOperationException("Extra projectile has an invalid SkillRuntime retain relationship.");
+            }
+        }
+
+        private MobaSkillLifecycleRestorePlan PrepareCore(FrameIndex frame, byte[] payload, int[] projectedActors)
         {
             _buffs.ValidateLocalLifecycleOwnership();
             var checkpoint = MobaSkillLifecycleCheckpointCodec.Decode<MobaSkillLifecycleCheckpoint>(payload);
             var sections = MobaSkillLifecycleCheckpointCodec.ReadSections(checkpoint);
             if (checkpoint.Frame != frame.Value) throw new InvalidOperationException("Lifecycle checkpoint frame differs from the requested frame.");
-            var liveActors = new List<int>(_actors.CopyActorIdsInOrder());
+            var liveActors = projectedActors == null
+                ? new List<int>(_actors.CopyActorIdsInOrder()) : new List<int>(projectedActors);
             if (checkpoint.ActorIds.Length != liveActors.Count) throw new InvalidOperationException($"Lifecycle rollback requires the same actor roster. target=[{string.Join(",", checkpoint.ActorIds)}], live=[{string.Join(",", liveActors)}].");
             for (var i = 0; i < liveActors.Count; i++)
                 if (checkpoint.ActorIds[i] <= 0 || checkpoint.ActorIds[i] != liveActors[i])
                     throw new InvalidOperationException($"Lifecycle rollback requires the same actor roster. target=[{string.Join(",", checkpoint.ActorIds)}], live=[{string.Join(",", liveActors)}].");
-            _owners.ValidateImport(frame, sections["owner-blackboards"]);
+            if (projectedActors == null) _owners.ValidateImport(frame, sections["owner-blackboards"]);
+            else _owners.ValidateImportForProjectedActors(sections["owner-blackboards"], projectedActors);
 
             var execution = MobaSkillLifecycleCheckpointCodec.Decode<MobaExecutionRegistryCheckpoint>(sections["execution-contexts"]);
             var nodes = ValidateExecutionContexts(execution, frame);

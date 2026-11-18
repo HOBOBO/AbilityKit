@@ -6,6 +6,69 @@ namespace AbilityKit.Core.Tests;
 
 public sealed class PooledBufferOwnerTests
 {
+    [Theory]
+    [InlineData(PooledBufferClearMode.None, false, false)]
+    [InlineData(PooledBufferClearMode.OnRent, true, false)]
+    [InlineData(PooledBufferClearMode.OnReturn, false, true)]
+    [InlineData(PooledBufferClearMode.OnRent | PooledBufferClearMode.OnReturn, true, true)]
+    public void Clearing_policies_apply_independently_to_the_full_physical_array(
+        PooledBufferClearMode mode, bool clearOnRent, bool clearOnReturn)
+    {
+        var buffer = Enumerable.Repeat(7, 8).ToArray();
+        var pool = new TrackingArrayPool<int>(buffer);
+        var owner = PooledBufferOwner<int>.Rent(2, pool, mode);
+        Assert.All(buffer, value => Assert.Equal(clearOnRent ? 0 : 7, value));
+
+        Array.Fill(buffer, 9);
+        owner.Dispose();
+
+        Assert.Equal(clearOnReturn, pool.LastClearArray);
+        Assert.All(buffer, value => Assert.Equal(clearOnReturn ? 0 : 9, value));
+    }
+
+    [Fact]
+    public void Return_failure_revokes_access_and_is_not_retried()
+    {
+        var failure = new InvalidOperationException("归还失败");
+        var pool = new TrackingArrayPool<int>(new int[8]) { ReturnFailure = failure };
+        var owner = PooledBufferOwner<int>.Rent(2, pool);
+        pool.OnReturn = () =>
+        {
+            Assert.True(owner.IsDisposed);
+            Assert.Throws<ObjectDisposedException>(() => _ = owner.Memory);
+            owner.Dispose();
+        };
+
+        Assert.Same(failure, Assert.Throws<InvalidOperationException>(() => owner.Dispose()));
+        owner.Dispose();
+
+        Assert.True(owner.IsDisposed);
+        Assert.Equal(2, owner.Length);
+        Assert.Equal(1, pool.ReturnCount);
+    }
+
+    [Fact]
+    public void Invalid_pool_results_preserve_return_policy_and_exception_identity()
+    {
+        var undersized = new TrackingArrayPool<int>(new int[1]);
+        Assert.Throws<InvalidOperationException>(() => PooledBufferOwner<int>.Rent(
+            2, undersized, PooledBufferClearMode.OnReturn));
+        Assert.Equal(1, undersized.ReturnCount);
+        Assert.True(undersized.LastClearArray);
+
+        var failure = new InvalidOperationException("池拒绝归还");
+        undersized.ReturnFailure = failure;
+        Assert.Same(failure, Assert.Throws<InvalidOperationException>(() => PooledBufferOwner<int>.Rent(2, undersized)));
+        Assert.Equal(2, undersized.ReturnCount);
+
+        var nullPool = new TrackingArrayPool<int>(null!);
+        Assert.Throws<InvalidOperationException>(() => PooledBufferOwner<int>.Rent(2, nullPool));
+        Assert.Equal(0, nullPool.ReturnCount);
+        Assert.Throws<ArgumentNullException>(() => PooledBufferOwner<int>.Rent(0, null!));
+        Assert.Throws<ArgumentOutOfRangeException>(() => PooledBufferOwner<int>.Rent(0, nullPool, (PooledBufferClearMode)4));
+        Assert.Equal(1, nullPool.RentCount);
+    }
+
     [Fact]
     public void Rent_exposes_only_the_requested_logical_length()
     {
@@ -107,6 +170,8 @@ public sealed class PooledBufferOwnerTests
         public int RentCount => Volatile.Read(ref _rentCount);
         public int ReturnCount => Volatile.Read(ref _returnCount);
         public bool LastClearArray { get; private set; }
+        public Exception? ReturnFailure { get; set; }
+        public Action? OnReturn { get; set; }
 
         public override T[] Rent(int minimumLength)
         {
@@ -116,13 +181,14 @@ public sealed class PooledBufferOwnerTests
 
         public override void Return(T[] array, bool clearArray = false)
         {
+            Interlocked.Increment(ref _returnCount);
+            OnReturn?.Invoke();
+            if (ReturnFailure != null) throw ReturnFailure;
             LastClearArray = clearArray;
             if (clearArray)
             {
                 Array.Clear(array, 0, array.Length);
             }
-
-            Interlocked.Increment(ref _returnCount);
         }
     }
 }

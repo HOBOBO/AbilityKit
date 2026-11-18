@@ -6,6 +6,8 @@ namespace AbilityKit.Combat.Projectile
     {
         private readonly int _count;
 
+        internal int Count => _count;
+
         public BurstPattern(int count)
         {
             _count = count <= 0 ? 1 : count;

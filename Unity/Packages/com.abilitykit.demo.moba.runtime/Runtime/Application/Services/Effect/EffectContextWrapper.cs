@@ -62,6 +62,12 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryGetExecutionSnapshot(out MobaTriggerExecutionSnapshot snapshot)
         {
+            // Preserve the originating cast snapshot (including deferred request identity).
+            // The fallback below is only for contexts without an explicit snapshot provider.
+            if (_inner is IMobaTriggerExecutionSnapshotProvider provider &&
+                provider.TryGetExecutionSnapshot(out snapshot))
+                return true;
+
             var handle = _inner.GetSkillRuntimeHandle();
             _inner.TryGetData(AbilityContextKeys.TriggerId.ToKeyString(), out int triggerId);
             _inner.TryGetData(AbilityContextKeys.SourceConfigId.ToKeyString(), out int configId);

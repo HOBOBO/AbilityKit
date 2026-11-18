@@ -1,4 +1,7 @@
-#pragma warning disable CS0618 // Compatibility coverage for deprecated Core configuration APIs.
+/*
+ * 覆盖旧 Core 配置和全局标记入口的兼容契约，生产代码不新增弃用入口使用方。
+ */
+#pragma warning disable CS0618
 using AbilityKit.Core.Configuration;
 using AbilityKit.Core.Identifiers;
 using AbilityKit.Core.Markers;
@@ -6,6 +9,7 @@ using Xunit;
 
 namespace AbilityKit.Core.Tests;
 
+[Collection(MarkerSystemCollection.Name)]
 public sealed class FoundationUtilityTests
 {
     [Fact]

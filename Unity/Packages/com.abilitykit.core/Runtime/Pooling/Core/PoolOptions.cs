@@ -7,15 +7,17 @@ namespace AbilityKit.Core.Pooling
     /// </summary>
     public static class PoolOptions
     {
-        /// <summary>Creates object-pool options from explicit capacity and trim settings.</summary>
-        /// <typeparam name="T">The reference type stored by the pool.</typeparam>
-        /// <param name="createFunc">A factory that must return a non-null element.</param>
-        /// <param name="defaultCapacity">The initial prewarm count.</param>
-        /// <param name="maxSize">The maximum number of inactive elements retained.</param>
-        /// <param name="collectionCheck">Whether duplicate releases are detected.</param>
-        /// <param name="trimPolicy">The default trim policy.</param>
-        /// <param name="neverTrim">Whether regular trim operations are disabled.</param>
-        /// <returns>A new mutable options instance.</returns>
+        /// <summary>
+        /// 从显式参数生成可变对象池选项；容量合法性在池构造时检查。
+        /// </summary>
+        /// <typeparam name="T">池中保存的引用类型。</typeparam>
+        /// <param name="createFunc">必须返回新的非空对象的工厂。</param>
+        /// <param name="defaultCapacity">构造预热数量，不能为负数。</param>
+        /// <param name="maxSize">最大空闲保留数量，必须为正数，不限制活动对象数量。</param>
+        /// <param name="collectionCheck">是否按引用身份检测重复及转换期间的归还。</param>
+        /// <param name="trimPolicy">无参常规裁剪所使用的策略。</param>
+        /// <param name="neverTrim">是否禁止常规裁剪，不影响强制裁剪。</param>
+        /// <returns>新建的可变选项实例。</returns>
         public static ObjectPoolOptions<T> For<T>(
             Func<T> createFunc,
             int defaultCapacity = 0,
@@ -34,11 +36,13 @@ namespace AbilityKit.Core.Pooling
             };
         }
 
-        /// <summary>Creates object-pool options from a resolved configuration value.</summary>
-        /// <typeparam name="T">The reference type stored by the pool.</typeparam>
-        /// <param name="createFunc">A factory that must return a non-null element.</param>
-        /// <param name="config">The resolved configuration, or an unspecified value to use defaults.</param>
-        /// <returns>A new mutable options instance.</returns>
+        /// <summary>
+        /// 从已解析配置生成可变选项；未指定配置时使用默认值，预热容量取默认容量与预热数量的较大值。
+        /// </summary>
+        /// <typeparam name="T">池中保存的引用类型。</typeparam>
+        /// <param name="createFunc">必须返回新的非空对象的工厂。</param>
+        /// <param name="config">已解析配置；未指定时使用默认选项。</param>
+        /// <returns>新建的可变选项实例。</returns>
         public static ObjectPoolOptions<T> FromConfig<T>(Func<T> createFunc, PoolItemConfig config) where T : class
         {
             if (!config.IsSpecified)
@@ -56,13 +60,15 @@ namespace AbilityKit.Core.Pooling
             };
         }
 
-        /// <summary>Replaces the optional lifecycle callbacks on an options instance.</summary>
-        /// <typeparam name="T">The reference type stored by the pool.</typeparam>
-        /// <param name="options">The options to mutate.</param>
-        /// <param name="onGet">The optional acquisition callback.</param>
-        /// <param name="onRelease">The optional return callback.</param>
-        /// <param name="onDestroy">The optional permanent-removal callback.</param>
-        /// <returns><paramref name="options"/>.</returns>
+        /// <summary>
+        /// 替换可变选项实例的三个生命周期回调，传入空值会清除对应回调；不更新现有池。
+        /// </summary>
+        /// <typeparam name="T">池中保存的引用类型。</typeparam>
+        /// <param name="options">可变创建选项，仅在池创建时读取；不得并发修改。</param>
+        /// <param name="onGet">对象获取时执行的可选回调。</param>
+        /// <param name="onRelease">对象归还或预热时执行的可选回调。</param>
+        /// <param name="onDestroy">永久移除对象时执行的可选回调。</param>
+        /// <returns>传入的同一个可变选项实例。</returns>
         public static ObjectPoolOptions<T> WithLifecycle<T>(
             this ObjectPoolOptions<T> options,
             Action<T>? onGet = null,
@@ -76,12 +82,14 @@ namespace AbilityKit.Core.Pooling
             return options;
         }
 
-        /// <summary>Replaces the initial and retained capacities on an options instance.</summary>
-        /// <typeparam name="T">The reference type stored by the pool.</typeparam>
-        /// <param name="options">The options to mutate.</param>
-        /// <param name="defaultCapacity">The initial prewarm count.</param>
-        /// <param name="maxSize">The maximum number of inactive elements retained.</param>
-        /// <returns><paramref name="options"/>.</returns>
+        /// <summary>
+        /// 修改选项实例的构造预热数量与空闲保留上限，不更新现有池。
+        /// </summary>
+        /// <typeparam name="T">池中保存的引用类型。</typeparam>
+        /// <param name="options">可变创建选项，仅在池创建时读取；不得并发修改。</param>
+        /// <param name="defaultCapacity">构造预热数量，不能为负数。</param>
+        /// <param name="maxSize">最大空闲保留数量，必须为正数，不限制活动对象数量。</param>
+        /// <returns>传入的同一个可变选项实例。</returns>
         public static ObjectPoolOptions<T> WithCapacity<T>(this ObjectPoolOptions<T> options, int defaultCapacity, int maxSize) where T : class
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
@@ -90,12 +98,14 @@ namespace AbilityKit.Core.Pooling
             return options;
         }
 
-        /// <summary>Replaces the trimming behavior on an options instance.</summary>
-        /// <typeparam name="T">The reference type stored by the pool.</typeparam>
-        /// <param name="options">The options to mutate.</param>
-        /// <param name="trimPolicy">The default trim policy.</param>
-        /// <param name="neverTrim">Whether regular trim operations are disabled.</param>
-        /// <returns><paramref name="options"/>.</returns>
+        /// <summary>
+        /// 修改可变选项实例的裁剪策略及禁止常规裁剪标志，不更新现有池。
+        /// </summary>
+        /// <typeparam name="T">池中保存的引用类型。</typeparam>
+        /// <param name="options">可变创建选项，仅在池创建时读取；不得并发修改。</param>
+        /// <param name="trimPolicy">无参常规裁剪所使用的策略。</param>
+        /// <param name="neverTrim">是否禁止常规裁剪，不影响强制裁剪。</param>
+        /// <returns>传入的同一个可变选项实例。</returns>
         public static ObjectPoolOptions<T> WithTrim<T>(this ObjectPoolOptions<T> options, PoolTrimPolicy trimPolicy, bool neverTrim = false) where T : class
         {
             if (options == null) throw new ArgumentNullException(nameof(options));

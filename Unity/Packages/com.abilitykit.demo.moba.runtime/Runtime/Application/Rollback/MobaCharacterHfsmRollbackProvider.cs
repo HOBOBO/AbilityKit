@@ -18,7 +18,8 @@ using Newtonsoft.Json;
 namespace AbilityKit.Demo.Moba.Rollback
 {
     [MobaRollbackProvider(DefaultKey)]
-    public sealed class MobaCharacterHfsmRollbackProvider : IRollbackStateProvider, IMobaStateRecoveryProvider
+    public sealed class MobaCharacterHfsmRollbackProvider : IRollbackStateProvider,
+        IRollbackStatePreflightProvider, IRollbackSnapshotPreflightProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10017;
         private readonly MobaActorRegistry _actors;
@@ -90,9 +91,43 @@ namespace AbilityKit.Demo.Moba.Rollback
             return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(entries));
         }
 
-        public void ImportState(FrameIndex frame, byte[] payload)
+        public void ValidateImport(FrameIndex frame, byte[] payload) => ReadAndValidate(frame, payload);
+
+        public void ValidateSnapshot(RollbackSnapshotPreflightContext context) =>
+            ValidateImport(context.Frame, context.RequirePayload(Key).ToArray());
+
+        internal void ValidateParameterRecovery(FrameIndex frame, byte[] payload,
+            MobaCharacterHfsmParameterService parameters,
+            IReadOnlyList<MobaCharacterHfsmParameterService.SnapshotEntry> contributions)
         {
-            if (payload == null || payload.Length == 0) return;
+            if (!ReferenceEquals(_parameters, parameters))
+            {
+                // This HFSM provider does not own the parameter service being restored.
+                parameters.ValidateSnapshot(contributions);
+                return;
+            }
+            var entries = ReadAndValidate(frame, payload);
+            using (var candidate = parameters.CreateProfileValidationCopy())
+            {
+                if (entries != null)
+                {
+                    var restored = new HashSet<int>();
+                    foreach (var entry in entries)
+                    {
+                        restored.Add(entry.ActorId);
+                        if (_actors.TryGet(entry.ActorId, out _))
+                            candidate.RegisterActorProfile(entry.ActorId, ResolveDefinition(entry.ActorId));
+                    }
+                    foreach (var id in _actors.CopyActorIdsInOrder())
+                        if (!restored.Contains(id)) candidate.ClearActorProfile(id);
+                }
+                candidate.ValidateSnapshot(contributions);
+            }
+        }
+
+        private List<Entry> ReadAndValidate(FrameIndex frame, byte[] payload)
+        {
+            if (payload == null || payload.Length == 0) return null;
             var entries = JsonConvert.DeserializeObject<List<Entry>>(Encoding.UTF8.GetString(payload))
                 ?? throw new InvalidOperationException("Character HFSM recovery payload is invalid.");
             var restored = new HashSet<int>();
@@ -102,6 +137,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                     throw new InvalidOperationException("Character HFSM recovery contains a duplicate or null entry.");
                 if (entry.Machine.Frame != frame.Value)
                     throw new InvalidOperationException("Character HFSM recovery frame differs from actor snapshot frame.");
+                var definition = ResolveDefinition(entry.ActorId);
+                _parameters?.ValidateActorProfile(entry.ActorId, definition);
                 var snapshot = new MobaCharacterHfsmSnapshot
                 {
                     Machine = entry.Machine,
@@ -115,22 +152,34 @@ namespace AbilityKit.Demo.Moba.Rollback
                     FrozenAimPos = entry.GetFrozenAimPos(),
                     FrozenAimDir = entry.GetFrozenAimDir()
                 };
-                using (var candidate = new MobaCharacterHfsmRuntime(entry.ActorId,
-                           ResolveDefinition(entry.ActorId), 0, Fixed64.Zero, registerForInspection: false,
-                           parameters: _parameters))
+                using (var candidate = MobaCharacterHfsmRuntime.CreateRestored(entry.ActorId,
+                           definition, snapshot, registerForInspection: false))
                 {
-                    // Validation is detached from gameplay. Disposing the restored candidate
-                    // shuts down its active states; it must not run live exit effects.
+                    /*
+                     * 预检直接恢复隔离状态，不执行初始化、状态进入或退出动作，
+                     * 也不绑定存活参数、诊断注册或战斗效果。
+                     */
                     if (_actors.TryGet(entry.ActorId, out var existing) && existing.hasCharacterHfsm &&
                         (existing.characterHfsm.Runtime == null ||
                          existing.characterHfsm.Runtime.DefinitionHash != candidate.DefinitionHash))
                         throw new InvalidOperationException("Character HFSM recovery definition differs from actor machine.");
-                    candidate.RestoreSnapshot(snapshot);
                 }
             }
+            return entries;
+        }
+
+        public void ImportState(FrameIndex frame, byte[] payload)
+        {
+            // Direct state recovery callers also require validation before applying entries.
+            var entries = ReadAndValidate(frame, payload);
+            if (entries == null) return;
+            var restored = new HashSet<int>();
             foreach (var entry in entries)
             {
+                restored.Add(entry.ActorId);
                 if (!_actors.TryGet(entry.ActorId, out var actor)) continue;
+                var definition = ResolveDefinition(entry.ActorId);
+                _parameters?.RegisterActorProfile(entry.ActorId, definition);
                 var snapshot = new MobaCharacterHfsmSnapshot
                 {
                     Machine = entry.Machine,
@@ -145,11 +194,11 @@ namespace AbilityKit.Demo.Moba.Rollback
                     FrozenAimDir = entry.GetFrozenAimDir()
                 };
                 if (!actor.hasCharacterHfsm)
-                    actor.AddCharacterHfsm(new MobaCharacterHfsmRuntime(entry.ActorId,
-                        ResolveDefinition(entry.ActorId), entry.Machine.Frame,
-                        Fixed64.FromRaw(entry.Machine.TimeRaw), parameters: _parameters,
+                    actor.AddCharacterHfsm(MobaCharacterHfsmRuntime.CreateRestored(entry.ActorId,
+                        definition, snapshot, parameters: _parameters,
                         executeLogicTrigger: ExecuteHfsmLogicTrigger));
-                actor.characterHfsm.Runtime.RestoreSnapshot(snapshot);
+                else
+                    actor.characterHfsm.Runtime.RestoreSnapshot(snapshot);
             }
             // A full baseline may contain an actor with no character machine yet.
             foreach (var id in _actors.CopyActorIdsInOrder())
@@ -166,12 +215,12 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (_actors.TryGet(actorId, out var actor) && actor.hasSkillLoadout)
             {
                 var heroId = actor.skillLoadout.HeroId;
-                var definition = _profiles?.Resolve(heroId) ??
-                    MobaCharacterHfsmProfile.CreateGenericDefinition();
-                _parameters?.RegisterActorProfile(actorId, definition);
+                // Match the live character system's actor-kind definition selection.
+                var definition = actor.hasSummonMeta
+                    ? MobaCharacterHfsmProfile.CreateSummonDefinition()
+                    : (_profiles?.Resolve(heroId) ?? MobaCharacterHfsmProfile.CreateGenericDefinition());
                 return definition;
             }
-            _parameters?.RegisterActorProfile(actorId, _definition);
             return _definition;
         }
 

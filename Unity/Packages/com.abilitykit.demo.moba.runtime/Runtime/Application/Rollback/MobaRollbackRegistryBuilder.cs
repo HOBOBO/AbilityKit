@@ -79,6 +79,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (world?.Services == null)
                 throw new ArgumentException("Rollback world and services are required.", nameof(world));
 
+            MobaEntitasComponentRollbackProvider componentProvider = null;
             if (world is IEntitasWorld entitasWorld && entitasWorld.Contexts is global::Contexts contexts &&
                 world.Services.TryResolve<ActorIdAllocator>(out var actorIds) && actorIds != null &&
                 world.Services.TryResolve<MobaActorRegistry>(out var actors) && actors != null)
@@ -106,9 +107,10 @@ namespace AbilityKit.Demo.Moba.Rollback
                     summons,
                     restoresMissingActors,
                     brainsForEntityCleanup));
-                registry.Register(new MobaEntitasComponentRollbackProvider(
+                componentProvider = new MobaEntitasComponentRollbackProvider(
                     contexts.actor,
-                    restoresMissingActors));
+                    restoresMissingActors);
+                registry.Register(componentProvider);
                 if (actorCommands != null) registry.Register(actorCommands.StateProvider);
             }
 
@@ -138,7 +140,12 @@ namespace AbilityKit.Demo.Moba.Rollback
                 world.Services.TryResolve<MobaTriggerIntervalContinuousService>(out _) &&
                 world.Services.TryResolve<MobaTriggerModifierContinuousService>(out _) &&
                 world.Services.TryResolve<MobaAreaRuntimeService>(out _);
-            if (jointLifecycle) registry.Register(new MobaSkillLifecycleRollbackProvider(world, ownerProvider));
+            if (jointLifecycle)
+            {
+                registry.Register(new MobaSkillLifecycleRollbackProvider(world, ownerProvider));
+                if (componentProvider != null && world.Services.TryResolve<MobaPassiveSkillLifecycleService>(out var restoredPassives))
+                    componentProvider.PassiveRollbackRebind = restoredPassives;
+            }
             else if (ownerProvider != null) registry.Register(ownerProvider);
 
             if (world.Services.TryResolve<IFrameTime>(out var frameTime) &&
@@ -263,7 +270,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (world.Services.TryResolve<MobaSkillParamModifierService>(out var skillParamModifiers) && skillParamModifiers != null)
             {
                 registry.Register(new MobaSkillParamModifierRollbackProvider(skillParamModifiers,
-                    restoreProjection: false));
+                    restoreProjection: false, lifecycleOwnsProjection: jointLifecycle));
             }
 
             if (!jointLifecycle && world.Services.TryResolve<MobaContinuousManager>(out var modifierContinuous) && modifierContinuous != null)
@@ -317,7 +324,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 MobaSkillParamModifierRollbackProvider.DefaultKey,
                 MobaDerivedSkillRollbackProvider.DefaultKey,
                 MobaTriggerExecutionRuntimeService.DefaultKey,
-                CommandRollbackStateProvider.DefaultKey,
+                MobaActorRollbackCommandRuntime.RollbackProviderKey,
                 FrameTimeRollbackStateProvider.DefaultKey,
                 RollbackWorldRandom.DefaultKey,
             MobaCombatActivityRollbackProvider.DefaultKey,

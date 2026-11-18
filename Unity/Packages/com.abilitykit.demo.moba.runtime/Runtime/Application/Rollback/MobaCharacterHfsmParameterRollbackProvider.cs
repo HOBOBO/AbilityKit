@@ -10,7 +10,8 @@ namespace AbilityKit.Demo.Moba.Rollback
 {
     /// <summary>Rollback state for source-owned HFSM parameter contributions.</summary>
     [MobaRollbackProvider(DefaultKey)]
-    public sealed class MobaCharacterHfsmParameterRollbackProvider : IRollbackStateProvider
+    public sealed class MobaCharacterHfsmParameterRollbackProvider : IRollbackStateProvider,
+        IRollbackSnapshotPreflightProvider
     {
         public const int DefaultKey = 10044;
         private readonly MobaCharacterHfsmParameterService _parameters;
@@ -29,16 +30,29 @@ namespace AbilityKit.Demo.Moba.Rollback
             return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(entries));
         }
 
-        public void ImportState(FrameIndex frame, byte[] payload)
+        public void ValidateImport(FrameIndex frame, byte[] payload) => _parameters.ValidateSnapshot(Read(payload));
+
+        public void ValidateSnapshot(RollbackSnapshotPreflightContext context)
+        {
+            var entries = Read(context.RequirePayload(Key).ToArray());
+            // HFSM import precedes parameters and can replace/clear declarations.
+            // Validate against that target profile, never the current profile alone.
+            if (context.Providers.TryGetValue(MobaCharacterHfsmRollbackProvider.DefaultKey, out var provider) &&
+                provider is MobaCharacterHfsmRollbackProvider hfsm)
+                hfsm.ValidateParameterRecovery(context.Frame,
+                    context.RequirePayload(hfsm.Key).ToArray(), _parameters, entries);
+            else
+                _parameters.ValidateSnapshot(entries);
+        }
+
+        public void ImportState(FrameIndex frame, byte[] payload) => _parameters.RestoreSnapshot(Read(payload));
+
+        private static MobaCharacterHfsmParameterService.SnapshotEntry[] Read(byte[] payload)
         {
             if (payload == null || payload.Length == 0)
-            {
-                _parameters.RestoreSnapshot(Array.Empty<MobaCharacterHfsmParameterService.SnapshotEntry>());
-                return;
-            }
-            var entries = JsonConvert.DeserializeObject<MobaCharacterHfsmParameterService.SnapshotEntry[]>(
-                Encoding.UTF8.GetString(payload));
-            _parameters.RestoreSnapshot(entries ?? Array.Empty<MobaCharacterHfsmParameterService.SnapshotEntry>());
+                return Array.Empty<MobaCharacterHfsmParameterService.SnapshotEntry>();
+            return JsonConvert.DeserializeObject<MobaCharacterHfsmParameterService.SnapshotEntry[]>(
+                Encoding.UTF8.GetString(payload)) ?? Array.Empty<MobaCharacterHfsmParameterService.SnapshotEntry>();
         }
 
         public void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash)

@@ -1,4 +1,7 @@
-#pragma warning disable CS0618 // Compatibility coverage for the deprecated Core Continuous surface.
+/*
+ * 验证已弃用的 Core 持续体兼容面，保留至下一主版本移除窗口。
+ */
+#pragma warning disable CS0618
 using AbilityKit.Core.Continuous;
 using Xunit;
 

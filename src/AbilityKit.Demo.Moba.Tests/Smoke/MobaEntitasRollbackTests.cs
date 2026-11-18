@@ -278,8 +278,9 @@ public sealed class MobaEntitasRollbackTests
         var first = MobaRollbackRegistryBuilder.Create(world);
         var second = MobaRollbackRegistryBuilder.Create(world);
 
-        Assert.True(first.TryGet(CommandRollbackStateProvider.DefaultKey, out var firstProvider));
-        Assert.True(second.TryGet(CommandRollbackStateProvider.DefaultKey, out var secondProvider));
+        Assert.True(first.TryGet(MobaActorRollbackCommandRuntime.RollbackProviderKey, out var firstProvider));
+        Assert.True(second.TryGet(MobaActorRollbackCommandRuntime.RollbackProviderKey, out var secondProvider));
+        Assert.False(first.TryGet(CommandRollbackStateProvider.DefaultKey, out _));
         Assert.Same(firstProvider, secondProvider);
     }
 

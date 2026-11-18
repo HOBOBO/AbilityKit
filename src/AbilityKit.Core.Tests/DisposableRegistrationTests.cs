@@ -5,6 +5,41 @@ namespace AbilityKit.Core.Tests;
 
 public sealed class DisposableRegistrationTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Dispose_AllowsCallbackToDisposeTheSameHandle(bool useState)
+    {
+        IDisposable? registration = null;
+        var calls = 0;
+        Action release = () =>
+        {
+            calls++;
+            registration!.Dispose();
+        };
+        registration = useState
+            ? DisposableRegistration.Create(release, callback => callback())
+            : DisposableRegistration.Create(release);
+        registration.Dispose();
+        registration.Dispose();
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public void StateOverload_RemainsReleasedWhenCallbackThrows()
+    {
+        var calls = 0;
+        var failure = new InvalidOperationException("release failed");
+        var registration = DisposableRegistration.Create(7, state =>
+        {
+            calls += state;
+            throw failure;
+        });
+        Assert.Same(failure, Assert.Throws<InvalidOperationException>(() => registration.Dispose()));
+        registration.Dispose();
+        Assert.Equal(7, calls);
+    }
+
     [Fact]
     public void Create_RejectsNullReleaseCallbacks()
     {

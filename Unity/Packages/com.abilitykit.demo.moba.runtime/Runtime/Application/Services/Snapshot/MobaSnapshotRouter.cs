@@ -26,6 +26,7 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaSnapshotContractProfileRegistry _contractProfiles;
         private MobaGameplayConfigSettings _gameplaySettings;
         private IMobaBattleDiagnosticsService _diagnostics;
+        private MobaCombatFrameGuard _frameGuard;
         private long _singleRequests;
         private long _batchRequests;
         private long _hitCount;
@@ -50,6 +51,7 @@ namespace AbilityKit.Demo.Moba.Services
             services?.TryResolve(out _diagnostics);
             services?.TryResolve(out _contractProfiles);
             services?.TryResolve(out _gameplaySettings);
+            services?.TryResolve(out _frameGuard);
 
             var registry = MobaSnapshotEmitterRegistry.CreateDefault();
             var resolved = registry.ResolveEmitters(services);
@@ -63,6 +65,7 @@ namespace AbilityKit.Demo.Moba.Services
  
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
+            _frameGuard?.RequireCommit();
             ValidateFrame(frame);
 
             _singleRequests++;
@@ -90,6 +93,7 @@ namespace AbilityKit.Demo.Moba.Services
  
         public int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32)
         {
+            _frameGuard?.RequireCommit();
             ValidateFrame(frame);
 
             if (snapshots == null)
@@ -154,6 +158,7 @@ namespace AbilityKit.Demo.Moba.Services
         /// </summary>
         public int CollectActiveBaselines(IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32)
         {
+            _frameGuard?.RequireCommit();
             if (snapshots == null) throw new ArgumentNullException(nameof(snapshots));
             if (maxSnapshots <= 0) throw new ArgumentOutOfRangeException(nameof(maxSnapshots));
 

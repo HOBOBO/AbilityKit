@@ -7,7 +7,7 @@ Runtime/
 ├── Application/   装配层（把领域能力接入 World/DI/Entitas/Bootstrap/宿主）
 │   ├── Gameplay/       玩法规则（Core/Rules/Systems/Triggering）
 │   ├── Gate/           （空目录）
-│   ├── Rollback/       回滚支持（MobaActorTransformRollbackProvider / RollbackWorldRandom / PassiveSkillTriggerEventRollbackLog）
+│   ├── Rollback/       数据恢复与类型化命令回退（MobaActorTransformRollbackProvider / RollbackWorldRandom / MobaActorRollbackCommandRuntime）
 │   ├── Services/       ★ 40 个子目录（按业务，归 ability-kit skill）
 │   ├── Session/        宿主适配（MobaSessionCoordinatorHost / MobaBattleDriverHost / 等 8 个，归 coordinator skill）
 │   └── Systems/        Entitas Systems + Bootstrap Flow（18 子目录，含 Bootstrap/Flow/PlanActions）

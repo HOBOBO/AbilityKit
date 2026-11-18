@@ -23,6 +23,7 @@ namespace AbilityKit.Ability.Host.Extensions.Time
         private readonly Action<float> _onPostTick;
 
         private IFrameSyncDriverEvents _frameEvents;
+        private HostRuntime _runtime;
 
         public ServerFrameTimeModule()
             : this(0f)
@@ -58,6 +59,8 @@ namespace AbilityKit.Ability.Host.Extensions.Time
         {
             if (runtime == null) throw new ArgumentNullException(nameof(runtime));
             if (options == null) throw new ArgumentNullException(nameof(options));
+
+            _runtime = runtime;
 
             if (!runtime.Features.TryGetFeature<IFrameSyncDriverEvents>(out _frameEvents) || _frameEvents == null)
             {
@@ -123,6 +126,7 @@ namespace AbilityKit.Ability.Host.Extensions.Time
         {
             foreach (var kv in _times)
             {
+                if (!CanCommitTime(kv.Key)) continue;
                 kv.Value?.StepTo(frame, deltaTime);
             }
         }
@@ -135,6 +139,7 @@ namespace AbilityKit.Ability.Host.Extensions.Time
                 {
                     var time = kv.Value;
                     if (time == null) continue;
+                    if (!CanCommitTime(kv.Key)) continue;
 
                     time.StepTo(new FrameIndex(time.Frame.Value + 1), deltaTime);
                 }
@@ -143,6 +148,12 @@ namespace AbilityKit.Ability.Host.Extensions.Time
             {
                 Log.Exception(ex);
             }
+        }
+
+        private bool CanCommitTime(WorldId worldId)
+        {
+            if (_runtime?.Worlds.TryGet(worldId, out var world) != true || world == null) return true;
+            return world.Services?.TryResolve<IWorldFrameGuard>(out var guard) != true || guard.CanCommit;
         }
     }
 }

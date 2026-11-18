@@ -123,6 +123,42 @@ public sealed class SkillAwaitEventRollbackTests
         Assert.Equal(EAbilityPipelineState.Failed, run.State);
     }
 
+    [Fact]
+    public void Event_received_before_checkpoint_resumes_without_republishing_history()
+    {
+        var events = new EventBus();
+        var pipeline = new SkillCastPipeline();
+        var completed = 0;
+        pipeline.AddPhase(new SkillAwaitEventPhase(new AbilityPipelinePhaseId("wait"),
+            new SkillAwaitEventPhaseDTO { EventId = "rollback.received", TimeoutMs = 1000 }));
+        pipeline.AddPhase(new AbilityActionPhase<SkillPipelineContext>(
+            new AbilityPipelinePhaseId("after"), _ => completed++));
+        var config = new TestConfig();
+        var aim = Vec3.Zero;
+        var direction = Vec3.Forward;
+        var request = new SkillCastRequest(1, 1, 1, 0, in aim, in direction,
+            null, events, null, null);
+        var context = new SkillPipelineContext();
+        context.Initialize(null, in request);
+        var run = pipeline.Start(config, context);
+        run.Tick(0f);
+        object payload = new object();
+        events.Publish(new EventKey<object>(TriggeringIdUtil.GetEventEid("rollback.received")), in payload);
+        var checkpoint = PipelineRollbackStateCodec.Serialize(SkillPipelineRollback.Capture(run, config));
+        Assert.Equal(0, completed);
+        SkillPipelineRollback.Detach(run);
+
+        var restoredContext = new SkillPipelineContext();
+        restoredContext.Initialize(null, in request);
+        var restored = SkillPipelineRollback.Restore(pipeline, config, restoredContext,
+            PipelineRollbackStateCodec.Deserialize(checkpoint));
+
+        Assert.Equal(0, completed);
+        restored.Tick(0f);
+        Assert.Equal(EAbilityPipelineState.Completed, restored.State);
+        Assert.Equal(1, completed);
+    }
+
     private sealed class TestConfig : IAbilityPipelineConfig
     {
         public int ConfigId => 1;

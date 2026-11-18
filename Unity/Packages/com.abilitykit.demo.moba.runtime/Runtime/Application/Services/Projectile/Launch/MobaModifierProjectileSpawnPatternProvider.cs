@@ -1,11 +1,17 @@
 using System;
+using MemoryPack;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
 {
-    public sealed class MobaModifierProjectileSpawnPatternProvider : IProjectileSpawnPatternProvider
+    /// <summary>
+    /// 在每次正式发射时解析 Modifier 并使用世界随机源构造发射模式。
+    /// 可选回滚只保存请求描述并重绑原服务，不将每次取样改成捕获时冻结。
+    /// </summary>
+    public sealed class MobaModifierProjectileSpawnPatternProvider : IProjectileSpawnPatternProvider,
+        IProjectileSchedulePatternSnapshotSource
     {
         private readonly MobaSkillParamModifierService _paramModifiers;
         private readonly ProjectileMO _projectile;
@@ -19,6 +25,27 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         private readonly float _baseFanAngleDeg;
         private readonly IProjectileSpawnPattern _basePattern;
 
+        /// <summary>
+        /// 仅捕获发射请求参数与依赖身份；不求值 Modifier、不构造本次发射结果、不消耗随机流。
+        /// 配置按同会话不可变目录重绑，随机进度仍由世界随机 Provider 唯一恢复。
+        /// </summary>
+        public ProjectileSchedulePatternSnapshot CaptureSchedulePattern()
+        {
+            return new ProjectileSchedulePatternSnapshot(MobaProjectileSchedulePatternResolver.ModifierPatternKind,
+                MemoryPackSerializer.Serialize(new MobaModifierProjectilePatternSnapshot {
+                    Version = 1, ProjectileId = _projectile.Id, LauncherTemplateId = _launcherTemplateId,
+                    Slot = _slot, BaseSkillId = _baseSkillId, EffectiveSkillId = _effectiveSkillId,
+                    FrameDurationMs = _frameDurationMs, CountPerShot = _baseCountPerShot, FanAngleDeg = _baseFanAngleDeg,
+                    HasModifiers = _paramModifiers != null, HasRandom = _random != null,
+                    ConfigSpeed = _projectile.Speed, ConfigLifetimeMs = _projectile.LifetimeMs,
+                    RandomOffsetX = _projectile.SpawnRandomOffsetX, RandomOffsetY = _projectile.SpawnRandomOffsetY,
+                    RandomOffsetZ = _projectile.SpawnRandomOffsetZ
+                }));
+        }
+
+        /// <summary>
+        /// 绑定发射请求、同会话配置及原世界依赖；构造过程不执行发射或随机取样。
+        /// </summary>
         public MobaModifierProjectileSpawnPatternProvider(
             MobaSkillParamModifierService paramModifiers,
             ProjectileMO projectile,
@@ -47,6 +74,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             _basePattern = CreatePattern(requestCountPerShot, requestFanAngleDeg, projectile.Speed);
         }
 
+        /// <summary>
+        /// 在当前发射帧读取数量与扇形角度，并冻结本次创建弹体的速度、寿命及穿透值。
+        /// </summary>
         [MobaModifierConsumes(MobaSkillParamModifierKeys.Emitter.Ids.CountPerShot,
             MobaParameterStage.Emit, MobaModifierSampleTiming.EventSample)]
         [MobaModifierConsumes(MobaSkillParamModifierKeys.Emitter.Ids.FanAngleDeg,

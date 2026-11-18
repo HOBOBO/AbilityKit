@@ -4,8 +4,9 @@ using System.Collections.Generic;
 namespace AbilityKit.Core.Continuous
 {
     /// <summary>
-    /// 默认持续体管理器。
-    /// 提供按 owner 索引、生命周期批量操作、准入策略和生命周期绑定器。
+    /// 旧 Core 默认持续体管理器，保留至下一主版本移除窗口；新代码使用 AbilityKit.Continuous。
+    /// 按默认相等比较登记，按注册顺序查询，不按配置 Id 去重；不推进时间或自动执行配置扩展策略。
+    /// 非线程安全；登记期间应保持配置、OwnerId、哈希及相等性稳定。回调不具备通用重入事务保证。
     /// </summary>
     [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public class DefaultContinuousManager : IContinuousManager
@@ -18,33 +19,38 @@ namespace AbilityKit.Core.Continuous
         private readonly List<IContinuousLifecycleBinder> _lifecycleBinders = new List<IContinuousLifecycleBinder>();
 
         /// <summary>
-        /// 持续体注册事件。
+        /// 注册绑定器全部成功后同步触发；事件异常传播，但不回滚已经完成的登记。
         /// </summary>
         public event Action<IContinuous>? OnRegistered;
 
         /// <summary>
-        /// 持续体激活事件。
+        /// 由非激活进入激活后，在激活绑定器之后同步触发；异常不补偿已完成的激活。
         /// </summary>
         public event Action<IContinuous>? OnActivated;
 
         /// <summary>
-        /// 持续体注销事件。
+        /// 注销索引及绑定器通知完成后同步触发；绑定器异常会阻止本事件。
         /// </summary>
         public event Action<IContinuous, ContinuousEndReason>? OnUnregistered;
 
         /// <summary>
-        /// 最近一次准入失败原因。
+        /// 获取最近保留的准入拒绝原因。
+        /// Register 和 TryActivate 在入口清空；TryResume 仅在准入拒绝时写入，成功时可保留旧值。
         /// </summary>
         public string? LastRejectReason { get; private set; }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 获取活动索引数量；直接调用持续体方法不会自动同步该索引。
+        /// </summary>
         public int ActiveCount => _active.Count;
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 获取已登记对象数量，采用默认相等比较。
+        /// </summary>
         public int TotalCount => _registered.Count;
 
         /// <summary>
-        /// 创建默认持续体管理器。
+        /// 按枚举顺序复制策略和绑定器到内部列表；构造时不去重，也不筛除列表中的空元素。
         /// </summary>
         public DefaultContinuousManager(
             IEnumerable<IContinuousAdmissionPolicy>? admissionPolicies = null,
@@ -58,7 +64,7 @@ namespace AbilityKit.Core.Continuous
         }
 
         /// <summary>
-        /// 添加准入策略。
+        /// 追加非空且按默认相等比较尚不存在的准入策略。
         /// </summary>
         public void AddAdmissionPolicy(IContinuousAdmissionPolicy policy)
         {
@@ -67,7 +73,7 @@ namespace AbilityKit.Core.Continuous
         }
 
         /// <summary>
-        /// 移除准入策略。
+        /// 按默认相等比较移除首个匹配策略；空参数或未找到时返回假。
         /// </summary>
         public bool RemoveAdmissionPolicy(IContinuousAdmissionPolicy policy)
         {
@@ -75,7 +81,7 @@ namespace AbilityKit.Core.Continuous
         }
 
         /// <summary>
-        /// 添加生命周期绑定器。
+        /// 追加非空且按默认相等比较尚不存在的生命周期绑定器。
         /// </summary>
         public void AddLifecycleBinder(IContinuousLifecycleBinder binder)
         {
@@ -84,14 +90,18 @@ namespace AbilityKit.Core.Continuous
         }
 
         /// <summary>
-        /// 移除生命周期绑定器。
+        /// 按默认相等比较移除首个匹配绑定器；空参数或未找到时返回假。
         /// </summary>
         public bool RemoveLifecycleBinder(IContinuousLifecycleBinder binder)
         {
             return binder != null && _lifecycleBinders.Remove(binder);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 检查配置及准入后登记；重复登记直接成功，不重复准入或通知。
+        /// 注册绑定器使用快照；失败时先撤销登记，再对已尝试绑定器倒序补偿，包括失败者。
+        /// 补偿异常被隔离以保留原异常；之后的公共注册事件异常不触发回滚。
+        /// </summary>
         public bool Register(IContinuous continuous)
         {
             LastRejectReason = null;
@@ -136,7 +146,10 @@ namespace AbilityKit.Core.Continuous
             return true;
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 先移除登记、索引和结束事件订阅，再通知当前绑定器及公共事件；不调用 End 或 Abort。
+        /// 空对象或未登记对象无动作；回调异常传播并中断后续通知，已移除索引不回滚。
+        /// </summary>
         public void Unregister(IContinuous continuous, ContinuousEndReason reason = ContinuousEndReason.CleanedUp)
         {
             if (continuous == null || !_registered.Remove(continuous))
@@ -151,7 +164,11 @@ namespace AbilityKit.Core.Continuous
             OnUnregistered?.Invoke(continuous, reason);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 自动登记后进行激活准入，并调用 Activate，包括已经激活的对象。
+        /// 按调用后状态更新活动索引，仅在此前非激活且当前激活时通知绑定器及事件。
+        /// 异常传播且不补偿，激活绑定器失败时仍保留已提交的登记与活动索引。
+        /// </summary>
         public bool TryActivate(IContinuous continuous)
         {
             LastRejectReason = null;
@@ -176,7 +193,7 @@ namespace AbilityKit.Core.Continuous
                 _active.Add(continuous);
             else
                 _active.Remove(continuous);
- 
+
             if (continuous.IsActive && !wasActive)
             {
                 NotifyActivated(continuous);
@@ -186,7 +203,10 @@ namespace AbilityKit.Core.Continuous
             return continuous.IsActive;
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 按注册顺序返回当前所属实体索引列表的只读包装，后续同列表变更可见。
+        /// 最后一项移除后旧包装不会跟随该实体新建的索引列表；未找到时返回空数组。
+        /// </summary>
         public IReadOnlyList<IContinuous> GetOwnerContinuous(long ownerId)
         {
             if (!_ownerContinuous.TryGetValue(ownerId, out var list))
@@ -195,7 +215,10 @@ namespace AbilityKit.Core.Continuous
             return list.AsReadOnly();
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 按所属实体注册顺序返回副本，实时筛选 IsActive 且未终止的对象。
+        /// 结果可能与基于活动索引的 ActiveCount 或 GetAllActiveContinuous 不同。
+        /// </summary>
         public IReadOnlyList<IContinuous> GetOwnerActiveContinuous(long ownerId)
         {
             if (!_ownerContinuous.TryGetValue(ownerId, out var list) || list.Count == 0)
@@ -213,7 +236,7 @@ namespace AbilityKit.Core.Continuous
         }
 
         /// <summary>
-        /// 获取所有已注册持续体快照。
+        /// 返回全部已登记持续体的副本，保持注册顺序。
         /// </summary>
         public IReadOnlyList<IContinuous> GetAllContinuous()
         {
@@ -221,7 +244,7 @@ namespace AbilityKit.Core.Continuous
         }
 
         /// <summary>
-        /// 获取所有活跃持续体快照。
+        /// 按注册顺序返回活动索引成员的副本，不重新检查持续体的实时状态。
         /// </summary>
         public IReadOnlyList<IContinuous> GetAllActiveContinuous()
         {
@@ -236,7 +259,9 @@ namespace AbilityKit.Core.Continuous
             return result;
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 先复制所属实体列表，再依次尝试中断；回调新增项不进入本轮，异常中断且保留此前进度。
+        /// </summary>
         public void InterruptAll(long ownerId, string reason)
         {
             var snapshot = SnapshotOwner(ownerId);
@@ -244,7 +269,10 @@ namespace AbilityKit.Core.Continuous
                 TryInterrupt(snapshot[i], reason);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 对非空且未终止对象调用 End 并返回调用后的终止标记，不要求对象已经登记。
+        /// 已登记对象依赖其结束事件触发索引清理；异常直接传播。
+        /// </summary>
         public bool TryEnd(IContinuous continuous, ContinuousEndReason reason = ContinuousEndReason.Completed)
         {
             if (continuous == null || continuous.IsTerminated)
@@ -254,7 +282,10 @@ namespace AbilityKit.Core.Continuous
             return continuous.IsTerminated;
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 对非空、未终止且配置允许中断的对象调用 Abort，返回调用后的终止标记。
+        /// 不要求对象已经登记，不自动补发结束事件，异常直接传播。
+        /// </summary>
         public bool TryInterrupt(IContinuous continuous, string reason)
         {
             if (continuous == null || continuous.IsTerminated || !continuous.Config.CanBeInterrupted)
@@ -264,7 +295,9 @@ namespace AbilityKit.Core.Continuous
             return continuous.IsTerminated;
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 先复制所属实体列表再逐项暂停；快照中的已注销项仍可被操作，异常中断本轮。
+        /// </summary>
         public void PauseAll(long ownerId)
         {
             var snapshot = SnapshotOwner(ownerId);
@@ -273,7 +306,8 @@ namespace AbilityKit.Core.Continuous
         }
 
         /// <summary>
-        /// 尝试暂停单个持续体，并维护管理器索引和生命周期通知。
+        /// 对激活、未暂停且未终止的对象调用 Pause，成功后移除活动索引并通知当前绑定器。
+        /// 不要求已经登记；状态未变为暂停时返回假，回调异常不回滚暂停。
         /// </summary>
         public bool TryPause(IContinuous continuous)
         {
@@ -289,7 +323,9 @@ namespace AbilityKit.Core.Continuous
             return true;
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 先复制所属实体列表再逐项恢复；回调新增项不进入本轮，异常中断本轮。
+        /// </summary>
         public void ResumeAll(long ownerId)
         {
             var snapshot = SnapshotOwner(ownerId);
@@ -298,7 +334,8 @@ namespace AbilityKit.Core.Continuous
         }
 
         /// <summary>
-        /// 尝试恢复单个持续体，并维护管理器索引和生命周期通知。
+        /// 对暂停且未终止的对象执行激活准入，再调用 Resume；激活后加入活动索引并通知当前绑定器。
+        /// 不自动登记，因而可产生未登记的活动索引成员；成功时不清空 LastRejectReason。
         /// </summary>
         public bool TryResume(IContinuous continuous)
         {
@@ -321,7 +358,8 @@ namespace AbilityKit.Core.Continuous
         }
 
         /// <summary>
-        /// 注销全部持续体。
+        /// 按注册顺序复制列表后逐项注销，不结束持续体。
+        /// 回调中新登记的对象可以保留；异常中断清理，已完成的注销不回滚。
         /// </summary>
         public void Clear(ContinuousEndReason reason = ContinuousEndReason.CleanedUp)
         {
@@ -331,7 +369,7 @@ namespace AbilityKit.Core.Continuous
         }
 
         /// <summary>
-        /// 判断持续体是否允许注册。
+        /// 按当前策略列表顺序检查登记准入，首个拒绝即返回；异常传播。
         /// </summary>
         protected virtual bool CanRegister(IContinuous continuous, out string? reason)
         {
@@ -346,7 +384,7 @@ namespace AbilityKit.Core.Continuous
         }
 
         /// <summary>
-        /// 判断持续体是否允许激活。
+        /// 先拒绝空对象或终止对象，再按当前策略列表顺序检查激活准入，首个拒绝即返回。
         /// </summary>
         protected virtual bool CanActivate(IContinuous continuous, out string? reason)
         {
@@ -367,7 +405,8 @@ namespace AbilityKit.Core.Continuous
         }
 
         /// <summary>
-        /// 根据持续体状态解析默认结束原因。
+        /// 保留的兼容扩展点：空对象返回清理，中止状态返回中断，其他状态返回完成。
+        /// 默认结束事件链不调用此方法，而是直接透传事件原因。
         /// </summary>
         protected virtual ContinuousEndReason ResolveEndReason(IContinuous continuous)
         {
@@ -417,7 +456,9 @@ namespace AbilityKit.Core.Continuous
                 }
                 catch
                 {
-                    // Preserve the original registration failure after best-effort compensation.
+                    /*
+                     * 补偿尽力执行；隔离补偿异常，保留最初的注册失败。
+                     */
                 }
             }
         }

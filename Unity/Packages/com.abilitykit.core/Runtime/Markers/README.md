@@ -1,123 +1,14 @@
-# Marker 标记系统
+﻿# Marker 兼容源码入口
 
-## 概述
+命名空间为 `AbilityKit.Core.Markers`。登记、查询、反射扫描、全局状态和迁移限制统一见随包 [Marker 注册与扫描兼容契约](../../Documentation~/Markers.md)，准入规则见 [Core 边界](../../Documentation~/CoreBoundary.md)。
 
-`Marker` 是 AbilityKit 框架提供的统一类型标记机制。通过在类型上标记自定义 Attribute，框架可自动识别并处理这些类型，支持自动注册、代码生成、编辑器工具等多种场景。
+| 文件 | 职责 |
+|---|---|
+| `MarkerAttribute.cs`、`IMarkerRegistry.cs` | 特性扫描回调与最小登记接口。 |
+| `MarkerRegistry.cs` | 按首次登记顺序保留不同类型。 |
+| `KeyedMarkerRegistry.cs` | 当前键映射及历史类型目录。 |
+| `MarkerScanner.cs` | 按显式输入程序集调用直接声明的标记特性。 |
+| `MarkerScannerExtensions.cs` | 既有程序集名称、命名空间与引用扫描辅助入口。 |
+| `MarkerSystem.cs`、`MarkerBootstrapper.cs` | 已弃用并冻结的全局登记和引导兼容入口。 |
 
-## 核心组件
-
-| 文件 | 说明 |
-|------|------|
-| `MarkerAttribute.cs` | 基类 Attribute，所有框架标记 Attribute 都应继承此类 |
-| `IMarkerRegistry.cs` | Registry 接口 |
-| `MarkerRegistry.cs` | 基于类型的注册表，直接存储所有扫描到的 Type |
-| `KeyedMarkerRegistry.cs` | 基于 Key-Type 的注册表，通过 Key（如 string）查找 Type |
-| `MarkerScanner.cs` | 扫描器，扫描程序集并调用 Attribute.OnScanned |
-| `MarkerScannerExtensions.cs` | 扫描器扩展方法，提供高级扫描功能 |
-
-## 命名空间
-
-```
-AbilityKit.Common.Marker
-```
-
-## 快速开始
-
-### 1. 定义 Attribute + Registry
-
-```csharp
-namespace AbilityKit.Triggering
-{
-    // 定义 Registry
-    public sealed class TriggerActionRegistry : KeyedMarkerRegistry<string, TriggerActionAttribute>
-    {
-        public static readonly TriggerActionRegistry Instance = new();
-    }
-
-    // 定义 Attribute
-    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class TriggerActionAttribute : MarkerAttribute
-    {
-        public string ActionType { get; }
-
-        public TriggerActionAttribute(string actionType)
-        {
-            ActionType = actionType;
-        }
-
-        public override void OnScanned(Type implType, IMarkerRegistry registry)
-        {
-            if (registry is TriggerActionRegistry r)
-            {
-                r.Register(ActionType, implType);
-            }
-        }
-    }
-}
-```
-
-### 2. 业务层标记类型
-
-```csharp
-namespace MyGame.Skills.Actions
-{
-    [TriggerAction("damage_apply")]
-    public sealed class DamageApplyAction : ITriggerAction
-    {
-        public void Execute(TriggerContext ctx) { /* ... */ }
-    }
-}
-```
-
-### 3. 启动时扫描
-
-```csharp
-public static class TriggeringBootstrap
-{
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-    private static void Initialize()
-    {
-        // 扫描所有程序集
-        MarkerScanner<TriggerActionAttribute>.ScanAll(TriggerActionRegistry.Instance);
-    }
-}
-```
-
-### 4. 运行时使用
-
-```csharp
-if (TriggerActionRegistry.Instance.TryGet("damage_apply", out var type))
-{
-    var action = (ITriggerAction)Activator.CreateInstance(type);
-    action.Execute(context);
-}
-```
-
-## 设计原则
-
-1. **框架定义模式，业务使用**：框架层定义 Attribute + Registry 模式，业务包只需标记类型
-2. **处理逻辑在 Attribute.OnScanned**：框架层在 Attribute 子类中实现具体处理逻辑
-3. **统一扫描入口**：通过 `MarkerScanner<TAttr>.Scan()` 一次性完成扫描
-4. **零运行时开销**：扫描在启动时完成，运行时仅是普通的字典查找
-
-## 适用场景
-
-| 场景 | 推荐 Registry |
-|------|-------------|
-| 所有实现类型都同等重要，只需遍历 | `MarkerRegistry<TAttr>` |
-| 需要通过 Key（如 string）查找实现 | `KeyedMarkerRegistry<TKey, TAttr>` |
-| Key 是 string（如 actionType） | `KeyedMarkerRegistry<string, TAttr>` |
-| Key 是 int（如枚举值） | `KeyedMarkerRegistry<int, TAttr>` |
-
-## API 参考
-
-### MarkerScanner
-
-- `Scan(assemblies, registry)` - 扫描指定程序集
-- `ScanAll(registry)` - 扫描所有已加载的程序集
-
-### MarkerScannerExtensions
-
-- `ScanAllExcludingSystem<TAttr>()` - 扫描并排除系统程序集
-- `ScanByNamespace<TAttr>(namespace)` - 按命名空间扫描
-- `ScanWithReferences<TAttr>(assembly)` - 扫描程序集及其引用
+本目录不提供代码生成或编辑器发现，也不要求所有框架 Attribute 继承 MarkerAttribute。新发现和装配策略由所属所有者显式控制；旧全局入口不新增消费者，保留下一主版本前的兼容窗口。

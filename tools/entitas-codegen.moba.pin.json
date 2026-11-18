@@ -309,6 +309,13 @@
           "custom": false,
           "serialize": false,
           "coverage": null
+        },
+        {
+          "name": "SkillCastRetention",
+          "generate": true,
+          "custom": false,
+          "serialize": false,
+          "coverage": null
         }
       ]
     },

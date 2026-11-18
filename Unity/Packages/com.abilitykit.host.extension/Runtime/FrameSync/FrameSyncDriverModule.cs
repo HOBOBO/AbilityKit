@@ -169,6 +169,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 IWorld world = null;
                 if (session.HasWorld && (!_runtime.Worlds.TryGet(worldId, out world) || world == null)) continue;
 
+                if (world?.Services?.TryResolve<IWorldFrameGuard>(out var preGuard) == true && !preGuard.CanAdvance) continue;
+
                 PlayerInputCommand[] inputs;
                 if (session.PendingInputs.Count > 0)
                 {
@@ -221,6 +223,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             if (_runtime == null) return;
 
             var currentFrame = new FrameIndex(_frame.Value + 1);
+            var anySessionCommitted = false;
 
             foreach (var kv in _sessions)
             {
@@ -231,6 +234,11 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 if (session.HasWorld && (!_runtime.Worlds.TryGet(worldId, out world) || world == null)) continue;
 
                 var frame = session.PendingFrame.Value > 0 ? session.PendingFrame : currentFrame;
+                /*
+                 * 世界异常可能被宿主隔离；独立核对完成状态，禁止发送失败帧及空成功包。
+                 */
+                if (world?.Services?.TryResolve<IWorldFrameGuard>(out var postGuard) == true && !postGuard.CanCommit) continue;
+                anySessionCommitted = true;
                 var inputs = session.PendingInputsArray ?? Array.Empty<PlayerInputCommand>();
 
                 var broadcasted = false;
@@ -263,6 +271,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 session.PendingInputsArray = null;
                 session.PendingFrame = default;
             }
+
+            if (_sessions.Count > 0 && !anySessionCommitted) return;
 
             if (_postStep.Count > 0)
             {
@@ -301,10 +311,14 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             var steps = 0;
             while (steps < stepsBudget && lastTickedFrame < driveTargetFrame)
             {
+                IWorldFrameGuard frameGuard = null;
+                world.Services?.TryResolve(out frameGuard);
+                if (frameGuard != null && !frameGuard.CanAdvance) break;
                 var nextFrame = lastTickedFrame + 1;
                 var frameIndex = new FrameIndex(nextFrame);
 
                 runtime.Tick(fixedDelta);
+                if (frameGuard != null && !frameGuard.CanCommit) break;
 
                 if (provider != null && feed != null && maxSnapshotsPerStep > 0)
                 {

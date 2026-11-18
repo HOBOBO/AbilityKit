@@ -7,12 +7,14 @@ using Newtonsoft.Json.Linq;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
+using AbilityKit.Demo.Moba.Services.Motion;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
     internal sealed class MobaSkillLifecycleCheckpoint
     {
         public const string FormatName = "moba-skill-lifecycle";
+        public const int CurrentVersion = 4;
         [JsonProperty(Required = Required.Always)] public string Format;
         [JsonProperty(Required = Required.Always)] public int Version;
         [JsonProperty(Required = Required.Always)] public int Frame;
@@ -110,6 +112,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         [JsonProperty(Required = Required.Always)] public long IntervalRaw;
         [JsonProperty(Required = Required.Always)] public bool PausedByTags;
         [JsonProperty(Required = Required.AllowNull)] public string Configuration;
+        [JsonProperty(Required = Required.AllowNull)] public MobaManagedMotionCheckpoint Motion;
 
         internal static MobaContinuousLocalCheckpoint Capture(Services.MobaContinuousRuntimeBase runtime) => new MobaContinuousLocalCheckpoint
         {
@@ -117,6 +120,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             State = (int)runtime.State, ElapsedRaw = runtime.ElapsedRaw, IntervalRaw = runtime.IntervalRemainingRaw,
             // Pipeline definitions have their own complete runner schema validation.
             Configuration = runtime is Services.SkillPipelineContinuousRuntime ? null : JsonConvert.SerializeObject(runtime.Config),
+            Motion = runtime is MobaMotionContinuousRuntime motion ? MobaManagedMotionCheckpoint.Capture(motion) : null,
         };
 
         internal (string, long, string) Key => (Type, OwnerId, Id);
@@ -163,7 +167,7 @@ namespace AbilityKit.Demo.Moba.Rollback
 
         internal static Dictionary<string, byte[]> ReadSections(MobaSkillLifecycleCheckpoint checkpoint)
         {
-            if (checkpoint.Format != MobaSkillLifecycleCheckpoint.FormatName || checkpoint.Version != 3 ||
+            if (checkpoint.Format != MobaSkillLifecycleCheckpoint.FormatName || checkpoint.Version != MobaSkillLifecycleCheckpoint.CurrentVersion ||
                 checkpoint.Frame < 0 || checkpoint.ActorIds == null || checkpoint.Sections == null ||
                 checkpoint.Sections.Length != SectionNames.Length)
                 throw new InvalidDataException("Unsupported or incomplete lifecycle checkpoint.");

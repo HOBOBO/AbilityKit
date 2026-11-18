@@ -49,6 +49,8 @@ namespace AbilityKit.Demo.Moba.Services.Passive
         [WorldInject] private IOwnerBlackboardStore _ownerBlackboards = null;
         private readonly Dictionary<int, HashSet<long>> _ownerKeysByActor = new Dictionary<int, HashSet<long>>();
         private readonly Dictionary<long, PassiveOwnerBinding> _passiveByOwnerKey = new Dictionary<long, PassiveOwnerBinding>();
+        private readonly Dictionary<int, (global::ActorEntity Actor, Entitas.EntityComponentReplaced Handler)> _rollbackRebindActors =
+            new Dictionary<int, (global::ActorEntity, Entitas.EntityComponentReplaced)>();
 
         public MobaPassiveSkillLifecycleService(
             MobaConfigDatabase configs,
@@ -67,6 +69,38 @@ namespace AbilityKit.Demo.Moba.Services.Passive
         /// </summary>
         public void SyncActorPassives(global::ActorEntity entity, int frame)
         {
+            SyncActorPassives(entity, frame, preserveIntervals: false);
+        }
+
+        internal void SyncActorPassivesAfterRollbackRebind(global::ActorEntity entity, int frame)
+        {
+            SyncActorPassives(entity, frame, preserveIntervals: true);
+        }
+
+        internal void MarkRollbackRebind(global::ActorEntity actor)
+        {
+            if (actor == null || !actor.hasActorId || !actor.hasSkillLoadout) return;
+            var actorId = actor.actorId.Value;
+            ConsumeRollbackRebind(actorId);
+            // A subsequent real replacement must win even before the reactive system runs.
+            Entitas.EntityComponentReplaced handler = (entity, index, previous, current) =>
+            {
+                if (index == global::ActorComponentsLookup.SkillLoadout) ConsumeRollbackRebind(actorId);
+            };
+            actor.OnComponentReplaced += handler;
+            _rollbackRebindActors.Add(actorId, (actor, handler));
+        }
+
+        internal bool ConsumeRollbackRebind(int actorId)
+        {
+            if (!_rollbackRebindActors.TryGetValue(actorId, out var pending)) return false;
+            pending.Actor.OnComponentReplaced -= pending.Handler;
+            _rollbackRebindActors.Remove(actorId);
+            return true;
+        }
+
+        private void SyncActorPassives(global::ActorEntity entity, int frame, bool preserveIntervals)
+        {
             if (entity == null) return;
             if (!entity.hasActorId || !entity.hasSkillLoadout) return;
 
@@ -74,7 +108,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             if (listeners == null) return;
 
             SyncListeners(entity, listeners, frame);
-            SyncOngoingTriggerPlans(entity, listeners, frame);
+            SyncOngoingTriggerPlans(entity, listeners, frame, preserveIntervals);
         }
 
         /// <summary>
@@ -85,6 +119,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             if (entity == null) return;
 
             var actorId = entity.hasActorId ? entity.actorId.Value : 0;
+            ConsumeRollbackRebind(actorId);
             RemoveOngoingTriggerPlansByOwnerKeys(entity, GetPreviousOwnerKeys(actorId));
             ForgetPreviousOwnerKeys(actorId);
             RemoveAllListeners(entity, frame);
@@ -95,6 +130,9 @@ namespace AbilityKit.Demo.Moba.Services.Passive
         /// </summary>
         public void ReleaseAllOwnedPassiveContexts(int frame = 0)
         {
+            foreach (var pending in _rollbackRebindActors.Values)
+                pending.Actor.OnComponentReplaced -= pending.Handler;
+            _rollbackRebindActors.Clear();
             if (_ownerKeysByActor.Count > 0)
             {
                 var ownedContextIds = s_ownerKeySetPool.Get();
@@ -386,7 +424,8 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             }
         }
 
-        private void SyncOngoingTriggerPlans(global::ActorEntity entity, List<PassiveSkillTriggerListenerRuntime> listeners, int frame)
+        private void SyncOngoingTriggerPlans(global::ActorEntity entity, List<PassiveSkillTriggerListenerRuntime> listeners, int frame,
+            bool preserveIntervals)
         {
             if (entity == null) return;
             if (!entity.hasActorId || !entity.hasSkillLoadout) return;
@@ -417,7 +456,8 @@ namespace AbilityKit.Demo.Moba.Services.Passive
                 RemoveStaleOwnerRuntimeState(entity, actorId, desiredOwnerKeys);
                 SyncPassiveOwnerBindings(entity, ownerKeyByPassiveSkillId);
                 ApplyDesiredOngoingTriggerPlans(entity, ownerKeyByPassiveSkillId);
-                SyncPassiveTriggerIntervalContinuouses(entity, ownerKeyByPassiveSkillId, frame);
+                if (!preserveIntervals)
+                    SyncPassiveTriggerIntervalContinuouses(entity, ownerKeyByPassiveSkillId, frame);
                 StorePreviousOwnerKeys(actorId, desiredOwnerKeys);
             }
             finally

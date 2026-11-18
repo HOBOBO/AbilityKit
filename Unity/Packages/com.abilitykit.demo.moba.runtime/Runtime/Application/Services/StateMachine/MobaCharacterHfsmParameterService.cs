@@ -60,6 +60,18 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         /// deliberately wider than ModifierData.SourceId so concurrent casts cannot alias.</summary>
         public void Set(int actorId, long sourceId, int parameterId, in ModifierData modifier)
         {
+            ValidateContribution(actorId, sourceId, parameterId, in modifier);
+            if (!_byActor.TryGetValue(actorId, out var byParameter))
+                _byActor[actorId] = byParameter = new Dictionary<int, List<Contribution>>();
+            if (!byParameter.TryGetValue(parameterId, out var list))
+                byParameter[parameterId] = list = new List<Contribution>(2);
+            for (var i = list.Count - 1; i >= 0; i--)
+                if (list[i].OwnerId == sourceId) list.RemoveAt(i);
+            list.Add(new Contribution(sourceId, in modifier));
+        }
+
+        private void ValidateContribution(int actorId, long sourceId, int parameterId, in ModifierData modifier)
+        {
             if (actorId <= 0 || sourceId <= 0 || parameterId <= 0)
                 throw new ArgumentOutOfRangeException("HFSM parameter owner, source and target ids must be positive.");
             if (!_profileParameters.TryGetValue(actorId, out var declared))
@@ -69,13 +81,6 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             if (!IsValidOperation(parameterId, (int)modifier.Op) || !operations.Contains((int)modifier.Op))
                 throw new InvalidOperationException(
                     $"HFSM parameter {parameterId} does not allow modifier operation {(int)modifier.Op} for actor {actorId}.");
-            if (!_byActor.TryGetValue(actorId, out var byParameter))
-                _byActor[actorId] = byParameter = new Dictionary<int, List<Contribution>>();
-            if (!byParameter.TryGetValue(parameterId, out var list))
-                byParameter[parameterId] = list = new List<Contribution>(2);
-            for (var i = list.Count - 1; i >= 0; i--)
-                if (list[i].OwnerId == sourceId) list.RemoveAt(i);
-            list.Add(new Contribution(sourceId, in modifier));
         }
 
         /// <summary>
@@ -166,6 +171,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
 
         public void RestoreSnapshot(IReadOnlyList<SnapshotEntry> entries)
         {
+            ValidateSnapshot(entries);
             _byActor.Clear();
             if (entries == null) return;
             for (var i = 0; i < entries.Count; i++)
@@ -173,6 +179,34 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
                 var entry = entries[i];
                 Set(entry.ActorId, entry.OwnerId, entry.ParameterId, in entry.Modifier);
             }
+        }
+
+        internal void ValidateSnapshot(IReadOnlyList<SnapshotEntry> entries)
+        {
+            if (entries == null) return;
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                if (entry == null)
+                    throw new InvalidOperationException("HFSM parameter recovery contains a null contribution.");
+                ValidateContribution(entry.ActorId, entry.OwnerId, entry.ParameterId, in entry.Modifier);
+            }
+        }
+
+        // Only declarations are copied. Validation never owns live contributions,
+        // effects or machines, and cannot clear or replace a gameplay profile.
+        internal MobaCharacterHfsmParameterService CreateProfileValidationCopy()
+        {
+            var copy = new MobaCharacterHfsmParameterService();
+            foreach (var actor in _profileParameters)
+            {
+                var parameters = new Dictionary<int, HashSet<int>>();
+                foreach (var parameter in actor.Value)
+                    parameters.Add(parameter.Key, new HashSet<int>(parameter.Value));
+                copy._profileParameters.Add(actor.Key, parameters);
+            }
+            foreach (var profile in _profileIds) copy._profileIds.Add(profile.Key, profile.Value);
+            return copy;
         }
 
         private static int CompareContributions(Contribution left, Contribution right)
@@ -191,18 +225,31 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         public void RegisterActorProfile(int actorId, StateMachineDefinition definition)
         {
             if (actorId <= 0) return;
+            var parameters = BuildValidatedActorProfile(actorId, definition);
+            if (_profileIds.TryGetValue(actorId, out var currentProfileId) &&
+                !string.Equals(currentProfileId, definition.DefinitionId, StringComparison.Ordinal))
+                _byActor.Remove(actorId);
+            _profileParameters[actorId] = parameters;
+            _profileIds[actorId] = definition.DefinitionId ?? string.Empty;
+        }
+
+        internal void ValidateActorProfile(int actorId, StateMachineDefinition definition)
+        {
+            if (actorId <= 0) return;
+            BuildValidatedActorProfile(actorId, definition);
+        }
+
+        private Dictionary<int, HashSet<int>> BuildValidatedActorProfile(int actorId, StateMachineDefinition definition)
+        {
             if (definition == null) throw new ArgumentNullException(nameof(definition));
             var parameters = new Dictionary<int, HashSet<int>>();
             foreach (var parameter in definition?.Parameters ?? new List<StateMachineParameterDefinition>())
                 if (parameter != null && parameter.Id > 0)
                     parameters[parameter.Id] = new HashSet<int>(parameter.SupportedOperations ?? new List<int>());
 
-            if (_profileIds.TryGetValue(actorId, out var currentProfileId) &&
-                !string.Equals(currentProfileId, definition.DefinitionId, StringComparison.Ordinal))
-            {
-                _byActor.Remove(actorId);
-            }
-            else if (_byActor.TryGetValue(actorId, out var currentValues))
+            if ((!_profileIds.TryGetValue(actorId, out var currentProfileId) ||
+                 string.Equals(currentProfileId, definition.DefinitionId, StringComparison.Ordinal)) &&
+                _byActor.TryGetValue(actorId, out var currentValues))
             {
                 foreach (var parameter in currentValues)
                 {
@@ -216,8 +263,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
                 }
             }
 
-            _profileParameters[actorId] = parameters;
-            _profileIds[actorId] = definition.DefinitionId ?? string.Empty;
+            return parameters;
         }
 
         public bool IsDeclared(int actorId, int parameterId)

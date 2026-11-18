@@ -32,7 +32,7 @@ public sealed class MobaLifecyclePreparationCollection { }
 // Console worlds share registration catalogs and object pools with other real-world
 // suites; initialize and dispose them outside concurrent test collections.
 [Collection("Moba lifecycle preparation")]
-public sealed class MobaSkillLifecycleRollbackPreparationTests : IDisposable
+public sealed partial class MobaSkillLifecycleRollbackPreparationTests : IDisposable
 {
     private readonly ConsoleBattleBootstrapper _bootstrapper = new(BattleStartConfig.CreateDefault());
     private readonly IWorld _world;

@@ -6,9 +6,9 @@ using System.Runtime.ExceptionServices;
 namespace AbilityKit.Core.Pooling
 {
     /// <summary>
-    /// Provides a thread-safe pool for reference-type elements. User factories and lifecycle callbacks run outside the pool lock.
+    /// 提供引用类型对象的后进先出复用池；内部存储受锁保护，工厂和生命周期回调在锁外同步执行，用户回调须自行保证并发安全。
     /// </summary>
-    /// <typeparam name="T">The reference type stored by the pool.</typeparam>
+    /// <typeparam name="T">池中保存的引用类型。</typeparam>
     public sealed class ObjectPool<T> : IObjectPoolDebug, IObjectPoolControl where T : class
     {
         private readonly Func<T> _createFunc;
@@ -40,11 +40,13 @@ namespace AbilityKit.Core.Pooling
         private int _pendingPrewarmSlots;
         private int _prewarmingCreatedCount;
 
-        /// <summary>Creates a pool and prewarms its configured default capacity.</summary>
-        /// <param name="options">The creation, lifecycle, capacity, and trimming options.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
-        /// <exception cref="ArgumentException">The factory or capacity settings are invalid.</exception>
-        /// <remarks>If prewarming fails, every element already created by that prewarm attempt is destroyed before the exception is propagated.</remarks>
+        /// <summary>
+        /// 创建对象池并按默认容量预热，预热数量不超过最大空闲容量。
+        /// </summary>
+        /// <param name="options">可变创建选项，仅在池创建时读取；不得并发修改。</param>
+        /// <exception cref="ArgumentNullException">参数为空引用。</exception>
+        /// <exception cref="ArgumentException">工厂或容量设置不合法。</exception>
+        /// <remarks>构造预热失败时清理此前成功预热的对象，再传播原异常；清理也失败时聚合异常。</remarks>
         public ObjectPool(ObjectPoolOptions<T> options)
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
@@ -69,10 +71,32 @@ namespace AbilityKit.Core.Pooling
                 _transitionSet = new HashSet<T>(ReferenceEqualityComparer.Instance);
             }
 
-            Prewarm(options.DefaultCapacity);
+            try
+            {
+                Prewarm(options.DefaultCapacity);
+            }
+            catch (Exception initializationException)
+            {
+                /*
+                 * 构造未完成时调用方拿不到池，必须清理此前已成功预热的对象。
+                 * 运行时显式预热仍保留已完成的部分，不使用这里的构造回滚。
+                 */
+                try
+                {
+                    Clear(destroy: true);
+                }
+                catch (Exception cleanupException)
+                {
+                    throw new AggregateException(initializationException, cleanupException);
+                }
+
+                throw;
+            }
         }
 
-        /// <summary>Gets the number of elements currently retained for reuse.</summary>
+        /// <summary>
+        /// 获取当前留在空闲栈中可供复用的对象数量。
+        /// </summary>
         public int InactiveCount
         {
             get
@@ -84,7 +108,9 @@ namespace AbilityKit.Core.Pooling
             }
         }
 
-        /// <summary>Gets the number of acquired or lifecycle-transitioning elements.</summary>
+        /// <summary>
+        /// 获取尚未归还或处于获取及归还转换中的对象计数；不包含预热中的对象，销毁承诺已提交的对象也不包含。
+        /// </summary>
         public int ActiveCount
         {
             get
@@ -96,13 +122,19 @@ namespace AbilityKit.Core.Pooling
             }
         }
 
-        /// <summary>Gets the maximum number of inactive elements retained by this pool.</summary>
+        /// <summary>
+        /// 获取最大空闲保留数量；不是活动对象数量的上限。
+        /// </summary>
         public int MaxSize => _maxSize;
 
-        /// <summary>Gets whether regular trim operations leave this pool unchanged.</summary>
+        /// <summary>
+        /// 获取是否跳过常规裁剪；不影响强制裁剪、溢出销毁及清空。
+        /// </summary>
         public bool NeverTrim => _neverTrim;
 
-        /// <summary>Gets a thread-safe point-in-time snapshot of pool counters.</summary>
+        /// <summary>
+        /// 在池锁内获取同一时点的计数快照；回调可能尚未完成，计数不表示回调成功次数。
+        /// </summary>
         public PoolStats Stats
         {
             get
@@ -140,10 +172,12 @@ namespace AbilityKit.Core.Pooling
             }
         }
 
-        /// <summary>Acquires an element, creating one when no inactive element is available.</summary>
-        /// <returns>An initialized element owned by the caller until it is released.</returns>
-        /// <exception cref="InvalidOperationException">The factory returns <see langword="null"/>.</exception>
-        /// <remarks>If acquisition callbacks fail, the element is permanently destroyed before the original exception is propagated.</remarks>
+        /// <summary>
+        /// 优先从空闲栈获取对象，无空闲对象时创建；生命周期回调在池锁外同步执行。
+        /// </summary>
+        /// <returns>初始化成功的对象，调用方持有到归还结束。</returns>
+        /// <exception cref="InvalidOperationException">工厂返回空引用。</exception>
+        /// <remarks>获取回调失败先销毁对象，再传播原异常；销毁也失败时聚合两个异常。</remarks>
         public T Get()
         {
             T? element;
@@ -199,18 +233,22 @@ namespace AbilityKit.Core.Pooling
             return element;
         }
 
-        /// <summary>Acquires an element wrapped in an idempotent disposable return handle.</summary>
-        /// <returns>A handle that returns the element to this pool when disposed.</returns>
+        /// <summary>
+        /// 获取对象并包装为值类型归还句柄；句柄及其副本合计只能释放一次，不提供幂等释放。
+        /// </summary>
+        /// <returns>必须恰好归还一次的值类型句柄，不得通过多个副本重复释放。</returns>
         public PooledObject<T> GetPooled()
         {
             return new PooledObject<T>(this, Get());
         }
 
-        /// <summary>Returns an element after running its release callbacks.</summary>
-        /// <param name="element">The element to return.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="element"/> is <see langword="null"/>.</exception>
-        /// <exception cref="InvalidOperationException">Collection checks detect a duplicate or reentrant release.</exception>
-        /// <remarks>An element returned after the inactive capacity is full is permanently destroyed.</remarks>
+        /// <summary>
+        /// 执行归还回调后保留对象；满容量则销毁。回调失败直接传播，对象不入空闲栈，调用方仍负责处理。
+        /// </summary>
+        /// <param name="element">要归还的非空对象；成功归还后调用方不得继续使用。</param>
+        /// <exception cref="ArgumentNullException">参数为空引用。</exception>
+        /// <exception cref="InvalidOperationException">引用检查发现重复或转换期间的归还。</exception>
+        /// <remarks>空闲容量已满或被预热预留时，对象承诺销毁；回调异常不撤销销毁计数。</remarks>
         public void Release(T element)
         {
             if (element == null) throw new ArgumentNullException(nameof(element));
@@ -250,9 +288,12 @@ namespace AbilityKit.Core.Pooling
                 {
                     _stack.Push(element);
                     _inactiveSet?.Add(element);
+                    EndTransitionUnsafe(element);
                 }
-
-                EndTransitionUnsafe(element);
+                /*
+                 * 溢出对象在销毁回调完成前仍处于转换中，防止回调将同一对象重新归还。
+                 * 销毁路径统一由 InvokeDestroyCallbacks 的 finally 解除转换标记。
+                 */
             }
 
             if (destroy)
@@ -261,9 +302,11 @@ namespace AbilityKit.Core.Pooling
             }
         }
 
-        /// <summary>Removes all inactive elements.</summary>
-        /// <param name="destroy">Whether permanent-destruction callbacks run for removed elements.</param>
-        /// <remarks>All detached elements are processed even when a destruction callback throws; multiple failures are aggregated.</remarks>
+        /// <summary>
+        /// 清空当前空闲对象，默认仅丢弃引用；销毁式清空逐一调用销毁回调，不影响仍在借出的对象。
+        /// </summary>
+        /// <param name="destroy">是否对被移除的空闲对象执行销毁回调。</param>
+        /// <remarks>即使销毁回调失败也处理所有已移除对象；一个异常原样传播，多个异常聚合，不回滚移除。</remarks>
         public void Clear(bool destroy = false)
         {
             List<T>? elements = null;
@@ -283,25 +326,31 @@ namespace AbilityKit.Core.Pooling
             DestroyElements(elements);
         }
 
-        /// <summary>Trims inactive elements using the configured policy.</summary>
-        /// <returns>The number of inactive elements removed.</returns>
+        /// <summary>
+        /// 按构造时的策略裁剪空闲对象；NeverTrim 为真时不执行。
+        /// </summary>
+        /// <returns>成功处理的空闲移除数量，销毁失败时抛出异常而不返回数量。</returns>
         public int Trim()
         {
             return Trim(_trimPolicy);
         }
 
-        /// <summary>Trims inactive elements using the specified policy.</summary>
-        /// <param name="policy">The policy that selects the retained inactive count.</param>
-        /// <returns>The number of inactive elements removed, or zero when regular trimming is disabled.</returns>
+        /// <summary>
+        /// 按指定策略裁剪空闲对象；NeverTrim 为真时不执行，不创建对象以补足保留目标。
+        /// </summary>
+        /// <param name="policy">决定空闲保留目标的策略。</param>
+        /// <returns>移除的空闲对象数量；禁止常规裁剪时返回零。</returns>
         public int Trim(PoolTrimPolicy policy)
         {
             if (_neverTrim) return 0;
             return TrimCore(policy);
         }
 
-        /// <summary>Creates up to the requested number of additional inactive elements without exceeding <see cref="MaxSize"/>.</summary>
-        /// <param name="count">The maximum number of additional elements to create.</param>
-        /// <remarks>Concurrent prewarm calls reserve capacity before invoking factories. Failed initialization destroys the affected element.</remarks>
+        /// <summary>
+        /// 额外创建不超过请求数量的空闲对象；先预留容量，非正数不执行，已完成的预热在后续失败时仍保留。
+        /// </summary>
+        /// <param name="count">本次额外预热数量的上限，非正数不执行。</param>
+        /// <remarks>并发预热先预留容量再执行工厂；初始化失败销毁当前对象并释放剩余预留，已完成部分继续保留。</remarks>
         public void Prewarm(int count)
         {
             if (count <= 0) return;
@@ -365,9 +414,11 @@ namespace AbilityKit.Core.Pooling
             }
         }
 
-        /// <summary>Trims inactive elements even when <see cref="NeverTrim"/> is set.</summary>
-        /// <param name="policy">The policy that selects the retained inactive count.</param>
-        /// <returns>The number of inactive elements removed.</returns>
+        /// <summary>
+        /// 按指定策略强制裁剪空闲对象，忽略 NeverTrim；销毁异常传播，不撤销已提交的移除。
+        /// </summary>
+        /// <param name="policy">决定空闲保留目标的策略。</param>
+        /// <returns>成功处理的空闲移除数量，销毁失败时抛出异常而不返回数量。</returns>
         public int ForceTrim(PoolTrimPolicy policy)
         {
             return TrimCore(policy);
@@ -539,6 +590,9 @@ namespace AbilityKit.Core.Pooling
             }
         }
 
+        /// <summary>
+        /// 以对象引用身份执行转换及空闲集合检查，避免元素的值相等逻辑干扰重复归还检测。
+        /// </summary>
         private sealed class ReferenceEqualityComparer : IEqualityComparer<T>
         {
             public static readonly ReferenceEqualityComparer Instance = new ReferenceEqualityComparer();

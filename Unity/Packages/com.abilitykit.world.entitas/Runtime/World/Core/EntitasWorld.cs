@@ -112,20 +112,35 @@ namespace AbilityKit.Ability.World
         {
             if (!_initialized) return;
 
-            if (_clock == null)
+            IWorldFrameGuard frameGuard = null;
+            _scope?.TryResolve(out frameGuard);
+            frameGuard?.BeginFrame();
+            try
             {
-                _clock = _scope?.Resolve<IWorldClock>();
-            }
-            _clock?.Tick(deltaTime);
+                if (_clock == null)
+                {
+                    _clock = _scope?.Resolve<IWorldClock>();
+                }
+                _clock?.Tick(deltaTime);
 
-            // 世界 tick 根作用域：Profiler 关闭时零开销（NullProfiler），
-            // 开启时让全部系统执行在火焰图中挂到同一棵 per-frame 树下。
-            // 帧号同步给时间线导出（span.Frame）。
-            _profileFrame++;
-            ProfilerHub.SetFrame(_profileFrame);
-            using var tickScope = ProfilerHub.Begin("world.tick").ToScope();
-            Systems.Execute();
-            Systems.Cleanup();
+                /*
+                 * 世界帧根作用域：关闭分析时使用空实现，开启时按帧归集系统时间线。
+                 */
+                _profileFrame++;
+                ProfilerHub.SetFrame(_profileFrame);
+                using var tickScope = ProfilerHub.Begin("world.tick").ToScope();
+                Systems.Execute();
+                Systems.Cleanup();
+                frameGuard?.CompleteFrame();
+            }
+            catch (Exception error)
+            {
+                /*
+                 * 先记录不可继续状态，再保留原异常传播与宿主的多世界隔离。
+                 */
+                frameGuard?.FailFrame(error);
+                throw;
+            }
         }
 
         /// <summary>

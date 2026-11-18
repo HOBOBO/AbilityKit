@@ -7,6 +7,7 @@ using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Projectile;
+using AbilityKit.Demo.Moba.Services.Projectile.Launch;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
@@ -65,7 +66,36 @@ namespace AbilityKit.Demo.Moba.Rollback
             var actorIds = MobaEntitasEntityRollbackProvider.ReadSnapshotActorIds(
                 context.RequirePayload(MobaEntitasEntityRollbackProvider.DefaultKey).ToArray());
             var components = MobaEntitasComponentRollbackProvider.ReadSnapshotSummaries(
-                context.RequirePayload(MobaEntitasComponentRollbackProvider.DefaultKey).ToArray());
+                context.RequirePayload(MobaEntitasComponentRollbackProvider.DefaultKey).ToArray(), context.Frame.Value);
+            var schedules = ProjectileRollbackProvider.ReadScheduleSnapshot(
+                context.RequirePayload(ProjectileRollbackProvider.DefaultKey).ToArray(), context.Frame);
+            var scheduledLaunchers = new HashSet<int>();
+            foreach (var schedule in schedules)
+            {
+                Require(scheduledLaunchers.Add(schedule.LauncherActorId), "Multiple active schedules reference one MOBA launcher.");
+                var matched = false;
+                foreach (var component in components)
+                    if (component.ActorId == schedule.LauncherActorId && component.HasProjectileLauncher)
+                    {
+                        Require(component.ScheduleId == schedule.Id && component.LauncherProjectileId == schedule.TemplateId &&
+                            component.LauncherRootActorId == schedule.RootActorId &&
+                            Math.Max(0, component.LauncherIntervalFrames) == schedule.IntervalFrames,
+                            "Active schedule does not match target-frame Launcher fields.");
+                        MobaProjectileSchedulePatternResolver.ValidateLauncher(in schedule.Pattern, component.LauncherId);
+                        matched = true;
+                    }
+                Require(matched && actorIds.Contains(schedule.LauncherActorId), "Active schedule has no target-frame Launcher actor.");
+                matched = false;
+                foreach (var launcher in state.Launchers)
+                    if (launcher.ActorId == schedule.LauncherActorId)
+                    {
+                        Require(launcher.Source.SourceActorId == schedule.RootActorId &&
+                            launcher.Source.ProjectileConfigId == schedule.TemplateId,
+                            "Active schedule does not match its source relationship.");
+                        matched = true;
+                    }
+                Require(matched, "Active schedule has no target-frame Launcher source relationship.");
+            }
             var lifecycle = MobaSkillLifecycleSnapshotIndex.Read(context.Frame,
                 context.RequirePayload(MobaSkillLifecycleRollbackProvider.DefaultKey).ToArray());
 
@@ -82,10 +112,13 @@ namespace AbilityKit.Demo.Moba.Rollback
             foreach (var entry in state.Launchers)
             {
                 Require(actorIds.Contains(entry.ActorId), "Projectile launcher actor is missing from the target actor roster.");
-                Require(HasProjectileLauncher(components, entry.ActorId), "Projectile launcher actor is missing the ProjectileLauncher component in the target frame.");
+                var launcherId = ReadLauncherId(components, entry.ActorId, entry.Source.ProjectileConfigId);
+                Require(launcherId > 0, "Projectile launcher actor is missing or has a mismatched ProjectileLauncher component in the target frame.");
                 lifecycle.RequireSource(MobaExecutionKind.ProjectileLaunch, entry.Source.SourceActorId,
                     entry.Source.ProjectileConfigId, entry.Source.SourceContextId, entry.Source.RootContextId);
                 var retain = entry.Retain;
+                Require(!retain.IsValid || retain.Child.ConfigId == launcherId,
+                    "Projectile launcher retain references a different launcher template.");
                 lifecycle.RequireRetain(in retain);
             }
         }
@@ -93,15 +126,16 @@ namespace AbilityKit.Demo.Moba.Rollback
         private static bool HasFlyingProjectile(MobaEntitasComponentSnapshotSummary[] summaries, int actorId)
         {
             foreach (var summary in summaries)
-                if (summary.ActorId == actorId) return !summary.HasMetadata || summary.HasFlyingProjectile;
+                if (summary.ActorId == actorId) return summary.HasFlyingProjectile;
             return false;
         }
 
-        private static bool HasProjectileLauncher(MobaEntitasComponentSnapshotSummary[] summaries, int actorId)
+        private static int ReadLauncherId(MobaEntitasComponentSnapshotSummary[] summaries, int actorId, int projectileConfigId)
         {
             foreach (var summary in summaries)
-                if (summary.ActorId == actorId) return !summary.HasMetadata || summary.HasProjectileLauncher;
-            return false;
+                if (summary.ActorId == actorId && summary.HasProjectileLauncher &&
+                    summary.LauncherProjectileId == projectileConfigId) return summary.LauncherId;
+            return 0;
         }
 
         private static void Require(bool condition, string message)
@@ -119,8 +153,13 @@ namespace AbilityKit.Demo.Moba.Rollback
                 var source = entry.Source;
                 if (_projectiles != null && !_projectiles.TryGetRuntimeState(new ProjectileId(entry.ProjectileId), out _))
                     throw new InvalidOperationException("Projectile relation references a missing restored physical projectile.");
-                if (_actors != null && (!_actors.TryGetRegistered(entry.ActorId, out var actor) || actor == null || !actor.isFlyingProjectileTag))
-                    throw new InvalidOperationException("Projectile relation references a missing restored projectile actor.");
+                if (_actors != null)
+                {
+                    if (!_actors.TryGetRegistered(entry.ActorId, out var actor) || actor == null)
+                        throw new InvalidOperationException($"Projectile relation references a missing restored projectile actor {entry.ActorId}.");
+                    if (!actor.isFlyingProjectileTag)
+                        throw new InvalidOperationException($"Projectile relation actor {entry.ActorId} is missing its restored FlyingProjectile marker.");
+                }
                 ValidateSourceContext(in source);
                 var retain = ResolveRetain(entry.Retain, MobaSkillRuntimeChildKind.Projectile, entry.ProjectileId,
                     source.SourceContextId, source.ProjectileConfigId);
@@ -131,11 +170,18 @@ namespace AbilityKit.Demo.Moba.Rollback
             {
                 var entry = state.Launchers[i];
                 var source = entry.Source;
+                var launcherConfigId = entry.Retain.Child.ConfigId;
                 if (_actors != null && (!_actors.TryGetRegistered(entry.ActorId, out var actor) || actor == null || !actor.hasProjectileLauncher))
                     throw new InvalidOperationException("Projectile launcher relation references a missing restored launcher actor.");
+                if (_actors != null && _actors.TryGetRegistered(entry.ActorId, out var launcherActor))
+                {
+                    if (launcherActor.projectileLauncher.ProjectileId != source.ProjectileConfigId)
+                        throw new InvalidOperationException("Projectile launcher source references a different projectile template.");
+                    launcherConfigId = launcherActor.projectileLauncher.LauncherId;
+                }
                 ValidateSourceContext(in source);
                 var retain = ResolveRetain(entry.Retain, MobaSkillRuntimeChildKind.ProjectileLauncher, entry.ActorId,
-                    source.SourceContextId, source.ProjectileConfigId);
+                    source.SourceContextId, launcherConfigId);
                 launchers[i] = new MobaProjectileLauncherLinkRollbackEntry(entry.ActorId, in source, in retain);
             }
             _links.RestoreRollbackState(new MobaProjectileLinkRollbackState(projectiles, state.Retired, launchers));
@@ -202,7 +248,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     var source = ReadSource(reader); var retain = ReadRetain(reader);
                     if (!source.IsValid) throw new InvalidOperationException("Launcher link has no target-frame source context.");
                     ValidateRetainIdentity(retain, MobaSkillRuntimeChildKind.ProjectileLauncher, actorId,
-                        source.SourceContextId, source.ProjectileConfigId, retainIds);
+                        source.SourceContextId, retain.Child.ConfigId, retainIds);
                     launchers.Add(new MobaProjectileLauncherLinkRollbackEntry(actorId, in source, in retain));
                 }
                 if (reader.BaseStream.Position != reader.BaseStream.Length) throw new InvalidOperationException("Unexpected Projectile link payload data.");
@@ -217,7 +263,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             MobaSkillRuntimeChildKind kind, long childId, long contextId, int configId, ISet<long> retainIds)
         {
             if (!retain.IsValid) return;
-            if (retain.RetainId <= 0 || !retainIds.Add(retain.RetainId) || retain.Child.Kind != kind ||
+            if (retain.RetainId <= 0 || configId <= 0 || !retainIds.Add(retain.RetainId) || retain.Child.Kind != kind ||
                 retain.Child.ChildId != childId || retain.Child.ContextId != contextId || retain.Child.ConfigId != configId)
                 throw new InvalidOperationException("Duplicate or mismatched Projectile relation retain identity.");
         }

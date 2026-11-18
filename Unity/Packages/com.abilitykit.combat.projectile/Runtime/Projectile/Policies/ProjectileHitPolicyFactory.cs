@@ -160,6 +160,16 @@ namespace AbilityKit.Combat.Projectile
             }
         }
 
+        internal static void ValidateRegisteredKind(ProjectileHitPolicyKind kind)
+        {
+            if (IsBuiltInKind((int)kind)) return;
+            lock (SyncRoot)
+            {
+                if (Factories.ContainsKey((int)kind) || MarkedTypes.ContainsKey((int)kind)) return;
+            }
+            throw new InvalidOperationException($"Projectile hit policy kind {(int)kind} is not registered.");
+        }
+
         private static bool IsBuiltInKind(int kind)
         {
             return kind == (int)ProjectileHitPolicyKind.ExitOnHit ||

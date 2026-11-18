@@ -1,40 +1,70 @@
 namespace AbilityKit.Core.Pooling
 {
-    /// <summary>Provides a thread-safe point-in-time snapshot of object-pool counters.</summary>
+    /// <summary>
+    /// 保存对象池计数的值类型快照；只有从池的 Stats 获取时才由池锁保证同一时点。
+    /// </summary>
     public readonly struct PoolStats
     {
-        /// <summary>Gets the number of elements successfully created.</summary>
+        /// <summary>
+        /// 获取工厂成功返回非空对象的累计数量，包含预热和后续初始化失败的对象。
+        /// </summary>
         public readonly int CreatedTotal;
-        /// <summary>Gets the number of acquisition attempts.</summary>
+        /// <summary>
+        /// 获取获取操作的尝试次数，包含工厂或初始化失败的调用。
+        /// </summary>
         public readonly int GetTotal;
-        /// <summary>Gets the number of release attempts.</summary>
+        /// <summary>
+        /// 获取非空对象的归还尝试次数，包含重复校验拒绝及回调失败的调用。
+        /// </summary>
         public readonly int ReleaseTotal;
-        /// <summary>Gets the number of elements currently retained for reuse.</summary>
+        /// <summary>
+        /// 获取当前留在空闲栈中可供复用的对象数量。
+        /// </summary>
         public readonly int InactiveCount;
-        /// <summary>Gets the number of acquired or lifecycle-transitioning elements.</summary>
+        /// <summary>
+        /// 获取尚未归还或处于获取及归还转换中的对象计数；不包含预热中的对象，销毁承诺已提交的对象也不包含。
+        /// </summary>
         public readonly int ActiveCount;
-        /// <summary>Gets the greatest observed active count.</summary>
+        /// <summary>
+        /// 获取池在获取路径中观察到的最大活动对象数量。
+        /// </summary>
         public readonly int PeakActiveCount;
-        /// <summary>Gets the number of acquisitions served from inactive storage.</summary>
+        /// <summary>
+        /// 获取从空闲栈命中的次数，即使后续初始化失败也计入。
+        /// </summary>
         public readonly int HitCount;
-        /// <summary>Gets the number of acquisitions that required creation.</summary>
+        /// <summary>
+        /// 获取空闲栈未命中、需要创建对象的次数，即使工厂失败也计入。
+        /// </summary>
         public readonly int MissCount;
-        /// <summary>Gets the number of released elements destroyed because inactive storage was full.</summary>
+        /// <summary>
+        /// 获取因空闲容量已满而承诺销毁的对象数量，不代表销毁回调全部成功。
+        /// </summary>
         public readonly int OverflowDestroyCount;
-        /// <summary>Gets the number of elements destroyed by clear operations.</summary>
+        /// <summary>
+        /// 获取因销毁式清空而承诺移除的对象数量，不代表销毁回调全部成功。
+        /// </summary>
         public readonly int ClearDestroyCount;
-        /// <summary>Gets the number of inactive elements discarded without destruction.</summary>
+        /// <summary>
+        /// 获取通过非销毁清空直接丢弃的空闲对象累计数量。
+        /// </summary>
         public readonly int DroppedInactiveCount;
-        /// <summary>Gets the number of elements destroyed by trim operations.</summary>
+        /// <summary>
+        /// 获取因裁剪而承诺移除的对象数量，不代表销毁回调全部成功。
+        /// </summary>
         public readonly int TrimDestroyCount;
 
-        /// <summary>Creates a snapshot containing the original five aggregate counters.</summary>
+        /// <summary>
+        /// 使用原有五项计数创建兼容快照，其余计数按兼容规则补齐。
+        /// </summary>
         public PoolStats(int createdTotal, int getTotal, int releaseTotal, int inactiveCount, int activeCount)
             : this(createdTotal, getTotal, releaseTotal, inactiveCount, activeCount, activeCount, 0, createdTotal, 0, 0, 0, 0)
         {
         }
 
-        /// <summary>Creates a snapshot containing all lifecycle and destruction counters.</summary>
+        /// <summary>
+        /// 使用全部生命周期及移除计数创建值类型快照，不校验传入计数间的一致性。
+        /// </summary>
         public PoolStats(
             int createdTotal,
             int getTotal,

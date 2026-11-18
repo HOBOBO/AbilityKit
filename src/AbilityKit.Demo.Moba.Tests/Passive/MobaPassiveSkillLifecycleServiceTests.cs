@@ -219,6 +219,70 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
         Assert.Equal(0, continuous.ActiveCount);
     }
 
+    [Fact]
+    public void Real_loadout_replacement_before_reactive_consumption_invalidates_rollback_rebind()
+    {
+        using var contexts = new MobaExecutionContextRegistry();
+        var service = new MobaPassiveSkillLifecycleService(CreateConfigDatabase(), contexts);
+        var actor = CreateActor(new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 });
+        service.MarkRollbackRebind(actor);
+        actor.ReplaceSkillLoadout(0, Array.Empty<ActiveSkillRuntime>(), Array.Empty<PassiveSkillRuntime>());
+        Assert.False(service.ConsumeRollbackRebind(1));
+
+        service.MarkRollbackRebind(actor);
+        Assert.True(service.ConsumeRollbackRebind(1));
+        Assert.False(service.ConsumeRollbackRebind(1));
+
+        service.MarkRollbackRebind(actor);
+        service.UnregisterActor(actor, frame: 12);
+        Assert.False(service.ConsumeRollbackRebind(1));
+    }
+
+    [Fact]
+    public void Rollback_rebind_preserves_checkpoint_interval_but_normal_sync_rechecks_gate()
+    {
+        var configs = CreateConfigDatabase();
+        var clock = new TestWorldClock { TimeSeconds = 10f };
+        var combat = new MobaCombatActivityService(clock);
+        var continuous = new DefaultContinuousManager();
+        var processService = CreateProcessService(configs, continuous, clock, combat);
+        using var contexts = new MobaExecutionContextRegistry();
+        var service = new MobaPassiveSkillLifecycleService(configs, contexts, continuousProcesses: processService);
+        var actor = CreateActor(new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 });
+
+        service.SyncActorPassives(actor, frame: 10);
+        var checkpointInterval = Assert.Single(continuous.GetOwnerActiveContinuous(1));
+        var activated = 0;
+        var ended = 0;
+        continuous.OnActivated += _ => activated++;
+        continuous.OnUnregistered += (_, _) => ended++;
+        combat.RecordCombat(1);
+        actor.ReplaceSkillLoadout(0, Array.Empty<ActiveSkillRuntime>(),
+            new[] { new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 } });
+
+        service.SyncActorPassivesAfterRollbackRebind(actor, frame: 11);
+
+        Assert.Equal(1, continuous.ActiveCount);
+        Assert.Same(checkpointInterval, Assert.Single(continuous.GetOwnerActiveContinuous(1)));
+        Assert.Equal(0, activated);
+        Assert.Equal(0, ended);
+        service.SyncActorPassives(actor, frame: 12);
+        Assert.Equal(0, continuous.ActiveCount);
+        Assert.Equal(1, ended);
+
+        // An absent interval in the checkpoint is not recreated by rebind even when admitted.
+        clock.TimeSeconds = 20f;
+        service.SyncActorPassivesAfterRollbackRebind(actor, frame: 13);
+        Assert.Equal(0, continuous.ActiveCount);
+        service.SyncActorPassives(actor, frame: 14);
+        Assert.Equal(1, continuous.ActiveCount);
+        Assert.Equal(1, activated);
+
+        actor.ReplaceSkillLoadout(0, Array.Empty<ActiveSkillRuntime>(), Array.Empty<PassiveSkillRuntime>());
+        service.SyncActorPassives(actor, frame: 15);
+        Assert.Equal(0, continuous.ActiveCount);
+    }
+
     private static ActorEntity CreateActor(params PassiveSkillRuntime[] passiveSkills)
     {
         var context = new ActorContext();
@@ -340,4 +404,3 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
         }
     }
 }
-

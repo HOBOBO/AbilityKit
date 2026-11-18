@@ -105,16 +105,10 @@ namespace AbilityKit.Game.Test.FrameSync
             _authPhase?.SetInGame();
             _predPhase?.SetInGame();
 
-            var registry = new RollbackRegistry();
-            registry.Register(new MobaActorTransformRollbackProvider(_predRegistry));
-            registry.Register(_pred.Services.Resolve<PassiveSkillTriggerEventRollbackLog>());
-            registry.Register(_pred.Services.Resolve<RollbackWorldRandom>());
+            var registry = MobaRollbackRegistryBuilder.Create(_pred);
             _rollback = new RollbackCoordinator(registry, new RollbackSnapshotRingBuffer(rollbackBufferFrames));
 
-            var authRegistry = new RollbackRegistry();
-            authRegistry.Register(new MobaActorTransformRollbackProvider(_authRegistry));
-            authRegistry.Register(_auth.Services.Resolve<PassiveSkillTriggerEventRollbackLog>());
-            authRegistry.Register(_auth.Services.Resolve<RollbackWorldRandom>());
+            var authRegistry = MobaRollbackRegistryBuilder.Create(_auth);
             _authRollback = new RollbackCoordinator(authRegistry, new RollbackSnapshotRingBuffer(rollbackBufferFrames));
 
             var predictedHashBuffer = new WorldStateHashRingBuffer(rollbackBufferFrames);

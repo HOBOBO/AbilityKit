@@ -102,6 +102,12 @@ namespace AbilityKit.Demo.Moba.Components
     }
 
     [Actor]
+    public sealed class SkillCastRetentionComponent : IComponent
+    {
+        public int LastObservedFrame;
+    }
+
+    [Actor]
     public sealed class SkillCastRunningTagComponent : IComponent
     {
     }

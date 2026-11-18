@@ -16,15 +16,17 @@ namespace AbilityKit.Demo.Moba.Rollback
         private const int Version = 3;
         private readonly MobaSkillParamModifierService _modifiers;
         private readonly bool _restoreProjection;
+        private readonly bool _lifecycleOwnsProjection;
 
         public MobaSkillParamModifierRollbackProvider(MobaSkillParamModifierService modifiers)
             : this(modifiers, restoreProjection: false) { }
 
         internal MobaSkillParamModifierRollbackProvider(MobaSkillParamModifierService modifiers,
-            bool restoreProjection)
+            bool restoreProjection, bool lifecycleOwnsProjection = false)
         {
             _modifiers = modifiers ?? throw new ArgumentNullException(nameof(modifiers));
             _restoreProjection = restoreProjection;
+            _lifecycleOwnsProjection = lifecycleOwnsProjection;
         }
 
         public int Key => DefaultKey;
@@ -53,6 +55,9 @@ namespace AbilityKit.Demo.Moba.Rollback
         public void ImportState(FrameIndex frame, byte[] payload)
         {
             var snapshot = ReadAndValidate(payload);
+            // Joint lifecycle recovery already revoked old sources and rebuilt the target ledger
+            // in the structure phase. The later value phase must not erase that projection.
+            if (_lifecycleOwnsProjection) return;
             _modifiers.RestoreRollbackSnapshot(_restoreProjection ? snapshot : default);
         }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Continuous;
+using AbilityKit.Demo.Moba.Services.Motion;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -36,9 +37,10 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void OnRegistered(IContinuous continuous, IContinuousManager manager)
         {
+            // Managed Motion needs a rollback-owned incarnation identity even without projections.
             if (!(continuous?.Config is IMobaContinuousProjectionConfig projection) ||
                 !(continuous.Config is IMobaContinuousModifierConfig modifiers) ||
-                modifiers.Modifiers == null || modifiers.Modifiers.Count == 0 ||
+                (!(continuous is MobaMotionContinuousRuntime) && (modifiers.Modifiers == null || modifiers.Modifiers.Count == 0)) ||
                 projection.OwnerActorId <= 0) return;
 
             if (projection.ModifierSourceId == 0 && continuous is MobaContinuousRuntimeBase runtime)

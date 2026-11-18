@@ -1,0 +1,241 @@
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.FrameSync.Rollback;
+using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.Host.Extensions.Time;
+using AbilityKit.Ability.Host.Framework;
+using AbilityKit.Ability.Host.Transport;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Management;
+using Xunit;
+
+namespace AbilityKit.Host.Extension.Tests;
+
+public sealed class FrameCompletionGuardTests
+{
+    [Fact]
+    public void Authority_does_not_broadcast_or_commit_failed_frame_after_world_exception_isolation()
+    {
+        var manager = new GuardedWorldManager();
+        var options = new HostRuntimeOptions();
+        var runtime = new HostRuntime(manager, options);
+        var frames = new FrameSyncDriverModule();
+        frames.Install(runtime, options);
+        var connection = new RecordingConnection();
+        runtime.Connect(connection);
+        var world = (GuardedWorld)runtime.CreateWorld(new WorldCreateOptions(new WorldId("authority-guard"), "test"));
+        var committed = new List<int>();
+        frames.AddPostStep((frame, _) => committed.Add(frame.Value));
+        runtime.Tick(.033f);
+        Assert.Equal(1, frames.Frame.Value);
+        Assert.Single(committed);
+        Assert.Single(connection.Messages.OfType<FrameMessage>());
+        var reads = world.SnapshotReads;
+        world.Fail = true;
+        runtime.Tick(.033f);
+        runtime.Tick(.033f);
+        Assert.Equal(1, frames.Frame.Value);
+        Assert.Single(committed);
+        Assert.Single(connection.Messages.OfType<FrameMessage>());
+        Assert.Equal(reads, world.SnapshotReads);
+        Assert.Equal(2, world.Attempts);
+        Assert.Equal(2, world.Inputs);
+        Assert.False(world.Guard.CanAdvance);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Prediction_does_not_publish_failed_progress_with_or_without_rollback(bool rollback)
+    {
+        var manager = new GuardedWorldManager();
+        var options = new HostRuntimeOptions();
+        var runtime = new HostRuntime(manager, options);
+        var captures = 0;
+        var prediction = new ClientPredictionDriverModule(_ => null!, _ => null!,
+            maxPredictionAheadFrames: 8, minPredictionWindow: 8, enableRollback: rollback,
+            buildRollbackRegistry: world =>
+            {
+                var registry = new RollbackRegistry();
+                registry.Register(new GuardedProvider((GuardedWorld)world, () => captures++));
+                return registry;
+            });
+        prediction.Install(runtime, options);
+        var world = (GuardedWorld)runtime.CreateWorld(new WorldCreateOptions(new WorldId("prediction-guard"), "test"));
+        runtime.Tick(.033f);
+        Assert.True(prediction.TryGetFrames(world.Id, out _, out var before));
+        Assert.Equal(1, before.Value);
+        var capturedBeforeFailure = captures;
+        world.Fail = true;
+        runtime.Tick(.033f);
+        runtime.Tick(.033f);
+        Assert.True(prediction.TryGetFrames(world.Id, out _, out var after));
+        Assert.Equal(before, after);
+        Assert.Equal(capturedBeforeFailure, captures);
+        Assert.Equal(2, world.Attempts);
+        Assert.Equal(2, world.Inputs);
+        Assert.False(prediction.ShouldRunWorldTick);
+        Assert.False(world.Guard.CanAdvance);
+    }
+
+    [Fact]
+    public void Catch_up_does_not_feed_or_advance_failed_frame()
+    {
+        var manager = new GuardedWorldManager();
+        var runtime = new HostRuntime(manager);
+        var world = (GuardedWorld)runtime.CreateWorld(new WorldCreateOptions(new WorldId("catchup-guard"), "test"));
+        world.Fail = true;
+        var packets = new List<FramePacket>();
+        var result = WorldCatchUpDriver.CatchUpAndFeedSnapshots(runtime, world, 0, 3, .033f, 3,
+            world, 4, packets.Add);
+        Assert.Equal(0, result);
+        Assert.Empty(packets);
+        Assert.Equal(0, world.SnapshotReads);
+        Assert.Equal(1, world.Attempts);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Failed_world_does_not_advance_server_time_while_healthy_world_continues(bool frameSync)
+    {
+        var manager = new GuardedWorldManager();
+        var options = new HostRuntimeOptions();
+        var runtime = new HostRuntime(manager, options);
+        var frames = new FrameSyncDriverModule();
+        if (frameSync) frames.Install(runtime, options);
+        var times = new ServerFrameTimeModule();
+        times.Install(runtime, options);
+        var connection = new RecordingConnection();
+        runtime.Connect(connection);
+        var failed = (GuardedWorld)runtime.CreateWorld(new WorldCreateOptions(new WorldId("failed"), "test"));
+        var healthy = (GuardedWorld)runtime.CreateWorld(new WorldCreateOptions(new WorldId("healthy"), "test"));
+        Assert.True(times.TryGet(failed.Id, out var failedTime));
+        Assert.True(times.TryGet(healthy.Id, out var healthyTime));
+        runtime.Tick(.033f);
+        Assert.Equal(1, failedTime.Frame.Value);
+        Assert.Equal(1, healthyTime.Frame.Value);
+        failed.Fail = true;
+        runtime.Tick(.033f);
+        runtime.Tick(.033f);
+        Assert.Equal(1, failedTime.Frame.Value);
+        Assert.Equal(3, healthyTime.Frame.Value);
+        Assert.Equal(2, failed.Attempts);
+        Assert.Equal(3, healthy.Attempts);
+        if (frameSync)
+        {
+            Assert.Equal(3, frames.Frame.Value);
+            Assert.Single(connection.Messages.OfType<FrameMessage>(), message => message.Packet.WorldId == failed.Id);
+            Assert.Equal(3, connection.Messages.OfType<FrameMessage>().Count(message => message.Packet.WorldId == healthy.Id));
+            Assert.Equal(2, failed.Inputs);
+        }
+    }
+
+    private sealed class RecordingConnection : IServerConnection
+    {
+        public ServerClientId ClientId => new("guard-client");
+        public List<ServerMessage> Messages { get; } = new();
+        public void Send(ServerMessage message) => Messages.Add(message);
+    }
+
+    private sealed class GuardedProvider(GuardedWorld world, Action captured) : IRollbackStateProvider
+    {
+        public int Key => 1;
+        public byte[] Export(FrameIndex frame)
+        {
+            Assert.True(world.Guard.CanCommit);
+            captured();
+            return BitConverter.GetBytes(world.Attempts);
+        }
+        public void Import(FrameIndex frame, byte[] payload) { }
+    }
+
+    private sealed class GuardedWorldManager : IWorldManager
+    {
+        private readonly Dictionary<WorldId, IWorld> worlds = new();
+        public IReadOnlyDictionary<WorldId, IWorld> Worlds => worlds;
+        public IWorld Create(WorldCreateOptions options)
+        {
+            var world = new GuardedWorld(options.Id);
+            worlds.Add(world.Id, world);
+            return world;
+        }
+        public bool TryGet(WorldId id, out IWorld world) => worlds.TryGetValue(id, out world!);
+        public bool Destroy(WorldId id) => worlds.Remove(id);
+        public void Tick(float deltaTime)
+        {
+            foreach (var world in worlds.Values)
+            {
+                /*
+                 * 模拟正式 WorldManager 的异常隔离，确保 PostTick 仍会被调用。
+                 */
+                try { world.Tick(deltaTime); }
+                catch (InvalidOperationException) { }
+            }
+        }
+        public void DisposeAll() => worlds.Clear();
+    }
+
+    private sealed class GuardedWorld(WorldId id) : IWorld, IWorldResolver, IWorldInputSink, IWorldStateSnapshotProvider
+    {
+        private readonly FrameTime time = new();
+        public TestGuard Guard { get; } = new();
+        public bool Fail { get; set; }
+        public int Attempts { get; private set; }
+        public int Inputs { get; private set; }
+        public int SnapshotReads { get; private set; }
+        public WorldId Id => id;
+        public string WorldType => "test";
+        public IWorldResolver Services => this;
+        public void Initialize() { }
+        public void Dispose() { }
+        public void Tick(float deltaTime)
+        {
+            Guard.BeginFrame();
+            Attempts++;
+            if (Fail)
+            {
+                var error = new InvalidOperationException("injected world failure");
+                Guard.FailFrame(error);
+                throw error;
+            }
+            Guard.CompleteFrame();
+        }
+        public void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs) => Inputs++;
+        public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
+        {
+            SnapshotReads++;
+            snapshot = new WorldStateSnapshot(1, new byte[] { 1 });
+            return true;
+        }
+        public object Resolve(Type type) => TryResolve(type, out var result) ? result : throw new InvalidOperationException(type.Name);
+        public T Resolve<T>() => (T)Resolve(typeof(T));
+        public bool TryResolve(Type type, out object result)
+        {
+            result = type == typeof(IWorldFrameGuard) ? Guard : type == typeof(IFrameTime) ? time :
+                type == typeof(IWorldInputSink) || type == typeof(IWorldStateSnapshotProvider) ? this : null!;
+            return result != null;
+        }
+        public bool TryResolve<T>(out T result)
+        {
+            var found = TryResolve(typeof(T), out var value);
+            result = found ? (T)value : default!;
+            return found;
+        }
+    }
+
+    private sealed class TestGuard : IWorldFrameGuard
+    {
+        private bool failed, executing;
+        public bool CanAdvance => !failed && !executing;
+        public bool CanCommit => CanAdvance;
+        public void BeginFrame()
+        {
+            if (!CanAdvance) throw new InvalidOperationException("world cannot advance");
+            executing = true;
+        }
+        public void CompleteFrame() => executing = false;
+        public void FailFrame(Exception error) { failed = true; executing = false; }
+    }
+}

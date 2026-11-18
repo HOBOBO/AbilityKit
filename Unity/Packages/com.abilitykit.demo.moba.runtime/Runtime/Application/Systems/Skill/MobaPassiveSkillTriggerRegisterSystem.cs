@@ -37,7 +37,10 @@ namespace AbilityKit.Demo.Moba.Systems
         {
             EnsureServices();
             if (_passives == null) return;
-            _passives.SyncActorPassives(entity, GetFrame());
+            if (entity.hasActorId && _passives.ConsumeRollbackRebind(entity.actorId.Value))
+                _passives.SyncActorPassivesAfterRollbackRebind(entity, GetFrame());
+            else
+                _passives.SyncActorPassives(entity, GetFrame());
         }
 
         protected override void OnEntityRemovedFromGroup(global::ActorEntity entity)

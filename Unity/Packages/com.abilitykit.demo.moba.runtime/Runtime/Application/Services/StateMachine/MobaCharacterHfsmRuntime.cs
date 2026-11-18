@@ -500,6 +500,9 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         public Vec3 FrozenAimDir;
     }
 
+    /// <summary>
+    /// 管理角色状态、施法事实和瞄准作用域，区分正常初始化与静默检查点恢复。
+    /// </summary>
     public sealed class MobaCharacterHfsmRuntime : IDisposable, IRuntimeInspectionName
     {
         private readonly int _actorId;
@@ -522,9 +525,23 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         private bool _reevaluateRequested;
         private bool _machineTicking;
 
+        /// <summary>
+        /// 正常创建角色状态机，并执行初始状态进入动作。
+        /// 检查点恢复使用独立恢复入口，避免重复执行该结算。
+        /// </summary>
         public MobaCharacterHfsmRuntime(int actorId, StateMachineDefinition definition, int frame, Fixed64 time,
             bool registerForInspection = true, MobaCharacterHfsmParameterService parameters = null,
             Action<int, int, string, int> executeLogicTrigger = null)
+            : this(actorId, definition, frame, registerForInspection, parameters, executeLogicTrigger)
+        {
+            _machine.Initialize(frame, time);
+            if (_registeredForInspection) RuntimeInspectionHub.Register(InspectionName, _machine);
+            UpdateAction(frame);
+        }
+
+        private MobaCharacterHfsmRuntime(int actorId, StateMachineDefinition definition, int frame,
+            bool registerForInspection, MobaCharacterHfsmParameterService parameters,
+            Action<int, int, string, int> executeLogicTrigger)
         {
             if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));
             _actorId = actorId;
@@ -542,9 +559,23 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             _facts.Alive = true;
             _facts.ModeId = _mode.Current.ModeId;
             _facts.ModeInstanceId = _mode.Current.InstanceId;
-            _machine.Initialize(frame, time);
-            if (_registeredForInspection) RuntimeInspectionHub.Register(InspectionName, _machine);
-            UpdateAction(frame);
+        }
+
+        /// <summary>
+        /// 直接从检查点创建角色状态机，不执行初始状态的进入动作。
+        /// 恢复成功后才注册诊断对象；后续正常转换仍使用原逻辑动作绑定。
+        /// </summary>
+        internal static MobaCharacterHfsmRuntime CreateRestored(int actorId, StateMachineDefinition definition,
+            MobaCharacterHfsmSnapshot snapshot, bool registerForInspection = true,
+            MobaCharacterHfsmParameterService parameters = null,
+            Action<int, int, string, int> executeLogicTrigger = null)
+        {
+            if (snapshot?.Machine == null) throw new ArgumentNullException(nameof(snapshot));
+            var runtime = new MobaCharacterHfsmRuntime(actorId, definition, snapshot.Machine.Frame,
+                registerForInspection, parameters, executeLogicTrigger);
+            runtime.RestoreSnapshot(snapshot);
+            if (runtime._registeredForInspection) RuntimeInspectionHub.Register(runtime.InspectionName, runtime._machine);
+            return runtime;
         }
 
         public long DefinitionHash => _machine.DefinitionHash;

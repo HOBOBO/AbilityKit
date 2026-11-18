@@ -7,7 +7,7 @@ using System.Threading;
 namespace AbilityKit.Core.Pooling
 {
     /// <summary>
-    /// Owns keyed pools for one scope and coordinates thread-safe lookup, creation, trimming, clearing, and instance-based release.
+    /// 持有一个作用域内按类型和键区分的池，支持同步查找、延迟创建和快照式批量控制；不提供关闭状态。
     /// </summary>
     public sealed class PoolManager
     {
@@ -19,11 +19,17 @@ namespace AbilityKit.Core.Pooling
         private readonly ConditionalWeakTable<object, ReleaseHandle> _releaseHandles =
             new ConditionalWeakTable<object, ReleaseHandle>();
 
+        /// <summary>
+        /// 保存实例最近一次获取时登记的池归还入口，不消耗登记也不证明实例当前仍借出。
+        /// </summary>
         private sealed class ReleaseHandle
         {
             public IReleaseRegistration? Registration;
         }
 
+        /// <summary>
+        /// 为已登记的具体泛型池提供按实例归还和引用身份查询。
+        /// </summary>
         private interface IReleaseRegistration
         {
             object Pool { get; }
@@ -31,6 +37,9 @@ namespace AbilityKit.Core.Pooling
             void Release(object element);
         }
 
+        /// <summary>
+        /// 将非泛型实例归还调用转发至已知的泛型对象池，保持其校验及异常语义。
+        /// </summary>
         private sealed class ReleaseRegistration<T> : IReleaseRegistration where T : class
         {
             private readonly ObjectPool<T> _pool;
@@ -48,12 +57,14 @@ namespace AbilityKit.Core.Pooling
             }
         }
 
-        /// <summary>Gets the existing keyed pool or atomically creates it from the supplied options.</summary>
-        /// <typeparam name="T">The reference type stored by the pool.</typeparam>
-        /// <param name="key">The pool key within <typeparamref name="T"/>.</param>
-        /// <param name="options">Options used only when a pool must be created.</param>
-        /// <returns>The shared pool registered for the type and normalized key.</returns>
-        /// <remarks>Construction runs outside the manager lock. A failed construction is removed so a later call can retry.</remarks>
+        /// <summary>
+        /// 按类型及规范化键原子登记延迟构造的池；同键共享实例，构造和用户回调不持有管理器锁。
+        /// </summary>
+        /// <typeparam name="T">池中保存的引用类型。</typeparam>
+        /// <param name="key">元素类型及作用域内的池键，管理器入口会规范化默认结构值。</param>
+        /// <param name="options">可变创建选项，仅在池创建时读取；不得并发修改。</param>
+        /// <returns>指定元素类型及规范化键共享的对象池。</returns>
+        /// <remarks>构造在管理器锁外执行；构造失败时仅移除对应旧登记，允许后续重试。</remarks>
         public ObjectPool<T> GetOrCreate<T>(PoolKey key, ObjectPoolOptions<T> options) where T : class
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
@@ -87,9 +98,11 @@ namespace AbilityKit.Core.Pooling
             return pool;
         }
 
-        /// <summary>Enables instance-based release for elements acquired from the specified pool.</summary>
-        /// <typeparam name="T">The reference type stored by the pool.</typeparam>
-        /// <param name="pool">The pool to register once by weak identity.</param>
+        /// <summary>
+        /// 为指定池登记按实例归还的获取回调；按弱引用身份只登记一次，不追溯之前已取出的对象。
+        /// </summary>
+        /// <typeparam name="T">池中保存的引用类型。</typeparam>
+        /// <param name="pool">需要登记按实例归还回调的对象池。</param>
         public void RegisterForObjectRelease<T>(ObjectPool<T> pool) where T : class
         {
             if (pool == null) throw new ArgumentNullException(nameof(pool));
@@ -126,9 +139,11 @@ namespace AbilityKit.Core.Pooling
             }
         }
 
-        /// <summary>Attempts to return an instance to the most recent registered pool that acquired it.</summary>
-        /// <param name="element">The instance to return; <see langword="null"/> is treated as already released.</param>
-        /// <returns><see langword="true"/> when the instance is null or a release registration exists; otherwise <see langword="false"/>.</returns>
+        /// <summary>
+        /// 尝试按实例归还到最近一次获取它的已登记池；空对象返回 true，回调异常直接传播。
+        /// </summary>
+        /// <param name="element">需要归还的对象；空值行为由具体入口的摘要说明。</param>
+        /// <returns>空对象或找到归还记录且归还未抛异常时返回 true，否则返回 false。</returns>
         public bool TryRelease(object element)
         {
             if (element == null) return true;
@@ -145,11 +160,13 @@ namespace AbilityKit.Core.Pooling
             return false;
         }
 
-        /// <summary>Attempts to get a pool by element type and normalized key.</summary>
-        /// <typeparam name="T">The reference type stored by the pool.</typeparam>
-        /// <param name="key">The pool key.</param>
-        /// <param name="pool">The matching pool on success. The failure value is unspecified for compatibility with the published signature.</param>
-        /// <returns><see langword="true"/> when the pool exists; otherwise <see langword="false"/>.</returns>
+        /// <summary>
+        /// 按元素类型和规范化键查询池；已有的延迟构造会在锁外执行或等待，构造异常直接传播。
+        /// </summary>
+        /// <typeparam name="T">池中保存的引用类型。</typeparam>
+        /// <param name="key">元素类型及作用域内的池键，管理器入口会规范化默认结构值。</param>
+        /// <param name="pool">成功时输出对应池；失败时不得使用输出，当前实现为空引用。</param>
+        /// <returns>找到池且构造成功时返回 true，未登记时返回 false。</returns>
         public bool TryGet<T>(PoolKey key, out ObjectPool<T> pool) where T : class
         {
             key = PoolKey.Normalize(key);
@@ -167,11 +184,13 @@ namespace AbilityKit.Core.Pooling
             return true;
         }
 
-        /// <summary>Unregisters a pool and clears its inactive elements.</summary>
-        /// <typeparam name="T">The reference type stored by the pool.</typeparam>
-        /// <param name="key">The pool key.</param>
-        /// <param name="destroy">Whether destruction callbacks run for inactive elements.</param>
-        /// <returns><see langword="true"/> when a pool was removed.</returns>
+        /// <summary>
+        /// 先注销池，再清理其空闲对象；回调失败不会重新登记池，也不使旧池引用失效。
+        /// </summary>
+        /// <typeparam name="T">池中保存的引用类型。</typeparam>
+        /// <param name="key">元素类型及作用域内的池键，管理器入口会规范化默认结构值。</param>
+        /// <param name="destroy">是否对被移除的空闲对象执行销毁回调。</param>
+        /// <returns>找到并注销池且清理未抛异常时返回 true，否则返回 false。</returns>
         public bool Remove<T>(PoolKey key, bool destroy = false) where T : class
         {
             key = PoolKey.Normalize(key);
@@ -187,33 +206,41 @@ namespace AbilityKit.Core.Pooling
             return true;
         }
 
-        /// <summary>Trims every currently registered pool using its configured policy.</summary>
-        /// <returns>The total number of removed inactive elements.</returns>
+        /// <summary>
+        /// 按各池配置的策略裁剪当前池快照；禁止常规裁剪的池保持不变，所有池均尝试后再传播异常。
+        /// </summary>
+        /// <returns>移除的空闲对象总数；发生异常时抛出而不返回部分数量。</returns>
         public int TrimAll()
         {
-            return TrimAll(default(PoolTrimPolicy));
+            return ExecuteAll(control => control.Trim());
         }
 
-        /// <summary>Trims every currently registered pool using the specified policy.</summary>
-        /// <param name="policy">The trim policy applied to each pool.</param>
-        /// <returns>The total number of removed inactive elements.</returns>
-        /// <remarks>Operations run from a snapshot outside the manager lock. All pools are attempted before failures are propagated.</remarks>
+        /// <summary>
+        /// 按指定策略裁剪当前池快照；禁止常规裁剪的池保持不变，所有池均尝试后再传播异常。
+        /// </summary>
+        /// <param name="policy">决定空闲保留目标的策略。</param>
+        /// <returns>移除的空闲对象总数；发生异常时抛出而不返回部分数量。</returns>
+        /// <remarks>从登记快照在管理器锁外执行操作，先尝试所有池再传播异常；不保证跨池原子性。</remarks>
         public int TrimAll(PoolTrimPolicy policy)
         {
             return ExecuteAll(control => control.Trim(policy));
         }
 
-        /// <summary>Force-trims every currently registered pool using the specified policy.</summary>
-        /// <param name="policy">The trim policy applied to each pool.</param>
-        /// <returns>The total number of removed inactive elements.</returns>
+        /// <summary>
+        /// 按指定策略强制裁剪当前池快照，忽略禁止常规裁剪标志；先尝试所有池再传播异常。
+        /// </summary>
+        /// <param name="policy">决定空闲保留目标的策略。</param>
+        /// <returns>移除的空闲对象总数；发生异常时抛出而不返回部分数量。</returns>
         public int ForceTrimAll(PoolTrimPolicy policy)
         {
             return ExecuteAll(control => control.ForceTrim(policy));
         }
 
-        /// <summary>Atomically unregisters all pools and then clears their inactive elements.</summary>
-        /// <param name="destroy">Whether destruction callbacks run for inactive elements.</param>
-        /// <remarks>All pools are attempted. One failure is rethrown unchanged; multiple failures produce an <see cref="AggregateException"/>.</remarks>
+        /// <summary>
+        /// 先在锁内注销全部池，再在锁外清理其空闲对象；不回收调用方仍持有的对象。
+        /// </summary>
+        /// <param name="destroy">是否对被移除的空闲对象执行销毁回调。</param>
+        /// <remarks>先尝试所有池；一个异常原样传播，多个异常聚合。</remarks>
         public void ClearAll(bool destroy = false)
         {
             List<Lazy<object>> entries;
@@ -243,8 +270,10 @@ namespace AbilityKit.Core.Pooling
         }
 
 #if UNITY_EDITOR
-        /// <summary>Gets editor-only diagnostic snapshots for all registered pools.</summary>
-        /// <returns>A point-in-time snapshot list.</returns>
+        /// <summary>
+        /// 获取已注册池的编辑器诊断快照；可能触发延迟构造，各池分别取样。
+        /// </summary>
+        /// <returns>诊断快照列表，各池分别取样。</returns>
         public IReadOnlyList<PoolDebugSnapshot> GetDebugSnapshots()
         {
             var entries = SnapshotEntries();

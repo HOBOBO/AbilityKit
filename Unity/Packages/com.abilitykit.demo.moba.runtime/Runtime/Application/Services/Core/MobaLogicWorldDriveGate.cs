@@ -22,6 +22,10 @@ namespace AbilityKit.Demo.Moba.Services
         SettlementReached = 9,
         ReplayNotReady = 10,
         AuthorityDoesNotOwnSimulation = 11,
+        /// <summary>
+        /// 世界执行失败或正处于执行中，不能再次推进。
+        /// </summary>
+        FrameIncomplete = 12,
     }
 
     [WorldService(typeof(MobaLogicWorldDriveStateService), WorldLifetime.Scoped)]
@@ -133,12 +137,15 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private MobaGameplayService _gameplay = null;
         [WorldInject(required: false)] private IMobaBattleRuntimePort _runtime = null;
         [WorldInject(required: false)] private IMobaRuntimeValidationHistory _validationHistory = null;
+        [WorldInject(required: false)] private MobaCombatFrameGuard _frameGuard = null;
 
         private MobaLogicWorldDriveBlockReason _lastLoggedReason = MobaLogicWorldDriveBlockReason.None;
         private string _lastLoggedMessage;
 
         public MobaLogicWorldDriveDecision Evaluate(float deltaTime)
         {
+            if (_frameGuard != null && !_frameGuard.CanAdvance)
+                return MobaLogicWorldDriveDecision.Block(MobaLogicWorldDriveBlockReason.FrameIncomplete, "MOBA world cannot advance; recreate the failed session.");
             if (float.IsNaN(deltaTime) || float.IsInfinity(deltaTime) || deltaTime < 0f)
             {
                 return MobaLogicWorldDriveDecision.Block(MobaLogicWorldDriveBlockReason.InvalidDeltaTime, $"deltaTime must be finite and non-negative. deltaTime={deltaTime}");

@@ -9,7 +9,9 @@ namespace AbilityKit.Core.Pooling
     /// </summary>
     public static class PoolRegistry
     {
-        /// <summary>Gets the reserved name of the process-wide pooling scope.</summary>
+        /// <summary>
+        /// 获取进程级全局池作用域保留名称，按序号区分大小写。
+        /// </summary>
         public const string GlobalScopeName = "Global";
 
         private static readonly object SyncRoot = new object();
@@ -21,7 +23,9 @@ namespace AbilityKit.Core.Pooling
             Scopes[GlobalScopeName] = GlobalScopeInstance;
         }
 
-        /// <summary>Gets the process-wide pooling scope.</summary>
+        /// <summary>
+        /// 获取进程级全局池作用域；调用方应使用清理入口，避免直接释放共享作用域。
+        /// </summary>
         public static PoolScope Global => GlobalScopeInstance;
 
         /// <summary>
@@ -72,13 +76,17 @@ namespace AbilityKit.Core.Pooling
             return module;
         }
 
-        /// <summary>Unregisters a configuration provider by identity.</summary>
+        /// <summary>
+        /// 按引用身份注销配置提供者，不影响已创建的池。
+        /// </summary>
         public static bool UnregisterConfigProvider(IPoolConfigProvider provider)
         {
             return PoolConfigCenter.UnregisterProvider(provider);
         }
 
-        /// <summary>Removes all registered configuration providers.</summary>
+        /// <summary>
+        /// 移除全部已注册配置提供者，不改变现有池的选项或释放已有句柄。
+        /// </summary>
         public static void ClearConfigProviders()
         {
             PoolConfigCenter.ClearProviders();
@@ -126,14 +134,18 @@ namespace AbilityKit.Core.Pooling
             return PoolConfigCenter.GetProviderInfos();
         }
 
-        /// <summary>Returns the resolved configuration or the supplied fallback when no provider matches.</summary>
+        /// <summary>
+        /// 查询生效配置，全部提供者未命中时返回调用方指定的兜底值。
+        /// </summary>
         public static PoolItemConfig GetConfigOrDefault(PoolConfigRequest request, PoolItemConfig fallback = default)
         {
             return PoolConfigCenter.GetConfigOrDefault(request, fallback);
         }
 
-        /// <summary>Gets an active named scope or creates and registers it atomically.</summary>
-        /// <remarks>The first creator determines the scope's disposal behavior until that scope is destroyed.</remarks>
+        /// <summary>
+        /// 原子查找或注册有效的命名作用域；空名称使用全局名称，释放和使用仍需调用方协调。
+        /// </summary>
+        /// <remarks>首次创建者决定作用域的释放选项，直到该命名作用域被销毁。</remarks>
         public static PoolScope GetOrCreateScope(string name, bool destroyOnDispose = true)
         {
             name = NormalizeName(name);
@@ -154,8 +166,10 @@ namespace AbilityKit.Core.Pooling
             }
         }
 
-        /// <summary>Attempts to get an active named scope.</summary>
-        /// <remarks>The failure output is unspecified for compatibility with the published non-null signature.</remarks>
+        /// <summary>
+        /// 尝试获取尚未释放的命名作用域；空名称使用全局名称。
+        /// </summary>
+        /// <remarks>为兼容已发布的非空签名，失败时调用方不得使用输出；当前实现输出空引用。</remarks>
         public static bool TryGetScope(string name, out PoolScope scope)
         {
             name = NormalizeName(name);
@@ -172,7 +186,9 @@ namespace AbilityKit.Core.Pooling
             }
         }
 
-        /// <summary>Removes and disposes a named scope, or clears the reserved global scope.</summary>
+        /// <summary>
+        /// 移除并释放命名作用域；全局名称只清理池，不释放保留的全局作用域。
+        /// </summary>
         public static bool DestroyScope(string name, bool destroy = true)
         {
             name = NormalizeName(name);
@@ -193,8 +209,10 @@ namespace AbilityKit.Core.Pooling
             return true;
         }
 
-        /// <summary>Clears every active registered scope from a snapshot.</summary>
-        /// <remarks>All scopes are attempted. One callback failure is rethrown unchanged; multiple failures are aggregated.</remarks>
+        /// <summary>
+        /// 按快照清理所有有效作用域中的池；作用域本身仍保留注册，不保证与并发创建构成原子操作。
+        /// </summary>
+        /// <remarks>先尝试所有作用域；一个异常原样传播，多个异常聚合。</remarks>
         public static void ClearAll(bool destroy = false, bool includeGlobal = true)
         {
             List<PoolScope> scopes;
@@ -234,7 +252,9 @@ namespace AbilityKit.Core.Pooling
         }
 
 #if UNITY_EDITOR
-        /// <summary>Gets editor-only diagnostic snapshots from one scope or every active scope.</summary>
+        /// <summary>
+        /// 获取指定作用域或全部有效作用域的编辑器诊断快照；跨作用域不保证同一时点。
+        /// </summary>
         public static IReadOnlyList<PoolDebugSnapshot> GetDebugSnapshots(string scopeName = null)
         {
             if (!string.IsNullOrEmpty(scopeName))

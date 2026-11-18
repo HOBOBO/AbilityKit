@@ -7,6 +7,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
+using AbilityKit.Demo.Moba.Services.Motion;
 using MemoryPack;
 
 namespace AbilityKit.Demo.Moba.Rollback
@@ -120,11 +121,18 @@ namespace AbilityKit.Demo.Moba.Rollback
                     throw new InvalidOperationException("Invalid local Continuous order or state.");
                 if (expectedPipelines.Remove(entry.Key))
                 {
-                    if (entry.Configuration != null) throw new InvalidOperationException("Pipeline configuration belongs to its runner checkpoint.");
+                    if (entry.Configuration != null || entry.Motion != null) throw new InvalidOperationException("Pipeline configuration belongs to its runner checkpoint.");
                     continue;
                 }
                 if (!byIdentity.TryGetValue(entry.Key, out var instance))
                     throw new InvalidOperationException("Local Continuous membership is outside declared recovery ownership.");
+                if (instance is MobaMotionContinuousRuntime)
+                {
+                    if (entry.Motion == null || entry.State != (int)ContinuousState.Active)
+                        throw new InvalidOperationException("Managed Motion requires its active exact source checkpoint.");
+                    entry.Motion.Validate(instance);
+                }
+                else if (entry.Motion != null) throw new InvalidOperationException("Unexpected Motion state on another Continuous type.");
                 if (!string.Equals(entry.Configuration, MobaContinuousLocalCheckpoint.Capture(instance).Configuration, StringComparison.Ordinal))
                     throw new InvalidOperationException("Local continuous configuration changed since the checkpoint.");
                 if (instance is BuffContinuousRuntime || instance is MobaTriggerIntervalContinuousRuntime interval && result.Intervals.Contains(interval))
@@ -135,10 +143,15 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (expectedPipelines.Count != 0 || byIdentity.Count != 0)
                 throw new InvalidOperationException("Local Continuous membership is incomplete.");
             var sources = new HashSet<(int, int)>();
+            var motionSources = new HashSet<AbilityKit.Combat.MotionSystem.Core.IMotionSource>();
             foreach (var instance in result.Instances)
+            {
+                if (instance is MobaMotionContinuousRuntime motion && !motionSources.Add(motion.LocalMotionSource))
+                    throw new InvalidOperationException("Managed Motion source has multiple Continuous owners.");
                 if (instance.Config is IMobaContinuousProjectionConfig projection && projection.ModifierSourceId != 0 &&
                     !sources.Add((projection.OwnerActorId, projection.ModifierSourceId)))
                     throw new InvalidOperationException("Local continuous projection sources collide.");
+            }
             _continuous.ValidateLocalSubscriptions(result.Instances);
             return result;
         }
@@ -165,6 +178,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     throw new InvalidOperationException("Rebuilt continuous is missing from the target order.");
                 index.Remove(entry.Key);
                 runtime.RestoreLocalLifecycle((ContinuousState)entry.State, entry.ElapsedRaw, entry.IntervalRaw);
+                entry.Motion?.Restore(runtime);
                 if (entry.PausedByTags) tagPaused.Add(runtime);
                 result.Add(runtime);
             }

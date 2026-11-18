@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Core.Mathematics;
@@ -16,6 +18,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Game.Flow;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Sync;
@@ -27,6 +30,50 @@ namespace AbilityKit.Game.Tests
 {
     public sealed class MobaSynchronizationCompositionTests
     {
+        [Test]
+        public void InstalledBattleSystems_HaveOnePhysicsPassBeforeSameFrameConsumers()
+        {
+            var plan = new TestBattleBootstrapper().Build();
+            var worldId = new WorldId("area-frame-boundary-test");
+            using var session = new BattleLogicSession(new BattleLogicSessionOptions
+            {
+                WorldId = worldId,
+                PlayerId = "p1",
+                ScanAllLoadedAssemblies = true,
+                AutoCreateWorld = false,
+                AutoJoin = false,
+            });
+            var options = SessionMobaWorldBootstrapFactory.CreateWorldOptions(plan, worldId, registerWorldInitData: false);
+            session.CreateWorld(new CreateWorldRequest(options, plan.CreateWorld.OpCode, plan.CreateWorld.Payload));
+            Assert.That(session.TryGetWorld(out var world), Is.True);
+            var systems = Flatten(((EntitasWorld)world).Systems).ToArray();
+            var types = systems.Select(system => system.GetType()).ToArray();
+            Assert.That(types.Distinct().Count(), Is.EqualTo(types.Length));
+            foreach (var name in new[] { "ProjectileTickSystem", "MobaProjectileSyncSystem", "MobaActorDespawnCleanupSystem" })
+                Assert.That(types.Count(type => type.Name == name), Is.EqualTo(1), name);
+            Assert.That(types.Any(type => type.Name == "MobaAreaSyncSystem"), Is.False,
+                "区域消费者由共同结算入口持有，不能再独立安装并 Drain。");
+            var declarations = types.Select(type => type.GetCustomAttribute<WorldSystemAttribute>()).ToArray();
+            Assert.That(declarations.All(attribute => attribute != null), Is.True);
+            var sorted = types.OrderBy(type => type.GetCustomAttribute<WorldSystemAttribute>().Phase)
+                .ThenBy(type => type.GetCustomAttribute<WorldSystemAttribute>().Order)
+                .ThenBy(type => type.FullName, StringComparer.Ordinal).ToArray();
+            CollectionAssert.AreEqual(sorted, types, "必须验证正式装配树，不能只验证排序常量。");
+        }
+
+        private static IEnumerable<Entitas.IExecuteSystem> Flatten(Entitas.Systems systems)
+        {
+            var field = typeof(Entitas.Systems).GetField("_executeSystems", BindingFlags.Instance | BindingFlags.NonPublic);
+            foreach (var child in (IEnumerable<Entitas.IExecuteSystem>)field.GetValue(systems))
+            {
+                if (child is Entitas.Systems nested)
+                {
+                    foreach (var leaf in Flatten(nested)) yield return leaf;
+                }
+                else yield return child;
+            }
+        }
+
         [Test]
         public void AuthoritativeStateHash_IsStableAndSharedBySnapshotService()
         {
@@ -81,7 +128,6 @@ namespace AbilityKit.Game.Tests
             services.Add<IFrameTime>(new FrameTime());
             services.Add(new MobaActorRegistry());
             services.Add(new RollbackWorldRandom());
-            services.Add(new PassiveSkillTriggerEventRollbackLog());
             using var world = new TestWorld(services);
 
             var registry = MobaRollbackRegistryBuilder.Create(world);
@@ -90,10 +136,11 @@ namespace AbilityKit.Game.Tests
             {
                 MobaActorTransformRollbackProvider.DefaultKey,
                 MobaActorHpRollbackProvider.DefaultKey,
+                MobaActorResourceRollbackProvider.DefaultKey,
                 MobaBuffTimerRollbackProvider.DefaultKey,
                 MobaSkillCooldownRollbackProvider.DefaultKey,
+                MobaCharacterHfsmRollbackProvider.DefaultKey,
                 RollbackWorldRandom.DefaultKey,
-                PassiveSkillTriggerEventRollbackLog.DefaultKey,
                 FrameTimeRollbackStateProvider.DefaultKey
             }.OrderBy(key => key).ToArray();
 
@@ -232,7 +279,21 @@ namespace AbilityKit.Game.Tests
                     new WorldRollbackSnapshotEntry(2, new byte[] { 2 })
                 });
 
-            Assert.That(coordinator.TryRestore(snapshot, out var result), Is.False);
+            /*
+             * 故障注入只验证恢复门禁；进程日志接收器可能由之前的表现用例安装。
+             * 隔离这一调用的预期故障日志，并在退出时还原，避免依赖用例执行顺序。
+             */
+            var previousSink = AbilityKit.Core.Logging.Log.Sink;
+            RollbackOperationResult result;
+            try
+            {
+                AbilityKit.Core.Logging.Log.SetSink(AbilityKit.Core.Logging.NullLogSink.Instance);
+                Assert.That(coordinator.TryRestore(snapshot, out result), Is.False);
+            }
+            finally
+            {
+                AbilityKit.Core.Logging.Log.SetSink(previousSink);
+            }
             Assert.That(result.Status, Is.EqualTo(RollbackOperationStatus.ProviderFailed));
             Assert.That(result.ProviderKey, Is.EqualTo(2));
             Assert.That(result.ProviderCount, Is.EqualTo(0));

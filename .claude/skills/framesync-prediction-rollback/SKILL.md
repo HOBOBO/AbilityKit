@@ -1,14 +1,25 @@
 ---
 name: framesync-prediction-rollback
-description: AbilityKit 客户端/服务端帧同步的预测、回滚、对账、CatchUp、BattleHost 排查与调试工作流。覆盖 ClientPredictionDriverModule（含新 IClientPredictionReconcileControl）、RollbackCoordinator、两套并行的客户端预测 primitives（world.framesync 与 host.extension/Client/FrameSync）、ServerRollbackModule、FrameSyncDriverModule、CatchUp 子系统。触发场景：预测不前进、predicted 卡住、rollback 不触发或风暴、reconcile mismatch、idealFrame/stall、per-world 统计混乱、CatchUp、ConfirmedAuthority、BattleHost 生命周期。
+description: AbilityKit 帧同步预测、回滚、对账与 CatchUp 的开发和排查；为 ECS 与非 ECS 业务补齐可选回滚支持时使用。覆盖 System 帧驱动、组件与 Provider 状态恢复、Command 结构回退、静默重绑和重演验收。
 ---
 
 # 帧同步预测与回滚
 
-基于当前源码核校（2026-07-20）。客户端帧同步（预测 + 回滚 + 对账 + CatchUp）速查与工作流。
+客户端帧同步（预测 + 回滚 + 对账 + CatchUp）速查与工作流；业务回滚契约按 2026-11-17 用户确认补充。下文历史实现细节仍需以当前源码核实。
+
+## 业务回滚接入：先判定启用与归属
+
+涉及投射物、移动、技能阶段、调度、对象生命周期或业务 Provider 的回滚处理时，先读 [业务状态回滚契约](business-state-rollback.md)。MOBA 还须遵循 [机制治理](../../../Docs/MobaMechanismGovernance.md) 与 [技能开发规范](../moba-skill-authoring/SKILL.md)。
+
+- 回滚是可选扩展。业务提供恢复能力与当前会话启用回滚是两件事；MOBA 帧同步所用机制须提供支持，关闭时仍可正常运行，不因回滚专用注册、快照或 journal 缺席而失效。
+- Entitas WorldSystem 统一帧驱动，可调用非 ECS Service/Runtime 的确定性 Tick；状态按既有归属用组件或 Provider 恢复，不要求将 Launcher、计时器和服务全部迁入 ECS。
+- 回滚只沿状态恢复与类型化 Command 结构回退两条路径；运行时引用和索引静默重绑。完整帧末 N 恢复后，从 N+1 通过正式 System 树重演输入，不补发历史玩法事件。
+
+按已确认契约补齐遗漏状态可继续；新增/改变机制、所有权或重建范围仍按治理文档确认，既有批准不重复询问。本 skill 记录目标契约，不代表当前全部业务已经具备完整回滚支持。
 
 ## 适用场景
 
+- ECS / 非 ECS 业务接入可选回滚，审计延迟任务、分配器、对象创建/销毁和恢复回调
 - 预测推进不工作 / 卡住（`predicted` 不前进）
 - rollback 未触发或触发风暴（输入差异 rollback、hash reconcile）
 - reconcile mismatch 不出现或帧号不对齐
@@ -59,6 +70,7 @@ public sealed class ClientPredictionDriverModule :
 
 ## 分节索引
 
+- [business-state-rollback.md](business-state-rollback.md) — 业务状态、可选启用、System / Provider / Command 边界及验收
 - [when_to_use.md](when_to_use.md) — 何时启用本 skill（含服务端路径）
 - [required_context.md](required_context.md) — 改动前必须明确的上下文
 - [key_files.md](key_files.md) — Driver、Rollback primitives（两套）、CatchUp、服务端模块、Editor 面板（6 个）

@@ -1,6 +1,6 @@
-# Required context (ask before changing code)
+# Required context
 
-在开始改动前应明确：
+在开始改动前先从会话和源码确认下列上下文，只有缺失且影响实施的信息才向用户询问；不重复询问已批准决策。业务状态接入先读 [业务状态回滚契约](business-state-rollback.md)，确认“提供支持”与“当前启用”分别是什么状态，关闭回滚的装配是否仍可独立运行。
 
 ## SyncMode 与路径
 

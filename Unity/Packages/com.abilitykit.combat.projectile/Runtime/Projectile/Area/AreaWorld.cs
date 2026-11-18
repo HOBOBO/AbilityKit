@@ -66,14 +66,44 @@ namespace AbilityKit.Combat.Projectile
             return MemoryPackSerializer.Serialize(new AreaWorldSnapshot(5, frame, _nextId, items, _nextGroupId, groups));
         }
 
-        public void ImportRollback(byte[] payload)
+        internal static AreaWorldSnapshot ReadRollbackSnapshot(byte[] payload, int? frame = null)
         {
-            Clear();
-            if (payload == null || payload.Length == 0) return;
+            if (payload == null || payload.Length == 0)
+                throw new InvalidOperationException("Missing Area rollback payload.");
             var snapshot = MemoryPackSerializer.Deserialize<AreaWorldSnapshot>(payload);
             if (snapshot.Version < 2 || snapshot.Version > 5) throw new InvalidOperationException($"Unsupported Area snapshot version {snapshot.Version}.");
-            _nextId = snapshot.NextId > 0 ? snapshot.NextId : 1;
-            _nextGroupId = snapshot.NextGroupId > 0 ? snapshot.NextGroupId : 1;
+            if ((frame.HasValue && snapshot.Frame != frame.Value) || snapshot.NextId <= 0 ||
+                snapshot.NextGroupId <= 0 || snapshot.Items == null)
+                throw new InvalidOperationException("Invalid Area rollback frame or allocator.");
+            var groupIds = new HashSet<int>();
+            var groupKeys = new HashSet<AreaGroupIdentity>();
+            foreach (var group in snapshot.Groups ?? Array.Empty<AreaGroupSnapshotItem>())
+            {
+                if (group.GroupId <= 0 || group.GroupId >= snapshot.NextGroupId || !groupIds.Add(group.GroupId) ||
+                    !groupKeys.Add(new AreaGroupIdentity(group.RootContextId, group.GroupKey)))
+                    throw new InvalidOperationException("Invalid or duplicate Area rollback group identity.");
+            }
+            var ids = new HashSet<int>();
+            foreach (var item in snapshot.Items ?? Array.Empty<AreaSnapshotItem>())
+            {
+                if (item.Id <= 0 || item.Id >= snapshot.NextId || !ids.Add(item.Id) ||
+                    item.GroupId < 0 || item.GroupId > 0 && !groupIds.Contains(item.GroupId))
+                    throw new InvalidOperationException("Invalid Area rollback identity or group reference.");
+            }
+            return snapshot;
+        }
+
+        /// <summary>
+        /// 静默恢复区域及共享资格组；完整解析和身份校验通过后才清理当前区域。
+        /// 空载荷仍用于清空，不会产生 Spawn、Enter 或 Expire 通知。
+        /// </summary>
+        public void ImportRollback(byte[] payload)
+        {
+            if (payload == null || payload.Length == 0) { Clear(); return; }
+            var snapshot = ReadRollbackSnapshot(payload);
+            Clear();
+            _nextId = snapshot.NextId;
+            _nextGroupId = snapshot.NextGroupId;
             if (snapshot.Groups != null)
             {
                 foreach (var item in snapshot.Groups)

@@ -6,6 +6,15 @@ using UnityEngine;
 
 namespace AbilityKit.Core.Editor.Debugging
 {
+    /// <summary>
+    /// 在编辑器初始化时订阅 SceneView、编辑器更新和播放状态事件的旧绘制驱动。
+    /// 仅兼容至下一主版本，新代码迁往 Diagnostics.Editor.DebugDraw 对应入口。
+    /// </summary>
+    /// <remarks>
+    /// 通过先退订再订阅当前回调避免同一回调重复挂接，不提供公开停止入口。
+    /// 登记不跨域持久化，播放状态通知不清空登记；调用方负责在生命周期结束时注销。
+    /// 仅供编辑器主线程使用，不提供并发、快照或通用重入隔离。
+    /// </remarks>
     [InitializeOnLoad]
     [Obsolete("Use AbilityKit.Diagnostics.Editor.DebugDraw.DebugDrawSceneViewDriver before the next major version.")]
     public static class DebugDrawSceneViewDriver
@@ -18,6 +27,9 @@ namespace AbilityKit.Core.Editor.Debugging
 
         static DebugDrawSceneViewDriver()
         {
+            /*
+             * 仅重挂当前静态回调；不建立可释放订阅，也不移除其他编辑器扩展的处理器。
+             */
             SceneView.duringSceneGui -= OnSceneGUI;
             SceneView.duringSceneGui += OnSceneGUI;
 
@@ -28,6 +40,11 @@ namespace AbilityKit.Core.Editor.Debugging
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
         }
 
+        /// <summary>
+        /// 拒绝空引用，并按默认相等比较去重后追加内容提供方。
+        /// 首次访问类型会执行静态事件订阅；登记本身不立即请求重绘。
+        /// </summary>
+        /// <param name="contributor">由调用方持有生命周期的内容提供方。</param>
         public static void Register(IDebugDrawContributor contributor)
         {
             if (contributor == null) throw new ArgumentNullException(nameof(contributor));
@@ -35,6 +52,11 @@ namespace AbilityKit.Core.Editor.Debugging
             s_contributors.Add(contributor);
         }
 
+        /// <summary>
+        /// 空引用时无动作，否则按默认相等比较移除首个匹配项，不释放对象。
+        /// 绘制遍历实时列表，回调中移除当前项可能跳过后移项，追加项可能进入同轮。
+        /// </summary>
+        /// <param name="contributor">待注销的内容提供方。</param>
         public static void Unregister(IDebugDrawContributor contributor)
         {
             if (contributor == null) return;
@@ -43,8 +65,10 @@ namespace AbilityKit.Core.Editor.Debugging
 
         private static void OnPlayModeStateChanged(PlayModeStateChange change)
         {
-            // Ensure the SceneView is repainted when entering/exiting play mode so no stale
-            // handles remain on screen.
+            /*
+             * 任意播放状态通知均请求立即重绘，并预留关闭状态下的后续重绘次数。
+             * 此处不清除内容提供方登记或重置设置。
+             */
             s_forceRepaintFrames = 5;
             SceneView.RepaintAll();
         }
@@ -63,12 +87,16 @@ namespace AbilityKit.Core.Editor.Debugging
 
             if (shouldDraw)
             {
-                // While enabled, repaint every editor update to avoid any perceived "stale" frames.
+                /*
+                 * 启用时每次编辑器更新均重绘，即使尚未登记内容提供方。
+                 */
                 SceneView.RepaintAll();
                 return;
             }
 
-            // After disabling, repaint a few frames to ensure the last drawn overlay is cleared.
+            /*
+             * 关闭后继续有限次数重绘，使上一轮覆盖层有机会被清除。
+             */
             if (s_forceRepaintFrames > 0)
             {
                 s_forceRepaintFrames--;
@@ -87,6 +115,9 @@ namespace AbilityKit.Core.Editor.Debugging
 
             var ctx = new DebugDrawContext(enabled);
 
+            /*
+             * 本轮捕获设置，但登记列表和每项分类仍实时读取；回调变更不提供快照语义。
+             */
             for (int i = 0; i < s_contributors.Count; i++)
             {
                 var c = s_contributors[i];
@@ -95,8 +126,10 @@ namespace AbilityKit.Core.Editor.Debugging
 
                 try
                 {
-                    // Scene GUI callbacks share Handles state. Give every contributor an
-                    // isolated world-space scope so another editor extension cannot offset it.
+                    /*
+                     * 每个内容提供方在白色、单位矩阵作用域中绘制，退出或抛错时由作用域恢复状态。
+                     * 分类属性读取在该异常隔离范围之外，其异常会中断本轮遍历。
+                     */
                     using (new Handles.DrawingScope(Color.white, Matrix4x4.identity))
                     {
                         c.Draw(in ctx, s_draw);
@@ -104,6 +137,10 @@ namespace AbilityKit.Core.Editor.Debugging
                 }
                 catch
                 {
+                    /*
+                     * 保留旧编辑器回调的异常隔离，不让单个绘制失败阻断后续项。
+                     * 此兼容入口不记录异常；Diagnostics 正式驱动另有日志行为。
+                     */
                 }
             }
         }

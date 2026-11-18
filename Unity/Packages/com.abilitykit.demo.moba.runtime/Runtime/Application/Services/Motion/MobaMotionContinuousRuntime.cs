@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Combat.MotionSystem.Core;
+using AbilityKit.Combat.MotionSystem.Generic;
 using AbilityKit.Continuous;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
@@ -133,6 +134,21 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         public int ModifierSourceId => AllocatedModifierSourceId;
         public override IContinuousConfig Config => _config;
 
+        // Read-only access for the joint lifecycle owner; never used to reconstruct a source.
+        internal IMotionSource LocalMotionSource => _motionSource;
+        private MotionPipeline _addedPipeline;
+
+        internal void ValidateLocalMotionBinding()
+        {
+            if (!(_motionSource is FixedDeltaMotionSource))
+                throw new InvalidOperationException($"Unsupported managed Motion source: {_motionSource?.GetType().FullName ?? "null"}.");
+            if (!IsActive || !_sourceAdded || _sourceStopped || _landingTriggered || !_motionSource.IsActive ||
+                _actors == null || !_actors.TryGet(OwnerActorId, out var actor) || !actor.hasMotion ||
+                !actor.motion.Initialized || actor.motion.Pipeline == null ||
+                !ReferenceEquals(_addedPipeline, actor.motion.Pipeline) || !_addedPipeline.ContainsSource(_motionSource))
+                throw new InvalidOperationException("Managed Motion requires the same active source bound to its original owner Pipeline.");
+        }
+
         protected override bool OnActivating()
         {
             if (_actors == null || _motionSource == null || OwnerActorId <= 0)
@@ -155,6 +171,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             }
 
             motion.Pipeline.AddSource(_motionSource);
+            _addedPipeline = motion.Pipeline;
             _sourceAdded = true;
             Log.Info($"[MobaMotionContinuousRuntime] source added. kind={Kind}, owner={OwnerActorId}, sourceActive={_motionSource.IsActive}");
 

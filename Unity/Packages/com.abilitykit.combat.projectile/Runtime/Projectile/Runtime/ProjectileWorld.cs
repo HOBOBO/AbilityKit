@@ -335,13 +335,27 @@ namespace AbilityKit.Combat.Projectile
             ));
         }
 
-        public void ImportRollback(FrameIndex frame, byte[] payload)
+        internal static ProjectileWorldSnapshotPayload ReadRollbackSnapshot(byte[] payload, FrameIndex? frame = null)
         {
-            if (payload == null || payload.Length == 0) { Clear(); return; }
+            if (payload == null || payload.Length == 0)
+                throw new InvalidOperationException("Missing projectile world rollback payload.");
             var snap = MemoryPackSerializer.Deserialize<ProjectileWorldSnapshotPayload>(payload);
             if (snap.Version != 18) throw new InvalidOperationException("Unsupported projectile rollback version.");
+            if ((frame.HasValue && snap.Frame.Value != frame.Value.Value) || snap.NextId <= 0 ||
+                snap.NextHitFilterKey <= 0 || snap.Items == null)
+                throw new InvalidOperationException("Invalid projectile rollback frame or allocator.");
+            var ids = new HashSet<int>();
             foreach (var item in snap.Items ?? Array.Empty<ProjectileWorldSnapshotItem>())
             {
+                if (item.Id <= 0 || item.Id >= snap.NextId || !ids.Add(item.Id) ||
+                    item.HitFilterKey < 0 || item.HitFilterKey >= snap.NextHitFilterKey ||
+                    item.HitFilterSnapshot != null && item.HitFilterSnapshot.Length > 0 && item.HitFilterKey == 0)
+                    throw new InvalidOperationException("Invalid projectile rollback identity or filter allocator.");
+                if (item.HitIdentityPolicy != ProjectileHitIdentityPolicy.Collider &&
+                    item.HitIdentityPolicy != ProjectileHitIdentityPolicy.OncePerActor &&
+                    item.HitIdentityPolicy != ProjectileHitIdentityPolicy.OncePerActorPerLeg)
+                    throw new InvalidOperationException("Invalid projectile hit identity snapshot.");
+                ProjectileHitPolicyFactory.ValidateRegisteredKind(item.HitPolicyKind);
                 if ((item.MaxDistanceResponse != ProjectileMaxDistanceResponse.Exit &&
                      item.MaxDistanceResponse != ProjectileMaxDistanceResponse.SuspendAtDestination &&
                      item.MaxDistanceResponse != ProjectileMaxDistanceResponse.ReturnToSource) ||
@@ -350,9 +364,55 @@ namespace AbilityKit.Combat.Projectile
                       (item.MaxDistanceResponse == ProjectileMaxDistanceResponse.ReturnToSource && item.IsReturning != 0))))
                     throw new InvalidOperationException("Invalid projectile destination snapshot.");
             }
+            return snap;
+        }
+
+        internal void ValidateRollbackDependencies(in ProjectileWorldSnapshotPayload snapshot)
+        {
+            foreach (var item in snapshot.Items ?? Array.Empty<ProjectileWorldSnapshotItem>())
+            {
+                ValidateHitIdentity(item.HitIdentityPolicy);
+                if (item.HitFilterSnapshot != null && item.HitFilterSnapshot.Length > 0)
+                {
+                    if (!(_hitFilterResolver is IProjectileHitFilterSnapshotResolver))
+                        throw new InvalidOperationException("Projectile filter snapshot requires a snapshot resolver.");
+                }
+                else if (item.HitFilterKey > 0 && !_hitFilters.ContainsKey(item.HitFilterKey) && _hitFilterResolver == null)
+                    throw new InvalidOperationException("Projectile filter key has no registered instance or resolver.");
+            }
+        }
+
+        /// <summary>
+        /// 还原投射物帧状态；先校验全部条目并准备策略与过滤器，再替换当前对象。
+        /// 空载荷保留清空语义，外部构造器或解析器失败不会先清空当前投射物。
+        /// </summary>
+        public void ImportRollback(FrameIndex frame, byte[] payload)
+        {
+            if (payload == null || payload.Length == 0) { Clear(); return; }
+            var snap = ReadRollbackSnapshot(payload, frame);
+            ValidateRollbackDependencies(in snap);
+            var items = snap.Items ?? Array.Empty<ProjectileWorldSnapshotItem>();
+            var policies = new IProjectileHitPolicy[items.Length];
+            var filters = new IProjectileHitFilter[items.Length];
+            var preparedFilters = new Dictionary<int, IProjectileHitFilter>();
+            /*
+             * 外部扩展的构造和解析可能失败，因此准备阶段不写入活动对象或过滤器索引。
+             * 预检仅检查数据和依赖是否具备，不调用扩展工厂或过滤器解析器。
+             */
+            for (var i = 0; i < items.Length; i++)
+            {
+                policies[i] = ProjectileHitPolicyFactory.Create(items[i].HitPolicyKind, items[i].HitPolicyParam);
+                var item = items[i];
+                if ((item.HitFilterSnapshot == null || item.HitFilterSnapshot.Length == 0) &&
+                    preparedFilters.TryGetValue(item.HitFilterKey, out var prepared))
+                    filters[i] = prepared;
+                else
+                    filters[i] = PrepareRollbackHitFilter(item.HitFilterKey, item.HitFilterSnapshot);
+                preparedFilters[item.HitFilterKey] = filters[i];
+            }
             Clear();
-            _nextId = snap.NextId <= 0 ? 1 : snap.NextId;
-            _nextHitFilterKey = snap.NextHitFilterKey <= 0 ? 1 : snap.NextHitFilterKey;
+            _nextId = snap.NextId;
+            _nextHitFilterKey = snap.NextHitFilterKey;
             TrimHitFilters(_nextHitFilterKey);
 
             if (snap.Items == null || snap.Items.Length == 0) return;
@@ -360,9 +420,12 @@ namespace AbilityKit.Combat.Projectile
             for (int i = 0; i < snap.Items.Length; i++)
             {
                 var it = snap.Items[i];
-                if (it.Id <= 0) continue;
-                ValidateHitIdentity(it.HitIdentityPolicy);
-                var restoredFilter = RestoreHitFilter(it.HitFilterKey, it.HitFilterSnapshot);
+                if (it.HitFilterKey > 0)
+                {
+                    if (_hitFilters.TryGetValue(it.HitFilterKey, out var previous)) _hitFilterKeys.Remove(previous);
+                    _hitFilters[it.HitFilterKey] = filters[i];
+                    _hitFilterKeys[filters[i]] = it.HitFilterKey;
+                }
 
                 var p = Pool.Get();
                 p.Id = new ProjectileId(it.Id);
@@ -414,12 +477,12 @@ namespace AbilityKit.Combat.Projectile
                 p.HitPolicyKind = it.HitPolicyKind;
                 p.HitIdentityPolicy = it.HitIdentityPolicy;
                 p.HitPolicyParam = it.HitPolicyParam;
-                p.HitPolicy = ProjectileHitPolicyFactory.Create(it.HitPolicyKind, it.HitPolicyParam);
+                p.HitPolicy = policies[i];
                 p.TickIntervalFrames = it.TickIntervalFrames;
                 p.NextTickFrame = it.NextTickFrame;
                 p.TotalHitCount = it.TotalHitCount;
                 p.HitFilterKey = it.HitFilterKey;
-                p.HitFilter = restoredFilter;
+                p.HitFilter = filters[i];
                 p.HitCooldownFrames = it.HitCooldownFrames;
                 p.LastHitCollider = new ColliderId(it.LastHitCollider);
                 p.LastHitAllowedFrame = it.LastHitAllowedFrame;
@@ -470,16 +533,68 @@ namespace AbilityKit.Combat.Projectile
             return filter;
         }
 
-        private IProjectileHitFilter RestoreHitFilter(int key, byte[] snapshot)
+        internal void ValidateScheduleHitIdentity(ProjectileHitIdentityPolicy policy) => ValidateHitIdentity(policy);
+
+        internal int FindRollbackHitFilterKey(IProjectileHitFilter filter)
         {
-            if (snapshot == null || snapshot.Length == 0) return ResolveHitFilter(key);
-            if (key <= 0 || !(_hitFilterResolver is IProjectileHitFilterSnapshotResolver resolver))
+            return filter != null && _hitFilterKeys.TryGetValue(filter, out var key) ? key : 0;
+        }
+
+        internal IProjectileHitFilter FindRollbackHitFilter(int key) =>
+            _hitFilters.TryGetValue(key, out var filter) ? filter : null;
+
+        internal void ValidateScheduleHitFilter(int key, byte[] snapshot)
+        {
+            if (key < 0) throw new InvalidOperationException("Invalid schedule filter key.");
+            if (snapshot != null && snapshot.Length > 0)
+            {
+                if (!(_hitFilterResolver is IProjectileHitFilterSnapshotResolver))
+                    throw new InvalidOperationException("Schedule filter requires a snapshot resolver.");
+            }
+            else if (key <= 0 || !_hitFilters.ContainsKey(key) && _hitFilterResolver == null)
+                throw new InvalidOperationException("Schedule filter has no stable data or dependency.");
+        }
+
+        internal IProjectileHitFilter RestoreScheduleHitFilter(int key, byte[] snapshot, bool hasPhysicalReference)
+        {
+            if (hasPhysicalReference) return _hitFilters[key];
+            var filter = snapshot != null && snapshot.Length > 0
+                ? RestoreHitFilterSnapshot(snapshot) : PrepareRollbackHitFilter(key, snapshot);
+            /*
+             * 已分配但不再被弹体引用的过滤器仍可能属于未来任务。
+             * 只替换已有绑定，不提前分配首次发射才应分配的身份。
+             */
+            if (key > 0 && _hitFilters.TryGetValue(key, out var previous))
+            {
+                _hitFilterKeys.Remove(previous);
+                _hitFilters[key] = filter;
+                _hitFilterKeys[filter] = key;
+            }
+            return filter;
+        }
+
+        private IProjectileHitFilter PrepareRollbackHitFilter(int key, byte[]? snapshot)
+        {
+            if (snapshot == null || snapshot.Length == 0)
+            {
+                if (key <= 0) return DefaultProjectileHitFilter.Instance;
+                if (_hitFilters.TryGetValue(key, out var existing) && existing != null) return existing;
+                var resolved = _hitFilterResolver?.Resolve(key);
+                if (resolved == null)
+                    throw new InvalidOperationException($"Projectile hit filter key {key} could not be resolved.");
+                return resolved;
+            }
+            if (key <= 0 || !(_hitFilterResolver is IProjectileHitFilterSnapshotResolver))
                 throw new InvalidOperationException("Projectile filter snapshot requires a snapshot resolver and a positive filter key.");
+            return RestoreHitFilterSnapshot(snapshot);
+        }
+
+        private IProjectileHitFilter RestoreHitFilterSnapshot(byte[] snapshot)
+        {
+            if (!(_hitFilterResolver is IProjectileHitFilterSnapshotResolver resolver))
+                throw new InvalidOperationException("Projectile filter snapshot requires a snapshot resolver.");
             var filter = resolver.ResolveSnapshot(snapshot);
             if (filter == null) throw new InvalidOperationException("Projectile filter snapshot resolver returned no filter.");
-            if (_hitFilters.TryGetValue(key, out var previous)) _hitFilterKeys.Remove(previous);
-            _hitFilters[key] = filter;
-            _hitFilterKeys[filter] = key;
             return filter;
         }
 

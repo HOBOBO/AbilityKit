@@ -5,6 +5,9 @@ namespace AbilityKit.Core.Pooling
     /// </summary>
     public interface IPoolConfigProvider
     {
+        /// <summary>
+        /// 尝试提供请求对应的配置；配置中心仅接受返回 true 且已指定的配置，异常直接传播。
+        /// </summary>
         bool TryGetConfig(PoolConfigRequest request, out PoolItemConfig config);
     }
 }

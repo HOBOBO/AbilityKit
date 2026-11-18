@@ -3,8 +3,11 @@ using System;
 namespace AbilityKit.Core.Pooling
 {
     /// <summary>
-    /// 对象池配置提供者注册句柄，用于测试、热更新模块或编辑器工具在作用域结束时安全注销临时配置。
+    /// 按提供者引用身份执行注销的值类型句柄，不提供引用计数或独立的注册代次隔离。
     /// </summary>
+    /// <remarks>
+    /// 句柄及其副本注销同一提供者；提供者被重新注册后，旧句柄仍可移除新登记。调用方需协调注册生命周期。
+    /// </remarks>
     public readonly struct PoolConfigRegistration : IDisposable
     {
         private readonly IPoolConfigProvider _provider;
@@ -26,7 +29,7 @@ namespace AbilityKit.Core.Pooling
         public PoolConfigProviderInfo Info { get; }
 
         /// <summary>
-        /// 获取该句柄是否绑定了有效的配置提供者。
+        /// 获取该句柄是否绑定了非空提供者；不代表提供者当前仍在配置中心注册。
         /// </summary>
         public bool IsValid => _provider != null;
 

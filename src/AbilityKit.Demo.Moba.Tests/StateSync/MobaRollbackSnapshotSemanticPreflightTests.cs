@@ -255,7 +255,7 @@ public sealed class MobaRollbackSnapshotSemanticPreflightTests
             var actor = _context.CreateEntity();
             actor.AddActorId(RelationActorIdValue);
             if (defect != "missing-flying-projectile" && !hasLauncher) actor.isFlyingProjectileTag = true;
-            if (hasLauncher) actor.AddProjectileLauncher(1, 1, RelationActorIdValue, 1000, 1, 0, 0, 1);
+            if (hasLauncher) actor.AddProjectileLauncher(1, ProjectileConfigId, RelationActorIdValue, 1000, 1, 0, 0, 1);
 
             _actors = new MobaActorRegistry();
             _actors.Register(RelationActorIdValue, actor);
@@ -456,7 +456,7 @@ public sealed class MobaRollbackSnapshotSemanticPreflightTests
         var checkpoint = new MobaSkillLifecycleCheckpoint
         {
             Format = MobaSkillLifecycleCheckpoint.FormatName,
-            Version = 3,
+            Version = MobaSkillLifecycleCheckpoint.CurrentVersion,
             Frame = frame,
             ActorIds = Array.Empty<int>(),
             Sections = new[]

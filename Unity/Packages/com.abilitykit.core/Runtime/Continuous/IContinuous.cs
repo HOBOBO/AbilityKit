@@ -3,74 +3,69 @@ using System;
 namespace AbilityKit.Core.Continuous
 {
     /// <summary>
-    /// 持续体接口
-    /// 
-    /// 统一所有具有"持续时间、可被中断/暂停"的对象的外壳
-    /// 不关心内部如何执行，只负责生命周期管理
-    /// 
-    /// 配置通过 IContinuousConfig 传入，支持可选扩展接口
+    /// 旧 Core 持续体生命周期契约，保留至下一主版本移除窗口。
+    /// 新代码使用 AbilityKit.Continuous；状态转换、计时与结束事件由持续体实现负责，管理器不推进时间。
     /// </summary>
     [Obsolete("Continuous lifecycle APIs no longer belong in Core. Use AbilityKit.Continuous; this compatibility API will be removed in the next major version.")]
     public interface IContinuous
     {
         /// <summary>
-        /// 配置
+        /// 获取配置；在注册期间应保持配置及所属实体标识稳定。
         /// </summary>
         IContinuousConfig Config { get; }
 
         /// <summary>
-        /// 当前状态
+        /// 获取实现维护的当前生命周期状态。
         /// </summary>
         ContinuousState State { get; }
 
         /// <summary>
-        /// 已激活
+        /// 获取实现是否处于激活态。
         /// </summary>
         bool IsActive { get; }
 
         /// <summary>
-        /// 已终止（Expired 或 Aborted）
+        /// 获取实现是否已终止，通常对应 Expired 或 Aborted。
         /// </summary>
         bool IsTerminated { get; }
 
         /// <summary>
-        /// 已暂停
+        /// 获取实现是否处于暂停态。
         /// </summary>
         bool IsPaused { get; }
 
         /// <summary>
-        /// 已消耗的时间（秒）
+        /// 获取实现累计的经过时间，单位为秒；管理器不自动累加。
         /// </summary>
         float ElapsedSeconds { get; }
 
         /// <summary>
-        /// 激活持续体
+        /// 请求激活，由实现维护状态；管理器可能对已激活对象再次调用此方法。
         /// </summary>
         void Activate();
 
         /// <summary>
-        /// 暂停持续体
+        /// 请求暂停，由实现维护状态及计时规则。
         /// </summary>
         void Pause();
 
         /// <summary>
-        /// 恢复持续体
+        /// 请求恢复，由实现维护状态及计时规则。
         /// </summary>
         void Resume();
 
         /// <summary>
-        /// 结束持续体。
+        /// 按指定原因结束；实现应更新终止状态并发出 OnEnded，以便已注册管理器清理索引。
         /// </summary>
         void End(ContinuousEndReason reason);
 
         /// <summary>
-        /// 中止持续体
+        /// 按文本原因中止；实现负责终止状态及结束事件的枚举原因。
         /// </summary>
-        /// <param name="reason">中止原因</param>
         void Abort(string reason);
 
         /// <summary>
-        /// 持续体结束事件
+        /// 通知生命周期结束，参数为结束对象和原因；管理器原样传递原因，不根据状态重新推断。
         /// </summary>
         event Action<IContinuous, ContinuousEndReason> OnEnded;
     }

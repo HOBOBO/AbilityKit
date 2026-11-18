@@ -1,202 +1,85 @@
-# 系统执行顺序规范
+# MOBA 系统装配与帧结算顺序
 
-本文档定义了 moba.runtime 战斗逻辑世界层的 ECS 系统执行顺序标准。
+本页定义正式 MOBA 装配入口的执行合同。2026-11-17 用户确认的范围为
+`plans/MobaAreaFrameBoundaryDecision.2026-11-17.md` D1–D3 及
+`plans/MobaDerivedCombatSettlementDecision.2026-11-17.md` 第 9 节 L1–L4；机制准入以
+`Docs/MobaMechanismGovernance.md` 为准。
 
-## 1. 概述
+## 装配规则
 
-系统（System）执行顺序通过 `MobaSystemOrder` 常量类集中管理，基于 `WorldSystemOrder` 的整数偏移量实现。
+`MobaWorldBootstrapModule` 将生成清单和显式外部 `ProjectileTickSystem` 描述符合并，
+按 `(WorldSystemPhase, Order, TypeName)` 排序后一次建立阶段树。
+外部 Tick 的 Phase/Order 读取其自身 `WorldSystemAttribute`，不在业务侧复制偏移值。
+同一类型重复、相同 Phase/Order 冲突或非法 Phase 在实例化系统前拒绝。
 
-## 2. 排序架构
+Entitas 按 Add 顺序执行；多次安装阶段树不会对已有树重新排序。
+不能在装配尾部补第二份 ProjectileSync、AreaSync、ActorCleanup 或物理 Tick 来弥补顺序。
+此规则只调整 MOBA 入口，不修改通用 AutoSystemInstaller 和 Shooter 的独立装配合同。
 
-```
-WorldSystemOrder.CoreBase (框架基准)
-    │
-    └── MobaSystemOrder.Base = CoreBase + 1000 (业务层基准)
-            │
-            ├── WorldSystemPhase.PreExecute  (Early)
-            │       ├── EntityManagerSync (-100)
-            │       └── MotionInit (-90)
-            │
-            ├── WorldSystemPhase.Execute    (Normal)
-            │       ├── MotionInput (10)
-            │       ├── MotionTick (50)
-            │       ├── SkillInput (80)
-            │       ├── SkillPipelines (100)
-            │       ├── Effects (200)
-            │       ├── BuffApply (300)
-            │       └── BuffTick (310)
-            │
-            └── WorldSystemPhase.PostExecute (Late)
-                    ├── ProjectileSync (+10)
-                    ├── AreaSync (+11)
-                    └── EntityCleanup (+5)
-```
+## 正式执行边界
 
-## 3. 系统排序常量
+Phase 优先于整数 Order；不能跨 Phase 只比较常量。下表是关键执行项，
+完整清单以运行世界的执行树和各系统声明为准。
 
-```csharp
-public static class MobaSystemOrder
-{
-    // 基准值 = 框架 CoreBase + 1000
-    public const int Base = WorldSystemOrder.CoreBase + 1000;
+| Phase | 执行项 | 当前 Order / 职责 |
+|---|---|---|
+| PreExecute | CollisionWorldSync | 1100；同步本帧移动前的碰撞体采样 |
+| PreExecute | EntityManagerSync、MotionInit | 按各自声明装配与初始化 |
+| Execute | Motion、SkillPipeline、Trigger、HFSM、Buff、Continuous、Gameplay | 按生成清单顺序执行 |
+| Execute | ProjectileTick | 2500；只推进一次 schedules → AreaWorld → ProjectileWorld |
+| PostExecute | SkillCastDestroyCleanup | 1602；保留现有保留期及确认门限 |
+| PostExecute | EntityManagerCleanup | 1905 |
+| PostExecute | ProjectileSync 共同结算入口 | 1910；整轮冻结 Projectile／Area 通知后有界结算；Area 消费者不再独立安装 |
+| PostExecute | ProjectileLauncherCleanup | 1912 |
+| PostExecute | ShieldLifecycle、SummonLifecycle | 1913、1914 |
+| PostExecute | ActorDespawnCleanup | 1918；消费同帧临时实体移除请求 |
+| PostExecute | DiagnosticStateSample | 1930；采样已完成上述处理的状态 |
 
-    // ========== PreExecute (Early) ==========
-    public const int EntityManagerSync = Base + WorldSystemOrder.Early + 5;
-    public const int MotionInit = Base + WorldSystemOrder.Early + 10;
+Buff 命令及生命周期以当前 `MobaSystemOrder` 的 BuffCommandsDrain、ContinuousTick、
+BuffLifecycleReconcile、OngoingTriggerPlansReconcile 为准；旧 BuffsApply/BuffsTick 示例已移除。
+阶段标签不代替真实装配验收，必须递归展开正式世界的执行树检查唯一性与顺序。
 
-    // ========== Execute (Normal) ==========
-    public const int MotionLocomotionInput = Base + WorldSystemOrder.Normal + 10;
-    public const int MotionTick = Base + WorldSystemOrder.Normal + 50;
-    public const int PassiveSkillTriggers = Base + WorldSystemOrder.Normal + 85;
-    public const int SkillPipelines = Base + WorldSystemOrder.Normal + 100;
-    public const int EffectsStep = Base + WorldSystemOrder.Normal + 200;
-    public const int BuffCommandsDrain = Base + WorldSystemOrder.Normal + 295;
-    public const int BuffsApply = Base + WorldSystemOrder.Normal + 300;
-    public const int BuffsTick = Base + WorldSystemOrder.Normal + 310;
+## 区域检测与恢复
 
-    // ========== Execute (Normal) ==========
-    public const int ContinuousPeriodicTick = Base + WorldSystemOrder.Normal + 315;
-    public const int EntityManagerCleanup = Base + WorldSystemOrder.Late + 5;
-    public const int ProjectileSync = Base + WorldSystemOrder.Late + 10;
-    public const int AreaSync = Base + WorldSystemOrder.Late + 11;
-    public const int ProjectileLauncherCleanup = Base + WorldSystemOrder.Late + 15;
-}
-```
+- 物理前存在的区域参与本帧检测；物理产生的 Enter/Cross/Stay/Exit/Expire 在后续 AreaSync 消费。
+- ProjectileSync 的到达处理或 AreaSync 的回调新建区域，首次空间检测在下一次正常物理 Tick。
+  区域寿命、Stay 游标及物理帧号只能推进一次，不能补 Tick 以提前检测。
+- CollisionWorldSync 仍在 MotionTick 前。移动后的空间结果使用既有采样节奏，本批未改变该合同。
+- 检查点保存第 N 帧结算数据，重演从 N+1 开始。已结算效果进入 HP、Buff、认领和上下文数据；
+  未到期 delay 的时间与已触发标志是未来任务状态，继续由区域数据保存。
+- 恢复不得补发 Enter、重跑正常 Spawn/Added 或保存历史回调；结构回退沿既有类型化 Command。
+  新旧构建的检查点不混用，本批未新增快照字段或队列恢复协议。
 
-## 4. Phase 定义
+## 派生链的共同结算
 
-| Phase | 执行时机 | 使用场景 |
-|-------|---------|---------|
-| `WorldSystemPhase.PreExecute` | 主循环前 | 实体同步、初始化 |
-| `WorldSystemPhase.Execute` | 主循环 | 核心游戏逻辑 |
-| `WorldSystemPhase.PostExecute` | 主循环后 | 清理、同步 |
+每轮先 Drain 全部 Projectile／Area 通知并冻结 delay 候选，之后才执行回调。
+顺序固定为 Projectile Spawn → Arrival → Tick → Hit → Exit → Area Spawn → due delay →
+Enter/Cross → Exit → Stay → Expire。类别内保持入队顺序，Enter 保持 AreaId／ColliderId 排序。
+Projectile Actor transform 只在首轮 Tick 后、Hit 前同步一次。
 
-## 5. 系统注册模板
+回调产生的任意类别通知都进入下一轮，创建后立即删除仍先 Spawn 后终结。
+due delay 在 Area Spawn 后采集并标记，只处理本轮开始已存在的候选；
+本轮新建对象下一轮完成 Spawn 后才具备 delay 资格，Spawn 回调不会提前观察到已触发标记。
+有通知或本帧到期 delay 才继续下一轮；不推进物理、寿命、空间采样或未来任务。
 
-### 5.1 基础系统注册
+合法存活 Area 在成功帧末已完成 Spawn；已终结 Area 在最后一次合法 Exit／Stay／Expire 后，
+由原领域 Unregister 清理来源、索引和 retain。最后 retain 不得早于回调释放。
+临时批次和候选不入快照，N 帧恢复不执行旧 Spawn／Enter／Expire。
 
-```csharp
-[WorldSystem(order: MobaSystemOrder.MySystem, Phase = WorldSystemPhase.Execute)]
-public sealed class MySystem : WorldSystemBase
-{
-    protected override void OnExecute()
-    {
-        // 实现游戏逻辑
-    }
-}
-```
+每帧预算为 16384 个通知／due delay 项。超限、重入、必要关系缺失或后段 cleanup 新增通知，
+由世界 `IWorldFrameGuard` 永久标记会话失败，阻断该帧提交、后续推进、Capture 和正式复制／权威输出。
+门禁在世界原 Cleanup 后复核，不能只依赖异常传播，因为 WorldManager／HostRuntime 会隔离异常。
+两帧间新增通知也阻断 Capture／输出，下一正常帧可结算；未来 schedules 不属于通知残留。
 
-### 5.2 多阶段系统
+本批不循环清理树，不支持任意尾部派生；失败后重建会话，不保证撤销已发出的本地表现／诊断。
+活动 schedule 恢复、已销毁 Continuous／Cast 重建及完整外部输出事务仍需独立合同。
+验收见 `local/docs/Moba派生战斗帧内结算验收.2026-11-17.md`；旧缺口复现报告保留历史含义。
 
-```csharp
-[WorldSystem(order: MobaSystemOrder.MySystemInit, Phase = WorldSystemPhase.PreExecute)]
-public sealed class MySystemInit : WorldSystemBase
-{
-    protected override void OnInit()
-    {
-        // 初始化逻辑
-    }
-}
+## 添加或修改系统
 
-[WorldSystem(order: MobaSystemOrder.MySystemTick, Phase = WorldSystemPhase.Execute)]
-public sealed class MySystemTick : WorldSystemBase
-{
-    protected override void OnExecute()
-    {
-        // 每帧逻辑
-    }
-}
+MOBA 业务系统在 `MobaSystemOrder` 定义职责明确的常量，用 `WorldSystemAttribute` 声明 Phase/Order，
+由生成器发现；禁止编辑生成清单。外部系统在 MOBA 合并入口显式登记，
+不能另加一棵独立阶段树。新的时序或所有权语义仍须按机制准入规则确认。
 
-[WorldSystem(order: MobaSystemOrder.MySystemCleanup, Phase = WorldSystemPhase.PostExecute)]
-public sealed class MySystemCleanup : WorldSystemBase
-{
-    protected override void OnCleanup()
-    {
-        // 清理逻辑
-    }
-}
-```
-
-## 6. 执行顺序设计原则
-
-### 6.1 输入优先
-
-```
-移动输入 → 技能输入 → 技能释放 → 伤害计算 → Buff 应用 → 位置同步
-```
-
-### 6.2 数据流顺序
-
-```
-Entity Sync (Pre) → Input Processing → Core Logic → Effects → Buffs → Cleanup (Post)
-```
-
-### 6.3 分离读写
-
-| 类型 | 说明 | 示例 |
-|-----|------|------|
-| Reader | 只读数据 | 查询实体位置 |
-| Writer | 修改数据 | 应用伤害 |
-
-> 重要：Entitas 默认单线程执行，无需显式分离读写。
-
-## 7. 添加新系统的检查清单
-
-添加新系统时，确保：
-
-- [ ] 在 `MobaSystemOrder` 中定义常量
-- [ ] 选择正确的 Phase（Pre/Execute/Post）
-- [ ] 计算正确的偏移量（避免冲突）
-- [ ] 使用 `[WorldSystem]` 特性注册
-- [ ] 继承 `WorldSystemBase`
-- [ ] 实现必要的生命周期方法
-
-## 8. 系统分类参考
-
-### PreExecute（早期）
-
-| 系统 | Order | 职责 |
-|-----|-------|------|
-| EntityManagerSync | Base + Early + 5 | 实体管理器同步 |
-| MotionInit | Base + Early + 10 | 移动系统初始化 |
-
-### Execute（常规）
-
-| 系统 | Order | 职责 |
-|-----|-------|------|
-| MotionLocomotionInput | Base + Normal + 10 | 移动输入处理 |
-| MotionTick | Base + Normal + 50 | 移动 tick |
-| PassiveSkillTriggers | Base + Normal + 85 | 被动技能触发 |
-| SkillPipelines | Base + Normal + 100 | 技能管道执行 |
-| EffectsStep | Base + Normal + 200 | 效果步骤 |
-| BuffsApply | Base + Normal + 300 | Buff 应用 |
-| BuffsTick | Base + Normal + 310 | Buff tick |
-
-### PostExecute（后期）
-
-| 系统 | Order | 职责 |
-|-----|-------|------|
-| ContinuousPeriodicTick | Base + Normal + 315 | 正式持续周期行为 tick |
-| EntityManagerCleanup | Base + Late + 5 | 实体管理器清理 |
-| ProjectileSync | Base + Late + 10 | 投射物同步 |
-| AreaSync | Base + Late + 11 | 区域同步 |
-
-## 9. 常见问题
-
-### 9.1 系统执行顺序冲突
-
-**问题**：多个系统使用相同 Order 值
-
-**解决**：确保 Order 值唯一，参考现有系统添加适当偏移
-
-### 9.2 依赖系统未执行
-
-**问题**：系统 A 依赖系统 B 的输出，但 A 先执行
-
-**解决**：将系统 A 的 Order 设置为 B + 适当偏移
-
-### 9.3 循环依赖
-
-**问题**：系统 A 依赖 B，B 依赖 A
-
-**解决**：重构逻辑，消除循环依赖，或合并为一个系统
+验收至少包括真实装配唯一性和依赖顺序、受影响技能真实结果、帧末数据恢复、
+正常清理与来源存续，以及派生消息残留检查。常量大小比较或单一英雄冒烟不能代替这些验收。

@@ -108,7 +108,7 @@ namespace AbilityKit.Ability.Host.Extensions.Rollback
                     }
                     ctx.World.Tick(deltaTimePerFrame);
 
-                    ctx.Coordinator.CaptureAndStore(frame);
+                    if (!ctx.Coordinator.CaptureAndStore(frame)) return false;
                 }
             }
             finally
@@ -161,6 +161,8 @@ namespace AbilityKit.Ability.Host.Extensions.Rollback
             {
                 var ctx = kv.Value;
                 if (ctx == null) continue;
+
+                if (ctx.World?.Services?.TryResolve<IWorldFrameGuard>(out var guard) == true && !guard.CanCommit) continue;
 
                 ctx.CaptureCounter++;
                 if (ctx.CaptureCounter % _captureEveryNFrames != 0) continue;

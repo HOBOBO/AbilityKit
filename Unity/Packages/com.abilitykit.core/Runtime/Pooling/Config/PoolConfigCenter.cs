@@ -4,14 +4,20 @@ using System.Collections.Generic;
 namespace AbilityKit.Core.Pooling
 {
     /// <summary>
-    /// 对象池创建时使用的中心配置链，配置提供者按优先级和注册顺序进行查询。
+    /// 对象池创建时使用的中心配置链；按注册顺序查询全部提供者，选择最高优先级，同优先级由后注册者胜出。
     /// </summary>
+    /// <remarks>
+    /// 查询在配置中心锁内同步调用提供者，异常直接传播。提供者不得在查询中修改注册链或等待需要此锁的线程。
+    /// </remarks>
     public static class PoolConfigCenter
     {
         private static readonly object SyncRoot = new object();
         private static readonly List<ProviderEntry> Providers = new List<ProviderEntry>();
         private static int _nextRegistrationOrder;
 
+        /// <summary>
+        /// 将配置提供者的引用身份与注册时的诊断元数据保存在同一条目中。
+        /// </summary>
         private readonly struct ProviderEntry
         {
             public readonly IPoolConfigProvider Provider;
@@ -43,6 +49,9 @@ namespace AbilityKit.Core.Pooling
         /// <summary>
         /// 注册一个带诊断元数据的对象池配置提供者，并返回可释放的注册句柄。
         /// </summary>
+        /// <remarks>
+        /// 同一提供者按引用身份去重，不更新已有元数据，也不进行引用计数；任一句柄注销都会移除该提供者。
+        /// </remarks>
         /// <param name="provider">要注册的配置提供者。</param>
         /// <param name="name">配置提供者名称，通常使用包名或模块名。</param>
         /// <param name="source">配置来源，通常使用程序集名、包名或资源路径。</param>
@@ -104,9 +113,14 @@ namespace AbilityKit.Core.Pooling
         /// <returns>如果存在生效配置，则返回 <c>true</c>。</returns>
         public static bool TryGetConfig(PoolConfigRequest request, out PoolItemConfig config)
         {
-            return TryGetConfigSnapshot(request, out var snapshot)
-                ? ReturnConfig(snapshot, out config)
-                : ReturnUnspecified(out config);
+            if (TryGetConfigSnapshot(request, out var snapshot))
+            {
+                config = snapshot.Config;
+                return true;
+            }
+
+            config = PoolItemConfig.Unspecified;
+            return false;
         }
 
         /// <summary>
@@ -229,16 +243,5 @@ namespace AbilityKit.Core.Pooling
             return -1;
         }
 
-        private static bool ReturnConfig(PoolConfigSnapshot snapshot, out PoolItemConfig config)
-        {
-            config = snapshot.Config;
-            return true;
-        }
-
-        private static bool ReturnUnspecified(out PoolItemConfig config)
-        {
-            config = PoolItemConfig.Unspecified;
-            return false;
-        }
     }
 }

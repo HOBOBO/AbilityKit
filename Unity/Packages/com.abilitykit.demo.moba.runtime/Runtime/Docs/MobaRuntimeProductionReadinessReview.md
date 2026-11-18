@@ -279,7 +279,7 @@
 - `ActorEntityInitPipeline` 中 `LoggedMissingCharacterIds`、`LoggedMissingAttributeTemplateIds`、`LoggedMissingConfig` 为 static。
 - `MobaBootstrapStageInitializer` 使用 static `_initialized`。
 - `DemoWireSerializerBootstrap` 使用静态安装状态。
-- `PassiveSkillTriggerEventRollbackLog` 使用 static 临时列表。
+- `PassiveSkillTriggerEventRollbackLog` 已于 2026-11-17 清理：无业务生产/消费方，不保留该事件日志或其临时集合。
 - `MobaContinuousModifierQueryService` 使用 static `Records` 字典。
 - `TriggeringConstants`、`TriggeringIdUtil` 使用静态缓存。
 

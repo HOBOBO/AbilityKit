@@ -22,8 +22,11 @@ using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Demo.Moba.Systems.Area
 {
-    [WorldSystem(order: MobaSystemOrder.ProjectileSync + 1, Phase = WorldSystemPhase.PostExecute)]
-    public sealed class MobaAreaSyncSystem : WorldSystemBase
+    /// <summary>
+    /// 由共同结算入口持有的区域通知消费者，不再独立安装或自行推进物理。
+    /// 每轮全部通知冻结后才消费；领域来源保留至最后一次终结回调结束。
+    /// </summary>
+    internal sealed class MobaAreaSyncSystem : WorldSystemBase
     {
         private static int CompareAreaEnter(AreaEnterEvent a, AreaEnterEvent b)
         {
@@ -49,6 +52,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
         private readonly List<AreaStayEvent> _stays = new List<AreaStayEvent>(64);
         private readonly List<AreaExpireEvent> _expires = new List<AreaExpireEvent>(32);
         private readonly List<MobaAreaRuntimeInfo> _dueDelayAreas = new List<MobaAreaRuntimeInfo>(32);
+        private readonly List<int> _delayCandidates = new List<int>(32);
 
         public MobaAreaSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services) : base(contexts, services)
         {
@@ -69,12 +73,24 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             Services.TryResolve(out _combatRules);
         }
 
-        protected override void OnExecute()
+        internal int FreezeBatch()
         {
-            if (_projectiles == null || _registry == null) return;
-
             _spawns.Clear();
             _projectiles.DrainAreaSpawnEvents(_spawns);
+            _enters.Clear();
+            _projectiles.DrainAreaEnterEvents(_enters);
+            _exits.Clear();
+            _projectiles.DrainAreaExitEvents(_exits);
+            _stays.Clear();
+            _projectiles.DrainAreaStayEvents(_stays);
+            _expires.Clear();
+            _projectiles.DrainAreaExpireEvents(_expires);
+            _areaRuntime.CollectDelayCandidates(_delayCandidates);
+            return _spawns.Count + _enters.Count + _exits.Count + _stays.Count + _expires.Count;
+        }
+
+        internal void ConsumeBatch(Action<int> consumeBudget)
+        {
             for (int i = 0; i < _spawns.Count; i++)
             {
                 var evt = _spawns[i];
@@ -83,10 +99,8 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 CollectAreaSpawned(in info);
             }
 
-            PublishDueDelayAreaEvents();
+            PublishDueDelayAreaEvents(consumeBudget);
 
-            _enters.Clear();
-            _projectiles.DrainAreaEnterEvents(_enters);
             if (_enters.Count > 0)
             {
                 _enters.Sort(CompareAreaEnter);
@@ -105,9 +119,9 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 {
                     continue;
                 }
-                // One-shot Areas represent a valid enemy-enter opportunity. Reject
-                // non-enemies before claiming the one-shot slot so an ally cannot
-                // consume the Area before its Trigger predicates run.
+                /*
+                 * 先校验目标资格和敌我关系，再认领一次性或组内目标。
+                 */
                 if (aoe.ConsumeOnFirstEnter || info.ClaimTargetsWithinGroup)
                 {
                     if (info.ClaimTargetsWithinGroup &&
@@ -123,15 +137,14 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                         continue;
                     }
                 }
-                // The claim is made immediately before dispatch. If the first trigger
-                // removes the Area, later Enter events already drained this frame fail here.
+                /*
+                 * 认领紧邻分发。前一个回调删除区域后，后续冻结的 Enter 不再有物理资格。
+                 */
                 var consumed = _projectiles.TryAcceptAreaEnter(evt.Area, hitActorId);
                 if (!consumed) continue;
                 PublishAreaEvent(evt.CrossingDirection == 0 ? "area.enter" : "area.cross", evt.Area.Value, info.TemplateId, MobaExecutionKind.AreaEnter, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
 
-            _exits.Clear();
-            _projectiles.DrainAreaExitEvents(_exits);
             if (_exits.Count > 0) _lifecycle?.RecordExitEvents(MobaTemporaryEntityKind.Area, _exits.Count);
             for (int i = 0; i < _exits.Count; i++)
             {
@@ -142,8 +155,6 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 PublishAreaEvent("area.exit", evt.Area.Value, info.TemplateId, MobaExecutionKind.AreaExit, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
 
-            _stays.Clear();
-            _projectiles.DrainAreaStayEvents(_stays);
             if (_stays.Count > 0) _lifecycle?.RecordTickEvents(MobaTemporaryEntityKind.Area, _stays.Count);
             for (int i = 0; i < _stays.Count; i++)
             {
@@ -154,8 +165,6 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 PublishAreaEvent("area.tick", evt.Area.Value, info.TemplateId, MobaExecutionKind.AreaStay, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
 
-            _expires.Clear();
-            _projectiles.DrainAreaExpireEvents(_expires);
             if (_expires.Count > 0) _lifecycle?.RecordExpireEvents(MobaTemporaryEntityKind.Area, _expires.Count);
             for (int i = 0; i < _expires.Count; i++)
             {
@@ -167,16 +176,14 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             }
         }
 
-        private void PublishDueDelayAreaEvents()
+        private void PublishDueDelayAreaEvents(Action<int> consumeBudget)
         {
             if (_areaRuntime == null) return;
 
             _dueDelayAreas.Clear();
             var frame = ResolveCurrentFrame();
-            _areaRuntime.CollectDueDelayAreas(frame, _dueDelayAreas);
-            if (_dueDelayAreas.Count > 0)
-            {
-            }
+            _areaRuntime.CollectDueDelayAreas(frame, _dueDelayAreas, _delayCandidates);
+            consumeBudget(_dueDelayAreas.Count);
 
             for (var i = 0; i < _dueDelayAreas.Count; i++)
             {

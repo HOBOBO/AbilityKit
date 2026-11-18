@@ -79,7 +79,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             var actorIds = MobaEntitasEntityRollbackProvider.ReadSnapshotActorIds(
                 context.RequirePayload(MobaEntitasEntityRollbackProvider.DefaultKey).ToArray());
             var components = MobaEntitasComponentRollbackProvider.ReadSnapshotSummaries(
-                context.RequirePayload(MobaEntitasComponentRollbackProvider.DefaultKey).ToArray());
+                context.RequirePayload(MobaEntitasComponentRollbackProvider.DefaultKey).ToArray(), context.Frame.Value);
             var lifecycle = MobaSkillLifecycleSnapshotIndex.Read(context.Frame,
                 context.RequirePayload(MobaSkillLifecycleRollbackProvider.DefaultKey).ToArray());
 
@@ -100,7 +100,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         {
             foreach (var summary in summaries)
                 if (summary.ActorId == actorId)
-                    return !summary.HasMetadata || summary.HasSummonMeta && (summonId == 0 || summary.SummonId == summonId);
+                    return summary.HasSummonMeta && (summonId == 0 || summary.SummonId == summonId);
             return false;
         }
 

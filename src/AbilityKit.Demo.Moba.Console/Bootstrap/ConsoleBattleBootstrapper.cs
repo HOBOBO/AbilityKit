@@ -471,6 +471,9 @@ namespace AbilityKit.Demo.Moba.Console
         public void Tick(float deltaTime = 0.033f)
         {
             if (!_running) return;
+            AbilityKit.Ability.World.Abstractions.IWorldFrameGuard frameGuard = null;
+            _runtimeWorld?.Services?.TryResolve(out frameGuard);
+            if (frameGuard != null && !frameGuard.CanAdvance) return;
 
             var now = DateTime.Now;
             var elapsed = deltaTime > 0f ? deltaTime : (now - _lastTick).TotalSeconds;
@@ -488,6 +491,17 @@ namespace AbilityKit.Demo.Moba.Console
             _hostNetwork?.Tick();
             _hostClient?.Tick((float)elapsed);
             _hostRuntime?.Tick((float)elapsed);
+            if (frameGuard != null && !frameGuard.CanCommit)
+            {
+                /*
+                 * WorldManager 可能已经隔离执行异常；失败帧不得成为 Console 已提交帧，
+                 * 不再输出表现、同步或录制快照。模拟现场保留以诊断，后续需重建会话。
+                 */
+                _context.LastFrame--;
+                _totalTime -= elapsed;
+                _context.LogicTimeSeconds = _totalTime;
+                return;
+            }
 
             // Features 现在由 FeatureHost.Tick() 自动管理；自动测试输入由共享 runner driver 显式 Apply，避免本地步骤机重复脚本语义。
             // _syncFeature.Tick(_context, (float)elapsed);

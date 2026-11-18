@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba;
@@ -22,9 +23,20 @@ using AbilityKit.Demo.Moba.Services.StateMachine;
 
 namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 {
+    /// <summary>
+    /// MOBA 投射物及区域的共同通知结算入口：每轮冻结全部类别，按既定顺序消费，
+    /// 在当前帧内完成派生链。此系统不重新推进物理，失败后阻断当前会话。
+    /// </summary>
     [WorldSystem(order: MobaSystemOrder.ProjectileSync, Phase = WorldSystemPhase.PostExecute)]
     public sealed class MobaProjectileSyncSystem : WorldSystemBase
     {
+        private const int MaxSettlementItems = 16384;
+        private MobaCombatFrameGuard _frameGuard;
+        private AbilityKit.Demo.Moba.Services.Area.MobaAreaRuntimeService _areas;
+        private AbilityKit.Demo.Moba.Systems.Area.MobaAreaSyncSystem _areaConsumer;
+        private bool _settling;
+        private int _consumed;
+        private readonly Action<int> _consumeBudget;
         private IProjectileService _projectiles;
         private MobaProjectileLinkService _links;
         private MobaActorRegistry _registry;
@@ -76,9 +88,13 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
         internal IMobaBattleDiagnosticEventSink EventCollector => _eventCollector;
         internal MobaActorStateMachineFactory StateMachineFactory => _stateMachineFactory;
 
+        /// <summary>
+        /// 创建共同结算入口，复用原有各类通知处理器及 Area 领域所有权。
+        /// </summary>
         public MobaProjectileSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
+            _consumeBudget = ConsumeBudget;
         }
 
         protected override void OnInit()
@@ -103,6 +119,10 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             Services.TryResolve(out _time);
             Services.TryResolve(out _eventCollector);
             Services.TryResolve(out _stateMachineFactory);
+            Services.TryResolve(out _frameGuard);
+            Services.TryResolve(out _areas);
+            _areaConsumer = new AbilityKit.Demo.Moba.Systems.Area.MobaAreaSyncSystem(Contexts, Services);
+            _areaConsumer.Initialize();
 
             _spawnHandler = new MobaProjectileSpawnSyncHandler(this);
             _tickHandler = new MobaProjectileTickSyncHandler(this);
@@ -112,22 +132,74 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 
         protected override void OnExecute()
         {
-            if (_projectiles == null || _links == null || _registry == null) return;
+            try
+            {
+                if (_settling) throw new InvalidOperationException("MOBA notification settlement cannot reenter.");
+                if (_frameGuard?.Failure != null) throw new InvalidOperationException("MOBA session has failed.");
+                if (_projectiles is not IProjectilePendingNotifications pending || _links == null || _registry == null || _areas == null || _time == null || _frameGuard == null)
+                    throw new InvalidOperationException("MOBA settlement requires notification query, links, actors and Area runtime.");
+                _settling = true;
+                _consumed = 0;
+                var firstRound = true;
+                do
+                {
+                    /*
+                     * 先冻结全部类别，再执行任何回调。回调追加的通知只能进入下一轮，
+                     * 因而新建并立即删除的对象仍会先 Spawn 后终结。
+                     */
+                    var projectileCount = FreezeBatch();
+                    var areaCount = _areaConsumer.FreezeBatch();
+                    ConsumeBudget(projectileCount + areaCount);
+                    ProcessSpawns();
+                    foreach (var arrival in _arrivals) _stageTriggers?.ExecuteProjectileArrival(in arrival);
+                    ProcessTicks();
+                    if (firstRound) SyncActiveTransforms();
+                    ProcessHits();
+                    ProcessExits();
+                    _areaConsumer.ConsumeBatch(_consumeBudget);
+                    if (_frameGuard.Failure != null) throw new InvalidOperationException("MOBA settlement callback failed.", _frameGuard.Failure);
+                    firstRound = false;
+                }
+                while (pending.PendingNotificationCount != 0 || _areas.HasDueDelayAreas(_time.Frame.Value));
+            }
+            catch (Exception error)
+            {
+                _frameGuard?.FailFrame(error);
+                throw;
+            }
+            finally
+            {
+                _settling = false;
+            }
+        }
 
-            ProcessSpawns();
+        private void ConsumeBudget(int count)
+        {
+            if (count > MaxSettlementItems - _consumed)
+                throw new InvalidOperationException($"MOBA notification settlement exceeds {MaxSettlementItems} items.");
+            _consumed += count;
+        }
+
+        private int FreezeBatch()
+        {
+            _spawns.Clear();
+            _projectiles.DrainSpawnEvents(_spawns);
             _arrivals.Clear();
             if (_projectiles is IProjectileArrivalEventSource arrivals) arrivals.DrainArrivalEvents(_arrivals);
-            foreach (var arrival in _arrivals) _stageTriggers?.ExecuteProjectileArrival(in arrival);
-            ProcessTicks();
-            SyncActiveTransforms();
-            ProcessHits();
-            ProcessExits();
+            _ticks.Clear();
+            _projectiles.DrainTickEvents(_ticks);
+            _hits.Clear();
+            _projectiles.DrainHitEvents(_hits);
+            _exits.Clear();
+            _projectiles.DrainExitEvents(_exits);
+            return _spawns.Count + _arrivals.Count + _ticks.Count + _hits.Count + _exits.Count;
         }
 
         private void SyncActiveTransforms()
         {
-            // Gameplay tick events are optional and periodic. Actor projection must
-            // follow the authoritative runtime every frame even without tick effects.
+            /*
+             * 游戏 Tick 通知可缺省；Actor 投影仍每帧同步一次，维持 Tick 后 Hit 前的位置。
+             */
             _transformActorIds.Clear();
             _transformActorIds.AddRange(_registry.CopyActorIdsInOrder());
             foreach (var actorId in _transformActorIds)
@@ -148,31 +220,23 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 
         private void ProcessSpawns()
         {
-            _spawns.Clear();
-            _projectiles.DrainSpawnEvents(_spawns);
             _spawnHandler?.HandleSpawns(_spawns);
         }
 
         private void ProcessTicks()
         {
-            _ticks.Clear();
-            _projectiles.DrainTickEvents(_ticks);
             if (_ticks.Count > 0) _lifecycle?.RecordTickEvents(MobaTemporaryEntityKind.Projectile, _ticks.Count);
             _tickHandler?.HandleTicks(_ticks);
         }
 
         private void ProcessExits()
         {
-            _exits.Clear();
-            _projectiles.DrainExitEvents(_exits);
             if (_exits.Count > 0) _lifecycle?.RecordExitEvents(MobaTemporaryEntityKind.Projectile, _exits.Count);
             _exitHandler?.HandleExits(_exits);
         }
 
         private void ProcessHits()
         {
-            _hits.Clear();
-            _projectiles.DrainHitEvents(_hits);
             if (_hits.Count > 0) _lifecycle?.RecordHitEvents(MobaTemporaryEntityKind.Projectile, _hits.Count);
             _hitHandler?.HandleHits(_hits);
         }

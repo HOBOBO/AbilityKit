@@ -103,6 +103,11 @@ public static class ActorComponentSerialization {
             var p = e.championLevel;
             w.Write(p.Value);
         }
+        w.Write(e.hasSkillCastRetention);
+        if (e.hasSkillCastRetention) {
+            var p = e.skillCastRetention;
+            w.Write(p.LastObservedFrame);
+        }
     }
 
     public static void Restore(global::ActorEntity e, System.IO.BinaryReader r) {
@@ -213,6 +218,12 @@ public static class ActorComponentSerialization {
             e.ReplaceChampionLevel(value);
         } else if (e.hasChampionLevel) {
             e.RemoveChampionLevel();
+        }
+        if (r.ReadBoolean()) {
+            var lastObservedFrame = r.ReadInt32();
+            e.ReplaceSkillCastRetention(lastObservedFrame);
+        } else if (e.hasSkillCastRetention) {
+            e.RemoveSkillCastRetention();
         }
     }
 }

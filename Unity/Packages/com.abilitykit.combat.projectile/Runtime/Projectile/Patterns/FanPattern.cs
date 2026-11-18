@@ -9,6 +9,9 @@ namespace AbilityKit.Combat.Projectile
         private readonly int _count;
         private readonly float _totalAngleDeg;
 
+        internal int Count => _count;
+        internal float TotalAngleDeg => _totalAngleDeg;
+
         public FanPattern(int count, float totalAngleDeg)
         {
             _count = MathUtil.Clamp(count, 1, 1024);

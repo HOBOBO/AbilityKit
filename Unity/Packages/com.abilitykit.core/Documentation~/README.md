@@ -16,7 +16,7 @@ Core 的稳定基础面当前覆盖以下能力：
 - 数学基础：`Runtime/Math`。
 - 日志：`Runtime/Logging`。
 - 稳定集合：`Runtime/Collections`。
-- 托管缓冲区所有权：`Runtime/Buffers`。
+- 有界缓冲区与托管数组所有权：`Runtime/Buffers`。
 - 稳定标识：`Runtime/Generic`。
 - 生命周期注册：`Runtime/Lifetime`。
 - 单调时间：`Runtime/Timing`。
@@ -36,14 +36,71 @@ Core 的稳定基础面当前覆盖以下能力：
 
 **内容概要**：程序集边界、三消费者准入规则、API 兼容门禁、线程安全契约与迁移清单。
 
-### 2. [Marker 系统说明](../Runtime/Markers/README.md)
+### 2. [Marker 注册与扫描兼容契约](./Markers.md)
 
-**阅读对象**：需要用 Attribute/Marker 自动注册类型的框架或业务模块开发者
+**阅读对象**：维护既有标记登记、扫描或迁移全局引导入口的开发者。
 
-**内容概要**：
-- MarkerAttribute 的用途
-- MarkerRegistry 和扫描入口
-- 上层包如何通过 Marker 降低手写注册成本
+**内容概要**：类型与键的计数、历史目录、实时及延迟查询、实例创建异常、部分类型加载、扫描入口差异、全局状态重入与所有者迁移。
+
+### 3. [同步事件契约](./Eventing.md)
+
+**阅读对象**：接入事件分发器、管理订阅生命周期或评审参数所有权的开发者。
+
+**内容概要**：同步顺序、快照变更、一次性订阅重入、参数释放、异常边界与最小接入示例。
+
+### 4. [集合、缓冲区与数组所有权契约](./CollectionsAndBuffers.md)
+
+**阅读对象**：使用稳定集合、整数帧缓冲区、顺序缓冲区或租用数组的开发者。
+
+**内容概要**：稳定决胜、完整整数键、容量变化、后端成本、引用释放、视图有效期及数组池异常边界。
+
+### 5. [对象池生命周期与配置契约](./Pooling.md)
+
+**阅读对象**：使用对象池、管理池作用域或配置池创建参数的开发者。
+
+**内容概要**：回调顺序、异常与部分成功、归还责任、容量预留、裁剪策略、作用域释放及配置诊断限制。
+
+### 6. [数学原语契约](./Mathematics.md)
+
+**阅读对象**：使用浮点向量、四元数、三维变换或射线的开发者。
+
+**内容概要**：单位、退化输入、开方分辨率、旋转顺序、方向缩放、逆变换及射线参数。
+
+### 7. [稳定标识与单调时间契约](./IdentifiersAndTiming.md)
+
+**阅读对象**：使用持久化名称标识、局部名称注册表、单调时钟或时长换算的开发者。
+
+**内容概要**：编码与黄金向量、真实冲突、零及负标识、查询失败输出、时钟来源、单位、取整与溢出。
+
+### 8. [定点数学桥接契约](./DeterministicMathBridge.md)
+
+**阅读对象**：使用浮点与定点转换、定点几何或桥接数学函数的开发者。
+
+**内容概要**：严格转换与归零守卫、量化和表示范围、几何退化、中间溢出、函数定义域与依赖内核的跨目标评审项。
+
+### 9. [Core Continuous 兼容与迁移契约](./ContinuousCompatibility.md)
+
+**阅读对象**：维护旧 Core 持续体使用方或迁往独立 Continuous 包的开发者。
+
+**内容概要**：登记与默认相等比较、回调顺序、异常及补偿、活动索引、查询视图、批处理与重入限制，以及目标包的激活失败差异。
+
+### 10. [反射与释放工具兼容契约](./ReflectionAndDisposalCompatibility.md)
+
+**阅读对象**：维护或迁移旧反射调用、资源释放辅助入口的开发者。
+
+**内容概要**：类型解析与程序集遍历、重载歧义、包装异常、异步返回值、四个释放重载的失败结果、引用清空时机及重入和别名限制。
+
+### 11. [配置文件、缓存与模块描述兼容契约](./ConfigurationFileCompatibility.md)
+
+**阅读对象**：维护或迁移旧应用设置文件、持久化配置缓存和模块安装描述的开发者。
+
+**内容概要**：文件失败兜底、直接覆盖与副作用、缓存键和写入时间、对象共享、并发提交与清空边界、默认构造、首个有效模块匹配及所有者迁移。
+
+### 12. [旧 DebugDraw 兼容与迁移契约](./DebugDrawCompatibility.md)
+
+**阅读对象**：维护旧绘制值类型、SceneView 登记或迁往 Diagnostics 的开发者。
+
+**内容概要**：掩码与颜色默认值、静态设置非持久化、公开但未由驱动执行的设置、实时登记遍历、异常隔离范围、形状近似及真实 Unity 验收边界。
 
 ---
 
@@ -73,13 +130,18 @@ Foundation Starter 的第一阶段只应依赖 `core` 和 `world.di`，用于验
 | 子能力 | 路径 | 用途 |
 |------|------|------|
 | Math | `Runtime/Math` | 跨 Unity/服务端/测试的基础数学类型 |
+| 定点数学桥接 | `Runtime/Mathematics` | 浮点边界到定点内核的现有适配 |
 | Logging | `Runtime/Logging` | 日志入口与输出 Sink 抽象 |
-| Event | `Runtime/Event` | 轻量事件发布、订阅和取消订阅 |
+| Eventing | `Runtime/Eventing` | 轻量事件发布、订阅和取消订阅 |
+| Collections | `Runtime/Collections` | 稳定优先级集合和升序唯一整数索引 |
+| Buffers | `Runtime/Buffers` | 有界帧/顺序存储和租用数组所有权 |
+| Identifiers | `Runtime/Generic` | 版本化稳定哈希和局部名称注册表 |
+| Timing | `Runtime/Timing` | 单调时钟、时长计数与毫秒换算 |
 | Pooling | `Runtime/Pooling` | 对象池、池作用域、池配置与诊断 |
-| Markers | `Runtime/Markers` | Attribute 标记和类型扫描注册 |
+| Markers | `Runtime/Markers` | 既有标记与注册兼容构件；全局发现及引导已冻结 |
 | Continuous | `Runtime/Continuous` | 已弃用的兼容面；新代码使用 `com.abilitykit.continuous` |
 | Config/Reflection | 对应 Runtime 目录 | 已迁移 MOBA 消费方，仅保留弃用兼容 API |
-| Markers/DebugDraw | 对应 Runtime 目录 | 待迁出的发现和诊断能力 |
+| DebugDraw | `Runtime/DebugDraw` | 已迁至 Diagnostics 的旧诊断兼容面 |
 
 ### Starter 推荐 API
 
@@ -89,6 +151,7 @@ Foundation Starter 的第一阶段只应依赖 `core` 和 `world.di`，用于验
 | 事件 | `EventDispatcher`、`EventKey` |
 | 对象池 | `ObjectPool<T>`、`PoolScope`、`PoolRegistry` |
 | 集合 | `StablePriorityList<T>`、`SortedIntSet` |
+| 标识 | `StableHashV1`、`StableStringIdRegistry` |
 | 所有权 | `PooledBufferOwner<T>`、`DisposableRegistration` |
 | 时间 | `IMonotonicClock`、`MonotonicTime` |
 
@@ -108,18 +171,19 @@ Foundation Starter 的第一阶段只应依赖 `core` 和 `world.di`，用于验
 
 ```
 com.abilitykit.core/Runtime/
-├── Buffers/                 # 托管缓冲区所有权
+├── Buffers/                 # 有界存储与托管数组所有权
 ├── Collections/             # 稳定集合
 ├── Generic/                 # 稳定标识与哈希
 ├── Lifetime/                # 生命周期注册
 ├── Logging/                 # 日志抽象
 ├── Math/                    # 纯 C# 数学类型
+├── Mathematics/             # 现有定点数学桥接
 ├── Timing/                  # 单调时间
-├── Event/、Pooling/         # 当前兼容基础设施，后续拆薄
+├── Eventing/、Pooling/         # 当前兼容基础设施，后续拆薄
 └── Config/、Continuous/、Markers/、Reflection/、DebugDraw/
                               # 待迁出的兼容面（Numerics 已删除）
 ```
 
 ---
 
-*最后更新：2026-08-14*
+*最后更新：2026-11-18*

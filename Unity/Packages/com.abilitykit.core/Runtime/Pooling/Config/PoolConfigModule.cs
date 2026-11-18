@@ -23,11 +23,14 @@ namespace AbilityKit.Core.Pooling
         public PoolConfigProviderInfo Info { get; }
 
         /// <summary>
-        /// 获取该模块中声明的全部对象池配置。
+        /// 获取该模块内部字典的只读接口视图；不是每次复制的快照，也不承诺底层字典不可变。
         /// </summary>
         public IReadOnlyDictionary<PoolConfigRequest, PoolItemConfig> Configs => _configs;
 
         /// <inheritdoc />
+        /// <summary>
+        /// 按规范化请求查找已构建的配置；命中且配置已指定时返回 true，否则输出默认配置。
+        /// </summary>
         public bool TryGetConfig(PoolConfigRequest request, out PoolItemConfig config)
         {
             request = new PoolConfigRequest(request.ScopeName, request.ElementType, request.Key);
@@ -132,7 +135,7 @@ namespace AbilityKit.Core.Pooling
         }
 
         /// <summary>
-        /// 构建可注册到对象池配置中心的不可变配置提供模块。
+        /// 复制当前配置字典，构建可注册到配置中心的提供模块；后续修改构建器不影响该副本。
         /// </summary>
         public PoolConfigModule Build()
         {

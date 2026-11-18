@@ -75,6 +75,11 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
             public FrameIndex ConfirmedFrame;
             public FrameIndex PredictedFrame;
+            /*
+             * 输入准备不能代替成功提交；失败时恢复宿主可见进度，模拟现场由世界保留。
+             */
+            public FrameIndex PredictedBeforeTick;
+            public FrameIndex ConfirmedBeforeTick;
 
             public SortedDictionary<int, List<LocalPlayerInputEvent>> PendingLocalInputs;
 
@@ -828,6 +833,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 if (ctx == null) continue;
                 if (ctx.World == null || ctx.InputSink == null) continue;
                 if (ctx.RollbackFaulted) continue;
+                if (ctx.World.Services?.TryResolve<IWorldFrameGuard>(out var preGuard) == true && !preGuard.CanAdvance) continue;
+                ctx.PredictedBeforeTick = ctx.PredictedFrame;
+                ctx.ConfirmedBeforeTick = ctx.ConfirmedFrame;
 
                 _lastConsumedConfirmedFrames = 0;
                 _lastConsumedPredictedFrames = 0;
@@ -1313,6 +1321,13 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             {
                 var ctx = kv.Value;
                 if (ctx == null) continue;
+                if (ctx.World?.Services?.TryResolve<IWorldFrameGuard>(out var postGuard) == true && !postGuard.CanCommit)
+                {
+                    ctx.PredictedFrame = ctx.PredictedBeforeTick;
+                    ctx.ConfirmedFrame = ctx.ConfirmedBeforeTick;
+                    ctx.RollbackFaulted = true;
+                    continue;
+                }
                 if (!_enableRollback || ctx.Rollback == null) continue;
                 if (!ShouldProcessRollbackFrame(ctx.PredictedFrame, ctx.LastProcessedRollbackFrame)) continue;
 
